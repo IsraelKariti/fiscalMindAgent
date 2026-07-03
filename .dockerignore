@@ -1,0 +1,13 @@
+node_modules
+web/node_modules
+web/dist
+landing
+dist
+.git
+.env
+.env.*
+secrets
+*.log
+.claude
+README.md
+docker-compose.yml

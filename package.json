@@ -10,7 +10,9 @@
   "scripts": {
     "dev:web": "tsx watch src/web.ts",
     "dev:worker": "tsx watch src/worker.ts",
+    "dev:gui": "npm run dev --prefix web",
     "build": "tsc -p .",
+    "build:gui": "npm run build --prefix web",
     "start:web": "node dist/src/web.js",
     "start:worker": "node dist/src/worker.js",
     "db:migrate": "tsx scripts/migrate.ts",

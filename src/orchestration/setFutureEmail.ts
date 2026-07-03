@@ -1,6 +1,7 @@
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
 import { buildPrompt } from '../gemini/prompt.js';
+import { getPromptTemplate } from '../gemini/promptSettings.js';
 import { decide } from '../gemini/decide.js';
 import { scheduleDraftEmail } from './scheduleDraftEmail.js';
 import { hoursToMs } from '../util/time.js';
@@ -13,7 +14,8 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   if (client.goal_status === 'complete') return;
 
   const history = await emails.listForClient(clientId);
-  const { systemInstruction, contents } = buildPrompt(client, history, new Date());
+  const { template } = await getPromptTemplate();
+  const { systemInstruction, contents } = buildPrompt(client, history, new Date(), template);
   const decision = await decide(systemInstruction, contents);
 
   if (decision.decision === 'goal_complete') {

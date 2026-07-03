@@ -13,6 +13,12 @@ const EnvSchema = z.object({
   GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
   ACCOUNTANT_TIMEZONE: z.string().min(1).default('America/New_York'),
   PORT: z.coerce.number().int().positive().default(3000),
+  // Dashboard login. Optional so the worker/CLI can run without them; the
+  // dashboard login endpoint rejects requests until DASHBOARD_PASSWORD is set.
+  DASHBOARD_PASSWORD: z.string().min(8).optional(),
+  // Signs the dashboard session cookie. If unset, a random per-process secret
+  // is used (sessions are invalidated whenever the web process restarts).
+  DASHBOARD_SESSION_SECRET: z.string().min(16).optional(),
 });
 
 export const env = EnvSchema.parse(process.env);

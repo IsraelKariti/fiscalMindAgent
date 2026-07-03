@@ -1,4 +1,5 @@
-import { getGmailClient } from './client.js';
+import { gmailClientForAccount } from './client.js';
+import type { GmailAccountRow } from '../db/types.js';
 
 export interface NewMessageRef {
   id: string;
@@ -10,10 +11,10 @@ export interface NewMessageRef {
  * store as the new sync watermark.
  */
 export async function listHistorySince(
-  mailbox: string,
+  account: GmailAccountRow,
   startHistoryId: string,
 ): Promise<{ messages: NewMessageRef[]; newHistoryId: string | null }> {
-  const gmail = await getGmailClient();
+  const gmail = gmailClientForAccount(account);
 
   const seen = new Set<string>();
   const messages: NewMessageRef[] = [];

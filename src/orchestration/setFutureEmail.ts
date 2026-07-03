@@ -14,7 +14,7 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   if (client.goal_status === 'complete') return;
 
   const history = await emails.listForClient(clientId);
-  const { template } = await getPromptTemplate();
+  const { template } = await getPromptTemplate(client.user_id);
   const { systemInstruction, contents } = buildPrompt(client, history, new Date(), template);
   const decision = await decide(systemInstruction, contents);
 

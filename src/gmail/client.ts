@@ -1,63 +1,59 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import path from 'node:path';
 import { google, type gmail_v1 } from 'googleapis';
-import { OAuth2Client, type Credentials } from 'google-auth-library';
+import { OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env.js';
+import * as gmailAccounts from '../db/queries/gmailAccounts.js';
+import type { GmailAccountRow } from '../db/types.js';
+import { decryptSecret, encryptSecret } from '../util/crypto.js';
 import { logger } from '../util/logger.js';
 
-let cachedClient: gmail_v1.Gmail | null = null;
-let cachedOAuth2Client: OAuth2Client | null = null;
+/**
+ * Per-mailbox Gmail clients, authenticated by the refresh token stored
+ * (encrypted) in gmail_accounts. All tokens are minted under the one
+ * Web-application OAuth client (GOOGLE_OAUTH_CLIENT_ID/SECRET).
+ */
 
-export function createOAuth2Client(): OAuth2Client {
-  return new OAuth2Client(env.GMAIL_OAUTH_CLIENT_ID, env.GMAIL_OAUTH_CLIENT_SECRET, 'http://localhost:5555/oauth2callback');
-}
-
-async function loadStoredTokens(oauth2Client: OAuth2Client): Promise<void> {
-  const raw = await readFile(env.GMAIL_TOKEN_PATH, 'utf8').catch(() => null);
-  if (!raw) {
-    throw new Error(`No Gmail OAuth token found at ${env.GMAIL_TOKEN_PATH}. Run "npm run gmail:auth" first.`);
+function webOAuthCredentials(): { clientId: string; clientSecret: string } {
+  if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    throw new Error('GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET must be set to use Gmail.');
   }
-  oauth2Client.setCredentials(JSON.parse(raw));
-  oauth2Client.on('tokens', (tokens) => {
-    persistTokens(oauth2Client, tokens).catch((err) => logger.error('failed to persist refreshed Gmail tokens', err));
+  return { clientId: env.GOOGLE_OAUTH_CLIENT_ID, clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET };
+}
+
+export function createGmailOAuthClient(redirectUri?: string): OAuth2Client {
+  const { clientId, clientSecret } = webOAuthCredentials();
+  return new OAuth2Client(clientId, clientSecret, redirectUri);
+}
+
+// Keyed by account id + token ciphertext, so a re-connect (new refresh token)
+// naturally misses the cache and builds a fresh client.
+const cache = new Map<string, gmail_v1.Gmail>();
+
+export function gmailClientForAccount(account: GmailAccountRow): gmail_v1.Gmail {
+  const cacheKey = `${account.id}:${account.refresh_token_enc}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const oauth = createGmailOAuthClient();
+  oauth.setCredentials({ refresh_token: decryptSecret(account.refresh_token_enc) });
+  // Google occasionally rotates refresh tokens; persist a replacement if one arrives.
+  oauth.on('tokens', (tokens) => {
+    if (!tokens.refresh_token) return;
+    gmailAccounts
+      .upsertForUser({
+        userId: account.user_id,
+        emailAddress: account.email_address,
+        refreshTokenEnc: encryptSecret(tokens.refresh_token),
+      })
+      .catch((err) => logger.error('failed to persist rotated Gmail refresh token', err, { accountId: account.id }));
   });
-}
 
-async function persistTokens(oauth2Client: OAuth2Client, newTokens: Credentials): Promise<void> {
-  const merged = { ...oauth2Client.credentials, ...newTokens };
-  await mkdir(path.dirname(env.GMAIL_TOKEN_PATH), { recursive: true });
-  await writeFile(env.GMAIL_TOKEN_PATH, JSON.stringify(merged, null, 2), { mode: 0o600 });
-}
-
-export async function getOAuth2Client(): Promise<OAuth2Client> {
-  if (cachedOAuth2Client) return cachedOAuth2Client;
-  const client = createOAuth2Client();
-  await loadStoredTokens(client);
-  cachedOAuth2Client = client;
+  const client = google.gmail({ version: 'v1', auth: oauth });
+  cache.set(cacheKey, client);
   return client;
 }
 
-export async function getGmailClient(): Promise<gmail_v1.Gmail> {
-  if (cachedClient) return cachedClient;
-  const auth = await getOAuth2Client();
-  cachedClient = google.gmail({ version: 'v1', auth });
-  return cachedClient;
-}
-
-let cachedMailboxEmail: string | null = null;
-
-export async function getMailboxEmail(): Promise<string> {
-  if (cachedMailboxEmail) return cachedMailboxEmail;
-  const gmail = await getGmailClient();
-  const profile = await gmail.users.getProfile({ userId: 'me' });
-  const address = profile.data.emailAddress;
-  if (!address) throw new Error('Gmail getProfile did not return emailAddress');
-  cachedMailboxEmail = address;
-  return address;
-}
-
-export async function getMessage(messageId: string): Promise<gmail_v1.Schema$Message> {
-  const gmail = await getGmailClient();
+export async function getMessage(account: GmailAccountRow, messageId: string): Promise<gmail_v1.Schema$Message> {
+  const gmail = gmailClientForAccount(account);
   const { data } = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'full' });
   return data;
 }

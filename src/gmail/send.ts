@@ -1,10 +1,13 @@
-import { getGmailClient, getMailboxEmail } from './client.js';
+import { gmailClientForAccount } from './client.js';
 import { buildRawMessage } from './mime.js';
+import type { GmailAccountRow } from '../db/types.js';
 
-export async function sendEmail(args: { to: string; subject: string; body: string; threadId?: string }): Promise<{ id: string; threadId: string }> {
-  const gmail = await getGmailClient();
-  const from = await getMailboxEmail();
-  const raw = buildRawMessage({ to: args.to, from, subject: args.subject, body: args.body });
+export async function sendEmail(
+  account: GmailAccountRow,
+  args: { to: string; subject: string; body: string; threadId?: string },
+): Promise<{ id: string; threadId: string }> {
+  const gmail = gmailClientForAccount(account);
+  const raw = buildRawMessage({ to: args.to, from: account.email_address, subject: args.subject, body: args.body });
 
   const { data } = await gmail.users.messages.send({
     userId: 'me',

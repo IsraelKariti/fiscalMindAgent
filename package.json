@@ -16,8 +16,6 @@
     "start:web": "node dist/src/web.js",
     "start:worker": "node dist/src/worker.js",
     "db:migrate": "tsx scripts/migrate.ts",
-    "gmail:auth": "tsx src/gmail/oauth.ts",
-    "gmail:watch": "tsx scripts/startWatch.ts",
     "cli:bootstrap": "tsx src/cli/bootstrapClient.ts",
     "typecheck": "tsc -p . --noEmit"
   },

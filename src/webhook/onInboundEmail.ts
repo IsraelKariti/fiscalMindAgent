@@ -1,4 +1,5 @@
 import * as gmailSyncState from '../db/queries/gmailSyncState.js';
+import * as gmailAccounts from '../db/queries/gmailAccounts.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
 import { withClientLock } from '../db/withClientLock.js';
@@ -16,9 +17,14 @@ export interface GmailPushPayload {
 
 export async function onInboundEmail(payload: GmailPushPayload, pubsubMessageId: string): Promise<void> {
   const mailbox = payload.emailAddress;
+  const account = await gmailAccounts.getByEmailAddress(mailbox);
+  if (!account) {
+    logger.warn('notification for a mailbox no user has connected, ignoring', { mailbox });
+    return;
+  }
   const syncState = await gmailSyncState.get(mailbox);
   if (!syncState) {
-    logger.warn('no sync state for mailbox, ignoring (was watch() run?)', { mailbox });
+    logger.warn('no sync state for mailbox, ignoring (was watch started?)', { mailbox });
     return;
   }
 
@@ -32,7 +38,7 @@ export async function onInboundEmail(payload: GmailPushPayload, pubsubMessageId:
     return;
   }
 
-  const { messages, newHistoryId } = await listHistorySince(mailbox, syncState.last_history_id);
+  const { messages, newHistoryId } = await listHistorySince(account, syncState.last_history_id);
 
   if (messages.length === 0) {
     await gmailSyncState.updateHistoryId(mailbox, newHistoryId ?? String(payload.historyId));
@@ -40,11 +46,12 @@ export async function onInboundEmail(payload: GmailPushPayload, pubsubMessageId:
   }
 
   for (const msg of messages) {
-    const full = await getMessage(msg.id);
+    const full = await getMessage(account, msg.id);
     const fromAddress = parseEmailAddress(extractHeader(full, 'From'));
     if (fromAddress === mailbox) continue; // our own sent mail surfacing in history
 
-    const client = await clients.getByEmailAddress(fromAddress);
+    // Only this mailbox owner's clients — the same address may be another user's client.
+    const client = await clients.getByEmailAddressForUser(account.user_id, fromAddress);
     if (!client) {
       logger.warn('inbound message from unknown address, ignoring', { fromAddress });
       continue;

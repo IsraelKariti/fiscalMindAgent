@@ -1,4 +1,4 @@
-import * as appSettings from '../db/queries/appSettings.js';
+import * as userSettings from '../db/queries/userSettings.js';
 import { DEFAULT_PROMPT_TEMPLATE } from './prompt.js';
 
 export const PROMPT_TEMPLATE_SETTING_KEY = 'gemini_system_prompt_template';
@@ -9,18 +9,22 @@ export interface PromptTemplateState {
   updatedAt: Date | null;
 }
 
-/** The effective system-prompt template: the dashboard-saved one, or the built-in default. */
-export async function getPromptTemplate(): Promise<PromptTemplateState> {
-  const row = await appSettings.get(PROMPT_TEMPLATE_SETTING_KEY);
+/**
+ * The user's effective system-prompt template: their saved one, or the
+ * built-in default. `userId` null (legacy CLI-created clients with no owner)
+ * always resolves to the default.
+ */
+export async function getPromptTemplate(userId: string | null): Promise<PromptTemplateState> {
+  const row = userId ? await userSettings.get(userId, PROMPT_TEMPLATE_SETTING_KEY) : null;
   if (!row) return { template: DEFAULT_PROMPT_TEMPLATE, isCustom: false, updatedAt: null };
   return { template: row.value, isCustom: true, updatedAt: row.updated_at };
 }
 
-export async function savePromptTemplate(template: string): Promise<void> {
-  await appSettings.upsert(PROMPT_TEMPLATE_SETTING_KEY, template);
+export async function savePromptTemplate(userId: string, template: string): Promise<void> {
+  await userSettings.upsert(userId, PROMPT_TEMPLATE_SETTING_KEY, template);
 }
 
-/** Reverts to the built-in default template. */
-export async function resetPromptTemplate(): Promise<void> {
-  await appSettings.remove(PROMPT_TEMPLATE_SETTING_KEY);
+/** Reverts the user to the built-in default template. */
+export async function resetPromptTemplate(userId: string): Promise<void> {
+  await userSettings.remove(userId, PROMPT_TEMPLATE_SETTING_KEY);
 }

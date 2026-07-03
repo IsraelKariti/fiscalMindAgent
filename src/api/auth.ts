@@ -46,6 +46,27 @@ function timingSafeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
+/** Sets a short-lived signed CSRF state cookie for an OAuth redirect flow. */
+export function setOAuthStateCookie(res: Response, state: string): void {
+  res.cookie(STATE_COOKIE, `${state}.${sign(state)}`, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: env.APP_BASE_URL.startsWith('https://'),
+    maxAge: STATE_TTL_MS,
+    path: '/',
+  });
+}
+
+/** Reads + clears the state cookie; returns its value only if the signature checks out. */
+export function consumeOAuthStateCookie(req: Request, res: Response): string | null {
+  const cookie = readCookie(req, STATE_COOKIE);
+  res.clearCookie(STATE_COOKIE, { path: '/' });
+  if (!cookie) return null;
+  const [value, signature] = cookie.split('.');
+  if (!value || !signature || !timingSafeEqual(signature, sign(value))) return null;
+  return value;
+}
+
 function readCookie(req: Request, name: string): string | null {
   const header = req.headers.cookie;
   if (!header) return null;
@@ -90,13 +111,7 @@ export const startGoogleLogin: RequestHandler = (_req, res) => {
     return;
   }
   const state = crypto.randomBytes(16).toString('hex');
-  res.cookie(STATE_COOKIE, `${state}.${sign(state)}`, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: env.APP_BASE_URL.startsWith('https://'),
-    maxAge: STATE_TTL_MS,
-    path: '/',
-  });
+  setOAuthStateCookie(res, state);
   res.redirect(oauth.generateAuthUrl({ scope: IDENTITY_SCOPES, state }));
 };
 
@@ -107,15 +122,11 @@ export const googleLoginCallback: RequestHandler = async (req, res) => {
     res.redirect(`/?login_error=${encodeURIComponent(reason)}`);
   };
 
-  const stateCookie = readCookie(req, STATE_COOKIE);
-  res.clearCookie(STATE_COOKIE, { path: '/' });
+  const expectedState = consumeOAuthStateCookie(req, res);
   const state = typeof req.query.state === 'string' ? req.query.state : null;
   const code = typeof req.query.code === 'string' ? req.query.code : null;
-  if (!code || !state || !stateCookie) return fail('missing code or state');
-  const [stateValue, stateSig] = stateCookie.split('.');
-  if (stateValue !== state || !stateSig || !timingSafeEqual(stateSig, sign(stateValue))) {
-    return fail('state mismatch');
-  }
+  if (!code || !state || !expectedState) return fail('missing code or state');
+  if (state !== expectedState) return fail('state mismatch');
 
   const oauth = createLoginOAuthClient();
   const { tokens } = await oauth.getToken(code);

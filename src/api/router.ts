@@ -7,6 +7,7 @@ import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.j
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
 import { googleLoginCallback, logout, me, requireAuth, startGoogleLogin } from './auth.js';
+import { gmailConnectCallback, gmailDisconnect, gmailStatus, startGmailConnect } from './gmail.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -39,10 +40,15 @@ apiRouter.get('/me', wrap(me));
 
 apiRouter.use(requireAuth);
 
+apiRouter.get('/gmail/connect', startGmailConnect);
+apiRouter.get('/gmail/callback', wrap(gmailConnectCallback));
+apiRouter.get('/gmail/status', wrap(gmailStatus));
+apiRouter.post('/gmail/disconnect', wrap(gmailDisconnect));
+
 apiRouter.get(
   '/clients',
-  wrap(async (_req, res) => {
-    res.json({ clients: await clients.listAll() });
+  wrap(async (req, res) => {
+    res.json({ clients: await clients.listForUser(req.userId!) });
   }),
 );
 
@@ -50,7 +56,7 @@ apiRouter.get(
   '/clients/:id',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getById(id) : null;
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -82,7 +88,7 @@ apiRouter.patch(
       return;
     }
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.updateDetails(id, parsed.data) : null;
+    const client = id ? await clients.updateDetailsForUser(id, req.userId!, parsed.data) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -95,7 +101,7 @@ apiRouter.get(
   '/clients/:id/emails',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getById(id) : null;
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -106,8 +112,8 @@ apiRouter.get(
 
 apiRouter.get(
   '/prompt-template',
-  wrap(async (_req, res) => {
-    const state = await getPromptTemplate();
+  wrap(async (req, res) => {
+    const state = await getPromptTemplate(req.userId!);
     res.json({ ...state, defaultTemplate: DEFAULT_PROMPT_TEMPLATE, placeholders: PROMPT_PLACEHOLDERS });
   }),
 );
@@ -120,17 +126,17 @@ apiRouter.put(
       res.status(400).json({ error: 'Template must be a non-empty string.' });
       return;
     }
-    await savePromptTemplate(parsed.data.template);
-    const state = await getPromptTemplate();
+    await savePromptTemplate(req.userId!, parsed.data.template);
+    const state = await getPromptTemplate(req.userId!);
     res.json({ ...state, defaultTemplate: DEFAULT_PROMPT_TEMPLATE, placeholders: PROMPT_PLACEHOLDERS });
   }),
 );
 
 apiRouter.post(
   '/prompt-template/reset',
-  wrap(async (_req, res) => {
-    await resetPromptTemplate();
-    const state = await getPromptTemplate();
+  wrap(async (req, res) => {
+    await resetPromptTemplate(req.userId!);
+    const state = await getPromptTemplate(req.userId!);
     res.json({ ...state, defaultTemplate: DEFAULT_PROMPT_TEMPLATE, placeholders: PROMPT_PLACEHOLDERS });
   }),
 );

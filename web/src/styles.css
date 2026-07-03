@@ -365,6 +365,52 @@ textarea {
   font-size: 18px;
 }
 
+/* Topbar Gmail connection state */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gmail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.chip-x {
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+}
+
+.chip-x:hover {
+  color: var(--error);
+}
+
+.connect-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--primary-bg, rgba(37, 99, 235, 0.08));
+  border-bottom: 1px solid var(--border);
+}
+
+.connect-banner .btn {
+  text-decoration: none;
+}
+
 /* <a> styled as a button: needs flex centering + no underline */
 .login-google-btn {
   display: inline-flex;

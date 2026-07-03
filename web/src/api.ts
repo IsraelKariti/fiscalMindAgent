@@ -63,9 +63,16 @@ export interface Me {
   user?: { id: string; email: string; name: string | null; pictureUrl: string | null };
 }
 
+export interface GmailStatus {
+  connected: boolean;
+  emailAddress: string | null;
+}
+
 export const api = {
   me: () => request<Me>('/api/me'),
   logout: () => request<{ ok: true }>('/api/logout', { method: 'POST' }),
+  gmailStatus: () => request<GmailStatus>('/api/gmail/status'),
+  gmailDisconnect: () => request<{ ok: true }>('/api/gmail/disconnect', { method: 'POST' }),
   listClients: () => request<{ clients: Client[] }>('/api/clients'),
   getClient: (id: string) => request<{ client: Client; nextScheduled: NextScheduled | null }>(`/api/clients/${id}`),
   updateClient: (id: string, patch: Partial<Pick<Client, 'name' | 'occupation' | 'phone' | 'company' | 'notes'>>) =>

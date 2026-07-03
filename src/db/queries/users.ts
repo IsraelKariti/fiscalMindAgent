@@ -6,6 +6,11 @@ export async function getById(id: string): Promise<UserRow | null> {
   return rows[0] ?? null;
 }
 
+export async function getByEmail(email: string): Promise<UserRow | null> {
+  const { rows } = await pool.query<UserRow>('SELECT * FROM users WHERE email = $1', [email]);
+  return rows[0] ?? null;
+}
+
 /**
  * Called on every Google sign-in: creates the user on first login, and keeps
  * email/name/picture in sync with the Google profile afterwards. `google_sub`

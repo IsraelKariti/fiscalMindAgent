@@ -4,6 +4,7 @@ import { SEND_EMAIL_QUEUE_NAME } from './sendEmailQueue.js';
 import { withClientLock } from '../db/withClientLock.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
+import * as gmailAccounts from '../db/queries/gmailAccounts.js';
 import { sendEmail } from '../gmail/send.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
@@ -30,7 +31,13 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       return;
     }
 
-    const result = await sendEmail({
+    const account = client.user_id ? await gmailAccounts.getByUserId(client.user_id) : null;
+    if (!account) {
+      logger.warn('client owner has no connected Gmail, skipping send', { clientId, userId: client.user_id });
+      return;
+    }
+
+    const result = await sendEmail(account, {
       to: client.email_address,
       subject: draft.subject,
       body: draft.body,

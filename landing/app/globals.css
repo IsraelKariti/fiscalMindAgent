@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0A0A0F;
+  --surface: #111118;
+  --border: #1E1E2E;
+  --text: #F1F5F9;
+  --muted: #64748B;
+  --accent: #3B82F6;
+  --accent-light: #60A5FA;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --font-sans: var(--font-inter);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, #60A5FA 0%, #ffffff 45%, #60A5FA 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes float-up {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.7s ease forwards;
+}
+
+.animate-fade-in-up-delay-1 {
+  animation: fade-in-up 0.7s 0.15s ease forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-up-delay-2 {
+  animation: fade-in-up 0.7s 0.3s ease forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-up-delay-3 {
+  animation: fade-in-up 0.7s 0.45s ease forwards;
+  opacity: 0;
+}
+
+/* Animated gradient border button */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes border-spin {
+  to { --border-angle: 360deg; }
+}
+
+.gradient-border-btn {
+  --border-angle: 0deg;
+  --btn-accent: #3B82F6;
+  position: relative;
+  padding: 1.5px;
+  border-radius: 14px;
+  background: conic-gradient(
+    from var(--border-angle),
+    var(--btn-accent) 0%,
+    transparent 30%,
+    transparent 70%,
+    var(--btn-accent) 100%
+  );
+  animation: border-spin 2.5s linear infinite;
+  display: inline-block;
+  transition: filter 0.3s ease;
+}
+
+.gradient-border-btn:hover {
+  filter: brightness(1.2);
+}
+
+.gradient-border-btn-inner {
+  background: #0e0e18;
+  border-radius: 12px;
+  padding: 11px 22px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: block;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.gradient-border-btn:hover .gradient-border-btn-inner {
+  background: #13131f;
+}
+
+/* Secondary: text link with animated underline */
+.arrow-link {
+  position: relative;
+  color: #64748B;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.25s ease;
+  text-decoration: none;
+}
+
+.arrow-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  inset-inline-start: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: inline-end;
+  transition: transform 0.3s ease;
+}
+
+.arrow-link:hover {
+  color: #F1F5F9;
+}
+
+.arrow-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: inline-start;
+}

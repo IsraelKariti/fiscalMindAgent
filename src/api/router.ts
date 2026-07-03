@@ -1,10 +1,14 @@
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import * as clients from '../db/queries/clients.js';
+import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as emails from '../db/queries/emails.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
+import { withClientLock } from '../db/withClientLock.js';
 import { scheduleDraftEmail } from '../orchestration/scheduleDraftEmail.js';
+import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
+import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { hoursToMs } from '../util/time.js';
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.js';
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
@@ -36,8 +40,48 @@ const ClientCreateSchema = z
     subject: z.string().min(1),
     body: z.string().min(1),
     delayMinutes: z.number().int().min(0).max(60 * 24 * 30),
+    documents: z.array(z.string().min(1).max(200)).max(50).default([]),
   })
   .strict();
+
+const DocumentCreateSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(2000).nullable().optional(),
+  })
+  .strict();
+
+const DocumentPatchSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    description: z.string().max(2000).nullable().optional(),
+    status: z.enum(['pending', 'collected']).optional(),
+  })
+  .strict();
+
+/**
+ * Re-derives goal_status from the documents list after a manual change and keeps the follow-up
+ * loop consistent: all collected -> mark complete and cancel any pending send; a document (re)opened
+ * on a complete client -> reopen the goal and have the agent draft the next chase email.
+ * While the goal stays pending, an already-scheduled email is left alone — the updated list is
+ * picked up when the next email is drafted.
+ */
+async function onDocumentsChanged(clientId: string): Promise<void> {
+  const [client, docs] = await Promise.all([clients.getById(clientId), clientDocuments.listForClient(clientId)]);
+  if (!client) return;
+  const allCollected = docs.length > 0 && docs.every((d) => d.status === 'collected');
+
+  if (allCollected && client.goal_status === 'pending') {
+    await clients.updateGoalStatus(clientId, 'complete');
+    await withClientLock(clientId, () => removeFutureEmail(clientId));
+  } else if (!allCollected && client.goal_status === 'complete') {
+    await clients.updateGoalStatus(clientId, 'pending');
+    await withClientLock(clientId, async () => {
+      await removeFutureEmail(clientId);
+      await setFutureEmail(clientId);
+    });
+  }
+}
 
 /** Postgres rejects non-UUID ids with an error (→ 500); pre-validate so they 404 like other misses. */
 function uuidParam(value: string | undefined): string | null {
@@ -72,7 +116,7 @@ apiRouter.post(
       res.status(400).json({ error: 'Invalid client fields.', details: parsed.error.flatten() });
       return;
     }
-    const { name, email, subject, body, delayMinutes } = parsed.data;
+    const { name, email, subject, body, delayMinutes, documents } = parsed.data;
 
     if (!(await agentMailboxes.getByUserId(req.userId!))) {
       res.status(409).json({ error: "Choose your agent's email address first — the agent has no mailbox to send from." });
@@ -84,6 +128,9 @@ apiRouter.post(
     }
 
     const client = await clients.insert({ userId: req.userId!, name, emailAddress: email });
+    for (const docName of documents) {
+      await clientDocuments.insert({ clientId: client.id, name: docName });
+    }
     await scheduleDraftEmail(client.id, { subject, body, delayMs: hoursToMs(delayMinutes / 60) });
     res.status(201).json({ client });
   }),
@@ -112,7 +159,81 @@ apiRouter.get(
       };
     }
 
-    res.json({ client, nextScheduled });
+    res.json({ client, nextScheduled, documents: await clientDocuments.listForClient(client.id) });
+  }),
+);
+
+apiRouter.get(
+  '/clients/:id/documents',
+  wrap(async (req, res) => {
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+    res.json({ documents: await clientDocuments.listForClient(client.id) });
+  }),
+);
+
+apiRouter.post(
+  '/clients/:id/documents',
+  wrap(async (req, res) => {
+    const parsed = DocumentCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid document fields.', details: parsed.error.flatten() });
+      return;
+    }
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+    const document = await clientDocuments.insert({
+      clientId: client.id,
+      name: parsed.data.name,
+      description: parsed.data.description ?? null,
+    });
+    await onDocumentsChanged(client.id);
+    res.status(201).json({ document });
+  }),
+);
+
+apiRouter.patch(
+  '/clients/:id/documents/:docId',
+  wrap(async (req, res) => {
+    const parsed = DocumentPatchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid document fields.', details: parsed.error.flatten() });
+      return;
+    }
+    const id = uuidParam(req.params.id);
+    const docId = uuidParam(req.params.docId);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const document = client && docId ? await clientDocuments.updateForClient(docId, client.id, parsed.data) : null;
+    if (!document) {
+      res.status(404).json({ error: 'Document not found.' });
+      return;
+    }
+    await onDocumentsChanged(client!.id);
+    res.json({ document });
+  }),
+);
+
+apiRouter.delete(
+  '/clients/:id/documents/:docId',
+  wrap(async (req, res) => {
+    const id = uuidParam(req.params.id);
+    const docId = uuidParam(req.params.docId);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const removed = client && docId ? await clientDocuments.removeForClient(docId, client.id) : false;
+    if (!removed) {
+      res.status(404).json({ error: 'Document not found.' });
+      return;
+    }
+    await onDocumentsChanged(client!.id);
+    res.json({ ok: true });
   }),
 );
 

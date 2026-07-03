@@ -40,6 +40,18 @@ export interface ClientRow {
   updated_at: Date;
 }
 
+export type DocumentStatus = 'pending' | 'collected';
+
+export interface ClientDocumentRow {
+  id: string;
+  client_id: string;
+  name: string;
+  description: string | null;
+  status: DocumentStatus;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export type EmailDirection = 'inbound' | 'outbound';
 export type EmailStatus = 'draft' | 'sent' | 'received';
 

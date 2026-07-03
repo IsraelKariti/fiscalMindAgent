@@ -1,4 +1,4 @@
-import type { ClientRow, EmailRow } from '../db/types.js';
+import type { ClientDocumentRow, ClientRow, EmailRow } from '../db/types.js';
 import { env } from '../config/env.js';
 import { humanizeDuration } from '../util/time.js';
 
@@ -21,27 +21,36 @@ export const PROMPT_PLACEHOLDERS = [
 
 export type PromptPlaceholder = (typeof PROMPT_PLACEHOLDERS)[number];
 
-export const DEFAULT_PROMPT_TEMPLATE = `You are an assistant to a professional accountant. Your job is to help collect a specific tax
-document, called "Form 106", from one client via email, and to manage the follow-up cadence
-autonomously so the accountant doesn't have to.
+export const DEFAULT_PROMPT_TEMPLATE = `You are an assistant to a professional accountant. Your job is to collect a set of required tax
+documents from one client via email, and to manage the follow-up cadence autonomously so the
+accountant doesn't have to.
 
-GOAL: Obtain the Form 106 document for {{client_name}} ({{client_email}}). This engagement
-started on {{engagement_start_date}}.
+GOAL: Obtain every document in the REQUIRED DOCUMENTS list for {{client_name}} ({{client_email}}).
+This engagement started on {{engagement_start_date}}.
 
-You will be shown the full email thread with this client so far, in chronological order, each
+You will be shown the REQUIRED DOCUMENTS list — each entry has an id, a name, an optional
+description, and a status: "pending" (not yet received) or "collected" (already received) —
+followed by the full email thread with this client so far, in chronological order, each
 message labeled by direction (accountant -> outbound, client -> inbound), timestamp, subject,
 and body.
 
-Given this thread and the current date/time, decide ONE of:
+First, update the document statuses: whenever the thread shows the client has clearly provided
+a pending document (attached it, said it's attached, or unambiguously confirmed it was sent
+through another channel), include that document's id in \`collected_document_ids\`. Trust an
+unambiguous statement from the client; you do not need to verify attachment contents. Leave the
+array empty if nothing new was provided.
 
-1. GOAL COMPLETE - the client has clearly provided the Form 106 (attached it, said it's attached,
-   or unambiguously confirmed it was sent through another channel). Trust an unambiguous
-   statement from the client; you do not need to verify attachment contents.
+Then, considering which documents remain pending and the current date/time, decide ONE of:
 
-2. FOLLOW UP NEEDED - the document has not yet been received or confirmed. Draft the next email
-   to the client, in the accountant's voice: polite, brief, professional, matching the language
-   the client has been using, referencing prior messages naturally without being repetitive or
-   nagging. Also decide how many hours from now to wait before sending it, considering:
+1. GOAL COMPLETE - every required document has been collected (counting the ones you just put
+   in \`collected_document_ids\`). Never choose this while any document remains pending.
+
+2. FOLLOW UP NEEDED - at least one document is still pending. Draft the next email to the
+   client, in the accountant's voice: polite, brief, professional, matching the language the
+   client has been using, referencing prior messages naturally without being repetitive or
+   nagging. Ask only for the documents that are still missing, and acknowledge what the client
+   has already sent when it is natural to do so. Also decide how many hours from now to wait
+   before sending it, considering:
    - How many follow-ups have already been sent and how the client responded (or didn't).
    - Any dates/promises the client has stated ("I'll send it next week") - wait until slightly
      after that promised date rather than before.
@@ -84,6 +93,18 @@ export function buildSystemPrompt(
   });
 }
 
+/** Lives in `contents` (not the template) so custom system prompts still see current document state. */
+export function buildDocumentsSection(documents: ClientDocumentRow[]): string {
+  if (documents.length === 0) {
+    return '--- REQUIRED DOCUMENTS ---\n(none configured)\n--- END DOCUMENTS ---';
+  }
+  const lines = documents.map((doc) => {
+    const description = doc.description ? ` — ${doc.description}` : '';
+    return `[id: ${doc.id}] ${doc.name}${description} | status: ${doc.status}`;
+  });
+  return `--- REQUIRED DOCUMENTS ---\n${lines.join('\n')}\n--- END DOCUMENTS ---`;
+}
+
 export function buildThreadTranscript(history: EmailRow[]): string {
   if (history.length === 0) {
     return '--- EMAIL THREAD (chronological) ---\n(no messages yet)\n--- END THREAD ---\n\nDecide the next action now.';
@@ -101,9 +122,15 @@ export interface Prompt {
   contents: string;
 }
 
-export function buildPrompt(client: ClientRow, history: EmailRow[], now: Date, template?: string): Prompt {
+export function buildPrompt(
+  client: ClientRow,
+  history: EmailRow[],
+  documents: ClientDocumentRow[],
+  now: Date,
+  template?: string,
+): Prompt {
   return {
     systemInstruction: buildSystemPrompt(client, history, now, template),
-    contents: buildThreadTranscript(history),
+    contents: `${buildDocumentsSection(documents)}\n\n${buildThreadTranscript(history)}`,
   };
 }

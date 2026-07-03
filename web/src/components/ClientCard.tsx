@@ -59,7 +59,7 @@ export function ClientCard({ client, onSaved }: Props) {
         <div>
           <h2>{client.name}</h2>
           <span className={`badge ${client.goal_status === 'complete' ? 'badge-success' : 'badge-pending'}`}>
-            {client.goal_status === 'complete' ? 'Form 106 received' : 'Awaiting Form 106'}
+            {client.goal_status === 'complete' ? 'All documents received' : 'Collecting documents'}
           </span>
         </div>
         {!editing ? (

@@ -1,4 +1,5 @@
 import * as clients from '../db/queries/clients.js';
+import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as emails from '../db/queries/emails.js';
 import { buildPrompt } from '../gemini/prompt.js';
 import { getPromptTemplate } from '../gemini/promptSettings.js';
@@ -7,21 +8,44 @@ import { scheduleDraftEmail } from './scheduleDraftEmail.js';
 import { hoursToMs } from '../util/time.js';
 import { logger } from '../util/logger.js';
 
-/** Asks the LLM, given the full thread so far, whether the goal is complete or a follow-up is needed, and acts on it. */
+/** Asks the LLM, given the full thread and required-documents list, which documents were just provided and whether a follow-up is needed, and acts on it. */
 export async function setFutureEmail(clientId: string): Promise<void> {
   const client = await clients.getById(clientId);
   if (!client) throw new Error(`setFutureEmail: client ${clientId} not found`);
   if (client.goal_status === 'complete') return;
 
   const history = await emails.listForClient(clientId);
+  const documents = await clientDocuments.listForClient(clientId);
   const { template } = await getPromptTemplate(client.user_id);
-  const { systemInstruction, contents } = buildPrompt(client, history, new Date(), template);
+  const { systemInstruction, contents } = buildPrompt(client, history, documents, new Date(), template);
   const decision = await decide(systemInstruction, contents);
 
-  if (decision.decision === 'goal_complete') {
+  // Record which pending documents the LLM saw the client provide (unknown ids are ignored).
+  const pendingIds = new Set(documents.filter((d) => d.status === 'pending').map((d) => d.id));
+  const newlyCollected = decision.collected_document_ids.filter((id) => pendingIds.has(id));
+  if (newlyCollected.length > 0) {
+    await clientDocuments.markCollected(clientId, newlyCollected);
+    logger.info('documents marked collected', { clientId, documentIds: newlyCollected });
+  }
+
+  // Completion is derived from the documents, not the LLM's decision field: complete iff
+  // every required document is collected. Clients with no configured documents fall back
+  // to trusting the decision field (legacy behavior).
+  const stillPending = pendingIds.size - newlyCollected.length;
+  const allCollected = documents.length > 0 ? stillPending === 0 : decision.decision === 'goal_complete';
+
+  if (allCollected) {
     await clients.updateGoalStatus(clientId, 'complete');
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
     return;
+  }
+
+  if (decision.decision === 'goal_complete') {
+    // Contract violation (prompt forbids goal_complete with pending documents): there is no
+    // drafted email to schedule, so fail loudly and let the caller's retry path re-ask.
+    throw new Error(
+      `setFutureEmail: LLM returned goal_complete but ${stillPending} document(s) still pending for client ${clientId}`,
+    );
   }
 
   await scheduleDraftEmail(clientId, {

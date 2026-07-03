@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type Client, type Email, type NextScheduled } from '../api';
+import { api, type Client, type ClientDocument, type Email, type NextScheduled } from '../api';
 import { ClientCard } from './ClientCard';
+import { DocumentsCard } from './DocumentsCard';
 import { Timeline } from './Timeline';
 
 export function ClientView({ clientId, onClientUpdated }: { clientId: string; onClientUpdated: () => Promise<void> }) {
   const [client, setClient] = useState<Client | null>(null);
   const [nextScheduled, setNextScheduled] = useState<NextScheduled | null>(null);
+  const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,6 +16,7 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
       const [detail, thread] = await Promise.all([api.getClient(clientId), api.listEmails(clientId)]);
       setClient(detail.client);
       setNextScheduled(detail.nextScheduled);
+      setDocuments(detail.documents);
       setEmails(thread.emails);
       setError(null);
     } catch {
@@ -45,6 +48,15 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
         client={client}
         onSaved={async (updated) => {
           setClient(updated);
+          await onClientUpdated();
+        }}
+      />
+      <DocumentsCard
+        clientId={client.id}
+        documents={documents}
+        onChanged={async () => {
+          // A document change can flip goal_status and (re)schedule emails — refresh everything.
+          await load();
           await onClientUpdated();
         }}
       />

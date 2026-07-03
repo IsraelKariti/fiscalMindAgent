@@ -2,7 +2,7 @@
   "name": "fiscalmind-agent",
   "version": "0.1.0",
   "private": true,
-  "description": "Node agent that emails a client to collect a form_106 document, with LLM-driven follow-up scheduling.",
+  "description": "Node agent that emails clients to collect their required documents, with LLM-driven follow-up scheduling.",
   "type": "module",
   "engines": {
     "node": ">=20"

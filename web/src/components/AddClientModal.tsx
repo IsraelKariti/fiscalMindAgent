@@ -9,18 +9,31 @@ interface Props {
 export function AddClientModal({ onCreated, onClose }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [subject, setSubject] = useState('Form 106 needed for your filing');
+  const [documents, setDocuments] = useState<string[]>(['Form 106']);
+  const [docDraft, setDocDraft] = useState('');
+  const [subject, setSubject] = useState('Documents needed for your filing');
   const [body, setBody] = useState('');
   const [delayMinutes, setDelayMinutes] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const addDocument = () => {
+    const trimmed = docDraft.trim();
+    if (!trimmed || documents.includes(trimmed)) return;
+    setDocuments([...documents, trimmed]);
+    setDocDraft('');
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (documents.length === 0) {
+      setError('Add at least one document for the agent to collect.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const { client } = await api.createClient({ name, email, subject, body, delayMinutes });
+      const { client } = await api.createClient({ name, email, subject, body, delayMinutes, documents });
       onCreated(client);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to create client.');
@@ -33,7 +46,8 @@ export function AddClientModal({ onCreated, onClose }: Props) {
       <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>Add client</h2>
         <p className="muted">
-          The agent sends the first email after the chosen delay, then manages follow-ups on its own.
+          The agent sends the first email after the chosen delay, then manages follow-ups on its own until every
+          document is collected.
         </p>
         <label className="field">
           <span>Name</span>
@@ -43,6 +57,43 @@ export function AddClientModal({ onCreated, onClose }: Props) {
           <span>Email</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
+        <div className="field">
+          <span>Documents to collect</span>
+          {documents.length > 0 && (
+            <ul className="doc-chip-list">
+              {documents.map((doc) => (
+                <li key={doc} className="doc-chip">
+                  {doc}
+                  <button
+                    type="button"
+                    className="chip-x"
+                    title={`Remove ${doc}`}
+                    onClick={() => setDocuments(documents.filter((d) => d !== doc))}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="doc-add-form">
+            <input
+              value={docDraft}
+              onChange={(e) => setDocDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addDocument();
+                }
+              }}
+              placeholder="e.g. Form 106"
+              aria-label="Document name"
+            />
+            <button type="button" className="btn btn-ghost" onClick={addDocument} disabled={!docDraft.trim()}>
+              Add document
+            </button>
+          </div>
+        </div>
         <label className="field">
           <span>First email subject</span>
           <input value={subject} onChange={(e) => setSubject(e.target.value)} required />

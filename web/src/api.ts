@@ -13,6 +13,18 @@ export interface Client {
   updated_at: string;
 }
 
+export type DocumentStatus = 'pending' | 'collected';
+
+export interface ClientDocument {
+  id: string;
+  client_id: string;
+  name: string;
+  description: string | null;
+  status: DocumentStatus;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Email {
   id: string;
   client_id: string;
@@ -87,9 +99,34 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   listClients: () => request<{ clients: Client[] }>('/api/clients'),
-  createClient: (args: { name: string; email: string; subject: string; body: string; delayMinutes: number }) =>
-    request<{ client: Client }>('/api/clients', { method: 'POST', body: JSON.stringify(args) }),
-  getClient: (id: string) => request<{ client: Client; nextScheduled: NextScheduled | null }>(`/api/clients/${id}`),
+  createClient: (args: {
+    name: string;
+    email: string;
+    subject: string;
+    body: string;
+    delayMinutes: number;
+    documents: string[];
+  }) => request<{ client: Client }>('/api/clients', { method: 'POST', body: JSON.stringify(args) }),
+  getClient: (id: string) =>
+    request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(
+      `/api/clients/${id}`,
+    ),
+  addDocument: (clientId: string, args: { name: string; description?: string | null }) =>
+    request<{ document: ClientDocument }>(`/api/clients/${clientId}/documents`, {
+      method: 'POST',
+      body: JSON.stringify(args),
+    }),
+  updateDocument: (
+    clientId: string,
+    docId: string,
+    patch: Partial<Pick<ClientDocument, 'name' | 'description' | 'status'>>,
+  ) =>
+    request<{ document: ClientDocument }>(`/api/clients/${clientId}/documents/${docId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+  deleteDocument: (clientId: string, docId: string) =>
+    request<{ ok: true }>(`/api/clients/${clientId}/documents/${docId}`, { method: 'DELETE' }),
   updateClient: (id: string, patch: Partial<Pick<Client, 'name' | 'occupation' | 'phone' | 'company' | 'notes'>>) =>
     request<{ client: Client }>(`/api/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),

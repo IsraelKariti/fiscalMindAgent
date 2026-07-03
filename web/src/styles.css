@@ -365,6 +365,21 @@ textarea {
   font-size: 18px;
 }
 
+/* <a> styled as a button: needs flex centering + no underline */
+.login-google-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.login-google-btn svg {
+  background: #fff;
+  border-radius: 50%;
+  padding: 2px;
+}
+
 /* Timeline */
 .timeline {
   list-style: none;

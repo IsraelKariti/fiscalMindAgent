@@ -58,9 +58,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
+export interface Me {
+  authenticated: boolean;
+  user?: { id: string; email: string; name: string | null; pictureUrl: string | null };
+}
+
 export const api = {
-  me: () => request<{ authenticated: boolean }>('/api/me'),
-  login: (password: string) => request<{ ok: true }>('/api/login', { method: 'POST', body: JSON.stringify({ password }) }),
+  me: () => request<Me>('/api/me'),
   logout: () => request<{ ok: true }>('/api/logout', { method: 'POST' }),
   listClients: () => request<{ clients: Client[] }>('/api/clients'),
   getClient: (id: string) => request<{ client: Client; nextScheduled: NextScheduled | null }>(`/api/clients/${id}`),

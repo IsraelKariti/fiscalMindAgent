@@ -15,7 +15,11 @@ export function App() {
   useEffect(() => {
     api
       .me()
-      .then(({ authenticated }) => setAuthed(authenticated))
+      .then(({ authenticated }) => {
+        setAuthed(authenticated);
+        // Drop a stale ?login_error= once signed in.
+        if (authenticated && window.location.search) window.history.replaceState(null, '', '/');
+      })
       .catch(() => setAuthed(false));
   }, []);
 
@@ -30,7 +34,7 @@ export function App() {
   }, [authed, loadClients]);
 
   if (authed === null) return <div className="screen-center muted">Loading…</div>;
-  if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
+  if (!authed) return <Login />;
 
   const logout = async () => {
     await api.logout();

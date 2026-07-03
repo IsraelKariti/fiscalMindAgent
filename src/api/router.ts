@@ -6,7 +6,7 @@ import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.js';
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
-import { login, logout, me, requireAuth } from './auth.js';
+import { googleLoginCallback, logout, me, requireAuth, startGoogleLogin } from './auth.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -32,9 +32,10 @@ function uuidParam(value: string | undefined): string | null {
 
 export const apiRouter = Router();
 
-apiRouter.post('/login', login);
+apiRouter.get('/auth/google', startGoogleLogin);
+apiRouter.get('/auth/google/callback', wrap(googleLoginCallback));
 apiRouter.post('/logout', logout);
-apiRouter.get('/me', me);
+apiRouter.get('/me', wrap(me));
 
 apiRouter.use(requireAuth);
 

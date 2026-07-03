@@ -1,17 +1,14 @@
 import { createSendEmailWorker } from './queue/sendEmailWorker.js';
-import { createWatchRenewalWorker, scheduleWatchRenewal } from './queue/watchRenewalWorker.js';
 import { resyncScheduledJobs } from './queue/resyncScheduledJobs.js';
 import { logger } from './util/logger.js';
 
 await resyncScheduledJobs();
 const worker = createSendEmailWorker();
-const watchWorker = createWatchRenewalWorker();
-await scheduleWatchRenewal();
 logger.info('send_email worker started');
 
 async function shutdown(): Promise<void> {
   logger.info('shutting down worker...');
-  await Promise.all([worker.close(), watchWorker.close()]);
+  await worker.close();
   process.exit(0);
 }
 

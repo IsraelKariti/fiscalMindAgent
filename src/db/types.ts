@@ -10,13 +10,12 @@ export interface UserRow {
   updated_at: Date;
 }
 
-export interface GmailAccountRow {
+export interface AgentMailboxRow {
   id: string;
   user_id: string;
+  local_part: string;
   email_address: string;
-  refresh_token_enc: string;
   created_at: Date;
-  updated_at: Date;
 }
 
 export interface UserSettingRow {
@@ -33,7 +32,6 @@ export interface ClientRow {
   name: string;
   email_address: string;
   goal_status: GoalStatus;
-  gmail_thread_id: string | null;
   occupation: string | null;
   phone: string | null;
   company: string | null;
@@ -50,8 +48,10 @@ export interface EmailRow {
   client_id: string;
   direction: EmailDirection;
   status: EmailStatus;
-  gmail_message_id: string | null;
-  gmail_thread_id: string | null;
+  /** RFC 5322 Message-ID — inbound dedupe key and In-Reply-To/References source. */
+  message_id: string | null;
+  /** Resend's id for the email (send response / inbound email_id). */
+  resend_id: string | null;
   subject: string;
   body: string;
   sent_at: Date | null;
@@ -68,12 +68,5 @@ export interface ScheduledJobRow {
 export interface AppSettingRow {
   key: string;
   value: string;
-  updated_at: Date;
-}
-
-export interface GmailSyncStateRow {
-  mailbox_email: string;
-  last_history_id: string;
-  watch_expiration: Date | null;
   updated_at: Date;
 }

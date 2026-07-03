@@ -4,8 +4,8 @@ import { SEND_EMAIL_QUEUE_NAME } from './sendEmailQueue.js';
 import { withClientLock } from '../db/withClientLock.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
-import * as gmailAccounts from '../db/queries/gmailAccounts.js';
-import { sendEmail } from '../gmail/send.js';
+import * as agentMailboxes from '../db/queries/agentMailboxes.js';
+import { sendEmail } from '../resend/send.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { logger } from '../util/logger.js';
@@ -31,23 +31,25 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       return;
     }
 
-    const account = client.user_id ? await gmailAccounts.getByUserId(client.user_id) : null;
-    if (!account) {
-      logger.warn('client owner has no connected Gmail, skipping send', { clientId, userId: client.user_id });
+    const mailbox = client.user_id ? await agentMailboxes.getByUserId(client.user_id) : null;
+    if (!mailbox) {
+      logger.warn('client owner has no agent mailbox, skipping send', { clientId, userId: client.user_id });
       return;
     }
 
-    const result = await sendEmail(account, {
+    // Thread the conversation via In-Reply-To/References built from the
+    // Message-IDs exchanged with this client so far (capped to the last 20).
+    const messageIds = await emails.listMessageIdsForClient(clientId);
+    const result = await sendEmail({
+      from: mailbox.email_address,
       to: client.email_address,
       subject: draft.subject,
       body: draft.body,
-      threadId: client.gmail_thread_id ?? undefined,
+      inReplyTo: messageIds.at(-1),
+      references: messageIds.slice(-20),
     });
 
-    await emails.markSent(emailId, { gmailMessageId: result.id, gmailThreadId: result.threadId, sentAt: new Date() });
-    if (!client.gmail_thread_id) {
-      await clients.setThreadId(clientId, result.threadId);
-    }
+    await emails.markSent(emailId, { messageId: result.messageId, resendId: result.resendId, sentAt: new Date() });
 
     await removeFutureEmail(clientId);
     await setFutureEmail(clientId);

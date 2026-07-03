@@ -20,7 +20,7 @@ Creates a new client owned by the dashboard user with --user-email, and enqueues
 follow-up also handles this first send).
 
 Preconditions: migrations applied (npm run db:migrate), the user has signed in to the
-dashboard and connected their Gmail there, and the worker process is running
+dashboard and claimed an agent mailbox there, and the worker process is running
 (npm run dev:worker) so the enqueued job actually fires at its scheduled time.`;
 
 async function main(): Promise<void> {

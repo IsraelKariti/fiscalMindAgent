@@ -4,8 +4,6 @@ import { z } from 'zod';
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
-  GMAIL_PUBSUB_TOPIC: z.string().min(1),
-  PUBSUB_PUSH_AUDIENCE: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),
   GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
   ACCOUNTANT_TIMEZONE: z.string().min(1).default('America/New_York'),
@@ -18,21 +16,22 @@ const EnvSchema = z.object({
     .url()
     .transform((u) => u.replace(/\/$/, ''))
     .default('http://localhost:3000'),
-  // Web-application OAuth client (Google Cloud Console) for dashboard sign-in
-  // and the connect-Gmail flow. Optional so the worker/CLI can run without
-  // them; the auth endpoints return 503 until both are set.
+  // Web-application OAuth client (Google Cloud Console) for dashboard sign-in.
+  // Optional so the worker/CLI can run without them; the auth endpoints return
+  // 503 until both are set.
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   // Signs the dashboard session cookie. If unset, a random per-process secret
   // is used (sessions are invalidated whenever the web process restarts).
   DASHBOARD_SESSION_SECRET: z.string().min(16).optional(),
-  // AES-256-GCM key (64 hex chars) encrypting Gmail refresh tokens in Postgres.
-  // Optional at boot so worker/CLI paths that never touch tokens still run;
-  // enforced at use in src/util/crypto.ts.
-  TOKEN_ENCRYPTION_KEY: z
-    .string()
-    .regex(/^[0-9a-f]{64}$/i, 'must be 64 hex characters (32 bytes)')
-    .optional(),
+  // Resend (resend.com): sends agent mail and delivers inbound mail for
+  // AGENT_EMAIL_DOMAIN to /webhooks/resend.
+  RESEND_API_KEY: z.string().min(1),
+  // Signing secret of the Resend webhook endpoint (Svix). Optional so the
+  // worker/CLI can run without it; the webhook route returns 503 until set.
+  RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
+  // Domain agent mailboxes are allocated on: <local-part>@AGENT_EMAIL_DOMAIN.
+  AGENT_EMAIL_DOMAIN: z.string().min(1).default('fiscalmind.app'),
 });
 
 export const env = EnvSchema.parse(process.env);

@@ -70,7 +70,3 @@ export async function updateDetailsForUser(
 export async function updateGoalStatus(id: string, goalStatus: GoalStatus): Promise<void> {
   await pool.query('UPDATE clients SET goal_status = $2, updated_at = now() WHERE id = $1', [id, goalStatus]);
 }
-
-export async function setThreadId(id: string, threadId: string): Promise<void> {
-  await pool.query('UPDATE clients SET gmail_thread_id = $2, updated_at = now() WHERE id = $1', [id, threadId]);
-}

@@ -5,7 +5,6 @@ export interface Client {
   name: string;
   email_address: string;
   goal_status: GoalStatus;
-  gmail_thread_id: string | null;
   occupation: string | null;
   phone: string | null;
   company: string | null;
@@ -63,16 +62,30 @@ export interface Me {
   user?: { id: string; email: string; name: string | null; pictureUrl: string | null };
 }
 
-export interface GmailStatus {
-  connected: boolean;
+export interface MailboxStatus {
+  claimed: boolean;
   emailAddress: string | null;
+  localPart: string | null;
+  domain: string;
+}
+
+export interface MailboxAvailability {
+  name: string;
+  available: boolean;
+  reason?: 'invalid' | 'reserved' | 'taken';
 }
 
 export const api = {
   me: () => request<Me>('/api/me'),
   logout: () => request<{ ok: true }>('/api/logout', { method: 'POST' }),
-  gmailStatus: () => request<GmailStatus>('/api/gmail/status'),
-  gmailDisconnect: () => request<{ ok: true }>('/api/gmail/disconnect', { method: 'POST' }),
+  mailboxStatus: () => request<MailboxStatus>('/api/mailbox'),
+  mailboxAvailability: (name: string) =>
+    request<MailboxAvailability>(`/api/mailbox/availability?name=${encodeURIComponent(name)}`),
+  claimMailbox: (name: string) =>
+    request<{ mailbox: { emailAddress: string; localPart: string } }>('/api/mailbox', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
   listClients: () => request<{ clients: Client[] }>('/api/clients'),
   createClient: (args: { name: string; email: string; subject: string; body: string; delayMinutes: number }) =>
     request<{ client: Client }>('/api/clients', { method: 'POST', body: JSON.stringify(args) }),

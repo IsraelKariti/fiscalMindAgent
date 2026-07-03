@@ -1,25 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type Client, type GmailStatus } from './api';
+import { api, type Client, type MailboxStatus, type Me } from './api';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { ClientView } from './components/ClientView';
 import { PromptSettings } from './components/PromptSettings';
 import { AddClientModal } from './components/AddClientModal';
+import { ClaimMailbox } from './components/ClaimMailbox';
 
 type View = { kind: 'client'; clientId: string } | { kind: 'prompt' } | { kind: 'empty' };
 
 export function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [user, setUser] = useState<Me['user'] | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
-  const [gmail, setGmail] = useState<GmailStatus | null>(null);
+  const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
   const [view, setView] = useState<View>({ kind: 'empty' });
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     api
       .me()
-      .then(({ authenticated }) => {
+      .then(({ authenticated, user: me }) => {
         setAuthed(authenticated);
+        setUser(me ?? null);
         // Drop a stale ?login_error= once signed in.
         if (authenticated && window.location.search) window.history.replaceState(null, '', '/');
       })
@@ -35,7 +38,7 @@ export function App() {
   useEffect(() => {
     if (!authed) return;
     loadClients().catch(console.error);
-    api.gmailStatus().then(setGmail).catch(console.error);
+    api.mailboxStatus().then(setMailbox).catch(console.error);
   }, [authed, loadClients]);
 
   if (authed === null) return <div className="screen-center muted">Loading…</div>;
@@ -44,47 +47,17 @@ export function App() {
   const logout = async () => {
     await api.logout();
     setAuthed(false);
+    setUser(null);
     setClients([]);
     setView({ kind: 'empty' });
   };
 
   return (
     <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark">FM</span>
-          <span>
-            FiscalMind <span className="muted">— Form 106 collection agent</span>
-          </span>
-        </div>
-        <div className="topbar-actions">
-          {gmail?.connected && (
-            <span className="gmail-chip" title="Mailbox the agent sends and receives as">
-              ✉ {gmail.emailAddress}
-              <button
-                className="chip-x"
-                title="Disconnect this mailbox"
-                onClick={async () => {
-                  if (!window.confirm(`Disconnect ${gmail.emailAddress}? The agent will stop sending and receiving.`)) return;
-                  await api.gmailDisconnect();
-                  setGmail({ connected: false, emailAddress: null });
-                }}
-              >
-                ×
-              </button>
-            </span>
-          )}
-          <button className="btn btn-ghost" onClick={logout}>
-            Log out
-          </button>
-        </div>
-      </header>
-      {gmail && !gmail.connected && (
+      {mailbox && !mailbox.claimed && (
         <div className="connect-banner">
-          <span>The agent has no mailbox yet — connect the Gmail account it should send and receive from.</span>
-          <a className="btn btn-primary" href="/api/gmail/connect">
-            Connect Gmail
-          </a>
+          <span>Pick your agent's email address — clients will correspond with it.</span>
+          <ClaimMailbox domain={mailbox.domain} onClaimed={setMailbox} />
         </div>
       )}
       <div className="layout">
@@ -95,6 +68,9 @@ export function App() {
           onSelectClient={(clientId) => setView({ kind: 'client', clientId })}
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onAddClient={() => setAdding(true)}
+          userEmail={user?.email ?? null}
+          agentMailbox={mailbox?.claimed ? mailbox.emailAddress : null}
+          onLogout={logout}
         />
         <main className="main">
           {view.kind === 'client' && (

@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
-import * as gmailAccounts from '../db/queries/gmailAccounts.js';
+import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { scheduleDraftEmail } from '../orchestration/scheduleDraftEmail.js';
 import { hoursToMs } from '../util/time.js';
@@ -10,7 +10,7 @@ import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.j
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
 import { googleLoginCallback, logout, me, requireAuth, startGoogleLogin } from './auth.js';
-import { gmailConnectCallback, gmailDisconnect, gmailStatus, startGmailConnect } from './gmail.js';
+import { claimMailbox, mailboxAvailability, mailboxStatus } from './mailbox.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -53,10 +53,9 @@ apiRouter.get('/me', wrap(me));
 
 apiRouter.use(requireAuth);
 
-apiRouter.get('/gmail/connect', startGmailConnect);
-apiRouter.get('/gmail/callback', wrap(gmailConnectCallback));
-apiRouter.get('/gmail/status', wrap(gmailStatus));
-apiRouter.post('/gmail/disconnect', wrap(gmailDisconnect));
+apiRouter.get('/mailbox', wrap(mailboxStatus));
+apiRouter.get('/mailbox/availability', wrap(mailboxAvailability));
+apiRouter.post('/mailbox', wrap(claimMailbox));
 
 apiRouter.get(
   '/clients',
@@ -75,8 +74,8 @@ apiRouter.post(
     }
     const { name, email, subject, body, delayMinutes } = parsed.data;
 
-    if (!(await gmailAccounts.getByUserId(req.userId!))) {
-      res.status(409).json({ error: 'Connect a Gmail account first — the agent has no mailbox to send from.' });
+    if (!(await agentMailboxes.getByUserId(req.userId!))) {
+      res.status(409).json({ error: "Choose your agent's email address first — the agent has no mailbox to send from." });
       return;
     }
     if (await clients.getByEmailAddressForUser(req.userId!, email)) {

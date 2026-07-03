@@ -30,25 +30,36 @@ export async function insertDraft(clientId: string, subject: string, body: strin
 
 export async function markSent(
   id: string,
-  args: { gmailMessageId: string; gmailThreadId: string; sentAt: Date },
+  args: { messageId: string | null; resendId: string; sentAt: Date },
 ): Promise<void> {
   await pool.query(
-    `UPDATE emails SET status = 'sent', gmail_message_id = $2, gmail_thread_id = $3, sent_at = $4 WHERE id = $1`,
-    [id, args.gmailMessageId, args.gmailThreadId, args.sentAt],
+    `UPDATE emails SET status = 'sent', message_id = $2, resend_id = $3, sent_at = $4 WHERE id = $1`,
+    [id, args.messageId, args.resendId, args.sentAt],
   );
 }
 
-/** Returns the inserted row, or null if a row with this gmail_message_id already existed (idempotent). */
+/** Returns the inserted row, or null if a row with this message_id already existed (idempotent). */
 export async function insertInboundIfNew(
   clientId: string,
-  args: { gmailMessageId: string; gmailThreadId: string; subject: string; body: string; sentAt: Date },
+  args: { messageId: string; resendId: string; subject: string; body: string; sentAt: Date },
 ): Promise<EmailRow | null> {
   const { rows } = await pool.query<EmailRow>(
-    `INSERT INTO emails (client_id, direction, status, gmail_message_id, gmail_thread_id, subject, body, sent_at)
+    `INSERT INTO emails (client_id, direction, status, message_id, resend_id, subject, body, sent_at)
      VALUES ($1, 'inbound', 'received', $2, $3, $4, $5, $6)
-     ON CONFLICT (gmail_message_id) DO NOTHING
+     ON CONFLICT (message_id) DO NOTHING
      RETURNING *`,
-    [clientId, args.gmailMessageId, args.gmailThreadId, args.subject, args.body, args.sentAt],
+    [clientId, args.messageId, args.resendId, args.subject, args.body, args.sentAt],
   );
   return rows[0] ?? null;
+}
+
+/** Message-IDs of the client's conversation so far, oldest first — feeds In-Reply-To/References on the next send. */
+export async function listMessageIdsForClient(clientId: string): Promise<string[]> {
+  const { rows } = await pool.query<{ message_id: string }>(
+    `SELECT message_id FROM emails
+     WHERE client_id = $1 AND status IN ('sent', 'received') AND message_id IS NOT NULL
+     ORDER BY COALESCE(sent_at, created_at) ASC`,
+    [clientId],
+  );
+  return rows.map((r) => r.message_id);
 }

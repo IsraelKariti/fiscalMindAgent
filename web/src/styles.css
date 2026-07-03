@@ -64,15 +64,6 @@ code {
 }
 
 /* Top bar */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-
 .brand {
   display: flex;
   align-items: center;
@@ -106,7 +97,71 @@ code {
   background: var(--surface);
   border-right: 1px solid var(--border);
   padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sidebar-brand {
+  padding: 2px 8px 12px;
+  font-size: 16px;
+}
+
+.sidebar-scroll {
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 8px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Agent mailbox entry in the Agent settings section */
+.agent-mailbox-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 8px;
+}
+
+.footer-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.footer-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.footer-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted, var(--text));
+  min-width: 0;
+}
+
+.footer-user {
+  justify-content: space-between;
+}
+
+.footer-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar-section {
@@ -405,24 +460,6 @@ textarea {
   font-size: 12px;
 }
 
-/* Topbar Gmail connection state */
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.gmail-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
 .chip-x {
   border: none;
   background: none;
@@ -449,6 +486,45 @@ textarea {
 
 .connect-banner .btn {
   text-decoration: none;
+}
+
+.claim-mailbox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.claim-mailbox-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.claim-mailbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.claim-mailbox-field input {
+  width: 180px;
+}
+
+.claim-mailbox-domain {
+  white-space: nowrap;
+}
+
+.claim-mailbox-status {
+  font-size: 12px;
+  min-height: 16px;
+}
+
+.claim-status-ok {
+  color: var(--success);
+}
+
+.claim-status-bad {
+  color: var(--error);
 }
 
 /* <a> styled as a button: needs flex centering + no underline */

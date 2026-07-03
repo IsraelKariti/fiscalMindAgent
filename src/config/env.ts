@@ -9,8 +9,8 @@ const EnvSchema = z.object({
   GMAIL_TOKEN_PATH: z.string().min(1).default('./secrets/gmail_token.json'),
   GMAIL_PUBSUB_TOPIC: z.string().min(1),
   PUBSUB_PUSH_AUDIENCE: z.string().min(1),
-  OPENAI_API_KEY: z.string().min(1),
-  OPENAI_MODEL: z.string().min(1).default('gpt-4o-2024-08-06'),
+  GEMINI_API_KEY: z.string().min(1),
+  GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
   ACCOUNTANT_TIMEZONE: z.string().min(1).default('America/New_York'),
   PORT: z.coerce.number().int().positive().default(3000),
 });

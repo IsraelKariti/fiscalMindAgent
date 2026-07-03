@@ -1,4 +1,3 @@
-import type OpenAI from 'openai';
 import type { ClientRow, EmailRow } from '../db/types.js';
 import { env } from '../config/env.js';
 import { humanizeDuration } from '../util/time.js';
@@ -62,9 +61,14 @@ export function buildThreadTranscript(history: EmailRow[]): string {
   return `--- EMAIL THREAD (chronological) ---\n${lines.join('\n\n')}\n--- END THREAD ---\n\nDecide the next action now.`;
 }
 
-export function buildMessages(client: ClientRow, history: EmailRow[], now: Date): OpenAI.Chat.ChatCompletionMessageParam[] {
-  return [
-    { role: 'system', content: buildSystemPrompt(client, history, now) },
-    { role: 'user', content: buildThreadTranscript(history) },
-  ];
+export interface Prompt {
+  systemInstruction: string;
+  contents: string;
+}
+
+export function buildPrompt(client: ClientRow, history: EmailRow[], now: Date): Prompt {
+  return {
+    systemInstruction: buildSystemPrompt(client, history, now),
+    contents: buildThreadTranscript(history),
+  };
 }

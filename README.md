@@ -9,9 +9,9 @@ Node agent that emails a client on an accountant's behalf to collect a form_106 
 - **Two processes**, sharing the same modules:
   - `src/web.ts` — Express server receiving Gmail push notifications via a Pub/Sub push subscription (`/webhooks/gmail`).
   - `src/worker.ts` — BullMQ `Worker` that actually sends emails when a `send_email` job fires.
-- After every send (worker) and every new inbound client email (webhook), the same `removeFutureEmail` + `setFutureEmail` sequence runs: cancel any pending scheduled send, then ask OpenAI (structured output) whether the goal is complete or another follow-up is needed, and act on the decision. Both paths take a Postgres advisory lock per client so they can never race across the two processes.
+- After every send (worker) and every new inbound client email (webhook), the same `removeFutureEmail` + `setFutureEmail` sequence runs: cancel any pending scheduled send, then ask Gemini (structured output) whether the goal is complete or another follow-up is needed, and act on the decision. Both paths take a Postgres advisory lock per client so they can never race across the two processes.
 
-See `src/orchestration/` for the core logic, `src/openai/` for the LLM prompt/schema, and `src/webhook/onInboundEmail.ts` for Gmail history-based inbound detection.
+See `src/orchestration/` for the core logic, `src/gemini/` for the LLM prompt/schema, and `src/webhook/onInboundEmail.ts` for Gmail history-based inbound detection.
 
 ## Local setup
 

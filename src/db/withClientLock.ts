@@ -3,7 +3,7 @@ import { pool } from './pool.js';
 /**
  * Serializes any "mutate this client's email schedule" sequence (send+record+remove+set, or
  * insert-inbound+remove+set) across both processes (web + worker) via a Postgres session-level
- * advisory lock. Held for the full duration of `fn`, including external calls (OpenAI, Gmail),
+ * advisory lock. Held for the full duration of `fn`, including external calls (Gemini, Gmail),
  * on a connection dedicated to holding the lock -- `fn`'s own queries go through the shared pool.
  */
 export async function withClientLock<T>(clientId: string, fn: () => Promise<T>): Promise<T> {

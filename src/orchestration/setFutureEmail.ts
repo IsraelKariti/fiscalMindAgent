@@ -1,7 +1,7 @@
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
-import { buildMessages } from '../openai/prompt.js';
-import { decide } from '../openai/decide.js';
+import { buildPrompt } from '../gemini/prompt.js';
+import { decide } from '../gemini/decide.js';
 import { scheduleDraftEmail } from './scheduleDraftEmail.js';
 import { hoursToMs } from '../util/time.js';
 import { logger } from '../util/logger.js';
@@ -13,8 +13,8 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   if (client.goal_status === 'complete') return;
 
   const history = await emails.listForClient(clientId);
-  const messages = buildMessages(client, history, new Date());
-  const decision = await decide(messages);
+  const { systemInstruction, contents } = buildPrompt(client, history, new Date());
+  const decision = await decide(systemInstruction, contents);
 
   if (decision.decision === 'goal_complete') {
     await clients.updateGoalStatus(clientId, 'complete');

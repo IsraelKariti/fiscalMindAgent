@@ -11,7 +11,7 @@ interface PubSubPushBody {
 }
 
 pubsubRoute.post('/webhooks/gmail', verifyPubSubOidcToken, (req, res) => {
-  // Ack immediately: processing includes a synchronous OpenAI call that can take several
+  // Ack immediately: processing includes a synchronous Gemini call that can take several
   // seconds, and the handler is already idempotent (historyId comparison + ON CONFLICT), so
   // there's no correctness benefit to holding the ack open or forcing Pub/Sub redelivery.
   res.status(200).end();

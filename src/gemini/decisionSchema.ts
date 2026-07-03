@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
-// `strict: true` structured outputs require every property to always be present (no `.optional()`).
-// The "email fields only apply when decision === 'follow_up'" rule is expressed as always-present
-// nullable fields plus a `decision` discriminator, documented in the prompt and re-checked below.
+// Gemini's `responseJsonSchema` doesn't support Zod's `.optional()` the same way structured
+// outputs need every property always present; the "email fields only apply when
+// decision === 'follow_up'" rule is expressed as always-present nullable fields plus a
+// `decision` discriminator, documented in the prompt and re-checked below.
 export const DecisionResponseSchema = z.object({
   decision: z.enum(['goal_complete', 'follow_up']),
   reasoning: z.string(),

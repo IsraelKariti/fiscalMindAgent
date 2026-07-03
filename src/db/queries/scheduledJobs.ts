@@ -1,6 +1,11 @@
 import { pool } from '../pool.js';
 import type { ScheduledJobRow } from '../types.js';
 
+export async function listAll(): Promise<ScheduledJobRow[]> {
+  const { rows } = await pool.query<ScheduledJobRow>('SELECT * FROM scheduled_jobs ORDER BY scheduled_for');
+  return rows;
+}
+
 export async function getForClient(clientId: string): Promise<ScheduledJobRow | null> {
   const { rows } = await pool.query<ScheduledJobRow>('SELECT * FROM scheduled_jobs WHERE client_id = $1', [clientId]);
   return rows[0] ?? null;

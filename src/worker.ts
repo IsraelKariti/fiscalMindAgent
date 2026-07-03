@@ -1,7 +1,9 @@
 import { createSendEmailWorker } from './queue/sendEmailWorker.js';
 import { createWatchRenewalWorker, scheduleWatchRenewal } from './queue/watchRenewalWorker.js';
+import { resyncScheduledJobs } from './queue/resyncScheduledJobs.js';
 import { logger } from './util/logger.js';
 
+await resyncScheduledJobs();
 const worker = createSendEmailWorker();
 const watchWorker = createWatchRenewalWorker();
 await scheduleWatchRenewal();

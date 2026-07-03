@@ -10,7 +10,7 @@ const links = [
 
 // Dashboard lives on its own subdomain; NEXT_PUBLIC_APP_URL is inlined at build
 // time so local builds can point at http://localhost:3000 instead.
-const LOGIN_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.fiscalmind.app'}/login`
+const LOGIN_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://agent.fiscalmind.app'}/login`
 
 function GoogleIcon() {
   return (

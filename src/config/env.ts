@@ -19,6 +19,13 @@ const EnvSchema = z.object({
   // Signs the dashboard session cookie. If unset, a random per-process secret
   // is used (sessions are invalidated whenever the web process restarts).
   DASHBOARD_SESSION_SECRET: z.string().min(16).optional(),
+  // AES-256-GCM key (64 hex chars) encrypting Gmail refresh tokens in Postgres.
+  // Optional at boot so worker/CLI paths that never touch tokens still run;
+  // enforced at use in src/util/crypto.ts.
+  TOKEN_ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/i, 'must be 64 hex characters (32 bytes)')
+    .optional(),
 });
 
 export const env = EnvSchema.parse(process.env);

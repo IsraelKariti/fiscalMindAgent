@@ -1,7 +1,35 @@
 export type GoalStatus = 'pending' | 'complete';
 
+export interface UserRow {
+  id: string;
+  google_sub: string;
+  email: string;
+  name: string | null;
+  picture_url: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface GmailAccountRow {
+  id: string;
+  user_id: string;
+  email_address: string;
+  refresh_token_enc: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface UserSettingRow {
+  user_id: string;
+  key: string;
+  value: string;
+  updated_at: Date;
+}
+
 export interface ClientRow {
   id: string;
+  /** NULL only on legacy rows created via the CLI before multi-tenancy. */
+  user_id: string | null;
   name: string;
   email_address: string;
   goal_status: GoalStatus;

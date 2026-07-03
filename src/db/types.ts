@@ -6,6 +6,10 @@ export interface ClientRow {
   email_address: string;
   goal_status: GoalStatus;
   gmail_thread_id: string | null;
+  occupation: string | null;
+  phone: string | null;
+  company: string | null;
+  notes: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -31,6 +35,12 @@ export interface ScheduledJobRow {
   bullmq_job_id: string;
   scheduled_for: Date;
   created_at: Date;
+}
+
+export interface AppSettingRow {
+  key: string;
+  value: string;
+  updated_at: Date;
 }
 
 export interface GmailSyncStateRow {

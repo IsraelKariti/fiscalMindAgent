@@ -13,6 +13,24 @@ Node agent that emails a client on an accountant's behalf to collect a form_106 
 
 See `src/orchestration/` for the core logic, `src/gemini/` for the LLM prompt/schema, and `src/webhook/onInboundEmail.ts` for Gmail history-based inbound detection.
 
+## Dashboard GUI
+
+A React (Vite) dashboard lives in `web/` and is served by the same Express process (`src/web.ts`) once built. It provides:
+
+- **Login** — single admin password (`DASHBOARD_PASSWORD` in `.env`), session held in a signed HTTP-only cookie (`DASHBOARD_SESSION_SECRET`).
+- **Client card** — name, email, occupation, company, phone, notes (editable), goal status, engagement start date.
+- **Timeline** — the full email thread (inbound/outbound) plus the next scheduled follow-up (draft content and send time).
+- **System prompt editor** — edit the Gemini system-prompt template used for every decision call. Placeholders like `{{client_name}}` are substituted per client at call time; the template is stored in the `app_settings` table and can be reset to the built-in default.
+
+```bash
+cd web && npm install && cd ..
+npm run build:gui     # outputs web/dist, served by `npm run dev:web` / `start:web` at http://localhost:3000
+# or, during GUI development (hot reload, proxies /api to :3000):
+npm run dev:gui       # http://localhost:5173
+```
+
+Set `DASHBOARD_PASSWORD` (and optionally `DASHBOARD_SESSION_SECRET`) in `.env` and run `npm run db:migrate` before first use.
+
 ## Local setup
 
 ### 1. Prerequisites

@@ -6,18 +6,27 @@ function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function buildSystemPrompt(client: ClientRow, history: EmailRow[], now: Date): string {
-  const last = history[history.length - 1];
-  const sinceLast = last
-    ? humanizeDuration(now.getTime() - (last.sent_at ?? last.created_at).getTime())
-    : 'N/A (no messages sent yet)';
+/**
+ * Placeholders substituted into the system-prompt template at call time.
+ * Keep this list in sync with the placeholder docs shown in the dashboard's prompt editor.
+ */
+export const PROMPT_PLACEHOLDERS = [
+  'client_name',
+  'client_email',
+  'engagement_start_date',
+  'current_datetime_utc',
+  'time_since_last_message',
+  'accountant_timezone',
+] as const;
 
-  return `You are an assistant to a professional accountant. Your job is to help collect a specific tax
+export type PromptPlaceholder = (typeof PROMPT_PLACEHOLDERS)[number];
+
+export const DEFAULT_PROMPT_TEMPLATE = `You are an assistant to a professional accountant. Your job is to help collect a specific tax
 document, called "Form 106", from one client via email, and to manage the follow-up cadence
 autonomously so the accountant doesn't have to.
 
-GOAL: Obtain the Form 106 document for ${client.name} (${client.email_address}). This engagement
-started on ${formatDate(client.created_at)}.
+GOAL: Obtain the Form 106 document for {{client_name}} ({{client_email}}). This engagement
+started on {{engagement_start_date}}.
 
 You will be shown the full email thread with this client so far, in chronological order, each
 message labeled by direction (accountant -> outbound, client -> inbound), timestamp, subject,
@@ -38,15 +47,41 @@ Given this thread and the current date/time, decide ONE of:
      after that promised date rather than before.
    - Escalate the wait gradually for repeated non-responses (e.g. first follow-up ~72 hours,
      later ones longer, up to roughly 1-2 weeks) unless context clearly suggests otherwise.
-   - Prefer the send landing during standard business hours in the ${env.ACCOUNTANT_TIMEZONE} timezone
+   - Prefer the send landing during standard business hours in the {{accountant_timezone}} timezone
      when the wait duration gives you flexibility to choose; do not overthink this.
 
-Current date/time (UTC): ${now.toISOString()}
-Time since the last message in the thread: ${sinceLast}
+Current date/time (UTC): {{current_datetime_utc}}
+Time since the last message in the thread: {{time_since_last_message}}
 
 Respond ONLY via the provided structured output schema. Always include a brief \`reasoning\`
 string for the accountant's internal log - never shown to the client, so do not put it in
 email_body.`;
+
+export function renderPromptTemplate(template: string, vars: Record<PromptPlaceholder, string>): string {
+  return template.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (match, name: string) =>
+    name in vars ? vars[name as PromptPlaceholder] : match,
+  );
+}
+
+export function buildSystemPrompt(
+  client: ClientRow,
+  history: EmailRow[],
+  now: Date,
+  template: string = DEFAULT_PROMPT_TEMPLATE,
+): string {
+  const last = history[history.length - 1];
+  const sinceLast = last
+    ? humanizeDuration(now.getTime() - (last.sent_at ?? last.created_at).getTime())
+    : 'N/A (no messages sent yet)';
+
+  return renderPromptTemplate(template, {
+    client_name: client.name,
+    client_email: client.email_address,
+    engagement_start_date: formatDate(client.created_at),
+    current_datetime_utc: now.toISOString(),
+    time_since_last_message: sinceLast,
+    accountant_timezone: env.ACCOUNTANT_TIMEZONE,
+  });
 }
 
 export function buildThreadTranscript(history: EmailRow[]): string {
@@ -66,9 +101,9 @@ export interface Prompt {
   contents: string;
 }
 
-export function buildPrompt(client: ClientRow, history: EmailRow[], now: Date): Prompt {
+export function buildPrompt(client: ClientRow, history: EmailRow[], now: Date, template?: string): Prompt {
   return {
-    systemInstruction: buildSystemPrompt(client, history, now),
+    systemInstruction: buildSystemPrompt(client, history, now, template),
     contents: buildThreadTranscript(history),
   };
 }

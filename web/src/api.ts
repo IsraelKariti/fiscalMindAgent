@@ -74,6 +74,8 @@ export const api = {
   gmailStatus: () => request<GmailStatus>('/api/gmail/status'),
   gmailDisconnect: () => request<{ ok: true }>('/api/gmail/disconnect', { method: 'POST' }),
   listClients: () => request<{ clients: Client[] }>('/api/clients'),
+  createClient: (args: { name: string; email: string; subject: string; body: string; delayMinutes: number }) =>
+    request<{ client: Client }>('/api/clients', { method: 'POST', body: JSON.stringify(args) }),
   getClient: (id: string) => request<{ client: Client; nextScheduled: NextScheduled | null }>(`/api/clients/${id}`),
   updateClient: (id: string, patch: Partial<Pick<Client, 'name' | 'occupation' | 'phone' | 'company' | 'notes'>>) =>
     request<{ client: Client }>(`/api/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),

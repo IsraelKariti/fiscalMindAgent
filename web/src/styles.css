@@ -365,6 +365,46 @@ textarea {
   font-size: 18px;
 }
 
+/* Add-client modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  width: 440px;
+  max-height: 88vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.modal-actions {
+  justify-content: flex-end;
+}
+
+.sidebar-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-small {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
 /* Topbar Gmail connection state */
 .topbar-actions {
   display: flex;

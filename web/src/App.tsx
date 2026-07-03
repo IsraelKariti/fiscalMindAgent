@@ -4,6 +4,7 @@ import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { ClientView } from './components/ClientView';
 import { PromptSettings } from './components/PromptSettings';
+import { AddClientModal } from './components/AddClientModal';
 
 type View = { kind: 'client'; clientId: string } | { kind: 'prompt' } | { kind: 'empty' };
 
@@ -12,6 +13,7 @@ export function App() {
   const [clients, setClients] = useState<Client[]>([]);
   const [gmail, setGmail] = useState<GmailStatus | null>(null);
   const [view, setView] = useState<View>({ kind: 'empty' });
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     api
@@ -92,6 +94,7 @@ export function App() {
           promptSelected={view.kind === 'prompt'}
           onSelectClient={(clientId) => setView({ kind: 'client', clientId })}
           onSelectPrompt={() => setView({ kind: 'prompt' })}
+          onAddClient={() => setAdding(true)}
         />
         <main className="main">
           {view.kind === 'client' && (
@@ -99,12 +102,20 @@ export function App() {
           )}
           {view.kind === 'prompt' && <PromptSettings />}
           {view.kind === 'empty' && (
-            <div className="screen-center muted">
-              No clients yet. Create one with <code>npm run cli:bootstrap</code>.
-            </div>
+            <div className="screen-center muted">No clients yet — use “+ Add” in the sidebar to create one.</div>
           )}
         </main>
       </div>
+      {adding && (
+        <AddClientModal
+          onClose={() => setAdding(false)}
+          onCreated={(client) => {
+            setAdding(false);
+            setView({ kind: 'client', clientId: client.id });
+            loadClients().catch(console.error);
+          }}
+        />
+      )}
     </div>
   );
 }

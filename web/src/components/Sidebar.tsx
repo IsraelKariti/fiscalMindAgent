@@ -6,12 +6,18 @@ interface Props {
   promptSelected: boolean;
   onSelectClient: (clientId: string) => void;
   onSelectPrompt: () => void;
+  onAddClient: () => void;
 }
 
-export function Sidebar({ clients, selectedClientId, promptSelected, onSelectClient, onSelectPrompt }: Props) {
+export function Sidebar({ clients, selectedClientId, promptSelected, onSelectClient, onSelectPrompt, onAddClient }: Props) {
   return (
     <nav className="sidebar">
-      <div className="sidebar-section">Clients</div>
+      <div className="sidebar-section sidebar-section-row">
+        <span>Clients</span>
+        <button className="btn btn-ghost btn-small" onClick={onAddClient} title="Add a client">
+          + Add
+        </button>
+      </div>
       <ul className="client-list">
         {clients.map((client) => (
           <li key={client.id}>

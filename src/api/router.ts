@@ -2,7 +2,10 @@ import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
+import * as gmailAccounts from '../db/queries/gmailAccounts.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
+import { scheduleDraftEmail } from '../orchestration/scheduleDraftEmail.js';
+import { hoursToMs } from '../util/time.js';
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.js';
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
@@ -25,6 +28,16 @@ const ClientPatchSchema = z
   .strict();
 
 const PromptTemplateSchema = z.object({ template: z.string().min(1) }).strict();
+
+const ClientCreateSchema = z
+  .object({
+    name: z.string().min(1),
+    email: z.string().email(),
+    subject: z.string().min(1),
+    body: z.string().min(1),
+    delayMinutes: z.number().int().min(0).max(60 * 24 * 30),
+  })
+  .strict();
 
 /** Postgres rejects non-UUID ids with an error (→ 500); pre-validate so they 404 like other misses. */
 function uuidParam(value: string | undefined): string | null {
@@ -49,6 +62,31 @@ apiRouter.get(
   '/clients',
   wrap(async (req, res) => {
     res.json({ clients: await clients.listForUser(req.userId!) });
+  }),
+);
+
+apiRouter.post(
+  '/clients',
+  wrap(async (req, res) => {
+    const parsed = ClientCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid client fields.', details: parsed.error.flatten() });
+      return;
+    }
+    const { name, email, subject, body, delayMinutes } = parsed.data;
+
+    if (!(await gmailAccounts.getByUserId(req.userId!))) {
+      res.status(409).json({ error: 'Connect a Gmail account first — the agent has no mailbox to send from.' });
+      return;
+    }
+    if (await clients.getByEmailAddressForUser(req.userId!, email)) {
+      res.status(409).json({ error: 'A client with this email already exists.' });
+      return;
+    }
+
+    const client = await clients.insert({ userId: req.userId!, name, emailAddress: email });
+    await scheduleDraftEmail(client.id, { subject, body, delayMs: hoursToMs(delayMinutes / 60) });
+    res.status(201).json({ client });
   }),
 );
 

@@ -21,8 +21,19 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
     }
   }, [clientId]);
 
+  // Keep the timeline current while the user watches: refetch every 15s when
+  // the tab is visible, and immediately when it becomes visible again.
   useEffect(() => {
     load();
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    const interval = setInterval(refreshIfVisible, 15_000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
   }, [load]);
 
   if (error) return <div className="error-banner">{error}</div>;

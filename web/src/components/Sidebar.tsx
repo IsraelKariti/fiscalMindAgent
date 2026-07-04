@@ -105,7 +105,7 @@ export function Sidebar({
         <span className="id-card-icon">{icon.mail}</span>
         <span className="id-card-text">
           <span className="microlabel">תיבת הסוכן</span>
-          <span className={`id-card-value ${agentMailbox ? '' : 'muted'}`}>
+          <span className={`id-card-value ${agentMailbox ? '' : 'muted'}`} dir={agentMailbox ? 'ltr' : undefined}>
             {agentMailbox ?? 'עדיין לא הוגדרה'}
           </span>
         </span>
@@ -144,7 +144,7 @@ export function Sidebar({
                 />
                 <span className="client-item-text">
                   <span className="client-item-name">{client.name}</span>
-                  <span className="client-item-email muted">{client.email_address}</span>
+                  <span className="client-item-email muted" dir="ltr">{client.email_address}</span>
                 </span>
               </button>
               <button
@@ -186,7 +186,7 @@ export function Sidebar({
             <span className="id-card-icon">{icon.eye}</span>
             <span className="id-card-text">
               <span className="microlabel">צפייה בתור</span>
-              <span className="id-card-value">{impersonatingEmail}</span>
+              <span className="id-card-value id-card-email" dir="ltr">{impersonatingEmail}</span>
             </span>
             <button className="btn btn-ghost btn-small" onClick={onStopImpersonating}>
               יציאה
@@ -197,7 +197,7 @@ export function Sidebar({
           <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
           <span className="id-card-text">
             <span className="microlabel">מחוברים</span>
-            <span className="id-card-value">{userEmail ?? '…'}</span>
+            <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
           </span>
           <button className="icon-btn" onClick={onLogout} title="התנתקות">
             {icon.logout}

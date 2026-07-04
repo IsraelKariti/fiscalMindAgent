@@ -87,12 +87,16 @@ export interface Me {
   impersonating?: { id: string; email: string; name: string | null };
 }
 
-export interface AdminUser {
+export interface Accountant {
   id: string;
   email: string;
   name: string | null;
   createdAt: string;
+  mailbox: string | null;
   clientCount: number;
+  clientsComplete: number;
+  docsTotal: number;
+  docsCollected: number;
 }
 
 export interface MailboxStatus {
@@ -154,7 +158,7 @@ export const api = {
   listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),
   listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),
   fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
-  adminListUsers: () => request<{ users: AdminUser[] }>('/api/admin/users'),
+  adminListAccountants: () => request<{ accountants: Accountant[] }>('/api/admin/accountants'),
   impersonate: (userId: string) =>
     request<{ ok: true }>('/api/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),
   stopImpersonating: () => request<{ ok: true }>('/api/admin/impersonate/stop', { method: 'POST' }),

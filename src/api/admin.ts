@@ -23,21 +23,31 @@ export const requireAdmin: RequestHandler = async (req, res, next) => {
   }
 };
 
-/** GET /api/admin/users — every account, for the impersonation picker. */
-export const adminListUsers: RequestHandler = async (_req, res) => {
+/**
+ * GET /api/admin/accountants — every accountant with their collection progress,
+ * for the admin dashboard. Admin accounts (ADMIN_EMAILS) are not accountants and
+ * are excluded.
+ */
+export const adminListAccountants: RequestHandler = async (_req, res) => {
   const list = await users.listAll();
   res.json({
-    users: list.map((u) => ({
-      id: u.id,
-      email: u.email,
-      name: u.name,
-      createdAt: u.created_at,
-      clientCount: u.client_count,
-    })),
+    accountants: list
+      .filter((u) => !isAdminEmail(u.email))
+      .map((u) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        createdAt: u.created_at,
+        mailbox: u.mailbox_address,
+        clientCount: u.client_count,
+        clientsComplete: u.clients_complete,
+        docsTotal: u.docs_total,
+        docsCollected: u.docs_collected,
+      })),
   });
 };
 
-/** POST /api/admin/impersonate — start viewing the given user's dashboard. */
+/** POST /api/admin/impersonate — start viewing the given accountant's dashboard. */
 export const startImpersonation: RequestHandler = async (req, res) => {
   const parsed = ImpersonateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -51,6 +61,10 @@ export const startImpersonation: RequestHandler = async (req, res) => {
   const target = await users.getById(parsed.data.userId);
   if (!target) {
     res.status(404).json({ error: 'User not found.' });
+    return;
+  }
+  if (isAdminEmail(target.email)) {
+    res.status(403).json({ error: 'Admin accounts cannot be impersonated.' });
     return;
   }
   setImpersonationCookie(res, req.realUserId!, target.id);

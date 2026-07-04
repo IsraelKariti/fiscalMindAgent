@@ -4,15 +4,12 @@ interface Props {
   clients: Client[];
   selectedClientId: string | null;
   promptSelected: boolean;
-  adminSelected: boolean;
   onSelectClient: (clientId: string) => void;
   onSelectPrompt: () => void;
-  onSelectAdmin: () => void;
   onAddClient: () => void;
   onDeleteClient: (client: Client) => void;
   userEmail: string | null;
   agentMailbox: string | null;
-  isAdmin: boolean;
   impersonatingEmail: string | null;
   onStopImpersonating: () => void;
   onLogout: () => void;
@@ -22,15 +19,12 @@ export function Sidebar({
   clients,
   selectedClientId,
   promptSelected,
-  adminSelected,
   onSelectClient,
   onSelectPrompt,
-  onSelectAdmin,
   onAddClient,
   onDeleteClient,
   userEmail,
   agentMailbox,
-  isAdmin,
   impersonatingEmail,
   onStopImpersonating,
   onLogout,
@@ -80,11 +74,9 @@ export function Sidebar({
           {clients.length === 0 && <li className="muted sidebar-empty">No clients yet</li>}
         </ul>
         <div className="sidebar-section">Agent settings</div>
-        {isAdmin && (
-          <button className={`client-item ${promptSelected ? 'selected' : ''}`} onClick={onSelectPrompt}>
-            <span className="client-item-name">System prompt</span>
-          </button>
-        )}
+        <button className={`client-item ${promptSelected ? 'selected' : ''}`} onClick={onSelectPrompt}>
+          <span className="client-item-name">System prompt</span>
+        </button>
         <div className="agent-mailbox-row" title="Mailbox the agent sends and receives as">
           <span className="client-item-text">
             <span className="client-item-name">Agent mailbox</span>
@@ -93,14 +85,6 @@ export function Sidebar({
             </span>
           </span>
         </div>
-        {isAdmin && !impersonatingEmail && (
-          <>
-            <div className="sidebar-section">Admin</div>
-            <button className={`client-item ${adminSelected ? 'selected' : ''}`} onClick={onSelectAdmin}>
-              <span className="client-item-name">Users</span>
-            </button>
-          </>
-        )}
       </div>
 
       <div className="sidebar-footer">

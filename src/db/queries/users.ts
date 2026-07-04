@@ -11,16 +11,31 @@ export interface UserListRow {
   email: string;
   name: string | null;
   created_at: string;
+  mailbox_address: string | null;
   client_count: number;
+  clients_complete: number;
+  docs_total: number;
+  docs_collected: number;
 }
 
-/** All users with their client counts, newest first — admin panel only. */
+/**
+ * All users with their collection-progress rollups, newest first — admin panel only.
+ * Each document row joins through exactly one client, so COUNT(d.id) is exact while
+ * client counts need DISTINCT to undo the per-document fan-out.
+ */
 export async function listAll(): Promise<UserListRow[]> {
   const { rows } = await pool.query<UserListRow>(
-    `SELECT u.id, u.email, u.name, u.created_at, COUNT(c.id)::int AS client_count
+    `SELECT u.id, u.email, u.name, u.created_at,
+            m.email_address AS mailbox_address,
+            COUNT(DISTINCT c.id)::int AS client_count,
+            COUNT(DISTINCT c.id) FILTER (WHERE c.goal_status = 'complete')::int AS clients_complete,
+            COUNT(d.id)::int AS docs_total,
+            COUNT(d.id) FILTER (WHERE d.status = 'collected')::int AS docs_collected
      FROM users u
+     LEFT JOIN agent_mailboxes m ON m.user_id = u.id
      LEFT JOIN clients c ON c.user_id = u.id
-     GROUP BY u.id
+     LEFT JOIN client_documents d ON d.client_id = c.id
+     GROUP BY u.id, m.email_address
      ORDER BY u.created_at DESC`,
   );
   return rows;

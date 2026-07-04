@@ -7,9 +7,9 @@ import { PromptSettings } from './components/PromptSettings';
 import { AddClientModal } from './components/AddClientModal';
 import { DeleteClientModal } from './components/DeleteClientModal';
 import { ClaimMailbox } from './components/ClaimMailbox';
-import { AdminUsers } from './components/AdminUsers';
+import { AdminDashboard } from './components/AdminDashboard';
 
-type View = { kind: 'client'; clientId: string } | { kind: 'prompt' } | { kind: 'admin' } | { kind: 'empty' };
+type View = { kind: 'client'; clientId: string } | { kind: 'prompt' } | { kind: 'empty' };
 
 export function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -21,6 +21,10 @@ export function App() {
   const [view, setView] = useState<View>({ kind: 'empty' });
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
+
+  // Admins have no agent, clients, or mailbox of their own — they get the platform
+  // overview shell instead, and only enter the accountant workspace by impersonating.
+  const adminMode = isAdmin && !impersonating;
 
   useEffect(() => {
     api
@@ -53,10 +57,10 @@ export function App() {
   }, [view]);
 
   useEffect(() => {
-    if (!authed) return;
+    if (!authed || adminMode) return;
     loadClients().catch(console.error);
     api.mailboxStatus().then(setMailbox).catch(console.error);
-  }, [authed, loadClients]);
+  }, [authed, adminMode, loadClients]);
 
   if (authed === null) return <div className="screen-center muted">Loading…</div>;
   if (!authed) return <Login />;
@@ -65,9 +69,13 @@ export function App() {
     await api.logout();
     setAuthed(false);
     setUser(null);
+    setIsAdmin(false);
+    setImpersonating(null);
     setClients([]);
     setView({ kind: 'empty' });
   };
+
+  if (adminMode) return <AdminDashboard userEmail={user?.email ?? null} onLogout={logout} />;
 
   const clientDeleted = (client: Client) => {
     setDeleting(null);
@@ -84,7 +92,7 @@ export function App() {
 
   const stopImpersonating = async () => {
     await api.stopImpersonating();
-    // Full reload so every view refetches under the admin's own identity.
+    // Full reload so the admin lands back on their own dashboard with fresh state.
     window.location.reload();
   };
 
@@ -101,15 +109,12 @@ export function App() {
           clients={clients}
           selectedClientId={view.kind === 'client' ? view.clientId : null}
           promptSelected={view.kind === 'prompt'}
-          adminSelected={view.kind === 'admin'}
           onSelectClient={(clientId) => setView({ kind: 'client', clientId })}
           onSelectPrompt={() => setView({ kind: 'prompt' })}
-          onSelectAdmin={() => setView({ kind: 'admin' })}
           onAddClient={() => setAdding(true)}
           onDeleteClient={setDeleting}
           userEmail={user?.email ?? null}
           agentMailbox={mailbox?.claimed ? mailbox.emailAddress : null}
-          isAdmin={isAdmin}
           impersonatingEmail={impersonating?.email ?? null}
           onStopImpersonating={stopImpersonating}
           onLogout={logout}
@@ -118,8 +123,7 @@ export function App() {
           {view.kind === 'client' && (
             <ClientView key={view.clientId} clientId={view.clientId} onClientUpdated={loadClients} />
           )}
-          {view.kind === 'prompt' && isAdmin && <PromptSettings />}
-          {view.kind === 'admin' && <AdminUsers ownUserId={user?.id ?? ''} />}
+          {view.kind === 'prompt' && <PromptSettings />}
           {view.kind === 'empty' && (
             <div className="screen-center muted">No clients yet — use “+ Add” in the sidebar to create one.</div>
           )}

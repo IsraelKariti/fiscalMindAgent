@@ -162,7 +162,8 @@ export const api = {
     email: string;
     subject: string;
     body: string;
-    delayMinutes: number;
+    /** ISO timestamp for the first email send. */
+    sendAt: string;
     documents: { name: string; description?: string | null }[];
   }) => request<{ client: Client }>('/api/clients', { method: 'POST', body: JSON.stringify(args) }),
   getClient: (id: string) =>

@@ -58,7 +58,7 @@ const ClientCreateSchema = z
     email: z.string().email(),
     subject: z.string().min(1),
     body: z.string().min(1),
-    delayMinutes: z.number().int().min(0).max(60 * 24 * 30),
+    sendAt: z.string().datetime({ offset: true }),
     documents: z.array(DocumentCreateSchema).max(50).default([]),
   })
   .strict();
@@ -153,7 +153,14 @@ apiRouter.post(
       res.status(400).json({ error: 'Invalid client fields.', details: parsed.error.flatten() });
       return;
     }
-    const { name, email, subject, body, delayMinutes, documents } = parsed.data;
+    const { name, email, subject, body, sendAt, documents } = parsed.data;
+
+    // Past timestamps (e.g. the form sat open past the chosen minute) mean "send now".
+    const delayMs = Math.max(0, new Date(sendAt).getTime() - Date.now());
+    if (delayMs > hoursToMs(24 * 30)) {
+      res.status(400).json({ error: 'Send time must be within 30 days.' });
+      return;
+    }
 
     if (!(await agentMailboxes.getByUserId(req.userId!))) {
       res.status(409).json({ error: "Choose your agent's email address first — the agent has no mailbox to send from." });
@@ -168,7 +175,7 @@ apiRouter.post(
     for (const doc of documents) {
       await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
     }
-    await scheduleDraftEmail(client.id, { subject, body, delayMs: hoursToMs(delayMinutes / 60) });
+    await scheduleDraftEmail(client.id, { subject, body, delayMs });
     res.status(201).json({ client });
   }),
 );

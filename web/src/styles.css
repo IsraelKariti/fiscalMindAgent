@@ -1163,6 +1163,95 @@ textarea {
   transform: translateY(0) scale(0.94);
 }
 
+/* Send-time scheduler (add-client modal): Gmail-style preset chips over a
+   compact date+time pair, echoed back as a human-readable confirmation line. */
+.sendat-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Preset labels are Hebrew prose, not code — drop the chip's mono font */
+.sendat-presets .chip {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.chip.chip-selected {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+}
+
+.sendat-inputs {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.sendat-inputs input {
+  padding: 7px 10px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sendat-inputs input[type='date'] {
+  flex: 1.5;
+  min-width: 0;
+}
+
+.sendat-inputs input[type='time'] {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The native calendar/clock glyphs render near-black; invert them for the
+   dark surface and let them brighten on hover like our icon buttons. */
+.sendat-inputs input::-webkit-calendar-picker-indicator {
+  filter: invert(0.75);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity var(--speed) ease;
+}
+
+.sendat-inputs input:hover::-webkit-calendar-picker-indicator,
+.sendat-inputs input:focus::-webkit-calendar-picker-indicator {
+  opacity: 0.95;
+}
+
+.sendat-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 5px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.sendat-summary svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+/* Undo the .field span micro-label treatment — the summary is prose */
+.sendat-summary span {
+  font-size: inherit;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: inherit;
+  margin-bottom: 0;
+}
+
+.sendat-summary strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sendat-summary.past {
+  color: var(--pending);
+}
+
 /* Required documents */
 .doc-list {
   list-style: none;

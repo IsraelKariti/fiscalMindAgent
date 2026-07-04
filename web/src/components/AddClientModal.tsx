@@ -119,13 +119,36 @@ function relativeLabel(msFromNow: number): string {
 
 const summaryDateFormat = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
 
+// The annual return is filed for the previous calendar year.
+const TAX_YEAR = new Date().getFullYear() - 1;
+
+/**
+ * Default first email. Sent verbatim (nothing appends the document list later),
+ * so the body must carry the list itself — kept otherwise as short as possible.
+ */
+function buildDefaultBody(name: string, documents: DocumentDraft[]): string {
+  const greeting = name.trim() ? `שלום ${name.trim()},` : 'שלום,';
+  const list = documents.map((doc) => `• ${doc.name}`).join('\n');
+  return `${greeting}
+
+לצורך הכנת הדוח השנתי לשנת המס ${TAX_YEAR}, נשמח לקבל במענה למייל זה את המסמכים הבאים:
+
+${list}
+
+אם מסמך מסוים אינו רלוונטי עבורך, אפשר פשוט לציין זאת במענה.
+
+תודה רבה!`;
+}
+
 export function AddClientModal({ onCreated, onClose }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [documents, setDocuments] = useState<DocumentDraft[]>(DEFAULT_DOCUMENTS);
   const [docDraft, setDocDraft] = useState('');
-  const [subject, setSubject] = useState('מסמכים נדרשים להכנת הדוח השנתי');
-  const [body, setBody] = useState('');
+  const [subject, setSubject] = useState(`מסמכים להכנת הדוח השנתי ${TAX_YEAR}`);
+  // null = still auto-generated: the body tracks the name and document chips until first edited by hand.
+  const [bodyDraft, setBodyDraft] = useState<string | null>(null);
+  const body = bodyDraft ?? buildDefaultBody(name, documents);
   const [sendDraft, setSendDraft] = useState(() => {
     const d = new Date(Date.now() + 5 * 60_000);
     return { date: toDateValue(d), time: toTimeValue(d) };
@@ -242,7 +265,7 @@ export function AddClientModal({ onCreated, onClose }: Props) {
         </label>
         <label className="field">
           <span>תוכן המייל הראשון</span>
-          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} required />
+          <textarea value={body} onChange={(e) => setBodyDraft(e.target.value)} rows={10} required />
         </label>
         <div className="field">
           <span>מועד השליחה הראשונה</span>

@@ -122,6 +122,9 @@ export interface Accountant {
   clientsComplete: number;
   docsTotal: number;
   docsCollected: number;
+  llmInputTokens: number;
+  llmOutputTokens: number;
+  llmThinkingTokens: number;
 }
 
 export interface WhitelistEntry {

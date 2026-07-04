@@ -52,6 +52,9 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         clientsComplete: u.clients_complete,
         docsTotal: u.docs_total,
         docsCollected: u.docs_collected,
+        llmInputTokens: u.llm_input_tokens,
+        llmOutputTokens: u.llm_output_tokens,
+        llmThinkingTokens: u.llm_thinking_tokens,
       })),
   });
 };

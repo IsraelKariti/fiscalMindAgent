@@ -23,7 +23,13 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   const files = await documentFiles.listForClient(clientId);
   const { template } = await getPromptTemplate(client.user_id);
   const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, new Date(), template);
-  const decision = await decide(systemInstruction, contents);
+  const { decision, usage } = await decide(systemInstruction, contents);
+
+  // Bill the tokens to the owning accountant right away, so they count even if
+  // acting on the decision fails below. Legacy CLI clients have no owner.
+  if (client.user_id) {
+    await users.addLlmTokens(client.user_id, usage);
+  }
 
   // Record which pending documents the LLM saw the client provide (unknown ids are ignored).
   const pendingIds = new Set(documents.filter((d) => d.status === 'pending').map((d) => d.id));

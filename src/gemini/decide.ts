@@ -32,7 +32,18 @@ async function generateWithRetry(request: Parameters<typeof genaiClient.models.g
   }
 }
 
-export async function decide(systemInstruction: string, contents: string): Promise<NormalizedDecision> {
+export interface GeminiUsage {
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+}
+
+export interface DecideResult {
+  decision: NormalizedDecision;
+  usage: GeminiUsage;
+}
+
+export async function decide(systemInstruction: string, contents: string): Promise<DecideResult> {
   const response = await generateWithRetry({
     model: env.GEMINI_MODEL,
     contents,
@@ -44,10 +55,20 @@ export async function decide(systemInstruction: string, contents: string): Promi
     },
   });
 
+  // candidatesTokenCount is the visible output only; thinking tokens are
+  // reported separately (and bill at the output rate).
+  const meta = response.usageMetadata;
+  const usage: GeminiUsage = {
+    inputTokens: meta?.promptTokenCount ?? 0,
+    outputTokens: meta?.candidatesTokenCount ?? 0,
+    thinkingTokens: meta?.thoughtsTokenCount ?? 0,
+  };
+  logger.info('gemini tokens used', { model: env.GEMINI_MODEL, ...usage });
+
   const text = response.text;
   if (!text) {
     throw new Error(`Gemini returned no text output (refusal or empty response): ${JSON.stringify(response)}`);
   }
   const raw = DecisionResponseSchema.parse(JSON.parse(text));
-  return normalizeDecision(raw);
+  return { decision: normalizeDecision(raw), usage };
 }

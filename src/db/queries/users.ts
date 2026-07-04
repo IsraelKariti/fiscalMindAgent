@@ -17,6 +17,9 @@ export interface UserListRow {
   clients_complete: number;
   docs_total: number;
   docs_collected: number;
+  llm_input_tokens: number;
+  llm_output_tokens: number;
+  llm_thinking_tokens: number;
 }
 
 /**
@@ -29,6 +32,9 @@ export async function listAll(): Promise<UserListRow[]> {
     `SELECT u.id, u.email, u.name, u.created_at,
             m.email_address AS mailbox_address,
             (w.email IS NOT NULL) AS whitelisted,
+            u.llm_input_tokens::float8 AS llm_input_tokens,
+            u.llm_output_tokens::float8 AS llm_output_tokens,
+            u.llm_thinking_tokens::float8 AS llm_thinking_tokens,
             COUNT(DISTINCT c.id)::int AS client_count,
             COUNT(DISTINCT c.id) FILTER (WHERE c.goal_status = 'complete')::int AS clients_complete,
             COUNT(d.id)::int AS docs_total,
@@ -42,6 +48,22 @@ export async function listAll(): Promise<UserListRow[]> {
      ORDER BY u.created_at DESC`,
   );
   return rows;
+}
+
+/** Adds one Gemini call's token counts to the user's lifetime counters. */
+export async function addLlmTokens(
+  userId: string,
+  usage: { inputTokens: number; outputTokens: number; thinkingTokens: number },
+): Promise<void> {
+  await pool.query(
+    `UPDATE users
+     SET llm_input_tokens    = llm_input_tokens + $2,
+         llm_output_tokens   = llm_output_tokens + $3,
+         llm_thinking_tokens = llm_thinking_tokens + $4,
+         updated_at = now()
+     WHERE id = $1`,
+    [userId, usage.inputTokens, usage.outputTokens, usage.thinkingTokens],
+  );
 }
 
 export async function getByEmail(email: string): Promise<UserRow | null> {

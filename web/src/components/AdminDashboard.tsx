@@ -127,6 +127,10 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     }
   };
 
+  // Accumulated Gemini tokens; a count of zero (or no account yet) shows as a dash.
+  const tokenCell = (value: number | undefined) =>
+    value ? <span dir="ltr">{value.toLocaleString('he-IL')}</span> : <span className="muted">—</span>;
+
   const statusBadge = (row: AccountantRow) => {
     if (!row.whitelisted) {
       return (
@@ -252,6 +256,9 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                     <th>תיבת הסוכן</th>
                     <th>לקוחות שהושלמו</th>
                     <th>מסמכים שנאספו</th>
+                    <th>טוקני קלט</th>
+                    <th>טוקני פלט</th>
+                    <th>טוקני חשיבה</th>
                     <th />
                   </tr>
                 </thead>
@@ -295,6 +302,9 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                           </span>
                         )}
                       </td>
+                      <td>{tokenCell(row.user?.llmInputTokens)}</td>
+                      <td>{tokenCell(row.user?.llmOutputTokens)}</td>
+                      <td>{tokenCell(row.user?.llmThinkingTokens)}</td>
                       <td>
                         <span className="btn-row admin-row-actions">
                           {row.user && (

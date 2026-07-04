@@ -6,6 +6,10 @@ export interface UserRow {
   email: string;
   name: string | null;
   picture_url: string | null;
+  // Lifetime Gemini token counters; BIGINT, so pg returns them as strings.
+  llm_input_tokens: string;
+  llm_output_tokens: string;
+  llm_thinking_tokens: string;
   created_at: Date;
   updated_at: Date;
 }

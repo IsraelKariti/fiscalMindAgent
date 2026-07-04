@@ -46,7 +46,7 @@ body {
     var(--bg);
   background-attachment: fixed;
   color: var(--text);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -174,11 +174,12 @@ code {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  font-size: 17px;
 }
 
 .sidebar-brand {
   padding: 2px 8px 14px;
-  font-size: 17px;
+  font-size: 20px;
 }
 
 .sidebar-scroll {
@@ -230,7 +231,7 @@ code {
 }
 
 .id-card-value {
-  font-size: 12.5px;
+  font-size: 15.5px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -238,7 +239,7 @@ code {
 }
 
 .microlabel {
-  font-size: 9.5px;
+  font-size: 12.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -285,7 +286,7 @@ code {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10.5px;
+  font-size: 13.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -296,7 +297,7 @@ code {
   padding: 0 6px;
   border-radius: 999px;
   background: rgba(148, 163, 216, 0.14);
-  font-size: 10px;
+  font-size: 13px;
   line-height: 16px;
   letter-spacing: 0;
 }
@@ -428,7 +429,7 @@ code {
 }
 
 .client-item-email {
-  font-size: 12px;
+  font-size: 15px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -508,7 +509,7 @@ code {
   display: inline-block;
   padding: 2px 11px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   border: 1px solid transparent;
 }
@@ -533,7 +534,7 @@ code {
 
 .badge-note {
   margin-inline-start: 10px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 /* Detail grid (client card) */
@@ -546,7 +547,7 @@ code {
 
 .detail-grid dt,
 .field span {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -728,7 +729,7 @@ textarea {
 }
 
 .login-brand {
-  font-size: 19px;
+  font-size: 21px;
 }
 
 /* Add-client modal */
@@ -760,7 +761,7 @@ textarea {
 
 .modal h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .modal-actions {
@@ -785,7 +786,7 @@ textarea {
 
 .btn-small {
   padding: 3px 9px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .chip-x {
@@ -793,7 +794,7 @@ textarea {
   background: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1;
   padding: 0;
   transition: color var(--speed) ease, transform var(--speed) ease;
@@ -890,7 +891,7 @@ textarea {
 }
 
 .claim-mailbox-status {
-  font-size: 12px;
+  font-size: 14px;
   min-height: 16px;
 }
 
@@ -965,7 +966,7 @@ textarea {
 .timeline-meta {
   display: flex;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .timeline-author {
@@ -1047,7 +1048,7 @@ textarea {
   gap: 12px;
   align-self: stretch;
   margin: 4px 0;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1111,7 +1112,7 @@ textarea {
 .prompt-editor {
   width: 100%;
   font-family: 'JetBrains Mono', 'Rubik', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.55;
   overflow-y: hidden;
   resize: none;
@@ -1128,7 +1129,7 @@ textarea {
   position: relative;
   overflow: hidden;
   font-family: 'JetBrains Mono', 'Rubik', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: 14px;
   padding: 3px 10px;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
@@ -1207,7 +1208,7 @@ textarea {
 }
 
 .doc-desc {
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 
@@ -1236,7 +1237,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 13px;
+  font-size: 15px;
   padding: 3px 11px;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
@@ -1332,12 +1333,12 @@ textarea {
 .admin-users-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .admin-users-table th {
   text-align: start;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1395,7 +1396,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 14.5px;
   color: var(--text-muted);
   background: rgba(148, 163, 216, 0.07);
   border: 1px solid var(--border);
@@ -1417,7 +1418,7 @@ textarea {
 
 button.meta-chip {
   font: inherit;
-  font-size: 12.5px;
+  font-size: 14.5px;
   cursor: pointer;
   transition:
     background var(--speed) ease,
@@ -1442,7 +1443,7 @@ button.meta-chip:hover {
 .client-notes {
   margin: 10px 0 0;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   white-space: pre-wrap;
   max-height: 96px;
   overflow-y: auto;
@@ -1474,7 +1475,7 @@ button.meta-chip:hover {
 }
 
 .stat-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1482,7 +1483,7 @@ button.meta-chip:hover {
 }
 
 .stat-value {
-  font-size: 27px;
+  font-size: 29px;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
@@ -1496,7 +1497,7 @@ button.meta-chip:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
@@ -1572,7 +1573,7 @@ button.meta-chip:hover {
 
 .chart-title {
   margin: 0;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1580,7 +1581,7 @@ button.meta-chip:hover {
 }
 
 .chart-subtitle {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -1618,7 +1619,7 @@ button.meta-chip:hover {
   align-items: center;
   justify-content: center;
   min-height: 130px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-muted);
 }
 
@@ -1631,7 +1632,7 @@ button.meta-chip:hover {
   gap: 7px;
   margin: 0;
   padding: 0;
-  font-size: 12px;
+  font-size: 14px;
   min-width: 0;
 }
 
@@ -1689,7 +1690,7 @@ button.meta-chip:hover {
   border-radius: 8px;
   background: var(--surface-raised);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-  font-size: 12px;
+  font-size: 14px;
   transform: translate(14px, -50%);
 }
 
@@ -1699,7 +1700,7 @@ button.meta-chip:hover {
 
 .chart-tooltip-title {
   margin-bottom: 4px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
@@ -1743,7 +1744,7 @@ button.meta-chip:hover {
 
 .chart-tick-label {
   fill: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 /* Direct labels drawn over marks get a surface-colored halo for legibility */
@@ -1753,7 +1754,7 @@ button.meta-chip:hover {
   stroke-width: 3px;
   stroke-linejoin: round;
   fill: var(--text);
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 
@@ -1789,13 +1790,13 @@ button.meta-chip:hover {
 
 .donut-center-value {
   fill: var(--text);
-  font-size: 23px;
+  font-size: 25px;
   font-weight: 600;
 }
 
 .donut-center-label {
   fill: var(--text-muted);
-  font-size: 10.5px;
+  font-size: 12.5px;
 }
 
 .sankey-link {
@@ -1913,7 +1914,7 @@ button.meta-chip:hover {
 }
 
 .panel-count {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .panel-body {
@@ -2001,13 +2002,13 @@ button.meta-chip:hover {
 
 /* Access-pending screen (signed in but not whitelisted) */
 .access-pending-icon {
-  font-size: 34px;
+  font-size: 36px;
   line-height: 1;
 }
 
 .access-pending-title {
   margin: 0;
-  font-size: 17px;
+  font-size: 19px;
 }
 
 /* Admin accountants table: keep the per-row action buttons on one line */

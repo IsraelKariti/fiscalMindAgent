@@ -1,4 +1,5 @@
 import * as clients from '../db/queries/clients.js';
+import * as users from '../db/queries/users.js';
 import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
@@ -15,11 +16,12 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   if (!client) throw new Error(`setFutureEmail: client ${clientId} not found`);
   if (client.goal_status === 'complete') return;
 
+  const accountant = client.user_id ? await users.getById(client.user_id) : null;
   const history = await emails.listForClient(clientId);
   const documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
   const { template } = await getPromptTemplate(client.user_id);
-  const { systemInstruction, contents } = buildPrompt(client, history, documents, files, new Date(), template);
+  const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, new Date(), template);
   const decision = await decide(systemInstruction, contents);
 
   // Record which pending documents the LLM saw the client provide (unknown ids are ignored).

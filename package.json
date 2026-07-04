@@ -19,6 +19,7 @@
     "start:worker": "node dist/src/worker.js",
     "db:migrate": "tsx scripts/migrate.ts",
     "cli:bootstrap": "tsx src/cli/bootstrapClient.ts",
+    "ship": "node scripts/ship.mjs",
     "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": {

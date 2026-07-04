@@ -4,11 +4,16 @@ interface Props {
   clients: Client[];
   selectedClientId: string | null;
   promptSelected: boolean;
+  adminSelected: boolean;
   onSelectClient: (clientId: string) => void;
   onSelectPrompt: () => void;
+  onSelectAdmin: () => void;
   onAddClient: () => void;
   userEmail: string | null;
   agentMailbox: string | null;
+  isAdmin: boolean;
+  impersonatingEmail: string | null;
+  onStopImpersonating: () => void;
   onLogout: () => void;
 }
 
@@ -16,17 +21,22 @@ export function Sidebar({
   clients,
   selectedClientId,
   promptSelected,
+  adminSelected,
   onSelectClient,
   onSelectPrompt,
+  onSelectAdmin,
   onAddClient,
   userEmail,
   agentMailbox,
+  isAdmin,
+  impersonatingEmail,
+  onStopImpersonating,
   onLogout,
 }: Props) {
   return (
     <nav className="sidebar">
       <div className="brand sidebar-brand">
-        <span className="brand-mark">FM</span>
+        <img className="brand-mark" src="/logo.png" alt="FiscalMind logo" />
         <span>FiscalMind</span>
       </div>
 
@@ -55,9 +65,11 @@ export function Sidebar({
           {clients.length === 0 && <li className="muted sidebar-empty">No clients yet</li>}
         </ul>
         <div className="sidebar-section">Agent settings</div>
-        <button className={`client-item ${promptSelected ? 'selected' : ''}`} onClick={onSelectPrompt}>
-          <span className="client-item-name">System prompt</span>
-        </button>
+        {isAdmin && (
+          <button className={`client-item ${promptSelected ? 'selected' : ''}`} onClick={onSelectPrompt}>
+            <span className="client-item-name">System prompt</span>
+          </button>
+        )}
         <div className="agent-mailbox-row" title="Mailbox the agent sends and receives as">
           <span className="client-item-text">
             <span className="client-item-name">Agent mailbox</span>
@@ -66,9 +78,28 @@ export function Sidebar({
             </span>
           </span>
         </div>
+        {isAdmin && !impersonatingEmail && (
+          <>
+            <div className="sidebar-section">Admin</div>
+            <button className={`client-item ${adminSelected ? 'selected' : ''}`} onClick={onSelectAdmin}>
+              <span className="client-item-name">Users</span>
+            </button>
+          </>
+        )}
       </div>
 
       <div className="sidebar-footer">
+        {impersonatingEmail && (
+          <div className="footer-row impersonation-row" title="You are viewing this user's dashboard as admin">
+            <span className="footer-label">Impersonating</span>
+            <span className="footer-value footer-user">
+              <span className="footer-email">{impersonatingEmail}</span>
+              <button className="btn btn-ghost btn-small" onClick={onStopImpersonating}>
+                Exit
+              </button>
+            </span>
+          </div>
+        )}
         <div className="footer-row" title="Google account you are signed in with">
           <span className="footer-label">Signed in as</span>
           <span className="footer-value footer-user">

@@ -9,16 +9,20 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      /** Set by requireAuth from the verified session cookie. */
+      /** Effective user set by requireAuth — the impersonated user while an admin is impersonating. */
       userId?: string;
+      /** Real signed-in user; differs from userId only during impersonation. */
+      realUserId?: string;
     }
   }
 }
 
 const SESSION_COOKIE = 'fm_session';
 const STATE_COOKIE = 'fm_oauth_state';
+const IMPERSONATION_COOKIE = 'fm_impersonate';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const STATE_TTL_MS = 10 * 60 * 1000;
+const IMPERSONATION_TTL_MS = 4 * 60 * 60 * 1000;
 
 const sessionSecret = env.DASHBOARD_SESSION_SECRET ?? crypto.randomBytes(32).toString('hex');
 
@@ -101,6 +105,50 @@ function setSessionCookie(res: Response, userId: string): void {
   });
 }
 
+export function isAdminEmail(email: string): boolean {
+  return env.ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+/**
+ * Impersonation cookie format: <adminUserId>.<targetUserId>.<expiresAtMs>.<hmac of the first three>.
+ * Admin status is checked when the cookie is issued (POST /api/admin/impersonate); at request time
+ * the cookie only takes effect when its adminUserId matches the real session user.
+ */
+export function setImpersonationCookie(res: Response, adminUserId: string, targetUserId: string): void {
+  const expiresAt = String(Date.now() + IMPERSONATION_TTL_MS);
+  const payload = `${adminUserId}.${targetUserId}.${expiresAt}`;
+  res.cookie(IMPERSONATION_COOKIE, `${payload}.${sign(payload)}`, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: env.APP_BASE_URL.startsWith('https://'),
+    maxAge: IMPERSONATION_TTL_MS,
+    path: '/',
+  });
+}
+
+export function clearImpersonationCookie(res: Response): void {
+  res.clearCookie(IMPERSONATION_COOKIE, { path: '/' });
+}
+
+function impersonationTarget(req: Request, realUserId: string): string | null {
+  const cookie = readCookie(req, IMPERSONATION_COOKIE);
+  if (!cookie) return null;
+  const [adminUserId, targetUserId, expiresAt, signature] = cookie.split('.');
+  if (!adminUserId || !targetUserId || !expiresAt || !signature) return null;
+  if (!/^\d+$/.test(expiresAt) || Number(expiresAt) < Date.now()) return null;
+  if (!timingSafeEqual(signature, sign(`${adminUserId}.${targetUserId}.${expiresAt}`))) return null;
+  if (adminUserId !== realUserId) return null;
+  return targetUserId;
+}
+
+/** Resolves the signed-in user plus the effective user (the impersonated one, when active). */
+export function resolveIdentity(req: Request): { realUserId: string; effectiveUserId: string } | null {
+  const realUserId = sessionUserId(req);
+  if (!realUserId) return null;
+  const target = impersonationTarget(req, realUserId);
+  return { realUserId, effectiveUserId: target ?? realUserId };
+}
+
 /** GET /api/auth/google — kick off the Google sign-in consent redirect. */
 export const startGoogleLogin: RequestHandler = (_req, res) => {
   let oauth: OAuth2Client;
@@ -148,35 +196,52 @@ export const googleLoginCallback: RequestHandler = async (req, res) => {
 
 export const logout: RequestHandler = (_req, res) => {
   res.clearCookie(SESSION_COOKIE, { path: '/' });
+  clearImpersonationCookie(res);
   res.json({ ok: true });
 };
 
-/** GET /api/me — session + profile for the SPA. */
+/** GET /api/me — session + profile for the SPA. `user` is always the real signed-in user. */
 export const me: RequestHandler = async (req, res) => {
-  const userId = sessionUserId(req);
-  if (!userId) {
+  const identity = resolveIdentity(req);
+  if (!identity) {
     res.json({ authenticated: false });
     return;
   }
-  const user = await users.getById(userId);
+  const user = await users.getById(identity.realUserId);
   if (!user) {
     // Signed cookie for a deleted user — treat as signed out.
     res.clearCookie(SESSION_COOKIE, { path: '/' });
+    clearImpersonationCookie(res);
     res.json({ authenticated: false });
     return;
   }
+
+  let impersonating: { id: string; email: string; name: string | null } | null = null;
+  if (identity.effectiveUserId !== identity.realUserId) {
+    const target = await users.getById(identity.effectiveUserId);
+    if (target) {
+      impersonating = { id: target.id, email: target.email, name: target.name };
+    } else {
+      // Impersonated user was deleted — drop the impersonation.
+      clearImpersonationCookie(res);
+    }
+  }
+
   res.json({
     authenticated: true,
     user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },
+    isAdmin: isAdminEmail(user.email),
+    ...(impersonating ? { impersonating } : {}),
   });
 };
 
 export const requireAuth: RequestHandler = (req, res, next) => {
-  const userId = sessionUserId(req);
-  if (!userId) {
+  const identity = resolveIdentity(req);
+  if (!identity) {
     res.status(401).json({ error: 'Not authenticated.' });
     return;
   }
-  req.userId = userId;
+  req.userId = identity.effectiveUserId;
+  req.realUserId = identity.realUserId;
   next();
 };

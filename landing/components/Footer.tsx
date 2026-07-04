@@ -24,8 +24,9 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid md:grid-cols-4 gap-12 mb-12">
           <div>
-            <span className="shimmer-text text-xl font-extrabold tracking-tight block mb-3">
-              FiscalMind
+            <span className="flex items-center gap-2.5 mb-3">
+              <img src="/logo.png" alt="" className="w-7 h-7 rounded-lg" />
+              <span className="shimmer-text text-xl font-extrabold tracking-tight">FiscalMind</span>
             </span>
             <p className="text-[#64748B] text-sm leading-relaxed max-w-xs">
               פתרונות AI מותאמים אישית למשרדי רואי חשבון. הצד החכם של הנהלת החשבונות.

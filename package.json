@@ -8,10 +8,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "docker compose up -d && concurrently -n web,worker,gui,ngrok -c blue,yellow,green,gray npm:dev:web npm:dev:worker npm:dev:gui \"ngrok http --domain=curtly-driving-steadfast.ngrok-free.dev 3000\"",
+    "dev": "docker compose up -d && concurrently -n web,worker,gui,landing,ngrok -c blue,yellow,green,magenta,gray npm:dev:web npm:dev:worker npm:dev:gui npm:dev:landing \"ngrok http --domain=curtly-driving-steadfast.ngrok-free.dev 3000\"",
     "dev:web": "tsx watch src/web.ts",
     "dev:worker": "tsx watch src/worker.ts",
     "dev:gui": "npm run dev --prefix web",
+    "dev:landing": "npm run dev --prefix landing",
     "build": "tsc -p .",
     "build:gui": "npm run build --prefix web",
     "start:web": "node dist/src/web.js",

@@ -14,6 +14,7 @@ import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.j
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
 import { googleLoginCallback, logout, me, requireAuth, startGoogleLogin } from './auth.js';
+import { adminListUsers, requireAdmin, startImpersonation, stopImpersonation } from './admin.js';
 import { claimMailbox, mailboxAvailability, mailboxStatus } from './mailbox.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
@@ -96,6 +97,10 @@ apiRouter.post('/logout', logout);
 apiRouter.get('/me', wrap(me));
 
 apiRouter.use(requireAuth);
+
+apiRouter.get('/admin/users', wrap(requireAdmin), wrap(adminListUsers));
+apiRouter.post('/admin/impersonate', wrap(requireAdmin), wrap(startImpersonation));
+apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersonation));
 
 apiRouter.get('/mailbox', wrap(mailboxStatus));
 apiRouter.get('/mailbox/availability', wrap(mailboxAvailability));
@@ -268,8 +273,10 @@ apiRouter.get(
   }),
 );
 
+// Admin-only (checked against the real signed-in user, so it stays available while impersonating).
 apiRouter.get(
   '/prompt-template',
+  wrap(requireAdmin),
   wrap(async (req, res) => {
     const state = await getPromptTemplate(req.userId!);
     res.json({ ...state, defaultTemplate: DEFAULT_PROMPT_TEMPLATE, placeholders: PROMPT_PLACEHOLDERS });
@@ -278,6 +285,7 @@ apiRouter.get(
 
 apiRouter.put(
   '/prompt-template',
+  wrap(requireAdmin),
   wrap(async (req, res) => {
     const parsed = PromptTemplateSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -292,6 +300,7 @@ apiRouter.put(
 
 apiRouter.post(
   '/prompt-template/reset',
+  wrap(requireAdmin),
   wrap(async (req, res) => {
     await resetPromptTemplate(req.userId!);
     const state = await getPromptTemplate(req.userId!);

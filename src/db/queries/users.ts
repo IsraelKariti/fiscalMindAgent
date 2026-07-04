@@ -6,6 +6,26 @@ export async function getById(id: string): Promise<UserRow | null> {
   return rows[0] ?? null;
 }
 
+export interface UserListRow {
+  id: string;
+  email: string;
+  name: string | null;
+  created_at: string;
+  client_count: number;
+}
+
+/** All users with their client counts, newest first — admin panel only. */
+export async function listAll(): Promise<UserListRow[]> {
+  const { rows } = await pool.query<UserListRow>(
+    `SELECT u.id, u.email, u.name, u.created_at, COUNT(c.id)::int AS client_count
+     FROM users u
+     LEFT JOIN clients c ON c.user_id = u.id
+     GROUP BY u.id
+     ORDER BY u.created_at DESC`,
+  );
+  return rows;
+}
+
 export async function getByEmail(email: string): Promise<UserRow | null> {
   const { rows } = await pool.query<UserRow>('SELECT * FROM users WHERE email = $1', [email]);
   return rows[0] ?? null;

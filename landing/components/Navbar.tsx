@@ -42,8 +42,9 @@ export default function Navbar() {
       }`}
     >
       <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <a href="#" className="shimmer-text text-xl font-extrabold tracking-tight select-none">
-          FiscalMind
+        <a href="#" className="flex items-center gap-2.5 select-none">
+          <img src="/logo.png" alt="" className="w-7 h-7 rounded-lg" />
+          <span className="shimmer-text text-xl font-extrabold tracking-tight">FiscalMind</span>
         </a>
 
         <div className="hidden md:flex items-center gap-8">

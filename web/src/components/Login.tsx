@@ -29,7 +29,7 @@ export function Login() {
     <div className="screen-center">
       <div className="card login-card">
         <div className="brand login-brand">
-          <span className="brand-mark">FM</span>
+          <img className="brand-mark" src="/logo.png" alt="FiscalMind logo" />
           <span>FiscalMind</span>
         </div>
         <p className="muted">Sign in to manage the Form 106 collection agent.</p>

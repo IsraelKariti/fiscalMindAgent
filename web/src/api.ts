@@ -72,6 +72,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export interface Me {
   authenticated: boolean;
   user?: { id: string; email: string; name: string | null; pictureUrl: string | null };
+  isAdmin?: boolean;
+  impersonating?: { id: string; email: string; name: string | null };
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string | null;
+  createdAt: string;
+  clientCount: number;
 }
 
 export interface MailboxStatus {
@@ -130,6 +140,10 @@ export const api = {
   updateClient: (id: string, patch: Partial<Pick<Client, 'name' | 'occupation' | 'phone' | 'company' | 'notes'>>) =>
     request<{ client: Client }>(`/api/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),
+  adminListUsers: () => request<{ users: AdminUser[] }>('/api/admin/users'),
+  impersonate: (userId: string) =>
+    request<{ ok: true }>('/api/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),
+  stopImpersonating: () => request<{ ok: true }>('/api/admin/impersonate/stop', { method: 'POST' }),
   getPromptTemplate: () => request<PromptTemplateState>('/api/prompt-template'),
   savePromptTemplate: (template: string) =>
     request<PromptTemplateState>('/api/prompt-template', { method: 'PUT', body: JSON.stringify({ template }) }),

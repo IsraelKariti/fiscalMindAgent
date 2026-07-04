@@ -24,6 +24,16 @@ const EnvSchema = z.object({
   // Signs the dashboard session cookie. If unset, a random per-process secret
   // is used (sessions are invalidated whenever the web process restarts).
   DASHBOARD_SESSION_SECRET: z.string().min(16).optional(),
+  // Comma-separated emails granted the admin panel + user impersonation.
+  ADMIN_EMAILS: z
+    .string()
+    .default('')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean),
+    ),
   // Resend (resend.com): sends agent mail and delivers inbound mail for
   // AGENT_EMAIL_DOMAIN to /webhooks/resend.
   RESEND_API_KEY: z.string().min(1),

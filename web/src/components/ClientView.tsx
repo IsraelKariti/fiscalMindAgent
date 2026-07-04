@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type Client, type ClientDocument, type Email, type NextScheduled } from '../api';
-import { ClientCard } from './ClientCard';
+import { api, type Client, type ClientDocument, type DocumentFile, type Email, type NextScheduled } from '../api';
+import { ClientHeader } from './ClientHeader';
 import { DocumentsCard } from './DocumentsCard';
+import { FilesCard } from './FilesCard';
+import { StatTiles } from './StatTiles';
 import { Timeline } from './Timeline';
 
 export function ClientView({ clientId, onClientUpdated }: { clientId: string; onClientUpdated: () => Promise<void> }) {
@@ -9,15 +11,21 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
   const [nextScheduled, setNextScheduled] = useState<NextScheduled | null>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
+  const [files, setFiles] = useState<DocumentFile[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [detail, thread] = await Promise.all([api.getClient(clientId), api.listEmails(clientId)]);
+      const [detail, thread, received] = await Promise.all([
+        api.getClient(clientId),
+        api.listEmails(clientId),
+        api.listFiles(clientId),
+      ]);
       setClient(detail.client);
       setNextScheduled(detail.nextScheduled);
       setDocuments(detail.documents);
       setEmails(thread.emails);
+      setFiles(received.files);
       setError(null);
     } catch {
       setError('Failed to load client.');
@@ -43,24 +51,35 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
   if (!client) return <div className="muted">Loading…</div>;
 
   return (
-    <div className="client-view">
-      <ClientCard
+    <div className="client-view dashboard">
+      <ClientHeader
         client={client}
         onSaved={async (updated) => {
           setClient(updated);
           await onClientUpdated();
         }}
       />
-      <DocumentsCard
-        clientId={client.id}
+      <StatTiles
         documents={documents}
-        onChanged={async () => {
-          // A document change can flip goal_status and (re)schedule emails — refresh everything.
-          await load();
-          await onClientUpdated();
-        }}
+        emails={emails}
+        nextScheduled={nextScheduled}
+        goalStatus={client.goal_status}
       />
-      <Timeline emails={emails} nextScheduled={nextScheduled} goalStatus={client.goal_status} />
+      <div className="dashboard-panels">
+        <div className="panel-stack">
+          <DocumentsCard
+            clientId={client.id}
+            documents={documents}
+            onChanged={async () => {
+              // A document change can flip goal_status and (re)schedule emails — refresh everything.
+              await load();
+              await onClientUpdated();
+            }}
+          />
+          <FilesCard clientId={client.id} files={files} documents={documents} />
+        </div>
+        <Timeline emails={emails} nextScheduled={nextScheduled} goalStatus={client.goal_status} />
+      </div>
     </div>
   );
 }

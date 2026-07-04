@@ -340,6 +340,17 @@ code {
   margin: 0 auto;
 }
 
+/* The client dashboard variant: a viewport-filling grid — header / KPI tiles /
+   panels — where the bottom panels scroll internally instead of the page. */
+.client-view.dashboard {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 16px;
+  max-width: 1440px;
+  width: 100%;
+  height: 100%;
+}
+
 /* Cards */
 .card {
   background: var(--surface);
@@ -1042,6 +1053,290 @@ textarea {
 
 .admin-users-table td:last-child {
   text-align: right;
+}
+
+/* Client header (dashboard row 1) */
+.client-header {
+  padding: 14px 20px 16px;
+}
+
+.client-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.client-header-id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.client-header-id h2 {
+  margin: 0;
+}
+
+.client-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  background: rgba(148, 163, 216, 0.07);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 11px;
+  max-width: 280px;
+}
+
+.meta-chip svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.meta-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.meta-chip {
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition:
+    background var(--speed) ease,
+    border-color var(--speed) ease,
+    color var(--speed) ease;
+}
+
+button.meta-chip:hover {
+  background: rgba(148, 163, 216, 0.14);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.meta-chip .chevron {
+  transition: transform var(--speed) ease;
+}
+
+.meta-chip[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+.client-notes {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: pre-wrap;
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.client-edit-grid {
+  margin-top: 14px;
+}
+
+/* KPI stat tiles (dashboard row 2) */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 18px;
+}
+
+/* Tiles and panels sit in a dense grid — the card hover lift reads as noise there. */
+.stat-tile:hover,
+.panel:hover {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.stat-value {
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stat-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--pending);
+}
+
+.stat-flag-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pending);
+}
+
+.stat-meter {
+  height: 6px;
+  margin: 6px 0 4px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  overflow: hidden;
+}
+
+.stat-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gradient);
+  transition: width 0.3s ease;
+}
+
+.stat-meter-fill.complete {
+  background: var(--success);
+}
+
+/* Panels (dashboard row 3): header/footer pinned, body scrolls */
+.dashboard-panels {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 16px;
+  min-height: 280px;
+}
+
+.dashboard-panels > .panel {
+  min-height: 0;
+}
+
+/* A column of stacked panels (documents + received files) sharing one grid cell */
+.panel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.panel-stack > .panel {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Secondary panel in a stack: only as tall as its content, capped */
+.panel-stack > .panel-compact {
+  flex: 0 1 auto;
+  max-height: 40%;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.panel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-header h3 {
+  margin: 0;
+}
+
+.panel-count {
+  font-size: 12px;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+  overscroll-behavior: contain;
+}
+
+.panel-footer {
+  flex-shrink: 0;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.doc-add-form.panel-footer {
+  margin-top: 0;
+}
+
+/* Below the dashboard breakpoint: drop the viewport lock, stack the panels,
+   and let the page scroll normally again. */
+@media (max-width: 1100px) {
+  .client-view.dashboard {
+    height: auto;
+    grid-template-rows: none;
+  }
+
+  .dashboard-panels {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .panel {
+    overflow: visible;
+  }
+
+  .panel-body {
+    flex: none;
+    overflow: visible;
+  }
+
+  .panel-stack > .panel-compact {
+    max-height: none;
+  }
+
+  .stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .stat-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Respect users who opt out of motion */

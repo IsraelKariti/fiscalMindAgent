@@ -40,8 +40,8 @@ export function DocumentsCard({ clientId, documents, onChanged }: Props) {
   };
 
   return (
-    <section className="card">
-      <div className="card-header">
+    <section className="card panel">
+      <div className="panel-header">
         <h3>Required documents</h3>
         {documents.length > 0 && (
           <span className={`badge ${collected === documents.length ? 'badge-success' : 'badge-pending'}`}>
@@ -50,49 +50,51 @@ export function DocumentsCard({ clientId, documents, onChanged }: Props) {
         )}
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      <div className="panel-body">
+        {error && <div className="error-banner">{error}</div>}
 
-      {documents.length === 0 ? (
-        <p className="muted">No documents configured — the agent has nothing to collect from this client.</p>
-      ) : (
-        <ul className="doc-list">
-          {documents.map((doc) => (
-            <li key={doc.id} className={`doc-row ${doc.status}`}>
-              <label className="doc-check" title={doc.status === 'collected' ? 'Mark as pending' : 'Mark as collected'}>
-                <input
-                  type="checkbox"
-                  checked={doc.status === 'collected'}
-                  disabled={busy}
-                  onChange={() =>
-                    run(() =>
-                      api.updateDocument(clientId, doc.id, {
-                        status: doc.status === 'collected' ? 'pending' : 'collected',
-                      }),
-                    )
-                  }
-                />
-                <span className="doc-text">
-                  <span className="doc-name">{doc.name}</span>
-                  {doc.description && <span className="doc-desc muted">{doc.description}</span>}
+        {documents.length === 0 ? (
+          <p className="muted">No documents configured — the agent has nothing to collect from this client.</p>
+        ) : (
+          <ul className="doc-list">
+            {documents.map((doc) => (
+              <li key={doc.id} className={`doc-row ${doc.status}`}>
+                <label className="doc-check" title={doc.status === 'collected' ? 'Mark as pending' : 'Mark as collected'}>
+                  <input
+                    type="checkbox"
+                    checked={doc.status === 'collected'}
+                    disabled={busy}
+                    onChange={() =>
+                      run(() =>
+                        api.updateDocument(clientId, doc.id, {
+                          status: doc.status === 'collected' ? 'pending' : 'collected',
+                        }),
+                      )
+                    }
+                  />
+                  <span className="doc-text">
+                    <span className="doc-name">{doc.name}</span>
+                    {doc.description && <span className="doc-desc muted">{doc.description}</span>}
+                  </span>
+                </label>
+                <span className={`badge ${doc.status === 'collected' ? 'badge-success' : 'badge-pending'}`}>
+                  {doc.status}
                 </span>
-              </label>
-              <span className={`badge ${doc.status === 'collected' ? 'badge-success' : 'badge-pending'}`}>
-                {doc.status}
-              </span>
-              <button
-                className="chip-x"
-                title="Remove document"
-                disabled={busy}
-                onClick={() => run(() => api.deleteDocument(clientId, doc.id))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+                <button
+                  className="chip-x"
+                  title="Remove document"
+                  disabled={busy}
+                  onClick={() => run(() => api.deleteDocument(clientId, doc.id))}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-      <form className="doc-add-form" onSubmit={add}>
+      <form className="doc-add-form panel-footer" onSubmit={add}>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}

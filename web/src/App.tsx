@@ -131,7 +131,7 @@ export function App() {
           )}
           {view.kind === 'prompt' && impersonating && <PromptSettings />}
           {view.kind === 'empty' && (
-            <div className="screen-center muted">No clients yet — use “+ Add” in the sidebar to create one.</div>
+            <div className="screen-center muted">No clients yet — use the + button next to Clients in the sidebar.</div>
           )}
         </main>
       </div>

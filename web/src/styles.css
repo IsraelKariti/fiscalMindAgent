@@ -188,66 +188,151 @@ code {
 
 .sidebar-footer {
   border-top: 1px solid var(--border);
-  padding: 12px 8px 2px;
+  padding: 10px 0 2px;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+/* Identity cards (agent mailbox, viewing-as) share one grammar:
+   icon tile + micro-label stacked over a full-color value.
+   Distinct from nav items so read-only info never looks clickable. */
+.id-card {
+  display: flex;
+  align-items: center;
   gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(148, 163, 216, 0.06);
+  margin: 0 0 6px;
 }
 
-/* Agent mailbox entry in the Agent settings section */
-.agent-mailbox-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 7px 10px;
-  border-radius: 10px;
+.id-card-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--primary-soft);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #c4b5fd;
 }
 
-.footer-row {
+.id-card-text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-}
-
-.footer-label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-}
-
-.footer-value {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 1px;
   min-width: 0;
+  flex: 1;
 }
 
-.footer-user {
-  justify-content: space-between;
-}
-
-.footer-email {
+.id-card-value {
+  font-size: 12.5px;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.footer-logout {
-  align-self: flex-start;
-  margin-top: 2px;
-}
-
-.sidebar-section {
-  font-size: 11px;
+.microlabel {
+  font-size: 9.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--text-muted);
-  padding: 12px 10px 6px;
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--speed) ease,
+    color var(--speed) ease,
+    border-color var(--speed) ease;
+}
+
+.icon-btn:hover {
+  background: rgba(148, 163, 216, 0.12);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.icon-btn-success,
+.icon-btn-success:hover {
+  color: var(--success);
+}
+
+/* Section headings: micro-caps label + hairline rule filling the row */
+.side-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 2px 6px 10px;
+}
+
+.side-heading-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.side-count {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 216, 0.14);
+  font-size: 10px;
+  line-height: 16px;
+  letter-spacing: 0;
+}
+
+.side-heading-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.nav-item-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+/* Footer: account row with avatar */
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px;
+  min-width: 0;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--gradient);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .sidebar-empty {
@@ -695,12 +780,6 @@ textarea {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-}
-
-.sidebar-section-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .btn-small {
@@ -1164,14 +1243,19 @@ textarea {
 }
 
 /* Admin: impersonation indicator in the sidebar footer */
-.impersonation-row {
-  border: 1px solid var(--pending);
+.impersonation-card {
+  border-color: rgba(251, 191, 36, 0.45);
   background: var(--pending-bg);
-  border-radius: 8px;
-  padding: 6px 8px;
+  margin: 0;
 }
 
-.impersonation-row .footer-label {
+.impersonation-card .id-card-icon {
+  background: var(--pending-bg);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: var(--pending);
+}
+
+.impersonation-card .microlabel {
   color: var(--pending);
 }
 

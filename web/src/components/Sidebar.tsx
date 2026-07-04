@@ -216,7 +216,6 @@ export function Sidebar({
         <div className="account-row" title="חשבון Google שאיתו התחברתם">
           <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
           <span className="id-card-text">
-            <span className="microlabel">מחוברים</span>
             <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
           </span>
           <button className="icon-btn" onClick={onLogout} title="התנתקות">

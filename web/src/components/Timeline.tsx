@@ -67,10 +67,30 @@ export function Timeline({
             );
           })}
           {nextScheduled && (
+            <li className="timeline-divider" aria-hidden="true">
+              <span className="timeline-divider-label">
+                <span className="scheduled-dot" />
+                Scheduled
+              </span>
+            </li>
+          )}
+          {nextScheduled && (
             <li className="timeline-item outbound scheduled">
               <div className="timeline-meta">
-                <span className="timeline-author">Agent (scheduled)</span>
-                <span className="muted">will send {formatTimestamp(nextScheduled.scheduledFor)}</span>
+                <span className="timeline-author">
+                  <svg
+                    className="scheduled-clock"
+                    viewBox="0 0 16 16"
+                    width="12"
+                    height="12"
+                    aria-hidden="true"
+                  >
+                    <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  Agent · not sent yet
+                </span>
+                <span className="scheduled-note">will send {formatTimestamp(nextScheduled.scheduledFor)}</span>
               </div>
               <div className="bubble bubble-scheduled">
                 {nextScheduled.subject ? (

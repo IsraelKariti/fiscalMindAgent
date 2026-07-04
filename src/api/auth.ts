@@ -51,9 +51,30 @@ function timingSafeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-/** Sets a short-lived signed CSRF state cookie for an OAuth redirect flow. */
-export function setOAuthStateCookie(res: Response, state: string): void {
-  res.cookie(STATE_COOKIE, `${state}.${sign(state)}`, {
+/**
+ * Origin to send the browser back to after the OAuth round-trip. In dev the
+ * dashboard is the Vite server on GUI_PORT while the callback lands on this
+ * backend (PORT), so we capture the origin login started from and finish
+ * there. Only localhost origins are honored — anything else falls back to a
+ * same-origin redirect — so this cannot become an open redirect in production.
+ */
+function loginReturnOrigin(req: Request): string {
+  const referer = req.headers.referer;
+  if (!referer) return '';
+  try {
+    const url = new URL(referer);
+    if (url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') return '';
+    if (url.origin === env.APP_BASE_URL) return '';
+    return url.origin;
+  } catch {
+    return '';
+  }
+}
+
+/** Sets a short-lived signed CSRF state cookie (state + return origin) for an OAuth redirect flow. */
+export function setOAuthStateCookie(res: Response, state: string, returnTo = ''): void {
+  const payload = Buffer.from(JSON.stringify({ state, returnTo })).toString('base64url');
+  res.cookie(STATE_COOKIE, `${payload}.${sign(payload)}`, {
     httpOnly: true,
     sameSite: 'lax',
     secure: env.APP_BASE_URL.startsWith('https://'),
@@ -62,14 +83,27 @@ export function setOAuthStateCookie(res: Response, state: string): void {
   });
 }
 
-/** Reads + clears the state cookie; returns its value only if the signature checks out. */
-export function consumeOAuthStateCookie(req: Request, res: Response): string | null {
+/** Reads + clears the state cookie; returns its contents only if the signature checks out. */
+export function consumeOAuthStateCookie(req: Request, res: Response): { state: string; returnTo: string } | null {
   const cookie = readCookie(req, STATE_COOKIE);
   res.clearCookie(STATE_COOKIE, { path: '/' });
   if (!cookie) return null;
   const [value, signature] = cookie.split('.');
   if (!value || !signature || !timingSafeEqual(signature, sign(value))) return null;
-  return value;
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(value, 'base64url').toString());
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      typeof (parsed as { state?: unknown }).state !== 'string' ||
+      typeof (parsed as { returnTo?: unknown }).returnTo !== 'string'
+    ) {
+      return null;
+    }
+    return parsed as { state: string; returnTo: string };
+  } catch {
+    return null;
+  }
 }
 
 function readCookie(req: Request, name: string): string | null {
@@ -151,7 +185,7 @@ export function resolveIdentity(req: Request): { realUserId: string; effectiveUs
 }
 
 /** GET /api/auth/google — kick off the Google sign-in consent redirect. */
-export const startGoogleLogin: RequestHandler = (_req, res) => {
+export const startGoogleLogin: RequestHandler = (req, res) => {
   let oauth: OAuth2Client;
   try {
     oauth = createLoginOAuthClient();
@@ -160,22 +194,24 @@ export const startGoogleLogin: RequestHandler = (_req, res) => {
     return;
   }
   const state = crypto.randomBytes(16).toString('hex');
-  setOAuthStateCookie(res, state);
+  setOAuthStateCookie(res, state, loginReturnOrigin(req));
   res.redirect(oauth.generateAuthUrl({ scope: IDENTITY_SCOPES, state }));
 };
 
 /** GET /api/auth/google/callback — code exchange, user upsert, session issue. */
 export const googleLoginCallback: RequestHandler = async (req, res) => {
+  const stateCookie = consumeOAuthStateCookie(req, res);
+  const returnTo = stateCookie?.returnTo ?? '';
+
   const fail = (reason: string): void => {
     logger.warn('google login failed', { reason });
-    res.redirect(`/?login_error=${encodeURIComponent(reason)}`);
+    res.redirect(`${returnTo}/?login_error=${encodeURIComponent(reason)}`);
   };
 
-  const expectedState = consumeOAuthStateCookie(req, res);
   const state = typeof req.query.state === 'string' ? req.query.state : null;
   const code = typeof req.query.code === 'string' ? req.query.code : null;
-  if (!code || !state || !expectedState) return fail('missing code or state');
-  if (state !== expectedState) return fail('state mismatch');
+  if (!code || !state || !stateCookie) return fail('missing code or state');
+  if (state !== stateCookie.state) return fail('state mismatch');
 
   const oauth = createLoginOAuthClient();
   const { tokens } = await oauth.getToken(code);
@@ -192,7 +228,7 @@ export const googleLoginCallback: RequestHandler = async (req, res) => {
     pictureUrl: payload.picture ?? null,
   });
   setSessionCookie(res, user.id);
-  res.redirect('/');
+  res.redirect(`${returnTo}/`);
 };
 
 export const logout: RequestHandler = (_req, res) => {

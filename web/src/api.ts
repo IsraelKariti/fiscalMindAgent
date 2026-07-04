@@ -140,7 +140,7 @@ export const api = {
     subject: string;
     body: string;
     delayMinutes: number;
-    documents: string[];
+    documents: { name: string; description?: string | null }[];
   }) => request<{ client: Client }>('/api/clients', { method: 'POST', body: JSON.stringify(args) }),
   getClient: (id: string) =>
     request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(

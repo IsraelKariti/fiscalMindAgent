@@ -6,10 +6,57 @@ interface Props {
   onClose: () => void;
 }
 
+interface DocumentDraft {
+  name: string;
+  description?: string | null;
+}
+
+/** Default checklist for a self-employed annual tax return (דוח שנתי לעצמאים). */
+const DEFAULT_DOCUMENTS: DocumentDraft[] = [
+  {
+    name: 'סיכומי הכנסות',
+    description: 'ריכוז חשבוניות מס, קבלות או דוחות של מערכת הפקת החשבוניות (ספר פדיון יומי).',
+  },
+  {
+    name: 'חשבוניות הוצאות',
+    description: "כל החשבוניות על הוצאות העסק (שכר דירה, אינטרנט, ציוד, נסיעות וכו').",
+  },
+  {
+    name: 'דוחות מהבנק',
+    description: 'דפי חשבון בנק וריכוז יתרות לסוף השנה (אם מנהלים חשבון נפרד לעסק).',
+  },
+  {
+    name: 'טופס 867',
+    description: 'אישור מהבנק על רווחים/הפסדים מהשקעות, ריביות וניכוי מס במקור.',
+  },
+  {
+    name: 'אישורים מהביטוחים',
+    description:
+      'אישור שנתי לצורכי מס מחברות הביטוח וקרנות הפנסיה (על הפקדות לקרן פנסיה, קרן השתלמות ואובדן כושר עבודה).',
+  },
+  {
+    name: 'אישורי ניכוי מס במקור',
+    description: 'אישורים מלקוחות שניכו לכם מס במקור במהלך השנה.',
+  },
+  {
+    name: 'טופס 106',
+    description: 'אם העצמאי (או בן/בת הזוג) עבד גם כשכיר במהלך השנה.',
+  },
+  {
+    name: 'אישור על תרומות',
+    description: 'קבלות מקוריות לפי סעיף 46.',
+  },
+  {
+    name: 'מסמכים אישיים',
+    description:
+      "צילום תעודת זהות עם הספח (לעדכון מצב משפחתי, ילדים וכו') ואישור תושבות בפריפריה (אם רלוונטי).",
+  },
+];
+
 export function AddClientModal({ onCreated, onClose }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [documents, setDocuments] = useState<string[]>(['Form 106']);
+  const [documents, setDocuments] = useState<DocumentDraft[]>(DEFAULT_DOCUMENTS);
   const [docDraft, setDocDraft] = useState('');
   const [subject, setSubject] = useState('Documents needed for your filing');
   const [body, setBody] = useState('');
@@ -19,8 +66,8 @@ export function AddClientModal({ onCreated, onClose }: Props) {
 
   const addDocument = () => {
     const trimmed = docDraft.trim();
-    if (!trimmed || documents.includes(trimmed)) return;
-    setDocuments([...documents, trimmed]);
+    if (!trimmed || documents.some((d) => d.name === trimmed)) return;
+    setDocuments([...documents, { name: trimmed }]);
     setDocDraft('');
   };
 
@@ -62,13 +109,13 @@ export function AddClientModal({ onCreated, onClose }: Props) {
           {documents.length > 0 && (
             <ul className="doc-chip-list">
               {documents.map((doc) => (
-                <li key={doc} className="doc-chip">
-                  {doc}
+                <li key={doc.name} className="doc-chip" title={doc.description ?? undefined}>
+                  {doc.name}
                   <button
                     type="button"
                     className="chip-x"
-                    title={`Remove ${doc}`}
-                    onClick={() => setDocuments(documents.filter((d) => d !== doc))}
+                    title={`Remove ${doc.name}`}
+                    onClick={() => setDocuments(documents.filter((d) => d.name !== doc.name))}
                   >
                     ×
                   </button>
@@ -86,7 +133,7 @@ export function AddClientModal({ onCreated, onClose }: Props) {
                   addDocument();
                 }
               }}
-              placeholder="e.g. Form 106"
+              placeholder="e.g. טופס 106"
               aria-label="Document name"
             />
             <button type="button" className="btn btn-ghost" onClick={addDocument} disabled={!docDraft.trim()}>

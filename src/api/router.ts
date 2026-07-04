@@ -44,6 +44,13 @@ const ClientPatchSchema = z
 
 const PromptTemplateSchema = z.object({ template: z.string().min(1) }).strict();
 
+const DocumentCreateSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(2000).nullable().optional(),
+  })
+  .strict();
+
 const ClientCreateSchema = z
   .object({
     name: z.string().min(1),
@@ -51,14 +58,7 @@ const ClientCreateSchema = z
     subject: z.string().min(1),
     body: z.string().min(1),
     delayMinutes: z.number().int().min(0).max(60 * 24 * 30),
-    documents: z.array(z.string().min(1).max(200)).max(50).default([]),
-  })
-  .strict();
-
-const DocumentCreateSchema = z
-  .object({
-    name: z.string().min(1).max(200),
-    description: z.string().max(2000).nullable().optional(),
+    documents: z.array(DocumentCreateSchema).max(50).default([]),
   })
   .strict();
 
@@ -148,8 +148,8 @@ apiRouter.post(
     }
 
     const client = await clients.insert({ userId: req.userId!, name, emailAddress: email });
-    for (const docName of documents) {
-      await clientDocuments.insert({ clientId: client.id, name: docName });
+    for (const doc of documents) {
+      await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
     }
     await scheduleDraftEmail(client.id, { subject, body, delayMs: hoursToMs(delayMinutes / 60) });
     res.status(201).json({ client });

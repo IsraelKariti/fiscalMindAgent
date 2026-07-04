@@ -379,8 +379,8 @@ code {
   margin: 0 auto;
 }
 
-/* The client dashboard variant: a viewport-filling grid — header / KPI tiles /
-   panels — where the bottom panels scroll internally instead of the page. */
+/* The client dashboard variant: a viewport-filling grid — header / tabs /
+   active tab pane — where panels scroll internally instead of the page. */
 .client-view.dashboard {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
@@ -1214,7 +1214,7 @@ button.meta-chip:hover {
   margin-top: 14px;
 }
 
-/* KPI stat tiles (dashboard row 2) */
+/* KPI stat tiles (dashboard tab) */
 .stat-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1295,15 +1295,49 @@ button.meta-chip:hover {
   background: var(--success);
 }
 
-/* Panels (dashboard row 3): header/footer pinned, body scrolls */
-.dashboard-panels {
-  display: grid;
-  grid-template-columns: 1fr 1.3fr;
-  gap: 16px;
-  min-height: 280px;
+/* Client screen tabs (dashboard row 2) */
+.client-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
 }
 
-.dashboard-panels > .panel {
+.client-tab {
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* overlap the tablist border so the active line replaces it */
+  padding: 8px 14px;
+  cursor: pointer;
+  transition:
+    color var(--speed) ease,
+    border-color var(--speed) ease;
+}
+
+.client-tab:hover {
+  color: var(--text);
+}
+
+.client-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+
+/* Tab content (dashboard row 3): panes with panels fill the row and scroll internally */
+.tab-pane {
+  min-height: 0;
+}
+
+.tab-pane-fill {
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-pane-fill > .panel {
+  flex: 1;
   min-height: 0;
 }
 
@@ -1375,11 +1409,6 @@ button.meta-chip:hover {
   .client-view.dashboard {
     height: auto;
     grid-template-rows: none;
-  }
-
-  .dashboard-panels {
-    grid-template-columns: 1fr;
-    min-height: 0;
   }
 
   .panel {

@@ -6,6 +6,14 @@ import { FilesCard } from './FilesCard';
 import { StatTiles } from './StatTiles';
 import { Timeline } from './Timeline';
 
+const TABS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'documents', label: 'Documents' },
+  { id: 'conversation', label: 'Conversation' },
+] as const;
+
+type TabId = (typeof TABS)[number]['id'];
+
 export function ClientView({ clientId, onClientUpdated }: { clientId: string; onClientUpdated: () => Promise<void> }) {
   const [client, setClient] = useState<Client | null>(null);
   const [nextScheduled, setNextScheduled] = useState<NextScheduled | null>(null);
@@ -13,6 +21,8 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
   const [emails, setEmails] = useState<Email[]>([]);
   const [files, setFiles] = useState<DocumentFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Tab state resets per client because App keys this component on clientId.
+  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
 
   const load = useCallback(async () => {
     try {
@@ -59,14 +69,32 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
           await onClientUpdated();
         }}
       />
-      <StatTiles
-        documents={documents}
-        emails={emails}
-        nextScheduled={nextScheduled}
-        goalStatus={client.goal_status}
-      />
-      <div className="dashboard-panels">
-        <div className="panel-stack">
+      <div className="client-tabs" role="tablist" aria-label="Client sections">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`client-tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {activeTab === 'dashboard' && (
+        <div className="tab-pane tab-pane-dashboard" role="tabpanel">
+          <StatTiles
+            documents={documents}
+            emails={emails}
+            nextScheduled={nextScheduled}
+            goalStatus={client.goal_status}
+          />
+        </div>
+      )}
+      {activeTab === 'documents' && (
+        <div className="tab-pane panel-stack" role="tabpanel">
           <DocumentsCard
             clientId={client.id}
             documents={documents}
@@ -78,8 +106,12 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
           />
           <FilesCard clientId={client.id} files={files} documents={documents} />
         </div>
-        <Timeline emails={emails} nextScheduled={nextScheduled} goalStatus={client.goal_status} />
-      </div>
+      )}
+      {activeTab === 'conversation' && (
+        <div className="tab-pane tab-pane-fill" role="tabpanel">
+          <Timeline emails={emails} nextScheduled={nextScheduled} goalStatus={client.goal_status} />
+        </div>
+      )}
     </div>
   );
 }

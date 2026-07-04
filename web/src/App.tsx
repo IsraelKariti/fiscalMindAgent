@@ -39,8 +39,18 @@ export function App() {
   const loadClients = useCallback(async () => {
     const { clients: list } = await api.listClients();
     setClients(list);
-    setView((v) => (v.kind === 'empty' && list[0] ? { kind: 'client', clientId: list[0].id } : v));
+    setView((v) => {
+      if (v.kind !== 'empty') return v;
+      // Restore the client viewed before a refresh, if it still exists.
+      const stored = sessionStorage.getItem('fm.lastClientId');
+      const restored = stored && list.some((c) => c.id === stored) ? stored : list[0]?.id;
+      return restored ? { kind: 'client', clientId: restored } : v;
+    });
   }, []);
+
+  useEffect(() => {
+    if (view.kind === 'client') sessionStorage.setItem('fm.lastClientId', view.clientId);
+  }, [view]);
 
   useEffect(() => {
     if (!authed) return;

@@ -21,8 +21,18 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
   const [emails, setEmails] = useState<Email[]>([]);
   const [files, setFiles] = useState<DocumentFile[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Tab state resets per client because App keys this component on clientId.
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  // Stored per client (App keys this component on clientId) so a refresh — or
+  // switching away and back — returns to the tab last viewed for this client.
+  const tabStorageKey = `fm.clientTab.${clientId}`;
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const stored = sessionStorage.getItem(tabStorageKey);
+    return TABS.some((t) => t.id === stored) ? (stored as TabId) : 'dashboard';
+  });
+
+  const selectTab = (tab: TabId) => {
+    setActiveTab(tab);
+    sessionStorage.setItem(tabStorageKey, tab);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -77,7 +87,7 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
             role="tab"
             aria-selected={activeTab === tab.id}
             className={`client-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => selectTab(tab.id)}
           >
             {tab.label}
           </button>

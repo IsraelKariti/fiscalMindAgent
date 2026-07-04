@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { ClientView } from './components/ClientView';
 import { PromptSettings } from './components/PromptSettings';
 import { AddClientModal } from './components/AddClientModal';
+import { DeleteClientModal } from './components/DeleteClientModal';
 import { ClaimMailbox } from './components/ClaimMailbox';
 import { AdminUsers } from './components/AdminUsers';
 
@@ -19,6 +20,7 @@ export function App() {
   const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
   const [view, setView] = useState<View>({ kind: 'empty' });
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState<Client | null>(null);
 
   useEffect(() => {
     api
@@ -57,15 +59,8 @@ export function App() {
     setView({ kind: 'empty' });
   };
 
-  const deleteClient = async (client: Client) => {
-    if (!window.confirm(`Delete ${client.name}? Their emails, documents and files will be removed too.`)) return;
-    try {
-      await api.deleteClient(client.id);
-    } catch (err) {
-      console.error(err);
-      window.alert(err instanceof Error ? err.message : 'Failed to delete client.');
-      return;
-    }
+  const clientDeleted = (client: Client) => {
+    setDeleting(null);
     const remaining = clients.filter((c) => c.id !== client.id);
     setClients(remaining);
     setView((v) =>
@@ -101,7 +96,7 @@ export function App() {
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onSelectAdmin={() => setView({ kind: 'admin' })}
           onAddClient={() => setAdding(true)}
-          onDeleteClient={deleteClient}
+          onDeleteClient={setDeleting}
           userEmail={user?.email ?? null}
           agentMailbox={mailbox?.claimed ? mailbox.emailAddress : null}
           isAdmin={isAdmin}
@@ -120,6 +115,9 @@ export function App() {
           )}
         </main>
       </div>
+      {deleting && (
+        <DeleteClientModal client={deleting} onClose={() => setDeleting(null)} onDeleted={clientDeleted} />
+      )}
       {adding && (
         <AddClientModal
           onClose={() => setAdding(false)}

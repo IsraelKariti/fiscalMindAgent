@@ -5,11 +5,13 @@ import { DocumentsCard } from './DocumentsCard';
 import { FilesCard } from './FilesCard';
 import { StatTiles } from './StatTiles';
 import { Timeline } from './Timeline';
+import { DashboardCharts } from './charts/DashboardCharts';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'documents', label: 'Documents' },
   { id: 'conversation', label: 'Conversation' },
+  { id: 'details', label: 'Details' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -72,13 +74,6 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
 
   return (
     <div className="client-view dashboard">
-      <ClientHeader
-        client={client}
-        onSaved={async (updated) => {
-          setClient(updated);
-          await onClientUpdated();
-        }}
-      />
       <div className="client-tabs" role="tablist" aria-label="Client sections">
         {TABS.map((tab) => (
           <button
@@ -101,6 +96,7 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
             nextScheduled={nextScheduled}
             goalStatus={client.goal_status}
           />
+          <DashboardCharts documents={documents} emails={emails} files={files} nextScheduled={nextScheduled} />
         </div>
       )}
       {activeTab === 'documents' && (
@@ -120,6 +116,17 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
       {activeTab === 'conversation' && (
         <div className="tab-pane tab-pane-fill" role="tabpanel">
           <Timeline emails={emails} nextScheduled={nextScheduled} goalStatus={client.goal_status} />
+        </div>
+      )}
+      {activeTab === 'details' && (
+        <div className="tab-pane" role="tabpanel">
+          <ClientHeader
+            client={client}
+            onSaved={async (updated) => {
+              setClient(updated);
+              await onClientUpdated();
+            }}
+          />
         </div>
       )}
     </div>

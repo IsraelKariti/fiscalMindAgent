@@ -57,6 +57,26 @@ export function App() {
     setView({ kind: 'empty' });
   };
 
+  const deleteClient = async (client: Client) => {
+    if (!window.confirm(`Delete ${client.name}? Their emails, documents and files will be removed too.`)) return;
+    try {
+      await api.deleteClient(client.id);
+    } catch (err) {
+      console.error(err);
+      window.alert(err instanceof Error ? err.message : 'Failed to delete client.');
+      return;
+    }
+    const remaining = clients.filter((c) => c.id !== client.id);
+    setClients(remaining);
+    setView((v) =>
+      v.kind === 'client' && v.clientId === client.id
+        ? remaining[0]
+          ? { kind: 'client', clientId: remaining[0].id }
+          : { kind: 'empty' }
+        : v,
+    );
+  };
+
   const stopImpersonating = async () => {
     await api.stopImpersonating();
     // Full reload so every view refetches under the admin's own identity.
@@ -81,6 +101,7 @@ export function App() {
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onSelectAdmin={() => setView({ kind: 'admin' })}
           onAddClient={() => setAdding(true)}
+          onDeleteClient={deleteClient}
           userEmail={user?.email ?? null}
           agentMailbox={mailbox?.claimed ? mailbox.emailAddress : null}
           isAdmin={isAdmin}

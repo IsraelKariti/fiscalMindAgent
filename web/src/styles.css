@@ -258,6 +258,40 @@ code {
   gap: 2px;
 }
 
+.client-row {
+  position: relative;
+}
+
+.client-row .client-item {
+  padding-right: 32px;
+}
+
+.client-delete {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px;
+  line-height: 0;
+  opacity: 0;
+  transition:
+    color var(--speed) ease,
+    opacity var(--speed) ease;
+}
+
+.client-row:hover .client-delete,
+.client-delete:focus-visible {
+  opacity: 1;
+}
+
+.client-delete:hover {
+  color: var(--error);
+}
+
 .client-item {
   display: flex;
   align-items: center;

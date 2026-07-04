@@ -29,6 +29,11 @@ export async function uploadBlob(key: string, body: Buffer, contentType: string)
   });
 }
 
+export async function deleteBlob(key: string): Promise<void> {
+  const container = await getContainer();
+  await container.getBlockBlobClient(key).deleteIfExists();
+}
+
 export interface BlobDownload {
   stream: Readable;
   contentType: string | undefined;

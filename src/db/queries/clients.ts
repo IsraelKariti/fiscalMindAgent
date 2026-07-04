@@ -67,6 +67,12 @@ export async function updateDetailsForUser(
   return rows[0] ?? null;
 }
 
+/** Deletes the client; documents, files, emails and the scheduled-job row go with it via FK cascades. */
+export async function removeForUser(id: string, userId: string): Promise<boolean> {
+  const { rowCount } = await pool.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [id, userId]);
+  return (rowCount ?? 0) > 0;
+}
+
 export async function updateGoalStatus(id: string, goalStatus: GoalStatus): Promise<void> {
   await pool.query('UPDATE clients SET goal_status = $2, updated_at = now() WHERE id = $1', [id, goalStatus]);
 }

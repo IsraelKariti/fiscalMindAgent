@@ -4,7 +4,7 @@ import * as clients from '../db/queries/clients.js';
 import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
-import { downloadBlob } from '../storage/blob.js';
+import { deleteBlob, downloadBlob } from '../storage/blob.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
@@ -259,6 +259,32 @@ apiRouter.patch(
       return;
     }
     res.json({ client });
+  }),
+);
+
+apiRouter.delete(
+  '/clients/:id',
+  wrap(async (req, res) => {
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+    // Cancel the pending BullMQ send under the client lock so an in-flight draft/send settles first,
+    // then snapshot blob keys before the cascade wipes the document_files rows.
+    await withClientLock(client.id, () => removeFutureEmail(client.id));
+    const files = await documentFiles.listForClient(client.id);
+    await clients.removeForUser(client.id, req.userId!);
+    // Best-effort blob cleanup after the rows are gone — a failure only orphans a blob.
+    await Promise.all(
+      files.map((file) =>
+        deleteBlob(file.blob_key).catch((err) =>
+          logger.error('delete client: blob cleanup failed', { blobKey: file.blob_key, err }),
+        ),
+      ),
+    );
+    res.json({ ok: true });
   }),
 );
 

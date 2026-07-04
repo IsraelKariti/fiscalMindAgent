@@ -8,13 +8,17 @@ import { Timeline } from './Timeline';
 import { DashboardCharts } from './charts/DashboardCharts';
 
 const TABS = [
+  { id: 'conversation', label: 'Conversation' },
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'documents', label: 'Documents' },
-  { id: 'conversation', label: 'Conversation' },
   { id: 'details', label: 'Details' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
+
+// Per-client last-viewed tab, in memory only: switching between clients
+// restores each client's tab, but a page load always starts on Conversation.
+const lastViewedTab = new Map<string, TabId>();
 
 export function ClientView({ clientId, onClientUpdated }: { clientId: string; onClientUpdated: () => Promise<void> }) {
   const [client, setClient] = useState<Client | null>(null);
@@ -23,17 +27,11 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
   const [emails, setEmails] = useState<Email[]>([]);
   const [files, setFiles] = useState<DocumentFile[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Stored per client (App keys this component on clientId) so a refresh — or
-  // switching away and back — returns to the tab last viewed for this client.
-  const tabStorageKey = `fm.clientTab.${clientId}`;
-  const [activeTab, setActiveTab] = useState<TabId>(() => {
-    const stored = sessionStorage.getItem(tabStorageKey);
-    return TABS.some((t) => t.id === stored) ? (stored as TabId) : 'dashboard';
-  });
+  const [activeTab, setActiveTab] = useState<TabId>(() => lastViewedTab.get(clientId) ?? 'conversation');
 
   const selectTab = (tab: TabId) => {
     setActiveTab(tab);
-    sessionStorage.setItem(tabStorageKey, tab);
+    lastViewedTab.set(clientId, tab);
   };
 
   const load = useCallback(async () => {

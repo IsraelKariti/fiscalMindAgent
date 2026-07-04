@@ -20,6 +20,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "cli:bootstrap": "tsx src/cli/bootstrapClient.ts",
     "ship": "node scripts/ship.mjs",
+    "sync": "node scripts/sync.mjs",
     "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": {

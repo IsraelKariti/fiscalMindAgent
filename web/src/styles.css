@@ -1741,7 +1741,7 @@ button.meta-chip:hover {
   white-space: nowrap;
 }
 
-/* Client screen tabs (dashboard row 1) */
+/* Screen tabs (client dashboard row 1; also the admin shell's tab bar) */
 .client-tabs {
   display: flex;
   gap: 4px;
@@ -1925,23 +1925,8 @@ button.meta-chip:hover {
   font-size: 17px;
 }
 
-/* Admin whitelist card */
-.whitelist-add-form {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 4px 0 14px;
-}
-
-.whitelist-add-form input[type='email'] {
-  flex: 2 1 240px;
-}
-
-.whitelist-add-form input:not([type='email']) {
-  flex: 1 1 160px;
-}
-
-.client-item-name .badge {
-  margin-left: 8px;
-  vertical-align: middle;
+/* Admin accountants table: keep the per-row action buttons on one line */
+.admin-row-actions {
+  white-space: nowrap;
+  justify-content: flex-end;
 }

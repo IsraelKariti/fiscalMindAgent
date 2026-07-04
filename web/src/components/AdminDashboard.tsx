@@ -1,78 +1,77 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, type Accountant, type WhitelistEntry } from '../api';
+import { AddAccountantModal } from './AddAccountantModal';
 
 interface Props {
   userEmail: string | null;
   onLogout: () => void;
 }
 
+type AdminTab = 'dashboard' | 'accountants';
+
+/**
+ * One row per person: a whitelist entry, the signed-up user account behind it,
+ * or both. Emails are the join key (whitelist entries are stored lowercase).
+ */
+interface AccountantRow {
+  email: string;
+  name: string | null;
+  whitelisted: boolean;
+  user: Accountant | null;
+}
+
 /**
  * The admin shell: admins don't run an agent of their own, so instead of the
- * accountant workspace they get a platform overview — the paid-access
- * whitelist, every accountant with their collection progress, and an
- * Impersonate entry point into each one's dashboard.
+ * accountant workspace they get a platform overview (Dashboard tab) and the
+ * accountant roster with paid-access management (Accountants tab). Impersonate
+ * is the entry point into an accountant's own dashboard.
  */
 export function AdminDashboard({ userEmail, onLogout }: Props) {
+  const [tab, setTab] = useState<AdminTab>(
+    () => (sessionStorage.getItem('fm.adminTab') === 'accountants' ? 'accountants' : 'dashboard'),
+  );
   const [accountants, setAccountants] = useState<Accountant[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [whitelist, setWhitelist] = useState<WhitelistEntry[] | null>(null);
-  const [whitelistError, setWhitelistError] = useState<string | null>(null);
-  const [newEmail, setNewEmail] = useState('');
-  const [newName, setNewName] = useState('');
-  const [addingEntry, setAddingEntry] = useState(false);
-  const [removingEmail, setRemovingEmail] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyEmail, setBusyEmail] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
-  const loadAccountants = useCallback(() => {
-    api
-      .adminListAccountants()
-      .then(({ accountants: list }) => setAccountants(list))
-      .catch(() => setError('Failed to load accountants.'));
+  const selectTab = (next: AdminTab) => {
+    setTab(next);
+    sessionStorage.setItem('fm.adminTab', next);
+  };
+
+  const refresh = useCallback(async () => {
+    const [{ accountants: users }, { entries }] = await Promise.all([
+      api.adminListAccountants(),
+      api.adminListWhitelist(),
+    ]);
+    setAccountants(users);
+    setWhitelist(entries);
   }, []);
 
   useEffect(() => {
-    loadAccountants();
-    api
-      .adminListWhitelist()
-      .then(({ entries }) => setWhitelist(entries))
-      .catch(() => setWhitelistError('Failed to load the whitelist.'));
-  }, [loadAccountants]);
+    refresh().catch(() => setError('Failed to load accountants.'));
+  }, [refresh]);
 
-  const addToWhitelist = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEmail.trim() || addingEntry) return;
-    setAddingEntry(true);
-    setWhitelistError(null);
-    try {
-      await api.adminAddToWhitelist(newEmail.trim().toLowerCase(), newName.trim() || undefined);
-      setNewEmail('');
-      setNewName('');
-      const { entries } = await api.adminListWhitelist();
-      setWhitelist(entries);
-      // The new accountant may already have signed in — refresh their access badge.
-      loadAccountants();
-    } catch (err) {
-      setWhitelistError(err instanceof ApiError ? err.message : 'Failed to add the email.');
-    } finally {
-      setAddingEntry(false);
+  const rows = useMemo<AccountantRow[] | null>(() => {
+    if (!accountants || !whitelist) return null;
+    const byEmail = new Map<string, AccountantRow>();
+    for (const entry of whitelist) {
+      byEmail.set(entry.email, { email: entry.email, name: entry.name, whitelisted: true, user: null });
     }
-  };
-
-  const removeFromWhitelist = async (email: string) => {
-    if (removingEmail) return;
-    if (!window.confirm(`Revoke access for ${email}? They will be locked out immediately.`)) return;
-    setRemovingEmail(email);
-    setWhitelistError(null);
-    try {
-      await api.adminRemoveFromWhitelist(email);
-      setWhitelist((list) => list?.filter((entry) => entry.email !== email) ?? null);
-      loadAccountants();
-    } catch (err) {
-      setWhitelistError(err instanceof ApiError ? err.message : 'Failed to remove the email.');
-    } finally {
-      setRemovingEmail(null);
+    for (const user of accountants) {
+      const key = user.email.toLowerCase();
+      const existing = byEmail.get(key);
+      if (existing) {
+        existing.user = user;
+        existing.name = existing.name ?? user.name;
+      } else {
+        byEmail.set(key, { email: key, name: user.name, whitelisted: user.whitelisted, user });
+      }
     }
-  };
+    return [...byEmail.values()];
+  }, [accountants, whitelist]);
 
   const totals = useMemo(() => {
     if (!accountants) return null;
@@ -87,17 +86,62 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     );
   }, [accountants]);
 
-  const impersonate = async (userId: string) => {
-    setBusyId(userId);
+  const impersonate = async (row: AccountantRow) => {
+    if (!row.user) return;
+    setBusyEmail(row.email);
     setError(null);
     try {
-      await api.impersonate(userId);
+      await api.impersonate(row.user.id);
       // Full reload so every view refetches under the impersonated identity.
       window.location.reload();
     } catch {
       setError('Failed to start impersonation.');
-      setBusyId(null);
+      setBusyEmail(null);
     }
+  };
+
+  const activate = async (row: AccountantRow) => {
+    setBusyEmail(row.email);
+    setError(null);
+    try {
+      await api.adminAddToWhitelist(row.email, row.name ?? undefined);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to activate the account.');
+    } finally {
+      setBusyEmail(null);
+    }
+  };
+
+  const revoke = async (row: AccountantRow) => {
+    if (!window.confirm(`Revoke access for ${row.email}? They will be locked out immediately.`)) return;
+    setBusyEmail(row.email);
+    setError(null);
+    try {
+      await api.adminRemoveFromWhitelist(row.email);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to revoke access.');
+    } finally {
+      setBusyEmail(null);
+    }
+  };
+
+  const statusBadge = (row: AccountantRow) => {
+    if (!row.whitelisted) {
+      return (
+        <span className="badge badge-pending" title="Signed in with Google but not whitelisted — they only see the contact-admin screen.">
+          No access
+        </span>
+      );
+    }
+    return row.user ? (
+      <span className="badge badge-success">Active</span>
+    ) : (
+      <span className="badge badge-neutral" title="Whitelisted but hasn't signed in yet.">
+        Invited
+      </span>
+    );
   };
 
   return (
@@ -117,210 +161,188 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       </header>
 
       <main className="admin-main">
-        {error && <div className="error-banner">{error}</div>}
+        <nav className="client-tabs" role="tablist">
+          <button
+            className={`client-tab ${tab === 'dashboard' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={tab === 'dashboard'}
+            onClick={() => selectTab('dashboard')}
+          >
+            Dashboard
+          </button>
+          <button
+            className={`client-tab ${tab === 'accountants' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={tab === 'accountants'}
+            onClick={() => selectTab('accountants')}
+          >
+            Accountants
+          </button>
+        </nav>
 
-        <section className="card admin-table-card">
-          <div className="card-header">
-            <div>
-              <h2>Accountant access</h2>
-              {whitelist && (
-                <span className="badge badge-neutral">
-                  {whitelist.length} whitelisted email{whitelist.length === 1 ? '' : 's'}
-                </span>
+        {error && <div className="error-banner">{error}</div>}
+        {!rows && !error && <div className="muted">Loading…</div>}
+
+        {tab === 'dashboard' && rows && accountants && totals && (
+          <div className="stat-row">
+            <div className="card stat-tile">
+              <span className="stat-label">Accountants</span>
+              <span className="stat-value">{accountants.length}</span>
+              <span className="stat-context">
+                {accountants.filter((a) => a.mailbox).length} with an agent mailbox
+              </span>
+            </div>
+            <div className="card stat-tile">
+              <span className="stat-label">Clients</span>
+              <span className="stat-value">{totals.clients}</span>
+              <span className="stat-context">across all accountants</span>
+            </div>
+            <div className="card stat-tile">
+              <span className="stat-label">Clients complete</span>
+              <span className="stat-value">
+                {totals.clients === 0 ? '—' : `${totals.clientsComplete} / ${totals.clients}`}
+              </span>
+              <span className="stat-context">
+                {totals.clients === 0 ? 'No clients yet' : `${totals.clients - totals.clientsComplete} still pending`}
+              </span>
+            </div>
+            <div className="card stat-tile">
+              <span className="stat-label">Documents collected</span>
+              <span className="stat-value">{totals.docs === 0 ? '—' : `${totals.docsCollected} / ${totals.docs}`}</span>
+              {totals.docs > 0 && (
+                <div className="stat-meter">
+                  <div
+                    className={`stat-meter-fill ${totals.docsCollected === totals.docs ? 'complete' : ''}`}
+                    style={{ width: `${(totals.docsCollected / totals.docs) * 100}%` }}
+                  />
+                </div>
               )}
+              <span className="stat-context">
+                {totals.docs === 0 ? 'No documents requested yet' : `${totals.docs - totals.docsCollected} outstanding`}
+              </span>
             </div>
           </div>
-          <p className="muted">
-            Only whitelisted emails can use the app. When a customer pays, add the Gmail they'll sign in with —
-            removing an email locks that account out immediately.
-          </p>
-          <form className="whitelist-add-form" onSubmit={addToWhitelist}>
-            <input
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="accountant@gmail.com"
-              spellCheck={false}
-              required
-            />
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Name (optional)"
-              maxLength={200}
-            />
-            <button className="btn btn-primary" type="submit" disabled={addingEntry || !newEmail.trim()}>
-              {addingEntry ? 'Adding…' : 'Add accountant'}
-            </button>
-          </form>
-          {whitelistError && <div className="error-banner">{whitelistError}</div>}
-          {!whitelist && !whitelistError && <div className="muted">Loading…</div>}
-          {whitelist && whitelist.length === 0 && (
-            <div className="muted">No emails whitelisted yet — nobody but admins can use the app.</div>
-          )}
-          {whitelist && whitelist.length > 0 && (
-            <table className="admin-users-table">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Added</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {whitelist.map((entry) => (
-                  <tr key={entry.email}>
-                    <td>{entry.email}</td>
-                    <td>{entry.name ?? <span className="muted">—</span>}</td>
-                    <td>
-                      {entry.signedUp ? (
-                        <span className="badge badge-success">Signed up</span>
-                      ) : (
-                        <span className="badge badge-neutral">Hasn't signed in yet</span>
-                      )}
-                    </td>
-                    <td>{new Date(entry.createdAt).toLocaleDateString()}</td>
-                    <td>
-                      <button
-                        className="btn btn-ghost btn-small"
-                        disabled={removingEmail !== null}
-                        onClick={() => removeFromWhitelist(entry.email)}
-                      >
-                        {removingEmail === entry.email ? 'Removing…' : 'Remove'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
+        )}
 
-        {!accountants && !error && <div className="muted">Loading…</div>}
-        {accountants && totals && (
-          <>
-            <div className="stat-row">
-              <div className="card stat-tile">
-                <span className="stat-label">Accountants</span>
-                <span className="stat-value">{accountants.length}</span>
-                <span className="stat-context">
-                  {accountants.filter((a) => a.mailbox).length} with an agent mailbox
+        {tab === 'accountants' && rows && (
+          <section className="card admin-table-card">
+            <div className="card-header">
+              <div>
+                <h2>Accountants</h2>
+                <span className="badge badge-neutral">
+                  {rows.length} account{rows.length === 1 ? '' : 's'}
                 </span>
               </div>
-              <div className="card stat-tile">
-                <span className="stat-label">Clients</span>
-                <span className="stat-value">{totals.clients}</span>
-                <span className="stat-context">across all accountants</span>
-              </div>
-              <div className="card stat-tile">
-                <span className="stat-label">Clients complete</span>
-                <span className="stat-value">
-                  {totals.clients === 0 ? '—' : `${totals.clientsComplete} / ${totals.clients}`}
-                </span>
-                <span className="stat-context">
-                  {totals.clients === 0 ? 'No clients yet' : `${totals.clients - totals.clientsComplete} still pending`}
-                </span>
-              </div>
-              <div className="card stat-tile">
-                <span className="stat-label">Documents collected</span>
-                <span className="stat-value">{totals.docs === 0 ? '—' : `${totals.docsCollected} / ${totals.docs}`}</span>
-                {totals.docs > 0 && (
-                  <div className="stat-meter">
-                    <div
-                      className={`stat-meter-fill ${totals.docsCollected === totals.docs ? 'complete' : ''}`}
-                      style={{ width: `${(totals.docsCollected / totals.docs) * 100}%` }}
-                    />
-                  </div>
-                )}
-                <span className="stat-context">
-                  {totals.docs === 0 ? 'No documents requested yet' : `${totals.docs - totals.docsCollected} outstanding`}
-                </span>
-              </div>
+              <button className="btn btn-primary" onClick={() => setAdding(true)}>
+                + Add Accountant
+              </button>
             </div>
-
-            <section className="card admin-table-card">
-              <div className="card-header">
-                <div>
-                  <h2>Accountants</h2>
-                  <span className="badge badge-neutral">
-                    {accountants.length} account{accountants.length === 1 ? '' : 's'}
-                  </span>
-                </div>
-              </div>
-              <p className="muted">
-                Impersonate an accountant to open their dashboard exactly as they see it. While impersonating,
-                everything you do applies to their account.
-              </p>
-              {accountants.length === 0 ? (
-                <div className="muted">No accountants have signed up yet.</div>
-              ) : (
-                <table className="admin-users-table">
-                  <thead>
-                    <tr>
-                      <th>Accountant</th>
-                      <th>Agent mailbox</th>
-                      <th>Clients complete</th>
-                      <th>Documents collected</th>
-                      <th>Joined</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {accountants.map((a) => (
-                      <tr key={a.id}>
-                        <td>
-                          <span className="client-item-text">
-                            <span className="client-item-name">
-                              {a.name ?? a.email}
-                              {!a.whitelisted && (
-                                <span className="badge badge-pending" title="Not on the whitelist — they can sign in but only see the contact-admin screen.">
-                                  No access
-                                </span>
-                              )}
-                            </span>
-                            <span className="client-item-email muted">{a.email}</span>
-                          </span>
-                        </td>
-                        <td>{a.mailbox ?? <span className="muted">Not set</span>}</td>
-                        <td>{a.clientCount === 0 ? <span className="muted">No clients</span> : `${a.clientsComplete} / ${a.clientCount}`}</td>
-                        <td>
-                          {a.docsTotal === 0 ? (
-                            <span className="muted">—</span>
-                          ) : (
-                            <span className="table-meter" title={`${a.docsCollected} of ${a.docsTotal} documents collected`}>
-                              <span className="stat-meter table-meter-track">
-                                <span
-                                  className={`stat-meter-fill ${a.docsCollected === a.docsTotal ? 'complete' : ''}`}
-                                  style={{ width: `${(a.docsCollected / a.docsTotal) * 100}%` }}
-                                />
-                              </span>
-                              <span className="table-meter-count">
-                                {a.docsCollected} / {a.docsTotal}
-                              </span>
-                            </span>
-                          )}
-                        </td>
-                        <td>{new Date(a.createdAt).toLocaleDateString()}</td>
-                        <td>
-                          <button
-                            className="btn btn-ghost btn-small"
-                            disabled={busyId !== null}
-                            onClick={() => impersonate(a.id)}
+            <p className="muted">
+              Only whitelisted accountants can use the app. Impersonate opens their dashboard exactly as they see
+              it — while impersonating, everything you do applies to their account.
+            </p>
+            {rows.length === 0 ? (
+              <div className="muted">No accountants yet — add a paying customer's Gmail to give them access.</div>
+            ) : (
+              <table className="admin-users-table">
+                <thead>
+                  <tr>
+                    <th>Accountant</th>
+                    <th>Status</th>
+                    <th>Agent mailbox</th>
+                    <th>Clients complete</th>
+                    <th>Documents collected</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.email}>
+                      <td>
+                        <span className="client-item-text">
+                          <span className="client-item-name">{row.name ?? row.email}</span>
+                          <span className="client-item-email muted">{row.email}</span>
+                        </span>
+                      </td>
+                      <td>{statusBadge(row)}</td>
+                      <td>
+                        {row.user?.mailbox ?? <span className="muted">{row.user ? 'Not set' : '—'}</span>}
+                      </td>
+                      <td>
+                        {!row.user || row.user.clientCount === 0 ? (
+                          <span className="muted">{row.user ? 'No clients' : '—'}</span>
+                        ) : (
+                          `${row.user.clientsComplete} / ${row.user.clientCount}`
+                        )}
+                      </td>
+                      <td>
+                        {!row.user || row.user.docsTotal === 0 ? (
+                          <span className="muted">—</span>
+                        ) : (
+                          <span
+                            className="table-meter"
+                            title={`${row.user.docsCollected} of ${row.user.docsTotal} documents collected`}
                           >
-                            {busyId === a.id ? 'Opening…' : 'Impersonate'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </section>
-          </>
+                            <span className="stat-meter table-meter-track">
+                              <span
+                                className={`stat-meter-fill ${row.user.docsCollected === row.user.docsTotal ? 'complete' : ''}`}
+                                style={{ width: `${(row.user.docsCollected / row.user.docsTotal) * 100}%` }}
+                              />
+                            </span>
+                            <span className="table-meter-count">
+                              {row.user.docsCollected} / {row.user.docsTotal}
+                            </span>
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span className="btn-row admin-row-actions">
+                          {row.user && (
+                            <button
+                              className="btn btn-ghost btn-small"
+                              disabled={busyEmail !== null}
+                              onClick={() => impersonate(row)}
+                            >
+                              {busyEmail === row.email ? 'Working…' : 'Impersonate'}
+                            </button>
+                          )}
+                          {row.whitelisted ? (
+                            <button
+                              className="btn btn-ghost btn-small"
+                              disabled={busyEmail !== null}
+                              onClick={() => revoke(row)}
+                            >
+                              Revoke access
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-ghost btn-small"
+                              disabled={busyEmail !== null}
+                              onClick={() => activate(row)}
+                            >
+                              Activate
+                            </button>
+                          )}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
         )}
       </main>
+
+      {adding && (
+        <AddAccountantModal
+          onClose={() => setAdding(false)}
+          onAdded={() => {
+            setAdding(false);
+            refresh().catch(() => setError('Failed to reload accountants.'));
+          }}
+        />
+      )}
     </div>
   );
 }

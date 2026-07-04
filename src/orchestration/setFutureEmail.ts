@@ -7,7 +7,8 @@ import { buildPrompt } from '../gemini/prompt.js';
 import { getPromptTemplate } from '../gemini/promptSettings.js';
 import { decide } from '../gemini/decide.js';
 import { scheduleDraftEmail } from './scheduleDraftEmail.js';
-import { hoursToMs } from '../util/time.js';
+import { zonedTimeToUtc } from '../util/time.js';
+import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 
 /** Asks the LLM, given the full thread and required-documents list, which documents were just provided and whether a follow-up is needed, and acts on it. */
@@ -61,10 +62,21 @@ export async function setFutureEmail(clientId: string): Promise<void> {
     );
   }
 
+  // The LLM answers with a wall-clock datetime in the accountant's timezone.
+  const sendAtUtc = zonedTimeToUtc(decision.send_at, env.ACCOUNTANT_TIMEZONE);
+  const delayMs = sendAtUtc.getTime() - Date.now();
+  if (delayMs < 0) {
+    logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: decision.send_at });
+  }
   await scheduleDraftEmail(clientId, {
     subject: decision.email_subject,
     body: decision.email_body,
-    delayMs: hoursToMs(decision.wait_hours),
+    delayMs: Math.max(0, delayMs),
   });
-  logger.info('follow-up scheduled', { clientId, wait_hours: decision.wait_hours, reasoning: decision.reasoning });
+  logger.info('follow-up scheduled', {
+    clientId,
+    send_at: decision.send_at,
+    send_at_utc: sendAtUtc.toISOString(),
+    reasoning: decision.reasoning,
+  });
 }

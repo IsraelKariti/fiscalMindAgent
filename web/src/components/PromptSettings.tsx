@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, type PromptTemplateState } from '../api';
 
 export function PromptSettings() {
@@ -6,6 +6,14 @@ export function PromptSettings() {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft, state]);
 
   useEffect(() => {
     api
@@ -93,10 +101,11 @@ export function PromptSettings() {
         </div>
 
         <textarea
+          ref={editorRef}
           className="prompt-editor"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          rows={24}
+          rows={4}
           spellCheck={false}
         />
         {message && <div className={message.kind === 'ok' ? 'ok-banner' : 'error-banner'}>{message.text}</div>}

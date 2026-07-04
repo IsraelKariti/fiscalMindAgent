@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "docker compose up -d && concurrently -n web,worker,gui,landing,ngrok -c blue,yellow,green,magenta,gray npm:dev:web npm:dev:worker npm:dev:gui npm:dev:landing \"node scripts/devNgrok.mjs\"",
+    "dev": "docker compose up -d --wait && npm run db:migrate && concurrently -n web,worker,gui,landing,ngrok -c blue,yellow,green,magenta,gray npm:dev:web npm:dev:worker npm:dev:gui npm:dev:landing \"node scripts/devNgrok.mjs\"",
     "dev:web": "node --watch-path=./src --import tsx src/web.ts",
     "dev:worker": "node --watch-path=./src --import tsx src/worker.ts",
     "dev:gui": "npm run dev --prefix web",

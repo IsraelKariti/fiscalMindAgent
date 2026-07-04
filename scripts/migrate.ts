@@ -8,8 +8,25 @@ import { logger } from '../src/util/logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.join(__dirname, '..', 'migrations');
 
+/** Blocks until Postgres accepts queries — on a cold `docker compose up` the
+ *  container can be running but not ready (or mid-initdb restart). */
+async function waitForDb(pool: Pool, timeoutMs = 60_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      await pool.query('SELECT 1');
+      return;
+    } catch (err) {
+      if (Date.now() >= deadline) throw err;
+      logger.info('waiting for postgres to accept connections…');
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+}
+
 async function main(): Promise<void> {
   const pool = new Pool({ connectionString: env.DATABASE_URL });
+  await waitForDb(pool);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (

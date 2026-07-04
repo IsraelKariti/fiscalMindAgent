@@ -31,7 +31,7 @@ npm run build:gui     # outputs web/dist, served by `npm run dev:web` / `start:w
 npm run dev:gui       # http://localhost:5173
 ```
 
-Set the Google OAuth vars (and optionally `DASHBOARD_SESSION_SECRET`) in `.env` and run `npm run db:migrate` before first use.
+Set the Google OAuth vars (and optionally `DASHBOARD_SESSION_SECRET`) in `.env` before first use. `npm run dev` applies pending migrations automatically.
 
 ## Local setup
 
@@ -64,8 +64,7 @@ Create an OAuth 2.0 Client ID of type **Web application** with redirect URI `<AP
 ### 5. Run the app
 
 ```bash
-npm run db:migrate
-npm run dev        # Postgres+Redis (docker), web, worker, GUI dev server, and the ngrok tunnel
+npm run dev        # Postgres+Redis (docker), migrations, web, worker, GUI dev server, and the ngrok tunnel
 ```
 
 Sign in at http://localhost:3000, claim an agent name in the banner, and add a client.
@@ -87,7 +86,7 @@ This creates the client and enqueues the first `send_email` job — it does not 
 |---|---|
 | `npm run dev:web` / `dev:worker` | Run the two processes locally with auto-reload |
 | `npm run build` / `start:web` / `start:worker` | Compile and run the built output |
-| `npm run db:migrate` | Apply pending SQL migrations from `migrations/` |
+| `npm run db:migrate` | Apply pending SQL migrations from `migrations/` (also runs automatically at the start of `npm run dev`) |
 | `npm run cli:bootstrap` | Create a client and schedule its first outreach email |
 | `npm run typecheck` | Type-check without emitting |
 

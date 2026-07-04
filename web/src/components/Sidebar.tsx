@@ -117,12 +117,12 @@ export function Sidebar({
         )}
         <div className="footer-row" title="Google account you are signed in with">
           <span className="footer-label">Signed in as</span>
-          <span className="footer-value footer-user">
+          <span className="footer-value">
             <span className="footer-email">{userEmail ?? '…'}</span>
-            <button className="btn btn-ghost btn-small" onClick={onLogout}>
-              Log out
-            </button>
           </span>
+          <button className="btn btn-ghost btn-small footer-logout" onClick={onLogout}>
+            Log out
+          </button>
         </div>
       </div>
     </nav>

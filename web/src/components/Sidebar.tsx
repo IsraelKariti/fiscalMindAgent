@@ -74,9 +74,12 @@ export function Sidebar({
           {clients.length === 0 && <li className="muted sidebar-empty">No clients yet</li>}
         </ul>
         <div className="sidebar-section">Agent settings</div>
-        <button className={`client-item ${promptSelected ? 'selected' : ''}`} onClick={onSelectPrompt}>
-          <span className="client-item-name">System prompt</span>
-        </button>
+        {/* Prompt tuning is an admin task — surfaced only inside an impersonated workspace. */}
+        {impersonatingEmail && (
+          <button className={`client-item ${promptSelected ? 'selected' : ''}`} onClick={onSelectPrompt}>
+            <span className="client-item-name">System prompt</span>
+          </button>
+        )}
         <div className="agent-mailbox-row" title="Mailbox the agent sends and receives as">
           <span className="client-item-text">
             <span className="client-item-name">Agent mailbox</span>

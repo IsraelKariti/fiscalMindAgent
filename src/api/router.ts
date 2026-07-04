@@ -336,10 +336,11 @@ apiRouter.get(
   }),
 );
 
-// Per-accountant resource keyed on the effective user: each accountant edits their
-// own template, and an impersonating admin edits the impersonated accountant's.
+// Admin-only, keyed on the effective user: reachable only while impersonating, so
+// the admin edits the impersonated accountant's template. Accountants never see it.
 apiRouter.get(
   '/prompt-template',
+  wrap(requireAdmin),
   wrap(async (req, res) => {
     const state = await getPromptTemplate(req.userId!);
     res.json({ ...state, defaultTemplate: DEFAULT_PROMPT_TEMPLATE, placeholders: PROMPT_PLACEHOLDERS });
@@ -348,6 +349,7 @@ apiRouter.get(
 
 apiRouter.put(
   '/prompt-template',
+  wrap(requireAdmin),
   wrap(async (req, res) => {
     const parsed = PromptTemplateSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -362,6 +364,7 @@ apiRouter.put(
 
 apiRouter.post(
   '/prompt-template/reset',
+  wrap(requireAdmin),
   wrap(async (req, res) => {
     await resetPromptTemplate(req.userId!);
     const state = await getPromptTemplate(req.userId!);

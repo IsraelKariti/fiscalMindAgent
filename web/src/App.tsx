@@ -123,7 +123,7 @@ export function App() {
           {view.kind === 'client' && (
             <ClientView key={view.clientId} clientId={view.clientId} onClientUpdated={loadClients} />
           )}
-          {view.kind === 'prompt' && <PromptSettings />}
+          {view.kind === 'prompt' && impersonating && <PromptSettings />}
           {view.kind === 'empty' && (
             <div className="screen-center muted">No clients yet — use “+ Add” in the sidebar to create one.</div>
           )}

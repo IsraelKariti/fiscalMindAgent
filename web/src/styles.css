@@ -2025,3 +2025,125 @@ button.meta-chip:hover {
   white-space: nowrap;
   justify-content: flex-end;
 }
+
+/* Workspace overview dashboard (sidebar "דשבורד") */
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* The sidebar dashboard button sits alone above the clients section */
+.sidebar-nav-item {
+  margin-top: 10px;
+}
+
+.overview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.overview-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--speed) ease;
+}
+
+.overview-row:hover {
+  background: rgba(148, 163, 216, 0.1);
+}
+
+.overview-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.overview-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-row-value {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* stat-meter markup is spans inside a button here — make them lay out like the divs */
+.overview-row .stat-meter,
+.overview-row .stat-meter-fill {
+  display: block;
+}
+
+.overview-row .stat-meter {
+  width: 100%;
+  margin: 0;
+}
+
+/* Upcoming follow-ups: one chip per client, wrapping across the wide card */
+.overview-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.overview-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background var(--speed) ease,
+    border-color var(--speed) ease;
+}
+
+.overview-chip:hover {
+  background: rgba(148, 163, 216, 0.08);
+  border-color: var(--border-strong);
+}
+
+.overview-chip-when {
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.overview-chip-name {
+  font-weight: 600;
+}

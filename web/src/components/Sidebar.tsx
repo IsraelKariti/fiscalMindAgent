@@ -4,8 +4,10 @@ import type { Client } from '../api';
 interface Props {
   clients: Client[];
   selectedClientId: string | null;
+  dashboardSelected: boolean;
   promptSelected: boolean;
   onSelectClient: (clientId: string) => void;
+  onSelectDashboard: () => void;
   onSelectPrompt: () => void;
   onAddClient: () => void;
   onDeleteClient: (client: Client) => void;
@@ -40,6 +42,14 @@ const icon = {
       <path d="M12 5v14" />
     </svg>
   ),
+  dashboard: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="12" width="7" height="9" rx="1" />
+      <rect x="3" y="16" width="7" height="5" rx="1" />
+    </svg>
+  ),
   sliders: (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <line x1="4" y1="21" x2="4" y2="14" />
@@ -71,8 +81,10 @@ const icon = {
 export function Sidebar({
   clients,
   selectedClientId,
+  dashboardSelected,
   promptSelected,
   onSelectClient,
+  onSelectDashboard,
   onSelectPrompt,
   onAddClient,
   onDeleteClient,
@@ -121,6 +133,14 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-scroll">
+        <button
+          className={`client-item sidebar-nav-item ${dashboardSelected ? 'selected' : ''}`}
+          onClick={onSelectDashboard}
+        >
+          <span className="nav-item-icon">{icon.dashboard}</span>
+          <span className="client-item-name">דשבורד</span>
+        </button>
+
         <div className="side-heading">
           <span className="side-heading-label">
             לקוחות

@@ -53,6 +53,28 @@ export interface NextScheduled {
   body: string | null;
 }
 
+/** One client with everything the workspace dashboard shows about it, pre-aggregated server-side. */
+export interface DashboardClientSummary {
+  id: string;
+  name: string;
+  email_address: string;
+  goal_status: GoalStatus;
+  created_at: string;
+  docs_total: number;
+  docs_collected: number;
+  emails_sent: number;
+  emails_received: number;
+  last_inbound_at: string | null;
+  next_scheduled_for: string | null;
+}
+
+export interface DashboardSummary {
+  clients: DashboardClientSummary[];
+  /** Delivered emails in the recent-activity window, for the weekly chart. */
+  activity: { at: string; direction: 'inbound' | 'outbound' }[];
+  filesTotal: number;
+}
+
 export interface PromptTemplateState {
   template: string;
   isCustom: boolean;
@@ -133,6 +155,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name }),
     }),
+  dashboard: () => request<DashboardSummary>('/api/dashboard'),
   listClients: () => request<{ clients: Client[] }>('/api/clients'),
   createClient: (args: {
     name: string;

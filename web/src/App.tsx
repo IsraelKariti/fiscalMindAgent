@@ -9,8 +9,9 @@ import { DeleteClientModal } from './components/DeleteClientModal';
 import { ClaimMailbox } from './components/ClaimMailbox';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AccessPending } from './components/AccessPending';
+import { Overview } from './components/Overview';
 
-type View = { kind: 'client'; clientId: string } | { kind: 'prompt' } | { kind: 'empty' };
+type View = { kind: 'overview' } | { kind: 'client'; clientId: string } | { kind: 'prompt' } | { kind: 'empty' };
 
 export function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -48,7 +49,8 @@ export function App() {
     setClients(list);
     setView((v) => {
       if (v.kind !== 'empty') return v;
-      // Restore the client viewed before a refresh, if it still exists.
+      // Restore the screen viewed before a refresh: the dashboard, or the client if it still exists.
+      if (sessionStorage.getItem('fm.lastView') === 'overview') return { kind: 'overview' };
       const stored = sessionStorage.getItem('fm.lastClientId');
       const restored = stored && list.some((c) => c.id === stored) ? stored : list[0]?.id;
       return restored ? { kind: 'client', clientId: restored } : v;
@@ -57,6 +59,7 @@ export function App() {
 
   useEffect(() => {
     if (view.kind === 'client') sessionStorage.setItem('fm.lastClientId', view.clientId);
+    if (view.kind === 'client' || view.kind === 'overview') sessionStorage.setItem('fm.lastView', view.kind);
   }, [view]);
 
   useEffect(() => {
@@ -114,8 +117,10 @@ export function App() {
         <Sidebar
           clients={clients}
           selectedClientId={view.kind === 'client' ? view.clientId : null}
+          dashboardSelected={view.kind === 'overview'}
           promptSelected={view.kind === 'prompt'}
           onSelectClient={(clientId) => setView({ kind: 'client', clientId })}
+          onSelectDashboard={() => setView({ kind: 'overview' })}
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onAddClient={() => setAdding(true)}
           onDeleteClient={setDeleting}
@@ -126,6 +131,9 @@ export function App() {
           onLogout={logout}
         />
         <main className="main">
+          {view.kind === 'overview' && (
+            <Overview onSelectClient={(clientId) => setView({ kind: 'client', clientId })} />
+          )}
           {view.kind === 'client' && (
             <ClientView key={view.clientId} clientId={view.clientId} onClientUpdated={loadClients} />
           )}

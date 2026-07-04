@@ -1,30 +1,10 @@
 import { useMemo } from 'react';
 import type { ClientDocument, DocumentFile, Email, NextScheduled } from '../../api';
-import { LOCALE } from '../../format';
 import { ChartCard, ChartEmpty, NEUTRAL, SERIES } from './common';
 import { DonutChart, type DonutDatum } from './DonutChart';
 import { LineChart } from './LineChart';
 import { SankeyChart, type SankeyLinkDef, type SankeyNodeDef } from './SankeyChart';
-
-const WEEKS = 8;
-
-function startOfWeek(d: Date): Date {
-  const day = (d.getDay() + 6) % 7; // Monday-based
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
-}
-
-function weekStarts(): Date[] {
-  const monday = startOfWeek(new Date());
-  const starts: Date[] = [];
-  for (let k = WEEKS - 1; k >= 0; k--) {
-    starts.push(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7 * k));
-  }
-  return starts;
-}
-
-function weekLabel(d: Date): string {
-  return d.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' });
-}
+import { startOfWeek, weekLabel, WEEKS, weekStarts } from './weeks';
 
 const FILE_KINDS = [
   { label: 'קובצי PDF', color: SERIES.violet },

@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import * as clients from '../db/queries/clients.js';
 import * as clientDocuments from '../db/queries/clientDocuments.js';
+import * as dashboard from '../db/queries/dashboard.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
 import { deleteBlob, downloadBlob } from '../storage/blob.js';
@@ -120,6 +121,22 @@ apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemove
 apiRouter.get('/mailbox', wrap(mailboxStatus));
 apiRouter.get('/mailbox/availability', wrap(mailboxAvailability));
 apiRouter.post('/mailbox', wrap(claimMailbox));
+
+// Slightly wider than the 8 Monday-based weeks the activity chart shows, so the
+// oldest visible week is always fully covered regardless of timezone.
+const ACTIVITY_WINDOW_DAYS = 70;
+
+apiRouter.get(
+  '/dashboard',
+  wrap(async (req, res) => {
+    const [clientSummaries, activity, filesTotal] = await Promise.all([
+      dashboard.listClientSummaries(req.userId!),
+      dashboard.listEmailActivity(req.userId!, ACTIVITY_WINDOW_DAYS),
+      dashboard.countFilesForUser(req.userId!),
+    ]);
+    res.json({ clients: clientSummaries, activity, filesTotal });
+  }),
+);
 
 apiRouter.get(
   '/clients',

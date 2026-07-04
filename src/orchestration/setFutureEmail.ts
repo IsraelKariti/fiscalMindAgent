@@ -1,5 +1,6 @@
 import * as clients from '../db/queries/clients.js';
 import * as clientDocuments from '../db/queries/clientDocuments.js';
+import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
 import { buildPrompt } from '../gemini/prompt.js';
 import { getPromptTemplate } from '../gemini/promptSettings.js';
@@ -16,8 +17,9 @@ export async function setFutureEmail(clientId: string): Promise<void> {
 
   const history = await emails.listForClient(clientId);
   const documents = await clientDocuments.listForClient(clientId);
+  const files = await documentFiles.listForClient(clientId);
   const { template } = await getPromptTemplate(client.user_id);
-  const { systemInstruction, contents } = buildPrompt(client, history, documents, new Date(), template);
+  const { systemInstruction, contents } = buildPrompt(client, history, documents, files, new Date(), template);
   const decision = await decide(systemInstruction, contents);
 
   // Record which pending documents the LLM saw the client provide (unknown ids are ignored).
@@ -26,6 +28,15 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   if (newlyCollected.length > 0) {
     await clientDocuments.markCollected(clientId, newlyCollected);
     logger.info('documents marked collected', { clientId, documentIds: newlyCollected });
+  }
+
+  // File a received file under the required document it satisfies (unknown ids are ignored).
+  const fileIds = new Set(files.map((f) => f.id));
+  const documentIds = new Set(documents.map((d) => d.id));
+  for (const match of decision.matched_files) {
+    if (!fileIds.has(match.file_id) || !documentIds.has(match.document_id)) continue;
+    await documentFiles.linkToDocument(match.file_id, clientId, match.document_id);
+    logger.info('file linked to document', { clientId, fileId: match.file_id, documentId: match.document_id });
   }
 
   // Completion is derived from the documents, not the LLM's decision field: complete iff

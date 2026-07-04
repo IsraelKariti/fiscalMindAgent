@@ -9,6 +9,8 @@ export const DecisionResponseSchema = z.object({
   reasoning: z.string(),
   /** Ids from the REQUIRED DOCUMENTS list the thread shows the client has now provided. */
   collected_document_ids: z.array(z.string()),
+  /** Which received file satisfies which required document (both by id); empty when nothing new matches. */
+  matched_files: z.array(z.object({ file_id: z.string(), document_id: z.string() })),
   email_subject: z.string().nullable(),
   email_body: z.string().nullable(),
   wait_hours: z.number().nullable(),
@@ -16,12 +18,18 @@ export const DecisionResponseSchema = z.object({
 
 export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
 
+export interface MatchedFile {
+  file_id: string;
+  document_id: string;
+}
+
 export type NormalizedDecision =
-  | { decision: 'goal_complete'; reasoning: string; collected_document_ids: string[] }
+  | { decision: 'goal_complete'; reasoning: string; collected_document_ids: string[]; matched_files: MatchedFile[] }
   | {
       decision: 'follow_up';
       reasoning: string;
       collected_document_ids: string[];
+      matched_files: MatchedFile[];
       email_subject: string;
       email_body: string;
       wait_hours: number;
@@ -33,6 +41,7 @@ export function normalizeDecision(raw: DecisionResponse): NormalizedDecision {
       decision: 'goal_complete',
       reasoning: raw.reasoning,
       collected_document_ids: raw.collected_document_ids,
+      matched_files: raw.matched_files,
     };
   }
   if (raw.email_body == null || raw.email_subject == null || raw.wait_hours == null || raw.wait_hours <= 0) {
@@ -42,6 +51,7 @@ export function normalizeDecision(raw: DecisionResponse): NormalizedDecision {
     decision: 'follow_up',
     reasoning: raw.reasoning,
     collected_document_ids: raw.collected_document_ids,
+    matched_files: raw.matched_files,
     email_subject: raw.email_subject,
     email_body: raw.email_body,
     wait_hours: raw.wait_hours,

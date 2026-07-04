@@ -22,6 +22,7 @@
     "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.33.0",
     "@google/genai": "^2.10.0",
     "bullmq": "^5.34.0",
     "dotenv": "^16.4.7",

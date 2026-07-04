@@ -53,6 +53,11 @@ export async function insertInboundIfNew(
   return rows[0] ?? null;
 }
 
+export async function getByMessageId(messageId: string): Promise<EmailRow | null> {
+  const { rows } = await pool.query<EmailRow>('SELECT * FROM emails WHERE message_id = $1', [messageId]);
+  return rows[0] ?? null;
+}
+
 /** Message-IDs of the client's conversation so far, oldest first — feeds In-Reply-To/References on the next send. */
 export async function listMessageIdsForClient(clientId: string): Promise<string[]> {
   const { rows } = await pool.query<{ message_id: string }>(

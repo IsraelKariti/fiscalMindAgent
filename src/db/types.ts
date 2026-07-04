@@ -52,6 +52,21 @@ export interface ClientDocumentRow {
   updated_at: Date;
 }
 
+/** A file received from the client; bytes live in Azure Blob Storage under blob_key. */
+export interface DocumentFileRow {
+  id: string;
+  client_id: string;
+  email_id: string | null;
+  client_document_id: string | null;
+  resend_attachment_id: string;
+  blob_key: string;
+  filename: string;
+  content_type: string;
+  size_bytes: string; // BIGINT comes back from pg as a string
+  sha256: string;
+  created_at: Date;
+}
+
 export type EmailDirection = 'inbound' | 'outbound';
 export type EmailStatus = 'draft' | 'sent' | 'received';
 

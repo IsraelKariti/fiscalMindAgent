@@ -25,6 +25,17 @@ export interface ClientDocument {
   updated_at: string;
 }
 
+export interface DocumentFile {
+  id: string;
+  client_id: string;
+  email_id: string | null;
+  client_document_id: string | null;
+  filename: string;
+  content_type: string;
+  size_bytes: string;
+  created_at: string;
+}
+
 export interface Email {
   id: string;
   client_id: string;
@@ -140,6 +151,8 @@ export const api = {
   updateClient: (id: string, patch: Partial<Pick<Client, 'name' | 'occupation' | 'phone' | 'company' | 'notes'>>) =>
     request<{ client: Client }>(`/api/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),
+  listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),
+  fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
   adminListUsers: () => request<{ users: AdminUser[] }>('/api/admin/users'),
   impersonate: (userId: string) =>
     request<{ ok: true }>('/api/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),

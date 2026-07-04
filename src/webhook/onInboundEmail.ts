@@ -7,6 +7,7 @@ import { resend } from '../resend/client.js';
 import { parseEmailAddress } from '../util/email.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
+import { ingestAttachments } from './ingestAttachments.js';
 import { logger } from '../util/logger.js';
 
 /** `data` of a Resend `email.received` webhook event (metadata only — the body is fetched by id). */
@@ -65,15 +66,22 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
   }
   const body = full.text ?? (full.html ? stripHtml(full.html) : '');
 
+  const messageId = data.message_id ?? full.message_id ?? `<resend-${resendId}@inbound>`;
   const inserted = await emails.insertInboundIfNew(client.id, {
-    messageId: data.message_id ?? full.message_id ?? `<resend-${resendId}@inbound>`,
+    messageId,
     resendId,
     subject: data.subject,
     body,
     sentAt: new Date(data.created_at),
   });
+  const emailRow = inserted ?? (await emails.getByMessageId(messageId));
 
-  if (inserted) {
+  // Store attachments before deciding the next step so the LLM sees the files.
+  // Runs on duplicate deliveries too (inserted === null): ingestion is
+  // idempotent and this backfills attachments a failed earlier run missed.
+  const newFiles = await ingestAttachments(client.id, emailRow?.id ?? null, resendId, full.attachments ?? []);
+
+  if (inserted || newFiles > 0) {
     await withClientLock(client.id, async () => {
       await removeFutureEmail(client.id);
       await setFutureEmail(client.id);

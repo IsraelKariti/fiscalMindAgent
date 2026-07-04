@@ -42,6 +42,11 @@ const EnvSchema = z.object({
   RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
   // Domain agent mailboxes are allocated on: <local-part>@AGENT_EMAIL_DOMAIN.
   AGENT_EMAIL_DOMAIN: z.string().min(1).default('fiscalmind.app'),
+  // Azure Blob Storage holding client document files. The default is the
+  // well-known Azurite dev connection (docker-compose `azurite` service);
+  // production sets the real storage-account connection string.
+  AZURE_STORAGE_CONNECTION_STRING: z.string().min(1).default('UseDevelopmentStorage=true'),
+  AZURE_STORAGE_CONTAINER: z.string().min(1).default('client-documents'),
 });
 
 export const env = EnvSchema.parse(process.env);

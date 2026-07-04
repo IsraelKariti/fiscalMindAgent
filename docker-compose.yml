@@ -20,6 +20,20 @@ services:
     volumes:
       - fiscalmind-redis-data:/data
 
+  # Azure Blob Storage emulator — dev stand-in for the production storage
+  # account (client document files). Blob endpoint only.
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    restart: unless-stopped
+    # --skipApiVersionCheck: the @azure/storage-blob SDK often targets an API
+    # version newer than Azurite's supported list; the calls we make are basic.
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--location", "/data", "--skipApiVersionCheck"]
+    ports:
+      - "10000:10000"
+    volumes:
+      - fiscalmind-azurite-data:/data
+
 volumes:
   fiscalmind-postgres-data:
   fiscalmind-redis-data:
+  fiscalmind-azurite-data:

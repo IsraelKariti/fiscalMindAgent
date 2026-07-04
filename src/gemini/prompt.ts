@@ -1,4 +1,4 @@
-import type { ClientDocumentRow, ClientRow, EmailRow } from '../db/types.js';
+import type { ClientDocumentRow, ClientRow, DocumentFileRow, EmailRow } from '../db/types.js';
 import { env } from '../config/env.js';
 import { humanizeDuration } from '../util/time.js';
 
@@ -32,13 +32,19 @@ You will be shown the REQUIRED DOCUMENTS list — each entry has an id, a name, 
 description, and a status: "pending" (not yet received) or "collected" (already received) —
 followed by the full email thread with this client so far, in chronological order, each
 message labeled by direction (accountant -> outbound, client -> inbound), timestamp, subject,
-and body.
+and body. Inbound messages also list the file attachments that were actually received and
+stored, each with a file id, filename, type, and size — these are real files on record, not
+just claims.
 
 First, update the document statuses: whenever the thread shows the client has clearly provided
-a pending document (attached it, said it's attached, or unambiguously confirmed it was sent
-through another channel), include that document's id in \`collected_document_ids\`. Trust an
-unambiguous statement from the client; you do not need to verify attachment contents. Leave the
-array empty if nothing new was provided.
+a pending document (a received file matches it, the client said it's attached, or unambiguously
+confirmed it was sent through another channel), include that document's id in
+\`collected_document_ids\`. A stored file whose name/type plausibly matches a required document
+is strong evidence it was provided. Trust an unambiguous statement from the client even without
+a file; you do not need to verify file contents. Leave the array empty if nothing new was
+provided. Additionally, whenever a received file clearly corresponds to a required document,
+record the pair in \`matched_files\` (file_id + document_id) so the file is filed under that
+document; leave it empty when no new file matches.
 
 Then, considering which documents remain pending and the current date/time, decide ONE of:
 
@@ -105,14 +111,25 @@ export function buildDocumentsSection(documents: ClientDocumentRow[]): string {
   return `--- REQUIRED DOCUMENTS ---\n${lines.join('\n')}\n--- END DOCUMENTS ---`;
 }
 
-export function buildThreadTranscript(history: EmailRow[]): string {
+export function buildThreadTranscript(history: EmailRow[], files: DocumentFileRow[] = []): string {
   if (history.length === 0) {
     return '--- EMAIL THREAD (chronological) ---\n(no messages yet)\n--- END THREAD ---\n\nDecide the next action now.';
+  }
+  const filesByEmail = new Map<string, DocumentFileRow[]>();
+  for (const file of files) {
+    if (!file.email_id) continue;
+    const list = filesByEmail.get(file.email_id) ?? [];
+    list.push(file);
+    filesByEmail.set(file.email_id, list);
   }
   const lines = history.map((email, i) => {
     const timestamp = (email.sent_at ?? email.created_at).toISOString();
     const from = email.direction === 'outbound' ? 'accountant (outbound)' : `client (inbound)`;
-    return `[#${i + 1}] ${timestamp} | FROM: ${from} | Subject: ${email.subject}\n${email.body}`;
+    const attached = (filesByEmail.get(email.id) ?? [])
+      .map((f) => `  - [file id: ${f.id}] ${f.filename} (${f.content_type}, ${f.size_bytes} bytes)`)
+      .join('\n');
+    const attachments = attached ? `\nAttachments received and stored:\n${attached}` : '';
+    return `[#${i + 1}] ${timestamp} | FROM: ${from} | Subject: ${email.subject}\n${email.body}${attachments}`;
   });
   return `--- EMAIL THREAD (chronological) ---\n${lines.join('\n\n')}\n--- END THREAD ---\n\nDecide the next action now.`;
 }
@@ -126,11 +143,12 @@ export function buildPrompt(
   client: ClientRow,
   history: EmailRow[],
   documents: ClientDocumentRow[],
+  files: DocumentFileRow[],
   now: Date,
   template?: string,
 ): Prompt {
   return {
     systemInstruction: buildSystemPrompt(client, history, now, template),
-    contents: `${buildDocumentsSection(documents)}\n\n${buildThreadTranscript(history)}`,
+    contents: `${buildDocumentsSection(documents)}\n\n${buildThreadTranscript(history, files)}`,
   };
 }

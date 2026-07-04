@@ -2,7 +2,9 @@ import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import * as clients from '../db/queries/clients.js';
 import * as clientDocuments from '../db/queries/clientDocuments.js';
+import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
+import { downloadBlob } from '../storage/blob.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
@@ -257,6 +259,41 @@ apiRouter.patch(
       return;
     }
     res.json({ client });
+  }),
+);
+
+apiRouter.get(
+  '/clients/:id/files',
+  wrap(async (req, res) => {
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+    res.json({ files: await documentFiles.listForClient(client.id) });
+  }),
+);
+
+// Streams the blob through the API so the container stays private and access
+// rides the dashboard session (no SAS URLs to leak).
+apiRouter.get(
+  '/clients/:id/files/:fileId/download',
+  wrap(async (req, res) => {
+    const id = uuidParam(req.params.id);
+    const fileId = uuidParam(req.params.fileId);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const file = client && fileId ? await documentFiles.getForClient(fileId, client.id) : null;
+    if (!file) {
+      res.status(404).json({ error: 'File not found.' });
+      return;
+    }
+    const blob = await downloadBlob(file.blob_key);
+    res.setHeader('Content-Type', file.content_type);
+    if (blob.contentLength) res.setHeader('Content-Length', blob.contentLength);
+    // RFC 5987 encoding: filenames are sanitized ASCII at ingest, but stay defensive.
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`);
+    blob.stream.pipe(res);
   }),
 );
 

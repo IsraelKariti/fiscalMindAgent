@@ -1,0 +1,56 @@
+import { pool } from '../pool.js';
+import type { DocumentFileRow } from '../types.js';
+
+export async function listForClient(clientId: string): Promise<DocumentFileRow[]> {
+  const { rows } = await pool.query<DocumentFileRow>(
+    'SELECT * FROM document_files WHERE client_id = $1 ORDER BY created_at, id',
+    [clientId],
+  );
+  return rows;
+}
+
+export async function getForClient(id: string, clientId: string): Promise<DocumentFileRow | null> {
+  const { rows } = await pool.query<DocumentFileRow>(
+    'SELECT * FROM document_files WHERE id = $1 AND client_id = $2',
+    [id, clientId],
+  );
+  return rows[0] ?? null;
+}
+
+/** Returns the inserted row, or null if this Resend attachment was already ingested (idempotent). */
+export async function insertIfNew(args: {
+  clientId: string;
+  emailId: string | null;
+  resendAttachmentId: string;
+  blobKey: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  sha256: string;
+}): Promise<DocumentFileRow | null> {
+  const { rows } = await pool.query<DocumentFileRow>(
+    `INSERT INTO document_files (client_id, email_id, resend_attachment_id, blob_key, filename, content_type, size_bytes, sha256)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (resend_attachment_id) DO NOTHING
+     RETURNING *`,
+    [
+      args.clientId,
+      args.emailId,
+      args.resendAttachmentId,
+      args.blobKey,
+      args.filename,
+      args.contentType,
+      args.sizeBytes,
+      args.sha256,
+    ],
+  );
+  return rows[0] ?? null;
+}
+
+/** Records which required document a file satisfies (no-op if the file isn't the client's). */
+export async function linkToDocument(id: string, clientId: string, clientDocumentId: string): Promise<void> {
+  await pool.query(
+    'UPDATE document_files SET client_document_id = $3 WHERE id = $1 AND client_id = $2',
+    [id, clientId, clientDocumentId],
+  );
+}

@@ -103,6 +103,7 @@ export function PromptSettings() {
         <textarea
           ref={editorRef}
           className="prompt-editor"
+          dir="auto"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={4}

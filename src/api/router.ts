@@ -9,10 +9,8 @@ import { deleteBlob, downloadBlob } from '../storage/blob.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
-import { scheduleDraftEmail } from '../orchestration/scheduleDraftEmail.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
-import { hoursToMs } from '../util/time.js';
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.js';
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
@@ -56,9 +54,6 @@ const ClientCreateSchema = z
   .object({
     name: z.string().min(1),
     email: z.string().email(),
-    subject: z.string().min(1),
-    body: z.string().min(1),
-    sendAt: z.string().datetime({ offset: true }),
     documents: z.array(DocumentCreateSchema).max(50).default([]),
   })
   .strict();
@@ -93,6 +88,20 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
       await setFutureEmail(clientId);
     });
   }
+}
+
+// Retry delays for the fire-and-forget first-email draft. Without a scheduled email the
+// agent never reaches out and the UI shows "drafting…" forever, so transient LLM failures
+// are worth a couple of retries before giving up to the logs.
+const FIRST_EMAIL_RETRY_DELAYS_MS = [30_000, 120_000];
+
+/** Fire-and-forget: has the agent draft and schedule the new client's first email. */
+function draftFirstEmail(clientId: string, attempt = 0): void {
+  withClientLock(clientId, () => setFutureEmail(clientId)).catch((err) => {
+    logger.error('first email drafting failed', err, { clientId, attempt });
+    const delay = FIRST_EMAIL_RETRY_DELAYS_MS[attempt];
+    if (delay !== undefined) setTimeout(() => draftFirstEmail(clientId, attempt + 1), delay);
+  });
 }
 
 /** Postgres rejects non-UUID ids with an error (→ 500); pre-validate so they 404 like other misses. */
@@ -153,14 +162,7 @@ apiRouter.post(
       res.status(400).json({ error: 'Invalid client fields.', details: parsed.error.flatten() });
       return;
     }
-    const { name, email, subject, body, sendAt, documents } = parsed.data;
-
-    // Past timestamps (e.g. the form sat open past the chosen minute) mean "send now".
-    const delayMs = Math.max(0, new Date(sendAt).getTime() - Date.now());
-    if (delayMs > hoursToMs(24 * 30)) {
-      res.status(400).json({ error: 'Send time must be within 30 days.' });
-      return;
-    }
+    const { name, email, documents } = parsed.data;
 
     if (!(await agentMailboxes.getByUserId(req.userId!))) {
       res.status(409).json({ error: "Choose your agent's email address first — the agent has no mailbox to send from." });
@@ -175,7 +177,9 @@ apiRouter.post(
     for (const doc of documents) {
       await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
     }
-    await scheduleDraftEmail(client.id, { subject, body, delayMs });
+    // Respond before the LLM drafts the first email — the drafting takes seconds, and the
+    // conversation tab shows a "drafting…" placeholder until the scheduled email appears.
+    draftFirstEmail(client.id);
     res.status(201).json({ client });
   }),
 );

@@ -49,7 +49,9 @@ export function Timeline({
         )}
       </div>
       <div className="panel-body" ref={bodyRef} onScroll={trackScroll}>
-        {emails.length === 0 && !nextScheduled && <p className="muted">עדיין לא הוחלפו מיילים.</p>}
+        {emails.length === 0 && !nextScheduled && goalStatus !== 'pending' && (
+          <p className="muted">עדיין לא הוחלפו מיילים.</p>
+        )}
         <ol className="timeline">
           {emails.map((email) => {
             const outbound = email.direction === 'outbound';
@@ -101,6 +103,25 @@ export function Timeline({
                 ) : (
                   <div className="muted">מעקב מתוזמן (הטיוטה אינה זמינה)</div>
                 )}
+              </div>
+            </li>
+          )}
+          {/* Goal open but nothing scheduled: the agent is between decisions — a fresh
+              client awaiting its first draft, or a follow-up being drafted after a send/reply. */}
+          {!nextScheduled && goalStatus === 'pending' && (
+            <li className="timeline-item outbound scheduled drafting">
+              <div className="bubble bubble-scheduled bubble-drafting">
+                <svg
+                  className="scheduled-clock drafting-clock"
+                  viewBox="0 0 16 16"
+                  width="14"
+                  height="14"
+                  aria-hidden="true"
+                >
+                  <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <span>הסוכן מנסח כעת את המייל {emails.length === 0 ? 'הראשון' : 'הבא'}…</span>
               </div>
             </li>
           )}

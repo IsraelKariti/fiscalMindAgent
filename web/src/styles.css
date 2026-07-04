@@ -1050,6 +1050,29 @@ textarea {
   color: var(--pending);
 }
 
+/* "Agent is drafting the next email" placeholder: same pending grammar as a
+   scheduled message, but a single pulsing line instead of a full bubble. */
+.bubble-drafting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pending);
+}
+
+.drafting-clock {
+  animation: drafting-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes drafting-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
 /* Temporal break between sent history and the scheduled future message */
 .timeline-divider {
   display: flex;

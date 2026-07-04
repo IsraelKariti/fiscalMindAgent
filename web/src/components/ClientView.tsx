@@ -52,6 +52,10 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
     }
   }, [clientId]);
 
+  // Goal open with nothing scheduled means the agent is drafting the next email in the
+  // background (e.g. right after client creation) — poll fast so it pops in when ready.
+  const drafting = client !== null && client.goal_status === 'pending' && !nextScheduled;
+
   // Keep the timeline current while the user watches: refetch every 15s when
   // the tab is visible, and immediately when it becomes visible again.
   useEffect(() => {
@@ -59,13 +63,13 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
     const refreshIfVisible = () => {
       if (document.visibilityState === 'visible') load();
     };
-    const interval = setInterval(refreshIfVisible, 15_000);
+    const interval = setInterval(refreshIfVisible, drafting ? 3_000 : 15_000);
     document.addEventListener('visibilitychange', refreshIfVisible);
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refreshIfVisible);
     };
-  }, [load]);
+  }, [load, drafting]);
 
   if (error) return <div className="error-banner">{error}</div>;
   if (!client) return <div className="muted">טוען…</div>;

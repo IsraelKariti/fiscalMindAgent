@@ -916,12 +916,17 @@ textarea {
 }
 
 .timeline-item.outbound .bubble {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(34, 211, 238, 0.1));
-  border-color: rgba(139, 92, 246, 0.35);
+  background: linear-gradient(
+    135deg,
+    rgba(168, 85, 247, 0.45),
+    rgba(99, 102, 241, 0.3) 50%,
+    rgba(34, 211, 238, 0.25)
+  );
+  border-color: rgba(139, 92, 246, 0.55);
 }
 
 .timeline-item.outbound .bubble:hover {
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.22);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.35);
 }
 
 .bubble-scheduled {

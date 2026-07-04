@@ -15,8 +15,16 @@ import { hoursToMs } from '../util/time.js';
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.js';
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
-import { googleLoginCallback, logout, me, requireAuth, startGoogleLogin } from './auth.js';
-import { adminListAccountants, requireAdmin, startImpersonation, stopImpersonation } from './admin.js';
+import { googleLoginCallback, logout, me, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
+import {
+  adminAddToWhitelist,
+  adminListAccountants,
+  adminListWhitelist,
+  adminRemoveFromWhitelist,
+  requireAdmin,
+  startImpersonation,
+  stopImpersonation,
+} from './admin.js';
 import { claimMailbox, mailboxAvailability, mailboxStatus } from './mailbox.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
@@ -99,10 +107,15 @@ apiRouter.post('/logout', logout);
 apiRouter.get('/me', wrap(me));
 
 apiRouter.use(requireAuth);
+// Paid-access gate: everything below is whitelist-only (admins always pass).
+apiRouter.use(wrap(requireWhitelisted));
 
 apiRouter.get('/admin/accountants', wrap(requireAdmin), wrap(adminListAccountants));
 apiRouter.post('/admin/impersonate', wrap(requireAdmin), wrap(startImpersonation));
 apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersonation));
+apiRouter.get('/admin/whitelist', wrap(requireAdmin), wrap(adminListWhitelist));
+apiRouter.post('/admin/whitelist', wrap(requireAdmin), wrap(adminAddToWhitelist));
+apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemoveFromWhitelist));
 
 apiRouter.get('/mailbox', wrap(mailboxStatus));
 apiRouter.get('/mailbox/availability', wrap(mailboxAvailability));

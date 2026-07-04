@@ -1913,3 +1913,35 @@ button.meta-chip:hover {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Access-pending screen (signed in but not whitelisted) */
+.access-pending-icon {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.access-pending-title {
+  margin: 0;
+  font-size: 17px;
+}
+
+/* Admin whitelist card */
+.whitelist-add-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 4px 0 14px;
+}
+
+.whitelist-add-form input[type='email'] {
+  flex: 2 1 240px;
+}
+
+.whitelist-add-form input:not([type='email']) {
+  flex: 1 1 160px;
+}
+
+.client-item-name .badge {
+  margin-left: 8px;
+  vertical-align: middle;
+}

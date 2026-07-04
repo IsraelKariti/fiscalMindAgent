@@ -12,6 +12,7 @@ export interface UserListRow {
   name: string | null;
   created_at: string;
   mailbox_address: string | null;
+  whitelisted: boolean;
   client_count: number;
   clients_complete: number;
   docs_total: number;
@@ -27,15 +28,17 @@ export async function listAll(): Promise<UserListRow[]> {
   const { rows } = await pool.query<UserListRow>(
     `SELECT u.id, u.email, u.name, u.created_at,
             m.email_address AS mailbox_address,
+            (w.email IS NOT NULL) AS whitelisted,
             COUNT(DISTINCT c.id)::int AS client_count,
             COUNT(DISTINCT c.id) FILTER (WHERE c.goal_status = 'complete')::int AS clients_complete,
             COUNT(d.id)::int AS docs_total,
             COUNT(d.id) FILTER (WHERE d.status = 'collected')::int AS docs_collected
      FROM users u
      LEFT JOIN agent_mailboxes m ON m.user_id = u.id
+     LEFT JOIN whitelisted_emails w ON w.email = lower(u.email)
      LEFT JOIN clients c ON c.user_id = u.id
      LEFT JOIN client_documents d ON d.client_id = c.id
-     GROUP BY u.id, m.email_address
+     GROUP BY u.id, m.email_address, w.email
      ORDER BY u.created_at DESC`,
   );
   return rows;

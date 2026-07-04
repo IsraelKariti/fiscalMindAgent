@@ -3,6 +3,7 @@ import type { Request, RequestHandler, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env.js';
 import * as users from '../db/queries/users.js';
+import * as whitelist from '../db/queries/whitelist.js';
 import { logger } from '../util/logger.js';
 
 declare global {
@@ -227,10 +228,12 @@ export const me: RequestHandler = async (req, res) => {
     }
   }
 
+  const isAdmin = isAdminEmail(user.email);
   res.json({
     authenticated: true,
     user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },
-    isAdmin: isAdminEmail(user.email),
+    isAdmin,
+    whitelisted: isAdmin || (await whitelist.isWhitelisted(user.email)),
     ...(impersonating ? { impersonating } : {}),
   });
 };
@@ -244,4 +247,22 @@ export const requireAuth: RequestHandler = (req, res, next) => {
   req.userId = identity.effectiveUserId;
   req.realUserId = identity.realUserId;
   next();
+};
+
+/**
+ * Paid-access gate, keyed on the REAL signed-in user: admins always pass (which
+ * also covers impersonating a not-yet-whitelisted accountant); everyone else
+ * needs their email in whitelisted_emails. Runs after requireAuth.
+ */
+export const requireWhitelisted: RequestHandler = async (req, res, next) => {
+  try {
+    const user = await users.getById(req.realUserId!);
+    if (user && (isAdminEmail(user.email) || (await whitelist.isWhitelisted(user.email)))) {
+      next();
+      return;
+    }
+    res.status(403).json({ error: 'This account is not activated. Contact the administrator for access.' });
+  } catch (err) {
+    next(err);
+  }
 };

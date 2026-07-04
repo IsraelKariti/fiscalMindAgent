@@ -84,6 +84,8 @@ export interface Me {
   authenticated: boolean;
   user?: { id: string; email: string; name: string | null; pictureUrl: string | null };
   isAdmin?: boolean;
+  /** Whether this account may use the app (admins are always true). */
+  whitelisted?: boolean;
   impersonating?: { id: string; email: string; name: string | null };
 }
 
@@ -93,10 +95,18 @@ export interface Accountant {
   name: string | null;
   createdAt: string;
   mailbox: string | null;
+  whitelisted: boolean;
   clientCount: number;
   clientsComplete: number;
   docsTotal: number;
   docsCollected: number;
+}
+
+export interface WhitelistEntry {
+  email: string;
+  name: string | null;
+  signedUp: boolean;
+  createdAt: string;
 }
 
 export interface MailboxStatus {
@@ -159,6 +169,14 @@ export const api = {
   listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),
   fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/api/admin/accountants'),
+  adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/api/admin/whitelist'),
+  adminAddToWhitelist: (email: string, name?: string) =>
+    request<{ entry: WhitelistEntry }>('/api/admin/whitelist', {
+      method: 'POST',
+      body: JSON.stringify({ email, ...(name ? { name } : {}) }),
+    }),
+  adminRemoveFromWhitelist: (email: string) =>
+    request<{ ok: true }>(`/api/admin/whitelist/${encodeURIComponent(email)}`, { method: 'DELETE' }),
   impersonate: (userId: string) =>
     request<{ ok: true }>('/api/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),
   stopImpersonating: () => request<{ ok: true }>('/api/admin/impersonate/stop', { method: 'POST' }),

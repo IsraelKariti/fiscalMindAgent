@@ -8,6 +8,7 @@ import { AddClientModal } from './components/AddClientModal';
 import { DeleteClientModal } from './components/DeleteClientModal';
 import { ClaimMailbox } from './components/ClaimMailbox';
 import { AdminDashboard } from './components/AdminDashboard';
+import { AccessPending } from './components/AccessPending';
 
 type View = { kind: 'client'; clientId: string } | { kind: 'prompt' } | { kind: 'empty' };
 
@@ -15,6 +16,7 @@ export function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [user, setUser] = useState<Me['user'] | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [whitelisted, setWhitelisted] = useState(false);
   const [impersonating, setImpersonating] = useState<Me['impersonating'] | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
@@ -29,10 +31,11 @@ export function App() {
   useEffect(() => {
     api
       .me()
-      .then(({ authenticated, user: me, isAdmin: admin, impersonating: viewing }) => {
+      .then(({ authenticated, user: me, isAdmin: admin, whitelisted: allowed, impersonating: viewing }) => {
         setAuthed(authenticated);
         setUser(me ?? null);
         setIsAdmin(admin ?? false);
+        setWhitelisted(allowed ?? false);
         setImpersonating(viewing ?? null);
         // Drop a stale ?login_error= once signed in.
         if (authenticated && window.location.search) window.history.replaceState(null, '', '/');
@@ -57,10 +60,10 @@ export function App() {
   }, [view]);
 
   useEffect(() => {
-    if (!authed || adminMode) return;
+    if (!authed || !whitelisted || adminMode) return;
     loadClients().catch(console.error);
     api.mailboxStatus().then(setMailbox).catch(console.error);
-  }, [authed, adminMode, loadClients]);
+  }, [authed, whitelisted, adminMode, loadClients]);
 
   if (authed === null) return <div className="screen-center muted">Loading…</div>;
   if (!authed) return <Login />;
@@ -70,10 +73,13 @@ export function App() {
     setAuthed(false);
     setUser(null);
     setIsAdmin(false);
+    setWhitelisted(false);
     setImpersonating(null);
     setClients([]);
     setView({ kind: 'empty' });
   };
+
+  if (!whitelisted) return <AccessPending userEmail={user?.email ?? null} onLogout={logout} />;
 
   if (adminMode) return <AdminDashboard userEmail={user?.email ?? null} onLogout={logout} />;
 

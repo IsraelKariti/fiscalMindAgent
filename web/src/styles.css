@@ -32,6 +32,7 @@ body {
   margin: 0;
   font-family:
     'Outfit',
+    'Rubik',
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -59,7 +60,7 @@ code {
   background: rgba(148, 163, 216, 0.14);
   padding: 1px 6px;
   border-radius: 6px;
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: 'JetBrains Mono', 'Rubik', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
 }
 
@@ -1109,7 +1110,7 @@ textarea {
 /* Prompt editor */
 .prompt-editor {
   width: 100%;
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: 'JetBrains Mono', 'Rubik', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: 1.55;
   overflow-y: hidden;
@@ -1126,7 +1127,7 @@ textarea {
 .chip {
   position: relative;
   overflow: hidden;
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: 'JetBrains Mono', 'Rubik', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   padding: 3px 10px;
   border-radius: 999px;

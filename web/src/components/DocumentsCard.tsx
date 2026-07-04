@@ -22,7 +22,7 @@ export function DocumentsCard({ clientId, documents, onChanged }: Props) {
       await action();
       await onChanged();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to update documents.');
+      setError(err instanceof ApiError ? err.message : 'עדכון המסמכים נכשל.');
     } finally {
       setBusy(false);
     }
@@ -42,10 +42,10 @@ export function DocumentsCard({ clientId, documents, onChanged }: Props) {
   return (
     <section className="card panel">
       <div className="panel-header">
-        <h3>Required documents</h3>
+        <h3>מסמכים נדרשים</h3>
         {documents.length > 0 && (
           <span className={`badge ${collected === documents.length ? 'badge-success' : 'badge-pending'}`}>
-            {collected} / {documents.length} collected
+            {collected} / {documents.length} נאספו
           </span>
         )}
       </div>
@@ -54,12 +54,12 @@ export function DocumentsCard({ clientId, documents, onChanged }: Props) {
         {error && <div className="error-banner">{error}</div>}
 
         {documents.length === 0 ? (
-          <p className="muted">No documents configured — the agent has nothing to collect from this client.</p>
+          <p className="muted">לא הוגדרו מסמכים — לסוכן אין מה לאסוף מהלקוח הזה.</p>
         ) : (
           <ul className="doc-list">
             {documents.map((doc) => (
               <li key={doc.id} className={`doc-row ${doc.status}`}>
-                <label className="doc-check" title={doc.status === 'collected' ? 'Mark as pending' : 'Mark as collected'}>
+                <label className="doc-check" title={doc.status === 'collected' ? 'סימון כממתין' : 'סימון כנאסף'}>
                   <input
                     type="checkbox"
                     checked={doc.status === 'collected'}
@@ -78,11 +78,11 @@ export function DocumentsCard({ clientId, documents, onChanged }: Props) {
                   </span>
                 </label>
                 <span className={`badge ${doc.status === 'collected' ? 'badge-success' : 'badge-pending'}`}>
-                  {doc.status}
+                  {doc.status === 'collected' ? 'נאסף' : 'ממתין'}
                 </span>
                 <button
                   className="chip-x"
-                  title="Remove document"
+                  title="הסרת המסמך"
                   disabled={busy}
                   onClick={() => run(() => api.deleteDocument(clientId, doc.id))}
                 >
@@ -98,17 +98,17 @@ export function DocumentsCard({ clientId, documents, onChanged }: Props) {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Document name, e.g. Form 106"
-          aria-label="Document name"
+          placeholder="שם המסמך, למשל טופס 106"
+          aria-label="שם המסמך"
         />
         <input
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Description (optional, helps the agent explain it)"
-          aria-label="Document description"
+          placeholder="תיאור (אופציונלי, עוזר לסוכן להסביר את המסמך)"
+          aria-label="תיאור המסמך"
         />
         <button className="btn btn-primary" type="submit" disabled={busy || !name.trim()}>
-          Add document
+          הוספת מסמך
         </button>
       </form>
     </section>

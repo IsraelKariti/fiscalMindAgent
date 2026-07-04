@@ -156,7 +156,7 @@ export function SankeyChart({
       </div>
       <SrTable
         caption={title}
-        head={['From', 'To', unit]}
+        head={['מ־', 'אל', unit]}
         rows={activeLinks.map((l) => [
           nodes.find((nd) => nd.id === l.source)?.label ?? l.source,
           nodes.find((nd) => nd.id === l.target)?.label ?? l.target,

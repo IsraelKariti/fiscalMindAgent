@@ -1,4 +1,5 @@
 import { api, type ClientDocument, type DocumentFile } from '../api';
+import { LOCALE } from '../format';
 
 interface Props {
   clientId: string;
@@ -22,7 +23,7 @@ export function FilesCard({ clientId, files, documents }: Props) {
   return (
     <section className="card panel panel-compact">
       <div className="panel-header">
-        <h3>Received files</h3>
+        <h3>קבצים שהתקבלו</h3>
         <span className="badge badge-success">{files.length}</span>
       </div>
       <ul className="doc-list panel-body">
@@ -35,7 +36,7 @@ export function FilesCard({ clientId, files, documents }: Props) {
                   {file.filename}
                 </a>
                 <span className="doc-desc muted">
-                  {formatSize(file.size_bytes)} · {new Date(file.created_at).toLocaleDateString()}
+                  {formatSize(file.size_bytes)} · {new Date(file.created_at).toLocaleDateString(LOCALE)}
                   {linked ? ` · ${linked}` : ''}
                 </span>
               </span>

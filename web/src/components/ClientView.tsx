@@ -8,10 +8,10 @@ import { Timeline } from './Timeline';
 import { DashboardCharts } from './charts/DashboardCharts';
 
 const TABS = [
-  { id: 'conversation', label: 'Conversation' },
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'documents', label: 'Documents' },
-  { id: 'details', label: 'Details' },
+  { id: 'conversation', label: 'שיחה' },
+  { id: 'dashboard', label: 'דשבורד' },
+  { id: 'documents', label: 'מסמכים' },
+  { id: 'details', label: 'פרטים' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -48,7 +48,7 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
       setFiles(received.files);
       setError(null);
     } catch {
-      setError('Failed to load client.');
+      setError('טעינת הלקוח נכשלה.');
     }
   }, [clientId]);
 
@@ -68,11 +68,11 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
   }, [load]);
 
   if (error) return <div className="error-banner">{error}</div>;
-  if (!client) return <div className="muted">Loading…</div>;
+  if (!client) return <div className="muted">טוען…</div>;
 
   return (
     <div className="client-view dashboard">
-      <div className="client-tabs" role="tablist" aria-label="Client sections">
+      <div className="client-tabs" role="tablist" aria-label="מקטעי לקוח">
         {TABS.map((tab) => (
           <button
             key={tab.id}

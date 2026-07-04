@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, type PromptTemplateState } from '../api';
+import { LOCALE } from '../format';
 
 export function PromptSettings() {
   const [state, setState] = useState<PromptTemplateState | null>(null);
@@ -22,10 +23,10 @@ export function PromptSettings() {
         setState(s);
         setDraft(s.template);
       })
-      .catch(() => setMessage({ kind: 'error', text: 'Failed to load the prompt template.' }));
+      .catch(() => setMessage({ kind: 'error', text: 'טעינת תבנית הפרומפט נכשלה.' }));
   }, []);
 
-  if (!state) return <div className="muted">{message?.text ?? 'Loading…'}</div>;
+  if (!state) return <div className="muted">{message?.text ?? 'טוען…'}</div>;
 
   const dirty = draft !== state.template;
 
@@ -36,9 +37,9 @@ export function PromptSettings() {
       const next = await api.savePromptTemplate(draft);
       setState(next);
       setDraft(next.template);
-      setMessage({ kind: 'ok', text: 'Saved. The next Gemini call will use this template.' });
+      setMessage({ kind: 'ok', text: 'נשמר. הקריאה הבאה ל־Gemini תשתמש בתבנית הזו.' });
     } catch {
-      setMessage({ kind: 'error', text: 'Failed to save.' });
+      setMessage({ kind: 'error', text: 'השמירה נכשלה.' });
     } finally {
       setBusy(false);
     }
@@ -51,9 +52,9 @@ export function PromptSettings() {
       const next = await api.resetPromptTemplate();
       setState(next);
       setDraft(next.template);
-      setMessage({ kind: 'ok', text: 'Reverted to the built-in default template.' });
+      setMessage({ kind: 'ok', text: 'שוחזר לתבנית ברירת המחדל המובנית.' });
     } catch {
-      setMessage({ kind: 'error', text: 'Failed to reset.' });
+      setMessage({ kind: 'error', text: 'האיפוס נכשל.' });
     } finally {
       setBusy(false);
     }
@@ -64,27 +65,27 @@ export function PromptSettings() {
       <section className="card">
         <div className="card-header">
           <div>
-            <h2>Gemini system prompt</h2>
+            <h2>פרומפט המערכת של Gemini</h2>
             <span className={`badge ${state.isCustom ? 'badge-pending' : 'badge-neutral'}`}>
-              {state.isCustom ? 'Custom template' : 'Built-in default'}
+              {state.isCustom ? 'תבנית מותאמת' : 'ברירת מחדל מובנית'}
             </span>
             {state.updatedAt && (
-              <span className="muted badge-note">last saved {new Date(state.updatedAt).toLocaleString()}</span>
+              <span className="muted badge-note">נשמר לאחרונה {new Date(state.updatedAt).toLocaleString(LOCALE)}</span>
             )}
           </div>
           <div className="btn-row">
             <button className="btn btn-ghost" onClick={reset} disabled={busy || !state.isCustom}>
-              Reset to default
+              איפוס לברירת המחדל
             </button>
             <button className="btn btn-primary" onClick={save} disabled={busy || !dirty || draft.trim() === ''}>
-              {busy ? 'Saving…' : 'Save'}
+              {busy ? 'שומר…' : 'שמירה'}
             </button>
           </div>
         </div>
 
         <p className="muted">
-          This template becomes the system instruction for every Gemini decision call (whether the goal is complete,
-          and what follow-up email to draft). Placeholders are filled in per client at call time:
+          התבנית הזו הופכת להנחיית המערכת בכל קריאת החלטה של Gemini (האם היעד הושלם, ואיזה מייל מעקב לנסח).
+          מצייני המקום מתמלאים לכל לקוח בזמן הקריאה:
         </p>
         <div className="placeholder-chips">
           {state.placeholders.map((name) => (
@@ -92,7 +93,7 @@ export function PromptSettings() {
               key={name}
               className="chip"
               type="button"
-              title="Insert at end"
+              title="הוספה בסוף"
               onClick={() => setDraft((d) => `${d}{{${name}}}`)}
             >
               {`{{${name}}}`}

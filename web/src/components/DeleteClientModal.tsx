@@ -18,7 +18,7 @@ export function DeleteClientModal({ client, onDeleted, onClose }: Props) {
       await api.deleteClient(client.id);
       onDeleted(client);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to delete client.');
+      setError(err instanceof ApiError ? err.message : 'מחיקת הלקוח נכשלה.');
       setBusy(false);
     }
   };
@@ -27,16 +27,16 @@ export function DeleteClientModal({ client, onDeleted, onClose }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="card modal modal-confirm" onClick={(e) => e.stopPropagation()}>
         <h2>
-          Delete <span className="modal-highlight">{client.name}</span>?
+          למחוק את <span className="modal-highlight">{client.name}</span>?
         </h2>
-        <p className="muted">Their emails, documents and files will be removed too. This cannot be undone.</p>
+        <p className="muted">גם המיילים, המסמכים והקבצים של הלקוח יימחקו. לא ניתן לבטל את הפעולה.</p>
         {error && <div className="error-banner">{error}</div>}
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose} disabled={busy}>
-            Cancel
+            ביטול
           </button>
           <button className="btn btn-danger" type="button" onClick={confirm} disabled={busy} autoFocus>
-            {busy ? 'Deleting…' : 'Delete client'}
+            {busy ? 'מוחק…' : 'מחיקת הלקוח'}
           </button>
         </div>
       </div>

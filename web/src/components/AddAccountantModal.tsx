@@ -21,7 +21,7 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
       await api.adminAddToWhitelist(email.trim().toLowerCase(), name.trim() || undefined);
       onAdded();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to add the accountant.');
+      setError(err instanceof ApiError ? err.message : 'הוספת רואה החשבון נכשלה.');
       setBusy(false);
     }
   };
@@ -29,13 +29,12 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h2>Add accountant</h2>
+        <h2>הוספת רואה חשבון</h2>
         <p className="muted">
-          Add the Gmail address the accountant will sign in with. Access opens the moment you add them — they can
-          sign in right away.
+          הוסיפו את כתובת ה־Gmail שאיתה רואה החשבון יתחבר. הגישה נפתחת ברגע ההוספה — אפשר להתחבר מייד.
         </p>
         <label className="field">
-          <span>Google email</span>
+          <span>אימייל Google</span>
           <input
             type="email"
             value={email}
@@ -47,16 +46,16 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
           />
         </label>
         <label className="field">
-          <span>Name (optional)</span>
+          <span>שם (אופציונלי)</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
         </label>
         {error && <div className="error-banner">{error}</div>}
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose} disabled={busy}>
-            Cancel
+            ביטול
           </button>
           <button className="btn btn-primary" type="submit" disabled={busy}>
-            {busy ? 'Adding…' : 'Add accountant'}
+            {busy ? 'מוסיף…' : 'הוספת רואה חשבון'}
           </button>
         </div>
       </form>

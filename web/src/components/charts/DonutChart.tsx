@@ -112,7 +112,7 @@ export function DonutChart({
       </ul>
       <SrTable
         caption={title}
-        head={['Category', 'Count', 'Share']}
+        head={['קטגוריה', 'כמות', 'אחוז']}
         rows={slices.map((d) => [d.label, d.value, `${Math.round((d.value / total) * 100)}%`])}
       />
     </div>

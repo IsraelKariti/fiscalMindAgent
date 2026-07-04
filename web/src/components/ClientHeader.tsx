@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api, type Client } from '../api';
+import { LOCALE } from '../format';
 
 interface Props {
   client: Client;
@@ -111,7 +112,7 @@ export function ClientHeader({ client, onSaved }: Props) {
       await onSaved(updated);
       setEditing(false);
     } catch {
-      setError('Failed to save.');
+      setError('השמירה נכשלה.');
     } finally {
       setBusy(false);
     }
@@ -123,7 +124,7 @@ export function ClientHeader({ client, onSaved }: Props) {
         <div className="client-header-id">
           <h2>{client.name}</h2>
           <span className={`badge ${client.goal_status === 'complete' ? 'badge-success' : 'badge-pending'}`}>
-            {client.goal_status === 'complete' ? 'All documents received' : 'Collecting documents'}
+            {client.goal_status === 'complete' ? 'כל המסמכים התקבלו' : 'איסוף מסמכים בתהליך'}
           </span>
         </div>
         {!editing ? (
@@ -134,15 +135,15 @@ export function ClientHeader({ client, onSaved }: Props) {
               setEditing(true);
             }}
           >
-            Edit
+            עריכה
           </button>
         ) : (
           <div className="btn-row">
             <button className="btn btn-ghost" onClick={() => setEditing(false)} disabled={busy}>
-              Cancel
+              ביטול
             </button>
             <button className="btn btn-primary" onClick={save} disabled={busy}>
-              {busy ? 'Saving…' : 'Save'}
+              {busy ? 'שומר…' : 'שמירה'}
             </button>
           </div>
         )}
@@ -153,19 +154,19 @@ export function ClientHeader({ client, onSaved }: Props) {
       {!editing ? (
         <>
           <div className="client-meta">
-            <MetaChip icon={icons.mail} label="Email" value={client.email_address} />
-            {client.phone && <MetaChip icon={icons.phone} label="Phone" value={client.phone} />}
-            {client.company && <MetaChip icon={icons.company} label="Company" value={client.company} />}
-            {client.occupation && <MetaChip icon={icons.occupation} label="Occupation" value={client.occupation} />}
+            <MetaChip icon={icons.mail} label="אימייל" value={client.email_address} />
+            {client.phone && <MetaChip icon={icons.phone} label="טלפון" value={client.phone} />}
+            {client.company && <MetaChip icon={icons.company} label="חברה" value={client.company} />}
+            {client.occupation && <MetaChip icon={icons.occupation} label="עיסוק" value={client.occupation} />}
             <MetaChip
               icon={icons.calendar}
-              label="Engagement started"
-              value={`Since ${new Date(client.created_at).toLocaleDateString()}`}
+              label="תחילת ההתקשרות"
+              value={`מאז ${new Date(client.created_at).toLocaleDateString(LOCALE)}`}
             />
             {client.notes && (
               <button className="meta-chip" aria-expanded={notesOpen} onClick={() => setNotesOpen((o) => !o)}>
                 {icons.notes}
-                <span className="meta-chip-text">Notes</span>
+                <span className="meta-chip-text">הערות</span>
                 {icons.chevron}
               </button>
             )}
@@ -175,23 +176,23 @@ export function ClientHeader({ client, onSaved }: Props) {
       ) : (
         <div className="detail-grid client-edit-grid">
           <label className="field">
-            <span>Name</span>
+            <span>שם</span>
             <input value={draft.name} onChange={set('name')} />
           </label>
           <label className="field">
-            <span>Occupation</span>
-            <input value={draft.occupation} onChange={set('occupation')} placeholder="e.g. Software engineer" />
+            <span>עיסוק</span>
+            <input value={draft.occupation} onChange={set('occupation')} placeholder="למשל: מהנדס תוכנה" />
           </label>
           <label className="field">
-            <span>Company</span>
+            <span>חברה</span>
             <input value={draft.company} onChange={set('company')} />
           </label>
           <label className="field">
-            <span>Phone</span>
+            <span>טלפון</span>
             <input value={draft.phone} onChange={set('phone')} />
           </label>
           <label className="field detail-wide">
-            <span>Notes</span>
+            <span>הערות</span>
             <textarea value={draft.notes} onChange={set('notes')} rows={3} />
           </label>
         </div>

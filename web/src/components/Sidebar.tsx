@@ -96,24 +96,24 @@ export function Sidebar({
   return (
     <nav className="sidebar">
       <div className="brand sidebar-brand">
-        <img className="brand-mark" src="/logo.png" alt="FiscalMind logo" />
+        <img className="brand-mark" src="/logo.png" alt="הלוגו של FiscalMind" />
         <span>FiscalMind</span>
       </div>
 
       {/* Workspace identity: the mailbox clients correspond with. Info, not navigation. */}
-      <div className="id-card" title="Mailbox the agent sends and receives as">
+      <div className="id-card" title="תיבת הדואר שממנה הסוכן שולח ומקבל מיילים">
         <span className="id-card-icon">{icon.mail}</span>
         <span className="id-card-text">
-          <span className="microlabel">Agent mailbox</span>
+          <span className="microlabel">תיבת הסוכן</span>
           <span className={`id-card-value ${agentMailbox ? '' : 'muted'}`}>
-            {agentMailbox ?? 'Not set up yet'}
+            {agentMailbox ?? 'עדיין לא הוגדרה'}
           </span>
         </span>
         {agentMailbox && (
           <button
             className={`icon-btn ${copied ? 'icon-btn-success' : ''}`}
             onClick={copyMailbox}
-            title={copied ? 'Copied!' : 'Copy address'}
+            title={copied ? 'הועתק!' : 'העתקת הכתובת'}
           >
             {copied ? icon.check : icon.copy}
           </button>
@@ -123,11 +123,11 @@ export function Sidebar({
       <div className="sidebar-scroll">
         <div className="side-heading">
           <span className="side-heading-label">
-            Clients
+            לקוחות
             {clients.length > 0 && <span className="side-count">{clients.length}</span>}
           </span>
           <span className="side-heading-rule" />
-          <button className="icon-btn" onClick={onAddClient} title="Add a client">
+          <button className="icon-btn" onClick={onAddClient} title="הוספת לקוח">
             {icon.plus}
           </button>
         </div>
@@ -138,7 +138,10 @@ export function Sidebar({
                 className={`client-item ${client.id === selectedClientId ? 'selected' : ''}`}
                 onClick={() => onSelectClient(client.id)}
               >
-                <span className={`status-dot ${client.goal_status}`} title={`Goal ${client.goal_status}`} />
+                <span
+                  className={`status-dot ${client.goal_status}`}
+                  title={client.goal_status === 'complete' ? 'היעד הושלם' : 'איסוף בתהליך'}
+                />
                 <span className="client-item-text">
                   <span className="client-item-name">{client.name}</span>
                   <span className="client-item-email muted">{client.email_address}</span>
@@ -146,7 +149,7 @@ export function Sidebar({
               </button>
               <button
                 className="client-delete"
-                title={`Delete ${client.name}`}
+                title={`מחיקת ${client.name}`}
                 onClick={() => onDeleteClient(client)}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -159,19 +162,19 @@ export function Sidebar({
               </button>
             </li>
           ))}
-          {clients.length === 0 && <li className="muted sidebar-empty">No clients yet</li>}
+          {clients.length === 0 && <li className="muted sidebar-empty">אין עדיין לקוחות</li>}
         </ul>
 
         {/* Prompt tuning is an admin task — surfaced only inside an impersonated workspace. */}
         {impersonatingEmail && (
           <>
             <div className="side-heading">
-              <span className="side-heading-label">Admin tools</span>
+              <span className="side-heading-label">כלי ניהול</span>
               <span className="side-heading-rule" />
             </div>
             <button className={`client-item ${promptSelected ? 'selected' : ''}`} onClick={onSelectPrompt}>
               <span className="nav-item-icon">{icon.sliders}</span>
-              <span className="client-item-name">System prompt</span>
+              <span className="client-item-name">פרומפט המערכת</span>
             </button>
           </>
         )}
@@ -179,24 +182,24 @@ export function Sidebar({
 
       <div className="sidebar-footer">
         {impersonatingEmail && (
-          <div className="id-card impersonation-card" title="You are viewing this user's dashboard as admin">
+          <div className="id-card impersonation-card" title="אתם צופים בדשבורד של המשתמש הזה כמנהל">
             <span className="id-card-icon">{icon.eye}</span>
             <span className="id-card-text">
-              <span className="microlabel">Viewing as</span>
+              <span className="microlabel">צפייה בתור</span>
               <span className="id-card-value">{impersonatingEmail}</span>
             </span>
             <button className="btn btn-ghost btn-small" onClick={onStopImpersonating}>
-              Exit
+              יציאה
             </button>
           </div>
         )}
-        <div className="account-row" title="Google account you are signed in with">
+        <div className="account-row" title="חשבון Google שאיתו התחברתם">
           <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
           <span className="id-card-text">
-            <span className="microlabel">Signed in</span>
+            <span className="microlabel">מחוברים</span>
             <span className="id-card-value">{userEmail ?? '…'}</span>
           </span>
-          <button className="icon-btn" onClick={onLogout} title="Log out">
+          <button className="icon-btn" onClick={onLogout} title="התנתקות">
             {icon.logout}
           </button>
         </div>

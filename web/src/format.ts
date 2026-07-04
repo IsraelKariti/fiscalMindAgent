@@ -1,5 +1,8 @@
+/** UI locale for dates and times — the accountant side is Hebrew-first. */
+export const LOCALE = 'he-IL';
+
 export function formatTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString(LOCALE, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });

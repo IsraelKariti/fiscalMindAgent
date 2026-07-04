@@ -179,7 +179,7 @@ export function LineChart({
       )}
       <SrTable
         caption={title}
-        head={['Period', ...series.map((s) => s.name)]}
+        head={['תקופה', ...series.map((s) => s.name)]}
         rows={labels.map((label, i) => [label, ...series.map((s) => at(s, i))])}
       />
     </div>

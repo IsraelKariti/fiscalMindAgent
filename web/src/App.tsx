@@ -65,7 +65,7 @@ export function App() {
     api.mailboxStatus().then(setMailbox).catch(console.error);
   }, [authed, whitelisted, adminMode, loadClients]);
 
-  if (authed === null) return <div className="screen-center muted">Loading…</div>;
+  if (authed === null) return <div className="screen-center muted">טוען…</div>;
   if (!authed) return <Login />;
 
   const logout = async () => {
@@ -106,7 +106,7 @@ export function App() {
     <div className="app">
       {mailbox && !mailbox.claimed && (
         <div className="connect-banner">
-          <span>Pick your agent's email address — clients will correspond with it.</span>
+          <span>בחרו כתובת אימייל לסוכן — הלקוחות יתכתבו איתה.</span>
           <ClaimMailbox domain={mailbox.domain} onClaimed={setMailbox} />
         </div>
       )}
@@ -131,7 +131,7 @@ export function App() {
           )}
           {view.kind === 'prompt' && impersonating && <PromptSettings />}
           {view.kind === 'empty' && (
-            <div className="screen-center muted">No clients yet — use the + button next to Clients in the sidebar.</div>
+            <div className="screen-center muted">אין עדיין לקוחות — השתמשו בכפתור ה־+ שליד "לקוחות" בסרגל הצד.</div>
           )}
         </main>
       </div>

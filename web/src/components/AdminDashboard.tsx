@@ -51,7 +51,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   }, []);
 
   useEffect(() => {
-    refresh().catch(() => setError('Failed to load accountants.'));
+    refresh().catch(() => setError('טעינת רואי החשבון נכשלה.'));
   }, [refresh]);
 
   const rows = useMemo<AccountantRow[] | null>(() => {
@@ -95,7 +95,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       // Full reload so every view refetches under the impersonated identity.
       window.location.reload();
     } catch {
-      setError('Failed to start impersonation.');
+      setError('הכניסה לחשבון נכשלה.');
       setBusyEmail(null);
     }
   };
@@ -107,21 +107,21 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       await api.adminAddToWhitelist(row.email, row.name ?? undefined);
       await refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to activate the account.');
+      setError(err instanceof ApiError ? err.message : 'הפעלת החשבון נכשלה.');
     } finally {
       setBusyEmail(null);
     }
   };
 
   const revoke = async (row: AccountantRow) => {
-    if (!window.confirm(`Revoke access for ${row.email}? They will be locked out immediately.`)) return;
+    if (!window.confirm(`לבטל את הגישה של ${row.email}? הניתוק ייכנס לתוקף מייד.`)) return;
     setBusyEmail(row.email);
     setError(null);
     try {
       await api.adminRemoveFromWhitelist(row.email);
       await refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to revoke access.');
+      setError(err instanceof ApiError ? err.message : 'ביטול הגישה נכשל.');
     } finally {
       setBusyEmail(null);
     }
@@ -130,16 +130,16 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   const statusBadge = (row: AccountantRow) => {
     if (!row.whitelisted) {
       return (
-        <span className="badge badge-pending" title="Signed in with Google but not whitelisted — they only see the contact-admin screen.">
-          No access
+        <span className="badge badge-pending" title="התחברו עם Google אבל אינם ברשימת ההיתרים — הם רואים רק את מסך הפנייה למנהל.">
+          ללא גישה
         </span>
       );
     }
     return row.user ? (
-      <span className="badge badge-success">Active</span>
+      <span className="badge badge-success">פעיל</span>
     ) : (
-      <span className="badge badge-neutral" title="Whitelisted but hasn't signed in yet.">
-        Invited
+      <span className="badge badge-neutral" title="ברשימת ההיתרים אך טרם התחברו.">
+        הוזמן
       </span>
     );
   };
@@ -148,14 +148,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     <div className="admin-shell">
       <header className="admin-topbar">
         <div className="brand">
-          <img className="brand-mark" src="/logo.png" alt="FiscalMind logo" />
+          <img className="brand-mark" src="/logo.png" alt="הלוגו של FiscalMind" />
           <span>FiscalMind</span>
-          <span className="badge badge-neutral">Admin</span>
+          <span className="badge badge-neutral">מנהל</span>
         </div>
-        <div className="admin-topbar-account" title="Google account you are signed in with">
+        <div className="admin-topbar-account" title="חשבון Google שאיתו התחברתם">
           <span className="muted">{userEmail ?? '…'}</span>
           <button className="btn btn-ghost btn-small" onClick={onLogout}>
-            Log out
+            התנתקות
           </button>
         </div>
       </header>
@@ -168,7 +168,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             aria-selected={tab === 'dashboard'}
             onClick={() => selectTab('dashboard')}
           >
-            Dashboard
+            דשבורד
           </button>
           <button
             className={`client-tab ${tab === 'accountants' ? 'active' : ''}`}
@@ -176,38 +176,38 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             aria-selected={tab === 'accountants'}
             onClick={() => selectTab('accountants')}
           >
-            Accountants
+            רואי חשבון
           </button>
         </nav>
 
         {error && <div className="error-banner">{error}</div>}
-        {!rows && !error && <div className="muted">Loading…</div>}
+        {!rows && !error && <div className="muted">טוען…</div>}
 
         {tab === 'dashboard' && rows && accountants && totals && (
           <div className="stat-row">
             <div className="card stat-tile">
-              <span className="stat-label">Accountants</span>
+              <span className="stat-label">רואי חשבון</span>
               <span className="stat-value">{accountants.length}</span>
               <span className="stat-context">
-                {accountants.filter((a) => a.mailbox).length} with an agent mailbox
+                {accountants.filter((a) => a.mailbox).length} עם תיבת סוכן
               </span>
             </div>
             <div className="card stat-tile">
-              <span className="stat-label">Clients</span>
+              <span className="stat-label">לקוחות</span>
               <span className="stat-value">{totals.clients}</span>
-              <span className="stat-context">across all accountants</span>
+              <span className="stat-context">בכל רואי החשבון</span>
             </div>
             <div className="card stat-tile">
-              <span className="stat-label">Clients complete</span>
+              <span className="stat-label">לקוחות שהושלמו</span>
               <span className="stat-value">
                 {totals.clients === 0 ? '—' : `${totals.clientsComplete} / ${totals.clients}`}
               </span>
               <span className="stat-context">
-                {totals.clients === 0 ? 'No clients yet' : `${totals.clients - totals.clientsComplete} still pending`}
+                {totals.clients === 0 ? 'אין עדיין לקוחות' : `${totals.clients - totals.clientsComplete} עדיין בתהליך`}
               </span>
             </div>
             <div className="card stat-tile">
-              <span className="stat-label">Documents collected</span>
+              <span className="stat-label">מסמכים שנאספו</span>
               <span className="stat-value">{totals.docs === 0 ? '—' : `${totals.docsCollected} / ${totals.docs}`}</span>
               {totals.docs > 0 && (
                 <div className="stat-meter">
@@ -218,7 +218,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                 </div>
               )}
               <span className="stat-context">
-                {totals.docs === 0 ? 'No documents requested yet' : `${totals.docs - totals.docsCollected} outstanding`}
+                {totals.docs === 0 ? 'עדיין לא התבקשו מסמכים' : `${totals.docs - totals.docsCollected} חסרים`}
               </span>
             </div>
           </div>
@@ -228,30 +228,30 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
           <section className="card admin-table-card">
             <div className="card-header">
               <div>
-                <h2>Accountants</h2>
+                <h2>רואי חשבון</h2>
                 <span className="badge badge-neutral">
-                  {rows.length} account{rows.length === 1 ? '' : 's'}
+                  {rows.length === 1 ? 'חשבון אחד' : `${rows.length} חשבונות`}
                 </span>
               </div>
               <button className="btn btn-primary" onClick={() => setAdding(true)}>
-                + Add Accountant
+                + הוספת רואה חשבון
               </button>
             </div>
             <p className="muted">
-              Only whitelisted accountants can use the app. Impersonate opens their dashboard exactly as they see
-              it — while impersonating, everything you do applies to their account.
+              רק רואי חשבון ברשימת ההיתרים יכולים להשתמש באפליקציה. "כניסה לחשבון" פותחת את הדשבורד שלהם בדיוק
+              כפי שהם רואים אותו — ובזמן הכניסה, כל פעולה שלכם חלה על החשבון שלהם.
             </p>
             {rows.length === 0 ? (
-              <div className="muted">No accountants yet — add a paying customer's Gmail to give them access.</div>
+              <div className="muted">אין עדיין רואי חשבון — הוסיפו כתובת Gmail של לקוח משלם כדי לתת לו גישה.</div>
             ) : (
               <table className="admin-users-table">
                 <thead>
                   <tr>
-                    <th>Accountant</th>
-                    <th>Status</th>
-                    <th>Agent mailbox</th>
-                    <th>Clients complete</th>
-                    <th>Documents collected</th>
+                    <th>רואה חשבון</th>
+                    <th>סטטוס</th>
+                    <th>תיבת הסוכן</th>
+                    <th>לקוחות שהושלמו</th>
+                    <th>מסמכים שנאספו</th>
                     <th />
                   </tr>
                 </thead>
@@ -266,11 +266,11 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                       </td>
                       <td>{statusBadge(row)}</td>
                       <td>
-                        {row.user?.mailbox ?? <span className="muted">{row.user ? 'Not set' : '—'}</span>}
+                        {row.user?.mailbox ?? <span className="muted">{row.user ? 'לא הוגדרה' : '—'}</span>}
                       </td>
                       <td>
                         {!row.user || row.user.clientCount === 0 ? (
-                          <span className="muted">{row.user ? 'No clients' : '—'}</span>
+                          <span className="muted">{row.user ? 'אין לקוחות' : '—'}</span>
                         ) : (
                           `${row.user.clientsComplete} / ${row.user.clientCount}`
                         )}
@@ -281,7 +281,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                         ) : (
                           <span
                             className="table-meter"
-                            title={`${row.user.docsCollected} of ${row.user.docsTotal} documents collected`}
+                            title={`נאספו ${row.user.docsCollected} מתוך ${row.user.docsTotal} מסמכים`}
                           >
                             <span className="stat-meter table-meter-track">
                               <span
@@ -303,7 +303,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                               disabled={busyEmail !== null}
                               onClick={() => impersonate(row)}
                             >
-                              {busyEmail === row.email ? 'Working…' : 'Impersonate'}
+                              {busyEmail === row.email ? 'רק רגע…' : 'כניסה לחשבון'}
                             </button>
                           )}
                           {row.whitelisted ? (
@@ -312,7 +312,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                               disabled={busyEmail !== null}
                               onClick={() => revoke(row)}
                             >
-                              Revoke access
+                              ביטול גישה
                             </button>
                           ) : (
                             <button
@@ -320,7 +320,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                               disabled={busyEmail !== null}
                               onClick={() => activate(row)}
                             >
-                              Activate
+                              הפעלה
                             </button>
                           )}
                         </span>
@@ -339,7 +339,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
           onClose={() => setAdding(false)}
           onAdded={() => {
             setAdding(false);
-            refresh().catch(() => setError('Failed to reload accountants.'));
+            refresh().catch(() => setError('רענון רשימת רואי החשבון נכשל.'));
           }}
         />
       )}

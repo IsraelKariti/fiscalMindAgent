@@ -29,14 +29,14 @@ export function Login() {
     <div className="screen-center">
       <div className="card login-card">
         <div className="brand login-brand">
-          <img className="brand-mark" src="/logo.png" alt="FiscalMind logo" />
+          <img className="brand-mark" src="/logo.png" alt="הלוגו של FiscalMind" />
           <span>FiscalMind</span>
         </div>
-        <p className="muted">Sign in to manage the Form 106 collection agent.</p>
-        {loginError && <div className="error-banner">Sign-in failed: {loginError}</div>}
+        <p className="muted">התחברו כדי לנהל את סוכן איסוף המסמכים.</p>
+        {loginError && <div className="error-banner">ההתחברות נכשלה: {loginError}</div>}
         <a className="btn btn-primary login-google-btn" href="/api/auth/google">
           <GoogleIcon />
-          Sign in with Google
+          התחברות עם Google
         </a>
       </div>
     </div>

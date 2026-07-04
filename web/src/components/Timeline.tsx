@@ -41,27 +41,27 @@ export function Timeline({
   return (
     <section className="card panel">
       <div className="panel-header">
-        <h3>Conversation timeline</h3>
+        <h3>ציר הזמן של השיחה</h3>
         {emails.length > 0 && (
           <span className="muted panel-count">
-            {emails.length} message{emails.length === 1 ? '' : 's'}
+            {emails.length === 1 ? 'הודעה אחת' : `${emails.length} הודעות`}
           </span>
         )}
       </div>
       <div className="panel-body" ref={bodyRef} onScroll={trackScroll}>
-        {emails.length === 0 && !nextScheduled && <p className="muted">No emails exchanged yet.</p>}
+        {emails.length === 0 && !nextScheduled && <p className="muted">עדיין לא הוחלפו מיילים.</p>}
         <ol className="timeline">
           {emails.map((email) => {
             const outbound = email.direction === 'outbound';
             return (
               <li key={email.id} className={`timeline-item ${outbound ? 'outbound' : 'inbound'}`}>
                 <div className="timeline-meta">
-                  <span className="timeline-author">{outbound ? 'Agent' : 'Client'}</span>
+                  <span className="timeline-author">{outbound ? 'הסוכן' : 'הלקוח'}</span>
                   <span className="muted">{formatTimestamp(email.sent_at ?? email.created_at)}</span>
                 </div>
                 <div className="bubble">
-                  <div className="bubble-subject">{email.subject}</div>
-                  <div className="bubble-body">{email.body}</div>
+                  <div className="bubble-subject" dir="auto">{email.subject}</div>
+                  <div className="bubble-body" dir="auto">{email.body}</div>
                 </div>
               </li>
             );
@@ -70,7 +70,7 @@ export function Timeline({
             <li className="timeline-divider" aria-hidden="true">
               <span className="timeline-divider-label">
                 <span className="scheduled-dot" />
-                Scheduled
+                מתוזמן
               </span>
             </li>
           )}
@@ -88,25 +88,25 @@ export function Timeline({
                     <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
                     <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
-                  Agent · not sent yet
+                  הסוכן · טרם נשלח
                 </span>
-                <span className="scheduled-note">will send {formatTimestamp(nextScheduled.scheduledFor)}</span>
+                <span className="scheduled-note">יישלח ב־{formatTimestamp(nextScheduled.scheduledFor)}</span>
               </div>
               <div className="bubble bubble-scheduled">
                 {nextScheduled.subject ? (
                   <>
-                    <div className="bubble-subject">{nextScheduled.subject}</div>
-                    <div className="bubble-body">{nextScheduled.body}</div>
+                    <div className="bubble-subject" dir="auto">{nextScheduled.subject}</div>
+                    <div className="bubble-body" dir="auto">{nextScheduled.body}</div>
                   </>
                 ) : (
-                  <div className="muted">Scheduled follow-up (draft unavailable)</div>
+                  <div className="muted">מעקב מתוזמן (הטיוטה אינה זמינה)</div>
                 )}
               </div>
             </li>
           )}
         </ol>
         {!nextScheduled && goalStatus === 'complete' && (
-          <p className="muted timeline-footer">Goal complete — no further follow-ups scheduled.</p>
+          <p className="muted timeline-footer">היעד הושלם — לא מתוכננים מעקבים נוספים.</p>
         )}
       </div>
     </section>

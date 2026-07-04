@@ -12,7 +12,7 @@ type Check =
   | { state: 'available'; name: string }
   | { state: 'unavailable'; message: string };
 
-const RULES_HINT = '3–30 characters: lowercase letters, digits and hyphens (not at the edges).';
+const RULES_HINT = '3–30 תווים: אותיות לטיניות קטנות, ספרות ומקפים (לא בקצוות).';
 
 export function ClaimMailbox({ domain, onClaimed }: Props) {
   const [name, setName] = useState('');
@@ -44,8 +44,8 @@ export function ClaimMailbox({ domain, onClaimed }: Props) {
                 result.reason === 'invalid'
                   ? RULES_HINT
                   : result.reason === 'reserved'
-                    ? 'That name is reserved.'
-                    : 'That name is already taken.',
+                    ? 'השם הזה שמור.'
+                    : 'השם הזה כבר תפוס.',
             });
           }
         })
@@ -65,7 +65,7 @@ export function ClaimMailbox({ domain, onClaimed }: Props) {
       onClaimed({ claimed: true, emailAddress: mailbox.emailAddress, localPart: mailbox.localPart, domain });
     } catch (err) {
       // Includes the just-taken race (409) — surface it and force a re-check.
-      setError(err instanceof ApiError ? err.message : 'Could not claim the name. Try again.');
+      setError(err instanceof ApiError ? err.message : 'לא ניתן לשריין את השם. נסו שוב.');
       setCheck({ state: 'idle' });
       setClaiming(false);
     }
@@ -85,24 +85,25 @@ export function ClaimMailbox({ domain, onClaimed }: Props) {
             value={name}
             onChange={(e) => setName(e.target.value.toLowerCase().trim())}
             placeholder="your-agent-name"
+            dir="ltr"
             autoFocus
             spellCheck={false}
             title={RULES_HINT}
           />
-          <span className="claim-mailbox-domain muted">@{domain}</span>
+          <span className="claim-mailbox-domain muted" dir="ltr">@{domain}</span>
         </span>
         <button className="btn btn-primary" type="submit" disabled={check.state !== 'available' || claiming}>
-          {claiming ? 'Claiming…' : 'Claim'}
+          {claiming ? 'משריין…' : 'שריון'}
         </button>
       </form>
       <span className="claim-mailbox-status">
         {error ? (
           <span className="claim-status-bad">{error}</span>
         ) : check.state === 'checking' ? (
-          <span className="muted">Checking…</span>
+          <span className="muted">בודק…</span>
         ) : check.state === 'available' ? (
           <span className="claim-status-ok">
-            {check.name}@{domain} is available. This is permanent — it can't be changed later.
+            <bdi dir="ltr">{check.name}@{domain}</bdi> פנוי. הבחירה קבועה — לא ניתן לשנות אותה בהמשך.
           </span>
         ) : check.state === 'unavailable' ? (
           <span className="claim-status-bad">{check.message}</span>

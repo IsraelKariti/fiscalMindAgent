@@ -10,8 +10,14 @@ import { ClaimMailbox } from './components/ClaimMailbox';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AccessPending } from './components/AccessPending';
 import { Overview } from './components/Overview';
+import { Settings } from './components/Settings';
 
-type View = { kind: 'overview' } | { kind: 'client'; clientId: string } | { kind: 'prompt' } | { kind: 'empty' };
+type View =
+  | { kind: 'overview' }
+  | { kind: 'client'; clientId: string }
+  | { kind: 'prompt' }
+  | { kind: 'settings' }
+  | { kind: 'empty' };
 
 export function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -49,8 +55,10 @@ export function App() {
     setClients(list);
     setView((v) => {
       if (v.kind !== 'empty') return v;
-      // Restore the screen viewed before a refresh: the dashboard, or the client if it still exists.
-      if (sessionStorage.getItem('fm.lastView') === 'overview') return { kind: 'overview' };
+      // Restore the screen viewed before a refresh: the dashboard, settings, or the client if it still exists.
+      const lastView = sessionStorage.getItem('fm.lastView');
+      if (lastView === 'overview') return { kind: 'overview' };
+      if (lastView === 'settings') return { kind: 'settings' };
       const stored = sessionStorage.getItem('fm.lastClientId');
       const restored = stored && list.some((c) => c.id === stored) ? stored : list[0]?.id;
       return restored ? { kind: 'client', clientId: restored } : v;
@@ -59,7 +67,8 @@ export function App() {
 
   useEffect(() => {
     if (view.kind === 'client') sessionStorage.setItem('fm.lastClientId', view.clientId);
-    if (view.kind === 'client' || view.kind === 'overview') sessionStorage.setItem('fm.lastView', view.kind);
+    if (view.kind === 'client' || view.kind === 'overview' || view.kind === 'settings')
+      sessionStorage.setItem('fm.lastView', view.kind);
   }, [view]);
 
   useEffect(() => {
@@ -119,13 +128,14 @@ export function App() {
           selectedClientId={view.kind === 'client' ? view.clientId : null}
           dashboardSelected={view.kind === 'overview'}
           promptSelected={view.kind === 'prompt'}
+          settingsSelected={view.kind === 'settings'}
           onSelectClient={(clientId) => setView({ kind: 'client', clientId })}
           onSelectDashboard={() => setView({ kind: 'overview' })}
           onSelectPrompt={() => setView({ kind: 'prompt' })}
+          onSelectSettings={() => setView({ kind: 'settings' })}
           onAddClient={() => setAdding(true)}
           onDeleteClient={setDeleting}
           userEmail={user?.email ?? null}
-          agentMailbox={mailbox?.claimed ? mailbox.emailAddress : null}
           impersonatingEmail={impersonating?.email ?? null}
           onStopImpersonating={stopImpersonating}
           onLogout={logout}
@@ -138,6 +148,7 @@ export function App() {
             <ClientView key={view.clientId} clientId={view.clientId} onClientUpdated={loadClients} />
           )}
           {view.kind === 'prompt' && impersonating && <PromptSettings />}
+          {view.kind === 'settings' && <Settings mailbox={mailbox} onClaimed={setMailbox} />}
           {view.kind === 'empty' && (
             <div className="screen-center muted">אין עדיין לקוחות — השתמשו בכפתור ה־+ שליד "לקוחות" בסרגל הצד.</div>
           )}

@@ -1,4 +1,3 @@
-import { useRef, useState } from 'react';
 import type { Client } from '../api';
 
 interface Props {
@@ -6,36 +5,20 @@ interface Props {
   selectedClientId: string | null;
   dashboardSelected: boolean;
   promptSelected: boolean;
+  settingsSelected: boolean;
   onSelectClient: (clientId: string) => void;
   onSelectDashboard: () => void;
   onSelectPrompt: () => void;
+  onSelectSettings: () => void;
   onAddClient: () => void;
   onDeleteClient: (client: Client) => void;
   userEmail: string | null;
-  agentMailbox: string | null;
   impersonatingEmail: string | null;
   onStopImpersonating: () => void;
   onLogout: () => void;
 }
 
 const icon = {
-  mail: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-    </svg>
-  ),
-  copy: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  ),
-  check: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
-  ),
   plus: (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M5 12h14" />
@@ -63,6 +46,12 @@ const icon = {
       <line x1="17" y1="16" x2="23" y2="16" />
     </svg>
   ),
+  gear: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
   eye: (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
@@ -83,53 +72,23 @@ export function Sidebar({
   selectedClientId,
   dashboardSelected,
   promptSelected,
+  settingsSelected,
   onSelectClient,
   onSelectDashboard,
   onSelectPrompt,
+  onSelectSettings,
   onAddClient,
   onDeleteClient,
   userEmail,
-  agentMailbox,
   impersonatingEmail,
   onStopImpersonating,
   onLogout,
 }: Props) {
-  const [copied, setCopied] = useState(false);
-  const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
-
-  const copyMailbox = async () => {
-    if (!agentMailbox) return;
-    await navigator.clipboard.writeText(agentMailbox);
-    setCopied(true);
-    clearTimeout(copyResetTimer.current);
-    copyResetTimer.current = setTimeout(() => setCopied(false), 1600);
-  };
-
   return (
     <nav className="sidebar">
       <div className="brand sidebar-brand">
         <img className="brand-mark" src="/logo.png" alt="הלוגו של FiscalMind" />
         <span>FiscalMind</span>
-      </div>
-
-      {/* Workspace identity: the mailbox clients correspond with. Info, not navigation. */}
-      <div className="id-card" title="תיבת הדואר שממנה הסוכן שולח ומקבל מיילים">
-        <span className="id-card-icon">{icon.mail}</span>
-        <span className="id-card-text">
-          <span className="microlabel">תיבת הסוכן</span>
-          <span className={`id-card-value ${agentMailbox ? '' : 'muted'}`} dir={agentMailbox ? 'ltr' : undefined}>
-            {agentMailbox ?? 'עדיין לא הוגדרה'}
-          </span>
-        </span>
-        {agentMailbox && (
-          <button
-            className={`icon-btn ${copied ? 'icon-btn-success' : ''}`}
-            onClick={copyMailbox}
-            title={copied ? 'הועתק!' : 'העתקת הכתובת'}
-          >
-            {copied ? icon.check : icon.copy}
-          </button>
-        )}
       </div>
 
       <div className="sidebar-scroll">
@@ -201,6 +160,13 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-footer">
+        <button
+          className={`client-item ${settingsSelected ? 'selected' : ''}`}
+          onClick={onSelectSettings}
+        >
+          <span className="nav-item-icon">{icon.gear}</span>
+          <span className="client-item-name">הגדרות</span>
+        </button>
         {impersonatingEmail && (
           <div className="id-card impersonation-card" title="אתם צופים בדשבורד של המשתמש הזה כמנהל">
             <span className="id-card-icon">{icon.eye}</span>

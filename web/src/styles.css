@@ -2107,6 +2107,40 @@ button.meta-chip:hover {
   margin: 0;
 }
 
+/* Settings screen */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.settings-section h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.settings-section > .muted {
+  margin: 0;
+}
+
+/* The mailbox address reads as a copyable value, not editable text */
+.settings-mailbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(148, 163, 216, 0.06);
+}
+
+.settings-mailbox-address {
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
 /* Upcoming follow-ups: one chip per client, wrapping across the wide card */
 .overview-chips {
   list-style: none;

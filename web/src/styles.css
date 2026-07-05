@@ -1415,7 +1415,8 @@ textarea {
 
 .admin-main {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1428,10 +1429,19 @@ textarea {
 /* Admin accountants: master-detail split — a compact roster on the start
    side and a detail card for the selected accountant on the other half. */
 .admin-split {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(0, 1.3fr);
   gap: 14px;
-  align-items: start;
+}
+
+/* The page never scrolls; each half of the split scrolls on its own, so the
+   topbar and tab titles stay put. */
+.admin-split-list,
+.admin-split-detail {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .admin-accountant-list {
@@ -1457,8 +1467,19 @@ textarea {
 }
 
 @media (max-width: 860px) {
+  /* Stacked cards can't share the viewport height, so revert to page scroll. */
+  .admin-main {
+    overflow-y: auto;
+  }
+
   .admin-split {
+    flex: none;
     grid-template-columns: 1fr;
+  }
+
+  .admin-split-list,
+  .admin-split-detail {
+    overflow-y: visible;
   }
 }
 

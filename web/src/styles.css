@@ -1425,8 +1425,41 @@ textarea {
   margin: 0 auto;
 }
 
-.admin-table-card {
-  overflow-x: auto;
+/* Admin accountants: master-detail split — a compact roster on the start
+   side and a detail card for the selected accountant on the other half. */
+.admin-split {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 1.3fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.admin-accountant-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-accountant-list .client-item {
+  justify-content: space-between;
+}
+
+.admin-list-badge {
+  flex-shrink: 0;
+}
+
+.admin-detail-note {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+@media (max-width: 860px) {
+  .admin-split {
+    grid-template-columns: 1fr;
+  }
 }
 
 .table-meter {
@@ -1449,37 +1482,6 @@ textarea {
 .table-meter-count {
   color: var(--text-muted);
   white-space: nowrap;
-}
-
-.admin-users-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 15px;
-}
-
-.admin-users-table th {
-  text-align: start;
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border-strong);
-}
-
-.admin-users-table td {
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-}
-
-.admin-users-table tr:last-child td {
-  border-bottom: none;
-}
-
-.admin-users-table td:last-child {
-  text-align: end;
 }
 
 /* Client header (dashboard row 1) */

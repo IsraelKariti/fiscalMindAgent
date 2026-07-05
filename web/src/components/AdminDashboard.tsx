@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, type Accountant, type WhitelistEntry } from '../api';
+import { formatTimestamp } from '../format';
 import { AddAccountantModal } from './AddAccountantModal';
 
 interface Props {
@@ -35,6 +36,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busyEmail, setBusyEmail] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
 
   const selectTab = (next: AdminTab) => {
     setTab(next);
@@ -72,6 +74,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     }
     return [...byEmail.values()];
   }, [accountants, whitelist]);
+
+  // The selected row, falling back to the first one so the detail pane is
+  // never empty while there are accountants (e.g. after a revoke removes the
+  // selected entry).
+  const selected = useMemo<AccountantRow | null>(() => {
+    if (!rows || rows.length === 0) return null;
+    return rows.find((r) => r.email === selectedEmail) ?? rows[0] ?? null;
+  }, [rows, selectedEmail]);
 
   const totals = useMemo(() => {
     if (!accountants) return null;
@@ -229,118 +239,163 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
         )}
 
         {tab === 'accountants' && rows && (
-          <section className="card admin-table-card">
-            <div className="card-header">
-              <div>
-                <h2>רואי חשבון</h2>
-                <span className="badge badge-neutral">
-                  {rows.length === 1 ? 'חשבון אחד' : `${rows.length} חשבונות`}
-                </span>
+          <div className="admin-split">
+            <section className="card admin-split-list">
+              <div className="card-header">
+                <div>
+                  <h2>רואי חשבון</h2>
+                  <span className="badge badge-neutral">
+                    {rows.length === 1 ? 'חשבון אחד' : `${rows.length} חשבונות`}
+                  </span>
+                </div>
+                <button className="btn btn-primary" onClick={() => setAdding(true)}>
+                  + הוספה
+                </button>
               </div>
-              <button className="btn btn-primary" onClick={() => setAdding(true)}>
-                + הוספת רואה חשבון
-              </button>
-            </div>
-            <p className="muted">
-              רק רואי חשבון ברשימת ההיתרים יכולים להשתמש באפליקציה. "כניסה לחשבון" פותחת את הדשבורד שלהם בדיוק
-              כפי שהם רואים אותו — ובזמן הכניסה, כל פעולה שלכם חלה על החשבון שלהם.
-            </p>
-            {rows.length === 0 ? (
-              <div className="muted">אין עדיין רואי חשבון — הוסיפו כתובת Gmail של לקוח משלם כדי לתת לו גישה.</div>
-            ) : (
-              <table className="admin-users-table">
-                <thead>
-                  <tr>
-                    <th>רואה חשבון</th>
-                    <th>סטטוס</th>
-                    <th>תיבת הסוכן</th>
-                    <th>לקוחות שהושלמו</th>
-                    <th>מסמכים שנאספו</th>
-                    <th>טוקני קלט</th>
-                    <th>טוקני פלט</th>
-                    <th>טוקני חשיבה</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
+              {rows.length === 0 ? (
+                <div className="muted">
+                  אין עדיין רואי חשבון — הוסיפו כתובת Gmail של לקוח משלם כדי לתת לו גישה.
+                </div>
+              ) : (
+                <ul className="admin-accountant-list">
                   {rows.map((row) => (
-                    <tr key={row.email}>
-                      <td>
+                    <li key={row.email}>
+                      <button
+                        className={`client-item ${selected?.email === row.email ? 'selected' : ''}`}
+                        onClick={() => setSelectedEmail(row.email)}
+                      >
                         <span className="client-item-text">
                           <span className="client-item-name">{row.name ?? row.email}</span>
-                          <span className="client-item-email muted">{row.email}</span>
+                          <span className="client-item-email muted" dir="ltr">
+                            {row.email}
+                          </span>
                         </span>
-                      </td>
-                      <td>{statusBadge(row)}</td>
-                      <td>
-                        {row.user?.mailbox ?? <span className="muted">{row.user ? 'לא הוגדרה' : '—'}</span>}
-                      </td>
-                      <td>
-                        {!row.user || row.user.clientCount === 0 ? (
-                          <span className="muted">{row.user ? 'אין לקוחות' : '—'}</span>
-                        ) : (
-                          `${row.user.clientsComplete} / ${row.user.clientCount}`
+                        <span className="admin-list-badge">{statusBadge(row)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="card admin-split-detail">
+              {!selected ? (
+                <div className="muted">בחרו רואה חשבון מהרשימה כדי לראות את הפרטים שלו.</div>
+              ) : (
+                <>
+                  <div className="card-header">
+                    <div>
+                      <h2>{selected.name ?? selected.email}</h2>
+                      {statusBadge(selected)}
+                    </div>
+                    <span className="btn-row admin-row-actions">
+                      {selected.user && (
+                        <button
+                          className="btn btn-ghost btn-small"
+                          disabled={busyEmail !== null}
+                          onClick={() => impersonate(selected)}
+                        >
+                          {busyEmail === selected.email ? 'רק רגע…' : 'כניסה לחשבון'}
+                        </button>
+                      )}
+                      {selected.whitelisted ? (
+                        <button
+                          className="btn btn-ghost btn-small"
+                          disabled={busyEmail !== null}
+                          onClick={() => revoke(selected)}
+                        >
+                          ביטול גישה
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-ghost btn-small"
+                          disabled={busyEmail !== null}
+                          onClick={() => activate(selected)}
+                        >
+                          הפעלה
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  <dl className="detail-grid">
+                    <div>
+                      <dt>אימייל</dt>
+                      <dd dir="ltr">{selected.email}</dd>
+                    </div>
+                    <div>
+                      <dt>תיבת הסוכן</dt>
+                      <dd>
+                        {selected.user?.mailbox ?? (
+                          <span className="muted">{selected.user ? 'לא הוגדרה' : '—'}</span>
                         )}
-                      </td>
-                      <td>
-                        {!row.user || row.user.docsTotal === 0 ? (
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>הצטרפות</dt>
+                      <dd>
+                        {selected.user ? (
+                          formatTimestamp(selected.user.createdAt)
+                        ) : (
+                          <span className="muted">טרם התחברו</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>לקוחות שהושלמו</dt>
+                      <dd>
+                        {!selected.user || selected.user.clientCount === 0 ? (
+                          <span className="muted">{selected.user ? 'אין לקוחות' : '—'}</span>
+                        ) : (
+                          `${selected.user.clientsComplete} / ${selected.user.clientCount}`
+                        )}
+                      </dd>
+                    </div>
+                    <div className="detail-wide">
+                      <dt>מסמכים שנאספו</dt>
+                      <dd>
+                        {!selected.user || selected.user.docsTotal === 0 ? (
                           <span className="muted">—</span>
                         ) : (
                           <span
                             className="table-meter"
-                            title={`נאספו ${row.user.docsCollected} מתוך ${row.user.docsTotal} מסמכים`}
+                            title={`נאספו ${selected.user.docsCollected} מתוך ${selected.user.docsTotal} מסמכים`}
                           >
                             <span className="stat-meter table-meter-track">
                               <span
-                                className={`stat-meter-fill ${row.user.docsCollected === row.user.docsTotal ? 'complete' : ''}`}
-                                style={{ width: `${(row.user.docsCollected / row.user.docsTotal) * 100}%` }}
+                                className={`stat-meter-fill ${selected.user.docsCollected === selected.user.docsTotal ? 'complete' : ''}`}
+                                style={{
+                                  width: `${(selected.user.docsCollected / selected.user.docsTotal) * 100}%`,
+                                }}
                               />
                             </span>
                             <span className="table-meter-count">
-                              {row.user.docsCollected} / {row.user.docsTotal}
+                              {selected.user.docsCollected} / {selected.user.docsTotal}
                             </span>
                           </span>
                         )}
-                      </td>
-                      <td>{tokenCell(row.user?.llmInputTokens)}</td>
-                      <td>{tokenCell(row.user?.llmOutputTokens)}</td>
-                      <td>{tokenCell(row.user?.llmThinkingTokens)}</td>
-                      <td>
-                        <span className="btn-row admin-row-actions">
-                          {row.user && (
-                            <button
-                              className="btn btn-ghost btn-small"
-                              disabled={busyEmail !== null}
-                              onClick={() => impersonate(row)}
-                            >
-                              {busyEmail === row.email ? 'רק רגע…' : 'כניסה לחשבון'}
-                            </button>
-                          )}
-                          {row.whitelisted ? (
-                            <button
-                              className="btn btn-ghost btn-small"
-                              disabled={busyEmail !== null}
-                              onClick={() => revoke(row)}
-                            >
-                              ביטול גישה
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-ghost btn-small"
-                              disabled={busyEmail !== null}
-                              onClick={() => activate(row)}
-                            >
-                              הפעלה
-                            </button>
-                          )}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>טוקני קלט</dt>
+                      <dd>{tokenCell(selected.user?.llmInputTokens)}</dd>
+                    </div>
+                    <div>
+                      <dt>טוקני פלט</dt>
+                      <dd>{tokenCell(selected.user?.llmOutputTokens)}</dd>
+                    </div>
+                    <div>
+                      <dt>טוקני חשיבה</dt>
+                      <dd>{tokenCell(selected.user?.llmThinkingTokens)}</dd>
+                    </div>
+                  </dl>
+                  <p className="muted admin-detail-note">
+                    רק רואי חשבון ברשימת ההיתרים יכולים להשתמש באפליקציה. "כניסה לחשבון" פותחת את הדשבורד
+                    שלהם בדיוק כפי שהם רואים אותו — ובזמן הכניסה, כל פעולה שלכם חלה על החשבון שלהם.
+                  </p>
+                </>
+              )}
+            </section>
+          </div>
         )}
       </main>
 

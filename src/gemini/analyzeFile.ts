@@ -64,6 +64,8 @@ const ANALYSIS_PROMPT = `אתה בודק מסמכים עבור משרד רואי
 export interface AnalyzeFileResult {
   analysis: FileAnalysis;
   usage: GeminiUsage;
+  /** The model that actually served this call, for per-model usage accounting. */
+  model: string;
 }
 
 /** Reads the file's actual bytes with Gemini and classifies what document it is. */
@@ -107,5 +109,5 @@ export async function analyzeFile(
   if (!text) {
     throw new Error(`Gemini returned no text output for file analysis: ${JSON.stringify(response)}`);
   }
-  return { analysis: FileAnalysisSchema.parse(JSON.parse(text)), usage };
+  return { analysis: FileAnalysisSchema.parse(JSON.parse(text)), usage, model };
 }

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import * as clients from '../db/queries/clients.js';
 import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
-import * as users from '../db/queries/users.js';
+import * as llmUsage from '../db/queries/llmUsage.js';
 import { analyzeFile, isAnalyzable } from '../gemini/analyzeFile.js';
 import { uploadBlob } from '../storage/blob.js';
 import { resend } from '../resend/client.js';
@@ -101,11 +101,11 @@ async function analyzeStoredFile(clientId: string, file: DocumentFileRow, body: 
   }
   try {
     const requiredDocuments = await clientDocuments.listForClient(clientId);
-    const { analysis, usage } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments);
+    const { analysis, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments);
     await documentFiles.setAnalysis(file.id, 'done', analysis);
     const client = await clients.getById(clientId);
     if (client?.user_id) {
-      await users.addLlmTokens(client.user_id, usage);
+      await llmUsage.add(client.user_id, model, usage);
     }
     logger.info('attachment content analyzed', {
       clientId,

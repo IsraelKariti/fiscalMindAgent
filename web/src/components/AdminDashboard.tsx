@@ -4,7 +4,6 @@ import {
   ApiError,
   type Accountant,
   type GeminiModelState,
-  type LlmPricing,
   type WhitelistEntry,
 } from '../api';
 import { formatTimestamp, formatUsd, LOCALE } from '../format';
@@ -52,7 +51,6 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     return ADMIN_TABS.includes(stored as AdminTab) ? (stored as AdminTab) : 'dashboard';
   });
   const [accountants, setAccountants] = useState<Accountant[] | null>(null);
-  const [pricing, setPricing] = useState<LlmPricing | null>(null);
   const [whitelist, setWhitelist] = useState<WhitelistEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyEmail, setBusyEmail] = useState<string | null>(null);
@@ -69,12 +67,11 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   };
 
   const refresh = useCallback(async () => {
-    const [{ accountants: users, pricing: prices }, { entries }] = await Promise.all([
+    const [{ accountants: users }, { entries }] = await Promise.all([
       api.adminListAccountants(),
       api.adminListWhitelist(),
     ]);
     setAccountants(users);
-    setPricing(prices);
     setWhitelist(entries);
   }, []);
 
@@ -139,19 +136,11 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     );
   }, [accountants]);
 
-  // Lifetime Gemini spend of one accountant in USD; null while prices haven't loaded.
-  const geminiCost = (a: Accountant | null | undefined): number | null =>
-    pricing && a
-      ? a.llmInputTokens * pricing.inputCostPerToken +
-        a.llmOutputTokens * pricing.outputCostPerToken +
-        a.llmThinkingTokens * pricing.thinkingCostPerToken
-      : null;
-
-  // Full-precision USD price of a single token (e.g. $0.0000003) — the regular
-  // currency formatter would round it away.
-  const perToken = (costPerToken: number) => `$${costPerToken.toFixed(12).replace(/0+$/, '')}`;
-
-  const selectedCost = geminiCost(selected?.user);
+  // Per-model usage of the selected accountant, its total spend, and whether any
+  // model's tokens are still unpriced (missing registry entry — cost incomplete).
+  const selectedUsage = selected?.user?.llmUsage ?? [];
+  const selectedCost = selectedUsage.reduce((sum, u) => sum + (u.cost ?? 0), 0);
+  const selectedHasUnpriced = selectedUsage.some((u) => u.cost === null);
 
   const impersonate = async (row: AccountantRow) => {
     if (!row.user) return;
@@ -192,49 +181,6 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     } finally {
       setBusyEmail(null);
     }
-  };
-
-  // One token category as a row of the token-breakdown grid: label, then
-  // "price-per-token × tokens = cost" split into one grid cell per part, so the
-  // × and = operators line up across rows. The grid is RTL, so cells are
-  // emitted label-first and price last; visually each row reads
-  // "price × count = cost" with the label on the right. Every row emits all
-  // six cells so grid auto-placement keeps the columns in sync. A count of
-  // zero (or no account yet) shows as a dash, and the bare count while prices
-  // are unavailable.
-  const tokenRow = (label: string, value: number | undefined, costPerToken: number | undefined) => {
-    const count = value ?? 0;
-    const priced = count > 0 && costPerToken !== undefined;
-    return (
-      <>
-        <span className="token-label">{label}</span>
-        {priced ? (
-          <>
-            <span className="token-cost" dir="ltr">
-              {formatUsd(count * costPerToken)}
-            </span>
-            <span className="token-op muted">=</span>
-            <span className="token-count muted" dir="ltr">
-              {count.toLocaleString(LOCALE)}
-            </span>
-            <span className="token-op muted">×</span>
-            <span className="token-price muted" dir="ltr">
-              {perToken(costPerToken)}
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="token-cost" dir="ltr">
-              {count > 0 ? count.toLocaleString(LOCALE) : <span className="muted">—</span>}
-            </span>
-            <span />
-            <span />
-            <span />
-            <span />
-          </>
-        )}
-      </>
-    );
   };
 
   const statusBadge = (row: AccountantRow) => {
@@ -480,19 +426,42 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                       </dd>
                     </div>
                   </dl>
-                  <div className="token-breakdown">
-                    {tokenRow(t.inputTokens, selected.user?.llmInputTokens, pricing?.inputCostPerToken)}
-                    {tokenRow(t.outputTokens, selected.user?.llmOutputTokens, pricing?.outputCostPerToken)}
-                    {tokenRow(t.thinkingTokens, selected.user?.llmThinkingTokens, pricing?.thinkingCostPerToken)}
-                    <span className="token-label">{t.totalCost}</span>
-                    <span className="token-cost token-total" dir="ltr">
-                      {selectedCost !== null && selectedCost > 0 ? (
-                        formatUsd(selectedCost)
-                      ) : (
-                        <span className="muted">—</span>
+                  {selectedUsage.length > 0 && (
+                    <table className="usage-table">
+                      <thead>
+                        <tr>
+                          <th>{t.modelLabel}</th>
+                          <th>{t.inputTokens}</th>
+                          <th>{t.outputTokens}</th>
+                          <th>{t.thinkingTokens}</th>
+                          <th>{t.totalCost}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedUsage.map((u) => (
+                          <tr key={u.model}>
+                            <td>{MODEL_LABELS[u.model] ?? u.model}</td>
+                            <td dir="ltr">{u.inputTokens.toLocaleString(LOCALE)}</td>
+                            <td dir="ltr">{u.outputTokens.toLocaleString(LOCALE)}</td>
+                            <td dir="ltr">{u.thinkingTokens.toLocaleString(LOCALE)}</td>
+                            <td dir="ltr">{u.cost !== null ? formatUsd(u.cost) : <span className="muted">—</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      {selectedUsage.length > 1 && (
+                        <tfoot>
+                          <tr>
+                            <td>{t.totalCost}</td>
+                            <td colSpan={3} />
+                            <td dir="ltr">
+                              {formatUsd(selectedCost)}
+                              {selectedHasUnpriced && '+'}
+                            </td>
+                          </tr>
+                        </tfoot>
                       )}
-                    </span>
-                  </div>
+                    </table>
+                  )}
                   <p className="muted admin-detail-note">{t.adminDetailNote}</p>
                 </>
               )}

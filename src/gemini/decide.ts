@@ -12,6 +12,8 @@ export type { GeminiUsage };
 export interface DecideResult {
   decision: NormalizedDecision;
   usage: GeminiUsage;
+  /** The model that actually served this call, for per-model usage accounting. */
+  model: string;
 }
 
 export async function decide(systemInstruction: string, contents: string): Promise<DecideResult> {
@@ -35,5 +37,5 @@ export async function decide(systemInstruction: string, contents: string): Promi
     throw new Error(`Gemini returned no text output (refusal or empty response): ${JSON.stringify(response)}`);
   }
   const raw = DecisionResponseSchema.parse(JSON.parse(text));
-  return { decision: normalizeDecision(raw), usage };
+  return { decision: normalizeDecision(raw), usage, model };
 }

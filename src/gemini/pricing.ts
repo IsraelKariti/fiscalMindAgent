@@ -1,5 +1,4 @@
 import { logger } from '../util/logger.js';
-import { getGeminiModel } from './modelSettings.js';
 
 // Google publishes Gemini prices only as an HTML docs page, so we read them from
 // LiteLLM's community-maintained registry instead — the de-facto standard pricing
@@ -37,13 +36,13 @@ async function refresh(): Promise<void> {
 }
 
 /**
- * Current prices for the active Gemini model, from a registry table cached in
+ * Current prices for the given Gemini model, from a registry table cached in
  * memory for a day. On fetch failure the previous table keeps being served
  * (null only before the first successful fetch) and the fetch is retried after
  * a few minutes. An unknown model also yields null so callers show token
  * counts without prices.
  */
-export async function getLlmPricing(): Promise<LlmPricing | null> {
+export async function getPricingForModel(model: string): Promise<LlmPricing | null> {
   if (Date.now() >= nextFetchAt) {
     inflight ??= refresh().finally(() => {
       inflight = null;
@@ -52,7 +51,6 @@ export async function getLlmPricing(): Promise<LlmPricing | null> {
   }
   if (!table) return null;
 
-  const model = await getGeminiModel();
   const entry = table[`gemini/${model}`];
   const input = entry?.input_cost_per_token;
   const output = entry?.output_cost_per_token;

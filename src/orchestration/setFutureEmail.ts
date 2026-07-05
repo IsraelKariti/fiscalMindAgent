@@ -1,4 +1,5 @@
 import * as clients from '../db/queries/clients.js';
+import * as llmUsage from '../db/queries/llmUsage.js';
 import * as users from '../db/queries/users.js';
 import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
@@ -23,12 +24,12 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   const files = await documentFiles.listForClient(clientId);
   const { template } = await getPromptTemplate(client.user_id);
   const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, new Date(), template);
-  const { decision, usage } = await decide(systemInstruction, contents);
+  const { decision, usage, model } = await decide(systemInstruction, contents);
 
   // Bill the tokens to the owning accountant right away, so they count even if
   // acting on the decision fails below. Legacy CLI clients have no owner.
   if (client.user_id) {
-    await users.addLlmTokens(client.user_id, usage);
+    await llmUsage.add(client.user_id, model, usage);
   }
 
   // Record which pending documents the LLM saw the client provide (unknown ids are ignored).

@@ -127,6 +127,16 @@ export interface Me {
   impersonating?: { id: string; email: string; name: string | null };
 }
 
+/** Lifetime tokens one accountant used on one model, priced at that model's own rates. */
+export interface AccountantModelUsage {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+  /** USD; null while the pricing registry has no entry for this model. */
+  cost: number | null;
+}
+
 export interface Accountant {
   id: string;
   email: string;
@@ -138,17 +148,7 @@ export interface Accountant {
   clientsComplete: number;
   docsTotal: number;
   docsCollected: number;
-  llmInputTokens: number;
-  llmOutputTokens: number;
-  llmThinkingTokens: number;
-}
-
-/** USD per single token for the Gemini model the agent runs on (multiply by 1e6 for the per-1M rate). */
-export interface LlmPricing {
-  model: string;
-  inputCostPerToken: number;
-  outputCostPerToken: number;
-  thinkingCostPerToken: number;
+  llmUsage: AccountantModelUsage[];
 }
 
 /** The Gemini model every LLM call runs on, for every accountant and client. */
@@ -224,8 +224,7 @@ export const api = {
   listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),
   listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),
   fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
-  adminListAccountants: () =>
-    request<{ accountants: Accountant[]; pricing: LlmPricing | null }>('/api/admin/accountants'),
+  adminListAccountants: () => request<{ accountants: Accountant[] }>('/api/admin/accountants'),
   adminGetModel: () => request<GeminiModelState>('/api/admin/model'),
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/api/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),

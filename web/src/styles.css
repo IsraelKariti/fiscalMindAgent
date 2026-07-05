@@ -1471,42 +1471,33 @@ textarea {
   font-size: 14px;
 }
 
-/* Gemini token spend: stacked category rows whose price/×/count/=/cost cells
-   share grid columns, so the operators sit exactly one above the other. The
-   container inherits the page's RTL direction: column 1 (rightmost) is the
-   label, then cost, =, count, ×, price — visually "price × count = cost". */
-.token-breakdown {
-  display: grid;
-  grid-template-columns: 1fr repeat(5, max-content);
-  column-gap: 7px;
-  row-gap: 10px;
-  align-items: baseline;
+/* Gemini token spend: one row per model, each priced at its own rates, with a
+   total row when several models were used. */
+.usage-table {
+  width: 100%;
   margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
+  border-collapse: collapse;
+  font-size: 14.5px;
   font-variant-numeric: tabular-nums;
 }
 
-.token-breakdown .token-label {
-  font-size: 13px;
+.usage-table th,
+.usage-table td {
+  padding: 8px 10px;
+  text-align: start;
+  border-bottom: 1px solid var(--border);
+}
+
+.usage-table th {
+  font-size: 12.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
 }
 
-/* Digits end flush against the operator that follows them. */
-.token-price,
-.token-count {
-  text-align: right;
-}
-
-.token-cost {
-  text-align: left;
-}
-
-.token-cost.token-total {
-  font-size: 18px;
+.usage-table tfoot td {
+  border-bottom: none;
   font-weight: 700;
 }
 

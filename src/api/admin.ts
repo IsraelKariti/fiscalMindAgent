@@ -1,8 +1,9 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
+import * as llmUsage from '../db/queries/llmUsage.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
-import { getLlmPricing } from '../gemini/pricing.js';
+import { getPricingForModel } from '../gemini/pricing.js';
 import {
   GEMINI_MODEL_OPTIONS,
   getGeminiModelState,
@@ -40,15 +41,38 @@ export const requireAdmin: RequestHandler = async (req, res, next) => {
 };
 
 /**
- * GET /api/admin/accountants — every accountant with their collection progress,
- * for the admin dashboard, plus the current Gemini token prices (null while the
- * pricing registry is unreachable). Admin accounts (ADMIN_EMAILS) are not
- * accountants and are excluded.
+ * GET /api/admin/accountants — every accountant with their collection progress
+ * and per-model Gemini usage, each model's tokens priced at its own rates
+ * (cost null while the pricing registry has no entry for it). Admin accounts
+ * (ADMIN_EMAILS) are not accountants and are excluded.
  */
 export const adminListAccountants: RequestHandler = async (_req, res) => {
-  const [list, pricing] = await Promise.all([users.listAll(), getLlmPricing()]);
+  const [list, usageRows] = await Promise.all([users.listAll(), llmUsage.listAll()]);
+
+  const models = [...new Set(usageRows.map((r) => r.model))];
+  const pricingByModel = new Map(
+    await Promise.all(models.map(async (m) => [m, await getPricingForModel(m)] as const)),
+  );
+
+  const usageByUser = new Map<string, object[]>();
+  for (const row of usageRows) {
+    const pricing = pricingByModel.get(row.model) ?? null;
+    const entries = usageByUser.get(row.user_id) ?? [];
+    entries.push({
+      model: row.model,
+      inputTokens: row.input_tokens,
+      outputTokens: row.output_tokens,
+      thinkingTokens: row.thinking_tokens,
+      cost: pricing
+        ? row.input_tokens * pricing.inputCostPerToken +
+          row.output_tokens * pricing.outputCostPerToken +
+          row.thinking_tokens * pricing.thinkingCostPerToken
+        : null,
+    });
+    usageByUser.set(row.user_id, entries);
+  }
+
   res.json({
-    pricing,
     accountants: list
       .filter((u) => !isAdminEmail(u.email))
       .map((u) => ({
@@ -62,9 +86,7 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         clientsComplete: u.clients_complete,
         docsTotal: u.docs_total,
         docsCollected: u.docs_collected,
-        llmInputTokens: u.llm_input_tokens,
-        llmOutputTokens: u.llm_output_tokens,
-        llmThinkingTokens: u.llm_thinking_tokens,
+        llmUsage: usageByUser.get(u.id) ?? [],
       })),
   });
 };

@@ -1,3 +1,4 @@
+import { useT } from '../../i18n';
 import { ChartTooltip, markCenter, SrTable, useChartBox } from './common';
 
 export interface SankeyNodeDef {
@@ -39,6 +40,7 @@ export function SankeyChart({
   unit: string;
   height?: number;
 }) {
+  const { t } = useT();
   const { ref, width, tip, showTip, hideTip } = useChartBox<HTMLDivElement>();
 
   const activeLinks = links.filter((l) => l.value > 0);
@@ -156,7 +158,7 @@ export function SankeyChart({
       </div>
       <SrTable
         caption={title}
-        head={['מ־', 'אל', unit]}
+        head={[t.srFrom, t.srTo, unit]}
         rows={activeLinks.map((l) => [
           nodes.find((nd) => nd.id === l.source)?.label ?? l.source,
           nodes.find((nd) => nd.id === l.target)?.label ?? l.target,

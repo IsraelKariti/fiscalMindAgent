@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { ClientDocument, DocumentFile, Email, NextScheduled } from '../../api';
+import { useT, type Messages } from '../../i18n';
 import { ChartCard, ChartEmpty, NEUTRAL, SERIES } from './common';
 import { DonutChart, type DonutDatum } from './DonutChart';
 import { LineChart } from './LineChart';
@@ -7,23 +8,23 @@ import { SankeyChart, type SankeyLinkDef, type SankeyNodeDef } from './SankeyCha
 import { startOfWeek, weekLabel, WEEKS, weekStarts } from './weeks';
 
 const FILE_KINDS = [
-  { label: 'קובצי PDF', color: SERIES.violet },
-  { label: 'תמונות', color: SERIES.cyan },
-  { label: 'גיליונות', color: SERIES.green },
-  { label: 'מסמכים', color: SERIES.pink },
-  { label: 'אחר', color: NEUTRAL },
-] as const;
+  { id: 'pdf', labelKey: 'filePdf', color: SERIES.violet },
+  { id: 'image', labelKey: 'fileImages', color: SERIES.cyan },
+  { id: 'sheet', labelKey: 'fileSheets', color: SERIES.green },
+  { id: 'doc', labelKey: 'fileDocs', color: SERIES.pink },
+  { id: 'other', labelKey: 'fileOther', color: NEUTRAL },
+] as const satisfies readonly { id: string; labelKey: keyof Messages; color: string }[];
 
-function fileKind(f: DocumentFile): (typeof FILE_KINDS)[number]['label'] {
+function fileKind(f: DocumentFile): (typeof FILE_KINDS)[number]['id'] {
   const ct = f.content_type.toLowerCase();
   const name = f.filename.toLowerCase();
-  if (ct.includes('pdf') || name.endsWith('.pdf')) return 'קובצי PDF';
-  if (ct.startsWith('image/')) return 'תמונות';
+  if (ct.includes('pdf') || name.endsWith('.pdf')) return 'pdf';
+  if (ct.startsWith('image/')) return 'image';
   if (ct.includes('spreadsheet') || ct.includes('excel') || ct.includes('csv') || /\.(xlsx?|csv)$/.test(name)) {
-    return 'גיליונות';
+    return 'sheet';
   }
-  if (ct.includes('word') || ct.startsWith('text/') || /\.(docx?|txt|rtf)$/.test(name)) return 'מסמכים';
-  return 'אחר';
+  if (ct.includes('word') || ct.startsWith('text/') || /\.(docx?|txt|rtf)$/.test(name)) return 'doc';
+  return 'other';
 }
 
 interface Props {
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export function DashboardCharts({ documents, emails, files, nextScheduled }: Props) {
+  const { t } = useT();
   const activity = useMemo(() => {
     const starts = weekStarts();
     const index = new Map(starts.map((d, i) => [d.getTime(), i]));
@@ -65,15 +67,15 @@ export function DashboardCharts({ documents, emails, files, nextScheduled }: Pro
       const kind = fileKind(f);
       counts.set(kind, (counts.get(kind) ?? 0) + 1);
     }
-    return FILE_KINDS.map((k) => ({ label: k.label, value: counts.get(k.label) ?? 0, color: k.color }));
-  }, [files]);
+    return FILE_KINDS.map((k) => ({ label: t[k.labelKey], value: counts.get(k.id) ?? 0, color: k.color }));
+  }, [files, t]);
 
   const filesByRequest = useMemo<DonutDatum[]>(() => {
     const counts = new Map<string, number>();
     let unlinked = 0;
     for (const f of files) {
       if (f.client_document_id) {
-        const name = documents.find((d) => d.id === f.client_document_id)?.name ?? 'מסמך שהוסר';
+        const name = documents.find((d) => d.id === f.client_document_id)?.name ?? t.removedDocument;
         counts.set(name, (counts.get(name) ?? 0) + 1);
       } else {
         unlinked++;
@@ -87,10 +89,10 @@ export function DashboardCharts({ documents, emails, files, nextScheduled }: Pro
       .slice(0, slots.length)
       .map((d, i) => ({ label: d.name, value: d.count, color: slots[i] ?? NEUTRAL }));
     const rest = named.slice(slots.length).reduce((sum, d) => sum + d.count, 0);
-    if (rest > 0) data.push({ label: 'מסמכים אחרים', value: rest, color: SERIES.green });
-    if (unlinked > 0) data.push({ label: 'לא מקושר לבקשה', value: unlinked, color: NEUTRAL });
+    if (rest > 0) data.push({ label: t.otherDocuments, value: rest, color: SERIES.green });
+    if (unlinked > 0) data.push({ label: t.unlinkedToRequest, value: unlinked, color: NEUTRAL });
     return data;
-  }, [files, documents]);
+  }, [files, documents, t]);
 
   const sankey = useMemo(() => {
     const collectedDocs = documents.filter((d) => d.status === 'collected');
@@ -98,13 +100,13 @@ export function DashboardCharts({ documents, emails, files, nextScheduled }: Pro
     const viaAttachment = collectedDocs.filter((d) => linkedDocIds.has(d.id)).length;
     const outstanding = documents.length - collectedDocs.length;
     const nodes: SankeyNodeDef[] = [
-      { id: 'requested', label: 'התבקשו', color: SERIES.violet, col: 0 },
-      { id: 'collected', label: 'נאספו', color: SERIES.green, col: 1 },
-      { id: 'outstanding', label: 'חסרים', color: SERIES.amber, col: 1 },
-      { id: 'attachment', label: 'בצירוף למייל', color: SERIES.cyan, col: 2 },
-      { id: 'manual', label: 'סומנו ידנית', color: SERIES.pink, col: 2 },
+      { id: 'requested', label: t.nodeRequested, color: SERIES.violet, col: 0 },
+      { id: 'collected', label: t.nodeCollected, color: SERIES.green, col: 1 },
+      { id: 'outstanding', label: t.nodeMissing, color: SERIES.amber, col: 1 },
+      { id: 'attachment', label: t.nodeViaAttachment, color: SERIES.cyan, col: 2 },
+      { id: 'manual', label: t.nodeMarkedManually, color: SERIES.pink, col: 2 },
       // The outstanding branch keeps its color: same documents, still waiting.
-      { id: 'awaiting', label: nextScheduled ? 'מעקב מתוזמן' : 'ממתין ללקוח', color: SERIES.amber, col: 2 },
+      { id: 'awaiting', label: nextScheduled ? t.nodeFollowUpScheduled : t.nodeAwaitingClient, color: SERIES.amber, col: 2 },
     ];
     const links: SankeyLinkDef[] = [
       { source: 'requested', target: 'collected', value: collectedDocs.length },
@@ -114,62 +116,62 @@ export function DashboardCharts({ documents, emails, files, nextScheduled }: Pro
       { source: 'outstanding', target: 'awaiting', value: outstanding },
     ];
     return { nodes, links };
-  }, [documents, files, nextScheduled]);
+  }, [documents, files, nextScheduled, t]);
 
   const hasEmails = emails.some((e) => e.status !== 'draft');
 
   return (
     <div className="chart-grid">
-      <ChartCard title="פעילות מיילים" subtitle={`לפי שבוע · ${WEEKS} השבועות האחרונים`} span={2}>
+      <ChartCard title={t.emailActivity} subtitle={t.perWeekLastN(WEEKS)} span={2}>
         {hasEmails ? (
           <LineChart
-            title="מיילים לפי שבוע"
+            title={t.emailsPerWeek}
             labels={activity.labels}
             series={[
-              { name: 'נשלחו', color: SERIES.violet, values: activity.sent },
-              { name: 'התקבלו', color: SERIES.cyan, values: activity.received },
+              { name: t.seriesSent, color: SERIES.violet, values: activity.sent },
+              { name: t.seriesReceived, color: SERIES.cyan, values: activity.received },
             ]}
           />
         ) : (
-          <ChartEmpty>אין עדיין מיילים</ChartEmpty>
+          <ChartEmpty>{t.noEmailsYet}</ChartEmpty>
         )}
       </ChartCard>
 
-      <ChartCard title="קבצים לפי סוג">
+      <ChartCard title={t.filesByType}>
         {files.length > 0 ? (
-          <DonutChart title="קבצים לפי סוג" data={filesByType} centerLabel="קבצים" />
+          <DonutChart title={t.filesByType} data={filesByType} centerLabel={t.filesCenterLabel} />
         ) : (
-          <ChartEmpty>עדיין לא התקבלו קבצים</ChartEmpty>
+          <ChartEmpty>{t.noFilesYet}</ChartEmpty>
         )}
       </ChartCard>
 
-      <ChartCard title="מסלול המסמכים" subtitle="איך המסמכים שהתבקשו מתקדמים" span={2}>
+      <ChartCard title={t.documentJourney} subtitle={t.documentJourneySubtitle} span={2}>
         {documents.length > 0 ? (
-          <SankeyChart title="מסלול המסמכים" nodes={sankey.nodes} links={sankey.links} unit="מסמכים" />
+          <SankeyChart title={t.documentJourney} nodes={sankey.nodes} links={sankey.links} unit={t.documentsUnit} />
         ) : (
-          <ChartEmpty>עדיין לא התבקשו מסמכים</ChartEmpty>
+          <ChartEmpty>{t.noDocsRequestedYet}</ChartEmpty>
         )}
       </ChartCard>
 
-      <ChartCard title="קבצים לפי בקשה">
+      <ChartCard title={t.filesByRequest}>
         {files.length > 0 ? (
-          <DonutChart title="קבצים לפי מסמך מבוקש" data={filesByRequest} centerLabel="קבצים" />
+          <DonutChart title={t.filesByRequestedDoc} data={filesByRequest} centerLabel={t.filesCenterLabel} />
         ) : (
-          <ChartEmpty>עדיין לא התקבלו קבצים</ChartEmpty>
+          <ChartEmpty>{t.noFilesYet}</ChartEmpty>
         )}
       </ChartCard>
 
-      <ChartCard title="קבצים שהתקבלו" subtitle={`מצטבר · ${WEEKS} השבועות האחרונים`} span={3}>
+      <ChartCard title={t.filesReceived} subtitle={t.cumulativeLastN(WEEKS)} span={3}>
         {files.length > 0 ? (
           <LineChart
-            title="קבצים שהתקבלו לאורך זמן"
+            title={t.filesOverTime}
             labels={cumulativeFiles.labels}
-            series={[{ name: 'קבצים שהתקבלו', color: SERIES.green, values: cumulativeFiles.values }]}
+            series={[{ name: t.filesReceived, color: SERIES.green, values: cumulativeFiles.values }]}
             area
             height={170}
           />
         ) : (
-          <ChartEmpty>עדיין לא התקבלו קבצים</ChartEmpty>
+          <ChartEmpty>{t.noFilesYet}</ChartEmpty>
         )}
       </ChartCard>
     </div>

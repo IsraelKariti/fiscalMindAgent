@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError, type Client } from '../api';
+import { useT } from '../i18n';
 
 interface Props {
   onCreated: (client: Client) => void;
@@ -71,6 +72,7 @@ const DEFAULT_DOCUMENTS: DocumentDraft[] = [
 ];
 
 export function AddClientModal({ onCreated, onClose }: Props) {
+  const { t } = useT();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [documents, setDocuments] = useState<DocumentDraft[]>(DEFAULT_DOCUMENTS);
@@ -88,7 +90,7 @@ export function AddClientModal({ onCreated, onClose }: Props) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (documents.length === 0) {
-      setError('הוסיפו לפחות מסמך אחד שהסוכן יאסוף.');
+      setError(t.atLeastOneDoc);
       return;
     }
     setBusy(true);
@@ -97,7 +99,7 @@ export function AddClientModal({ onCreated, onClose }: Props) {
       const { client } = await api.createClient({ name, email, documents });
       onCreated(client);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'יצירת הלקוח נכשלה.');
+      setError(err instanceof ApiError ? err.message : t.createClientFailed);
       setBusy(false);
     }
   };
@@ -105,21 +107,18 @@ export function AddClientModal({ onCreated, onClose }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h2>הוספת לקוח</h2>
-        <p className="muted">
-          הסוכן מנסח את המייל הראשון בעצמו ובוחר מתי לשלוח אותו. המייל יופיע בלשונית ההתכתבות כממתין לשליחה,
-          ומשם הסוכן מנהל את המעקבים עד שכל המסמכים נאספים.
-        </p>
+        <h2>{t.addClientTitle}</h2>
+        <p className="muted">{t.addClientLead}</p>
         <label className="field">
-          <span>שם</span>
+          <span>{t.nameLabel}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
         </label>
         <label className="field">
-          <span>אימייל</span>
+          <span>{t.emailLabel}</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         <div className="field">
-          <span>מסמכים לאיסוף</span>
+          <span>{t.documentsToCollect}</span>
           {documents.length > 0 && (
             <ul className="doc-chip-list">
               {documents.map((doc) => (
@@ -128,7 +127,7 @@ export function AddClientModal({ onCreated, onClose }: Props) {
                   <button
                     type="button"
                     className="chip-x"
-                    title={`הסרת ${doc.name}`}
+                    title={t.removeNamed(doc.name)}
                     onClick={() => setDocuments(documents.filter((d) => d.name !== doc.name))}
                   >
                     ×
@@ -147,21 +146,21 @@ export function AddClientModal({ onCreated, onClose }: Props) {
                   addDocument();
                 }
               }}
-              placeholder="למשל טופס 106"
-              aria-label="שם המסמך"
+              placeholder={t.egForm106}
+              aria-label={t.docNameAria}
             />
             <button type="button" className="btn btn-ghost" onClick={addDocument} disabled={!docDraft.trim()}>
-              הוספת מסמך
+              {t.addDocument}
             </button>
           </div>
         </div>
         {error && <div className="error-banner">{error}</div>}
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose} disabled={busy}>
-            ביטול
+            {t.cancel}
           </button>
           <button className="btn btn-primary" type="submit" disabled={busy}>
-            {busy ? 'יוצר…' : 'יצירה'}
+            {busy ? t.creating : t.create}
           </button>
         </div>
       </form>

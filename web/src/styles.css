@@ -2298,6 +2298,17 @@ button.meta-chip:hover {
   margin: 0;
 }
 
+/* Language picker: one chip per language, labeled in its own language */
+.lang-switch {
+  display: flex;
+  gap: 8px;
+}
+
+.lang-switch .chip {
+  font-family: inherit;
+  padding: 5px 14px;
+}
+
 /* The mailbox address reads as a copyable value, not editable text */
 .settings-mailbox {
   display: flex;

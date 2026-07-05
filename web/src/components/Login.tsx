@@ -1,3 +1,5 @@
+import { useT } from '../i18n';
+
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -22,6 +24,7 @@ function GoogleIcon() {
 }
 
 export function Login() {
+  const { t } = useT();
   // Surfaced by the OAuth callback redirect on failure (/?login_error=...).
   const loginError = new URLSearchParams(window.location.search).get('login_error');
 
@@ -29,14 +32,14 @@ export function Login() {
     <div className="screen-center">
       <div className="card login-card">
         <div className="brand login-brand">
-          <img className="brand-mark" src="/logo.png" alt="הלוגו של FiscalMind" />
+          <img className="brand-mark" src="/logo.png" alt={t.logoAlt} />
           <span>FiscalMind</span>
         </div>
-        <p className="muted">התחברו כדי לנהל את סוכן איסוף המסמכים.</p>
-        {loginError && <div className="error-banner">ההתחברות נכשלה: {loginError}</div>}
+        <p className="muted">{t.loginLead}</p>
+        {loginError && <div className="error-banner">{t.loginFailed(loginError)}</div>}
         <a className="btn btn-primary login-google-btn" href="/api/auth/google">
           <GoogleIcon />
-          התחברות עם Google
+          {t.loginWithGoogle}
         </a>
       </div>
     </div>

@@ -12,6 +12,7 @@ import { AccessPending } from './components/AccessPending';
 import { LogoutConfirmModal } from './components/LogoutConfirmModal';
 import { Overview } from './components/Overview';
 import { Settings } from './components/Settings';
+import { useT } from './i18n';
 
 type View =
   | { kind: 'overview' }
@@ -21,6 +22,7 @@ type View =
   | { kind: 'empty' };
 
 export function App() {
+  const { t } = useT();
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [user, setUser] = useState<Me['user'] | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -79,7 +81,7 @@ export function App() {
     api.mailboxStatus().then(setMailbox).catch(console.error);
   }, [authed, whitelisted, adminMode, loadClients]);
 
-  if (authed === null) return <div className="screen-center muted">טוען…</div>;
+  if (authed === null) return <div className="screen-center muted">{t.loading}</div>;
   if (!authed) return <Login />;
 
   const logout = async () => {
@@ -133,7 +135,7 @@ export function App() {
     <div className="app">
       {mailbox && !mailbox.claimed && (
         <div className="connect-banner">
-          <span>בחרו כתובת אימייל לסוכן — הלקוחות יתכתבו איתה.</span>
+          <span>{t.connectBanner}</span>
           <ClaimMailbox domain={mailbox.domain} onClaimed={setMailbox} />
         </div>
       )}
@@ -165,7 +167,7 @@ export function App() {
           {view.kind === 'prompt' && impersonating && <PromptSettings />}
           {view.kind === 'settings' && <Settings mailbox={mailbox} onClaimed={setMailbox} />}
           {view.kind === 'empty' && (
-            <div className="screen-center muted">אין עדיין לקוחות — השתמשו בכפתור ה־+ שליד "לקוחות" בסרגל הצד.</div>
+            <div className="screen-center muted">{t.noClientsUseAdd}</div>
           )}
         </main>
       </div>

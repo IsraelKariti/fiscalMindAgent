@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError, type MailboxStatus } from '../api';
+import { useT } from '../i18n';
 
 interface Props {
   domain: string;
@@ -12,9 +13,8 @@ type Check =
   | { state: 'available'; name: string }
   | { state: 'unavailable'; message: string };
 
-const RULES_HINT = '3–30 תווים: אותיות לטיניות קטנות, ספרות ומקפים (לא בקצוות).';
-
 export function ClaimMailbox({ domain, onClaimed }: Props) {
+  const { t } = useT();
   const [name, setName] = useState('');
   const [check, setCheck] = useState<Check>({ state: 'idle' });
   const [claiming, setClaiming] = useState(false);
@@ -42,10 +42,10 @@ export function ClaimMailbox({ domain, onClaimed }: Props) {
               state: 'unavailable',
               message:
                 result.reason === 'invalid'
-                  ? RULES_HINT
+                  ? t.mailboxRulesHint
                   : result.reason === 'reserved'
-                    ? 'השם הזה שמור.'
-                    : 'השם הזה כבר תפוס.',
+                    ? t.mailboxReserved
+                    : t.mailboxTaken,
             });
           }
         })
@@ -54,7 +54,7 @@ export function ClaimMailbox({ domain, onClaimed }: Props) {
         });
     }, 300);
     return () => clearTimeout(timer);
-  }, [name]);
+  }, [name, t]);
 
   const claim = async () => {
     if (check.state !== 'available' || claiming) return;
@@ -65,7 +65,7 @@ export function ClaimMailbox({ domain, onClaimed }: Props) {
       onClaimed({ claimed: true, emailAddress: mailbox.emailAddress, localPart: mailbox.localPart, domain });
     } catch (err) {
       // Includes the just-taken race (409) — surface it and force a re-check.
-      setError(err instanceof ApiError ? err.message : 'לא ניתן לשריין את השם. נסו שוב.');
+      setError(err instanceof ApiError ? err.message : t.mailboxClaimFailed);
       setCheck({ state: 'idle' });
       setClaiming(false);
     }
@@ -88,27 +88,28 @@ export function ClaimMailbox({ domain, onClaimed }: Props) {
             dir="ltr"
             autoFocus
             spellCheck={false}
-            title={RULES_HINT}
+            title={t.mailboxRulesHint}
           />
           <span className="claim-mailbox-domain muted" dir="ltr">@{domain}</span>
         </span>
         <button className="btn btn-primary" type="submit" disabled={check.state !== 'available' || claiming}>
-          {claiming ? 'משריין…' : 'שריון'}
+          {claiming ? t.claiming : t.claim}
         </button>
       </form>
       <span className="claim-mailbox-status">
         {error ? (
           <span className="claim-status-bad">{error}</span>
         ) : check.state === 'checking' ? (
-          <span className="muted">בודק…</span>
+          <span className="muted">{t.checking}</span>
         ) : check.state === 'available' ? (
           <span className="claim-status-ok">
-            <bdi dir="ltr">{check.name}@{domain}</bdi> פנוי. הבחירה קבועה — לא ניתן לשנות אותה בהמשך.
+            <bdi dir="ltr">{check.name}@{domain}</bdi>
+            {t.mailboxAvailableTail}
           </span>
         ) : check.state === 'unavailable' ? (
           <span className="claim-status-bad">{check.message}</span>
         ) : (
-          <span className="muted">{RULES_HINT}</span>
+          <span className="muted">{t.mailboxRulesHint}</span>
         )}
       </span>
     </div>

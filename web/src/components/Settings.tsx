@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { MailboxStatus } from '../api';
+import { useT, type Lang } from '../i18n';
 import { ClaimMailbox } from './ClaimMailbox';
 
 interface Props {
@@ -21,7 +22,15 @@ const icon = {
   ),
 };
 
+// Each language is labeled in itself so it stays recognizable whichever
+// language is currently active.
+const LANGUAGES: { value: Lang; label: string }[] = [
+  { value: 'he', label: 'עברית' },
+  { value: 'en', label: 'English' },
+];
+
 export function Settings({ mailbox, onClaimed }: Props) {
+  const { t, lang, setLang } = useT();
   const [copied, setCopied] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -40,20 +49,38 @@ export function Settings({ mailbox, onClaimed }: Props) {
       <section className="card">
         <div className="card-header">
           <div>
-            <h2>הגדרות</h2>
+            <h2>{t.settingsTitle}</h2>
           </div>
         </div>
 
         <div className="settings-section">
-          <h3>תיבת הסוכן</h3>
-          <p className="muted">תיבת הדואר שממנה הסוכן שולח ומקבל מיילים. הלקוחות מתכתבים עם הכתובת הזו.</p>
+          <h3>{t.language}</h3>
+          <p className="muted">{t.languageDesc}</p>
+          <div className="lang-switch">
+            {LANGUAGES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`chip ${lang === option.value ? 'chip-selected' : ''}`}
+                aria-pressed={lang === option.value}
+                onClick={() => setLang(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="settings-section">
+          <h3>{t.agentMailbox}</h3>
+          <p className="muted">{t.agentMailboxDesc}</p>
           {address ? (
             <div className="settings-mailbox" dir="ltr">
               <span className="settings-mailbox-address">{address}</span>
               <button
                 className={`icon-btn ${copied ? 'icon-btn-success' : ''}`}
                 onClick={copyMailbox}
-                title={copied ? 'הועתק!' : 'העתקת הכתובת'}
+                title={copied ? t.copied : t.copyAddress}
               >
                 {copied ? icon.check : icon.copy}
               </button>
@@ -61,7 +88,7 @@ export function Settings({ mailbox, onClaimed }: Props) {
           ) : mailbox ? (
             <ClaimMailbox domain={mailbox.domain} onClaimed={onClaimed} />
           ) : (
-            <p className="muted">טוען…</p>
+            <p className="muted">{t.loading}</p>
           )}
         </div>
       </section>

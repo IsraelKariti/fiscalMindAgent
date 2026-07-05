@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, type PromptTemplateState } from '../api';
 import { LOCALE } from '../format';
+import { useT } from '../i18n';
 
 export function PromptSettings() {
+  const { t } = useT();
   const [state, setState] = useState<PromptTemplateState | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -23,10 +25,11 @@ export function PromptSettings() {
         setState(s);
         setDraft(s.template);
       })
-      .catch(() => setMessage({ kind: 'error', text: 'טעינת תבנית הפרומפט נכשלה.' }));
+      .catch(() => setMessage({ kind: 'error', text: t.promptLoadFailed }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!state) return <div className="muted">{message?.text ?? 'טוען…'}</div>;
+  if (!state) return <div className="muted">{message?.text ?? t.loading}</div>;
 
   const dirty = draft !== state.template;
 
@@ -37,9 +40,9 @@ export function PromptSettings() {
       const next = await api.savePromptTemplate(draft);
       setState(next);
       setDraft(next.template);
-      setMessage({ kind: 'ok', text: 'נשמר. הקריאה הבאה ל־Gemini תשתמש בתבנית הזו.' });
+      setMessage({ kind: 'ok', text: t.promptSaved });
     } catch {
-      setMessage({ kind: 'error', text: 'השמירה נכשלה.' });
+      setMessage({ kind: 'error', text: t.saveFailed });
     } finally {
       setBusy(false);
     }
@@ -52,9 +55,9 @@ export function PromptSettings() {
       const next = await api.resetPromptTemplate();
       setState(next);
       setDraft(next.template);
-      setMessage({ kind: 'ok', text: 'שוחזר לתבנית ברירת המחדל המובנית.' });
+      setMessage({ kind: 'ok', text: t.promptRestored });
     } catch {
-      setMessage({ kind: 'error', text: 'האיפוס נכשל.' });
+      setMessage({ kind: 'error', text: t.resetFailed });
     } finally {
       setBusy(false);
     }
@@ -65,35 +68,34 @@ export function PromptSettings() {
       <section className="card">
         <div className="card-header">
           <div>
-            <h2>פרומפט המערכת של Gemini</h2>
+            <h2>{t.geminiSystemPrompt}</h2>
             <span className={`badge ${state.isCustom ? 'badge-pending' : 'badge-neutral'}`}>
-              {state.isCustom ? 'תבנית מותאמת' : 'ברירת מחדל מובנית'}
+              {state.isCustom ? t.customTemplate : t.builtinDefault}
             </span>
             {state.updatedAt && (
-              <span className="muted badge-note">נשמר לאחרונה {new Date(state.updatedAt).toLocaleString(LOCALE)}</span>
+              <span className="muted badge-note">
+                {t.lastSaved(new Date(state.updatedAt).toLocaleString(LOCALE))}
+              </span>
             )}
           </div>
           <div className="btn-row">
             <button className="btn btn-ghost" onClick={reset} disabled={busy || !state.isCustom}>
-              איפוס לברירת המחדל
+              {t.resetToDefault}
             </button>
             <button className="btn btn-primary" onClick={save} disabled={busy || !dirty || draft.trim() === ''}>
-              {busy ? 'שומר…' : 'שמירה'}
+              {busy ? t.saving : t.save}
             </button>
           </div>
         </div>
 
-        <p className="muted">
-          התבנית הזו הופכת להנחיית המערכת בכל קריאת החלטה של Gemini (האם היעד הושלם, ואיזה מייל מעקב לנסח).
-          מצייני המקום מתמלאים לכל לקוח בזמן הקריאה:
-        </p>
+        <p className="muted">{t.promptLead}</p>
         <div className="placeholder-chips">
           {state.placeholders.map((name) => (
             <button
               key={name}
               className="chip"
               type="button"
-              title="הוספה בסוף"
+              title={t.appendAtEnd}
               onClick={() => setDraft((d) => `${d}{{${name}}}`)}
             >
               {`{{${name}}}`}

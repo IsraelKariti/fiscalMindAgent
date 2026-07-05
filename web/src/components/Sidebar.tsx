@@ -1,4 +1,5 @@
 import type { Client } from '../api';
+import { useT } from '../i18n';
 
 interface Props {
   clients: Client[];
@@ -84,10 +85,11 @@ export function Sidebar({
   onStopImpersonating,
   onLogout,
 }: Props) {
+  const { t } = useT();
   return (
     <nav className="sidebar">
       <div className="brand sidebar-brand">
-        <img className="brand-mark" src="/logo.png" alt="הלוגו של FiscalMind" />
+        <img className="brand-mark" src="/logo.png" alt={t.logoAlt} />
         <span>FiscalMind</span>
       </div>
 
@@ -97,16 +99,16 @@ export function Sidebar({
           onClick={onSelectDashboard}
         >
           <span className="nav-item-icon">{icon.dashboard}</span>
-          <span className="client-item-name">דשבורד</span>
+          <span className="client-item-name">{t.navDashboard}</span>
         </button>
 
         <div className="side-heading">
           <span className="side-heading-label">
-            לקוחות
+            {t.clientsHeading}
             {clients.length > 0 && <span className="side-count">{clients.length}</span>}
           </span>
           <span className="side-heading-rule" />
-          <button className="icon-btn" onClick={onAddClient} title="הוספת לקוח">
+          <button className="icon-btn" onClick={onAddClient} title={t.addClient}>
             {icon.plus}
           </button>
         </div>
@@ -119,7 +121,7 @@ export function Sidebar({
               >
                 <span
                   className={`status-dot ${client.goal_status}`}
-                  title={client.goal_status === 'complete' ? 'היעד הושלם' : 'איסוף בתהליך'}
+                  title={client.goal_status === 'complete' ? t.goalCompleteTitle : t.goalPendingTitle}
                 />
                 <span className="client-item-text">
                   <span className="client-item-name">{client.name}</span>
@@ -128,7 +130,7 @@ export function Sidebar({
               </button>
               <button
                 className="client-delete"
-                title={`מחיקת ${client.name}`}
+                title={t.deleteClientAction(client.name)}
                 onClick={() => onDeleteClient(client)}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -141,19 +143,19 @@ export function Sidebar({
               </button>
             </li>
           ))}
-          {clients.length === 0 && <li className="muted sidebar-empty">אין עדיין לקוחות</li>}
+          {clients.length === 0 && <li className="muted sidebar-empty">{t.sidebarNoClients}</li>}
         </ul>
 
         {/* Prompt tuning is an admin task — surfaced only inside an impersonated workspace. */}
         {impersonatingEmail && (
           <>
             <div className="side-heading">
-              <span className="side-heading-label">כלי ניהול</span>
+              <span className="side-heading-label">{t.adminTools}</span>
               <span className="side-heading-rule" />
             </div>
             <button className={`client-item ${promptSelected ? 'selected' : ''}`} onClick={onSelectPrompt}>
               <span className="nav-item-icon">{icon.sliders}</span>
-              <span className="client-item-name">פרומפט המערכת</span>
+              <span className="client-item-name">{t.systemPrompt}</span>
             </button>
           </>
         )}
@@ -165,26 +167,26 @@ export function Sidebar({
           onClick={onSelectSettings}
         >
           <span className="nav-item-icon">{icon.gear}</span>
-          <span className="client-item-name">הגדרות</span>
+          <span className="client-item-name">{t.settings}</span>
         </button>
         {impersonatingEmail && (
-          <div className="id-card impersonation-card" title="אתם צופים בדשבורד של המשתמש הזה כמנהל">
+          <div className="id-card impersonation-card" title={t.impersonationTitle}>
             <span className="id-card-icon">{icon.eye}</span>
             <span className="id-card-text">
-              <span className="microlabel">צפייה בתור</span>
+              <span className="microlabel">{t.viewingAs}</span>
               <span className="id-card-value id-card-email" dir="ltr">{impersonatingEmail}</span>
             </span>
             <button className="btn btn-ghost btn-small" onClick={onStopImpersonating}>
-              יציאה
+              {t.exitImpersonation}
             </button>
           </div>
         )}
-        <div className="account-row" title="חשבון Google שאיתו התחברתם">
+        <div className="account-row" title={t.googleAccountTitle}>
           <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
           <span className="id-card-text">
             <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
           </span>
-          <button className="icon-btn" onClick={onLogout} title="התנתקות">
+          <button className="icon-btn" onClick={onLogout} title={t.logout}>
             {icon.logout}
           </button>
         </div>

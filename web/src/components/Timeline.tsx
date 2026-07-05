@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Email, GoalStatus, NextScheduled } from '../api';
 import { formatTimestamp } from '../format';
+import { useT } from '../i18n';
 
 export function Timeline({
   emails,
@@ -11,6 +12,7 @@ export function Timeline({
   nextScheduled: NextScheduled | null;
   goalStatus: GoalStatus;
 }) {
+  const { t } = useT();
   const bodyRef = useRef<HTMLDivElement>(null);
   // Whether the user is scrolled near the bottom — sampled on every scroll so the
   // auto-scroll below never yanks someone who is reading older messages.
@@ -41,16 +43,16 @@ export function Timeline({
   return (
     <section className="card panel">
       <div className="panel-header">
-        <h3>ציר הזמן של השיחה</h3>
+        <h3>{t.conversationTimeline}</h3>
         {emails.length > 0 && (
           <span className="muted panel-count">
-            {emails.length === 1 ? 'הודעה אחת' : `${emails.length} הודעות`}
+            {emails.length === 1 ? t.oneMessage : t.nMessages(emails.length)}
           </span>
         )}
       </div>
       <div className="panel-body" ref={bodyRef} onScroll={trackScroll}>
         {emails.length === 0 && !nextScheduled && goalStatus !== 'pending' && (
-          <p className="muted">עדיין לא הוחלפו מיילים.</p>
+          <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
         <ol className="timeline">
           {emails.map((email) => {
@@ -58,7 +60,7 @@ export function Timeline({
             return (
               <li key={email.id} className={`timeline-item ${outbound ? 'outbound' : 'inbound'}`}>
                 <div className="timeline-meta">
-                  <span className="timeline-author">{outbound ? 'הסוכן' : 'הלקוח'}</span>
+                  <span className="timeline-author">{outbound ? t.agentAuthor : t.clientAuthor}</span>
                   <span className="muted">{formatTimestamp(email.sent_at ?? email.created_at)}</span>
                 </div>
                 <div className="bubble">
@@ -72,7 +74,7 @@ export function Timeline({
             <li className="timeline-divider" aria-hidden="true">
               <span className="timeline-divider-label">
                 <span className="scheduled-dot" />
-                מתוזמן
+                {t.scheduledDivider}
               </span>
             </li>
           )}
@@ -90,9 +92,9 @@ export function Timeline({
                     <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
                     <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
-                  הסוכן · טרם נשלח
+                  {t.agentNotSentYet}
                 </span>
-                <span className="scheduled-note">יישלח ב־{formatTimestamp(nextScheduled.scheduledFor)}</span>
+                <span className="scheduled-note">{t.willBeSentAt(formatTimestamp(nextScheduled.scheduledFor))}</span>
               </div>
               <div className="bubble bubble-scheduled">
                 {nextScheduled.subject ? (
@@ -101,7 +103,7 @@ export function Timeline({
                     <div className="bubble-body" dir="auto">{nextScheduled.body}</div>
                   </>
                 ) : (
-                  <div className="muted">מעקב מתוזמן (הטיוטה אינה זמינה)</div>
+                  <div className="muted">{t.scheduledDraftUnavailable}</div>
                 )}
               </div>
             </li>
@@ -121,13 +123,13 @@ export function Timeline({
                   <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
                   <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
-                <span>הסוכן מנסח כעת את המייל {emails.length === 0 ? 'הראשון' : 'הבא'}…</span>
+                <span>{t.draftingEmail(emails.length === 0)}</span>
               </div>
             </li>
           )}
         </ol>
         {!nextScheduled && goalStatus === 'complete' && (
-          <p className="muted timeline-footer">היעד הושלם — לא מתוכננים מעקבים נוספים.</p>
+          <p className="muted timeline-footer">{t.goalCompleteFooter}</p>
         )}
       </div>
     </section>

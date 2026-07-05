@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useT } from '../i18n';
 
 interface Props {
   onConfirm: () => Promise<void>;
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export function LogoutConfirmModal({ onConfirm, onClose }: Props) {
+  const { t } = useT();
   const [busy, setBusy] = useState(false);
 
   const confirm = async () => {
@@ -20,14 +22,14 @@ export function LogoutConfirmModal({ onConfirm, onClose }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="card modal modal-confirm" onClick={(e) => e.stopPropagation()}>
-        <h2>להתנתק מהמערכת?</h2>
-        <p className="muted">כדי לחזור, תצטרכו להתחבר שוב עם חשבון Google.</p>
+        <h2>{t.logoutQuestion}</h2>
+        <p className="muted">{t.logoutNote}</p>
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose} disabled={busy}>
-            ביטול
+            {t.cancel}
           </button>
           <button className="btn btn-danger" type="button" onClick={confirm} disabled={busy} autoFocus>
-            {busy ? 'מתנתק…' : 'התנתקות'}
+            {busy ? t.loggingOut : t.logout}
           </button>
         </div>
       </div>

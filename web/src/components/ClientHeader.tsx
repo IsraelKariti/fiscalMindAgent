@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, type Client } from '../api';
 import { LOCALE } from '../format';
+import { useT } from '../i18n';
 
 interface Props {
   client: Client;
@@ -89,6 +90,7 @@ function MetaChip({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 export function ClientHeader({ client, onSaved }: Props) {
+  const { t } = useT();
   const [editing, setEditing] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => toDraft(client));
@@ -112,7 +114,7 @@ export function ClientHeader({ client, onSaved }: Props) {
       await onSaved(updated);
       setEditing(false);
     } catch {
-      setError('השמירה נכשלה.');
+      setError(t.saveFailed);
     } finally {
       setBusy(false);
     }
@@ -124,7 +126,7 @@ export function ClientHeader({ client, onSaved }: Props) {
         <div className="client-header-id">
           <h2>{client.name}</h2>
           <span className={`badge ${client.goal_status === 'complete' ? 'badge-success' : 'badge-pending'}`}>
-            {client.goal_status === 'complete' ? 'כל המסמכים התקבלו' : 'איסוף מסמכים בתהליך'}
+            {client.goal_status === 'complete' ? t.allDocsReceived : t.docCollectionInProgress}
           </span>
         </div>
         {!editing ? (
@@ -135,15 +137,15 @@ export function ClientHeader({ client, onSaved }: Props) {
               setEditing(true);
             }}
           >
-            עריכה
+            {t.edit}
           </button>
         ) : (
           <div className="btn-row">
             <button className="btn btn-ghost" onClick={() => setEditing(false)} disabled={busy}>
-              ביטול
+              {t.cancel}
             </button>
             <button className="btn btn-primary" onClick={save} disabled={busy}>
-              {busy ? 'שומר…' : 'שמירה'}
+              {busy ? t.saving : t.save}
             </button>
           </div>
         )}
@@ -154,19 +156,21 @@ export function ClientHeader({ client, onSaved }: Props) {
       {!editing ? (
         <>
           <div className="client-meta">
-            <MetaChip icon={icons.mail} label="אימייל" value={client.email_address} />
-            {client.phone && <MetaChip icon={icons.phone} label="טלפון" value={client.phone} />}
-            {client.company && <MetaChip icon={icons.company} label="חברה" value={client.company} />}
-            {client.occupation && <MetaChip icon={icons.occupation} label="עיסוק" value={client.occupation} />}
+            <MetaChip icon={icons.mail} label={t.emailLabel} value={client.email_address} />
+            {client.phone && <MetaChip icon={icons.phone} label={t.phoneLabel} value={client.phone} />}
+            {client.company && <MetaChip icon={icons.company} label={t.companyLabel} value={client.company} />}
+            {client.occupation && (
+              <MetaChip icon={icons.occupation} label={t.occupationLabel} value={client.occupation} />
+            )}
             <MetaChip
               icon={icons.calendar}
-              label="תחילת ההתקשרות"
-              value={`מאז ${new Date(client.created_at).toLocaleDateString(LOCALE)}`}
+              label={t.clientSinceLabel}
+              value={t.sinceDate(new Date(client.created_at).toLocaleDateString(LOCALE))}
             />
             {client.notes && (
               <button className="meta-chip" aria-expanded={notesOpen} onClick={() => setNotesOpen((o) => !o)}>
                 {icons.notes}
-                <span className="meta-chip-text">הערות</span>
+                <span className="meta-chip-text">{t.notesLabel}</span>
                 {icons.chevron}
               </button>
             )}
@@ -176,23 +180,23 @@ export function ClientHeader({ client, onSaved }: Props) {
       ) : (
         <div className="detail-grid client-edit-grid">
           <label className="field">
-            <span>שם</span>
+            <span>{t.nameLabel}</span>
             <input value={draft.name} onChange={set('name')} />
           </label>
           <label className="field">
-            <span>עיסוק</span>
-            <input value={draft.occupation} onChange={set('occupation')} placeholder="למשל: מהנדס תוכנה" />
+            <span>{t.occupationLabel}</span>
+            <input value={draft.occupation} onChange={set('occupation')} placeholder={t.occupationPlaceholder} />
           </label>
           <label className="field">
-            <span>חברה</span>
+            <span>{t.companyLabel}</span>
             <input value={draft.company} onChange={set('company')} />
           </label>
           <label className="field">
-            <span>טלפון</span>
+            <span>{t.phoneLabel}</span>
             <input value={draft.phone} onChange={set('phone')} />
           </label>
           <label className="field detail-wide">
-            <span>הערות</span>
+            <span>{t.notesLabel}</span>
             <textarea value={draft.notes} onChange={set('notes')} rows={3} />
           </label>
         </div>

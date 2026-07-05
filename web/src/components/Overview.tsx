@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type DashboardClientSummary, type DashboardSummary } from '../api';
 import { daysSince, LOCALE } from '../format';
+import { useT, type Messages } from '../i18n';
 import { ChartCard, ChartEmpty, SERIES } from './charts/common';
 import { DonutChart, type DonutDatum } from './charts/DonutChart';
 import { LineChart } from './charts/LineChart';
@@ -26,7 +27,7 @@ interface AttentionItem {
 }
 
 /** Pending clients that are stuck: silent for a week, or nothing scheduled to chase them. */
-function attentionItems(clients: DashboardClientSummary[]): AttentionItem[] {
+function attentionItems(clients: DashboardClientSummary[], t: Messages): AttentionItem[] {
   const items: AttentionItem[] = [];
   for (const client of clients) {
     if (client.goal_status === 'complete') continue;
@@ -40,16 +41,17 @@ function attentionItems(clients: DashboardClientSummary[]): AttentionItem[] {
       items.push({
         client,
         days: silentDays,
-        reason: client.last_inbound_at ? `ללא מענה ${silentDays} ימים` : 'טרם התקבלה תגובה כלשהי',
+        reason: client.last_inbound_at ? t.silentForDays(silentDays) : t.neverReplied,
       });
     } else if (!client.next_scheduled_for) {
-      items.push({ client, days: 0, reason: 'אין מעקב מתוזמן' });
+      items.push({ client, days: 0, reason: t.noFollowUpScheduled });
     }
   }
   return items.sort((a, b) => b.days - a.days);
 }
 
 export function Overview({ onSelectClient }: Props) {
+  const { t } = useT();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,9 +60,9 @@ export function Overview({ onSelectClient }: Props) {
       setData(await api.dashboard());
       setError(null);
     } catch {
-      setError('טעינת הדשבורד נכשלה.');
+      setError(t.dashboardLoadFailed);
     }
-  }, []);
+  }, [t]);
 
   // Keep the numbers current while the user watches: refetch every 30s when
   // the tab is visible, and immediately when it becomes visible again.
@@ -111,11 +113,11 @@ export function Overview({ onSelectClient }: Props) {
     const started = clients.filter((c) => c.goal_status === 'pending' && c.docs_collected > 0).length;
     const notStarted = clients.length - complete - started;
     return [
-      { label: 'הושלמו', value: complete, color: SERIES.green },
-      { label: 'באיסוף פעיל', value: started, color: SERIES.violet },
-      { label: 'טרם נאסף דבר', value: notStarted, color: SERIES.amber },
+      { label: t.statusComplete, value: complete, color: SERIES.green },
+      { label: t.statusActive, value: started, color: SERIES.violet },
+      { label: t.statusNotStarted, value: notStarted, color: SERIES.amber },
     ];
-  }, [data]);
+  }, [data, t]);
 
   // Least-progressed first, completed clients sink to the bottom.
   const byProgress = useMemo(
@@ -123,7 +125,7 @@ export function Overview({ onSelectClient }: Props) {
     [data],
   );
 
-  const attention = useMemo(() => attentionItems(data?.clients ?? []), [data]);
+  const attention = useMemo(() => attentionItems(data?.clients ?? [], t), [data, t]);
 
   const followUps = useMemo(
     () =>
@@ -134,9 +136,9 @@ export function Overview({ onSelectClient }: Props) {
   );
 
   if (error) return <div className="error-banner">{error}</div>;
-  if (!data || !totals) return <div className="muted">טוען…</div>;
+  if (!data || !totals) return <div className="muted">{t.loading}</div>;
   if (data.clients.length === 0) {
-    return <div className="screen-center muted">אין עדיין לקוחות — הדשבורד יתמלא כשיתווספו לקוחות.</div>;
+    return <div className="screen-center muted">{t.dashboardFillsUp}</div>;
   }
 
   const nextFollowUp = followUps[0]?.next_scheduled_for;
@@ -146,13 +148,13 @@ export function Overview({ onSelectClient }: Props) {
     <div className="overview">
       <div className="stat-row">
         <div className="card stat-tile">
-          <span className="stat-label">לקוחות</span>
+          <span className="stat-label">{t.clientsLabel}</span>
           <span className="stat-value">{totals.clients}</span>
-          <span className="stat-context">{`${totals.complete} הושלמו · ${totals.pending} בתהליך`}</span>
+          <span className="stat-context">{t.completeAndPending(totals.complete, totals.pending)}</span>
         </div>
 
         <div className="card stat-tile">
-          <span className="stat-label">מסמכים שנאספו</span>
+          <span className="stat-label">{t.docsCollectedLabel}</span>
           <span className="stat-value">
             {totals.docsTotal === 0 ? '—' : `${totals.docsCollected} / ${totals.docsTotal}`}
           </span>
@@ -165,52 +167,52 @@ export function Overview({ onSelectClient }: Props) {
             </div>
           )}
           <span className="stat-context">
-            {totals.docsTotal === 0 ? 'לא הוגדרו מסמכים' : docsMissing === 0 ? 'הכול נאסף' : `${docsMissing} חסרים`}
+            {totals.docsTotal === 0 ? t.noDocsDefined : docsMissing === 0 ? t.allCollected : t.nMissing(docsMissing)}
           </span>
         </div>
 
         <div className="card stat-tile">
-          <span className="stat-label">הודעות שהוחלפו</span>
+          <span className="stat-label">{t.messagesExchangedLabel}</span>
           <span className="stat-value">{totals.sent + totals.received}</span>
           <span className="stat-context">
             {totals.sent + totals.received === 0
-              ? 'אין עדיין מיילים'
-              : `${totals.sent} נשלחו · ${totals.received} התקבלו · ${data.filesTotal} קבצים`}
+              ? t.noEmailsYet
+              : t.sentReceivedFiles(totals.sent, totals.received, data.filesTotal)}
           </span>
         </div>
 
         <div className="card stat-tile">
-          <span className="stat-label">מעקבים מתוזמנים</span>
+          <span className="stat-label">{t.scheduledFollowUpsLabel}</span>
           <span className="stat-value">{followUps.length}</span>
           <span className="stat-context">
             {nextFollowUp
-              ? `הקרוב: ${new Date(nextFollowUp).toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })}`
-              : 'אין מעקבים מתוזמנים'}
+              ? t.nextAt(new Date(nextFollowUp).toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' }))
+              : t.noScheduledFollowUps}
           </span>
         </div>
       </div>
 
       <div className="chart-grid">
-        <ChartCard title="פעילות מיילים" subtitle={`כל הלקוחות · ${WEEKS} השבועות האחרונים`} span={2}>
+        <ChartCard title={t.emailActivity} subtitle={t.allClientsLastWeeks(WEEKS)} span={2}>
           {totals.sent + totals.received > 0 ? (
             <LineChart
-              title="מיילים לפי שבוע, כל הלקוחות"
+              title={t.emailsPerWeekAllClients}
               labels={activity.labels}
               series={[
-                { name: 'נשלחו', color: SERIES.violet, values: activity.sent },
-                { name: 'התקבלו', color: SERIES.cyan, values: activity.received },
+                { name: t.seriesSent, color: SERIES.violet, values: activity.sent },
+                { name: t.seriesReceived, color: SERIES.cyan, values: activity.received },
               ]}
             />
           ) : (
-            <ChartEmpty>אין עדיין מיילים</ChartEmpty>
+            <ChartEmpty>{t.noEmailsYet}</ChartEmpty>
           )}
         </ChartCard>
 
-        <ChartCard title="סטטוס הלקוחות">
-          <DonutChart title="לקוחות לפי סטטוס איסוף" data={statusDonut} centerLabel="לקוחות" />
+        <ChartCard title={t.clientStatus}>
+          <DonutChart title={t.clientsByStatus} data={statusDonut} centerLabel={t.clientsLabel} />
         </ChartCard>
 
-        <ChartCard title="התקדמות לפי לקוח" subtitle="מסמכים שנאספו מתוך המבוקשים" span={2}>
+        <ChartCard title={t.progressByClient} subtitle={t.collectedOfRequested} span={2}>
           <ul className="overview-list">
             {byProgress.map((client) => (
               <li key={client.id}>
@@ -219,12 +221,12 @@ export function Overview({ onSelectClient }: Props) {
                     <span className="overview-row-name">
                       <span
                         className={`status-dot ${client.goal_status}`}
-                        title={client.goal_status === 'complete' ? 'היעד הושלם' : 'איסוף בתהליך'}
+                        title={client.goal_status === 'complete' ? t.goalCompleteTitle : t.goalPendingTitle}
                       />
                       {client.name}
                     </span>
                     <span className="overview-row-value">
-                      {client.docs_total === 0 ? 'ללא מסמכים' : `${client.docs_collected} / ${client.docs_total}`}
+                      {client.docs_total === 0 ? t.noDocuments : `${client.docs_collected} / ${client.docs_total}`}
                     </span>
                   </span>
                   <span className="stat-meter">
@@ -239,7 +241,7 @@ export function Overview({ onSelectClient }: Props) {
           </ul>
         </ChartCard>
 
-        <ChartCard title="דורשים תשומת לב" subtitle={`ללא מענה ${STALE_REPLY_DAYS}+ ימים או ללא מעקב`}>
+        <ChartCard title={t.needsAttention} subtitle={t.attentionSubtitle(STALE_REPLY_DAYS)}>
           {attention.length > 0 ? (
             <ul className="overview-list">
               {attention.map(({ client, reason }) => (
@@ -257,11 +259,11 @@ export function Overview({ onSelectClient }: Props) {
               ))}
             </ul>
           ) : (
-            <ChartEmpty>הכול תקין — אף לקוח לא תקוע</ChartEmpty>
+            <ChartEmpty>{t.allClear}</ChartEmpty>
           )}
         </ChartCard>
 
-        <ChartCard title="המעקבים הקרובים" subtitle="מיילים שהסוכן ישלח אוטומטית" span={3}>
+        <ChartCard title={t.upcomingFollowUps} subtitle={t.upcomingFollowUpsSubtitle} span={3}>
           {followUps.length > 0 ? (
             <ul className="overview-chips">
               {followUps.map((client) => {
@@ -281,7 +283,7 @@ export function Overview({ onSelectClient }: Props) {
               })}
             </ul>
           ) : (
-            <ChartEmpty>אין מעקבים מתוזמנים כרגע</ChartEmpty>
+            <ChartEmpty>{t.noFollowUpsRightNow}</ChartEmpty>
           )}
         </ChartCard>
       </div>

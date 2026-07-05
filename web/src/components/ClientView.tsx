@@ -6,13 +6,14 @@ import { FilesCard } from './FilesCard';
 import { StatTiles } from './StatTiles';
 import { Timeline } from './Timeline';
 import { DashboardCharts } from './charts/DashboardCharts';
+import { useT, type Messages } from '../i18n';
 
 const TABS = [
-  { id: 'conversation', label: 'שיחה' },
-  { id: 'dashboard', label: 'דשבורד' },
-  { id: 'documents', label: 'מסמכים' },
-  { id: 'details', label: 'פרטים' },
-] as const;
+  { id: 'conversation', labelKey: 'tabConversation' },
+  { id: 'dashboard', labelKey: 'tabDashboard' },
+  { id: 'documents', labelKey: 'tabDocuments' },
+  { id: 'details', labelKey: 'tabDetails' },
+] as const satisfies readonly { id: string; labelKey: keyof Messages }[];
 
 type TabId = (typeof TABS)[number]['id'];
 
@@ -21,6 +22,7 @@ type TabId = (typeof TABS)[number]['id'];
 const lastViewedTab = new Map<string, TabId>();
 
 export function ClientView({ clientId, onClientUpdated }: { clientId: string; onClientUpdated: () => Promise<void> }) {
+  const { t } = useT();
   const [client, setClient] = useState<Client | null>(null);
   const [nextScheduled, setNextScheduled] = useState<NextScheduled | null>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
@@ -48,9 +50,9 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
       setFiles(received.files);
       setError(null);
     } catch {
-      setError('טעינת הלקוח נכשלה.');
+      setError(t.clientLoadFailed);
     }
-  }, [clientId]);
+  }, [clientId, t]);
 
   // Goal open with nothing scheduled means the agent is drafting the next email in the
   // background (e.g. right after client creation) — poll fast so it pops in when ready.
@@ -72,11 +74,11 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
   }, [load, drafting]);
 
   if (error) return <div className="error-banner">{error}</div>;
-  if (!client) return <div className="muted">טוען…</div>;
+  if (!client) return <div className="muted">{t.loading}</div>;
 
   return (
     <div className="client-view dashboard">
-      <div className="client-tabs" role="tablist" aria-label="מקטעי לקוח">
+      <div className="client-tabs" role="tablist" aria-label={t.clientSectionsAria}>
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -86,7 +88,7 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
             className={`client-tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => selectTab(tab.id)}
           >
-            {tab.label}
+            {t[tab.labelKey]}
           </button>
         ))}
       </div>

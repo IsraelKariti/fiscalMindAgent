@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api';
+import { useT } from '../i18n';
 
 interface Props {
   onAdded: () => void;
@@ -8,6 +9,7 @@ interface Props {
 
 /** Whitelists a paying accountant's email so they can use the app. */
 export function AddAccountantModal({ onAdded, onClose }: Props) {
+  const { t } = useT();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
       await api.adminAddToWhitelist(email.trim().toLowerCase(), name.trim() || undefined);
       onAdded();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'הוספת רואה החשבון נכשלה.');
+      setError(err instanceof ApiError ? err.message : t.addAccountantFailed);
       setBusy(false);
     }
   };
@@ -29,12 +31,10 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h2>הוספת רואה חשבון</h2>
-        <p className="muted">
-          הוסיפו את כתובת ה־Gmail שאיתה רואה החשבון יתחבר. הגישה נפתחת ברגע ההוספה — אפשר להתחבר מייד.
-        </p>
+        <h2>{t.addAccountantTitle}</h2>
+        <p className="muted">{t.addAccountantLead}</p>
         <label className="field">
-          <span>אימייל Google</span>
+          <span>{t.googleEmail}</span>
           <input
             type="email"
             value={email}
@@ -46,16 +46,16 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
           />
         </label>
         <label className="field">
-          <span>שם (אופציונלי)</span>
+          <span>{t.nameOptional}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
         </label>
         {error && <div className="error-banner">{error}</div>}
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose} disabled={busy}>
-            ביטול
+            {t.cancel}
           </button>
           <button className="btn btn-primary" type="submit" disabled={busy}>
-            {busy ? 'מוסיף…' : 'הוספת רואה חשבון'}
+            {busy ? t.adding : t.addAccountantTitle}
           </button>
         </div>
       </form>

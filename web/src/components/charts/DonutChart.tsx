@@ -1,3 +1,4 @@
+import { useT } from '../../i18n';
 import { ChartTooltip, markCenter, SrTable, useChartBox } from './common';
 
 export interface DonutDatum {
@@ -35,6 +36,7 @@ export function DonutChart({
   data: DonutDatum[];
   centerLabel: string;
 }) {
+  const { t } = useT();
   const { ref, tip, showTip, hideTip } = useChartBox<HTMLDivElement>();
   const slices = data.filter((d) => d.value > 0);
   const total = slices.reduce((sum, d) => sum + d.value, 0);
@@ -112,7 +114,7 @@ export function DonutChart({
       </ul>
       <SrTable
         caption={title}
-        head={['קטגוריה', 'כמות', 'אחוז']}
+        head={[t.srCategory, t.srCount, t.srPercent]}
         rows={slices.map((d) => [d.label, d.value, `${Math.round((d.value / total) * 100)}%`])}
       />
     </div>

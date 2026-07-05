@@ -1,4 +1,5 @@
 import { type KeyboardEvent, type PointerEvent, useState } from 'react';
+import { useT } from '../../i18n';
 import { ChartTooltip, SrTable, SURFACE, useChartBox } from './common';
 
 export interface LineSeries {
@@ -31,6 +32,7 @@ export function LineChart({
   area?: boolean;
   height?: number;
 }) {
+  const { t } = useT();
   const { ref, width, tip, showTip, hideTip } = useChartBox<HTMLDivElement>();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
@@ -179,7 +181,7 @@ export function LineChart({
       )}
       <SrTable
         caption={title}
-        head={['תקופה', ...series.map((s) => s.name)]}
+        head={[t.srPeriod, ...series.map((s) => s.name)]}
         rows={labels.map((label, i) => [label, ...series.map((s) => at(s, i))])}
       />
     </div>

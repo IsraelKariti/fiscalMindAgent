@@ -1,5 +1,12 @@
-/** UI locale for dates and times — the accountant side is Hebrew-first. */
-export const LOCALE = 'he-IL';
+/**
+ * UI locale for dates and times. A live binding kept in sync with the selected
+ * interface language by I18nProvider (Hebrew is the default).
+ */
+export let LOCALE = 'he-IL';
+
+export function setDateLocale(locale: string) {
+  LOCALE = locale;
+}
 
 export function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(LOCALE, {

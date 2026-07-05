@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, type Accountant, type LlmPricing, type WhitelistEntry } from '../api';
-import { formatTimestamp, formatUsd } from '../format';
+import { formatTimestamp, formatUsd, LOCALE } from '../format';
+import { useT } from '../i18n';
 import { AddAccountantModal } from './AddAccountantModal';
 
 interface Props {
@@ -28,6 +29,7 @@ interface AccountantRow {
  * is the entry point into an accountant's own dashboard.
  */
 export function AdminDashboard({ userEmail, onLogout }: Props) {
+  const { t } = useT();
   const [tab, setTab] = useState<AdminTab>(
     () => (sessionStorage.getItem('fm.adminTab') === 'accountants' ? 'accountants' : 'dashboard'),
   );
@@ -55,7 +57,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   }, []);
 
   useEffect(() => {
-    refresh().catch(() => setError('טעינת רואי החשבון נכשלה.'));
+    refresh().catch(() => setError(t.accountantsLoadFailed));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   const rows = useMemo<AccountantRow[] | null>(() => {
@@ -121,7 +124,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       // Full reload so every view refetches under the impersonated identity.
       window.location.reload();
     } catch {
-      setError('הכניסה לחשבון נכשלה.');
+      setError(t.impersonateFailed);
       setBusyEmail(null);
     }
   };
@@ -133,21 +136,21 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       await api.adminAddToWhitelist(row.email, row.name ?? undefined);
       await refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'הפעלת החשבון נכשלה.');
+      setError(err instanceof ApiError ? err.message : t.activateFailed);
     } finally {
       setBusyEmail(null);
     }
   };
 
   const revoke = async (row: AccountantRow) => {
-    if (!window.confirm(`לבטל את הגישה של ${row.email}? הניתוק ייכנס לתוקף מייד.`)) return;
+    if (!window.confirm(t.revokeConfirm(row.email))) return;
     setBusyEmail(row.email);
     setError(null);
     try {
       await api.adminRemoveFromWhitelist(row.email);
       await refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'ביטול הגישה נכשל.');
+      setError(err instanceof ApiError ? err.message : t.revokeFailed);
     } finally {
       setBusyEmail(null);
     }
@@ -174,7 +177,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             </span>
             <span className="token-op muted">=</span>
             <span className="token-count muted" dir="ltr">
-              {count.toLocaleString('he-IL')}
+              {count.toLocaleString(LOCALE)}
             </span>
             <span className="token-op muted">×</span>
             <span className="token-price muted" dir="ltr">
@@ -184,7 +187,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
         ) : (
           <>
             <span className="token-cost" dir="ltr">
-              {count > 0 ? count.toLocaleString('he-IL') : <span className="muted">—</span>}
+              {count > 0 ? count.toLocaleString(LOCALE) : <span className="muted">—</span>}
             </span>
             <span />
             <span />
@@ -199,16 +202,16 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   const statusBadge = (row: AccountantRow) => {
     if (!row.whitelisted) {
       return (
-        <span className="badge badge-pending" title="התחברו עם Google אבל אינם ברשימת ההיתרים — הם רואים רק את מסך הפנייה למנהל.">
-          ללא גישה
+        <span className="badge badge-pending" title={t.noAccessTitle}>
+          {t.noAccessBadge}
         </span>
       );
     }
     return row.user ? (
-      <span className="badge badge-success">פעיל</span>
+      <span className="badge badge-success">{t.activeBadge}</span>
     ) : (
-      <span className="badge badge-neutral" title="ברשימת ההיתרים אך טרם התחברו.">
-        הוזמן
+      <span className="badge badge-neutral" title={t.invitedTitle}>
+        {t.invitedBadge}
       </span>
     );
   };
@@ -217,14 +220,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     <div className="admin-shell">
       <header className="admin-topbar">
         <div className="brand">
-          <img className="brand-mark" src="/logo.png" alt="הלוגו של FiscalMind" />
+          <img className="brand-mark" src="/logo.png" alt={t.logoAlt} />
           <span>FiscalMind</span>
-          <span className="badge badge-neutral">מנהל</span>
+          <span className="badge badge-neutral">{t.adminBadge}</span>
         </div>
-        <div className="admin-topbar-account" title="חשבון Google שאיתו התחברתם">
+        <div className="admin-topbar-account" title={t.googleAccountTitle}>
           <span className="muted">{userEmail ?? '…'}</span>
           <button className="btn btn-ghost btn-small" onClick={onLogout}>
-            התנתקות
+            {t.logout}
           </button>
         </div>
       </header>
@@ -237,7 +240,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             aria-selected={tab === 'dashboard'}
             onClick={() => selectTab('dashboard')}
           >
-            דשבורד
+            {t.tabDashboard}
           </button>
           <button
             className={`client-tab ${tab === 'accountants' ? 'active' : ''}`}
@@ -245,38 +248,40 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             aria-selected={tab === 'accountants'}
             onClick={() => selectTab('accountants')}
           >
-            רואי חשבון
+            {t.accountantsLabel}
           </button>
         </nav>
 
         {error && <div className="error-banner">{error}</div>}
-        {!rows && !error && <div className="muted">טוען…</div>}
+        {!rows && !error && <div className="muted">{t.loading}</div>}
 
         {tab === 'dashboard' && rows && accountants && totals && (
           <div className="stat-row">
             <div className="card stat-tile">
-              <span className="stat-label">רואי חשבון</span>
+              <span className="stat-label">{t.accountantsLabel}</span>
               <span className="stat-value">{accountants.length}</span>
               <span className="stat-context">
-                {accountants.filter((a) => a.mailbox).length} עם תיבת סוכן
+                {t.withAgentMailbox(accountants.filter((a) => a.mailbox).length)}
               </span>
             </div>
             <div className="card stat-tile">
-              <span className="stat-label">לקוחות</span>
+              <span className="stat-label">{t.clientsLabel}</span>
               <span className="stat-value">{totals.clients}</span>
-              <span className="stat-context">בכל רואי החשבון</span>
+              <span className="stat-context">{t.acrossAllAccountants}</span>
             </div>
             <div className="card stat-tile">
-              <span className="stat-label">לקוחות שהושלמו</span>
+              <span className="stat-label">{t.clientsCompleteLabel}</span>
               <span className="stat-value">
                 {totals.clients === 0 ? '—' : `${totals.clientsComplete} / ${totals.clients}`}
               </span>
               <span className="stat-context">
-                {totals.clients === 0 ? 'אין עדיין לקוחות' : `${totals.clients - totals.clientsComplete} עדיין בתהליך`}
+                {totals.clients === 0
+                  ? t.sidebarNoClients
+                  : t.stillInProgress(totals.clients - totals.clientsComplete)}
               </span>
             </div>
             <div className="card stat-tile">
-              <span className="stat-label">מסמכים שנאספו</span>
+              <span className="stat-label">{t.docsCollectedLabel}</span>
               <span className="stat-value">{totals.docs === 0 ? '—' : `${totals.docsCollected} / ${totals.docs}`}</span>
               {totals.docs > 0 && (
                 <div className="stat-meter">
@@ -287,7 +292,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                 </div>
               )}
               <span className="stat-context">
-                {totals.docs === 0 ? 'עדיין לא התבקשו מסמכים' : `${totals.docs - totals.docsCollected} חסרים`}
+                {totals.docs === 0 ? t.noDocsRequestedYet : t.nMissing(totals.docs - totals.docsCollected)}
               </span>
             </div>
           </div>
@@ -298,19 +303,17 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             <section className="card admin-split-list">
               <div className="card-header">
                 <div>
-                  <h2>רואי חשבון</h2>
+                  <h2>{t.accountantsLabel}</h2>
                   <span className="badge badge-neutral">
-                    {rows.length === 1 ? 'חשבון אחד' : `${rows.length} חשבונות`}
+                    {rows.length === 1 ? t.oneAccount : t.nAccounts(rows.length)}
                   </span>
                 </div>
                 <button className="btn btn-primary" onClick={() => setAdding(true)}>
-                  + הוספה
+                  {t.addShort}
                 </button>
               </div>
               {rows.length === 0 ? (
-                <div className="muted">
-                  אין עדיין רואי חשבון — הוסיפו כתובת Gmail של לקוח משלם כדי לתת לו גישה.
-                </div>
+                <div className="muted">{t.noAccountantsYet}</div>
               ) : (
                 <ul className="admin-accountant-list">
                   {rows.map((row) => (
@@ -335,7 +338,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
 
             <section className="card admin-split-detail">
               {!selected ? (
-                <div className="muted">בחרו רואה חשבון מהרשימה כדי לראות את הפרטים שלו.</div>
+                <div className="muted">{t.selectAccountant}</div>
               ) : (
                 <>
                   <div className="card-header">
@@ -350,7 +353,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                           disabled={busyEmail !== null}
                           onClick={() => impersonate(selected)}
                         >
-                          {busyEmail === selected.email ? 'רק רגע…' : 'כניסה לחשבון'}
+                          {busyEmail === selected.email ? t.justAMoment : t.enterAccount}
                         </button>
                       )}
                       {selected.whitelisted ? (
@@ -359,7 +362,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                           disabled={busyEmail !== null}
                           onClick={() => revoke(selected)}
                         >
-                          ביטול גישה
+                          {t.revokeAccess}
                         </button>
                       ) : (
                         <button
@@ -367,53 +370,53 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                           disabled={busyEmail !== null}
                           onClick={() => activate(selected)}
                         >
-                          הפעלה
+                          {t.activate}
                         </button>
                       )}
                     </span>
                   </div>
                   <dl className="detail-grid">
                     <div>
-                      <dt>אימייל</dt>
+                      <dt>{t.emailLabel}</dt>
                       <dd dir="ltr">{selected.email}</dd>
                     </div>
                     <div>
-                      <dt>תיבת הסוכן</dt>
+                      <dt>{t.agentMailbox}</dt>
                       <dd>
                         {selected.user?.mailbox ?? (
-                          <span className="muted">{selected.user ? 'לא הוגדרה' : '—'}</span>
+                          <span className="muted">{selected.user ? t.mailboxNotSet : '—'}</span>
                         )}
                       </dd>
                     </div>
                     <div>
-                      <dt>הצטרפות</dt>
+                      <dt>{t.joinedLabel}</dt>
                       <dd>
                         {selected.user ? (
                           formatTimestamp(selected.user.createdAt)
                         ) : (
-                          <span className="muted">טרם התחברו</span>
+                          <span className="muted">{t.notSignedInYet}</span>
                         )}
                       </dd>
                     </div>
                     <div>
-                      <dt>לקוחות שהושלמו</dt>
+                      <dt>{t.clientsCompleteLabel}</dt>
                       <dd>
                         {!selected.user || selected.user.clientCount === 0 ? (
-                          <span className="muted">{selected.user ? 'אין לקוחות' : '—'}</span>
+                          <span className="muted">{selected.user ? t.noClients : '—'}</span>
                         ) : (
                           `${selected.user.clientsComplete} / ${selected.user.clientCount}`
                         )}
                       </dd>
                     </div>
                     <div className="detail-wide">
-                      <dt>מסמכים שנאספו</dt>
+                      <dt>{t.docsCollectedLabel}</dt>
                       <dd>
                         {!selected.user || selected.user.docsTotal === 0 ? (
                           <span className="muted">—</span>
                         ) : (
                           <span
                             className="table-meter"
-                            title={`נאספו ${selected.user.docsCollected} מתוך ${selected.user.docsTotal} מסמכים`}
+                            title={t.collectedOfTitle(selected.user.docsCollected, selected.user.docsTotal)}
                           >
                             <span className="stat-meter table-meter-track">
                               <span
@@ -432,10 +435,10 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                     </div>
                   </dl>
                   <div className="token-breakdown">
-                    {tokenRow('טוקני קלט', selected.user?.llmInputTokens, pricing?.inputCostPerToken)}
-                    {tokenRow('טוקני פלט', selected.user?.llmOutputTokens, pricing?.outputCostPerToken)}
-                    {tokenRow('טוקני חשיבה', selected.user?.llmThinkingTokens, pricing?.thinkingCostPerToken)}
-                    <span className="token-label">עלות כוללת</span>
+                    {tokenRow(t.inputTokens, selected.user?.llmInputTokens, pricing?.inputCostPerToken)}
+                    {tokenRow(t.outputTokens, selected.user?.llmOutputTokens, pricing?.outputCostPerToken)}
+                    {tokenRow(t.thinkingTokens, selected.user?.llmThinkingTokens, pricing?.thinkingCostPerToken)}
+                    <span className="token-label">{t.totalCost}</span>
                     <span className="token-cost token-total" dir="ltr">
                       {selectedCost !== null && selectedCost > 0 ? (
                         formatUsd(selectedCost)
@@ -444,10 +447,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                       )}
                     </span>
                   </div>
-                  <p className="muted admin-detail-note">
-                    רק רואי חשבון ברשימת ההיתרים יכולים להשתמש באפליקציה. "כניסה לחשבון" פותחת את הדשבורד
-                    שלהם בדיוק כפי שהם רואים אותו — ובזמן הכניסה, כל פעולה שלכם חלה על החשבון שלהם.
-                  </p>
+                  <p className="muted admin-detail-note">{t.adminDetailNote}</p>
                 </>
               )}
             </section>
@@ -460,7 +460,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
           onClose={() => setAdding(false)}
           onAdded={() => {
             setAdding(false);
-            refresh().catch(() => setError('רענון רשימת רואי החשבון נכשל.'));
+            refresh().catch(() => setError(t.accountantsRefreshFailed));
           }}
         />
       )}

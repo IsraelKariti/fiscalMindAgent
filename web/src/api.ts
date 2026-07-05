@@ -25,6 +25,19 @@ export interface ClientDocument {
   updated_at: string;
 }
 
+export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported';
+
+/** Gemini's verdict from reading the file's actual contents at ingestion. */
+export interface FileAnalysis {
+  document_kind: string;
+  summary: string;
+  tax_year: string | null;
+  subject_name: string | null;
+  matched_document_id: string | null;
+  legible: boolean;
+  confidence: 'high' | 'medium' | 'low';
+}
+
 export interface DocumentFile {
   id: string;
   client_id: string;
@@ -33,6 +46,9 @@ export interface DocumentFile {
   filename: string;
   content_type: string;
   size_bytes: string;
+  analysis_status: FileAnalysisStatus;
+  analysis: FileAnalysis | null;
+  analyzed_at: string | null;
   created_at: string;
 }
 

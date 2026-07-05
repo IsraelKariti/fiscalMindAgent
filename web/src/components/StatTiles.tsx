@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { ClientDocument, Email, GoalStatus, NextScheduled } from '../api';
 import { daysSince, LOCALE } from '../format';
+import { useT } from '../i18n';
 
 interface Props {
   documents: ClientDocument[];
@@ -12,6 +13,7 @@ interface Props {
 const STALE_REPLY_DAYS = 7;
 
 export function StatTiles({ documents, emails, nextScheduled, goalStatus }: Props) {
+  const { t } = useT();
   const stats = useMemo(() => {
     const collected = documents.filter((d) => d.status === 'collected').length;
     const total = documents.length;
@@ -36,7 +38,7 @@ export function StatTiles({ documents, emails, nextScheduled, goalStatus }: Prop
   return (
     <div className="stat-row">
       <div className="card stat-tile">
-        <span className="stat-label">מסמכים שנאספו</span>
+        <span className="stat-label">{t.docsCollectedLabel}</span>
         <span className="stat-value">{stats.total === 0 ? '—' : `${stats.collected} / ${stats.total}`}</span>
         {stats.total > 0 && (
           <div className="stat-meter">
@@ -48,42 +50,42 @@ export function StatTiles({ documents, emails, nextScheduled, goalStatus }: Prop
         )}
         <span className="stat-context">
           {stats.total === 0
-            ? 'לא הוגדרו מסמכים'
+            ? t.noDocsDefined
             : stats.collected === stats.total
-              ? 'הכול נאסף'
-              : `${stats.total - stats.collected} חסרים`}
+              ? t.allCollected
+              : t.nMissing(stats.total - stats.collected)}
         </span>
       </div>
 
       <div className="card stat-tile">
-        <span className="stat-label">הודעות שהוחלפו</span>
+        <span className="stat-label">{t.messagesExchangedLabel}</span>
         <span className="stat-value">{stats.sent + stats.received}</span>
         <span className="stat-context">
-          {stats.sent + stats.received === 0 ? 'אין עדיין מיילים' : `${stats.sent} נשלחו · ${stats.received} התקבלו`}
+          {stats.sent + stats.received === 0 ? t.noEmailsYet : t.sentReceived(stats.sent, stats.received)}
         </span>
       </div>
 
       <div className="card stat-tile">
-        <span className="stat-label">תגובה אחרונה מהלקוח</span>
+        <span className="stat-label">{t.lastClientReply}</span>
         <span className="stat-value">
           {stats.replyDays === null
             ? '—'
             : stats.replyDays === 0
-              ? 'היום'
+              ? t.today
               : stats.replyDays === 1
-                ? 'אתמול'
-                : `לפני ${stats.replyDays} ימים`}
+                ? t.yesterday
+                : t.daysAgo(stats.replyDays)}
         </span>
         <span className="stat-context">
           {stats.lastReplyAt === null ? (
-            'אין עדיין תגובות'
+            t.noRepliesYet
           ) : (
             <>
               {new Date(stats.lastReplyAt).toLocaleDateString(LOCALE, { dateStyle: 'medium' })}
               {stats.replyDays !== null && stats.replyDays >= STALE_REPLY_DAYS && (
                 <span className="stat-flag">
                   <span className="stat-flag-dot" />
-                  ללא מענה
+                  {t.noReplyFlag}
                 </span>
               )}
             </>
@@ -92,20 +94,20 @@ export function StatTiles({ documents, emails, nextScheduled, goalStatus }: Prop
       </div>
 
       <div className="card stat-tile">
-        <span className="stat-label">המעקב הבא</span>
+        <span className="stat-label">{t.nextFollowUpLabel}</span>
         <span className="stat-value">
           {followUpDate
             ? followUpDate.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })
             : goalStatus === 'complete'
-              ? 'הושלם'
+              ? t.doneLabel
               : '—'}
         </span>
         <span className="stat-context">
           {followUpDate
-            ? `בשעה ${followUpDate.toLocaleTimeString(LOCALE, { timeStyle: 'short' })}`
+            ? t.atTime(followUpDate.toLocaleTimeString(LOCALE, { timeStyle: 'short' }))
             : goalStatus === 'complete'
-              ? 'אין מעקבים נוספים'
-              : 'לא מתוכנן'}
+              ? t.noFurtherFollowUps
+              : t.notScheduled}
         </span>
       </div>
     </div>

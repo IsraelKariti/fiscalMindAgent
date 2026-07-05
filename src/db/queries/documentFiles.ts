@@ -1,5 +1,5 @@
 import { pool } from '../pool.js';
-import type { DocumentFileRow } from '../types.js';
+import type { DocumentFileRow, FileAnalysis, FileAnalysisStatus } from '../types.js';
 
 export async function listForClient(clientId: string): Promise<DocumentFileRow[]> {
   const { rows } = await pool.query<DocumentFileRow>(
@@ -45,6 +45,14 @@ export async function insertIfNew(args: {
     ],
   );
   return rows[0] ?? null;
+}
+
+/** Stores the content-analysis verdict for a file (analysis is null unless status is 'done'). */
+export async function setAnalysis(id: string, status: FileAnalysisStatus, analysis: FileAnalysis | null): Promise<void> {
+  await pool.query(
+    `UPDATE document_files SET analysis_status = $2, analysis = $3, analyzed_at = now() WHERE id = $1`,
+    [id, status, analysis === null ? null : JSON.stringify(analysis)],
+  );
 }
 
 /** Records which required document a file satisfies (no-op if the file isn't the client's). */

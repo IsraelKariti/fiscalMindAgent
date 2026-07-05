@@ -56,6 +56,19 @@ export interface ClientDocumentRow {
   updated_at: Date;
 }
 
+export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported';
+
+/** Gemini's verdict from reading the file's actual contents (FileAnalysisSchema in gemini/analyzeFile.ts). */
+export interface FileAnalysis {
+  document_kind: string;
+  summary: string;
+  tax_year: string | null;
+  subject_name: string | null;
+  matched_document_id: string | null;
+  legible: boolean;
+  confidence: 'high' | 'medium' | 'low';
+}
+
 /** A file received from the client; bytes live in Azure Blob Storage under blob_key. */
 export interface DocumentFileRow {
   id: string;
@@ -68,6 +81,9 @@ export interface DocumentFileRow {
   content_type: string;
   size_bytes: string; // BIGINT comes back from pg as a string
   sha256: string;
+  analysis_status: FileAnalysisStatus;
+  analysis: FileAnalysis | null;
+  analyzed_at: Date | null;
   created_at: Date;
 }
 

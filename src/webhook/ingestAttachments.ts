@@ -1,8 +1,13 @@
 import { createHash } from 'node:crypto';
+import * as clients from '../db/queries/clients.js';
+import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
+import * as users from '../db/queries/users.js';
+import { analyzeFile, isAnalyzable } from '../gemini/analyzeFile.js';
 import { uploadBlob } from '../storage/blob.js';
 import { resend } from '../resend/client.js';
 import { logger } from '../util/logger.js';
+import type { DocumentFileRow } from '../db/types.js';
 
 /** Attachment metadata as embedded in the Resend receiving GET response. */
 export interface InboundAttachmentMeta {
@@ -68,10 +73,49 @@ export async function ingestAttachments(
       if (inserted) {
         stored += 1;
         logger.info('stored inbound attachment', { clientId, fileId: inserted.id, filename, size: body.length });
+        await analyzeStoredFile(clientId, inserted, body);
       }
     } catch (err) {
       logger.error('failed to ingest attachment', err, { clientId, resendEmailId, attachmentId: att.id });
     }
   }
   return stored;
+}
+
+/**
+ * Reads the file's actual contents with Gemini and stores the verdict on the
+ * row, so the decision loop judges receipt from content rather than filename.
+ * Failures only mark the row 'failed' — the file itself is already stored and
+ * the decision prompt treats missing analysis as "judge from context".
+ */
+async function analyzeStoredFile(clientId: string, file: DocumentFileRow, body: Buffer): Promise<void> {
+  if (!isAnalyzable(file.content_type, body.length)) {
+    await documentFiles.setAnalysis(file.id, 'unsupported', null);
+    logger.info('attachment not analyzable, skipping content analysis', {
+      clientId,
+      fileId: file.id,
+      contentType: file.content_type,
+      size: body.length,
+    });
+    return;
+  }
+  try {
+    const requiredDocuments = await clientDocuments.listForClient(clientId);
+    const { analysis, usage } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments);
+    await documentFiles.setAnalysis(file.id, 'done', analysis);
+    const client = await clients.getById(clientId);
+    if (client?.user_id) {
+      await users.addLlmTokens(client.user_id, usage);
+    }
+    logger.info('attachment content analyzed', {
+      clientId,
+      fileId: file.id,
+      documentKind: analysis.document_kind,
+      matchedDocumentId: analysis.matched_document_id,
+      confidence: analysis.confidence,
+    });
+  } catch (err) {
+    await documentFiles.setAnalysis(file.id, 'failed', null).catch(() => {});
+    logger.error('attachment content analysis failed', err, { clientId, fileId: file.id });
+  }
 }

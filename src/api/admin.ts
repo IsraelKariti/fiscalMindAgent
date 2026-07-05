@@ -2,6 +2,7 @@ import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
+import { getLlmPricing } from '../gemini/pricing.js';
 import { logger } from '../util/logger.js';
 import { clearImpersonationCookie, isAdminEmail, setImpersonationCookie } from './auth.js';
 
@@ -33,12 +34,14 @@ export const requireAdmin: RequestHandler = async (req, res, next) => {
 
 /**
  * GET /api/admin/accountants — every accountant with their collection progress,
- * for the admin dashboard. Admin accounts (ADMIN_EMAILS) are not accountants and
- * are excluded.
+ * for the admin dashboard, plus the current Gemini token prices (null while the
+ * pricing registry is unreachable). Admin accounts (ADMIN_EMAILS) are not
+ * accountants and are excluded.
  */
 export const adminListAccountants: RequestHandler = async (_req, res) => {
-  const list = await users.listAll();
+  const [list, pricing] = await Promise.all([users.listAll(), getLlmPricing()]);
   res.json({
+    pricing,
     accountants: list
       .filter((u) => !isAdminEmail(u.email))
       .map((u) => ({

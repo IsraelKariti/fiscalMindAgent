@@ -127,6 +127,14 @@ export interface Accountant {
   llmThinkingTokens: number;
 }
 
+/** USD per single token for the Gemini model the agent runs on (multiply by 1e6 for the per-1M rate). */
+export interface LlmPricing {
+  model: string;
+  inputCostPerToken: number;
+  outputCostPerToken: number;
+  thinkingCostPerToken: number;
+}
+
 export interface WhitelistEntry {
   email: string;
   name: string | null;
@@ -191,7 +199,8 @@ export const api = {
   listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),
   listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),
   fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
-  adminListAccountants: () => request<{ accountants: Accountant[] }>('/api/admin/accountants'),
+  adminListAccountants: () =>
+    request<{ accountants: Accountant[]; pricing: LlmPricing | null }>('/api/admin/accountants'),
   adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/api/admin/whitelist'),
   adminAddToWhitelist: (email: string, name?: string) =>
     request<{ entry: WhitelistEntry }>('/api/admin/whitelist', {

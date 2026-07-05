@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, ApiError, type Accountant, type WhitelistEntry } from '../api';
-import { formatTimestamp } from '../format';
+import { api, ApiError, type Accountant, type LlmPricing, type WhitelistEntry } from '../api';
+import { formatTimestamp, formatUsd } from '../format';
 import { AddAccountantModal } from './AddAccountantModal';
 
 interface Props {
@@ -32,6 +32,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     () => (sessionStorage.getItem('fm.adminTab') === 'accountants' ? 'accountants' : 'dashboard'),
   );
   const [accountants, setAccountants] = useState<Accountant[] | null>(null);
+  const [pricing, setPricing] = useState<LlmPricing | null>(null);
   const [whitelist, setWhitelist] = useState<WhitelistEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyEmail, setBusyEmail] = useState<string | null>(null);
@@ -44,11 +45,12 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   };
 
   const refresh = useCallback(async () => {
-    const [{ accountants: users }, { entries }] = await Promise.all([
+    const [{ accountants: users, pricing: prices }, { entries }] = await Promise.all([
       api.adminListAccountants(),
       api.adminListWhitelist(),
     ]);
     setAccountants(users);
+    setPricing(prices);
     setWhitelist(entries);
   }, []);
 
@@ -96,6 +98,20 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     );
   }, [accountants]);
 
+  // Lifetime Gemini spend of one accountant in USD; null while prices haven't loaded.
+  const geminiCost = (a: Accountant | null | undefined): number | null =>
+    pricing && a
+      ? a.llmInputTokens * pricing.inputCostPerToken +
+        a.llmOutputTokens * pricing.outputCostPerToken +
+        a.llmThinkingTokens * pricing.thinkingCostPerToken
+      : null;
+
+  // Full-precision USD price of a single token (e.g. $0.0000003) — the regular
+  // currency formatter would round it away.
+  const perToken = (costPerToken: number) => `$${costPerToken.toFixed(12).replace(/0+$/, '')}`;
+
+  const selectedCost = geminiCost(selected?.user);
+
   const impersonate = async (row: AccountantRow) => {
     if (!row.user) return;
     setBusyEmail(row.email);
@@ -137,9 +153,25 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     }
   };
 
-  // Accumulated Gemini tokens; a count of zero (or no account yet) shows as a dash.
-  const tokenCell = (value: number | undefined) =>
-    value ? <span dir="ltr">{value.toLocaleString('he-IL')}</span> : <span className="muted">—</span>;
+  // One token category as "price-per-token × tokens = cost"; a count of zero (or
+  // no account yet) shows as a dash, and the bare count while prices are unavailable.
+  const tokenCell = (value: number | undefined, costPerToken: number | undefined) =>
+    value ? (
+      <span dir="ltr">
+        {costPerToken === undefined ? (
+          value.toLocaleString('he-IL')
+        ) : (
+          <>
+            <span className="muted">
+              {perToken(costPerToken)} × {value.toLocaleString('he-IL')} =
+            </span>{' '}
+            {formatUsd(value * costPerToken)}
+          </>
+        )}
+      </span>
+    ) : (
+      <span className="muted">—</span>
+    );
 
   const statusBadge = (row: AccountantRow) => {
     if (!row.whitelisted) {
@@ -377,15 +409,25 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                     </div>
                     <div>
                       <dt>טוקני קלט</dt>
-                      <dd>{tokenCell(selected.user?.llmInputTokens)}</dd>
+                      <dd>{tokenCell(selected.user?.llmInputTokens, pricing?.inputCostPerToken)}</dd>
                     </div>
                     <div>
                       <dt>טוקני פלט</dt>
-                      <dd>{tokenCell(selected.user?.llmOutputTokens)}</dd>
+                      <dd>{tokenCell(selected.user?.llmOutputTokens, pricing?.outputCostPerToken)}</dd>
                     </div>
                     <div>
                       <dt>טוקני חשיבה</dt>
-                      <dd>{tokenCell(selected.user?.llmThinkingTokens)}</dd>
+                      <dd>{tokenCell(selected.user?.llmThinkingTokens, pricing?.thinkingCostPerToken)}</dd>
+                    </div>
+                    <div>
+                      <dt>עלות כוללת</dt>
+                      <dd>
+                        {selectedCost !== null && selectedCost > 0 ? (
+                          <span dir="ltr">{formatUsd(selectedCost)}</span>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </dd>
                     </div>
                   </dl>
                   <p className="muted admin-detail-note">

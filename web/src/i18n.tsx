@@ -106,6 +106,7 @@ const he = {
 
   // Timeline
   conversationTimeline: 'ציר הזמן של השיחה',
+  copyConversation: 'העתקת השיחה',
   oneMessage: 'הודעה אחת',
   nMessages: (n: number) => `${n} הודעות`,
   noEmailsExchangedYet: 'עדיין לא הוחלפו מיילים.',
@@ -406,6 +407,7 @@ const en: Messages = {
 
   // Timeline
   conversationTimeline: 'Conversation timeline',
+  copyConversation: 'Copy conversation',
   oneMessage: '1 message',
   nMessages: (n: number) => `${n} messages`,
   noEmailsExchangedYet: 'No emails exchanged yet.',
@@ -705,6 +707,7 @@ const ru: Messages = {
 
   // Timeline
   conversationTimeline: 'Хронология переписки',
+  copyConversation: 'Скопировать переписку',
   oneMessage: '1 сообщение',
   nMessages: (n: number) => `${n} ${ruPlural(n, 'сообщение', 'сообщения', 'сообщений')}`,
   noEmailsExchangedYet: 'Писем пока не было.',

@@ -2100,6 +2100,12 @@ button.meta-chip:hover {
   font-size: 14px;
 }
 
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .panel-body {
   flex: 1;
   min-height: 0;

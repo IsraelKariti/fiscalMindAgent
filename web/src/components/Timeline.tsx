@@ -1,7 +1,21 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Email, GoalStatus, NextScheduled } from '../api';
 import { formatTimestamp } from '../format';
 import { useT } from '../i18n';
+
+const icon = {
+  copy: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  ),
+  check: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  ),
+};
 
 export function Timeline({
   emails,
@@ -13,6 +27,8 @@ export function Timeline({
   goalStatus: GoalStatus;
 }) {
   const { t } = useT();
+  const [copied, setCopied] = useState(false);
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
   // Whether the user is scrolled near the bottom — sampled on every scroll so the
   // auto-scroll below never yanks someone who is reading older messages.
@@ -40,15 +56,46 @@ export function Timeline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastEmailId, nextScheduled?.scheduledFor]);
 
+  const copyConversation = async () => {
+    const blocks = emails.map((email) => {
+      const author = email.direction === 'outbound' ? t.agentAuthor : t.clientAuthor;
+      return `[${formatTimestamp(email.sent_at ?? email.created_at)}] ${author}\n${email.subject}\n${email.body}`;
+    });
+    if (nextScheduled) {
+      const header = `[${t.willBeSentAt(formatTimestamp(nextScheduled.scheduledFor))}] ${t.agentNotSentYet}`;
+      blocks.push(
+        nextScheduled.subject
+          ? `${header}\n${nextScheduled.subject}\n${nextScheduled.body ?? ''}`
+          : `${header}\n${t.scheduledDraftUnavailable}`,
+      );
+    }
+    await navigator.clipboard.writeText(blocks.join('\n\n'));
+    setCopied(true);
+    clearTimeout(copyResetTimer.current);
+    copyResetTimer.current = setTimeout(() => setCopied(false), 1600);
+  };
+
   return (
     <section className="card panel">
       <div className="panel-header">
         <h3>{t.conversationTimeline}</h3>
-        {emails.length > 0 && (
-          <span className="muted panel-count">
-            {emails.length === 1 ? t.oneMessage : t.nMessages(emails.length)}
-          </span>
-        )}
+        <div className="panel-header-actions">
+          {emails.length > 0 && (
+            <span className="muted panel-count">
+              {emails.length === 1 ? t.oneMessage : t.nMessages(emails.length)}
+            </span>
+          )}
+          {(emails.length > 0 || nextScheduled) && (
+            <button
+              className={`icon-btn ${copied ? 'icon-btn-success' : ''}`}
+              onClick={copyConversation}
+              title={copied ? t.copied : t.copyConversation}
+              aria-label={copied ? t.copied : t.copyConversation}
+            >
+              {copied ? icon.check : icon.copy}
+            </button>
+          )}
+        </div>
       </div>
       <div className="panel-body" ref={bodyRef} onScroll={trackScroll}>
         {emails.length === 0 && !nextScheduled && goalStatus !== 'pending' && (

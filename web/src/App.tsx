@@ -9,6 +9,7 @@ import { DeleteClientModal } from './components/DeleteClientModal';
 import { ClaimMailbox } from './components/ClaimMailbox';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AccessPending } from './components/AccessPending';
+import { LogoutConfirmModal } from './components/LogoutConfirmModal';
 import { Overview } from './components/Overview';
 import { Settings } from './components/Settings';
 
@@ -30,6 +31,7 @@ export function App() {
   const [view, setView] = useState<View>({ kind: 'empty' });
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   // Admins have no agent, clients, or mailbox of their own — they get the platform
   // overview shell instead, and only enter the accountant workspace by impersonating.
@@ -82,6 +84,7 @@ export function App() {
 
   const logout = async () => {
     await api.logout();
+    setConfirmingLogout(false);
     setAuthed(false);
     setUser(null);
     setIsAdmin(false);
@@ -91,9 +94,21 @@ export function App() {
     setView({ kind: 'empty' });
   };
 
+  // The logout buttons only open the confirmation modal; `logout` runs on confirm.
+  const requestLogout = () => setConfirmingLogout(true);
+  const logoutModal = confirmingLogout && (
+    <LogoutConfirmModal onConfirm={logout} onClose={() => setConfirmingLogout(false)} />
+  );
+
   if (!whitelisted) return <AccessPending userEmail={user?.email ?? null} onLogout={logout} />;
 
-  if (adminMode) return <AdminDashboard userEmail={user?.email ?? null} onLogout={logout} />;
+  if (adminMode)
+    return (
+      <>
+        <AdminDashboard userEmail={user?.email ?? null} onLogout={requestLogout} />
+        {logoutModal}
+      </>
+    );
 
   const clientDeleted = (client: Client) => {
     setDeleting(null);
@@ -138,7 +153,7 @@ export function App() {
           userEmail={user?.email ?? null}
           impersonatingEmail={impersonating?.email ?? null}
           onStopImpersonating={stopImpersonating}
-          onLogout={logout}
+          onLogout={requestLogout}
         />
         <main className="main">
           {view.kind === 'overview' && (
@@ -167,6 +182,7 @@ export function App() {
           }}
         />
       )}
+      {logoutModal}
     </div>
   );
 }

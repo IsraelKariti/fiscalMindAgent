@@ -27,6 +27,7 @@ const icon = {
 const LANGUAGES: { value: Lang; label: string }[] = [
   { value: 'he', label: 'עברית' },
   { value: 'en', label: 'English' },
+  { value: 'ru', label: 'Русский' },
 ];
 
 export function Settings({ mailbox, onClaimed }: Props) {

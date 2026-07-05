@@ -1,10 +1,19 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { setDateLocale } from './format';
 
-export type Lang = 'he' | 'en';
+export type Lang = 'he' | 'en' | 'ru';
 
 const STORAGE_KEY = 'fm.lang';
-const DATE_LOCALES: Record<Lang, string> = { he: 'he-IL', en: 'en-US' };
+const DATE_LOCALES: Record<Lang, string> = { he: 'he-IL', en: 'en-US', ru: 'ru-RU' };
+
+/** Russian plural form: one (1, 21…), few (2–4, 22–24…), many (0, 5–20, 25–30…). */
+function ruPlural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
 
 /** Hebrew is the source catalog; `en` must provide the exact same keys. */
 const he = {
@@ -606,10 +615,310 @@ const en: Messages = {
   srPeriod: 'Period',
 };
 
-const CATALOGS: Record<Lang, Messages> = { he, en };
+const ru: Messages = {
+  // Shared
+  loading: 'Загрузка…',
+  cancel: 'Отмена',
+  logoAlt: 'Логотип FiscalMind',
+
+  // App shell
+  connectBanner: 'Выберите адрес электронной почты для агента — клиенты будут переписываться с ним.',
+  noClientsUseAdd: 'Клиентов пока нет — используйте кнопку «+» рядом с «Клиенты» в боковой панели.',
+
+  // Login
+  loginLead: 'Войдите, чтобы управлять агентом по сбору документов.',
+  loginFailed: (reason: string) => `Не удалось войти: ${reason}`,
+  loginWithGoogle: 'Войти через Google',
+
+  // AccessPending
+  accessPendingTitle: 'Ваш аккаунт ещё не активирован',
+  accessPendingLead: 'FiscalMind доступен только платным клиентам. Обратитесь к администратору, чтобы активировать доступ для',
+  accessPendingYourAccount: ' вашего аккаунта',
+  accessPendingTail: '. После активации войдите снова — и ваша панель будет готова.',
+  accessPendingSwitchAccount: 'Войти с другим аккаунтом',
+
+  // Sidebar
+  navDashboard: 'Панель',
+  clientsHeading: 'Клиенты',
+  addClient: 'Добавить клиента',
+  goalCompleteTitle: 'Цель достигнута',
+  goalPendingTitle: 'Сбор в процессе',
+  deleteClientAction: (name: string) => `Удалить ${name}`,
+  sidebarNoClients: 'Клиентов пока нет',
+  adminTools: 'Инструменты администратора',
+  systemPrompt: 'Системный промпт',
+  settings: 'Настройки',
+  impersonationTitle: 'Вы просматриваете панель этого пользователя как администратор',
+  viewingAs: 'Просмотр от имени',
+  exitImpersonation: 'Выйти',
+  googleAccountTitle: 'Аккаунт Google, с которым вы вошли',
+  logout: 'Выйти из системы',
+
+  // LogoutConfirmModal
+  logoutQuestion: 'Выйти из системы?',
+  logoutNote: 'Чтобы вернуться, вам нужно будет снова войти через аккаунт Google.',
+  loggingOut: 'Выход…',
+
+  // ClaimMailbox
+  mailboxRulesHint: '3–30 символов: строчные латинские буквы, цифры и дефисы (не по краям).',
+  mailboxReserved: 'Это имя зарезервировано.',
+  mailboxTaken: 'Это имя уже занято.',
+  mailboxClaimFailed: 'Не удалось закрепить имя. Попробуйте ещё раз.',
+  claiming: 'Закрепление…',
+  claim: 'Закрепить',
+  checking: 'Проверка…',
+  mailboxAvailableTail: ' свободно. Выбор окончательный — изменить его позже нельзя.',
+
+  // Settings
+  settingsTitle: 'Настройки',
+  agentMailbox: 'Почтовый ящик агента',
+  agentMailboxDesc: 'Ящик, с которого агент отправляет и получает письма. Клиенты переписываются с этим адресом.',
+  copied: 'Скопировано!',
+  copyAddress: 'Скопировать адрес',
+  language: 'Язык',
+  languageDesc: 'Язык интерфейса приложения.',
+
+  // ClientView tabs
+  tabConversation: 'Переписка',
+  tabDashboard: 'Панель',
+  tabDocuments: 'Документы',
+  tabDetails: 'Сведения',
+  clientSectionsAria: 'Разделы клиента',
+  clientLoadFailed: 'Не удалось загрузить клиента.',
+
+  // ClientHeader
+  saveFailed: 'Не удалось сохранить.',
+  allDocsReceived: 'Все документы получены',
+  docCollectionInProgress: 'Идёт сбор документов',
+  edit: 'Редактировать',
+  saving: 'Сохранение…',
+  save: 'Сохранить',
+  emailLabel: 'Эл. почта',
+  phoneLabel: 'Телефон',
+  companyLabel: 'Компания',
+  occupationLabel: 'Род занятий',
+  clientSinceLabel: 'Начало сотрудничества',
+  sinceDate: (date: string) => `С ${date}`,
+  notesLabel: 'Заметки',
+  nameLabel: 'Имя',
+  occupationPlaceholder: 'например: инженер-программист',
+
+  // Timeline
+  conversationTimeline: 'Хронология переписки',
+  oneMessage: '1 сообщение',
+  nMessages: (n: number) => `${n} ${ruPlural(n, 'сообщение', 'сообщения', 'сообщений')}`,
+  noEmailsExchangedYet: 'Писем пока не было.',
+  agentAuthor: 'Агент',
+  clientAuthor: 'Клиент',
+  scheduledDivider: 'Запланировано',
+  agentNotSentYet: 'Агент · ещё не отправлено',
+  willBeSentAt: (ts: string) => `Будет отправлено ${ts}`,
+  scheduledDraftUnavailable: 'Запланированное напоминание (черновик недоступен)',
+  draftingEmail: (first: boolean) => `Агент сейчас составляет ${first ? 'первое' : 'следующее'} письмо…`,
+  goalCompleteFooter: 'Цель достигнута — дальнейшие напоминания не запланированы.',
+
+  // StatTiles / shared stats
+  docsCollectedLabel: 'Собранные документы',
+  noDocsDefined: 'Документы не заданы',
+  allCollected: 'Всё собрано',
+  nMissing: (n: number) => `Не хватает: ${n}`,
+  messagesExchangedLabel: 'Обмен сообщениями',
+  noEmailsYet: 'Писем пока нет',
+  sentReceived: (sent: number, received: number) => `${sent} отправлено · ${received} получено`,
+  lastClientReply: 'Последний ответ клиента',
+  today: 'Сегодня',
+  yesterday: 'Вчера',
+  daysAgo: (n: number) => `${n} ${ruPlural(n, 'день', 'дня', 'дней')} назад`,
+  noRepliesYet: 'Ответов пока нет',
+  noReplyFlag: 'Без ответа',
+  nextFollowUpLabel: 'Следующее напоминание',
+  doneLabel: 'Готово',
+  atTime: (time: string) => `в ${time}`,
+  noFurtherFollowUps: 'Дальнейших напоминаний нет',
+  notScheduled: 'Не запланировано',
+
+  // Overview
+  dashboardLoadFailed: 'Не удалось загрузить панель.',
+  dashboardFillsUp: 'Клиентов пока нет — панель заполнится по мере их добавления.',
+  clientsLabel: 'Клиенты',
+  completeAndPending: (complete: number, pending: number) => `${complete} завершено · ${pending} в процессе`,
+  sentReceivedFiles: (sent: number, received: number, files: number) =>
+    `${sent} отправлено · ${received} получено · ${files} ${ruPlural(files, 'файл', 'файла', 'файлов')}`,
+  scheduledFollowUpsLabel: 'Запланированные напоминания',
+  nextAt: (date: string) => `Ближайшее: ${date}`,
+  noScheduledFollowUps: 'Нет запланированных напоминаний',
+  emailActivity: 'Активность почты',
+  allClientsLastWeeks: (weeks: number) => `Все клиенты · последние ${weeks} ${ruPlural(weeks, 'неделя', 'недели', 'недель')}`,
+  emailsPerWeekAllClients: 'Письма по неделям, все клиенты',
+  seriesSent: 'Отправлено',
+  seriesReceived: 'Получено',
+  clientStatus: 'Статус клиентов',
+  clientsByStatus: 'Клиенты по статусу сбора',
+  statusComplete: 'Завершено',
+  statusActive: 'Активный сбор',
+  statusNotStarted: 'Ещё ничего не собрано',
+  progressByClient: 'Прогресс по клиентам',
+  collectedOfRequested: 'Собранные документы из запрошенных',
+  noDocuments: 'Нет документов',
+  needsAttention: 'Требуют внимания',
+  attentionSubtitle: (days: number) => `Без ответа ${days}+ дней или без напоминания`,
+  silentForDays: (n: number) => `Без ответа ${n} ${ruPlural(n, 'день', 'дня', 'дней')}`,
+  neverReplied: 'Ответа ещё не было',
+  noFollowUpScheduled: 'Напоминание не запланировано',
+  allClear: 'Всё в порядке — ни один клиент не застрял',
+  upcomingFollowUps: 'Ближайшие напоминания',
+  upcomingFollowUpsSubtitle: 'Письма, которые агент отправит автоматически',
+  noFollowUpsRightNow: 'Сейчас нет запланированных напоминаний',
+
+  // DocumentsCard
+  requiredDocuments: 'Необходимые документы',
+  collectedBadge: (collected: number, total: number) => `${collected} / ${total} собрано`,
+  docsUpdateFailed: 'Не удалось обновить документы.',
+  noDocsNothingToCollect: 'Документы не заданы — агенту нечего собирать у этого клиента.',
+  markPending: 'Отметить как ожидающий',
+  markCollected: 'Отметить как собранный',
+  collectedStatus: 'Собран',
+  pendingStatus: 'Ожидается',
+  removeDocument: 'Удалить документ',
+  docNamePlaceholder: 'Название документа, например форма 106',
+  docNameAria: 'Название документа',
+  docDescPlaceholder: 'Описание (необязательно, помогает агенту объяснить документ)',
+  docDescAria: 'Описание документа',
+  addDocument: 'Добавить документ',
+
+  // FilesCard
+  filesReceived: 'Полученные файлы',
+  analysisPending: 'Ещё не проанализирован',
+  analysisFailed: 'Анализ не удался',
+  analysisUnsupported: 'Содержимое нельзя проанализировать',
+  analysisIdentified: (kind: string) => `Распознано по содержимому: ${kind}`,
+  analysisTaxYear: (year: string) => `Налоговый год ${year}`,
+  analysisNotLegible: 'Нечитаемо',
+
+  // AddClientModal
+  addClientTitle: 'Добавить клиента',
+  addClientLead:
+    'Агент сам составляет первое письмо и выбирает, когда его отправить. Письмо появится во вкладке переписки как ожидающее отправки, и дальше агент ведёт напоминания, пока не соберёт все документы.',
+  atLeastOneDoc: 'Добавьте хотя бы один документ, который агент будет собирать.',
+  createClientFailed: 'Не удалось создать клиента.',
+  documentsToCollect: 'Документы для сбора',
+  removeNamed: (name: string) => `Удалить ${name}`,
+  egForm106: 'например форма 106',
+  creating: 'Создание…',
+  create: 'Создать',
+
+  // DeleteClientModal
+  deleteClientFailed: 'Не удалось удалить клиента.',
+  deleteQuestionPrefix: 'Удалить ',
+  deleteQuestionSuffix: '?',
+  deleteWarning: 'Письма, документы и файлы клиента тоже будут удалены. Это действие нельзя отменить.',
+  deleting: 'Удаление…',
+  deleteClient: 'Удалить клиента',
+
+  // PromptSettings
+  promptLoadFailed: 'Не удалось загрузить шаблон промпта.',
+  promptSaved: 'Сохранено. Следующий вызов Gemini будет использовать этот шаблон.',
+  promptRestored: 'Восстановлен встроенный шаблон по умолчанию.',
+  resetFailed: 'Не удалось выполнить сброс.',
+  geminiSystemPrompt: 'Системный промпт Gemini',
+  customTemplate: 'Пользовательский шаблон',
+  builtinDefault: 'Встроенный по умолчанию',
+  lastSaved: (ts: string) => `Последнее сохранение: ${ts}`,
+  resetToDefault: 'Сбросить к значению по умолчанию',
+  promptLead:
+    'Этот шаблон становится системной инструкцией при каждом решении Gemini (достигнута ли цель и какое напоминание составить). Плейсхолдеры заполняются для каждого клиента в момент вызова:',
+  appendAtEnd: 'Добавить в конец',
+
+  // AdminDashboard
+  accountantsLoadFailed: 'Не удалось загрузить бухгалтеров.',
+  impersonateFailed: 'Не удалось войти в аккаунт.',
+  activateFailed: 'Не удалось активировать аккаунт.',
+  revokeFailed: 'Не удалось отозвать доступ.',
+  revokeConfirm: (email: string) => `Отозвать доступ для ${email}? Изменение вступит в силу немедленно.`,
+  noAccessBadge: 'Нет доступа',
+  noAccessTitle: 'Вошли через Google, но не входят в список разрешённых — они видят только экран обращения к администратору.',
+  activeBadge: 'Активен',
+  invitedBadge: 'Приглашён',
+  invitedTitle: 'В списке разрешённых, но ещё не входил.',
+  adminBadge: 'Администратор',
+  accountantsLabel: 'Бухгалтеры',
+  withAgentMailbox: (n: number) => `${n} с почтовым ящиком агента`,
+  acrossAllAccountants: 'По всем бухгалтерам',
+  clientsCompleteLabel: 'Завершённые клиенты',
+  stillInProgress: (n: number) => `${n} ещё в процессе`,
+  noDocsRequestedYet: 'Документы ещё не запрашивались',
+  oneAccount: '1 аккаунт',
+  nAccounts: (n: number) => `${n} ${ruPlural(n, 'аккаунт', 'аккаунта', 'аккаунтов')}`,
+  addShort: '+ Добавить',
+  noAccountantsYet: 'Бухгалтеров пока нет — добавьте Gmail-адрес платного клиента, чтобы открыть ему доступ.',
+  selectAccountant: 'Выберите бухгалтера из списка, чтобы увидеть его данные.',
+  justAMoment: 'Секунду…',
+  enterAccount: 'Войти в аккаунт',
+  revokeAccess: 'Отозвать доступ',
+  activate: 'Активировать',
+  mailboxNotSet: 'Не задан',
+  joinedLabel: 'Регистрация',
+  notSignedInYet: 'Ещё не входил',
+  noClients: 'Нет клиентов',
+  collectedOfTitle: (collected: number, total: number) => `Собрано ${collected} из ${total} документов`,
+  inputTokens: 'Входные токены',
+  outputTokens: 'Выходные токены',
+  thinkingTokens: 'Токены размышления',
+  totalCost: 'Общая стоимость',
+  adminDetailNote:
+    'Пользоваться приложением могут только бухгалтеры из списка разрешённых. «Войти в аккаунт» открывает их панель ровно так, как её видят они, — и пока вы внутри, каждое ваше действие применяется к их аккаунту.',
+  accountantsRefreshFailed: 'Не удалось обновить список бухгалтеров.',
+
+  // AddAccountantModal
+  addAccountantTitle: 'Добавить бухгалтера',
+  addAccountantLead:
+    'Добавьте Gmail-адрес, с которым бухгалтер будет входить. Доступ открывается сразу после добавления — войти можно немедленно.',
+  googleEmail: 'Google-адрес',
+  nameOptional: 'Имя (необязательно)',
+  addAccountantFailed: 'Не удалось добавить бухгалтера.',
+  adding: 'Добавление…',
+
+  // Charts
+  filePdf: 'PDF-файлы',
+  fileImages: 'Изображения',
+  fileSheets: 'Таблицы',
+  fileDocs: 'Документы',
+  fileOther: 'Прочее',
+  removedDocument: 'Удалённый документ',
+  otherDocuments: 'Другие документы',
+  unlinkedToRequest: 'Не привязан к запросу',
+  nodeRequested: 'Запрошено',
+  nodeCollected: 'Собрано',
+  nodeMissing: 'Не хватает',
+  nodeViaAttachment: 'Вложением в письмо',
+  nodeMarkedManually: 'Отмечено вручную',
+  nodeFollowUpScheduled: 'Напоминание запланировано',
+  nodeAwaitingClient: 'Ожидание клиента',
+  perWeekLastN: (weeks: number) => `По неделям · последние ${weeks} ${ruPlural(weeks, 'неделя', 'недели', 'недель')}`,
+  emailsPerWeek: 'Письма по неделям',
+  filesByType: 'Файлы по типу',
+  filesCenterLabel: 'Файлы',
+  noFilesYet: 'Файлы ещё не поступали',
+  documentJourney: 'Путь документов',
+  documentJourneySubtitle: 'Как продвигаются запрошенные документы',
+  documentsUnit: 'документы',
+  filesByRequest: 'Файлы по запросу',
+  filesByRequestedDoc: 'Файлы по запрошенному документу',
+  cumulativeLastN: (weeks: number) => `Накопительно · последние ${weeks} ${ruPlural(weeks, 'неделя', 'недели', 'недель')}`,
+  filesOverTime: 'Полученные файлы во времени',
+  srFrom: 'Откуда',
+  srTo: 'Куда',
+  srCategory: 'Категория',
+  srCount: 'Количество',
+  srPercent: 'Процент',
+  srPeriod: 'Период',
+};
+
+const CATALOGS: Record<Lang, Messages> = { he, en, ru };
 
 function storedLang(): Lang {
-  return localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'he';
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored === 'en' || stored === 'ru' ? stored : 'he';
 }
 
 interface I18n {

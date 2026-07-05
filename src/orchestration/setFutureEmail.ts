@@ -7,6 +7,7 @@ import * as emails from '../db/queries/emails.js';
 import { buildPrompt } from '../gemini/prompt.js';
 import { getPromptTemplate } from '../gemini/promptSettings.js';
 import { decide } from '../gemini/decide.js';
+import { publishClientUpdated } from '../events/clientEvents.js';
 import { scheduleDraftEmail } from './scheduleDraftEmail.js';
 import { zonedTimeToUtc } from '../util/time.js';
 import { env } from '../config/env.js';
@@ -57,6 +58,7 @@ export async function setFutureEmail(clientId: string): Promise<void> {
 
   if (allCollected) {
     await clients.updateGoalStatus(clientId, 'complete');
+    publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
     return;
   }

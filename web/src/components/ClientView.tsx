@@ -54,11 +54,21 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
     }
   }, [clientId, t]);
 
+  // Server-pushed refresh: the API streams a tick whenever this client's state changes
+  // (reply stored, scheduled email canceled for redrafting, new draft scheduled, goal
+  // completed), so the timeline updates the moment it happens — e.g. the old scheduled
+  // email swaps to the "drafting…" placeholder as soon as the agent starts replacing it.
+  useEffect(() => {
+    const events = new EventSource(`/api/clients/${clientId}/events`);
+    events.onmessage = () => load();
+    return () => events.close();
+  }, [clientId, load]);
+
   // Goal open with nothing scheduled means the agent is drafting the next email in the
   // background (e.g. right after client creation) — poll fast so it pops in when ready.
   const drafting = client !== null && client.goal_status === 'pending' && !nextScheduled;
 
-  // Keep the timeline current while the user watches: refetch every 15s when
+  // Fallback polling in case the event stream drops: refetch every 15s when
   // the tab is visible, and immediately when it becomes visible again.
   useEffect(() => {
     load();

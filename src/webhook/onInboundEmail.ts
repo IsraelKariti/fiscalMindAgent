@@ -5,6 +5,7 @@ import { withClientLock } from '../db/withClientLock.js';
 import { env } from '../config/env.js';
 import { resend } from '../resend/client.js';
 import { parseEmailAddress } from '../util/email.js';
+import { publishClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { ingestAttachments } from './ingestAttachments.js';
@@ -76,6 +77,15 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
   });
   const emailRow = inserted ?? (await emails.getByMessageId(messageId));
 
+  if (inserted) {
+    // A new reply always leads to a fresh draft, so cancel the now-outdated pending send
+    // right away — before the slow attachment ingestion below — and signal the UI: the
+    // timeline must never show the reply alongside the scheduled email it obsoletes, and
+    // should show its "drafting" placeholder for the whole time the agent is deciding.
+    await withClientLock(client.id, () => removeFutureEmail(client.id));
+    publishClientUpdated(client.id);
+  }
+
   // Store attachments before deciding the next step so the LLM sees the files.
   // Runs on duplicate deliveries too (inserted === null): ingestion is
   // idempotent and this backfills attachments a failed earlier run missed.
@@ -83,6 +93,8 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
 
   if (inserted || newFiles > 0) {
     await withClientLock(client.id, async () => {
+      // The remove is a no-op for a fresh reply (canceled above); it still matters on the
+      // duplicate-delivery path where backfilled attachments trigger a redraft.
       await removeFutureEmail(client.id);
       await setFutureEmail(client.id);
     });

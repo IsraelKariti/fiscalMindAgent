@@ -9,6 +9,7 @@ import { deleteBlob, downloadBlob } from '../storage/blob.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
+import { onClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.js';
@@ -213,6 +214,35 @@ apiRouter.get(
     }
 
     res.json({ client, nextScheduled, documents: await clientDocuments.listForClient(client.id) });
+  }),
+);
+
+// SSE stream of "something about this client changed" ticks (reply stored, pending send
+// canceled, new draft scheduled, goal completed), relayed from Redis pub/sub so transitions
+// made by the worker process arrive too. The events carry no data — the browser refetches —
+// so a dropped connection loses nothing the fallback poll won't recover.
+apiRouter.get(
+  '/clients/:id/events',
+  wrap(async (req, res) => {
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const unsubscribe = onClientUpdated(client.id, () => res.write('data: updated\n\n'));
+    // Comment-only heartbeat so idle proxies (ngrok, Azure ingress) don't cut the stream.
+    const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 25_000);
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
   }),
 );
 

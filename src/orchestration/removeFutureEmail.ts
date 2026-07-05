@@ -1,4 +1,5 @@
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
+import { publishClientUpdated } from '../events/clientEvents.js';
 import { sendEmailQueue } from '../queue/sendEmailQueue.js';
 import { logger } from '../util/logger.js';
 
@@ -20,4 +21,5 @@ export async function removeFutureEmail(clientId: string): Promise<void> {
     }
   }
   await scheduledJobs.deleteForClient(clientId);
+  publishClientUpdated(clientId);
 }

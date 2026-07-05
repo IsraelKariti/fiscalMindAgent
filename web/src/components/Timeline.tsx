@@ -57,19 +57,23 @@ export function Timeline({
   }, [lastEmailId, nextScheduled?.scheduledFor]);
 
   const copyConversation = async () => {
-    const blocks = emails.map((email) => {
-      const author = email.direction === 'outbound' ? t.agentAuthor : t.clientAuthor;
-      return `[${formatTimestamp(email.sent_at ?? email.created_at)}] ${author}\n${email.subject}\n${email.body}`;
-    });
+    const messages: { time: string; sender: string; status: string; subject: string; body: string }[] = emails.map((email) => ({
+      time: email.sent_at ?? email.created_at,
+      sender: email.direction === 'outbound' ? 'agent' : 'client',
+      status: email.status,
+      subject: email.subject,
+      body: email.body,
+    }));
     if (nextScheduled) {
-      const header = `[${t.willBeSentAt(formatTimestamp(nextScheduled.scheduledFor))}] ${t.agentNotSentYet}`;
-      blocks.push(
-        nextScheduled.subject
-          ? `${header}\n${nextScheduled.subject}\n${nextScheduled.body ?? ''}`
-          : `${header}\n${t.scheduledDraftUnavailable}`,
-      );
+      messages.push({
+        time: nextScheduled.scheduledFor,
+        sender: 'agent',
+        status: 'pending',
+        subject: nextScheduled.subject ?? '',
+        body: nextScheduled.body ?? '',
+      });
     }
-    await navigator.clipboard.writeText(blocks.join('\n\n'));
+    await navigator.clipboard.writeText(JSON.stringify(messages, null, 2));
     setCopied(true);
     clearTimeout(copyResetTimer.current);
     copyResetTimer.current = setTimeout(() => setCopied(false), 1600);

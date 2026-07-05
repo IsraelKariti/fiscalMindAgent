@@ -153,25 +153,48 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     }
   };
 
-  // One token category as "price-per-token × tokens = cost"; a count of zero (or
-  // no account yet) shows as a dash, and the bare count while prices are unavailable.
-  const tokenCell = (value: number | undefined, costPerToken: number | undefined) =>
-    value ? (
-      <span dir="ltr">
-        {costPerToken === undefined ? (
-          value.toLocaleString('he-IL')
+  // One token category as a row of the token-breakdown grid: label, then
+  // "price-per-token × tokens = cost" split into one grid cell per part, so the
+  // × and = operators line up across rows. The grid is RTL, so cells are
+  // emitted label-first and price last; visually each row reads
+  // "price × count = cost" with the label on the right. Every row emits all
+  // six cells so grid auto-placement keeps the columns in sync. A count of
+  // zero (or no account yet) shows as a dash, and the bare count while prices
+  // are unavailable.
+  const tokenRow = (label: string, value: number | undefined, costPerToken: number | undefined) => {
+    const count = value ?? 0;
+    const priced = count > 0 && costPerToken !== undefined;
+    return (
+      <>
+        <span className="token-label">{label}</span>
+        {priced ? (
+          <>
+            <span className="token-cost" dir="ltr">
+              {formatUsd(count * costPerToken)}
+            </span>
+            <span className="token-op muted">=</span>
+            <span className="token-count muted" dir="ltr">
+              {count.toLocaleString('he-IL')}
+            </span>
+            <span className="token-op muted">×</span>
+            <span className="token-price muted" dir="ltr">
+              {perToken(costPerToken)}
+            </span>
+          </>
         ) : (
           <>
-            <span className="muted">
-              {perToken(costPerToken)} × {value.toLocaleString('he-IL')} =
-            </span>{' '}
-            {formatUsd(value * costPerToken)}
+            <span className="token-cost" dir="ltr">
+              {count > 0 ? count.toLocaleString('he-IL') : <span className="muted">—</span>}
+            </span>
+            <span />
+            <span />
+            <span />
+            <span />
           </>
         )}
-      </span>
-    ) : (
-      <span className="muted">—</span>
+      </>
     );
+  };
 
   const statusBadge = (row: AccountantRow) => {
     if (!row.whitelisted) {
@@ -407,29 +430,20 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                         )}
                       </dd>
                     </div>
-                    <div>
-                      <dt>טוקני קלט</dt>
-                      <dd>{tokenCell(selected.user?.llmInputTokens, pricing?.inputCostPerToken)}</dd>
-                    </div>
-                    <div>
-                      <dt>טוקני פלט</dt>
-                      <dd>{tokenCell(selected.user?.llmOutputTokens, pricing?.outputCostPerToken)}</dd>
-                    </div>
-                    <div>
-                      <dt>טוקני חשיבה</dt>
-                      <dd>{tokenCell(selected.user?.llmThinkingTokens, pricing?.thinkingCostPerToken)}</dd>
-                    </div>
-                    <div>
-                      <dt>עלות כוללת</dt>
-                      <dd>
-                        {selectedCost !== null && selectedCost > 0 ? (
-                          <span dir="ltr">{formatUsd(selectedCost)}</span>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </dd>
-                    </div>
                   </dl>
+                  <div className="token-breakdown">
+                    {tokenRow('טוקני קלט', selected.user?.llmInputTokens, pricing?.inputCostPerToken)}
+                    {tokenRow('טוקני פלט', selected.user?.llmOutputTokens, pricing?.outputCostPerToken)}
+                    {tokenRow('טוקני חשיבה', selected.user?.llmThinkingTokens, pricing?.thinkingCostPerToken)}
+                    <span className="token-label">עלות כוללת</span>
+                    <span className="token-cost token-total" dir="ltr">
+                      {selectedCost !== null && selectedCost > 0 ? (
+                        formatUsd(selectedCost)
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </span>
+                  </div>
                   <p className="muted admin-detail-note">
                     רק רואי חשבון ברשימת ההיתרים יכולים להשתמש באפליקציה. "כניסה לחשבון" פותחת את הדשבורד
                     שלהם בדיוק כפי שהם רואים אותו — ובזמן הכניסה, כל פעולה שלכם חלה על החשבון שלהם.

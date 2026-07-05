@@ -1466,6 +1466,45 @@ textarea {
   font-size: 14px;
 }
 
+/* Gemini token spend: stacked category rows whose price/×/count/=/cost cells
+   share grid columns, so the operators sit exactly one above the other. The
+   container inherits the page's RTL direction: column 1 (rightmost) is the
+   label, then cost, =, count, ×, price — visually "price × count = cost". */
+.token-breakdown {
+  display: grid;
+  grid-template-columns: 1fr repeat(5, max-content);
+  column-gap: 7px;
+  row-gap: 10px;
+  align-items: baseline;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.token-breakdown .token-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* Digits end flush against the operator that follows them. */
+.token-price,
+.token-count {
+  text-align: right;
+}
+
+.token-cost {
+  text-align: left;
+}
+
+.token-cost.token-total {
+  font-size: 18px;
+  font-weight: 700;
+}
+
 @media (max-width: 860px) {
   /* Stacked cards can't share the viewport height, so revert to page scroll. */
   .admin-main {

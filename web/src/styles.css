@@ -581,7 +581,8 @@ code {
 }
 
 input,
-textarea {
+textarea,
+select {
   font: inherit;
   color: inherit;
   padding: 9px 12px;
@@ -599,12 +600,14 @@ textarea::placeholder {
 }
 
 input:hover,
-textarea:hover {
+textarea:hover,
+select:hover {
   border-color: rgba(148, 163, 216, 0.5);
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow:
@@ -650,6 +653,7 @@ textarea {
 .btn-primary {
   background: var(--gradient);
   background-size: 200% 200%;
+  background-origin: border-box;
   color: #fff;
   box-shadow: 0 4px 18px rgba(99, 102, 241, 0.35);
 }
@@ -662,6 +666,7 @@ textarea {
 .btn-danger {
   background: linear-gradient(120deg, #f472b6, #fb7185 55%, #f43f5e);
   background-size: 200% 200%;
+  background-origin: border-box;
   color: #fff;
   box-shadow: 0 4px 18px rgba(251, 113, 133, 0.3);
 }
@@ -2313,6 +2318,17 @@ button.meta-chip:hover {
 .lang-switch .chip {
   font-family: inherit;
   padding: 5px 14px;
+}
+
+/* Admin settings: the model dropdown and its status line */
+.model-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.model-picker select {
+  min-width: 260px;
 }
 
 /* The mailbox address reads as a copyable value, not editable text */

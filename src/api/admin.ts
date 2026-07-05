@@ -3,10 +3,17 @@ import { z } from 'zod';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { getLlmPricing } from '../gemini/pricing.js';
+import {
+  GEMINI_MODEL_OPTIONS,
+  getGeminiModelState,
+  saveGeminiModel,
+} from '../gemini/modelSettings.js';
 import { logger } from '../util/logger.js';
 import { clearImpersonationCookie, isAdminEmail, setImpersonationCookie } from './auth.js';
 
 const ImpersonateSchema = z.object({ userId: z.string().uuid() }).strict();
+
+const ModelSchema = z.object({ model: z.enum(GEMINI_MODEL_OPTIONS) }).strict();
 
 const WhitelistAddSchema = z
   .object({
@@ -92,6 +99,25 @@ export const stopImpersonation: RequestHandler = async (req, res) => {
   clearImpersonationCookie(res);
   logger.info('impersonation stopped', { adminUserId: req.realUserId, targetUserId: req.userId });
   res.json({ ok: true });
+};
+
+/** GET /api/admin/model — the model every LLM call runs on, plus the pickable options. */
+export const adminGetModel: RequestHandler = async (_req, res) => {
+  const state = await getGeminiModelState();
+  res.json({ ...state, options: GEMINI_MODEL_OPTIONS });
+};
+
+/** PUT /api/admin/model — switch every LLM call, for every accountant and client, to this model. */
+export const adminSetModel: RequestHandler = async (req, res) => {
+  const parsed = ModelSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Unknown model.' });
+    return;
+  }
+  await saveGeminiModel(parsed.data.model);
+  logger.info('gemini model changed', { adminUserId: req.realUserId, model: parsed.data.model });
+  const state = await getGeminiModelState();
+  res.json({ ...state, options: GEMINI_MODEL_OPTIONS });
 };
 
 /** GET /api/admin/whitelist — every whitelisted email, newest first. */

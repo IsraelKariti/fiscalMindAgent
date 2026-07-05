@@ -1,6 +1,6 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
+import { getGeminiModel } from './modelSettings.js';
 import { generateWithRetry, usageFromResponse, type GeminiUsage } from './generate.js';
 import { DecisionResponseSchema, normalizeDecision, type NormalizedDecision } from './decisionSchema.js';
 
@@ -15,8 +15,9 @@ export interface DecideResult {
 }
 
 export async function decide(systemInstruction: string, contents: string): Promise<DecideResult> {
+  const model = await getGeminiModel();
   const response = await generateWithRetry({
-    model: env.GEMINI_MODEL,
+    model,
     contents,
     config: {
       systemInstruction,
@@ -27,7 +28,7 @@ export async function decide(systemInstruction: string, contents: string): Promi
   });
 
   const usage = usageFromResponse(response);
-  logger.info('gemini tokens used', { model: env.GEMINI_MODEL, ...usage });
+  logger.info('gemini tokens used', { model, ...usage });
 
   const text = response.text;
   if (!text) {

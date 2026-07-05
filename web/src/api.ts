@@ -151,6 +151,15 @@ export interface LlmPricing {
   thinkingCostPerToken: number;
 }
 
+/** The Gemini model every LLM call runs on, for every accountant and client. */
+export interface GeminiModelState {
+  model: string;
+  /** True when set by an admin; false while running on the server's env default. */
+  isCustom: boolean;
+  updatedAt: string | null;
+  options: string[];
+}
+
 export interface WhitelistEntry {
   email: string;
   name: string | null;
@@ -217,6 +226,9 @@ export const api = {
   fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
   adminListAccountants: () =>
     request<{ accountants: Accountant[]; pricing: LlmPricing | null }>('/api/admin/accountants'),
+  adminGetModel: () => request<GeminiModelState>('/api/admin/model'),
+  adminSetModel: (model: string) =>
+    request<GeminiModelState>('/api/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),
   adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/api/admin/whitelist'),
   adminAddToWhitelist: (email: string, name?: string) =>
     request<{ entry: WhitelistEntry }>('/api/admin/whitelist', {

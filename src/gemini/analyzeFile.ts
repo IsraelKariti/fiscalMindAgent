@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
+import { getGeminiModel } from './modelSettings.js';
 import { generateWithRetry, usageFromResponse, type GeminiUsage } from './generate.js';
 import type { ClientDocumentRow } from '../db/types.js';
 
@@ -81,8 +81,9 @@ export async function analyzeFile(
       : '(אין מסמכים מוגדרים)';
   const prompt = ANALYSIS_PROMPT.replace('{{documents}}', documentLines).replace('{{filename}}', filename);
 
+  const model = await getGeminiModel();
   const response = await generateWithRetry({
-    model: env.GEMINI_MODEL,
+    model,
     contents: [
       {
         role: 'user',
@@ -100,7 +101,7 @@ export async function analyzeFile(
   });
 
   const usage = usageFromResponse(response);
-  logger.info('gemini tokens used (file analysis)', { model: env.GEMINI_MODEL, filename, ...usage });
+  logger.info('gemini tokens used (file analysis)', { model, filename, ...usage });
 
   const text = response.text;
   if (!text) {

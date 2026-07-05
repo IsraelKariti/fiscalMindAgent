@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, ApiError, type Accountant, type LlmPricing, type WhitelistEntry } from '../api';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  api,
+  ApiError,
+  type Accountant,
+  type GeminiModelState,
+  type LlmPricing,
+  type WhitelistEntry,
+} from '../api';
 import { formatTimestamp, formatUsd, LOCALE } from '../format';
 import { useT } from '../i18n';
 import { AddAccountantModal } from './AddAccountantModal';
@@ -9,7 +16,17 @@ interface Props {
   onLogout: () => void;
 }
 
-type AdminTab = 'dashboard' | 'accountants';
+type AdminTab = 'dashboard' | 'accountants' | 'settings';
+
+const ADMIN_TABS: AdminTab[] = ['dashboard', 'accountants', 'settings'];
+
+/** Display names for the pickable model ids (brand names, not translated). */
+const MODEL_LABELS: Record<string, string> = {
+  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'gemini-3-flash-preview': 'Gemini 3 Flash (Preview)',
+  'gemini-3.5-flash': 'Gemini 3.5 Flash',
+  'gemini-3.1-pro-preview': 'Gemini 3.1 Pro (Preview)',
+};
 
 /**
  * One row per person: a whitelist entry, the signed-up user account behind it,
@@ -30,9 +47,10 @@ interface AccountantRow {
  */
 export function AdminDashboard({ userEmail, onLogout }: Props) {
   const { t } = useT();
-  const [tab, setTab] = useState<AdminTab>(
-    () => (sessionStorage.getItem('fm.adminTab') === 'accountants' ? 'accountants' : 'dashboard'),
-  );
+  const [tab, setTab] = useState<AdminTab>(() => {
+    const stored = sessionStorage.getItem('fm.adminTab');
+    return ADMIN_TABS.includes(stored as AdminTab) ? (stored as AdminTab) : 'dashboard';
+  });
   const [accountants, setAccountants] = useState<Accountant[] | null>(null);
   const [pricing, setPricing] = useState<LlmPricing | null>(null);
   const [whitelist, setWhitelist] = useState<WhitelistEntry[] | null>(null);
@@ -40,6 +58,10 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   const [busyEmail, setBusyEmail] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
+  const [modelState, setModelState] = useState<GeminiModelState | null>(null);
+  const [modelNotice, setModelNotice] = useState<'saved' | 'load_failed' | 'save_failed' | null>(null);
+  const [modelSaving, setModelSaving] = useState(false);
+  const modelNoticeTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const selectTab = (next: AdminTab) => {
     setTab(next);
@@ -58,8 +80,24 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
 
   useEffect(() => {
     refresh().catch(() => setError(t.accountantsLoadFailed));
+    api.adminGetModel().then(setModelState).catch(() => setModelNotice('load_failed'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
+
+  const changeModel = async (model: string) => {
+    setModelSaving(true);
+    setModelNotice(null);
+    clearTimeout(modelNoticeTimer.current);
+    try {
+      setModelState(await api.adminSetModel(model));
+      setModelNotice('saved');
+      modelNoticeTimer.current = setTimeout(() => setModelNotice(null), 3000);
+    } catch {
+      setModelNotice('save_failed');
+    } finally {
+      setModelSaving(false);
+    }
+  };
 
   const rows = useMemo<AccountantRow[] | null>(() => {
     if (!accountants || !whitelist) return null;
@@ -249,6 +287,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             onClick={() => selectTab('accountants')}
           >
             {t.accountantsLabel}
+          </button>
+          <button
+            className={`client-tab ${tab === 'settings' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={tab === 'settings'}
+            onClick={() => selectTab('settings')}
+          >
+            {t.settings}
           </button>
         </nav>
 
@@ -452,6 +498,51 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
               )}
             </section>
           </div>
+        )}
+
+        {tab === 'settings' && (
+          <section className="card">
+            <div className="settings-section">
+              <h3>{t.llmModelTitle}</h3>
+              <p className="muted">{t.llmModelDesc}</p>
+              {!modelState ? (
+                modelNotice === 'load_failed' ? (
+                  <div className="error-banner">{t.llmModelLoadFailed}</div>
+                ) : (
+                  <p className="muted">{t.loading}</p>
+                )
+              ) : (
+                <>
+                  <div className="model-picker" dir="ltr">
+                    <select
+                      value={modelState.model}
+                      disabled={modelSaving}
+                      aria-label={t.llmModelTitle}
+                      onChange={(e) => changeModel(e.target.value)}
+                    >
+                      {/* The env-default model may predate the options list; keep it selectable. */}
+                      {!modelState.options.includes(modelState.model) && (
+                        <option value={modelState.model}>{modelState.model}</option>
+                      )}
+                      {modelState.options.map((m) => (
+                        <option key={m} value={m}>
+                          {MODEL_LABELS[m] ?? m}
+                        </option>
+                      ))}
+                    </select>
+                    {modelSaving && <span className="muted">{t.saving}</span>}
+                  </div>
+                  {!modelState.isCustom && (
+                    <p className="muted">
+                      {t.llmModelEnvDefault}: <span dir="ltr">{modelState.model}</span>
+                    </p>
+                  )}
+                  {modelNotice === 'saved' && <div className="ok-banner">{t.llmModelSaved}</div>}
+                  {modelNotice === 'save_failed' && <div className="error-banner">{t.llmModelSaveFailed}</div>}
+                </>
+              )}
+            </div>
+          </section>
         )}
       </main>
 

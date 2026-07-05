@@ -1,5 +1,5 @@
-import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
+import { getGeminiModel } from './modelSettings.js';
 
 // Google publishes Gemini prices only as an HTML docs page, so we read them from
 // LiteLLM's community-maintained registry instead — the de-facto standard pricing
@@ -17,7 +17,9 @@ export interface LlmPricing {
   thinkingCostPerToken: number;
 }
 
-let cached: LlmPricing | null = null;
+// The whole registry is cached (not one model's entry) because the admin can
+// switch the active model at runtime; the lookup happens per call.
+let table: Record<string, Record<string, unknown> | undefined> | null = null;
 let nextFetchAt = 0;
 let inflight: Promise<void> | null = null;
 
@@ -25,33 +27,21 @@ async function refresh(): Promise<void> {
   try {
     const res = await fetch(LITELLM_PRICES_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const table = (await res.json()) as Record<string, Record<string, unknown> | undefined>;
-    const entry = table[`gemini/${env.GEMINI_MODEL}`];
-    const input = entry?.input_cost_per_token;
-    const output = entry?.output_cost_per_token;
-    if (typeof input !== 'number' || typeof output !== 'number') {
-      throw new Error(`no pricing entry for gemini/${env.GEMINI_MODEL}`);
-    }
-    const reasoning = entry?.output_cost_per_reasoning_token;
-    cached = {
-      model: env.GEMINI_MODEL,
-      inputCostPerToken: input,
-      outputCostPerToken: output,
-      // Gemini bills thinking tokens at the output rate unless listed separately.
-      thinkingCostPerToken: typeof reasoning === 'number' ? reasoning : output,
-    };
+    table = (await res.json()) as Record<string, Record<string, unknown> | undefined>;
     nextFetchAt = Date.now() + REFRESH_INTERVAL_MS;
-    logger.info('LLM pricing refreshed', { ...cached });
+    logger.info('LLM pricing table refreshed', { models: Object.keys(table).length });
   } catch (err) {
     nextFetchAt = Date.now() + FAILURE_RETRY_MS;
-    logger.error('LLM pricing refresh failed', err, { model: env.GEMINI_MODEL, stale: cached !== null });
+    logger.error('LLM pricing refresh failed', err, { stale: table !== null });
   }
 }
 
 /**
- * Current prices for the configured Gemini model, cached in memory for a day.
- * On fetch failure the previous prices keep being served (null only before the
- * first successful fetch) and the fetch is retried after a few minutes.
+ * Current prices for the active Gemini model, from a registry table cached in
+ * memory for a day. On fetch failure the previous table keeps being served
+ * (null only before the first successful fetch) and the fetch is retried after
+ * a few minutes. An unknown model also yields null so callers show token
+ * counts without prices.
  */
 export async function getLlmPricing(): Promise<LlmPricing | null> {
   if (Date.now() >= nextFetchAt) {
@@ -60,5 +50,22 @@ export async function getLlmPricing(): Promise<LlmPricing | null> {
     });
     await inflight;
   }
-  return cached;
+  if (!table) return null;
+
+  const model = await getGeminiModel();
+  const entry = table[`gemini/${model}`];
+  const input = entry?.input_cost_per_token;
+  const output = entry?.output_cost_per_token;
+  if (typeof input !== 'number' || typeof output !== 'number') {
+    logger.error('no pricing entry for model', { model: `gemini/${model}` });
+    return null;
+  }
+  const reasoning = entry?.output_cost_per_reasoning_token;
+  return {
+    model,
+    inputCostPerToken: input,
+    outputCostPerToken: output,
+    // Gemini bills thinking tokens at the output rate unless listed separately.
+    thinkingCostPerToken: typeof reasoning === 'number' ? reasoning : output,
+  };
 }

@@ -270,6 +270,13 @@ const he = {
   adminDetailNote:
     'רק רואי חשבון ברשימת ההיתרים יכולים להשתמש באפליקציה. "כניסה לחשבון" פותחת את הדשבורד שלהם בדיוק כפי שהם רואים אותו — ובזמן הכניסה, כל פעולה שלכם חלה על החשבון שלהם.',
   accountantsRefreshFailed: 'רענון רשימת רואי החשבון נכשל.',
+  llmModelTitle: 'מודל השפה',
+  llmModelDesc:
+    'המודל של Gemini שמשמש את כל קריאות ה־LLM — ניסוח מיילים, החלטות תזמון וניתוח קבצים — עבור כל רואי החשבון וכל הלקוחות. שינוי נכנס לתוקף מייד, מהקריאה הבאה.',
+  llmModelSaved: 'נשמר. כל הקריאות הבאות ישתמשו במודל הזה.',
+  llmModelLoadFailed: 'טעינת הגדרת המודל נכשלה.',
+  llmModelSaveFailed: 'שמירת המודל נכשלה.',
+  llmModelEnvDefault: 'ברירת המחדל של השרת',
 
   // AddAccountantModal
   addAccountantTitle: 'הוספת רואה חשבון',
@@ -571,6 +578,13 @@ const en: Messages = {
   adminDetailNote:
     'Only whitelisted accountants can use the app. "Enter account" opens their dashboard exactly as they see it — and while inside, every action you take applies to their account.',
   accountantsRefreshFailed: 'Refreshing the accountant list failed.',
+  llmModelTitle: 'LLM model',
+  llmModelDesc:
+    'The Gemini model behind every LLM call — email drafting, scheduling decisions and file analysis — for every accountant and every client. A change takes effect immediately, from the next call.',
+  llmModelSaved: 'Saved. All following calls will use this model.',
+  llmModelLoadFailed: 'Failed to load the model setting.',
+  llmModelSaveFailed: 'Saving the model failed.',
+  llmModelEnvDefault: 'Server default',
 
   // AddAccountantModal
   addAccountantTitle: 'Add accountant',
@@ -871,6 +885,13 @@ const ru: Messages = {
   adminDetailNote:
     'Пользоваться приложением могут только бухгалтеры из списка разрешённых. «Войти в аккаунт» открывает их панель ровно так, как её видят они, — и пока вы внутри, каждое ваше действие применяется к их аккаунту.',
   accountantsRefreshFailed: 'Не удалось обновить список бухгалтеров.',
+  llmModelTitle: 'Языковая модель',
+  llmModelDesc:
+    'Модель Gemini для всех LLM-вызовов — составления писем, решений о расписании и анализа файлов — для всех бухгалтеров и всех клиентов. Изменение вступает в силу немедленно, со следующего вызова.',
+  llmModelSaved: 'Сохранено. Все последующие вызовы будут использовать эту модель.',
+  llmModelLoadFailed: 'Не удалось загрузить настройку модели.',
+  llmModelSaveFailed: 'Не удалось сохранить модель.',
+  llmModelEnvDefault: 'Значение по умолчанию сервера',
 
   // AddAccountantModal
   addAccountantTitle: 'Добавить бухгалтера',

@@ -17,9 +17,11 @@ import { logger } from '../util/logger.js';
 import { googleLoginCallback, logout, me, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
 import {
   adminAddToWhitelist,
+  adminGetModel,
   adminListAccountants,
   adminListWhitelist,
   adminRemoveFromWhitelist,
+  adminSetModel,
   requireAdmin,
   startImpersonation,
   stopImpersonation,
@@ -124,6 +126,8 @@ apiRouter.use(wrap(requireWhitelisted));
 apiRouter.get('/admin/accountants', wrap(requireAdmin), wrap(adminListAccountants));
 apiRouter.post('/admin/impersonate', wrap(requireAdmin), wrap(startImpersonation));
 apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersonation));
+apiRouter.get('/admin/model', wrap(requireAdmin), wrap(adminGetModel));
+apiRouter.put('/admin/model', wrap(requireAdmin), wrap(adminSetModel));
 apiRouter.get('/admin/whitelist', wrap(requireAdmin), wrap(adminListWhitelist));
 apiRouter.post('/admin/whitelist', wrap(requireAdmin), wrap(adminAddToWhitelist));
 apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemoveFromWhitelist));

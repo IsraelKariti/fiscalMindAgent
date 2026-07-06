@@ -57,13 +57,17 @@ export function Timeline({
   }, [lastEmailId, nextScheduled?.scheduledFor]);
 
   const copyConversation = async () => {
-    const messages: { time: string; sender: string; status: string; subject: string; body: string }[] = emails.map((email) => ({
-      time: email.sent_at ?? email.created_at,
-      sender: email.direction === 'outbound' ? 'agent' : 'client',
-      status: email.status,
-      subject: email.subject,
-      body: email.body,
-    }));
+    // agent_reasoning is the LLM's internal explanation for the follow-up decision
+    // (mainly the chosen send time); absent on client messages and pre-feature emails.
+    const messages: { time: string; sender: string; status: string; subject: string; body: string; agent_reasoning?: string }[] =
+      emails.map((email) => ({
+        time: email.sent_at ?? email.created_at,
+        sender: email.direction === 'outbound' ? 'agent' : 'client',
+        status: email.status,
+        subject: email.subject,
+        body: email.body,
+        ...(email.reasoning ? { agent_reasoning: email.reasoning } : {}),
+      }));
     if (nextScheduled) {
       messages.push({
         time: nextScheduled.scheduledFor,
@@ -71,6 +75,7 @@ export function Timeline({
         status: 'pending',
         subject: nextScheduled.subject ?? '',
         body: nextScheduled.body ?? '',
+        ...(nextScheduled.reasoning ? { agent_reasoning: nextScheduled.reasoning } : {}),
       });
     }
     await navigator.clipboard.writeText(JSON.stringify(messages, null, 2));

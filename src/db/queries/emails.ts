@@ -17,11 +17,16 @@ export async function getById(id: string): Promise<EmailRow | null> {
   return rows[0] ?? null;
 }
 
-export async function insertDraft(clientId: string, subject: string, body: string): Promise<EmailRow> {
+export async function insertDraft(
+  clientId: string,
+  subject: string,
+  body: string,
+  reasoning: string | null = null,
+): Promise<EmailRow> {
   const { rows } = await pool.query<EmailRow>(
-    `INSERT INTO emails (client_id, direction, status, subject, body)
-     VALUES ($1, 'outbound', 'draft', $2, $3) RETURNING *`,
-    [clientId, subject, body],
+    `INSERT INTO emails (client_id, direction, status, subject, body, reasoning)
+     VALUES ($1, 'outbound', 'draft', $2, $3, $4) RETURNING *`,
+    [clientId, subject, body, reasoning],
   );
   const row = rows[0];
   if (!row) throw new Error('insertDraft: no row returned');

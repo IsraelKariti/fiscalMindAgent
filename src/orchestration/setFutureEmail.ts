@@ -81,6 +81,7 @@ export async function setFutureEmail(clientId: string): Promise<void> {
     subject: decision.email_subject,
     body: decision.email_body,
     delayMs: Math.max(0, delayMs),
+    reasoning: decision.reasoning,
   });
   logger.info('follow-up scheduled', {
     clientId,

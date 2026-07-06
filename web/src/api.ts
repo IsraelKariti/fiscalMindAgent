@@ -59,6 +59,8 @@ export interface Email {
   status: 'draft' | 'sent' | 'received';
   subject: string;
   body: string;
+  /** LLM's internal explanation for the follow-up decision (send time etc.); outbound only. */
+  reasoning: string | null;
   sent_at: string | null;
   created_at: string;
 }
@@ -67,6 +69,7 @@ export interface NextScheduled {
   scheduledFor: string;
   subject: string | null;
   body: string | null;
+  reasoning: string | null;
 }
 
 /** One client with everything the workspace dashboard shows about it, pre-aggregated server-side. */

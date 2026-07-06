@@ -210,6 +210,7 @@ apiRouter.get(
         scheduledFor: job.scheduled_for,
         subject: draft?.subject ?? null,
         body: draft?.body ?? null,
+        reasoning: draft?.reasoning ?? null,
       };
     }
 

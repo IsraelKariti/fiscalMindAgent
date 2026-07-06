@@ -97,6 +97,8 @@ export interface EmailRow {
   resend_id: string | null;
   subject: string;
   body: string;
+  /** LLM's internal explanation for the follow-up decision (send time etc.); outbound drafts only. */
+  reasoning: string | null;
   sent_at: Date | null;
   created_at: Date;
 }

@@ -18,6 +18,26 @@ export interface AgentMailboxRow {
   created_at: Date;
 }
 
+/** Per-accountant WhatsApp sender number (E.164), assigned by an admin; mirrors agent_mailboxes. */
+export interface WaSenderRow {
+  id: string;
+  user_id: string;
+  phone_number: string;
+  created_at: Date;
+}
+
+/** Pre-approved Twilio Content Template (utility category), platform-global. */
+export interface WaTemplateRow {
+  id: string;
+  /** Twilio Content SID (HX...). */
+  content_sid: string;
+  name: string;
+  /** Template text with {{1}}..{{n}} variable slots, as approved by Meta. */
+  body: string;
+  variable_count: number;
+  created_at: Date;
+}
+
 export interface UserSettingRow {
   user_id: string;
   key: string;
@@ -36,6 +56,12 @@ export interface ClientRow {
   phone: string | null;
   company: string | null;
   notes: string | null;
+  /** Validated E.164 number used for WhatsApp routing (`phone` stays free text). */
+  wa_phone: string | null;
+  wa_enabled: boolean;
+  wa_opted_in_at: Date | null;
+  wa_opted_in_by: string | null;
+  wa_opted_out_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -71,7 +97,7 @@ export interface DocumentFileRow {
   client_id: string;
   email_id: string | null;
   client_document_id: string | null;
-  resend_attachment_id: string;
+  provider_attachment_id: string;
   blob_key: string;
   filename: string;
   content_type: string;
@@ -85,18 +111,25 @@ export interface DocumentFileRow {
 
 export type EmailDirection = 'inbound' | 'outbound';
 export type EmailStatus = 'draft' | 'sent' | 'received';
+export type MessageChannel = 'email' | 'whatsapp';
 
 export interface EmailRow {
   id: string;
   client_id: string;
   direction: EmailDirection;
   status: EmailStatus;
-  /** RFC 5322 Message-ID — inbound dedupe key and In-Reply-To/References source. */
+  channel: MessageChannel;
+  /** RFC 5322 Message-ID (email) or Twilio MessageSid (whatsapp) — dedupe key. */
   message_id: string | null;
-  /** Resend's id for the email (send response / inbound email_id). */
+  /** Resend's id for the email (send response / inbound email_id); NULL on whatsapp rows. */
   resend_id: string | null;
+  /** Always '' on whatsapp rows. */
   subject: string;
   body: string;
+  /** Twilio Content SID when this is a WhatsApp template message (sent outside the 24h window). */
+  wa_content_sid: string | null;
+  /** Variable values for {{1}}..{{n}} of wa_content_sid. */
+  wa_content_variables: string[] | null;
   /** LLM's internal explanation for the follow-up decision (send time etc.); outbound drafts only. */
   reasoning: string | null;
   sent_at: Date | null;

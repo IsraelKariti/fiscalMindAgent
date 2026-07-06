@@ -71,6 +71,7 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
 
   const messageId = data.message_id ?? full.message_id ?? `<resend-${resendId}@inbound>`;
   const inserted = await emails.insertInboundIfNew(client.id, {
+    channel: 'email',
     messageId,
     resendId,
     subject: data.subject,

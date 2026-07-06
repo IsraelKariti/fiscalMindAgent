@@ -17,11 +17,12 @@ export async function getForClient(id: string, clientId: string): Promise<Docume
   return rows[0] ?? null;
 }
 
-/** Returns the inserted row, or null if this Resend attachment was already ingested (idempotent). */
+/** Returns the inserted row, or null if this attachment was already ingested (idempotent). */
 export async function insertIfNew(args: {
   clientId: string;
   emailId: string | null;
-  resendAttachmentId: string;
+  /** Resend attachment id (email) or Twilio MessageSid-index (whatsapp media) — the dedupe key. */
+  providerAttachmentId: string;
   blobKey: string;
   filename: string;
   contentType: string;
@@ -29,14 +30,14 @@ export async function insertIfNew(args: {
   sha256: string;
 }): Promise<DocumentFileRow | null> {
   const { rows } = await pool.query<DocumentFileRow>(
-    `INSERT INTO document_files (client_id, email_id, resend_attachment_id, blob_key, filename, content_type, size_bytes, sha256)
+    `INSERT INTO document_files (client_id, email_id, provider_attachment_id, blob_key, filename, content_type, size_bytes, sha256)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     ON CONFLICT (resend_attachment_id) DO NOTHING
+     ON CONFLICT (provider_attachment_id) DO NOTHING
      RETURNING *`,
     [
       args.clientId,
       args.emailId,
-      args.resendAttachmentId,
+      args.providerAttachmentId,
       args.blobKey,
       args.filename,
       args.contentType,

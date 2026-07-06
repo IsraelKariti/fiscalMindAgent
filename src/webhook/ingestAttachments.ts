@@ -66,7 +66,7 @@ export async function ingestAttachments(
       const inserted = await documentFiles.insertIfNew({
         clientId,
         emailId,
-        resendAttachmentId: att.id,
+        providerAttachmentId: att.id,
         blobKey,
         filename,
         contentType,

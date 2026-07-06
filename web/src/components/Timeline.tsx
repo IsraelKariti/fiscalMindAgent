@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Email, GoalStatus, NextScheduled } from '../api';
+import { ApiError, type Email, type GoalStatus, type NextScheduled } from '../api';
 import { formatTimestamp } from '../format';
 import { useT } from '../i18n';
 
@@ -21,13 +21,17 @@ export function Timeline({
   emails,
   nextScheduled,
   goalStatus,
+  onSendNow,
 }: {
   emails: Email[];
   nextScheduled: NextScheduled | null;
   goalStatus: GoalStatus;
+  onSendNow: () => Promise<void>;
 }) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
+  const [sendingNow, setSendingNow] = useState(false);
+  const [sendNowError, setSendNowError] = useState<string | null>(null);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
   // Whether the user is scrolled near the bottom — sampled on every scroll so the
@@ -55,6 +59,19 @@ export function Timeline({
     didInitRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastEmailId, nextScheduled?.scheduledFor]);
+
+  const sendNow = async () => {
+    if (!window.confirm(t.sendNowConfirm)) return;
+    setSendingNow(true);
+    setSendNowError(null);
+    try {
+      await onSendNow();
+    } catch (err) {
+      setSendNowError(err instanceof ApiError ? err.message : t.sendNowFailed);
+    } finally {
+      setSendingNow(false);
+    }
+  };
 
   const copyConversation = async () => {
     // agent_reasoning is the LLM's internal explanation for the follow-up decision
@@ -151,7 +168,16 @@ export function Timeline({
                   {t.agentNotSentYet}
                 </span>
                 <span className="scheduled-note">{t.willBeSentAt(formatTimestamp(nextScheduled.scheduledFor))}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small send-now-btn"
+                  onClick={sendNow}
+                  disabled={sendingNow}
+                >
+                  {t.sendNow}
+                </button>
               </div>
+              {sendNowError && <div className="error-banner">{sendNowError}</div>}
               <div className="bubble bubble-scheduled">
                 {nextScheduled.subject ? (
                   <>

@@ -1055,6 +1055,13 @@ textarea {
   color: var(--pending);
 }
 
+/* "Send now" on the scheduled bubble: compact, pushed to the row's far edge. */
+.send-now-btn {
+  margin-inline-start: auto;
+  padding: 1px 10px;
+  font-size: 13px;
+}
+
 /* "Agent is drafting the next email" placeholder: same pending grammar as a
    scheduled message, but a single pulsing line instead of a full bubble. */
 .bubble-drafting {

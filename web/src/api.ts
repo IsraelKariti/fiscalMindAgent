@@ -225,6 +225,7 @@ export const api = {
     request<{ client: Client }>(`/api/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteClient: (id: string) => request<{ ok: true }>(`/api/clients/${id}`, { method: 'DELETE' }),
   listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),
+  sendScheduledNow: (clientId: string) => request<{ ok: true }>(`/api/clients/${clientId}/send-now`, { method: 'POST' }),
   listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),
   fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/api/admin/accountants'),

@@ -129,7 +129,16 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
       )}
       {activeTab === 'conversation' && (
         <div className="tab-pane tab-pane-fill" role="tabpanel">
-          <Timeline emails={emails} nextScheduled={nextScheduled} goalStatus={client.goal_status} />
+          <Timeline
+            emails={emails}
+            nextScheduled={nextScheduled}
+            goalStatus={client.goal_status}
+            onSendNow={async () => {
+              await api.sendScheduledNow(clientId);
+              // The SSE tick also fires, but refetch right away so the bubble reflects the send.
+              await load();
+            }}
+          />
         </div>
       )}
       {activeTab === 'details' && (

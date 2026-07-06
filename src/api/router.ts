@@ -11,6 +11,7 @@ import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
 import { onClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
+import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.js';
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
@@ -410,6 +411,26 @@ apiRouter.get(
       return;
     }
     res.json({ emails: await emails.listForClient(client.id) });
+  }),
+);
+
+// "Send now": jump the scheduled follow-up's queue delay so the worker sends it right away.
+apiRouter.post(
+  '/clients/:id/send-now',
+  wrap(async (req, res) => {
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+    const result = await withClientLock(client.id, () => sendFutureEmailNow(client.id));
+    if (result === 'none_scheduled') {
+      res.status(409).json({ error: 'There is no scheduled email to send.' });
+      return;
+    }
+    // 'already_sending' also counts as success — the email is going out now either way.
+    res.json({ ok: true });
   }),
 );
 

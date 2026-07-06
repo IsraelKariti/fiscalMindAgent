@@ -4,14 +4,60 @@ import * as users from '../db/queries/users.js';
 import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
-import { buildPrompt } from '../gemini/prompt.js';
+import * as waSenders from '../db/queries/waSenders.js';
+import * as waTemplates from '../db/queries/waTemplates.js';
+import { buildPrompt, type WaChannelState } from '../gemini/prompt.js';
 import { getPromptTemplate } from '../gemini/promptSettings.js';
 import { decide } from '../gemini/decide.js';
+import type { DecisionContext } from '../gemini/decisionSchema.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { scheduleDraftMessage } from './scheduleDraftEmail.js';
+import { windowCloseTime } from './whatsappWindow.js';
 import { zonedTimeToUtc } from '../util/time.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
+import type { ClientRow } from '../db/types.js';
+
+/**
+ * What the agent may do on WhatsApp right now: the client must be opted in
+ * with a valid number, the accountant must have a sender, and there must be
+ * something sendable (an open 24h window for free-form text, or at least one
+ * approved template).
+ */
+async function getWaChannelState(client: ClientRow, now: Date): Promise<WaChannelState> {
+  if (!client.wa_enabled || !client.wa_phone) {
+    return {
+      allowed: false,
+      unavailableReason: 'the client has not opted in to WhatsApp',
+      windowOpen: false,
+      windowClosesAt: null,
+      templates: [],
+    };
+  }
+  const sender = client.user_id ? await waSenders.getByUserId(client.user_id) : null;
+  if (!sender) {
+    return {
+      allowed: false,
+      unavailableReason: 'no WhatsApp sender number is assigned to the accountant',
+      windowOpen: false,
+      windowClosesAt: null,
+      templates: [],
+    };
+  }
+  const windowClosesAt = windowCloseTime(await emails.lastInboundWhatsAppAt(client.id));
+  const windowOpen = windowClosesAt !== null && now < windowClosesAt;
+  const templates = await waTemplates.listAll();
+  if (!windowOpen && templates.length === 0) {
+    return {
+      allowed: false,
+      unavailableReason: 'the 24h window is closed and no approved templates exist',
+      windowOpen: false,
+      windowClosesAt: null,
+      templates: [],
+    };
+  }
+  return { allowed: true, unavailableReason: null, windowOpen, windowClosesAt, templates };
+}
 
 /** Asks the LLM, given the full thread and required-documents list, which documents were just provided and whether a follow-up is needed, and acts on it. */
 export async function setFutureEmail(clientId: string): Promise<void> {
@@ -19,13 +65,16 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   if (!client) throw new Error(`setFutureEmail: client ${clientId} not found`);
   if (client.goal_status === 'complete') return;
 
+  const now = new Date();
   const accountant = client.user_id ? await users.getById(client.user_id) : null;
   const history = await emails.listForClient(clientId);
   const documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
+  const waState = await getWaChannelState(client, now);
   const { template } = await getPromptTemplate(client.user_id);
-  const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, new Date(), template);
-  const { decision, usage, model } = await decide(systemInstruction, contents);
+  const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, template, waState);
+  const ctx: DecisionContext = { whatsappAllowed: waState.allowed, windowOpen: waState.windowOpen, templates: waState.templates };
+  const { decision, usage, model } = await decide(systemInstruction, contents, ctx);
 
   // Bill the tokens to the owning accountant right away, so they count even if
   // acting on the decision fails below. Legacy CLI clients have no owner.
@@ -77,15 +126,20 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   if (delayMs < 0) {
     logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: decision.send_at });
   }
+  const message = decision.message;
   await scheduleDraftMessage(clientId, {
-    channel: 'email',
-    subject: decision.email_subject,
-    body: decision.email_body,
+    channel: message.channel,
+    subject: message.channel === 'email' ? message.subject : '',
+    body: message.channel === 'email' || message.kind === 'freeform' ? message.body : message.renderedBody,
+    waContentSid: message.channel === 'whatsapp' && message.kind === 'template' ? message.contentSid : null,
+    waContentVariables: message.channel === 'whatsapp' && message.kind === 'template' ? message.variables : null,
     delayMs: Math.max(0, delayMs),
     reasoning: decision.reasoning,
   });
   logger.info('follow-up scheduled', {
     clientId,
+    channel: message.channel,
+    kind: message.channel === 'whatsapp' ? message.kind : 'email',
     send_at: decision.send_at,
     send_at_utc: sendAtUtc.toISOString(),
     reasoning: decision.reasoning,

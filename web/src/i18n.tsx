@@ -126,7 +126,7 @@ const he = {
   filterAll: 'הכל',
   oneMessage: 'הודעה אחת',
   nMessages: (n: number) => `${n} הודעות`,
-  noEmailsExchangedYet: 'עדיין לא הוחלפו מיילים.',
+  noEmailsExchangedYet: 'עדיין לא הוחלפו הודעות.',
   agentAuthor: 'הסוכן',
   clientAuthor: 'הלקוח',
   scheduledDivider: 'מתוזמן',
@@ -137,7 +137,7 @@ const he = {
   sendNowConfirm: 'לשלוח את המייל המתוזמן עכשיו?',
   sendNowFailed: 'שליחת המייל נכשלה.',
   scheduledDraftUnavailable: 'מעקב מתוזמן (הטיוטה אינה זמינה)',
-  draftingEmail: (first: boolean) => `הסוכן מנסח כעת את המייל ${first ? 'הראשון' : 'הבא'}…`,
+  draftingEmail: (first: boolean) => `הסוכן מנסח כעת את ההודעה ${first ? 'הראשונה' : 'הבאה'}…`,
   goalCompleteFooter: 'היעד הושלם — לא מתוכננים מעקבים נוספים.',
 
   // StatTiles / shared stats
@@ -456,7 +456,7 @@ const en: Messages = {
   filterAll: 'All',
   oneMessage: '1 message',
   nMessages: (n: number) => `${n} messages`,
-  noEmailsExchangedYet: 'No emails exchanged yet.',
+  noEmailsExchangedYet: 'No messages exchanged yet.',
   agentAuthor: 'Agent',
   clientAuthor: 'Client',
   scheduledDivider: 'Scheduled',
@@ -467,7 +467,7 @@ const en: Messages = {
   sendNowConfirm: 'Send the scheduled email now?',
   sendNowFailed: 'Sending the email failed.',
   scheduledDraftUnavailable: 'Scheduled follow-up (draft unavailable)',
-  draftingEmail: (first: boolean) => `The agent is drafting the ${first ? 'first' : 'next'} email…`,
+  draftingEmail: (first: boolean) => `The agent is drafting the ${first ? 'first' : 'next'} message…`,
   goalCompleteFooter: 'Goal complete — no further follow-ups are planned.',
 
   // StatTiles / shared stats
@@ -785,7 +785,7 @@ const ru: Messages = {
   filterAll: 'Все',
   oneMessage: '1 сообщение',
   nMessages: (n: number) => `${n} ${ruPlural(n, 'сообщение', 'сообщения', 'сообщений')}`,
-  noEmailsExchangedYet: 'Писем пока не было.',
+  noEmailsExchangedYet: 'Сообщений пока не было.',
   agentAuthor: 'Агент',
   clientAuthor: 'Клиент',
   scheduledDivider: 'Запланировано',
@@ -796,7 +796,7 @@ const ru: Messages = {
   sendNowConfirm: 'Отправить запланированное письмо сейчас?',
   sendNowFailed: 'Не удалось отправить письмо.',
   scheduledDraftUnavailable: 'Запланированное напоминание (черновик недоступен)',
-  draftingEmail: (first: boolean) => `Агент сейчас составляет ${first ? 'первое' : 'следующее'} письмо…`,
+  draftingEmail: (first: boolean) => `Агент сейчас составляет ${first ? 'первое' : 'следующее'} сообщение…`,
   goalCompleteFooter: 'Цель достигнута — дальнейшие напоминания не запланированы.',
 
   // StatTiles / shared stats

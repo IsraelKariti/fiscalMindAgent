@@ -42,6 +42,15 @@ const EnvSchema = z.object({
   RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
   // Domain agent mailboxes are allocated on: <local-part>@AGENT_EMAIL_DOMAIN.
   AGENT_EMAIL_DOMAIN: z.string().min(1).default('fiscalmind.app'),
+  // Twilio (twilio.com): sends/receives WhatsApp messages for the per-accountant
+  // sender numbers (wa_senders). All optional — WhatsApp features return 503 /
+  // stay disabled until set.
+  TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
+  TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
+  // Exact public URL Twilio posts inbound messages to — signature validation
+  // covers the full URL, so this must match what's configured on the sender
+  // (in dev: https://<NGROK_DOMAIN>/webhooks/twilio).
+  TWILIO_WEBHOOK_URL: z.string().url().optional(),
   // Azure Blob Storage holding client document files. The default is the
   // well-known Azurite dev connection (docker-compose `azurite` service);
   // production sets the real storage-account connection string.

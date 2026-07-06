@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import type { MailboxStatus } from '../api';
+import { useEffect, useRef, useState } from 'react';
+import { api, type MailboxStatus, type WaSenderStatus } from '../api';
 import { useT, type Lang } from '../i18n';
 import { ClaimMailbox } from './ClaimMailbox';
 
@@ -34,6 +34,11 @@ export function Settings({ mailbox, onClaimed }: Props) {
   const { t, lang, setLang } = useT();
   const [copied, setCopied] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
+  const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
+
+  useEffect(() => {
+    api.waSenderStatus().then(setWaSender).catch(() => setWaSender({ assigned: false, phoneNumber: null }));
+  }, []);
 
   const address = mailbox?.claimed ? mailbox.emailAddress : null;
 
@@ -90,6 +95,20 @@ export function Settings({ mailbox, onClaimed }: Props) {
             <ClaimMailbox domain={mailbox.domain} onClaimed={onClaimed} />
           ) : (
             <p className="muted">{t.loading}</p>
+          )}
+        </div>
+
+        <div className="settings-section">
+          <h3>{t.agentWhatsApp}</h3>
+          <p className="muted">{t.agentWhatsAppDesc}</p>
+          {waSender === null ? (
+            <p className="muted">{t.loading}</p>
+          ) : waSender.assigned ? (
+            <div className="settings-mailbox" dir="ltr">
+              <span className="settings-mailbox-address">{waSender.phoneNumber}</span>
+            </div>
+          ) : (
+            <p className="muted">{t.agentWhatsAppNone}</p>
           )}
         </div>
       </section>

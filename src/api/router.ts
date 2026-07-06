@@ -29,6 +29,15 @@ import {
   stopImpersonation,
 } from './admin.js';
 import { claimMailbox, mailboxAvailability, mailboxStatus } from './mailbox.js';
+import {
+  adminCreateWaTemplate,
+  adminDeleteWaSender,
+  adminDeleteWaTemplate,
+  adminListWaSenders,
+  adminListWaTemplates,
+  adminUpsertWaSender,
+  waSenderStatus,
+} from './waAdmin.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -134,9 +143,17 @@ apiRouter.get('/admin/whitelist', wrap(requireAdmin), wrap(adminListWhitelist));
 apiRouter.post('/admin/whitelist', wrap(requireAdmin), wrap(adminAddToWhitelist));
 apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemoveFromWhitelist));
 
+apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));
+apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender));
+apiRouter.delete('/admin/wa-senders/:userId', wrap(requireAdmin), wrap(adminDeleteWaSender));
+apiRouter.get('/admin/wa-templates', wrap(requireAdmin), wrap(adminListWaTemplates));
+apiRouter.post('/admin/wa-templates', wrap(requireAdmin), wrap(adminCreateWaTemplate));
+apiRouter.delete('/admin/wa-templates/:id', wrap(requireAdmin), wrap(adminDeleteWaTemplate));
+
 apiRouter.get('/mailbox', wrap(mailboxStatus));
 apiRouter.get('/mailbox/availability', wrap(mailboxAvailability));
 apiRouter.post('/mailbox', wrap(claimMailbox));
+apiRouter.get('/wa-sender', wrap(waSenderStatus));
 
 // Slightly wider than the 8 Monday-based weeks the activity chart shows, so the
 // oldest visible week is always fully covered regardless of timezone.

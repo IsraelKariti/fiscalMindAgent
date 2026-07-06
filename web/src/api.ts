@@ -177,6 +177,11 @@ export interface MailboxStatus {
   domain: string;
 }
 
+export interface WaSenderStatus {
+  assigned: boolean;
+  phoneNumber: string | null;
+}
+
 export interface MailboxAvailability {
   name: string;
   available: boolean;
@@ -194,6 +199,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name }),
     }),
+  waSenderStatus: () => request<WaSenderStatus>('/api/wa-sender'),
   dashboard: () => request<DashboardSummary>('/api/dashboard'),
   listClients: () => request<{ clients: Client[] }>('/api/clients'),
   createClient: (args: {

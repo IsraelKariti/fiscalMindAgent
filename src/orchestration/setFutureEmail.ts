@@ -8,7 +8,7 @@ import { buildPrompt } from '../gemini/prompt.js';
 import { getPromptTemplate } from '../gemini/promptSettings.js';
 import { decide } from '../gemini/decide.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
-import { scheduleDraftEmail } from './scheduleDraftEmail.js';
+import { scheduleDraftMessage } from './scheduleDraftEmail.js';
 import { zonedTimeToUtc } from '../util/time.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
@@ -77,7 +77,8 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   if (delayMs < 0) {
     logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: decision.send_at });
   }
-  await scheduleDraftEmail(clientId, {
+  await scheduleDraftMessage(clientId, {
+    channel: 'email',
     subject: decision.email_subject,
     body: decision.email_body,
     delayMs: Math.max(0, delayMs),

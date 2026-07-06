@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import * as clients from '../db/queries/clients.js';
 import * as users from '../db/queries/users.js';
-import { scheduleDraftEmail } from '../orchestration/scheduleDraftEmail.js';
+import { scheduleDraftMessage } from '../orchestration/scheduleDraftEmail.js';
 import { hoursToMs } from '../util/time.js';
 import { logger } from '../util/logger.js';
 import { pool } from '../db/pool.js';
@@ -67,7 +67,8 @@ async function main(): Promise<void> {
   }
   const client = existing ?? (await clients.insert({ userId: user.id, name: name!, emailAddress: email! }));
 
-  const { emailId, jobId } = await scheduleDraftEmail(client.id, {
+  const { emailId, jobId } = await scheduleDraftMessage(client.id, {
+    channel: 'email',
     subject: subject!,
     body,
     delayMs: hoursToMs(delayMinutes / 60),

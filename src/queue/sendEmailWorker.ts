@@ -5,10 +5,14 @@ import { withClientLock } from '../db/withClientLock.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
+import * as waSenders from '../db/queries/waSenders.js';
 import { sendEmail } from '../resend/send.js';
+import { sendWhatsAppTemplate, sendWhatsAppText } from '../twilio/send.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
+import { isWhatsAppWindowOpen } from '../orchestration/whatsappWindow.js';
 import { logger } from '../util/logger.js';
+import type { ClientRow, EmailRow } from '../db/types.js';
 
 export async function onScheduledSend(job: Job<{ clientId: string; emailId: string }>): Promise<void> {
   const { clientId, emailId } = job.data;
@@ -31,29 +35,78 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       return;
     }
 
-    const mailbox = client.user_id ? await agentMailboxes.getByUserId(client.user_id) : null;
-    if (!mailbox) {
-      logger.warn('client owner has no agent mailbox, skipping send', { clientId, userId: client.user_id });
-      return;
+    const sent = draft.channel === 'whatsapp' ? await sendWhatsAppDraft(client, draft) : await sendEmailDraft(client, draft);
+    // Either way the pending action is settled — plan the next one. On the
+    // not-sent path the abandoned draft simply stays in 'draft' status (the
+    // established pattern) and the fresh decision sees the current state.
+    if (sent !== 'skip_planning') {
+      await removeFutureEmail(clientId);
+      await setFutureEmail(clientId);
     }
-
-    // Thread the conversation via In-Reply-To/References built from the
-    // Message-IDs exchanged with this client so far (capped to the last 20).
-    const messageIds = await emails.listMessageIdsForClient(clientId);
-    const result = await sendEmail({
-      from: mailbox.email_address,
-      to: client.email_address,
-      subject: draft.subject,
-      body: draft.body,
-      inReplyTo: messageIds.at(-1),
-      references: messageIds.slice(-20),
-    });
-
-    await emails.markSent(emailId, { messageId: result.messageId, resendId: result.resendId, sentAt: new Date() });
-
-    await removeFutureEmail(clientId);
-    await setFutureEmail(clientId);
   });
+}
+
+type SendOutcome = 'sent' | 'not_sent' | 'skip_planning';
+
+async function sendEmailDraft(client: ClientRow, draft: EmailRow): Promise<SendOutcome> {
+  const mailbox = client.user_id ? await agentMailboxes.getByUserId(client.user_id) : null;
+  if (!mailbox) {
+    logger.warn('client owner has no agent mailbox, skipping send', { clientId: client.id, userId: client.user_id });
+    return 'skip_planning';
+  }
+
+  // Thread the conversation via In-Reply-To/References built from the
+  // Message-IDs exchanged with this client so far (capped to the last 20).
+  const messageIds = await emails.listMessageIdsForClient(client.id);
+  const result = await sendEmail({
+    from: mailbox.email_address,
+    to: client.email_address,
+    subject: draft.subject,
+    body: draft.body,
+    inReplyTo: messageIds.at(-1),
+    references: messageIds.slice(-20),
+  });
+
+  await emails.markSent(draft.id, { messageId: result.messageId, resendId: result.resendId, sentAt: new Date() });
+  return 'sent';
+}
+
+async function sendWhatsAppDraft(client: ClientRow, draft: EmailRow): Promise<SendOutcome> {
+  // The channel may have been disabled (opt-out, toggle) after drafting; a
+  // re-plan falls back to email rather than sending anyway.
+  const sender = client.user_id ? await waSenders.getByUserId(client.user_id) : null;
+  if (!client.wa_enabled || !client.wa_phone || !sender) {
+    logger.warn('whatsapp draft no longer sendable, re-planning', {
+      clientId: client.id,
+      waEnabled: client.wa_enabled,
+      hasPhone: Boolean(client.wa_phone),
+      hasSender: Boolean(sender),
+    });
+    return 'not_sent';
+  }
+
+  if (draft.wa_content_sid) {
+    const { sid } = await sendWhatsAppTemplate({
+      from: sender.phone_number,
+      to: client.wa_phone,
+      contentSid: draft.wa_content_sid,
+      variables: draft.wa_content_variables ?? [],
+    });
+    await emails.markSent(draft.id, { messageId: sid, sentAt: new Date() });
+    return 'sent';
+  }
+
+  // Free-form drafts are only deliverable inside the 24h customer-service
+  // window. If it closed while the draft waited, don't downgrade silently —
+  // re-plan so the LLM decides again (template or email) with current state.
+  if (!(await isWhatsAppWindowOpen(client.id))) {
+    logger.info('whatsapp 24h window closed before send, re-planning', { clientId: client.id, draftId: draft.id });
+    return 'not_sent';
+  }
+
+  const { sid } = await sendWhatsAppText({ from: sender.phone_number, to: client.wa_phone, body: draft.body });
+  await emails.markSent(draft.id, { messageId: sid, sentAt: new Date() });
+  return 'sent';
 }
 
 export function createSendEmailWorker(): Worker {

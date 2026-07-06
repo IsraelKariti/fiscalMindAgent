@@ -4,7 +4,7 @@ import * as emails from '../db/queries/emails.js';
 import { withClientLock } from '../db/withClientLock.js';
 import { env } from '../config/env.js';
 import { resend } from '../resend/client.js';
-import { parseEmailAddress } from '../util/email.js';
+import { parseEmailAddress, stripQuotedReply } from '../util/email.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
@@ -65,7 +65,9 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
   if (error || !full) {
     throw new Error(`failed to fetch received email ${resendId}: ${error?.name ?? 'unknown'} ${error?.message ?? ''}`);
   }
-  const body = full.text ?? (full.html ? stripHtml(full.html) : '');
+  // Keep only what the client typed — the quoted copy of the thread below the
+  // attribution line would otherwise re-embed every earlier email in each reply.
+  const body = stripQuotedReply(full.text ?? (full.html ? stripHtml(full.html) : ''));
 
   const messageId = data.message_id ?? full.message_id ?? `<resend-${resendId}@inbound>`;
   const inserted = await emails.insertInboundIfNew(client.id, {

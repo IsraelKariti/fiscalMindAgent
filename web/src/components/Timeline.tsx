@@ -4,6 +4,12 @@ import { formatTimestamp } from '../format';
 import { useT } from '../i18n';
 import { SendNowModal } from './SendNowModal';
 
+// "Re: X" is the same thread title as "X" — ignore reply/forward prefixes when
+// deciding whether a message actually renamed the thread.
+function subjectKey(subject: string): string {
+  return subject.replace(/^(\s*(re|fwd?)\s*:\s*)+/i, '').trim().toLowerCase();
+}
+
 const icon = {
   copy: (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -115,8 +121,10 @@ export function Timeline({
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
         <ol className="timeline">
-          {emails.map((email) => {
+          {emails.map((email, i) => {
             const outbound = email.direction === 'outbound';
+            const prev = i > 0 ? emails[i - 1] : undefined;
+            const newSubject = !prev || subjectKey(email.subject) !== subjectKey(prev.subject);
             return (
               <li key={email.id} className={`timeline-item ${outbound ? 'outbound' : 'inbound'}`}>
                 <div className="timeline-meta">
@@ -124,7 +132,7 @@ export function Timeline({
                   <span className="muted">{formatTimestamp(email.sent_at ?? email.created_at)}</span>
                 </div>
                 <div className="bubble">
-                  <div className="bubble-subject" dir="auto">{email.subject}</div>
+                  {newSubject && <div className="bubble-subject" dir="auto">{email.subject}</div>}
                   <div className="bubble-body" dir="auto">{email.body}</div>
                 </div>
               </li>
@@ -166,7 +174,9 @@ export function Timeline({
               <div className="bubble bubble-scheduled">
                 {nextScheduled.subject ? (
                   <>
-                    <div className="bubble-subject" dir="auto">{nextScheduled.subject}</div>
+                    {subjectKey(nextScheduled.subject) !== subjectKey(emails[emails.length - 1]?.subject ?? '') && (
+                      <div className="bubble-subject" dir="auto">{nextScheduled.subject}</div>
+                    )}
                     <div className="bubble-body" dir="auto">{nextScheduled.body}</div>
                   </>
                 ) : (

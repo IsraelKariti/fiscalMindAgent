@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Email, GoalStatus, NextScheduled } from '../api';
+import type { Email, GoalStatus, MessageChannel, NextScheduled } from '../api';
 import { formatTimestamp } from '../format';
 import { useT } from '../i18n';
 import { SendNowModal } from './SendNowModal';
+
+type ChannelFilter = 'all' | MessageChannel;
 
 // "Re: X" is the same thread title as "X" — ignore reply/forward prefixes when
 // deciding whether a message actually renamed the thread.
@@ -38,6 +40,7 @@ export function Timeline({
   const { t } = useT();
   const [copied, setCopied] = useState(false);
   const [confirmingSendNow, setConfirmingSendNow] = useState(false);
+  const [filter, setFilter] = useState<ChannelFilter>('all');
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
   // Whether the user is scrolled near the bottom — sampled on every scroll so the
@@ -45,7 +48,14 @@ export function Timeline({
   const nearBottomRef = useRef(true);
   const didInitRef = useRef(false);
 
-  const lastEmailId = emails[emails.length - 1]?.id ?? null;
+  // The filter only exists when the client actually has (or is about to get)
+  // WhatsApp traffic — email-only conversations keep the plain header.
+  const hasWhatsApp = emails.some((e) => e.channel === 'whatsapp') || nextScheduled?.channel === 'whatsapp';
+  const visibleEmails = filter === 'all' ? emails : emails.filter((e) => e.channel === filter);
+  const showScheduled = nextScheduled !== null && (filter === 'all' || nextScheduled.channel === filter);
+  const channelLabel = (channel: MessageChannel) => (channel === 'whatsapp' ? t.channelWhatsApp : t.channelEmail);
+
+  const lastEmailId = visibleEmails[visibleEmails.length - 1]?.id ?? null;
 
   const trackScroll = () => {
     const el = bodyRef.current;
@@ -69,10 +79,11 @@ export function Timeline({
   const copyConversation = async () => {
     // agent_reasoning is the LLM's internal explanation for the follow-up decision
     // (mainly the chosen send time); absent on client messages and pre-feature emails.
-    const messages: { time: string; sender: string; status: string; subject: string; body: string; agent_reasoning?: string }[] =
+    const messages: { time: string; sender: string; channel: string; status: string; subject: string; body: string; agent_reasoning?: string }[] =
       emails.map((email) => ({
         time: email.sent_at ?? email.created_at,
         sender: email.direction === 'outbound' ? 'agent' : 'client',
+        channel: email.channel,
         status: email.status,
         subject: email.subject,
         body: email.body,
@@ -82,6 +93,7 @@ export function Timeline({
       messages.push({
         time: nextScheduled.scheduledFor,
         sender: 'agent',
+        channel: nextScheduled.channel,
         status: 'pending',
         subject: nextScheduled.subject ?? '',
         body: nextScheduled.body ?? '',
@@ -99,9 +111,24 @@ export function Timeline({
       <div className="panel-header">
         <h3>{t.conversationTimeline}</h3>
         <div className="panel-header-actions">
-          {emails.length > 0 && (
+          {hasWhatsApp && (
+            <div className="lang-switch channel-filter" role="group" aria-label={t.conversationTimeline}>
+              {(['all', 'email', 'whatsapp'] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`chip ${filter === option ? 'chip-selected' : ''}`}
+                  aria-pressed={filter === option}
+                  onClick={() => setFilter(option)}
+                >
+                  {option === 'all' ? t.filterAll : channelLabel(option)}
+                </button>
+              ))}
+            </div>
+          )}
+          {visibleEmails.length > 0 && (
             <span className="muted panel-count">
-              {emails.length === 1 ? t.oneMessage : t.nMessages(emails.length)}
+              {visibleEmails.length === 1 ? t.oneMessage : t.nMessages(visibleEmails.length)}
             </span>
           )}
           {(emails.length > 0 || nextScheduled) && (
@@ -117,18 +144,25 @@ export function Timeline({
         </div>
       </div>
       <div className="panel-body" ref={bodyRef} onScroll={trackScroll}>
-        {emails.length === 0 && !nextScheduled && goalStatus !== 'pending' && (
+        {visibleEmails.length === 0 && !showScheduled && goalStatus !== 'pending' && (
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
         <ol className="timeline">
-          {emails.map((email, i) => {
+          {visibleEmails.map((email, i) => {
             const outbound = email.direction === 'outbound';
-            const prev = i > 0 ? emails[i - 1] : undefined;
-            const newSubject = !prev || subjectKey(email.subject) !== subjectKey(prev.subject);
+            const prev = i > 0 ? visibleEmails[i - 1] : undefined;
+            // WhatsApp messages have no subject; only email bubbles show a thread title.
+            const newSubject =
+              email.channel === 'email' &&
+              email.subject !== '' &&
+              (!prev || subjectKey(email.subject) !== subjectKey(prev.subject));
             return (
               <li key={email.id} className={`timeline-item ${outbound ? 'outbound' : 'inbound'}`}>
                 <div className="timeline-meta">
                   <span className="timeline-author">{outbound ? t.agentAuthor : t.clientAuthor}</span>
+                  {hasWhatsApp && (
+                    <span className={`channel-badge channel-${email.channel}`}>{channelLabel(email.channel)}</span>
+                  )}
                   <span className="muted">{formatTimestamp(email.sent_at ?? email.created_at)}</span>
                 </div>
                 <div className="bubble">
@@ -138,7 +172,7 @@ export function Timeline({
               </li>
             );
           })}
-          {nextScheduled && (
+          {showScheduled && nextScheduled && (
             <li className="timeline-divider" aria-hidden="true">
               <span className="timeline-divider-label">
                 <span className="scheduled-dot" />
@@ -146,7 +180,7 @@ export function Timeline({
               </span>
             </li>
           )}
-          {nextScheduled && (
+          {showScheduled && nextScheduled && (
             <li className="timeline-item outbound scheduled">
               <div className="timeline-meta">
                 <span className="timeline-author">
@@ -162,6 +196,11 @@ export function Timeline({
                   </svg>
                   {t.agentNotSentYet}
                 </span>
+                {hasWhatsApp && (
+                  <span className={`channel-badge channel-${nextScheduled.channel}`}>
+                    {channelLabel(nextScheduled.channel)}
+                  </span>
+                )}
                 <span className="scheduled-note">{t.willBeSentAt(formatTimestamp(nextScheduled.scheduledFor))}</span>
                 <button
                   type="button"
@@ -172,11 +211,13 @@ export function Timeline({
                 </button>
               </div>
               <div className="bubble bubble-scheduled">
-                {nextScheduled.subject ? (
+                {nextScheduled.body ? (
                   <>
-                    {subjectKey(nextScheduled.subject) !== subjectKey(emails[emails.length - 1]?.subject ?? '') && (
-                      <div className="bubble-subject" dir="auto">{nextScheduled.subject}</div>
-                    )}
+                    {nextScheduled.channel === 'email' &&
+                      nextScheduled.subject &&
+                      subjectKey(nextScheduled.subject) !== subjectKey(emails[emails.length - 1]?.subject ?? '') && (
+                        <div className="bubble-subject" dir="auto">{nextScheduled.subject}</div>
+                      )}
                     <div className="bubble-body" dir="auto">{nextScheduled.body}</div>
                   </>
                 ) : (

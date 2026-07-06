@@ -546,6 +546,34 @@ code {
   font-size: 14px;
 }
 
+/* Channel badge on timeline bubbles (email vs WhatsApp) */
+.channel-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.channel-email {
+  background: rgba(96, 165, 250, 0.14);
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.channel-whatsapp {
+  background: rgba(37, 211, 102, 0.14);
+  color: #25d366;
+  border-color: rgba(37, 211, 102, 0.35);
+}
+
+/* Channel filter chips in the timeline header */
+.channel-filter .chip {
+  padding: 3px 12px;
+  font-size: 13px;
+}
+
 /* Detail grid (client card) */
 .detail-grid {
   display: grid;

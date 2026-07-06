@@ -121,6 +121,9 @@ const he = {
   // Timeline
   conversationTimeline: 'ציר הזמן של השיחה',
   copyConversation: 'העתקת השיחה',
+  channelEmail: 'אימייל',
+  channelWhatsApp: 'וואטסאפ',
+  filterAll: 'הכל',
   oneMessage: 'הודעה אחת',
   nMessages: (n: number) => `${n} הודעות`,
   noEmailsExchangedYet: 'עדיין לא הוחלפו מיילים.',
@@ -448,6 +451,9 @@ const en: Messages = {
   // Timeline
   conversationTimeline: 'Conversation timeline',
   copyConversation: 'Copy conversation',
+  channelEmail: 'Email',
+  channelWhatsApp: 'WhatsApp',
+  filterAll: 'All',
   oneMessage: '1 message',
   nMessages: (n: number) => `${n} messages`,
   noEmailsExchangedYet: 'No emails exchanged yet.',
@@ -774,6 +780,9 @@ const ru: Messages = {
   // Timeline
   conversationTimeline: 'Хронология переписки',
   copyConversation: 'Скопировать переписку',
+  channelEmail: 'Эл. почта',
+  channelWhatsApp: 'WhatsApp',
+  filterAll: 'Все',
   oneMessage: '1 сообщение',
   nMessages: (n: number) => `${n} ${ruPlural(n, 'сообщение', 'сообщения', 'сообщений')}`,
   noEmailsExchangedYet: 'Писем пока не было.',

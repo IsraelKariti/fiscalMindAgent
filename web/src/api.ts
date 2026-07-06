@@ -57,11 +57,15 @@ export interface DocumentFile {
   created_at: string;
 }
 
+export type MessageChannel = 'email' | 'whatsapp';
+
 export interface Email {
   id: string;
   client_id: string;
   direction: 'inbound' | 'outbound';
   status: 'draft' | 'sent' | 'received';
+  channel: MessageChannel;
+  /** Always '' on whatsapp messages. */
   subject: string;
   body: string;
   /** LLM's internal explanation for the follow-up decision (send time etc.); outbound only. */
@@ -72,6 +76,7 @@ export interface Email {
 
 export interface NextScheduled {
   scheduledFor: string;
+  channel: MessageChannel;
   subject: string | null;
   body: string | null;
   reasoning: string | null;

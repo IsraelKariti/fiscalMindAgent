@@ -236,6 +236,7 @@ apiRouter.get(
       const draft = draftId ? await emails.getById(draftId) : null;
       nextScheduled = {
         scheduledFor: job.scheduled_for,
+        channel: draft?.channel ?? 'email',
         subject: draft?.subject ?? null,
         body: draft?.body ?? null,
         reasoning: draft?.reasoning ?? null,

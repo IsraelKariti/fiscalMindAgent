@@ -107,6 +107,17 @@ const he = {
   nameLabel: 'שם',
   occupationPlaceholder: 'למשל: מהנדס תוכנה',
 
+  // WhatsApp card (details tab)
+  waTitle: 'וואטסאפ',
+  waDesc: 'כשוואטסאפ מופעל, הסוכן יכול לבחור לשלוח ללקוח הודעות וואטסאפ ולקבל מהלקוח תשובות. הפעלת הערוץ מאשרת שהלקוח הסכים לקבל הודעות וואטסאפ.',
+  waStatusOn: 'וואטסאפ פעיל',
+  waStatusOff: 'וואטסאפ כבוי',
+  waEnable: 'הפעלת וואטסאפ',
+  waDisable: 'כיבוי וואטסאפ',
+  waPhoneLabel: 'מספר וואטסאפ',
+  waPhonePlaceholder: '050-1234567',
+  waOptedInOn: (date: string) => `הופעל ב־${date}`,
+
   // Timeline
   conversationTimeline: 'ציר הזמן של השיחה',
   copyConversation: 'העתקת השיחה',
@@ -423,6 +434,17 @@ const en: Messages = {
   nameLabel: 'Name',
   occupationPlaceholder: 'e.g. software engineer',
 
+  // WhatsApp card (details tab)
+  waTitle: 'WhatsApp',
+  waDesc: 'When WhatsApp is on, the agent may message the client on WhatsApp and receive their replies. Enabling it confirms the client agreed to receive WhatsApp messages.',
+  waStatusOn: 'WhatsApp is on',
+  waStatusOff: 'WhatsApp is off',
+  waEnable: 'Enable WhatsApp',
+  waDisable: 'Disable WhatsApp',
+  waPhoneLabel: 'WhatsApp number',
+  waPhonePlaceholder: '050-1234567',
+  waOptedInOn: (date: string) => `Enabled on ${date}`,
+
   // Timeline
   conversationTimeline: 'Conversation timeline',
   copyConversation: 'Copy conversation',
@@ -737,6 +759,17 @@ const ru: Messages = {
   notesLabel: 'Заметки',
   nameLabel: 'Имя',
   occupationPlaceholder: 'например: инженер-программист',
+
+  // WhatsApp card (details tab)
+  waTitle: 'WhatsApp',
+  waDesc: 'Когда WhatsApp включён, агент может писать клиенту в WhatsApp и получать его ответы. Включение подтверждает согласие клиента получать сообщения WhatsApp.',
+  waStatusOn: 'WhatsApp включён',
+  waStatusOff: 'WhatsApp выключен',
+  waEnable: 'Включить WhatsApp',
+  waDisable: 'Выключить WhatsApp',
+  waPhoneLabel: 'Номер WhatsApp',
+  waPhonePlaceholder: '050-1234567',
+  waOptedInOn: (date: string) => `Включён ${date}`,
 
   // Timeline
   conversationTimeline: 'Хронология переписки',

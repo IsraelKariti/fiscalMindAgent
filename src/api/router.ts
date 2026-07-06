@@ -7,6 +7,8 @@ import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
 import { deleteBlob, downloadBlob } from '../storage/blob.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
+import * as waSenders from '../db/queries/waSenders.js';
+import { normalizeE164 } from '../util/phone.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
 import { onClientUpdated } from '../events/clientEvents.js';
@@ -55,6 +57,14 @@ const ClientPatchSchema = z
   .strict();
 
 const PromptTemplateSchema = z.object({ template: z.string().min(1) }).strict();
+
+const WhatsAppToggleSchema = z
+  .object({
+    enabled: z.boolean(),
+    /** Required when enabling unless the client already has a stored wa_phone. */
+    phone: z.string().optional(),
+  })
+  .strict();
 
 const DocumentCreateSchema = z
   .object({
@@ -354,6 +364,67 @@ apiRouter.patch(
       return;
     }
     res.json({ client });
+  }),
+);
+
+// WhatsApp opt-in toggle. Enabling asserts the accountant obtained the
+// client's consent (recorded via wa_opted_in_at/by); disabling must also stop
+// any already-scheduled WhatsApp draft, so both directions re-plan the next
+// message under the client lock.
+apiRouter.put(
+  '/clients/:id/whatsapp',
+  wrap(async (req, res) => {
+    const parsed = WhatsAppToggleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Expected { enabled: boolean, phone?: string }.' });
+      return;
+    }
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+
+    let updated;
+    if (parsed.data.enabled) {
+      if (!(await waSenders.getByUserId(req.userId!))) {
+        res.status(409).json({ error: 'No WhatsApp number is assigned to your account yet.' });
+        return;
+      }
+      const rawPhone = parsed.data.phone ?? client.wa_phone;
+      const waPhone = rawPhone ? normalizeE164(rawPhone) : null;
+      if (!waPhone) {
+        res.status(400).json({ error: 'A valid phone number is required to enable WhatsApp (e.g. 050-1234567 or +972501234567).' });
+        return;
+      }
+      try {
+        updated = await clients.enableWhatsApp(client.id, { waPhone, optedInBy: req.userId! });
+      } catch (err) {
+        // 23505 = unique_violation on (user_id, wa_phone): another of this
+        // accountant's clients already uses this number.
+        if (err instanceof Error && 'code' in err && (err as { code?: string }).code === '23505') {
+          res.status(409).json({ error: 'Another client of yours already uses this phone number.' });
+          return;
+        }
+        throw err;
+      }
+    } else {
+      updated = await clients.disableWhatsApp(client.id);
+    }
+    if (!updated) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+
+    // Channel availability changed — let the agent re-decide the pending message.
+    if (updated.goal_status === 'pending') {
+      await withClientLock(updated.id, async () => {
+        await removeFutureEmail(updated.id);
+        await setFutureEmail(updated.id);
+      });
+    }
+    res.json({ client: updated });
   }),
 );
 

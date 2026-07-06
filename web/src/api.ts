@@ -9,6 +9,11 @@ export interface Client {
   phone: string | null;
   company: string | null;
   notes: string | null;
+  /** Validated E.164 number used for WhatsApp (the free-text `phone` field is unrelated). */
+  wa_phone: string | null;
+  wa_enabled: boolean;
+  wa_opted_in_at: string | null;
+  wa_opted_out_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -230,6 +235,8 @@ export const api = {
   updateClient: (id: string, patch: Partial<Pick<Client, 'name' | 'occupation' | 'phone' | 'company' | 'notes'>>) =>
     request<{ client: Client }>(`/api/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteClient: (id: string) => request<{ ok: true }>(`/api/clients/${id}`, { method: 'DELETE' }),
+  setWhatsApp: (id: string, args: { enabled: boolean; phone?: string }) =>
+    request<{ client: Client }>(`/api/clients/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(args) }),
   listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),
   sendScheduledNow: (clientId: string) => request<{ ok: true }>(`/api/clients/${clientId}/send-now`, { method: 'POST' }),
   listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),

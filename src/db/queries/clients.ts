@@ -27,6 +27,15 @@ export async function getByEmailAddressForUser(userId: string, emailAddress: str
   return rows[0] ?? null;
 }
 
+/** Inbound WhatsApp routing: the accountant's client with this (E.164) number. */
+export async function getByWaPhoneForUser(userId: string, waPhone: string): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE user_id = $1 AND wa_phone = $2', [
+    userId,
+    waPhone,
+  ]);
+  return rows[0] ?? null;
+}
+
 export async function insert(args: { userId: string; name: string; emailAddress: string }): Promise<ClientRow> {
   const { rows } = await pool.query<ClientRow>(
     `INSERT INTO clients (user_id, name, email_address, goal_status) VALUES ($1, $2, $3, 'pending') RETURNING *`,
@@ -63,6 +72,32 @@ export async function updateDetailsForUser(
   const { rows } = await pool.query<ClientRow>(
     `UPDATE clients SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 AND user_id = $2 RETURNING *`,
     values,
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Enables the WhatsApp channel: stores the validated E.164 number and records
+ * who opted the client in and when (clearing any earlier opt-out).
+ */
+export async function enableWhatsApp(id: string, args: { waPhone: string; optedInBy: string }): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(
+    `UPDATE clients
+     SET wa_phone = $2, wa_enabled = true, wa_opted_in_at = now(), wa_opted_in_by = $3,
+         wa_opted_out_at = NULL, updated_at = now()
+     WHERE id = $1 RETURNING *`,
+    [id, args.waPhone, args.optedInBy],
+  );
+  return rows[0] ?? null;
+}
+
+/** Disables the WhatsApp channel (accountant toggle or client opt-out); the number is kept. */
+export async function disableWhatsApp(id: string): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(
+    `UPDATE clients
+     SET wa_enabled = false, wa_opted_out_at = now(), updated_at = now()
+     WHERE id = $1 RETURNING *`,
+    [id],
   );
   return rows[0] ?? null;
 }

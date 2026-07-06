@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type Client, type ClientDocument, type DocumentFile, type Email, type NextScheduled } from '../api';
 import { ClientHeader } from './ClientHeader';
+import { WhatsAppCard } from './WhatsAppCard';
 import { DocumentsCard } from './DocumentsCard';
 import { FilesCard } from './FilesCard';
 import { StatTiles } from './StatTiles';
@@ -142,11 +143,20 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
         </div>
       )}
       {activeTab === 'details' && (
-        <div className="tab-pane" role="tabpanel">
+        <div className="tab-pane panel-stack" role="tabpanel">
           <ClientHeader
             client={client}
             onSaved={async (updated) => {
               setClient(updated);
+              await onClientUpdated();
+            }}
+          />
+          <WhatsAppCard
+            client={client}
+            onSaved={async (updated) => {
+              setClient(updated);
+              // Toggling the channel re-plans the next message — refresh the schedule too.
+              await load();
               await onClientUpdated();
             }}
           />

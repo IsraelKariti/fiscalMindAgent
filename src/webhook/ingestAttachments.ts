@@ -42,9 +42,12 @@ export async function ingestAttachments(
 ): Promise<number> {
   let stored = 0;
   for (const att of attachments) {
-    // content_id means the part is referenced inline from the HTML body
-    // (signature logos, embedded images) — not a document the client sent.
-    if (att.content_id) continue;
+    // Skip parts embedded inline in the HTML body (signature logos, embedded
+    // images). A content_id alone is not enough to tell: Gmail stamps one on
+    // real photo attachments too, so an explicit `attachment` disposition
+    // always wins.
+    const disposition = (att.content_disposition ?? '').trim().toLowerCase();
+    if (att.content_id && !disposition.startsWith('attachment')) continue;
 
     try {
       const { data, error } = await resend.emails.receiving.attachments.get({ emailId: resendEmailId, id: att.id });

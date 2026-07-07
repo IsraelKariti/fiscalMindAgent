@@ -62,7 +62,9 @@ export function Timeline({
   const [copied, setCopied] = useState(false);
   const [confirmingSendNow, setConfirmingSendNow] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [filter, setFilter] = useState<ChannelFilter>('all');
+  // Cross-channel filters are premium-only: the Standard plan starts (and stays)
+  // on Email, and the other segments open the upgrade modal.
+  const [filter, setFilter] = useState<ChannelFilter>(premiumLocked ? 'email' : 'all');
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
   // Whether the user is scrolled near the bottom — sampled on every scroll so the
@@ -72,8 +74,8 @@ export function Timeline({
 
   // The filter only exists when the client actually has (or is about to get)
   // WhatsApp traffic — email-only conversations keep the plain header. On the
-  // Standard plan the control always shows: the WhatsApp segment is the upsell
-  // surface (tapping it opens the upgrade modal instead of filtering).
+  // Standard plan the control always shows: the All and WhatsApp segments are
+  // the upsell surface (tapping them opens the upgrade modal instead of filtering).
   const hasWhatsApp = emails.some((e) => e.channel === 'whatsapp') || nextScheduled?.channel === 'whatsapp';
   const showChannelFilter = hasWhatsApp || premiumLocked;
   const visibleEmails = filter === 'all' ? emails : emails.filter((e) => e.channel === filter);
@@ -151,7 +153,7 @@ export function Timeline({
                   className={`seg-option ${filter === option ? 'seg-active' : ''}`}
                   aria-pressed={filter === option}
                   onClick={() =>
-                    option === 'whatsapp' && premiumLocked ? setShowUpgrade(true) : setFilter(option)
+                    option !== 'email' && premiumLocked ? setShowUpgrade(true) : setFilter(option)
                   }
                 >
                   {option !== 'all' && (

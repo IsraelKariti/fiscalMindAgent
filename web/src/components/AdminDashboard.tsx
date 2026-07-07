@@ -3,6 +3,7 @@ import {
   api,
   ApiError,
   type Accountant,
+  type AccountTier,
   type GeminiModelState,
   type WhitelistEntry,
 } from '../api';
@@ -35,6 +36,8 @@ interface AccountantRow {
   email: string;
   name: string | null;
   whitelisted: boolean;
+  /** Null when not whitelisted (the tier lives on the whitelist entry). */
+  tier: AccountTier | null;
   user: Accountant | null;
 }
 
@@ -100,7 +103,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     if (!accountants || !whitelist) return null;
     const byEmail = new Map<string, AccountantRow>();
     for (const entry of whitelist) {
-      byEmail.set(entry.email, { email: entry.email, name: entry.name, whitelisted: true, user: null });
+      byEmail.set(entry.email, { email: entry.email, name: entry.name, whitelisted: true, tier: entry.tier, user: null });
     }
     for (const user of accountants) {
       const key = user.email.toLowerCase();
@@ -109,7 +112,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
         existing.user = user;
         existing.name = existing.name ?? user.name;
       } else {
-        byEmail.set(key, { email: key, name: user.name, whitelisted: user.whitelisted, user });
+        byEmail.set(key, { email: key, name: user.name, whitelisted: user.whitelisted, tier: user.tier, user });
       }
     }
     return [...byEmail.values()];
@@ -199,6 +202,9 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       </span>
     );
   };
+
+  const tierBadge = (row: AccountantRow) =>
+    row.tier === 'premium' ? <span className="badge badge-premium">{t.tierPremium}</span> : null;
 
   return (
     <div className="admin-shell">
@@ -320,7 +326,10 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                             {row.email}
                           </span>
                         </span>
-                        <span className="admin-list-badge">{statusBadge(row)}</span>
+                        <span className="admin-list-badge">
+                          {tierBadge(row)}
+                          {statusBadge(row)}
+                        </span>
                       </button>
                     </li>
                   ))}
@@ -336,6 +345,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                   <div className="card-header">
                     <div>
                       <h2>{selected.name ?? selected.email}</h2>
+                      {tierBadge(selected)}
                       {statusBadge(selected)}
                     </div>
                     <span className="btn-row admin-row-actions">
@@ -371,6 +381,16 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                     <div>
                       <dt>{t.emailLabel}</dt>
                       <dd dir="ltr">{selected.email}</dd>
+                    </div>
+                    <div>
+                      <dt>{t.tierLabel}</dt>
+                      <dd>
+                        {selected.tier ? (
+                          selected.tier === 'premium' ? t.tierPremium : t.tierNormal
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </dd>
                     </div>
                     <div>
                       <dt>{t.agentMailbox}</dt>

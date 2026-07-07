@@ -541,6 +541,48 @@ code {
   border-color: var(--border);
 }
 
+/* Premium-tier accountants (admin roster + plan card) */
+.badge-premium {
+  background: rgba(167, 139, 250, 0.14);
+  color: #8b5cf6;
+  border-color: rgba(167, 139, 250, 0.4);
+}
+
+/* Sidebar "Upgrade to Premium" pill — quiet door to more, not an ad. */
+.sidebar-upgrade {
+  color: var(--primary);
+  font-weight: 600;
+  background: var(--primary-soft);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.sidebar-upgrade:hover {
+  background: rgba(139, 92, 246, 0.26);
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+/* Premium chip over the email in the sidebar account row */
+.tier-chip-premium {
+  color: var(--primary);
+}
+
+/* "Your plan" section in Settings */
+.plan-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.plan-row p {
+  margin: 0;
+}
+
+a.plan-upgrade-btn {
+  display: inline-block;
+  text-decoration: none;
+}
+
 .badge-note {
   margin-inline-start: 10px;
   font-size: 14px;

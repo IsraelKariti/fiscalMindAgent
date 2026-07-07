@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type Client, type MailboxStatus, type Me } from './api';
+import { api, type AccountTier, type Client, type MailboxStatus, type Me } from './api';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { ClientView } from './components/ClientView';
@@ -27,6 +27,8 @@ export function App() {
   const [user, setUser] = useState<Me['user'] | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [whitelisted, setWhitelisted] = useState(false);
+  const [tier, setTier] = useState<AccountTier | null>(null);
+  const [contactEmail, setContactEmail] = useState<string | null>(null);
   const [impersonating, setImpersonating] = useState<Me['impersonating'] | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
@@ -42,11 +44,13 @@ export function App() {
   useEffect(() => {
     api
       .me()
-      .then(({ authenticated, user: me, isAdmin: admin, whitelisted: allowed, impersonating: viewing }) => {
+      .then(({ authenticated, user: me, isAdmin: admin, whitelisted: allowed, tier: planTier, contactEmail: contact, impersonating: viewing }) => {
         setAuthed(authenticated);
         setUser(me ?? null);
         setIsAdmin(admin ?? false);
         setWhitelisted(allowed ?? false);
+        setTier(planTier ?? null);
+        setContactEmail(contact ?? null);
         setImpersonating(viewing ?? null);
         // Drop a stale ?login_error= once signed in.
         if (authenticated && window.location.search) window.history.replaceState(null, '', '/');
@@ -153,6 +157,7 @@ export function App() {
           onAddClient={() => setAdding(true)}
           onDeleteClient={setDeleting}
           userEmail={user?.email ?? null}
+          tier={tier}
           impersonatingEmail={impersonating?.email ?? null}
           onStopImpersonating={stopImpersonating}
           onLogout={requestLogout}
@@ -165,7 +170,9 @@ export function App() {
             <ClientView key={view.clientId} clientId={view.clientId} onClientUpdated={loadClients} />
           )}
           {view.kind === 'prompt' && impersonating && <PromptSettings />}
-          {view.kind === 'settings' && <Settings mailbox={mailbox} onClaimed={setMailbox} />}
+          {view.kind === 'settings' && (
+            <Settings mailbox={mailbox} onClaimed={setMailbox} tier={tier} contactEmail={contactEmail} />
+          )}
           {view.kind === 'empty' && (
             <div className="screen-center muted">{t.noClientsUseAdd}</div>
           )}

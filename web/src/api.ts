@@ -137,6 +137,10 @@ export interface Me {
   isAdmin?: boolean;
   /** Whether this account may use the app (admins are always true). */
   whitelisted?: boolean;
+  /** Tier of the workspace being viewed — the impersonated accountant's while impersonating, null for admins. */
+  tier?: AccountTier | null;
+  /** Where "Upgrade to Premium" points until self-serve billing exists. */
+  contactEmail?: string | null;
   impersonating?: { id: string; email: string; name: string | null };
 }
 
@@ -157,6 +161,8 @@ export interface Accountant {
   createdAt: string;
   mailbox: string | null;
   whitelisted: boolean;
+  /** Null when the user is not whitelisted (tier lives on the whitelist entry). */
+  tier: AccountTier | null;
   clientCount: number;
   clientsComplete: number;
   docsTotal: number;
@@ -173,9 +179,12 @@ export interface GeminiModelState {
   options: string[];
 }
 
+export type AccountTier = 'normal' | 'premium';
+
 export interface WhitelistEntry {
   email: string;
   name: string | null;
+  tier: AccountTier;
   signedUp: boolean;
   createdAt: string;
 }
@@ -251,10 +260,10 @@ export const api = {
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/api/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),
   adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/api/admin/whitelist'),
-  adminAddToWhitelist: (email: string, name?: string) =>
+  adminAddToWhitelist: (email: string, name?: string, tier?: AccountTier) =>
     request<{ entry: WhitelistEntry }>('/api/admin/whitelist', {
       method: 'POST',
-      body: JSON.stringify({ email, ...(name ? { name } : {}) }),
+      body: JSON.stringify({ email, ...(name ? { name } : {}), ...(tier ? { tier } : {}) }),
     }),
   adminRemoveFromWhitelist: (email: string) =>
     request<{ ok: true }>(`/api/admin/whitelist/${encodeURIComponent(email)}`, { method: 'DELETE' }),

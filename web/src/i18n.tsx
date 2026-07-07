@@ -305,6 +305,16 @@ const he = {
   addAccountantLead: 'הוסיפו את כתובת ה־Gmail שאיתה רואה החשבון יתחבר. הגישה נפתחת ברגע ההוספה — אפשר להתחבר מייד.',
   googleEmail: 'אימייל Google',
   nameOptional: 'שם (אופציונלי)',
+  tierLabel: 'רמת מנוי',
+  tierNormal: 'סטנדרט',
+  tierPremium: 'פרימיום',
+
+  // Plan section (Settings) + sidebar upgrade
+  yourPlan: 'המנוי שלך',
+  planStandardDesc: 'מנוי סטנדרט — כל יכולות הליבה לאיסוף מסמכים מלקוחות.',
+  planPremiumDesc: 'מנוי פרימיום — כל היכולות פתוחות. תודה שאתם איתנו!',
+  upgradeToPremium: 'שדרוג לפרימיום',
+  upgradeMailSubject: 'שדרוג לפרימיום ב־FiscalMind',
   addAccountantFailed: 'הוספת רואה החשבון נכשלה.',
   adding: 'מוסיף…',
 
@@ -636,6 +646,16 @@ const en: Messages = {
     'Add the Gmail address the accountant will sign in with. Access opens the moment they are added — they can sign in right away.',
   googleEmail: 'Google email',
   nameOptional: 'Name (optional)',
+  tierLabel: 'Tier',
+  tierNormal: 'Standard',
+  tierPremium: 'Premium',
+
+  // Plan section (Settings) + sidebar upgrade
+  yourPlan: 'Your plan',
+  planStandardDesc: 'The Standard plan — all the core document-collection features.',
+  planPremiumDesc: 'The Premium plan — every feature unlocked. Thanks for being with us!',
+  upgradeToPremium: 'Upgrade to Premium',
+  upgradeMailSubject: 'Upgrading to Premium on FiscalMind',
   addAccountantFailed: 'Adding the accountant failed.',
   adding: 'Adding…',
 
@@ -965,6 +985,16 @@ const ru: Messages = {
     'Добавьте Gmail-адрес, с которым бухгалтер будет входить. Доступ открывается сразу после добавления — войти можно немедленно.',
   googleEmail: 'Google-адрес',
   nameOptional: 'Имя (необязательно)',
+  tierLabel: 'Тариф',
+  tierNormal: 'Стандарт',
+  tierPremium: 'Премиум',
+
+  // Plan section (Settings) + sidebar upgrade
+  yourPlan: 'Ваш тариф',
+  planStandardDesc: 'Тариф «Стандарт» — все основные возможности сбора документов.',
+  planPremiumDesc: 'Тариф «Премиум» — все возможности открыты. Спасибо, что вы с нами!',
+  upgradeToPremium: 'Перейти на Премиум',
+  upgradeMailSubject: 'Переход на Премиум в FiscalMind',
   addAccountantFailed: 'Не удалось добавить бухгалтера.',
   adding: 'Добавление…',
 

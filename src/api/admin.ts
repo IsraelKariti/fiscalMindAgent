@@ -20,6 +20,7 @@ const WhitelistAddSchema = z
   .object({
     email: z.string().email().max(320),
     name: z.string().min(1).max(200).nullable().optional(),
+    tier: z.enum(['normal', 'premium']).optional(),
   })
   .strict();
 
@@ -82,6 +83,7 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         createdAt: u.created_at,
         mailbox: u.mailbox_address,
         whitelisted: u.whitelisted,
+        tier: u.tier,
         clientCount: u.client_count,
         clientsComplete: u.clients_complete,
         docsTotal: u.docs_total,
@@ -149,6 +151,7 @@ export const adminListWhitelist: RequestHandler = async (_req, res) => {
     entries: entries.map((e) => ({
       email: e.email,
       name: e.name,
+      tier: e.tier,
       signedUp: e.signed_up,
       createdAt: e.created_at,
     })),
@@ -167,13 +170,13 @@ export const adminAddToWhitelist: RequestHandler = async (req, res) => {
     res.status(400).json({ error: 'Admin accounts already have access.' });
     return;
   }
-  const entry = await whitelist.add(email, parsed.data.name ?? null);
+  const entry = await whitelist.add(email, parsed.data.name ?? null, parsed.data.tier ?? 'normal');
   if (!entry) {
     res.status(409).json({ error: 'This email is already whitelisted.' });
     return;
   }
-  logger.info('whitelist entry added', { adminUserId: req.realUserId, email });
-  res.status(201).json({ entry: { email: entry.email, name: entry.name, createdAt: entry.created_at } });
+  logger.info('whitelist entry added', { adminUserId: req.realUserId, email, tier: entry.tier });
+  res.status(201).json({ entry: { email: entry.email, name: entry.name, tier: entry.tier, createdAt: entry.created_at } });
 };
 
 /** DELETE /api/admin/whitelist/:email — revoke access; takes effect on their next request. */

@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, type MailboxStatus, type WaSenderStatus } from '../api';
+import { api, type AccountTier, type MailboxStatus, type WaSenderStatus } from '../api';
 import { useT, type Lang } from '../i18n';
 import { ClaimMailbox } from './ClaimMailbox';
 
 interface Props {
   mailbox: MailboxStatus | null;
   onClaimed: (status: MailboxStatus) => void;
+  tier: AccountTier | null;
+  /** Where the upgrade CTA points until self-serve billing exists. */
+  contactEmail: string | null;
 }
 
 const icon = {
@@ -30,7 +33,7 @@ const LANGUAGES: { value: Lang; label: string }[] = [
   { value: 'ru', label: 'Русский' },
 ];
 
-export function Settings({ mailbox, onClaimed }: Props) {
+export function Settings({ mailbox, onClaimed, tier, contactEmail }: Props) {
   const { t, lang, setLang } = useT();
   const [copied, setCopied] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -57,6 +60,24 @@ export function Settings({ mailbox, onClaimed }: Props) {
           <div>
             <h2>{t.settingsTitle}</h2>
           </div>
+        </div>
+
+        <div className="settings-section">
+          <h3>{t.yourPlan}</h3>
+          <div className="plan-row">
+            <span className={`badge ${tier === 'premium' ? 'badge-premium' : 'badge-neutral'}`}>
+              {tier === 'premium' ? t.tierPremium : t.tierNormal}
+            </span>
+            <p className="muted">{tier === 'premium' ? t.planPremiumDesc : t.planStandardDesc}</p>
+          </div>
+          {tier !== 'premium' && contactEmail && (
+            <a
+              className="btn btn-primary plan-upgrade-btn"
+              href={`mailto:${contactEmail}?subject=${encodeURIComponent(t.upgradeMailSubject)}`}
+            >
+              {t.upgradeToPremium}
+            </a>
+          )}
         </div>
 
         <div className="settings-section">

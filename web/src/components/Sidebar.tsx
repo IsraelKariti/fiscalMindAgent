@@ -1,4 +1,4 @@
-import type { Client } from '../api';
+import type { AccountTier, Client } from '../api';
 import { useT } from '../i18n';
 
 interface Props {
@@ -14,6 +14,8 @@ interface Props {
   onAddClient: () => void;
   onDeleteClient: (client: Client) => void;
   userEmail: string | null;
+  /** Tier of the workspace being viewed (the impersonated accountant's while impersonating). */
+  tier: AccountTier | null;
   impersonatingEmail: string | null;
   onStopImpersonating: () => void;
   onLogout: () => void;
@@ -66,6 +68,12 @@ const icon = {
       <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   ),
+  sparkles: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+      <path d="M19 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z" />
+    </svg>
+  ),
 };
 
 export function Sidebar({
@@ -81,6 +89,7 @@ export function Sidebar({
   onAddClient,
   onDeleteClient,
   userEmail,
+  tier,
   impersonatingEmail,
   onStopImpersonating,
   onLogout,
@@ -162,6 +171,12 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-footer">
+        {tier === 'normal' && (
+          <button className="client-item sidebar-upgrade" onClick={onSelectSettings}>
+            <span className="nav-item-icon">{icon.sparkles}</span>
+            <span className="client-item-name">{t.upgradeToPremium}</span>
+          </button>
+        )}
         <button
           className={`client-item ${settingsSelected ? 'selected' : ''}`}
           onClick={onSelectSettings}
@@ -184,6 +199,11 @@ export function Sidebar({
         <div className="account-row" title={t.googleAccountTitle}>
           <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
           <span className="id-card-text">
+            {/* The account row shows the real signed-in user, so the tier chip
+                hides while impersonating (the tier is the impersonated one's). */}
+            {tier === 'premium' && !impersonatingEmail && (
+              <span className="microlabel tier-chip-premium">{t.tierPremium}</span>
+            )}
             <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
           </span>
           <button className="icon-btn" onClick={onLogout} title={t.logout}>

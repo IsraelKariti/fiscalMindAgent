@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type Client, type ClientDocument, type DocumentFile, type Email, type NextScheduled } from '../api';
+import { api, type AccountTier, type Client, type ClientDocument, type DocumentFile, type Email, type NextScheduled } from '../api';
 import { ClientHeader } from './ClientHeader';
 import { WhatsAppCard } from './WhatsAppCard';
 import { DocumentsCard } from './DocumentsCard';
@@ -22,8 +22,20 @@ type TabId = (typeof TABS)[number]['id'];
 // restores each client's tab, but a page load always starts on Conversation.
 const lastViewedTab = new Map<string, TabId>();
 
-export function ClientView({ clientId, onClientUpdated }: { clientId: string; onClientUpdated: () => Promise<void> }) {
+export function ClientView({
+  clientId,
+  onClientUpdated,
+  tier,
+  contactEmail,
+}: {
+  clientId: string;
+  onClientUpdated: () => Promise<void>;
+  tier: AccountTier | null;
+  contactEmail: string | null;
+}) {
   const { t } = useT();
+  // WhatsApp is premium-only. Null tier means an admin workspace — never locked.
+  const premiumLocked = tier === 'normal';
   const [client, setClient] = useState<Client | null>(null);
   const [nextScheduled, setNextScheduled] = useState<NextScheduled | null>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
@@ -134,6 +146,8 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
             emails={emails}
             nextScheduled={nextScheduled}
             goalStatus={client.goal_status}
+            premiumLocked={premiumLocked}
+            contactEmail={contactEmail}
             onSendNow={async () => {
               await api.sendScheduledNow(clientId);
               // The SSE tick also fires, but refetch right away so the bubble reflects the send.
@@ -153,6 +167,8 @@ export function ClientView({ clientId, onClientUpdated }: { clientId: string; on
           />
           <WhatsAppCard
             client={client}
+            premiumLocked={premiumLocked}
+            contactEmail={contactEmail}
             onSaved={async (updated) => {
               setClient(updated);
               // Toggling the channel re-plans the next message — refresh the schedule too.

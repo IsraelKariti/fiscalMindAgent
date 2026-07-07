@@ -2,10 +2,14 @@ import { useState } from 'react';
 import { api, ApiError, type Client } from '../api';
 import { LOCALE } from '../format';
 import { useT } from '../i18n';
+import { UpgradeModal } from './UpgradeModal';
 
 interface Props {
   client: Client;
   onSaved: (client: Client) => Promise<void>;
+  /** True on the Standard plan: the card stays visible but enabling opens the upgrade modal. */
+  premiumLocked: boolean;
+  contactEmail: string | null;
 }
 
 /**
@@ -13,13 +17,19 @@ interface Props {
  * client's consent; the server records who enabled it and when, and lets the
  * agent start using the channel.
  */
-export function WhatsAppCard({ client, onSaved }: Props) {
+export function WhatsAppCard({ client, onSaved, premiumLocked, contactEmail }: Props) {
   const { t } = useT();
   const [phone, setPhone] = useState(client.wa_phone ?? client.phone ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const setEnabled = async (enabled: boolean) => {
+    // Turning the channel on is premium-only; turning it off always works.
+    if (enabled && premiumLocked) {
+      setShowUpgrade(true);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -77,6 +87,7 @@ export function WhatsAppCard({ client, onSaved }: Props) {
           </button>
         </div>
       )}
+      {showUpgrade && <UpgradeModal contactEmail={contactEmail} onClose={() => setShowUpgrade(false)} />}
     </section>
   );
 }

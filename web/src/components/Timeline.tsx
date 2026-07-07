@@ -4,6 +4,7 @@ import type { Email, GoalStatus, MessageChannel, NextScheduled } from '../api';
 import { formatTimestamp } from '../format';
 import { useT } from '../i18n';
 import { SendNowModal } from './SendNowModal';
+import { UpgradeModal } from './UpgradeModal';
 
 type ChannelFilter = 'all' | MessageChannel;
 
@@ -46,15 +47,21 @@ export function Timeline({
   nextScheduled,
   goalStatus,
   onSendNow,
+  premiumLocked,
+  contactEmail,
 }: {
   emails: Email[];
   nextScheduled: NextScheduled | null;
   goalStatus: GoalStatus;
   onSendNow: () => Promise<void>;
+  /** True on the Standard plan: WhatsApp stays visible but taps open the upgrade modal. */
+  premiumLocked: boolean;
+  contactEmail: string | null;
 }) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
   const [confirmingSendNow, setConfirmingSendNow] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [filter, setFilter] = useState<ChannelFilter>('all');
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -64,8 +71,11 @@ export function Timeline({
   const didInitRef = useRef(false);
 
   // The filter only exists when the client actually has (or is about to get)
-  // WhatsApp traffic — email-only conversations keep the plain header.
+  // WhatsApp traffic — email-only conversations keep the plain header. On the
+  // Standard plan the control always shows: the WhatsApp segment is the upsell
+  // surface (tapping it opens the upgrade modal instead of filtering).
   const hasWhatsApp = emails.some((e) => e.channel === 'whatsapp') || nextScheduled?.channel === 'whatsapp';
+  const showChannelFilter = hasWhatsApp || premiumLocked;
   const visibleEmails = filter === 'all' ? emails : emails.filter((e) => e.channel === filter);
   const showScheduled = nextScheduled !== null && (filter === 'all' || nextScheduled.channel === filter);
   const channelLabel = (channel: MessageChannel) => (channel === 'whatsapp' ? t.channelWhatsApp : t.channelEmail);
@@ -126,7 +136,7 @@ export function Timeline({
       <div className="panel-header">
         <h3>{t.conversationTimeline}</h3>
         <div className="panel-header-actions">
-          {hasWhatsApp && (
+          {showChannelFilter && (
             <div
               className="seg-control"
               role="group"
@@ -140,7 +150,9 @@ export function Timeline({
                   type="button"
                   className={`seg-option ${filter === option ? 'seg-active' : ''}`}
                   aria-pressed={filter === option}
-                  onClick={() => setFilter(option)}
+                  onClick={() =>
+                    option === 'whatsapp' && premiumLocked ? setShowUpgrade(true) : setFilter(option)
+                  }
                 >
                   {option !== 'all' && (
                     <span className={`seg-icon seg-icon-${option}`}>
@@ -283,6 +295,7 @@ export function Timeline({
           onClose={() => setConfirmingSendNow(false)}
         />
       )}
+      {showUpgrade && <UpgradeModal contactEmail={contactEmail} onClose={() => setShowUpgrade(false)} />}
     </section>
   );
 }

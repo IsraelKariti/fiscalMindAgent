@@ -315,6 +315,9 @@ const he = {
   planPremiumDesc: 'מנוי פרימיום — כל היכולות פתוחות. תודה שאתם איתנו!',
   upgradeToPremium: 'שדרוג לפרימיום',
   upgradeMailSubject: 'שדרוג לפרימיום ב־FiscalMind',
+  premiumFeatureTitle: 'יכולת פרימיום',
+  waPremiumPitch: 'ערוץ הוואטסאפ זמין במנוי הפרימיום. שדרגו כדי שהסוכן יוכל להתכתב עם הלקוחות גם בוואטסאפ — ולא רק באימייל.',
+  maybeLater: 'אולי מאוחר יותר',
   addAccountantFailed: 'הוספת רואה החשבון נכשלה.',
   adding: 'מוסיף…',
 
@@ -656,6 +659,9 @@ const en: Messages = {
   planPremiumDesc: 'The Premium plan — every feature unlocked. Thanks for being with us!',
   upgradeToPremium: 'Upgrade to Premium',
   upgradeMailSubject: 'Upgrading to Premium on FiscalMind',
+  premiumFeatureTitle: 'A Premium feature',
+  waPremiumPitch: 'The WhatsApp channel is part of the Premium plan. Upgrade to let the agent message your clients on WhatsApp too — not just over email.',
+  maybeLater: 'Maybe later',
   addAccountantFailed: 'Adding the accountant failed.',
   adding: 'Adding…',
 
@@ -995,6 +1001,9 @@ const ru: Messages = {
   planPremiumDesc: 'Тариф «Премиум» — все возможности открыты. Спасибо, что вы с нами!',
   upgradeToPremium: 'Перейти на Премиум',
   upgradeMailSubject: 'Переход на Премиум в FiscalMind',
+  premiumFeatureTitle: 'Премиум-возможность',
+  waPremiumPitch: 'Канал WhatsApp входит в тариф «Премиум». Перейдите на него, чтобы агент мог общаться с клиентами и в WhatsApp — а не только по почте.',
+  maybeLater: 'Может, позже',
   addAccountantFailed: 'Не удалось добавить бухгалтера.',
   adding: 'Добавление…',
 

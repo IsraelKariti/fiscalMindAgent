@@ -167,7 +167,13 @@ export function App() {
             <Overview onSelectClient={(clientId) => setView({ kind: 'client', clientId })} />
           )}
           {view.kind === 'client' && (
-            <ClientView key={view.clientId} clientId={view.clientId} onClientUpdated={loadClients} />
+            <ClientView
+              key={view.clientId}
+              clientId={view.clientId}
+              onClientUpdated={loadClients}
+              tier={tier}
+              contactEmail={contactEmail}
+            />
           )}
           {view.kind === 'prompt' && impersonating && <PromptSettings />}
           {view.kind === 'settings' && (

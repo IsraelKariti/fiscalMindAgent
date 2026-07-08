@@ -1246,6 +1246,37 @@ textarea {
   font-size: 13px;
 }
 
+/* "Pause" sits at the far edge next to "Send now" (which carries the auto margin). */
+.pause-btn {
+  padding: 1px 10px;
+  font-size: 13px;
+}
+
+/* A paused scheduled message keeps its bubble but reads as inactive. */
+.timeline-item.paused .bubble-scheduled {
+  opacity: 0.6;
+}
+
+/* Paused notice: same pending grammar as the drafting placeholder, but static. */
+.bubble-paused {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pending);
+}
+
+.paused-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.resume-btn {
+  margin-inline-start: auto;
+  padding: 1px 10px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
 /* "Agent is drafting the next email" placeholder: same pending grammar as a
    scheduled message, but a single pulsing line instead of a full bubble. */
 .bubble-drafting {

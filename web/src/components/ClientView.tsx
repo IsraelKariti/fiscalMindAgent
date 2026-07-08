@@ -79,7 +79,8 @@ export function ClientView({
 
   // Goal open with nothing scheduled means the agent is drafting the next email in the
   // background (e.g. right after client creation) — poll fast so it pops in when ready.
-  const drafting = client !== null && client.goal_status === 'pending' && !nextScheduled;
+  // Not while paused: paused clients have nothing scheduled by design.
+  const drafting = client !== null && client.goal_status === 'pending' && !client.paused && !nextScheduled;
 
   // Fallback polling in case the event stream drops: refetch every 15s when
   // the tab is visible, and immediately when it becomes visible again.
@@ -146,11 +147,17 @@ export function ClientView({
             emails={emails}
             nextScheduled={nextScheduled}
             goalStatus={client.goal_status}
+            paused={client.paused}
             premiumLocked={premiumLocked}
             contactEmail={contactEmail}
             onSendNow={async () => {
               await api.sendScheduledNow(clientId);
               // The SSE tick also fires, but refetch right away so the bubble reflects the send.
+              await load();
+            }}
+            onTogglePause={async (paused) => {
+              await api.setPaused(clientId, paused);
+              // Pausing holds the schedule / resuming restores or redrafts it — refresh right away.
               await load();
             }}
           />

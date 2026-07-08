@@ -1,3 +1,4 @@
+import * as clients from '../db/queries/clients.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
 import { sendEmailQueue } from './sendEmailQueue.js';
@@ -20,6 +21,11 @@ export async function resyncScheduledJobs(): Promise<void> {
       // Re-read under the lock — a webhook/worker flow may have replaced it.
       const current = await scheduledJobs.getForClient(row.client_id);
       if (!current || current.bullmq_job_id !== row.bullmq_job_id) return;
+
+      // Paused sends are deliberately absent from Redis (the row preserves the
+      // draft and time for resume) — don't resurrect them here.
+      const client = await clients.getById(row.client_id);
+      if (client?.paused) return;
 
       if (await sendEmailQueue.getJob(current.bullmq_job_id)) return;
 

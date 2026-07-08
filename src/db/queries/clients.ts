@@ -102,6 +102,15 @@ export async function disableWhatsApp(id: string): Promise<ClientRow | null> {
   return rows[0] ?? null;
 }
 
+/** Flips the outreach pause switch; returns the updated row (null if the client is gone). */
+export async function setPaused(id: string, paused: boolean): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(
+    'UPDATE clients SET paused = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, paused],
+  );
+  return rows[0] ?? null;
+}
+
 /** Deletes the client; documents, files, emails and the scheduled-job row go with it via FK cascades. */
 export async function removeForUser(id: string, userId: string): Promise<boolean> {
   const { rowCount } = await pool.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [id, userId]);

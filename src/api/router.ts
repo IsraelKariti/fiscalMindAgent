@@ -14,7 +14,9 @@ import { hasPremiumAccess } from '../util/premium.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
 import { onClientUpdated } from '../events/clientEvents.js';
+import { pauseFutureEmail } from '../orchestration/pauseFutureEmail.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
+import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.js';
@@ -67,6 +69,8 @@ const WhatsAppToggleSchema = z
     phone: z.string().optional(),
   })
   .strict();
+
+const PauseToggleSchema = z.object({ paused: z.boolean() }).strict();
 
 const DocumentCreateSchema = z
   .object({
@@ -509,6 +513,43 @@ apiRouter.get(
       return;
     }
     res.json({ emails: await emails.listForClient(client.id) });
+  }),
+);
+
+// Pause switch for the agent's outreach. Pausing pulls the pending job out of the
+// queue but preserves the draft and its scheduled time; the paused flag then keeps
+// setFutureEmail from scheduling anything new when replies come in. Resuming restores
+// the preserved send as-is when its time is still in the future, and only redrafts
+// when that time passed while paused (or a reply obsoleted the draft). The flag is
+// flipped before taking the client lock so a send that is mid-flight re-plans into
+// the new state.
+apiRouter.put(
+  '/clients/:id/pause',
+  wrap(async (req, res) => {
+    const parsed = PauseToggleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Expected { paused: boolean }.' });
+      return;
+    }
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+
+    const updated = await clients.setPaused(client.id, parsed.data.paused);
+    if (!updated) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+
+    if (parsed.data.paused) {
+      await withClientLock(updated.id, () => pauseFutureEmail(updated.id));
+    } else if (updated.goal_status === 'pending') {
+      await withClientLock(updated.id, () => resumeFutureEmail(updated.id));
+    }
+    res.json({ client: updated });
   }),
 );
 

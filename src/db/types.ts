@@ -62,6 +62,8 @@ export interface ClientRow {
   wa_opted_in_at: Date | null;
   wa_opted_in_by: string | null;
   wa_opted_out_at: Date | null;
+  /** True while the accountant has paused the agent's outreach to this client. */
+  paused: boolean;
   created_at: Date;
   updated_at: Date;
 }

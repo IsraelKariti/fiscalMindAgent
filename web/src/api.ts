@@ -14,6 +14,8 @@ export interface Client {
   wa_enabled: boolean;
   wa_opted_in_at: string | null;
   wa_opted_out_at: string | null;
+  /** True while the accountant has paused the agent's outreach to this client. */
+  paused: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -253,6 +255,8 @@ export const api = {
     request<{ client: Client }>(`/api/clients/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(args) }),
   listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),
   sendScheduledNow: (clientId: string) => request<{ ok: true }>(`/api/clients/${clientId}/send-now`, { method: 'POST' }),
+  setPaused: (clientId: string, paused: boolean) =>
+    request<{ client: Client }>(`/api/clients/${clientId}/pause`, { method: 'PUT', body: JSON.stringify({ paused }) }),
   listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),
   fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/api/admin/accountants'),

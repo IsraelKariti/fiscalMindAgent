@@ -27,6 +27,12 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       logger.info('goal already complete, skipping send', { clientId });
       return;
     }
+    if (client.paused) {
+      // Pausing removes the pending job, so this only catches races (a job that
+      // went active as the pause landed) and boot-time resyncs of stale rows.
+      logger.info('client paused, skipping send', { clientId });
+      return;
+    }
 
     const draft = await emails.getById(emailId);
     if (!draft || draft.status !== 'draft') {

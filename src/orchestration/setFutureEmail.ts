@@ -76,6 +76,12 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   const client = await clients.getById(clientId);
   if (!client) throw new Error(`setFutureEmail: client ${clientId} not found`);
   if (client.goal_status === 'complete') return;
+  if (client.paused) {
+    // Replies/attachments still land and reach this re-plan path; while paused
+    // the agent just never schedules the next send. Resuming re-plans.
+    logger.info('client paused, not scheduling a follow-up', { clientId });
+    return;
+  }
 
   const now = new Date();
   const accountant = client.user_id ? await users.getById(client.user_id) : null;

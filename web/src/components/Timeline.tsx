@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { Email, GoalStatus, MessageChannel, NextScheduled } from '../api';
+import { ApiError, type Email, type GoalStatus, type MessageChannel, type NextScheduled } from '../api';
 import { formatTimestamp } from '../format';
 import { useT } from '../i18n';
 import { SendNowModal } from './SendNowModal';
@@ -29,6 +29,11 @@ const icon = {
       <path d="M20 6 9 17l-5-5" />
     </svg>
   ),
+  pause: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+      <path d="M10 5v14M15 5v14" />
+    </svg>
+  ),
   mail: (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -46,14 +51,19 @@ export function Timeline({
   emails,
   nextScheduled,
   goalStatus,
+  paused,
   onSendNow,
+  onTogglePause,
   premiumLocked,
   contactEmail,
 }: {
   emails: Email[];
   nextScheduled: NextScheduled | null;
   goalStatus: GoalStatus;
+  /** True while the agent's outreach to this client is paused. */
+  paused: boolean;
   onSendNow: () => Promise<void>;
+  onTogglePause: (paused: boolean) => Promise<void>;
   /** True on the Standard plan: WhatsApp stays visible but taps open the upgrade modal. */
   premiumLocked: boolean;
   contactEmail: string | null;
@@ -62,6 +72,8 @@ export function Timeline({
   const [copied, setCopied] = useState(false);
   const [confirmingSendNow, setConfirmingSendNow] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [pauseBusy, setPauseBusy] = useState(false);
+  const [pauseError, setPauseError] = useState<string | null>(null);
   // Cross-channel filters are premium-only: the Standard plan starts (and stays)
   // on Email, and the other segments open the upgrade modal.
   const [filter, setFilter] = useState<ChannelFilter>(premiumLocked ? 'email' : 'all');
@@ -79,6 +91,8 @@ export function Timeline({
   const hasWhatsApp = emails.some((e) => e.channel === 'whatsapp') || nextScheduled?.channel === 'whatsapp';
   const showChannelFilter = hasWhatsApp || premiumLocked;
   const visibleEmails = filter === 'all' ? emails : emails.filter((e) => e.channel === filter);
+  // Pausing preserves the draft and its time, so the bubble stays visible while
+  // paused — just with a paused note and a Resume button instead of Send now.
   const showScheduled = nextScheduled !== null && (filter === 'all' || nextScheduled.channel === filter);
   const channelLabel = (channel: MessageChannel) => (channel === 'whatsapp' ? t.channelWhatsApp : t.channelEmail);
 
@@ -103,6 +117,18 @@ export function Timeline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastEmailId, nextScheduled?.scheduledFor]);
 
+  const togglePause = async (next: boolean) => {
+    setPauseBusy(true);
+    setPauseError(null);
+    try {
+      await onTogglePause(next);
+    } catch (err) {
+      setPauseError(err instanceof ApiError ? err.message : t.pauseFailed);
+    } finally {
+      setPauseBusy(false);
+    }
+  };
+
   const copyConversation = async () => {
     // agent_reasoning is the LLM's internal explanation for the follow-up decision
     // (mainly the chosen send time); absent on client messages and pre-feature emails.
@@ -121,7 +147,7 @@ export function Timeline({
         time: nextScheduled.scheduledFor,
         sender: 'agent',
         channel: nextScheduled.channel,
-        status: 'pending',
+        status: paused ? 'paused' : 'pending',
         subject: nextScheduled.subject ?? '',
         body: nextScheduled.body ?? '',
         ...(nextScheduled.reasoning ? { agent_reasoning: nextScheduled.reasoning } : {}),
@@ -184,6 +210,7 @@ export function Timeline({
         </div>
       </div>
       <div className="panel-body" ref={bodyRef} onScroll={trackScroll}>
+        {pauseError && <div className="error-banner">{pauseError}</div>}
         {visibleEmails.length === 0 && !showScheduled && goalStatus !== 'pending' && (
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
@@ -221,19 +248,23 @@ export function Timeline({
             </li>
           )}
           {showScheduled && nextScheduled && (
-            <li className="timeline-item outbound scheduled">
+            <li className={`timeline-item outbound scheduled ${paused ? 'paused' : ''}`}>
               <div className="timeline-meta">
                 <span className="timeline-author">
-                  <svg
-                    className="scheduled-clock"
-                    viewBox="0 0 16 16"
-                    width="12"
-                    height="12"
-                    aria-hidden="true"
-                  >
-                    <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
+                  {paused ? (
+                    <span className="paused-icon">{icon.pause}</span>
+                  ) : (
+                    <svg
+                      className="scheduled-clock"
+                      viewBox="0 0 16 16"
+                      width="12"
+                      height="12"
+                      aria-hidden="true"
+                    >
+                      <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  )}
                   {t.agentNotSentYet}
                 </span>
                 {hasWhatsApp && (
@@ -241,14 +272,39 @@ export function Timeline({
                     {channelLabel(nextScheduled.channel)}
                   </span>
                 )}
-                <span className="scheduled-note">{t.willBeSentAt(formatTimestamp(nextScheduled.scheduledFor))}</span>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-small send-now-btn"
-                  onClick={() => setConfirmingSendNow(true)}
-                >
-                  {t.sendNow}
-                </button>
+                <span className="scheduled-note">
+                  {paused
+                    ? t.pausedScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
+                    : t.willBeSentAt(formatTimestamp(nextScheduled.scheduledFor))}
+                </span>
+                {paused ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-small resume-btn"
+                    onClick={() => togglePause(false)}
+                    disabled={pauseBusy}
+                  >
+                    {pauseBusy ? t.resuming : t.resumeSchedule}
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small send-now-btn"
+                      onClick={() => setConfirmingSendNow(true)}
+                    >
+                      {t.sendNow}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small pause-btn"
+                      onClick={() => togglePause(true)}
+                      disabled={pauseBusy}
+                    >
+                      {t.pauseSchedule}
+                    </button>
+                  </>
+                )}
               </div>
               <div className="bubble bubble-scheduled">
                 {nextScheduled.body ? (
@@ -266,9 +322,28 @@ export function Timeline({
               </div>
             </li>
           )}
+          {/* Paused with no preserved draft (a reply obsoleted it while paused, or the
+              pause landed mid-redraft): nothing is scheduled and nothing will be until
+              the accountant resumes, which has the agent redraft. */}
+          {paused && !nextScheduled && goalStatus === 'pending' && (
+            <li className="timeline-item outbound scheduled">
+              <div className="bubble bubble-scheduled bubble-paused">
+                <span className="paused-icon">{icon.pause}</span>
+                <span>{t.pausedNotice}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small resume-btn"
+                  onClick={() => togglePause(false)}
+                  disabled={pauseBusy}
+                >
+                  {pauseBusy ? t.resuming : t.resumeSchedule}
+                </button>
+              </div>
+            </li>
+          )}
           {/* Goal open but nothing scheduled: the agent is between decisions — a fresh
               client awaiting its first draft, or a follow-up being drafted after a send/reply. */}
-          {!nextScheduled && goalStatus === 'pending' && (
+          {!paused && !nextScheduled && goalStatus === 'pending' && (
             <li className="timeline-item outbound scheduled drafting">
               <div className="bubble bubble-scheduled bubble-drafting">
                 <svg

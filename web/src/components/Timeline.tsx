@@ -412,6 +412,7 @@ export function Timeline({
       {confirmingSendNow && nextScheduled && (
         <SendNowModal
           scheduledFor={nextScheduled.scheduledFor}
+          channel={nextScheduled.channel}
           onSendNow={onSendNow}
           onClose={() => setConfirmingSendNow(false)}
         />

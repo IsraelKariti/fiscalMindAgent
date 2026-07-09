@@ -50,6 +50,15 @@ export async function add(email: string, name: string | null, tier: AccountTier 
   return rows[0] ?? null;
 }
 
+/** Returns false when the email is not whitelisted. */
+export async function setTier(email: string, tier: AccountTier): Promise<boolean> {
+  const { rowCount } = await pool.query('UPDATE whitelisted_emails SET tier = $2 WHERE email = $1', [
+    email.toLowerCase(),
+    tier,
+  ]);
+  return (rowCount ?? 0) > 0;
+}
+
 export async function remove(email: string): Promise<boolean> {
   const { rowCount } = await pool.query('DELETE FROM whitelisted_emails WHERE email = $1', [email.toLowerCase()]);
   return (rowCount ?? 0) > 0;

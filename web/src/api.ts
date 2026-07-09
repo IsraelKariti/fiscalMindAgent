@@ -271,6 +271,11 @@ export const api = {
     }),
   adminRemoveFromWhitelist: (email: string) =>
     request<{ ok: true }>(`/api/admin/whitelist/${encodeURIComponent(email)}`, { method: 'DELETE' }),
+  adminSetTier: (email: string, tier: AccountTier) =>
+    request<{ ok: true }>(`/api/admin/whitelist/${encodeURIComponent(email)}/tier`, {
+      method: 'PUT',
+      body: JSON.stringify({ tier }),
+    }),
   impersonate: (userId: string) =>
     request<{ ok: true }>('/api/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),
   stopImpersonating: () => request<{ ok: true }>('/api/admin/impersonate/stop', { method: 'POST' }),

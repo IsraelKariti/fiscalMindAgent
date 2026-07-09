@@ -179,6 +179,28 @@ export const adminAddToWhitelist: RequestHandler = async (req, res) => {
   res.status(201).json({ entry: { email: entry.email, name: entry.name, tier: entry.tier, createdAt: entry.created_at } });
 };
 
+const TierSchema = z.object({ tier: z.enum(['normal', 'premium']) }).strict();
+
+/** PUT /api/admin/whitelist/:email/tier — change an account's tier (e.g. a manual premium upgrade). */
+export const adminSetTier: RequestHandler = async (req, res) => {
+  const email = z.string().email().safeParse(req.params.email);
+  const parsed = TierSchema.safeParse(req.body);
+  if (!email.success || !parsed.success) {
+    res.status(400).json({ error: 'Invalid tier change.' });
+    return;
+  }
+  if (!(await whitelist.setTier(email.data, parsed.data.tier))) {
+    res.status(404).json({ error: 'Email not found in the whitelist.' });
+    return;
+  }
+  logger.info('account tier changed', {
+    adminUserId: req.realUserId,
+    email: email.data.toLowerCase(),
+    tier: parsed.data.tier,
+  });
+  res.json({ ok: true });
+};
+
 /** DELETE /api/admin/whitelist/:email — revoke access; takes effect on their next request. */
 export const adminRemoveFromWhitelist: RequestHandler = async (req, res) => {
   const email = z.string().email().safeParse(req.params.email);

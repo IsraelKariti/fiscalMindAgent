@@ -10,6 +10,7 @@ import {
 import { formatTimestamp, formatUsd, LOCALE } from '../format';
 import { useT } from '../i18n';
 import { AddAccountantModal } from './AddAccountantModal';
+import { UpgradeAccountModal } from './UpgradeAccountModal';
 
 interface Props {
   userEmail: string | null;
@@ -58,6 +59,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busyEmail, setBusyEmail] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [upgradeEmail, setUpgradeEmail] = useState<string | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [modelState, setModelState] = useState<GeminiModelState | null>(null);
   const [modelNotice, setModelNotice] = useState<'saved' | 'load_failed' | 'save_failed' | null>(null);
@@ -385,10 +387,21 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                     <div>
                       <dt>{t.tierLabel}</dt>
                       <dd>
-                        {selected.tier ? (
-                          selected.tier === 'premium' ? t.tierPremium : t.tierNormal
-                        ) : (
+                        {!selected.tier ? (
                           <span className="muted">—</span>
+                        ) : selected.tier === 'premium' ? (
+                          t.tierPremium
+                        ) : (
+                          <span className="tier-inline">
+                            {t.tierNormal}
+                            <button
+                              className="btn btn-ghost btn-small"
+                              disabled={busyEmail !== null}
+                              onClick={() => setUpgradeEmail(selected.email)}
+                            >
+                              {t.upgradeAction}
+                            </button>
+                          </span>
                         )}
                       </dd>
                     </div>
@@ -534,6 +547,17 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
           </section>
         )}
       </main>
+
+      {upgradeEmail && (
+        <UpgradeAccountModal
+          email={upgradeEmail}
+          onClose={() => setUpgradeEmail(null)}
+          onUpgraded={() => {
+            setUpgradeEmail(null);
+            refresh().catch(() => setError(t.accountantsRefreshFailed));
+          }}
+        />
+      )}
 
       {adding && (
         <AddAccountantModal

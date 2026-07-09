@@ -721,6 +721,13 @@ a.plan-upgrade-btn {
   grid-column: 1 / -1;
 }
 
+/* Tier value with its inline upgrade button (admin detail grid) */
+.tier-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Forms */
 .field {
   display: flex;
@@ -980,6 +987,49 @@ textarea {
   background: var(--primary-soft);
   border: 1px solid rgba(139, 92, 246, 0.35);
   box-shadow: 0 0 24px rgba(139, 92, 246, 0.25);
+}
+
+/* Hazard-styled warning modal (admin grants Premium without payment) */
+.modal-warning {
+  width: 400px;
+  align-items: center;
+  text-align: center;
+  border-top: 2px solid transparent;
+  background:
+    linear-gradient(rgba(19, 25, 46, 0.96), rgba(19, 25, 46, 0.96)) padding-box,
+    linear-gradient(120deg, #fbbf24, #fb923c 55%, #fb7185) border-box;
+  box-shadow:
+    0 0 60px rgba(251, 146, 60, 0.25),
+    0 30px 70px rgba(4, 6, 14, 0.7);
+}
+
+.modal-warning .muted {
+  margin: 0;
+}
+
+.modal-warning .modal-actions {
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.warning-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: #fbbf24;
+  background: rgba(251, 146, 60, 0.14);
+  border: 1px solid rgba(251, 146, 60, 0.4);
+  box-shadow: 0 0 24px rgba(251, 146, 60, 0.25);
+}
+
+.warning-highlight {
+  background: linear-gradient(120deg, #fbbf24, #fb923c 55%, #fb7185);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .btn-small {

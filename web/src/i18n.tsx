@@ -298,6 +298,11 @@ const he = {
   adminDetailNote:
     'רק רואי חשבון ברשימת ההיתרים יכולים להשתמש באפליקציה. "כניסה לחשבון" פותחת את הדשבורד שלהם בדיוק כפי שהם רואים אותו — ובזמן הכניסה, כל פעולה שלכם חלה על החשבון שלהם.',
   accountantsRefreshFailed: 'רענון רשימת רואי החשבון נכשל.',
+  upgradeAction: 'שדרוג',
+  upgradeAccountWarning: (email: string) =>
+    `אתם עומדים לשדרג את ${email} לפרימיום באופן ידני, בלי שהחשבון שילם על המנוי. כל יכולות הפרימיום ייפתחו לו מייד וללא תשלום.`,
+  upgrading: 'משדרג…',
+  upgradeAccountFailed: 'שדרוג החשבון נכשל.',
   llmModelTitle: 'מודל השפה',
   llmModelDesc:
     'המודל של Gemini שמשמש את כל קריאות ה־LLM — ניסוח מיילים, החלטות תזמון וניתוח קבצים — עבור כל רואי החשבון וכל הלקוחות. שינוי נכנס לתוקף מייד, מהקריאה הבאה.',
@@ -647,6 +652,11 @@ const en: Messages = {
   adminDetailNote:
     'Only whitelisted accountants can use the app. "Enter account" opens their dashboard exactly as they see it — and while inside, every action you take applies to their account.',
   accountantsRefreshFailed: 'Refreshing the accountant list failed.',
+  upgradeAction: 'Upgrade',
+  upgradeAccountWarning: (email: string) =>
+    `You are about to manually upgrade ${email} to Premium without the account paying for the plan. Every Premium feature will open for them immediately, free of charge.`,
+  upgrading: 'Upgrading…',
+  upgradeAccountFailed: 'Upgrading the account failed.',
   llmModelTitle: 'LLM model',
   llmModelDesc:
     'The Gemini model behind every LLM call — email drafting, scheduling decisions and file analysis — for every accountant and every client. A change takes effect immediately, from the next call.',
@@ -995,6 +1005,11 @@ const ru: Messages = {
   adminDetailNote:
     'Пользоваться приложением могут только бухгалтеры из списка разрешённых. «Войти в аккаунт» открывает их панель ровно так, как её видят они, — и пока вы внутри, каждое ваше действие применяется к их аккаунту.',
   accountantsRefreshFailed: 'Не удалось обновить список бухгалтеров.',
+  upgradeAction: 'Повысить',
+  upgradeAccountWarning: (email: string) =>
+    `Вы собираетесь вручную перевести ${email} на Премиум, хотя аккаунт не оплатил тариф. Все премиум-возможности откроются немедленно и бесплатно.`,
+  upgrading: 'Повышение…',
+  upgradeAccountFailed: 'Не удалось повысить тариф аккаунта.',
   llmModelTitle: 'Языковая модель',
   llmModelDesc:
     'Модель Gemini для всех LLM-вызовов — составления писем, решений о расписании и анализа файлов — для всех бухгалтеров и всех клиентов. Изменение вступает в силу немедленно, со следующего вызова.',

@@ -84,6 +84,8 @@ export function Timeline({
   const [pauseError, setPauseError] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const [regenBusy, setRegenBusy] = useState(false);
+  const [regenError, setRegenError] = useState<string | null>(null);
   // Cross-channel filters are premium-only: the Standard plan starts (and stays)
   // on Email, and the other segments open the upgrade modal.
   const [filter, setFilter] = useState<ChannelFilter>(premiumLocked ? 'email' : 'all');
@@ -136,6 +138,20 @@ export function Timeline({
       setRetryError(err instanceof ApiError ? err.message : t.retryDraftFailed);
     } finally {
       setRetryBusy(false);
+    }
+  };
+
+  // Regenerating a scheduled draft goes through the same redraft endpoint as the
+  // failed-draft Retry: it discards the current draft and has the agent re-plan.
+  const regenerateDraft = async () => {
+    setRegenBusy(true);
+    setRegenError(null);
+    try {
+      await onRetryDraft();
+    } catch (err) {
+      setRegenError(err instanceof ApiError ? err.message : t.regenerateFailed);
+    } finally {
+      setRegenBusy(false);
     }
   };
 
@@ -234,6 +250,7 @@ export function Timeline({
       <div className="panel-body" ref={bodyRef} onScroll={trackScroll}>
         {pauseError && <div className="error-banner">{pauseError}</div>}
         {retryError && <div className="error-banner">{retryError}</div>}
+        {regenError && <div className="error-banner">{regenError}</div>}
         {visibleEmails.length === 0 && !showScheduled && goalStatus !== 'pending' && (
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
@@ -315,14 +332,23 @@ export function Timeline({
                       type="button"
                       className="btn btn-ghost btn-small send-now-btn"
                       onClick={() => setConfirmingSendNow(true)}
+                      disabled={regenBusy}
                     >
                       {t.sendNow}
                     </button>
                     <button
                       type="button"
+                      className="btn btn-ghost btn-small regenerate-btn"
+                      onClick={regenerateDraft}
+                      disabled={regenBusy || pauseBusy}
+                    >
+                      {regenBusy ? t.regeneratingDraft : t.regenerateDraft}
+                    </button>
+                    <button
+                      type="button"
                       className="btn btn-ghost btn-small pause-btn"
                       onClick={() => togglePause(true)}
-                      disabled={pauseBusy}
+                      disabled={pauseBusy || regenBusy}
                     >
                       {t.pauseSchedule}
                     </button>

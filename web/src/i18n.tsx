@@ -150,6 +150,9 @@ const he = {
   retryDraft: 'ניסיון חוזר',
   retryingDraft: 'מנסה שוב…',
   retryDraftFailed: 'הניסיון החוזר נכשל.',
+  regenerateDraft: 'ניסוח מחדש',
+  regeneratingDraft: 'מנסח מחדש…',
+  regenerateFailed: 'הניסוח מחדש נכשל.',
   goalCompleteFooter: 'היעד הושלם — לא מתוכננים מעקבים נוספים.',
 
   // StatTiles / shared stats
@@ -510,6 +513,9 @@ const en: Messages = {
   retryDraft: 'Retry',
   retryingDraft: 'Retrying…',
   retryDraftFailed: 'Retrying the draft failed.',
+  regenerateDraft: 'Regenerate',
+  regeneratingDraft: 'Regenerating…',
+  regenerateFailed: 'Regenerating the draft failed.',
   goalCompleteFooter: 'Goal complete — no further follow-ups are planned.',
 
   // StatTiles / shared stats
@@ -869,6 +875,9 @@ const ru: Messages = {
   retryDraft: 'Повторить',
   retryingDraft: 'Повтор…',
   retryDraftFailed: 'Не удалось повторить составление.',
+  regenerateDraft: 'Составить заново',
+  regeneratingDraft: 'Составление…',
+  regenerateFailed: 'Не удалось составить сообщение заново.',
   goalCompleteFooter: 'Цель достигнута — дальнейшие напоминания не запланированы.',
 
   // StatTiles / shared stats

@@ -1296,7 +1296,9 @@ textarea {
   font-size: 13px;
 }
 
-/* "Pause" sits at the far edge next to "Send now" (which carries the auto margin). */
+/* "Regenerate" and "Pause" sit at the far edge next to "Send now" (which carries
+   the auto margin). */
+.regenerate-btn,
 .pause-btn {
   padding: 1px 10px;
   font-size: 13px;

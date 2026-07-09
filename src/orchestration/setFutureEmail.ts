@@ -83,6 +83,24 @@ export async function setFutureEmail(clientId: string): Promise<void> {
     return;
   }
 
+  // Stamp the attempt so the UI can tell an in-flight draft from an abandoned one,
+  // and record failures so it can offer a manual retry instead of an eternal
+  // "drafting…" placeholder (several callers are fire-and-forget with no retry).
+  await clients.markDraftingStarted(clientId);
+  try {
+    await planFollowUp(client);
+    await clients.clearDraftingState(clientId);
+  } catch (err) {
+    await clients.markDraftingFailed(clientId).catch((markErr) => {
+      logger.error('failed to record draft failure', markErr, { clientId });
+    });
+    publishClientUpdated(clientId);
+    throw err;
+  }
+}
+
+async function planFollowUp(client: ClientRow): Promise<void> {
+  const clientId = client.id;
   const now = new Date();
   const accountant = client.user_id ? await users.getById(client.user_id) : null;
   const history = await emails.listForClient(clientId);

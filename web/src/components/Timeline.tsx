@@ -52,8 +52,11 @@ export function Timeline({
   nextScheduled,
   goalStatus,
   paused,
+  draftFailed,
+  draftStale,
   onSendNow,
   onTogglePause,
+  onRetryDraft,
   premiumLocked,
   contactEmail,
 }: {
@@ -62,8 +65,13 @@ export function Timeline({
   goalStatus: GoalStatus;
   /** True while the agent's outreach to this client is paused. */
   paused: boolean;
+  /** The last drafting attempt threw — show the failure notice with a Retry button. */
+  draftFailed: boolean;
+  /** Drafting has been "in progress" implausibly long (attempt killed mid-flight) — offer Retry too. */
+  draftStale: boolean;
   onSendNow: () => Promise<void>;
   onTogglePause: (paused: boolean) => Promise<void>;
+  onRetryDraft: () => Promise<void>;
   /** True on the Standard plan: WhatsApp stays visible but taps open the upgrade modal. */
   premiumLocked: boolean;
   contactEmail: string | null;
@@ -74,6 +82,8 @@ export function Timeline({
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [pauseBusy, setPauseBusy] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
+  const [retryBusy, setRetryBusy] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
   // Cross-channel filters are premium-only: the Standard plan starts (and stays)
   // on Email, and the other segments open the upgrade modal.
   const [filter, setFilter] = useState<ChannelFilter>(premiumLocked ? 'email' : 'all');
@@ -116,6 +126,18 @@ export function Timeline({
     didInitRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastEmailId, nextScheduled?.scheduledFor]);
+
+  const retryDraft = async () => {
+    setRetryBusy(true);
+    setRetryError(null);
+    try {
+      await onRetryDraft();
+    } catch (err) {
+      setRetryError(err instanceof ApiError ? err.message : t.retryDraftFailed);
+    } finally {
+      setRetryBusy(false);
+    }
+  };
 
   const togglePause = async (next: boolean) => {
     setPauseBusy(true);
@@ -211,6 +233,7 @@ export function Timeline({
       </div>
       <div className="panel-body" ref={bodyRef} onScroll={trackScroll}>
         {pauseError && <div className="error-banner">{pauseError}</div>}
+        {retryError && <div className="error-banner">{retryError}</div>}
         {visibleEmails.length === 0 && !showScheduled && goalStatus !== 'pending' && (
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
@@ -341,9 +364,30 @@ export function Timeline({
               </div>
             </li>
           )}
+          {/* Drafting failed (the attempt threw) or stalled (killed mid-flight and will
+              never finish): swap the pulsing placeholder for a notice with a manual retry. */}
+          {!paused && !nextScheduled && goalStatus === 'pending' && (draftFailed || draftStale) && (
+            <li className="timeline-item outbound scheduled">
+              <div className="bubble bubble-scheduled bubble-draft-failed">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+                  <path d="M12 9v4M12 17h.01" />
+                </svg>
+                <span>{draftFailed ? t.draftingFailed : t.draftingStuck}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small retry-draft-btn"
+                  onClick={retryDraft}
+                  disabled={retryBusy}
+                >
+                  {retryBusy ? t.retryingDraft : t.retryDraft}
+                </button>
+              </div>
+            </li>
+          )}
           {/* Goal open but nothing scheduled: the agent is between decisions — a fresh
               client awaiting its first draft, or a follow-up being drafted after a send/reply. */}
-          {!paused && !nextScheduled && goalStatus === 'pending' && (
+          {!paused && !nextScheduled && goalStatus === 'pending' && !draftFailed && !draftStale && (
             <li className="timeline-item outbound scheduled drafting">
               <div className="bubble bubble-scheduled bubble-drafting">
                 <svg

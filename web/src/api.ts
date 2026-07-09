@@ -16,6 +16,10 @@ export interface Client {
   wa_opted_out_at: string | null;
   /** True while the accountant has paused the agent's outreach to this client. */
   paused: boolean;
+  /** Set while a planning attempt is in flight; stale = the attempt died mid-flight. */
+  drafting_since: string | null;
+  /** Set when the last planning attempt threw; the timeline shows a Retry button. */
+  draft_failed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -257,6 +261,7 @@ export const api = {
   sendScheduledNow: (clientId: string) => request<{ ok: true }>(`/api/clients/${clientId}/send-now`, { method: 'POST' }),
   setPaused: (clientId: string, paused: boolean) =>
     request<{ client: Client }>(`/api/clients/${clientId}/pause`, { method: 'PUT', body: JSON.stringify({ paused }) }),
+  retryDraft: (clientId: string) => request<{ ok: true }>(`/api/clients/${clientId}/redraft`, { method: 'POST' }),
   listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),
   fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/api/admin/accountants'),

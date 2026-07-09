@@ -82,6 +82,19 @@ export function ClientView({
   // Not while paused: paused clients have nothing scheduled by design.
   const drafting = client !== null && client.goal_status === 'pending' && !client.paused && !nextScheduled;
 
+  // Drafting normally settles within ~2 minutes (one Gemini call, worst case a few
+  // internal retries), so past this it isn't "still thinking" — the attempt is gone.
+  const DRAFT_STALE_MS = 3 * 60_000;
+  // Observed failure: the planning attempt threw and recorded it.
+  const draftFailed = drafting && client?.draft_failed_at != null;
+  // Abandoned attempt: a crash/restart killed the draft without recording anything.
+  // drafting_since is authoritative; rows from before it existed (or the rare kill
+  // between cancel and re-plan) fall back to the last timeline activity.
+  const lastEmail = emails[emails.length - 1];
+  const draftAnchor = client?.drafting_since ?? lastEmail?.sent_at ?? lastEmail?.created_at ?? client?.created_at;
+  const draftStale =
+    drafting && !draftFailed && draftAnchor !== undefined && Date.now() - new Date(draftAnchor).getTime() > DRAFT_STALE_MS;
+
   // Fallback polling in case the event stream drops: refetch every 15s when
   // the tab is visible, and immediately when it becomes visible again.
   useEffect(() => {
@@ -89,13 +102,14 @@ export function ClientView({
     const refreshIfVisible = () => {
       if (document.visibilityState === 'visible') load();
     };
-    const interval = setInterval(refreshIfVisible, drafting ? 3_000 : 15_000);
+    // No fast poll once drafting failed/stalled — nothing changes until the user retries.
+    const interval = setInterval(refreshIfVisible, drafting && !draftFailed && !draftStale ? 3_000 : 15_000);
     document.addEventListener('visibilitychange', refreshIfVisible);
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refreshIfVisible);
     };
-  }, [load, drafting]);
+  }, [load, drafting, draftFailed, draftStale]);
 
   if (error) return <div className="error-banner">{error}</div>;
   if (!client) return <div className="muted">{t.loading}</div>;
@@ -148,8 +162,16 @@ export function ClientView({
             nextScheduled={nextScheduled}
             goalStatus={client.goal_status}
             paused={client.paused}
+            draftFailed={draftFailed}
+            draftStale={draftStale}
             premiumLocked={premiumLocked}
             contactEmail={contactEmail}
+            onRetryDraft={async () => {
+              await api.retryDraft(clientId);
+              // The server restamped the drafting state — refetch so the placeholder
+              // swaps back to "drafting…" immediately.
+              await load();
+            }}
             onSendNow={async () => {
               await api.sendScheduledNow(clientId);
               // The SSE tick also fires, but refetch right away so the bubble reflects the send.

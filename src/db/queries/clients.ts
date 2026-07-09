@@ -111,6 +111,24 @@ export async function setPaused(id: string, paused: boolean): Promise<ClientRow 
   return rows[0] ?? null;
 }
 
+/**
+ * Stamps the start of a planning attempt (and clears any earlier failure).
+ * Agent-status fields only, so updated_at is left alone — it tracks accountant edits.
+ */
+export async function markDraftingStarted(id: string): Promise<void> {
+  await pool.query('UPDATE clients SET drafting_since = now(), draft_failed_at = NULL WHERE id = $1', [id]);
+}
+
+/** Records that the planning attempt threw; the UI offers a manual retry. */
+export async function markDraftingFailed(id: string): Promise<void> {
+  await pool.query('UPDATE clients SET drafting_since = NULL, draft_failed_at = now() WHERE id = $1', [id]);
+}
+
+/** Clears the drafting stamp after a successful planning attempt. */
+export async function clearDraftingState(id: string): Promise<void> {
+  await pool.query('UPDATE clients SET drafting_since = NULL, draft_failed_at = NULL WHERE id = $1', [id]);
+}
+
 /** Deletes the client; documents, files, emails and the scheduled-job row go with it via FK cascades. */
 export async function removeForUser(id: string, userId: string): Promise<boolean> {
   const { rowCount } = await pool.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [id, userId]);

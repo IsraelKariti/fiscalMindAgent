@@ -13,7 +13,7 @@ import { normalizeE164 } from '../util/phone.js';
 import { hasPremiumAccess } from '../util/premium.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
-import { onClientUpdated } from '../events/clientEvents.js';
+import { onClientUpdated, publishClientUpdated } from '../events/clientEvents.js';
 import { pauseFutureEmail } from '../orchestration/pauseFutureEmail.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
@@ -552,6 +552,35 @@ apiRouter.put(
       await withClientLock(updated.id, () => resumeFutureEmail(updated.id));
     }
     res.json({ client: updated });
+  }),
+);
+
+// Manual retry for a draft that failed (draft_failed_at set) or was abandoned mid-flight
+// (crash/restart killed setFutureEmail, leaving a stale drafting_since). The drafting
+// stamp is refreshed before responding so the timeline flips straight back to the
+// "drafting…" placeholder, then the re-plan runs in the background like client creation;
+// a failure lands back in draft_failed_at via setFutureEmail's own bookkeeping.
+apiRouter.post(
+  '/clients/:id/redraft',
+  wrap(async (req, res) => {
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+    if (client.goal_status !== 'pending' || client.paused) {
+      res.status(409).json({ error: 'Nothing to draft — the goal is complete or the client is paused.' });
+      return;
+    }
+
+    await clients.markDraftingStarted(client.id);
+    publishClientUpdated(client.id);
+    withClientLock(client.id, async () => {
+      await removeFutureEmail(client.id);
+      await setFutureEmail(client.id);
+    }).catch((err) => logger.error('manual redraft failed', err, { clientId: client.id }));
+    res.status(202).json({ ok: true });
   }),
 );
 

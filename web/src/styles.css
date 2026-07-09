@@ -1350,6 +1350,26 @@ textarea {
   }
 }
 
+/* Drafting failed/stuck notice: same layout as the drafting placeholder, but in
+   error color and with a Retry button at the row's far edge. */
+.bubble-draft-failed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--error);
+}
+
+.bubble-draft-failed svg {
+  flex-shrink: 0;
+}
+
+.retry-draft-btn {
+  margin-inline-start: auto;
+  padding: 1px 10px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
 /* Temporal break between sent history and the scheduled future message */
 .timeline-divider {
   display: flex;

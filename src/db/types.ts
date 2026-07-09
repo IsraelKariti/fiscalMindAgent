@@ -64,6 +64,10 @@ export interface ClientRow {
   wa_opted_out_at: Date | null;
   /** True while the accountant has paused the agent's outreach to this client. */
   paused: boolean;
+  /** Set while a planning attempt (setFutureEmail) is in flight; stale = attempt died mid-flight. */
+  drafting_since: Date | null;
+  /** Set when the last planning attempt threw; the UI shows a Retry button. */
+  draft_failed_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }

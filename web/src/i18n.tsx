@@ -144,6 +144,11 @@ const he = {
   pauseFailed: 'עדכון ההשהיה נכשל.',
   scheduledDraftUnavailable: 'מעקב מתוזמן (הטיוטה אינה זמינה)',
   draftingEmail: (first: boolean) => `הסוכן מנסח כעת את ההודעה ${first ? 'הראשונה' : 'הבאה'}…`,
+  draftingFailed: 'ניסוח ההודעה נכשל.',
+  draftingStuck: 'הניסוח נמשך זמן רב מהצפוי וכנראה נתקע.',
+  retryDraft: 'ניסיון חוזר',
+  retryingDraft: 'מנסה שוב…',
+  retryDraftFailed: 'הניסיון החוזר נכשל.',
   goalCompleteFooter: 'היעד הושלם — לא מתוכננים מעקבים נוספים.',
 
   // StatTiles / shared stats
@@ -498,6 +503,11 @@ const en: Messages = {
   pauseFailed: 'Updating the pause failed.',
   scheduledDraftUnavailable: 'Scheduled follow-up (draft unavailable)',
   draftingEmail: (first: boolean) => `The agent is drafting the ${first ? 'first' : 'next'} message…`,
+  draftingFailed: 'Drafting the message failed.',
+  draftingStuck: 'Drafting is taking longer than expected and looks stuck.',
+  retryDraft: 'Retry',
+  retryingDraft: 'Retrying…',
+  retryDraftFailed: 'Retrying the draft failed.',
   goalCompleteFooter: 'Goal complete — no further follow-ups are planned.',
 
   // StatTiles / shared stats
@@ -851,6 +861,11 @@ const ru: Messages = {
   pauseFailed: 'Не удалось обновить паузу.',
   scheduledDraftUnavailable: 'Запланированное напоминание (черновик недоступен)',
   draftingEmail: (first: boolean) => `Агент сейчас составляет ${first ? 'первое' : 'следующее'} сообщение…`,
+  draftingFailed: 'Не удалось составить сообщение.',
+  draftingStuck: 'Составление занимает больше времени, чем ожидалось, и, похоже, зависло.',
+  retryDraft: 'Повторить',
+  retryingDraft: 'Повтор…',
+  retryDraftFailed: 'Не удалось повторить составление.',
   goalCompleteFooter: 'Цель достигнута — дальнейшие напоминания не запланированы.',
 
   // StatTiles / shared stats

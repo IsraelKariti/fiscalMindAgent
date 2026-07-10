@@ -427,6 +427,11 @@ code {
   box-shadow: inset 3px 0 0 var(--primary);
 }
 
+.client-item.selected:hover,
+.client-item.selected:active {
+  transform: none;
+}
+
 .client-item-text {
   display: flex;
   flex-direction: column;

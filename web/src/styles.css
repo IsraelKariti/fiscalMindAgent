@@ -2714,6 +2714,30 @@ button.meta-chip:hover {
   gap: 10px;
 }
 
+/* First rows of the mapped import, so a wrong column choice is obvious. */
+.mw-sample {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.mw-sample th,
+.mw-sample td {
+  padding: 4px 8px;
+  text-align: start;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
+}
+
+.mw-sample th {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 /* Widget tiles are narrow — let the stat tiles and the grid collapse. */
 .mw-shell .stat-row {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

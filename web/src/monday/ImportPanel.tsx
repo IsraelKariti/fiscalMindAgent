@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '../i18n';
 import { mondayApi, MondayApiError } from './api';
-import { fetchBoards, fetchImportableBoards, fetchImportRows, type BoardMeta, type ImportRow } from './boards';
+import {
+  emailColumnCandidates,
+  fetchBoards,
+  fetchImportableBoards,
+  fetchImportRows,
+  guessEmailColumn,
+  guessPhoneColumn,
+  nameColumnCandidates,
+  nameColumnTitle,
+  phoneColumnCandidates,
+  type BoardMeta,
+  type ImportRow,
+} from './boards';
 
 const IMPORT_CHUNK = 500; // server-side max per POST
 
@@ -12,14 +24,16 @@ interface Props {
 }
 
 /**
- * Board → clients import: pick a connected board, map its email (and optional
- * phone) column, preview how many rows qualify, then import. Re-importing is
- * safe — the server skips emails that already exist.
+ * Board → clients import: pick a connected board, map its columns onto the
+ * fields fiscalMind needs (name from the item name or a text column, email
+ * required, phone optional), preview the qualifying rows, then import.
+ * Re-importing is safe — the server skips emails that already exist.
  */
 export function ImportPanel({ boardIds, onImported }: Props) {
   const { t } = useT();
   const [boards, setBoards] = useState<BoardMeta[] | null>(null);
   const [boardId, setBoardId] = useState<string>('');
+  const [nameColumnId, setNameColumnId] = useState<string>(''); // '' = the item name
   const [emailColumnId, setEmailColumnId] = useState<string>('');
   const [phoneColumnId, setPhoneColumnId] = useState<string>('');
   const [rows, setRows] = useState<ImportRow[] | null>(null);
@@ -29,7 +43,7 @@ export function ImportPanel({ boardIds, onImported }: Props) {
 
   // Boards connected to the widget; when monday reports none (per-widget
   // connections are easy to miss), fall back to every readable board that has
-  // an email column so the import still works.
+  // a column that could hold email addresses so the import still works.
   useEffect(() => {
     let stale = false;
     setError(null);
@@ -40,7 +54,8 @@ export function ImportPanel({ boardIds, onImported }: Props) {
         const first = loaded[0];
         if (first) {
           setBoardId(first.id);
-          setEmailColumnId(first.columns.find((c) => c.type === 'email')?.id ?? '');
+          setEmailColumnId(guessEmailColumn(first));
+          setPhoneColumnId(guessPhoneColumn(first));
         }
       })
       .catch(() => {
@@ -52,14 +67,16 @@ export function ImportPanel({ boardIds, onImported }: Props) {
   }, [boardIds, t]);
 
   const board = boards?.find((b) => b.id === boardId) ?? null;
-  const emailColumns = board?.columns.filter((c) => c.type === 'email') ?? [];
-  const phoneColumns = board?.columns.filter((c) => c.type === 'phone') ?? [];
+  const nameColumns = board ? nameColumnCandidates(board) : [];
+  const emailColumns = board ? emailColumnCandidates(board) : [];
+  const phoneColumns = board ? phoneColumnCandidates(board) : [];
 
   const selectBoard = (id: string) => {
     setBoardId(id);
     const next = boards?.find((b) => b.id === id);
-    setEmailColumnId(next?.columns.find((c) => c.type === 'email')?.id ?? '');
-    setPhoneColumnId('');
+    setNameColumnId('');
+    setEmailColumnId(next ? guessEmailColumn(next) : '');
+    setPhoneColumnId(next ? guessPhoneColumn(next) : '');
     setRows(null);
     setResult(null);
     setError(null);
@@ -70,7 +87,7 @@ export function ImportPanel({ boardIds, onImported }: Props) {
     setRows(null);
     if (!boardId || !emailColumnId) return;
     let stale = false;
-    fetchImportRows(boardId, emailColumnId, phoneColumnId || null)
+    fetchImportRows(boardId, emailColumnId, phoneColumnId || null, nameColumnId || null)
       .then((loaded) => {
         if (!stale) setRows(loaded);
       })
@@ -80,7 +97,7 @@ export function ImportPanel({ boardIds, onImported }: Props) {
     return () => {
       stale = true;
     };
-  }, [boardId, emailColumnId, phoneColumnId, t]);
+  }, [boardId, emailColumnId, phoneColumnId, nameColumnId, t]);
 
   const runImport = useCallback(async () => {
     if (!rows || rows.length === 0) return;
@@ -127,9 +144,27 @@ export function ImportPanel({ boardIds, onImported }: Props) {
       ) : (
         board && (
           <>
+            {/* Always shown (even when the item name is the only choice) so the
+                user can see where the client name comes from. */}
+            <label className="field">
+              <span>{t.mwNameColumnLabel}</span>
+              <select value={nameColumnId} onChange={(e) => setNameColumnId(e.target.value)}>
+                <option value="">{t.mwItemNameOption(nameColumnTitle(board))}</option>
+                {nameColumns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="field">
               <span>{t.mwEmailColumnLabel}</span>
               <select value={emailColumnId} onChange={(e) => setEmailColumnId(e.target.value)}>
+                {emailColumnId === '' && (
+                  <option value="" disabled>
+                    {t.mwChooseColumn}
+                  </option>
+                )}
                 {emailColumns.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.title}
@@ -151,11 +186,33 @@ export function ImportPanel({ boardIds, onImported }: Props) {
               </label>
             )}
 
-            {rows === null ? (
+            {!emailColumnId ? (
+              <p className="muted">{t.mwChooseColumnHint}</p>
+            ) : rows === null ? (
               <p className="muted">{t.loading}</p>
             ) : (
               <>
                 <p className="muted">{t.mwImportableCount(rows.length)}</p>
+                {rows.length > 0 && (
+                  <table className="mw-sample">
+                    <thead>
+                      <tr>
+                        <th>{t.mwColName}</th>
+                        <th>{t.mwColEmail}</th>
+                        {phoneColumnId && <th>{t.mwColPhone}</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.slice(0, 3).map((r, i) => (
+                        <tr key={i}>
+                          <td>{r.name}</td>
+                          <td>{r.email}</td>
+                          {phoneColumnId && <td>{r.phone ?? '—'}</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
                 <div className="btn-row">
                   <button className="btn btn-primary" disabled={busy || rows.length === 0} onClick={runImport}>
                     {busy ? t.mwImporting : t.mwImportRun(rows.length)}

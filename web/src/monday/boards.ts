@@ -35,6 +35,71 @@ interface ItemsPage {
   items: { name: string; column_values: ColumnValue[] }[];
 }
 
+// Column mapping: monday reports a type per column (independent of its title),
+// so Email/Phone columns match by type no matter what the user named them.
+// Plain text columns are offered as candidates too — boards imported from
+// spreadsheets often keep emails and phones in text columns — and preselection
+// falls back to a title-synonym match for those.
+
+const TEXT_TYPES = new Set(['text', 'long_text']);
+
+const EMAIL_TITLES = new Set(['email', 'emailaddress', 'mail', 'emails', 'אימייל', 'מייל', 'דואל', 'почта', 'емейл']);
+const PHONE_TITLES = new Set([
+  'phone',
+  'phonenumber',
+  'mobile',
+  'cell',
+  'tel',
+  'telephone',
+  'טלפון',
+  'נייד',
+  'פלאפון',
+  'телефон',
+  'мобильный',
+]);
+
+/** Lowercase and strip separators/punctuation so "E-Mail_Address " → "emailaddress". */
+function normalizeTitle(title: string): string {
+  return title.toLowerCase().replace(/[\s_\-./"'’]/g, '');
+}
+
+export function emailColumnCandidates(board: BoardMeta): BoardColumn[] {
+  return board.columns.filter((c) => c.type === 'email' || TEXT_TYPES.has(c.type));
+}
+
+export function phoneColumnCandidates(board: BoardMeta): BoardColumn[] {
+  return board.columns.filter((c) => c.type === 'phone' || TEXT_TYPES.has(c.type));
+}
+
+/** The client name defaults to the item name; any text column can replace it. */
+export function nameColumnCandidates(board: BoardMeta): BoardColumn[] {
+  return board.columns.filter((c) => TEXT_TYPES.has(c.type));
+}
+
+/**
+ * The board's title for monday's built-in name column (every board has one,
+ * often renamed — "Contact", "Client"…). Shown on the item-name option so the
+ * user recognizes which board column it is; its value arrives as `item.name`,
+ * not in `column_values`.
+ */
+export function nameColumnTitle(board: BoardMeta): string | null {
+  return board.columns.find((c) => c.type === 'name')?.title ?? null;
+}
+
+function guessColumn(candidates: BoardColumn[], type: string, titles: Set<string>): string {
+  const byType = candidates.find((c) => c.type === type);
+  const byTitle = byType ?? candidates.find((c) => titles.has(normalizeTitle(c.title)));
+  return byTitle?.id ?? '';
+}
+
+export function guessEmailColumn(board: BoardMeta): string {
+  return guessColumn(emailColumnCandidates(board), 'email', EMAIL_TITLES);
+}
+
+export function guessPhoneColumn(board: BoardMeta): string {
+  return guessColumn(phoneColumnCandidates(board), 'phone', PHONE_TITLES);
+}
+
 const PAGE_SIZE = 500;
 /** Hard cap on rows read per import, to keep one interaction bounded. */
 const MAX_ROWS = 2500;
@@ -50,14 +115,14 @@ export async function fetchBoards(boardIds: string[]): Promise<BoardMeta[]> {
 /**
  * Fallback when the widget has no connected boards (monday's per-widget board
  * connection is easy to miss and dashboard-level connections don't always
- * propagate to existing widgets): every board the user can read that has an
- * email column, most recently used first.
+ * propagate to existing widgets): every board the user can read that has a
+ * column that could hold email addresses, most recently used first.
  */
 export async function fetchImportableBoards(): Promise<BoardMeta[]> {
   const data = await mondayGraphQL<{ boards: (BoardMeta & { type: string })[] | null }>(
     'query { boards (limit: 100, order_by: used_at) { id name type columns { id title type } } }',
   );
-  return (data.boards ?? []).filter((b) => b.type === 'board' && b.columns.some((c) => c.type === 'email'));
+  return (data.boards ?? []).filter((b) => b.type === 'board' && emailColumnCandidates(b).length > 0);
 }
 
 const ITEM_FIELDS =
@@ -67,14 +132,16 @@ const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 /**
  * Reads the whole board (cursor-paginated, 500 items per page) and maps each
- * item to an import row: item name + the chosen email/phone columns. Items
- * without a usable email address are dropped here — the server would reject
- * them anyway.
+ * item to an import row via the chosen columns. The name comes from the name
+ * column when one is chosen (empty cells fall back to the item name), the item
+ * name otherwise. Items without a usable email address are dropped here — the
+ * server would reject them anyway.
  */
 export async function fetchImportRows(
   boardId: string,
   emailColumnId: string,
   phoneColumnId: string | null,
+  nameColumnId: string | null,
 ): Promise<ImportRow[]> {
   const rows: ImportRow[] = [];
 
@@ -89,10 +156,12 @@ export async function fetchImportRows(
     for (const item of page.items) {
       const emailValue = item.column_values.find((cv) => cv.id === emailColumnId);
       const email = (emailValue?.email ?? emailValue?.text ?? '').trim();
-      if (!item.name.trim() || !EMAIL_RE.test(email)) continue;
+      const nameValue = nameColumnId ? item.column_values.find((cv) => cv.id === nameColumnId) : undefined;
+      const name = (nameValue?.text ?? '').trim() || item.name.trim();
+      if (!name || !EMAIL_RE.test(email)) continue;
       const phoneValue = phoneColumnId ? item.column_values.find((cv) => cv.id === phoneColumnId) : undefined;
       const phone = (phoneValue?.phone ?? phoneValue?.text ?? '').trim() || null;
-      rows.push({ name: item.name.trim(), email, phone });
+      rows.push({ name, email, phone });
     }
     if (!page.cursor || rows.length >= MAX_ROWS) break;
     page = (

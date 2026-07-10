@@ -19,11 +19,12 @@ export async function listForUser(userId: string): Promise<ClientRow[]> {
   return rows;
 }
 
+/** Case-insensitive: addresses are stored lowercased, but callers may pass any casing. */
 export async function getByEmailAddressForUser(userId: string, emailAddress: string): Promise<ClientRow | null> {
-  const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE user_id = $1 AND email_address = $2', [
-    userId,
-    emailAddress,
-  ]);
+  const { rows } = await pool.query<ClientRow>(
+    'SELECT * FROM clients WHERE user_id = $1 AND lower(email_address) = lower($2)',
+    [userId, emailAddress],
+  );
   return rows[0] ?? null;
 }
 
@@ -39,7 +40,8 @@ export async function getByWaPhoneForUser(userId: string, waPhone: string): Prom
 export async function insert(args: { userId: string; name: string; emailAddress: string }): Promise<ClientRow> {
   const { rows } = await pool.query<ClientRow>(
     `INSERT INTO clients (user_id, name, email_address, goal_status) VALUES ($1, $2, $3, 'pending') RETURNING *`,
-    [args.userId, args.name, args.emailAddress],
+    // Stored lowercased — inbound routing and the import dedupe match on it.
+    [args.userId, args.name, args.emailAddress.trim().toLowerCase()],
   );
   const row = rows[0];
   if (!row) throw new Error('insert client: no row returned');

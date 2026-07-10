@@ -4,7 +4,7 @@ import { NeedsAttentionCard, StatRow } from '../components/overviewParts';
 import { useT } from '../i18n';
 import { mondayApi, MondayApiError, type MondaySessionStatus } from './api';
 import { ImportPanel } from './ImportPanel';
-import { getContext, mondayGraphQL } from './sdk';
+import { getContext, listenContext, mondayGraphQL } from './sdk';
 
 type Phase =
   | { kind: 'loading' }
@@ -35,10 +35,17 @@ export function MondayWidget() {
     }
   }, []);
 
+  const applyBoardIds = useCallback((ids: (number | string)[] | undefined) => {
+    const next = (ids ?? []).map(String);
+    // monday re-sends the context liberally; keep the array identity stable
+    // unless the boards actually changed, or the ImportPanel refetches in a loop.
+    setBoardIds((prev) => (prev.length === next.length && prev.every((id, i) => id === next[i]) ? prev : next));
+  }, []);
+
   const boot = useCallback(async () => {
     try {
       const ctx = await getContext();
-      setBoardIds((ctx.boardIds ?? []).map(String));
+      applyBoardIds(ctx.boardIds);
       const me = (await mondayGraphQL<{ me: { name: string | null; email: string } }>('query { me { name email } }'))
         .me;
 
@@ -62,11 +69,15 @@ export function MondayWidget() {
     } catch {
       setPhase({ kind: 'error' });
     }
-  }, [loadDashboard]);
+  }, [loadDashboard, applyBoardIds]);
 
   useEffect(() => {
     boot();
   }, [boot]);
+
+  // Track board connections live: connecting a board to the widget after it
+  // loaded updates the context without a reload.
+  useEffect(() => listenContext((ctx) => applyBoardIds(ctx.boardIds)), [applyBoardIds]);
 
   // Refresh when the tab regains focus (e.g. after the Google link popup) and
   // keep the numbers current with the same 30s cadence as the standalone Overview.

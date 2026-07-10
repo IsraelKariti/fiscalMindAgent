@@ -47,6 +47,19 @@ export async function fetchBoards(boardIds: string[]): Promise<BoardMeta[]> {
   return data.boards ?? [];
 }
 
+/**
+ * Fallback when the widget has no connected boards (monday's per-widget board
+ * connection is easy to miss and dashboard-level connections don't always
+ * propagate to existing widgets): every board the user can read that has an
+ * email column, most recently used first.
+ */
+export async function fetchImportableBoards(): Promise<BoardMeta[]> {
+  const data = await mondayGraphQL<{ boards: (BoardMeta & { type: string })[] | null }>(
+    'query { boards (limit: 100, order_by: used_at) { id name type columns { id title type } } }',
+  );
+  return (data.boards ?? []).filter((b) => b.type === 'board' && b.columns.some((c) => c.type === 'email'));
+}
+
 const ITEM_FIELDS =
   'items { name column_values { id type text ... on EmailValue { email } ... on PhoneValue { phone } } }';
 

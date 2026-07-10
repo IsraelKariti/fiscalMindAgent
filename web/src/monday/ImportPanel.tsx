@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '../i18n';
 import { mondayApi, MondayApiError } from './api';
-import { fetchBoards, fetchImportRows, type BoardMeta, type ImportRow } from './boards';
+import { fetchBoards, fetchImportableBoards, fetchImportRows, type BoardMeta, type ImportRow } from './boards';
 
 const IMPORT_CHUNK = 500; // server-side max per POST
 
@@ -27,13 +27,15 @@ export function ImportPanel({ boardIds, onImported }: Props) {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Boards connected to the widget; when monday reports none (per-widget
+  // connections are easy to miss), fall back to every readable board that has
+  // an email column so the import still works.
   useEffect(() => {
-    if (boardIds.length === 0) {
-      setBoards([]);
-      return;
-    }
-    fetchBoards(boardIds)
+    let stale = false;
+    setError(null);
+    (boardIds.length > 0 ? fetchBoards(boardIds) : fetchImportableBoards())
       .then((loaded) => {
+        if (stale) return;
         setBoards(loaded);
         const first = loaded[0];
         if (first) {
@@ -41,7 +43,12 @@ export function ImportPanel({ boardIds, onImported }: Props) {
           setEmailColumnId(first.columns.find((c) => c.type === 'email')?.id ?? '');
         }
       })
-      .catch(() => setError(t.mwBoardLoadFailed));
+      .catch(() => {
+        if (!stale) setError(t.mwBoardLoadFailed);
+      });
+    return () => {
+      stale = true;
+    };
   }, [boardIds, t]);
 
   const board = boards?.find((b) => b.id === boardId) ?? null;

@@ -62,8 +62,12 @@ export function ClientView({
       setEmails(thread.emails);
       setFiles(received.files);
       setError(null);
-    } catch {
-      setError(t.clientLoadFailed);
+    } catch (err) {
+      // Surface the underlying cause — "failed" alone is undebuggable across
+      // the three surfaces (SPA, widget, monday object) this view runs in.
+      console.error('client load failed', err);
+      const detail = err instanceof Error ? err.message : String(err);
+      setError(`${t.clientLoadFailed} [${detail}]`);
     }
   }, [clientId, t]);
 

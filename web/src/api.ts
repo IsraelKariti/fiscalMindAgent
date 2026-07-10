@@ -265,7 +265,7 @@ export const api = {
   }) => request<{ client: Client }>('/clients', { method: 'POST', body: JSON.stringify(args) }),
   getClient: (id: string) =>
     request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(
-      `/api/clients/${id}`,
+      `/clients/${id}`,
     ),
   addDocument: (clientId: string, args: { name: string; description?: string | null }) =>
     request<{ document: ClientDocument }>(`/clients/${clientId}/documents`, {

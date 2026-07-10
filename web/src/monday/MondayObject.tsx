@@ -9,10 +9,10 @@ import { SessionGate, useMondaySession } from './useMondaySession';
 /**
  * The custom-object surface: the full accountant workspace inside monday.
  * Identity rides monday sessionTokens (the api transport is configured in
- * appMain.tsx), so there is no login and no logout — closing the tab is
+ * objectMain.tsx), so there is no login and no logout — closing the tab is
  * leaving. Admin views live in the standalone app only.
  */
-export function MondayApp() {
+export function MondayObject() {
   const { t } = useT();
   const { phase, boot, openLinkPopup } = useMondaySession();
   const [me, setMe] = useState<Me | null>(null);

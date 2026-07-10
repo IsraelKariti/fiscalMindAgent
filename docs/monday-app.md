@@ -3,13 +3,18 @@
 FiscalMind embeds in monday.com as two iframes, both served by our own Express
 server and built from `web/src/monday/`:
 
-- **Dashboard widget** at `/monday` (`web/monday.html`): glanceable overview
-  stat tiles + needs-attention list, plus client import from a board connected
-  to the dashboard.
-- **Custom object** at `/monday-app` (`web/monday-app.html`): the full
-  accountant workspace (sidebar, client conversations, documents, files,
-  settings) — the same `Workspace` component the standalone SPA renders, added
+- **Dashboard widget** at `/monday-widget` (`web/monday-widget.html` →
+  `web/src/monday/widgetMain.tsx`): glanceable overview stat tiles +
+  needs-attention list, plus client import from a board connected to the
+  dashboard.
+- **Custom object** at `/monday-object` (`web/monday-object.html` →
+  `web/src/monday/objectMain.tsx` → `MondayObject.tsx`): the full accountant
+  workspace (sidebar, client conversations, documents, files, settings, board
+  import) — the same `Workspace` component the standalone SPA renders, added
   to a monday workspace from the left-pane **+** menu like a board or doc.
+
+The old paths `/monday` and `/monday-app` are served as aliases of the same
+documents, kept until the Developer Center feature URLs are switched over.
 
 ## How it works
 
@@ -36,7 +41,7 @@ server and built from `web/src/monday/`:
   returns the standalone `/api/me` payload for the monday-mapped user so the
   shared shell boots identically. Admin, impersonation, and prompt-template
   routes are cookie-only by design. The frontend picks the mount via
-  `configureApi` in `web/src/api.ts` (see `web/src/monday/appMain.tsx`).
+  `configureApi` in `web/src/api.ts` (see `web/src/monday/objectMain.tsx`).
 - **Standalone handoff** — "Open in FiscalMind" (widget) doesn't just link to
   the app: it fetches `GET /api/monday/app-login-url`, which returns a
   single-use, 60-second handoff URL (`/api/auth/monday-handoff?token=…`) that
@@ -50,7 +55,8 @@ server and built from `web/src/monday/`:
   pagination → POST `/api/monday/clients/import`, which skips existing emails,
   so re-importing is safe. Importing requires the account to have claimed an
   agent mailbox first.
-- **Framing** — only `/monday` and `/monday-app` carry a
+- **Framing** — only the monday documents (`/monday-widget`, `/monday-object`,
+  and their legacy aliases) carry a
   `Content-Security-Policy: frame-ancestors https://*.monday.com` header; the
   rest of the app sets no framing headers (unchanged).
 
@@ -60,8 +66,8 @@ server and built from `web/src/monday/`:
 2. **Basic information** → copy the **Client Secret** into `MONDAY_CLIENT_SECRET`
    in this clone's `.env` (each clone/env can share the same app or use its own).
 3. **Features** → add:
-   - a **Dashboard Widget** with custom URL `https://<host>/monday`
-   - a **Custom Object** with custom URL `https://<host>/monday-app`
+   - a **Dashboard Widget** with custom URL `https://<host>/monday-widget`
+   - a **Custom Object** with custom URL `https://<host>/monday-object`
 
    (dev host: `<NGROK_DOMAIN>`; prod host: the Azure app.)
 4. **Permissions (scopes)**: enable `me:read` and `boards:read` (the surfaces

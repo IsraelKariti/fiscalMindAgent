@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { configureApi } from '../api';
 import { I18nProvider } from '../i18n';
-import { MondayApp } from './MondayApp';
+import { MondayObject } from './MondayObject';
 import { getSessionToken } from './sdk';
 import '../styles.css';
 import '../ripple';
@@ -20,7 +20,7 @@ configureApi({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <I18nProvider>
-      <MondayApp />
+      <MondayObject />
     </I18nProvider>
   </React.StrictMode>,
 );

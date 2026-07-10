@@ -130,7 +130,7 @@ export class ApiError extends Error {
 /**
  * Where and how API calls are sent. The default is the standalone SPA: same
  * origin under /api, authenticated by the session cookie. The monday custom
- * object reconfigures this at boot (see monday/appMain.tsx) to hit the
+ * object reconfigures this at boot (see monday/objectMain.tsx) to hit the
  * /api/monday/app mount with a fresh sessionToken per request — cookies don't
  * cross into the monday iframe.
  */

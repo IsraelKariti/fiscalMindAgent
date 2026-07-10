@@ -72,9 +72,20 @@ export function ClientView({
   // completed), so the timeline updates the moment it happens — e.g. the old scheduled
   // email swaps to the "drafting…" placeholder as soon as the agent starts replacing it.
   useEffect(() => {
-    const events = new EventSource(`/api/clients/${clientId}/events`);
-    events.onmessage = () => load();
-    return () => events.close();
+    // The URL comes from the api transport: cookie-authenticated /api in the
+    // SPA, token-in-query /api/monday/app in the monday iframe (EventSource
+    // cannot send headers).
+    let events: EventSource | null = null;
+    let cancelled = false;
+    api.eventsUrl(clientId).then((url) => {
+      if (cancelled) return;
+      events = new EventSource(url);
+      events.onmessage = () => load();
+    });
+    return () => {
+      cancelled = true;
+      events?.close();
+    };
   }, [clientId, load]);
 
   // Goal open with nothing scheduled means the agent is drafting the next email in the

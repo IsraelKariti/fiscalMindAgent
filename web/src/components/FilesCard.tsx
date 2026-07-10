@@ -57,7 +57,16 @@ export function FilesCard({ clientId, files, documents }: Props) {
           return (
             <li key={file.id} className="doc-row collected">
               <span className="doc-text">
-                <a className="doc-name" href={api.fileDownloadUrl(clientId, file.id)}>
+                {/* The URL is fetched on click: the monday transport appends a
+                    short-lived ?sessionToken=, so it can't be precomputed into href. */}
+                <a
+                  className="doc-name"
+                  href="#"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    window.location.assign(await api.fileDownloadUrl(clientId, file.id));
+                  }}
+                >
                   {file.filename}
                 </a>
                 <span className="doc-desc muted">

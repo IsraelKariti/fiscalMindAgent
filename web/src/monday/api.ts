@@ -1,4 +1,4 @@
-import type { AccountTier, DashboardSummary } from '../api';
+import type { AccountTier, DashboardSummary, Me } from '../api';
 import { getSessionToken } from './sdk';
 
 /** What the widget may show for this monday user (see POST /api/monday/session). */
@@ -47,6 +47,8 @@ export const mondayApi = {
       body: JSON.stringify({ email, name }),
     }),
   dashboard: () => request<DashboardSummary>('/api/monday/dashboard'),
+  /** The standalone GET /api/me payload for the monday-mapped user (custom object shell). */
+  me: () => request<Me>('/api/monday/me'),
   linkUrl: () => request<{ url: string }>('/api/monday/link-url'),
   importClients: (clients: { name: string; email: string; phone?: string | null }[]) =>
     request<{ created: number; skipped: number }>('/api/monday/clients/import', {

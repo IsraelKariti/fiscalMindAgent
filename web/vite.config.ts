@@ -12,11 +12,13 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     build: {
       rollupOptions: {
-        // Two documents: the dashboard SPA and the monday.com widget iframe
-        // (served by Express at /monday).
+        // Three documents: the dashboard SPA and the two monday.com iframes —
+        // the dashboard widget (served by Express at /monday) and the
+        // custom-object full app (/monday-app).
         input: {
           main: fileURLToPath(new URL('index.html', import.meta.url)),
           monday: fileURLToPath(new URL('monday.html', import.meta.url)),
+          'monday-app': fileURLToPath(new URL('monday-app.html', import.meta.url)),
         },
       },
     },

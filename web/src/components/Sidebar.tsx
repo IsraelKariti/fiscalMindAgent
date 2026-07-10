@@ -17,8 +17,9 @@ interface Props {
   /** Tier of the workspace being viewed (the impersonated accountant's while impersonating). */
   tier: AccountTier | null;
   impersonatingEmail: string | null;
-  onStopImpersonating: () => void;
-  onLogout: () => void;
+  onStopImpersonating?: () => void;
+  /** Absent in the monday iframe, where the identity is monday's — the logout button hides. */
+  onLogout?: () => void;
 }
 
 const icon = {
@@ -206,9 +207,11 @@ export function Sidebar({
             )}
             <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
           </span>
-          <button className="icon-btn" onClick={onLogout} title={t.logout}>
-            {icon.logout}
-          </button>
+          {onLogout && (
+            <button className="icon-btn" onClick={onLogout} title={t.logout}>
+              {icon.logout}
+            </button>
+          )}
         </div>
       </div>
     </nav>

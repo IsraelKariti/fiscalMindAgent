@@ -21,16 +21,20 @@ export function createApp(): Express {
   app.use('/api', apiRouter);
 
   if (fs.existsSync(path.join(guiDist, 'index.html'))) {
-    // monday.com dashboard-widget entry (built alongside the SPA). Only this
-    // document is embeddable, and only by monday — the frame-ancestors CSP is
-    // the framing allowlist (nothing else sets framing headers, and the widget
-    // authenticates with monday session tokens, not the session cookie).
-    app.get(['/monday', '/monday.html'], (_req, res, next) => {
-      const widget = path.join(guiDist, 'monday.html');
-      if (!fs.existsSync(widget)) return next();
-      res.setHeader('Content-Security-Policy', 'frame-ancestors https://*.monday.com https://monday.com');
-      res.sendFile(widget);
-    });
+    // monday.com iframe entries (built alongside the SPA): the dashboard
+    // widget at /monday and the custom-object full app at /monday-app. Only
+    // these documents are embeddable, and only by monday — the frame-ancestors
+    // CSP is the framing allowlist (nothing else sets framing headers, and
+    // both authenticate with monday session tokens, not the session cookie).
+    const serveMondayDoc = (routes: string[], file: string) =>
+      app.get(routes, (_req, res, next) => {
+        const doc = path.join(guiDist, file);
+        if (!fs.existsSync(doc)) return next();
+        res.setHeader('Content-Security-Policy', 'frame-ancestors https://*.monday.com https://monday.com');
+        res.sendFile(doc);
+      });
+    serveMondayDoc(['/monday', '/monday.html'], 'monday.html');
+    serveMondayDoc(['/monday-app', '/monday-app.html'], 'monday-app.html');
     app.use(express.static(guiDist));
     // SPA fallback: let client-side routing handle any other GET path.
     app.get('*', (req, res, next) => {

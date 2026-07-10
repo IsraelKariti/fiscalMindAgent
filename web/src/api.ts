@@ -127,10 +127,41 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Where and how API calls are sent. The default is the standalone SPA: same
+ * origin under /api, authenticated by the session cookie. The monday custom
+ * object reconfigures this at boot (see monday/appMain.tsx) to hit the
+ * /api/monday/app mount with a fresh sessionToken per request — cookies don't
+ * cross into the monday iframe.
+ */
+interface ApiTransport {
+  basePath: string;
+  /** Extra headers per request (monday: Authorization: Bearer <sessionToken>). */
+  getAuthHeaders?: () => Promise<Record<string, string>>;
+  /** Token appended as ?sessionToken= to URLs that cannot carry headers (SSE, downloads). */
+  getUrlToken?: () => Promise<string>;
+}
+
+let transport: ApiTransport = { basePath: '/api' };
+
+export function configureApi(next: ApiTransport): void {
+  transport = next;
+}
+
+/** Appends the transport's URL token for header-less consumers (EventSource, downloads). */
+async function tokenizedUrl(path: string): Promise<string> {
+  const token = transport.getUrlToken ? await transport.getUrlToken() : null;
+  return `${transport.basePath}${path}${token ? `?sessionToken=${encodeURIComponent(token)}` : ''}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
+  const auth = transport.getAuthHeaders ? await transport.getAuthHeaders() : undefined;
+  const res = await fetch(transport.basePath + path, {
     ...init,
+    headers: {
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...auth,
+    },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? `Request failed (${res.status})`);
@@ -214,30 +245,30 @@ export interface MailboxAvailability {
 }
 
 export const api = {
-  me: () => request<Me>('/api/me'),
-  logout: () => request<{ ok: true }>('/api/logout', { method: 'POST' }),
-  mailboxStatus: () => request<MailboxStatus>('/api/mailbox'),
+  me: () => request<Me>('/me'),
+  logout: () => request<{ ok: true }>('/logout', { method: 'POST' }),
+  mailboxStatus: () => request<MailboxStatus>('/mailbox'),
   mailboxAvailability: (name: string) =>
-    request<MailboxAvailability>(`/api/mailbox/availability?name=${encodeURIComponent(name)}`),
+    request<MailboxAvailability>(`/mailbox/availability?name=${encodeURIComponent(name)}`),
   claimMailbox: (name: string) =>
-    request<{ mailbox: { emailAddress: string; localPart: string } }>('/api/mailbox', {
+    request<{ mailbox: { emailAddress: string; localPart: string } }>('/mailbox', {
       method: 'POST',
       body: JSON.stringify({ name }),
     }),
-  waSenderStatus: () => request<WaSenderStatus>('/api/wa-sender'),
-  dashboard: () => request<DashboardSummary>('/api/dashboard'),
-  listClients: () => request<{ clients: Client[] }>('/api/clients'),
+  waSenderStatus: () => request<WaSenderStatus>('/wa-sender'),
+  dashboard: () => request<DashboardSummary>('/dashboard'),
+  listClients: () => request<{ clients: Client[] }>('/clients'),
   createClient: (args: {
     name: string;
     email: string;
     documents: { name: string; description?: string | null }[];
-  }) => request<{ client: Client }>('/api/clients', { method: 'POST', body: JSON.stringify(args) }),
+  }) => request<{ client: Client }>('/clients', { method: 'POST', body: JSON.stringify(args) }),
   getClient: (id: string) =>
     request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(
       `/api/clients/${id}`,
     ),
   addDocument: (clientId: string, args: { name: string; description?: string | null }) =>
-    request<{ document: ClientDocument }>(`/api/clients/${clientId}/documents`, {
+    request<{ document: ClientDocument }>(`/clients/${clientId}/documents`, {
       method: 'POST',
       body: JSON.stringify(args),
     }),
@@ -246,46 +277,48 @@ export const api = {
     docId: string,
     patch: Partial<Pick<ClientDocument, 'name' | 'description' | 'status'>>,
   ) =>
-    request<{ document: ClientDocument }>(`/api/clients/${clientId}/documents/${docId}`, {
+    request<{ document: ClientDocument }>(`/clients/${clientId}/documents/${docId}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
     }),
   deleteDocument: (clientId: string, docId: string) =>
-    request<{ ok: true }>(`/api/clients/${clientId}/documents/${docId}`, { method: 'DELETE' }),
+    request<{ ok: true }>(`/clients/${clientId}/documents/${docId}`, { method: 'DELETE' }),
   updateClient: (id: string, patch: Partial<Pick<Client, 'name' | 'occupation' | 'phone' | 'company' | 'notes'>>) =>
-    request<{ client: Client }>(`/api/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
-  deleteClient: (id: string) => request<{ ok: true }>(`/api/clients/${id}`, { method: 'DELETE' }),
+    request<{ client: Client }>(`/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteClient: (id: string) => request<{ ok: true }>(`/clients/${id}`, { method: 'DELETE' }),
   setWhatsApp: (id: string, args: { enabled: boolean; phone?: string }) =>
-    request<{ client: Client }>(`/api/clients/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(args) }),
-  listEmails: (clientId: string) => request<{ emails: Email[] }>(`/api/clients/${clientId}/emails`),
-  sendScheduledNow: (clientId: string) => request<{ ok: true }>(`/api/clients/${clientId}/send-now`, { method: 'POST' }),
+    request<{ client: Client }>(`/clients/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(args) }),
+  listEmails: (clientId: string) => request<{ emails: Email[] }>(`/clients/${clientId}/emails`),
+  sendScheduledNow: (clientId: string) => request<{ ok: true }>(`/clients/${clientId}/send-now`, { method: 'POST' }),
   setPaused: (clientId: string, paused: boolean) =>
-    request<{ client: Client }>(`/api/clients/${clientId}/pause`, { method: 'PUT', body: JSON.stringify({ paused }) }),
-  retryDraft: (clientId: string) => request<{ ok: true }>(`/api/clients/${clientId}/redraft`, { method: 'POST' }),
-  listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/api/clients/${clientId}/files`),
-  fileDownloadUrl: (clientId: string, fileId: string) => `/api/clients/${clientId}/files/${fileId}/download`,
-  adminListAccountants: () => request<{ accountants: Accountant[] }>('/api/admin/accountants'),
-  adminGetModel: () => request<GeminiModelState>('/api/admin/model'),
+    request<{ client: Client }>(`/clients/${clientId}/pause`, { method: 'PUT', body: JSON.stringify({ paused }) }),
+  retryDraft: (clientId: string) => request<{ ok: true }>(`/clients/${clientId}/redraft`, { method: 'POST' }),
+  listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/clients/${clientId}/files`),
+  /** Async because the monday transport appends a freshly fetched ?sessionToken=. */
+  fileDownloadUrl: (clientId: string, fileId: string) => tokenizedUrl(`/clients/${clientId}/files/${fileId}/download`),
+  eventsUrl: (clientId: string) => tokenizedUrl(`/clients/${clientId}/events`),
+  adminListAccountants: () => request<{ accountants: Accountant[] }>('/admin/accountants'),
+  adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>
-    request<GeminiModelState>('/api/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),
-  adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/api/admin/whitelist'),
+    request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),
+  adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/admin/whitelist'),
   adminAddToWhitelist: (email: string, name?: string, tier?: AccountTier) =>
-    request<{ entry: WhitelistEntry }>('/api/admin/whitelist', {
+    request<{ entry: WhitelistEntry }>('/admin/whitelist', {
       method: 'POST',
       body: JSON.stringify({ email, ...(name ? { name } : {}), ...(tier ? { tier } : {}) }),
     }),
   adminRemoveFromWhitelist: (email: string) =>
-    request<{ ok: true }>(`/api/admin/whitelist/${encodeURIComponent(email)}`, { method: 'DELETE' }),
+    request<{ ok: true }>(`/admin/whitelist/${encodeURIComponent(email)}`, { method: 'DELETE' }),
   adminSetTier: (email: string, tier: AccountTier) =>
-    request<{ ok: true }>(`/api/admin/whitelist/${encodeURIComponent(email)}/tier`, {
+    request<{ ok: true }>(`/admin/whitelist/${encodeURIComponent(email)}/tier`, {
       method: 'PUT',
       body: JSON.stringify({ tier }),
     }),
   impersonate: (userId: string) =>
-    request<{ ok: true }>('/api/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),
-  stopImpersonating: () => request<{ ok: true }>('/api/admin/impersonate/stop', { method: 'POST' }),
-  getPromptTemplate: () => request<PromptTemplateState>('/api/prompt-template'),
+    request<{ ok: true }>('/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),
+  stopImpersonating: () => request<{ ok: true }>('/admin/impersonate/stop', { method: 'POST' }),
+  getPromptTemplate: () => request<PromptTemplateState>('/prompt-template'),
   savePromptTemplate: (template: string) =>
-    request<PromptTemplateState>('/api/prompt-template', { method: 'PUT', body: JSON.stringify({ template }) }),
-  resetPromptTemplate: () => request<PromptTemplateState>('/api/prompt-template/reset', { method: 'POST' }),
+    request<PromptTemplateState>('/prompt-template', { method: 'PUT', body: JSON.stringify({ template }) }),
+  resetPromptTemplate: () => request<PromptTemplateState>('/prompt-template/reset', { method: 'POST' }),
 };

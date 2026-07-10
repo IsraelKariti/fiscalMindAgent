@@ -200,36 +200,35 @@ export function Timeline({
   return (
     <section className="card panel">
       <div className="panel-header">
-        <h3>{t.conversationTimeline}</h3>
+        {showChannelFilter && (
+          <div
+            className="seg-control"
+            role="group"
+            aria-label={t.conversationTimeline}
+            style={{ '--seg-i': CHANNEL_FILTERS.indexOf(filter) } as CSSProperties}
+          >
+            <span className="seg-thumb" aria-hidden="true" />
+            {CHANNEL_FILTERS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={`seg-option ${filter === option ? 'seg-active' : ''}`}
+                aria-pressed={filter === option}
+                onClick={() =>
+                  option !== 'email' && premiumLocked ? setShowUpgrade(true) : setFilter(option)
+                }
+              >
+                {option !== 'all' && (
+                  <span className={`seg-icon seg-icon-${option}`}>
+                    {option === 'email' ? icon.mail : icon.whatsapp}
+                  </span>
+                )}
+                {option === 'all' ? t.filterAll : channelLabel(option)}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="panel-header-actions">
-          {showChannelFilter && (
-            <div
-              className="seg-control"
-              role="group"
-              aria-label={t.conversationTimeline}
-              style={{ '--seg-i': CHANNEL_FILTERS.indexOf(filter) } as CSSProperties}
-            >
-              <span className="seg-thumb" aria-hidden="true" />
-              {CHANNEL_FILTERS.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`seg-option ${filter === option ? 'seg-active' : ''}`}
-                  aria-pressed={filter === option}
-                  onClick={() =>
-                    option !== 'email' && premiumLocked ? setShowUpgrade(true) : setFilter(option)
-                  }
-                >
-                  {option !== 'all' && (
-                    <span className={`seg-icon seg-icon-${option}`}>
-                      {option === 'email' ? icon.mail : icon.whatsapp}
-                    </span>
-                  )}
-                  {option === 'all' ? t.filterAll : channelLabel(option)}
-                </button>
-              ))}
-            </div>
-          )}
           {visibleEmails.length > 0 && (
             <span className="muted panel-count">
               {visibleEmails.length === 1 ? t.oneMessage : t.nMessages(visibleEmails.length)}

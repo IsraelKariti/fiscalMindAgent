@@ -2399,6 +2399,7 @@ button.meta-chip:hover {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 57px;
   padding: 14px 20px 12px;
   border-bottom: 1px solid var(--border);
 }
@@ -2415,6 +2416,7 @@ button.meta-chip:hover {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-inline-start: auto;
 }
 
 .panel-body {

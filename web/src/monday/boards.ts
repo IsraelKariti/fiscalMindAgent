@@ -20,6 +20,8 @@ export interface ImportRow {
   name: string;
   email: string;
   phone: string | null;
+  /** Required-document names parsed from the documents column (comma-separated). */
+  documents: string[];
 }
 
 interface ColumnValue {
@@ -57,6 +59,15 @@ const PHONE_TITLES = new Set([
   'телефон',
   'мобильный',
 ]);
+const DOCUMENTS_TITLES = new Set([
+  'requireddocuments',
+  'requireddocs',
+  'documents',
+  'docs',
+  'מסמכים',
+  'מסמכיםנדרשים',
+  'документы',
+]);
 
 /** Lowercase and strip separators/punctuation so "E-Mail_Address " → "emailaddress". */
 function normalizeTitle(title: string): string {
@@ -73,6 +84,11 @@ export function phoneColumnCandidates(board: BoardMeta): BoardColumn[] {
 
 /** The client name defaults to the item name; any text column can replace it. */
 export function nameColumnCandidates(board: BoardMeta): BoardColumn[] {
+  return board.columns.filter((c) => TEXT_TYPES.has(c.type));
+}
+
+/** Required documents live in a text column of comma-separated names (no dedicated monday type). */
+export function documentsColumnCandidates(board: BoardMeta): BoardColumn[] {
   return board.columns.filter((c) => TEXT_TYPES.has(c.type));
 }
 
@@ -98,6 +114,11 @@ export function guessEmailColumn(board: BoardMeta): string {
 
 export function guessPhoneColumn(board: BoardMeta): string {
   return guessColumn(phoneColumnCandidates(board), 'phone', PHONE_TITLES);
+}
+
+/** Title-only guess ("required_documents" and friends) — monday has no documents column type. */
+export function guessDocumentsColumn(board: BoardMeta): string {
+  return documentsColumnCandidates(board).find((c) => DOCUMENTS_TITLES.has(normalizeTitle(c.title)))?.id ?? '';
 }
 
 const PAGE_SIZE = 500;
@@ -130,6 +151,18 @@ const ITEM_FIELDS =
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
+/** Server-side max documents per client (see ImportSchema). */
+const MAX_DOCUMENTS = 50;
+
+/** "טופס 106, אישור ניכוי מס , דוח שנתי" → unique trimmed names, capped. */
+function parseDocumentNames(text: string): string[] {
+  const names = text
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  return [...new Set(names)].slice(0, MAX_DOCUMENTS);
+}
+
 /**
  * Reads the whole board (cursor-paginated, 500 items per page) and maps each
  * item to an import row via the chosen columns. The name comes from the name
@@ -142,6 +175,7 @@ export async function fetchImportRows(
   emailColumnId: string,
   phoneColumnId: string | null,
   nameColumnId: string | null,
+  documentsColumnId: string | null,
 ): Promise<ImportRow[]> {
   const rows: ImportRow[] = [];
 
@@ -161,7 +195,11 @@ export async function fetchImportRows(
       if (!name || !EMAIL_RE.test(email)) continue;
       const phoneValue = phoneColumnId ? item.column_values.find((cv) => cv.id === phoneColumnId) : undefined;
       const phone = (phoneValue?.phone ?? phoneValue?.text ?? '').trim() || null;
-      rows.push({ name, email, phone });
+      const documentsValue = documentsColumnId
+        ? item.column_values.find((cv) => cv.id === documentsColumnId)
+        : undefined;
+      const documents = parseDocumentNames(documentsValue?.text ?? '');
+      rows.push({ name, email, phone, documents });
     }
     if (!page.cursor || rows.length >= MAX_ROWS) break;
     page = (

@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
+import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as clients from '../db/queries/clients.js';
 import * as dashboard from '../db/queries/dashboard.js';
 import * as mondayAccounts from '../db/queries/mondayAccounts.js';
@@ -35,6 +36,8 @@ const ImportSchema = z
             name: z.string().min(1).max(200),
             email: z.string().email(),
             phone: z.string().max(50).nullable().optional(),
+            // Required-document names read from the board's documents column.
+            documents: z.array(z.string().min(1).max(200)).max(50).default([]),
           })
           .strict(),
       )
@@ -243,6 +246,11 @@ mondayRouter.post(
       }
       const client = await clients.insert({ userId: req.userId!, name: row.name.trim(), emailAddress: email });
       if (row.phone) await clients.updateDetailsForUser(client.id, req.userId!, { phone: row.phone });
+      // The documents to collect come from the board row; without any, the first
+      // draft finds nothing pending and the goal completes with no outreach.
+      for (const docName of new Set(row.documents.map((d) => d.trim()).filter((d) => d.length > 0))) {
+        await clientDocuments.insert({ clientId: client.id, name: docName });
+      }
       // Stagger the first-email drafts so a big import doesn't fire hundreds of
       // concurrent Gemini calls; each draft keeps its own retry ladder.
       const delay = created * 1500;

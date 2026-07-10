@@ -3,10 +3,12 @@ import { useT } from '../i18n';
 import { mondayApi, MondayApiError } from './api';
 import { showToast } from './sdk';
 import {
+  documentsColumnCandidates,
   emailColumnCandidates,
   fetchBoards,
   fetchImportableBoards,
   fetchImportRows,
+  guessDocumentsColumn,
   guessEmailColumn,
   guessPhoneColumn,
   nameColumnCandidates,
@@ -29,7 +31,8 @@ interface Props {
 /**
  * Board → clients import: pick a connected board, map its columns onto the
  * fields fiscalMind needs (name from the item name or a text column, email
- * required, phone optional), preview the qualifying rows, then import.
+ * required, phone optional, required documents from a comma-separated text
+ * column), preview the qualifying rows, then import.
  * Re-importing is safe — the server skips emails that already exist.
  */
 export function ImportPanel({ boardIds, onImported, onClose }: Props) {
@@ -39,6 +42,7 @@ export function ImportPanel({ boardIds, onImported, onClose }: Props) {
   const [nameColumnId, setNameColumnId] = useState<string>(''); // '' = the item name
   const [emailColumnId, setEmailColumnId] = useState<string>('');
   const [phoneColumnId, setPhoneColumnId] = useState<string>('');
+  const [documentsColumnId, setDocumentsColumnId] = useState<string>('');
   const [rows, setRows] = useState<ImportRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +62,7 @@ export function ImportPanel({ boardIds, onImported, onClose }: Props) {
           setBoardId(first.id);
           setEmailColumnId(guessEmailColumn(first));
           setPhoneColumnId(guessPhoneColumn(first));
+          setDocumentsColumnId(guessDocumentsColumn(first));
         }
       })
       .catch(() => {
@@ -72,6 +77,7 @@ export function ImportPanel({ boardIds, onImported, onClose }: Props) {
   const nameColumns = board ? nameColumnCandidates(board) : [];
   const emailColumns = board ? emailColumnCandidates(board) : [];
   const phoneColumns = board ? phoneColumnCandidates(board) : [];
+  const documentsColumns = board ? documentsColumnCandidates(board) : [];
 
   const selectBoard = (id: string) => {
     setBoardId(id);
@@ -79,6 +85,7 @@ export function ImportPanel({ boardIds, onImported, onClose }: Props) {
     setNameColumnId('');
     setEmailColumnId(next ? guessEmailColumn(next) : '');
     setPhoneColumnId(next ? guessPhoneColumn(next) : '');
+    setDocumentsColumnId(next ? guessDocumentsColumn(next) : '');
     setRows(null);
     setError(null);
   };
@@ -88,7 +95,7 @@ export function ImportPanel({ boardIds, onImported, onClose }: Props) {
     setRows(null);
     if (!boardId || !emailColumnId) return;
     let stale = false;
-    fetchImportRows(boardId, emailColumnId, phoneColumnId || null, nameColumnId || null)
+    fetchImportRows(boardId, emailColumnId, phoneColumnId || null, nameColumnId || null, documentsColumnId || null)
       .then((loaded) => {
         if (!stale) setRows(loaded);
       })
@@ -98,7 +105,7 @@ export function ImportPanel({ boardIds, onImported, onClose }: Props) {
     return () => {
       stale = true;
     };
-  }, [boardId, emailColumnId, phoneColumnId, nameColumnId, t]);
+  }, [boardId, emailColumnId, phoneColumnId, nameColumnId, documentsColumnId, t]);
 
   const runImport = useCallback(async () => {
     if (!rows || rows.length === 0) return;
@@ -188,6 +195,20 @@ export function ImportPanel({ boardIds, onImported, onClose }: Props) {
                 </select>
               </label>
             )}
+            {documentsColumns.length > 0 && (
+              <label className="field">
+                <span>{t.mwDocumentsColumnLabel}</span>
+                <select value={documentsColumnId} onChange={(e) => setDocumentsColumnId(e.target.value)}>
+                  <option value="">{t.mwNoDocumentsColumn}</option>
+                  {documentsColumns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
+                <span className="muted">{t.mwDocumentsColumnHint}</span>
+              </label>
+            )}
 
             {!emailColumnId ? (
               <p className="muted">{t.mwChooseColumnHint}</p>
@@ -203,6 +224,7 @@ export function ImportPanel({ boardIds, onImported, onClose }: Props) {
                         <th>{t.mwColName}</th>
                         <th>{t.mwColEmail}</th>
                         {phoneColumnId && <th>{t.mwColPhone}</th>}
+                        {documentsColumnId && <th>{t.mwColDocuments}</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -211,6 +233,7 @@ export function ImportPanel({ boardIds, onImported, onClose }: Props) {
                           <td>{r.name}</td>
                           <td>{r.email}</td>
                           {phoneColumnId && <td>{r.phone ?? '—'}</td>}
+                          {documentsColumnId && <td>{r.documents.length > 0 ? r.documents.join(', ') : '—'}</td>}
                         </tr>
                       ))}
                     </tbody>

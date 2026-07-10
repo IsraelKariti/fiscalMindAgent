@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '../i18n';
 import { mondayApi, MondayApiError } from './api';
+import { showToast } from './sdk';
 import {
   emailColumnCandidates,
   fetchBoards,
@@ -21,6 +22,8 @@ interface Props {
   boardIds: string[];
   /** Refetch the dashboard after a successful import. */
   onImported: () => void;
+  /** Collapse the import form (the cancel button). */
+  onClose: () => void;
 }
 
 /**
@@ -29,7 +32,7 @@ interface Props {
  * required, phone optional), preview the qualifying rows, then import.
  * Re-importing is safe — the server skips emails that already exist.
  */
-export function ImportPanel({ boardIds, onImported }: Props) {
+export function ImportPanel({ boardIds, onImported, onClose }: Props) {
   const { t } = useT();
   const [boards, setBoards] = useState<BoardMeta[] | null>(null);
   const [boardId, setBoardId] = useState<string>('');
@@ -38,7 +41,6 @@ export function ImportPanel({ boardIds, onImported }: Props) {
   const [phoneColumnId, setPhoneColumnId] = useState<string>('');
   const [rows, setRows] = useState<ImportRow[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Boards connected to the widget; when monday reports none (per-widget
@@ -78,7 +80,6 @@ export function ImportPanel({ boardIds, onImported }: Props) {
     setEmailColumnId(next ? guessEmailColumn(next) : '');
     setPhoneColumnId(next ? guessPhoneColumn(next) : '');
     setRows(null);
-    setResult(null);
     setError(null);
   };
 
@@ -103,7 +104,6 @@ export function ImportPanel({ boardIds, onImported }: Props) {
     if (!rows || rows.length === 0) return;
     setBusy(true);
     setError(null);
-    setResult(null);
     try {
       let created = 0;
       let skipped = 0;
@@ -112,14 +112,17 @@ export function ImportPanel({ boardIds, onImported }: Props) {
         created += res.created;
         skipped += res.skipped;
       }
-      setResult(t.mwImportDone(created, skipped));
+      // Done: the outcome goes to a monday toast and the form collapses. Errors
+      // stay inline instead, so the user can retry with the form still open.
+      showToast(t.mwImportDone(created, skipped), created > 0 ? 'success' : 'info');
       onImported();
+      onClose();
     } catch (err) {
       setError(err instanceof MondayApiError && err.code === 'no_mailbox' ? t.mwMailboxNeeded : t.mwImportFailed);
     } finally {
       setBusy(false);
     }
-  }, [rows, onImported, t]);
+  }, [rows, onImported, onClose, t]);
 
   if (boards === null && !error) return <p className="muted">{t.loading}</p>;
   if (boards !== null && boards.length === 0) return <p className="muted">{t.mwNoBoards}</p>;
@@ -217,6 +220,9 @@ export function ImportPanel({ boardIds, onImported }: Props) {
                   <button className="btn btn-primary" disabled={busy || rows.length === 0} onClick={runImport}>
                     {busy ? t.mwImporting : t.mwImportRun(rows.length)}
                   </button>
+                  <button className="btn btn-ghost" disabled={busy} onClick={onClose}>
+                    {t.cancel}
+                  </button>
                 </div>
               </>
             )}
@@ -224,7 +230,6 @@ export function ImportPanel({ boardIds, onImported }: Props) {
         )
       )}
 
-      {result && <p className="muted">{result}</p>}
       {error && <div className="error-banner">{error}</div>}
     </div>
   );

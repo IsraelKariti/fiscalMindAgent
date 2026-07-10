@@ -2714,6 +2714,27 @@ button.meta-chip:hover {
   gap: 10px;
 }
 
+/* Import-form toggle: the chevron flips and the button stays "pressed" while
+   the form is open, so it reads as open/close rather than a one-shot action. */
+.mw-import-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mw-import-toggle .chevron {
+  transition: transform var(--speed) ease;
+}
+
+.mw-import-toggle[aria-expanded='true'] {
+  background: rgba(148, 163, 216, 0.18);
+  border-color: rgba(148, 163, 216, 0.55);
+}
+
+.mw-import-toggle[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
 /* First rows of the mapped import, so a wrong column choice is obvious. */
 .mw-sample {
   width: 100%;

@@ -156,8 +156,26 @@ export function MondayWidget() {
       <header className="mw-header">
         <h1>FiscalMind</h1>
         <div className="btn-row">
-          <button className="btn btn-ghost" onClick={() => setImportOpen((v) => !v)}>
-            {t.mwImportOpen}
+          <button
+            className="btn btn-ghost mw-import-toggle"
+            aria-expanded={importOpen}
+            onClick={() => setImportOpen((v) => !v)}
+          >
+            {importOpen ? t.mwImportClose : t.mwImportOpen}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="chevron"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </button>
           <button className="btn btn-ghost" onClick={openApp}>
             {t.mwOpenApp}
@@ -169,7 +187,7 @@ export function MondayWidget() {
 
       {importOpen && (
         <div className="card mw-import-card">
-          <ImportPanel boardIds={boardIds} onImported={loadDashboard} />
+          <ImportPanel boardIds={boardIds} onImported={loadDashboard} onClose={() => setImportOpen(false)} />
         </div>
       )}
 

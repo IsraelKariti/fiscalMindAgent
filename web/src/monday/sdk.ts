@@ -37,6 +37,21 @@ export function listenContext(callback: (ctx: MondayContext) => void): () => voi
   return monday.listen('context', (res) => callback((res.data as MondayContext) ?? {}));
 }
 
+/** Hebrew/Arabic-range strong RTL characters. */
+const RTL_RE = /[\u0590-\u08FF]/;
+
+/**
+ * monday-native toast, shown by the parent frame over the dashboard. That
+ * frame is LTR whenever the monday UI language is, which scrambles Hebrew
+ * messages with embedded numbers — wrap them in an RTL isolate (U+2067/U+2069)
+ * so they lay out right-to-left regardless of the toast's own direction.
+ */
+export function showToast(message: string, type: 'success' | 'error' | 'info' = 'success'): void {
+  const isolated = RTL_RE.test(message) ? '\u2067' + message + '\u2069' : message;
+  // A minute: long enough to read after looking away; the X dismisses earlier.
+  void monday.execute('notice', { message: isolated, type, timeout: 60_000 });
+}
+
 /** Seamless GraphQL call against the monday API, with the signed-in user's permissions. */
 export async function mondayGraphQL<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
   const res = (await monday.api(query, variables ? { variables } : undefined)) as { data?: T; errors?: unknown };

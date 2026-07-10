@@ -385,6 +385,7 @@ const he = {
   mwLinkButton: 'קישור עם חשבון Google',
   mwLinkHint: 'ייפתח חלון התחברות של Google. בסיומו, חזרו לכאן — הווידג׳ט יתעדכן לבד.',
   mwImportOpen: 'ייבוא לקוחות מהבורד',
+  mwImportClose: 'סגירת הייבוא',
   mwBoardLabel: 'בורד',
   mwNameColumnLabel: 'עמודת שם',
   mwItemNameOption: (title: string | null) => (title ? `${title} (שם הפריט)` : 'שם הפריט (ברירת מחדל)'),
@@ -779,6 +780,7 @@ const en: Messages = {
   mwLinkButton: 'Link with your Google account',
   mwLinkHint: 'A Google sign-in window will open. When it finishes, come back here — the widget updates by itself.',
   mwImportOpen: 'Import clients from the board',
+  mwImportClose: 'Close the import',
   mwBoardLabel: 'Board',
   mwNameColumnLabel: 'Name column',
   mwItemNameOption: (title: string | null) => (title ? `${title} (item name)` : 'Item name (default)'),
@@ -1172,6 +1174,7 @@ const ru: Messages = {
   mwLinkButton: 'Связать с аккаунтом Google',
   mwLinkHint: 'Откроется окно входа Google. После входа вернитесь сюда — виджет обновится сам.',
   mwImportOpen: 'Импорт клиентов с доски',
+  mwImportClose: 'Закрыть импорт',
   mwBoardLabel: 'Доска',
   mwNameColumnLabel: 'Столбец с именем',
   mwItemNameOption: (title: string | null) =>

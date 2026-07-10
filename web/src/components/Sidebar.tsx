@@ -20,6 +20,8 @@ interface Props {
   onStopImpersonating?: () => void;
   /** Absent in the monday iframe, where the identity is monday's — the logout button hides. */
   onLogout?: () => void;
+  /** monday surfaces only: opens the board→clients import; the button hides when absent. */
+  onImportClients?: () => void;
 }
 
 const icon = {
@@ -69,6 +71,13 @@ const icon = {
       <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   ),
+  download: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  ),
   sparkles: (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
@@ -94,6 +103,7 @@ export function Sidebar({
   impersonatingEmail,
   onStopImpersonating,
   onLogout,
+  onImportClients,
 }: Props) {
   const { t } = useT();
   return (
@@ -118,6 +128,11 @@ export function Sidebar({
             {clients.length > 0 && <span className="side-count">{clients.length}</span>}
           </span>
           <span className="side-heading-rule" />
+          {onImportClients && (
+            <button className="icon-btn" onClick={onImportClients} title={t.mwImportOpen}>
+              {icon.download}
+            </button>
+          )}
           <button className="icon-btn" onClick={onAddClient} title={t.addClient}>
             {icon.plus}
           </button>

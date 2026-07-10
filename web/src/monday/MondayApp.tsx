@@ -3,6 +3,7 @@ import type { Me } from '../api';
 import { Workspace } from '../components/Workspace';
 import { useT } from '../i18n';
 import { mondayApi } from './api';
+import { ImportPanel } from './ImportPanel';
 import { SessionGate, useMondaySession } from './useMondaySession';
 
 /**
@@ -56,6 +57,9 @@ export function MondayApp() {
       userEmail={me.user?.email ?? null}
       tier={me.tier ?? null}
       contactEmail={me.contactEmail ?? null}
+      // A custom object has no board context, so the panel starts from its
+      // all-boards fallback (every readable board with an email-capable column).
+      renderImportPanel={(props) => <ImportPanel boardIds={[]} {...props} />}
     />
   );
 }

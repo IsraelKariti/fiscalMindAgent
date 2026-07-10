@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { api, type AccountTier, type Client, type MailboxStatus } from '../api';
 import { Sidebar } from './Sidebar';
 import { ClientView } from './ClientView';
@@ -26,6 +26,12 @@ interface Props {
   onStopImpersonating?: () => void;
   /** Absent in the monday iframe — identity belongs to monday, so there is nothing to log out of. */
   onLogout?: () => void;
+  /**
+   * monday surfaces only: renders the board→clients import inside a modal.
+   * The shell owns the modal state and passes the refresh/close callbacks so
+   * the import stays decoupled from the monday SDK this component must not know.
+   */
+  renderImportPanel?: (props: { onImported: () => void; onClose: () => void }) => ReactNode;
 }
 
 /**
@@ -34,12 +40,21 @@ interface Props {
  * monday custom object (sessionToken transport); the host decides identity and
  * passes what the shell may show.
  */
-export function Workspace({ userEmail, tier, contactEmail, impersonatingEmail, onStopImpersonating, onLogout }: Props) {
+export function Workspace({
+  userEmail,
+  tier,
+  contactEmail,
+  impersonatingEmail,
+  onStopImpersonating,
+  onLogout,
+  renderImportPanel,
+}: Props) {
   const { t } = useT();
   const [clients, setClients] = useState<Client[]>([]);
   const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
   const [view, setView] = useState<View>({ kind: 'empty' });
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
 
   const loadClients = useCallback(async () => {
@@ -101,6 +116,7 @@ export function Workspace({ userEmail, tier, contactEmail, impersonatingEmail, o
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onSelectSettings={() => setView({ kind: 'settings' })}
           onAddClient={() => setAdding(true)}
+          onImportClients={renderImportPanel ? () => setImporting(true) : undefined}
           onDeleteClient={setDeleting}
           userEmail={userEmail}
           tier={tier}
@@ -142,6 +158,16 @@ export function Workspace({ userEmail, tier, contactEmail, impersonatingEmail, o
             loadClients().catch(console.error);
           }}
         />
+      )}
+      {importing && renderImportPanel && (
+        <div className="modal-backdrop" onClick={() => setImporting(false)}>
+          <div className="card modal modal-import" onClick={(e) => e.stopPropagation()}>
+            {renderImportPanel({
+              onImported: () => loadClients().catch(console.error),
+              onClose: () => setImporting(false),
+            })}
+          </div>
+        </div>
       )}
     </div>
   );

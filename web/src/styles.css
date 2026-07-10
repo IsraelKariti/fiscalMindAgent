@@ -933,6 +933,13 @@ textarea {
   font-size: 20px;
 }
 
+/* Board→clients import inside the monday custom object: the column-mapping
+   selects and row preview need more room than the default modal. */
+.modal-import {
+  width: 560px;
+  max-width: calc(100vw - 32px);
+}
+
 .modal-actions {
   justify-content: flex-end;
 }

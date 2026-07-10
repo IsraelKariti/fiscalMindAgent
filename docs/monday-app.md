@@ -13,9 +13,6 @@ server and built from `web/src/monday/`:
   import) — the same `Workspace` component the standalone SPA renders, added
   to a monday workspace from the left-pane **+** menu like a board or doc.
 
-The old paths `/monday` and `/monday-app` are served as aliases of the same
-documents, kept until the Developer Center feature URLs are switched over.
-
 ## How it works
 
 - **Auth** — no login screen in either iframe. The frontend fetches a
@@ -55,8 +52,7 @@ documents, kept until the Developer Center feature URLs are switched over.
   pagination → POST `/api/monday/clients/import`, which skips existing emails,
   so re-importing is safe. Importing requires the account to have claimed an
   agent mailbox first.
-- **Framing** — only the monday documents (`/monday-widget`, `/monday-object`,
-  and their legacy aliases) carry a
+- **Framing** — only `/monday-widget` and `/monday-object` carry a
   `Content-Security-Policy: frame-ancestors https://*.monday.com` header; the
   rest of the app sets no framing headers (unchanged).
 

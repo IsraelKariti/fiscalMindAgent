@@ -26,8 +26,7 @@ export function createApp(): Express {
     // /monday-object. Only these documents are embeddable, and only by monday
     // — the frame-ancestors CSP is the framing allowlist (nothing else sets
     // framing headers, and both authenticate with monday session tokens, not
-    // the session cookie). The old /monday and /monday-app paths stay as
-    // aliases until the Developer Center feature URLs are switched over.
+    // the session cookie).
     const serveMondayDoc = (routes: string[], file: string) =>
       app.get(routes, (_req, res, next) => {
         const doc = path.join(guiDist, file);
@@ -35,8 +34,8 @@ export function createApp(): Express {
         res.setHeader('Content-Security-Policy', 'frame-ancestors https://*.monday.com https://monday.com');
         res.sendFile(doc);
       });
-    serveMondayDoc(['/monday-widget', '/monday-widget.html', '/monday', '/monday.html'], 'monday-widget.html');
-    serveMondayDoc(['/monday-object', '/monday-object.html', '/monday-app', '/monday-app.html'], 'monday-object.html');
+    serveMondayDoc(['/monday-widget', '/monday-widget.html'], 'monday-widget.html');
+    serveMondayDoc(['/monday-object', '/monday-object.html'], 'monday-object.html');
     app.use(express.static(guiDist));
     // SPA fallback: let client-side routing handle any other GET path.
     app.get('*', (req, res, next) => {

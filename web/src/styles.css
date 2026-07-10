@@ -394,6 +394,8 @@ code {
 }
 
 .client-item {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 10px;

@@ -9,7 +9,7 @@ import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { isAdminEmail, requireWhitelisted } from './auth.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
-import { createMondayLinkToken, requireMondayIdentity, requireMondayUser } from './mondayAuth.js';
+import { createMondayHandoffToken, createMondayLinkToken, requireMondayIdentity, requireMondayUser } from './mondayAuth.js';
 import { workspaceRouter } from './workspace.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
@@ -145,6 +145,20 @@ mondayRouter.get('/link-url', (req, res) => {
   const token = createMondayLinkToken(req.monday!.accountId, req.monday!.userId);
   res.json({ url: `${env.APP_BASE_URL}/api/auth/google?monday_link=${encodeURIComponent(token)}` });
 });
+
+/**
+ * GET /api/monday/app-login-url — where "Open in FiscalMind" points. The
+ * signed single-use token lets the standalone app issue its regular session
+ * cookie without a Google login, which monday-only accounts don't have.
+ */
+mondayRouter.get(
+  '/app-login-url',
+  wrap(requireMondayUser),
+  (req, res) => {
+    const token = createMondayHandoffToken(req.userId!);
+    res.json({ url: `${env.APP_BASE_URL}/api/auth/monday-handoff?token=${encodeURIComponent(token)}` });
+  },
+);
 
 /**
  * GET /api/monday/me — the standalone GET /api/me payload for the monday-mapped

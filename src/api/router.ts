@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.js';
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
-import { googleLoginCallback, logout, me, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
+import { googleLoginCallback, logout, me, mondayHandoff, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
 import { mondayRouter } from './monday.js';
 import { workspaceRouter } from './workspace.js';
 import {
@@ -38,6 +38,7 @@ export const apiRouter = Router();
 
 apiRouter.get('/auth/google', startGoogleLogin);
 apiRouter.get('/auth/google/callback', wrap(googleLoginCallback));
+apiRouter.get('/auth/monday-handoff', wrap(mondayHandoff));
 apiRouter.post('/logout', logout);
 apiRouter.get('/me', wrap(me));
 

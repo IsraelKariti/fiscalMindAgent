@@ -129,3 +129,47 @@ export function verifyMondayLinkToken(token: string): { accountId: string; userI
   if (typeof parsed.exp !== 'number' || parsed.exp < Date.now()) return null;
   return { accountId: parsed.a, userId: parsed.u };
 }
+
+// "Open in FiscalMind" handoff tokens: issued to an authenticated monday user
+// and redeemed once by GET /api/auth/monday-handoff for a regular session
+// cookie, so monday-only accounts (synthetic `monday:` google_sub, no Google
+// login) can enter the standalone app. Same signing scheme as the link tokens
+// above, domain-separated, but much shorter-lived and single-use.
+const HANDOFF_TOKEN_TTL_MS = 60 * 1000;
+
+/**
+ * Redeemed token ids, kept until their expiry. In-memory, so a replay against
+ * another web replica would not be caught — the 60s TTL bounds that window,
+ * and the token only ever leaves the server inside the widget's response to
+ * the already-authenticated monday user.
+ */
+const redeemedHandoffs = new Map<string, number>();
+
+function signHandoffPayload(payload: string): string {
+  return crypto
+    .createHmac('sha256', `monday-handoff:${env.MONDAY_CLIENT_SECRET ?? ''}`)
+    .update(payload)
+    .digest('base64url');
+}
+
+export function createMondayHandoffToken(userId: string): string {
+  const payload = Buffer.from(
+    JSON.stringify({ u: userId, jti: crypto.randomBytes(16).toString('hex'), exp: Date.now() + HANDOFF_TOKEN_TTL_MS }),
+  ).toString('base64url');
+  return `${payload}.${signHandoffPayload(payload)}`;
+}
+
+/** Verifies and burns a handoff token; returns the fiscalMind user id only on first use. */
+export function consumeMondayHandoffToken(token: string): { userId: string } | null {
+  if (!env.MONDAY_CLIENT_SECRET) return null;
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature || !timingSafeEqual(signature, signHandoffPayload(payload))) return null;
+  const parsed = b64urlJson(payload) as { u?: string; jti?: string; exp?: number } | null;
+  if (!parsed || typeof parsed.u !== 'string' || typeof parsed.jti !== 'string') return null;
+  const now = Date.now();
+  if (typeof parsed.exp !== 'number' || parsed.exp < now) return null;
+  if (redeemedHandoffs.has(parsed.jti)) return null;
+  for (const [jti, exp] of redeemedHandoffs) if (exp < now) redeemedHandoffs.delete(jti);
+  redeemedHandoffs.set(parsed.jti, parsed.exp);
+  return { userId: parsed.u };
+}

@@ -37,6 +37,13 @@ server and built from `web/src/monday/`:
   shared shell boots identically. Admin, impersonation, and prompt-template
   routes are cookie-only by design. The frontend picks the mount via
   `configureApi` in `web/src/api.ts` (see `web/src/monday/appMain.tsx`).
+- **Standalone handoff** — "Open in FiscalMind" (widget) doesn't just link to
+  the app: it fetches `GET /api/monday/app-login-url`, which returns a
+  single-use, 60-second handoff URL (`/api/auth/monday-handoff?token=…`) that
+  sets the regular session cookie and redirects into the SPA. This is the only
+  way monday-only accounts (synthetic `monday:` google_sub, no Google login)
+  can enter the standalone app; replays and expired tokens bounce to
+  `/?login_error=monday_handoff_failed`.
 - **Board import** (widget only) — the widget reads the connected board with
   monday's seamless API (user's own permissions, no stored monday tokens):
   board columns → pick the email (+ optional phone) column → `items_page`

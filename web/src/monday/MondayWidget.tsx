@@ -63,7 +63,21 @@ export function MondayWidget() {
   }
 
   const { status } = phase;
-  const openApp = () => window.open(status.appUrl, '_blank');
+  // Opens the standalone app already signed in: the tab is opened synchronously
+  // (popup blockers distrust window.open after an await) and then pointed at a
+  // single-use handoff URL that sets the session cookie — monday-only accounts
+  // have no Google login to pass otherwise. Falls back to the bare app URL.
+  const openApp = async () => {
+    const win = window.open('about:blank', '_blank');
+    let url = status.appUrl;
+    try {
+      url = (await mondayApi.appLoginUrl()).url;
+    } catch {
+      // Bare URL still works for accounts with a linked Google login.
+    }
+    if (win) win.location.href = url;
+    else window.open(url, '_blank');
+  };
 
   return (
     <div className="mw-shell">

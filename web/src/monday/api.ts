@@ -50,6 +50,8 @@ export const mondayApi = {
   /** The standalone GET /api/me payload for the monday-mapped user (custom object shell). */
   me: () => request<Me>('/api/monday/me'),
   linkUrl: () => request<{ url: string }>('/api/monday/link-url'),
+  /** Single-use handoff URL that opens the standalone app already signed in (works without Google). */
+  appLoginUrl: () => request<{ url: string }>('/api/monday/app-login-url'),
   importClients: (clients: { name: string; email: string; phone?: string | null }[]) =>
     request<{ created: number; skipped: number }>('/api/monday/clients/import', {
       method: 'POST',

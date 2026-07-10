@@ -6,7 +6,7 @@ import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { logger } from '../util/logger.js';
-import { verifyMondayLinkToken } from './mondayAuth.js';
+import { consumeMondayHandoffToken, verifyMondayLinkToken } from './mondayAuth.js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -272,6 +272,25 @@ export const googleLoginCallback: RequestHandler = async (req, res) => {
   }
 
   res.redirect(`${returnTo}/`);
+};
+
+/**
+ * GET /api/auth/monday-handoff?token=… — redeem a single-use handoff token
+ * (issued by GET /api/monday/app-login-url to an authenticated monday user)
+ * for a regular session cookie. This is how monday-only accounts, which have
+ * no Google login, enter the standalone app from "Open in FiscalMind".
+ */
+export const mondayHandoff: RequestHandler = async (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token : null;
+  const handoff = token ? consumeMondayHandoffToken(token) : null;
+  const user = handoff ? await users.getById(handoff.userId) : null;
+  if (!user) {
+    logger.warn('monday handoff failed', { reason: handoff ? 'unknown user' : 'invalid, expired, or reused token' });
+    res.redirect('/?login_error=monday_handoff_failed');
+    return;
+  }
+  setSessionCookie(res, user.id);
+  res.redirect('/');
 };
 
 export const logout: RequestHandler = (_req, res) => {

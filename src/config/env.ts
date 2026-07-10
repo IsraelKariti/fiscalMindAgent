@@ -51,6 +51,10 @@ const EnvSchema = z.object({
   // covers the full URL, so this must match what's configured on the sender
   // (in dev: https://<NGROK_DOMAIN>/webhooks/twilio).
   TWILIO_WEBHOOK_URL: z.string().url().optional(),
+  // monday.com app (Developer Center -> your app -> Basic Information): the
+  // Client Secret that signs the widget iframe's sessionToken JWTs. Optional —
+  // the /api/monday endpoints return 503 until it is set.
+  MONDAY_CLIENT_SECRET: z.string().min(1).optional(),
   // Azure Blob Storage holding client document files. The default is the
   // well-known Azurite dev connection (docker-compose `azurite` service);
   // production sets the real storage-account connection string.

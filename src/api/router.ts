@@ -23,6 +23,8 @@ import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../gemini/prompt.j
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
 import { googleLoginCallback, logout, me, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
+import { draftFirstEmail } from './draftFirstEmail.js';
+import { mondayRouter } from './monday.js';
 import {
   adminAddToWhitelist,
   adminGetModel,
@@ -120,21 +122,6 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
   }
 }
 
-// Retry delays for the fire-and-forget first-email draft. Without a scheduled email the
-// agent never reaches out and the UI shows "drafting…" forever. Each attempt already
-// retries transient Gemini errors internally with short backoff (see decide.ts), so this
-// outer exponential schedule covers longer outages: ~1.5h of trying before giving up to the logs.
-const FIRST_EMAIL_RETRY_DELAYS_MS = [30_000, 120_000, 480_000, 1_800_000, 3_600_000];
-
-/** Fire-and-forget: has the agent draft and schedule the new client's first email. */
-function draftFirstEmail(clientId: string, attempt = 0): void {
-  withClientLock(clientId, () => setFutureEmail(clientId)).catch((err) => {
-    logger.error('first email drafting failed', err, { clientId, attempt });
-    const delay = FIRST_EMAIL_RETRY_DELAYS_MS[attempt];
-    if (delay !== undefined) setTimeout(() => draftFirstEmail(clientId, attempt + 1), delay);
-  });
-}
-
 /** Postgres rejects non-UUID ids with an error (→ 500); pre-validate so they 404 like other misses. */
 function uuidParam(value: string | undefined): string | null {
   return value && z.string().uuid().safeParse(value).success ? value : null;
@@ -146,6 +133,10 @@ apiRouter.get('/auth/google', startGoogleLogin);
 apiRouter.get('/auth/google/callback', wrap(googleLoginCallback));
 apiRouter.post('/logout', logout);
 apiRouter.get('/me', wrap(me));
+
+// monday.com widget endpoints: authenticated by the widget's sessionToken
+// (Bearer header), not the session cookie, so they mount before requireAuth.
+apiRouter.use('/monday', mondayRouter);
 
 apiRouter.use(requireAuth);
 // Paid-access gate: everything below is whitelist-only (admins always pass).

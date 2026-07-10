@@ -2673,3 +2673,52 @@ button.meta-chip:hover {
 .overview-chip-name {
   font-weight: 600;
 }
+
+/* --- monday.com dashboard widget (web/src/monday) ------------------------- */
+
+.mw-shell {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100vh;
+}
+
+.mw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mw-header h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.mw-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 30rem;
+  text-align: center;
+  padding: 16px;
+}
+
+.mw-import-card {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Widget tiles are narrow — let the stat tiles and the grid collapse. */
+.mw-shell .stat-row {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.mw-grid {
+  grid-template-columns: 1fr;
+}

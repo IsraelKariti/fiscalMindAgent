@@ -375,6 +375,29 @@ const he = {
   srCount: 'כמות',
   srPercent: 'אחוז',
   srPeriod: 'תקופה',
+
+  // monday.com widget
+  mwOpenApp: 'פתיחת FiscalMind',
+  mwSetupFailed: 'טעינת הווידג׳ט נכשלה. ודאו שהאפליקציה מוגדרת ונסו לרענן.',
+  mwRefresh: 'רענון',
+  mwEmailInUse: (email: string) =>
+    `כבר קיים חשבון FiscalMind עבור ${email}. קשרו אותו כדי להשתמש בו מתוך monday.`,
+  mwLinkButton: 'קישור עם חשבון Google',
+  mwLinkHint: 'ייפתח חלון התחברות של Google. בסיומו, חזרו לכאן — הווידג׳ט יתעדכן לבד.',
+  mwImportOpen: 'ייבוא לקוחות מהבורד',
+  mwBoardLabel: 'בורד',
+  mwEmailColumnLabel: 'עמודת אימייל',
+  mwPhoneColumnLabel: 'עמודת טלפון',
+  mwNoPhoneColumn: 'ללא',
+  mwNoBoards: 'חברו בורד לווידג׳ט דרך הגדרות הווידג׳ט ב-monday.',
+  mwNoEmailColumn: 'לבורד שנבחר אין עמודת אימייל, ולכן אין מה לייבא.',
+  mwBoardLoadFailed: 'טעינת הבורד נכשלה.',
+  mwImportableCount: (n: number) => `נמצאו ${n} שורות עם כתובת אימייל`,
+  mwImportRun: (n: number) => `ייבוא ${n} לקוחות`,
+  mwImporting: 'מייבא…',
+  mwImportDone: (created: number, skipped: number) => `${created} לקוחות נוספו, ${skipped} דולגו (קיימים).`,
+  mwImportFailed: 'הייבוא נכשל.',
+  mwMailboxNeeded: 'לפני ייבוא לקוחות, בחרו כתובת לסוכן באפליקציית FiscalMind.',
 };
 
 export type Messages = typeof he;
@@ -739,6 +762,29 @@ const en: Messages = {
   srCount: 'Count',
   srPercent: 'Percent',
   srPeriod: 'Period',
+
+  // monday.com widget
+  mwOpenApp: 'Open FiscalMind',
+  mwSetupFailed: 'The widget failed to load. Make sure the app is configured and refresh.',
+  mwRefresh: 'Refresh',
+  mwEmailInUse: (email: string) =>
+    `A FiscalMind account for ${email} already exists. Link it to use it from monday.`,
+  mwLinkButton: 'Link with your Google account',
+  mwLinkHint: 'A Google sign-in window will open. When it finishes, come back here — the widget updates by itself.',
+  mwImportOpen: 'Import clients from the board',
+  mwBoardLabel: 'Board',
+  mwEmailColumnLabel: 'Email column',
+  mwPhoneColumnLabel: 'Phone column',
+  mwNoPhoneColumn: 'None',
+  mwNoBoards: 'Connect a board to this widget via the widget settings in monday.',
+  mwNoEmailColumn: 'The selected board has no email column, so there is nothing to import.',
+  mwBoardLoadFailed: 'Loading the board failed.',
+  mwImportableCount: (n: number) => `Found ${n} rows with an email address`,
+  mwImportRun: (n: number) => `Import ${n} clients`,
+  mwImporting: 'Importing…',
+  mwImportDone: (created: number, skipped: number) => `${created} clients added, ${skipped} skipped (already exist).`,
+  mwImportFailed: 'The import failed.',
+  mwMailboxNeeded: 'Before importing clients, choose an agent address in the FiscalMind app.',
 };
 
 const ru: Messages = {
@@ -1101,6 +1147,30 @@ const ru: Messages = {
   srCount: 'Количество',
   srPercent: 'Процент',
   srPeriod: 'Период',
+
+  // monday.com widget
+  mwOpenApp: 'Открыть FiscalMind',
+  mwSetupFailed: 'Не удалось загрузить виджет. Убедитесь, что приложение настроено, и обновите страницу.',
+  mwRefresh: 'Обновить',
+  mwEmailInUse: (email: string) =>
+    `Аккаунт FiscalMind для ${email} уже существует. Свяжите его, чтобы пользоваться им из monday.`,
+  mwLinkButton: 'Связать с аккаунтом Google',
+  mwLinkHint: 'Откроется окно входа Google. После входа вернитесь сюда — виджет обновится сам.',
+  mwImportOpen: 'Импорт клиентов с доски',
+  mwBoardLabel: 'Доска',
+  mwEmailColumnLabel: 'Столбец с email',
+  mwPhoneColumnLabel: 'Столбец с телефоном',
+  mwNoPhoneColumn: 'Нет',
+  mwNoBoards: 'Подключите доску к виджету в настройках виджета monday.',
+  mwNoEmailColumn: 'На выбранной доске нет столбца с email — импортировать нечего.',
+  mwBoardLoadFailed: 'Не удалось загрузить доску.',
+  mwImportableCount: (n: number) => `Найдено строк с email: ${n}`,
+  mwImportRun: (n: number) => `Импортировать клиентов: ${n}`,
+  mwImporting: 'Импорт…',
+  mwImportDone: (created: number, skipped: number) =>
+    `Добавлено клиентов: ${created}, пропущено (уже существуют): ${skipped}.`,
+  mwImportFailed: 'Импорт не удался.',
+  mwMailboxNeeded: 'Перед импортом клиентов выберите адрес агента в приложении FiscalMind.',
 };
 
 const CATALOGS: Record<Lang, Messages> = { he, en, ru };

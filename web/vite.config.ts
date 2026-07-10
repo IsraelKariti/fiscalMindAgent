@@ -10,6 +10,16 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, fileURLToPath(new URL('..', import.meta.url)), '');
   return {
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        // Two documents: the dashboard SPA and the monday.com widget iframe
+        // (served by Express at /monday).
+        input: {
+          main: fileURLToPath(new URL('index.html', import.meta.url)),
+          monday: fileURLToPath(new URL('monday.html', import.meta.url)),
+        },
+      },
+    },
     server: {
       port: Number(env.GUI_PORT) || 5173,
       proxy: {

@@ -1,53 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, type DashboardClientSummary, type DashboardSummary } from '../api';
-import { daysSince, LOCALE } from '../format';
-import { useT, type Messages } from '../i18n';
+import { api, type DashboardSummary } from '../api';
+import { LOCALE } from '../format';
+import { useT } from '../i18n';
 import { ChartCard, ChartEmpty, SERIES } from './charts/common';
 import { DonutChart, type DonutDatum } from './charts/DonutChart';
 import { LineChart } from './charts/LineChart';
 import { startOfWeek, weekLabel, WEEKS, weekStarts } from './charts/weeks';
-
-const STALE_REPLY_DAYS = 7;
+import { NeedsAttentionCard, progressOf, StatRow, upcomingFollowUps } from './overviewParts';
 
 interface Props {
   onSelectClient: (clientId: string) => void;
-}
-
-/** Collection progress as a 0..1 fraction; a complete client with no documents still counts as done. */
-function progressOf(c: DashboardClientSummary): number {
-  if (c.docs_total === 0) return c.goal_status === 'complete' ? 1 : 0;
-  return c.docs_collected / c.docs_total;
-}
-
-interface AttentionItem {
-  client: DashboardClientSummary;
-  reason: string;
-  /** Days waiting — sorts the list most-stuck first. */
-  days: number;
-}
-
-/** Pending clients that are stuck: silent for a week, or nothing scheduled to chase them. */
-function attentionItems(clients: DashboardClientSummary[], t: Messages): AttentionItem[] {
-  const items: AttentionItem[] = [];
-  for (const client of clients) {
-    if (client.goal_status === 'complete') continue;
-    // Never-replied clients are measured from creation — the first email may still be pending.
-    const silentDays = client.last_inbound_at
-      ? daysSince(client.last_inbound_at)
-      : client.emails_sent > 0
-        ? daysSince(client.created_at)
-        : null;
-    if (silentDays !== null && silentDays >= STALE_REPLY_DAYS) {
-      items.push({
-        client,
-        days: silentDays,
-        reason: client.last_inbound_at ? t.silentForDays(silentDays) : t.neverReplied,
-      });
-    } else if (!client.next_scheduled_for) {
-      items.push({ client, days: 0, reason: t.noFollowUpScheduled });
-    }
-  }
-  return items.sort((a, b) => b.days - a.days);
 }
 
 export function Overview({ onSelectClient }: Props) {
@@ -79,19 +41,10 @@ export function Overview({ onSelectClient }: Props) {
     };
   }, [load]);
 
-  const totals = useMemo(() => {
-    if (!data) return null;
-    const complete = data.clients.filter((c) => c.goal_status === 'complete').length;
-    return {
-      clients: data.clients.length,
-      complete,
-      pending: data.clients.length - complete,
-      docsTotal: data.clients.reduce((sum, c) => sum + c.docs_total, 0),
-      docsCollected: data.clients.reduce((sum, c) => sum + c.docs_collected, 0),
-      sent: data.clients.reduce((sum, c) => sum + c.emails_sent, 0),
-      received: data.clients.reduce((sum, c) => sum + c.emails_received, 0),
-    };
-  }, [data]);
+  const messagesTotal = useMemo(
+    () => (data?.clients ?? []).reduce((sum, c) => sum + c.emails_sent + c.emails_received, 0),
+    [data],
+  );
 
   const activity = useMemo(() => {
     const starts = weekStarts();
@@ -125,76 +78,21 @@ export function Overview({ onSelectClient }: Props) {
     [data],
   );
 
-  const attention = useMemo(() => attentionItems(data?.clients ?? [], t), [data, t]);
-
-  const followUps = useMemo(
-    () =>
-      (data?.clients ?? [])
-        .filter((c) => c.next_scheduled_for !== null)
-        .sort((a, b) => a.next_scheduled_for!.localeCompare(b.next_scheduled_for!)),
-    [data],
-  );
+  const followUps = useMemo(() => upcomingFollowUps(data?.clients ?? []), [data]);
 
   if (error) return <div className="error-banner">{error}</div>;
-  if (!data || !totals) return <div className="muted">{t.loading}</div>;
+  if (!data) return <div className="muted">{t.loading}</div>;
   if (data.clients.length === 0) {
     return <div className="screen-center muted">{t.dashboardFillsUp}</div>;
   }
 
-  const nextFollowUp = followUps[0]?.next_scheduled_for;
-  const docsMissing = totals.docsTotal - totals.docsCollected;
-
   return (
     <div className="overview">
-      <div className="stat-row">
-        <div className="card stat-tile">
-          <span className="stat-label">{t.clientsLabel}</span>
-          <span className="stat-value">{totals.clients}</span>
-          <span className="stat-context">{t.completeAndPending(totals.complete, totals.pending)}</span>
-        </div>
-
-        <div className="card stat-tile">
-          <span className="stat-label">{t.docsCollectedLabel}</span>
-          <span className="stat-value">
-            {totals.docsTotal === 0 ? '—' : `${totals.docsCollected} / ${totals.docsTotal}`}
-          </span>
-          {totals.docsTotal > 0 && (
-            <div className="stat-meter">
-              <div
-                className={`stat-meter-fill ${docsMissing === 0 ? 'complete' : ''}`}
-                style={{ width: `${(totals.docsCollected / totals.docsTotal) * 100}%` }}
-              />
-            </div>
-          )}
-          <span className="stat-context">
-            {totals.docsTotal === 0 ? t.noDocsDefined : docsMissing === 0 ? t.allCollected : t.nMissing(docsMissing)}
-          </span>
-        </div>
-
-        <div className="card stat-tile">
-          <span className="stat-label">{t.messagesExchangedLabel}</span>
-          <span className="stat-value">{totals.sent + totals.received}</span>
-          <span className="stat-context">
-            {totals.sent + totals.received === 0
-              ? t.noEmailsYet
-              : t.sentReceivedFiles(totals.sent, totals.received, data.filesTotal)}
-          </span>
-        </div>
-
-        <div className="card stat-tile">
-          <span className="stat-label">{t.scheduledFollowUpsLabel}</span>
-          <span className="stat-value">{followUps.length}</span>
-          <span className="stat-context">
-            {nextFollowUp
-              ? t.nextAt(new Date(nextFollowUp).toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' }))
-              : t.noScheduledFollowUps}
-          </span>
-        </div>
-      </div>
+      <StatRow data={data} />
 
       <div className="chart-grid">
         <ChartCard title={t.emailActivity} subtitle={t.allClientsLastWeeks(WEEKS)} span={2}>
-          {totals.sent + totals.received > 0 ? (
+          {messagesTotal > 0 ? (
             <LineChart
               title={t.emailsPerWeekAllClients}
               labels={activity.labels}
@@ -241,27 +139,7 @@ export function Overview({ onSelectClient }: Props) {
           </ul>
         </ChartCard>
 
-        <ChartCard title={t.needsAttention} subtitle={t.attentionSubtitle(STALE_REPLY_DAYS)}>
-          {attention.length > 0 ? (
-            <ul className="overview-list">
-              {attention.map(({ client, reason }) => (
-                <li key={client.id}>
-                  <button className="overview-row" onClick={() => onSelectClient(client.id)}>
-                    <span className="overview-row-top">
-                      <span className="overview-row-name">{client.name}</span>
-                      <span className="stat-flag">
-                        <span className="stat-flag-dot" />
-                        {reason}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <ChartEmpty>{t.allClear}</ChartEmpty>
-          )}
-        </ChartCard>
+        <NeedsAttentionCard clients={data.clients} onSelectClient={onSelectClient} />
 
         <ChartCard title={t.upcomingFollowUps} subtitle={t.upcomingFollowUpsSubtitle} span={3}>
           {followUps.length > 0 ? (

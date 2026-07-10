@@ -266,7 +266,6 @@ export function Timeline({
             return (
               <li key={email.id} className={`timeline-item ${outbound ? 'outbound' : 'inbound'}`}>
                 <div className="timeline-meta">
-                  <span className="timeline-author">{outbound ? t.agentAuthor : t.clientAuthor}</span>
                   {hasWhatsApp && (
                     <span className={`channel-badge channel-${email.channel}`}>{channelLabel(email.channel)}</span>
                   )}
@@ -305,7 +304,6 @@ export function Timeline({
                       <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                   )}
-                  {t.agentNotSentYet}
                 </span>
                 {hasWhatsApp && (
                   <span className={`channel-badge channel-${nextScheduled.channel}`}>

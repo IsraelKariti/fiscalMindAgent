@@ -247,6 +247,13 @@ code {
   color: var(--text-muted);
 }
 
+/* dir="ltr" resets the span's alignment to left; in the RTL sidebar the
+   address must still hug the right edge like its neighbors. */
+[dir='rtl'] .id-card-email,
+[dir='rtl'] .client-item-email {
+  text-align: right;
+}
+
 .microlabel {
   font-size: 12.5px;
   font-weight: 700;

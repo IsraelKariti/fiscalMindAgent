@@ -57,14 +57,22 @@ export function verifyMondaySessionToken(token: string): { accountId: string; us
   return { accountId: String(accountId), userId: String(userId) };
 }
 
-/** Verifies the Bearer sessionToken and attaches the monday identity; 503 while unconfigured. */
+/**
+ * Verifies the sessionToken and attaches the monday identity; 503 while
+ * unconfigured. The token normally rides the Authorization header; a
+ * `?sessionToken=` query fallback covers EventSource (SSE) and file-download
+ * links, which cannot set headers. The tokens expire within minutes, so a
+ * leaked URL goes stale almost immediately.
+ */
 export const requireMondayIdentity: RequestHandler = (req, res, next) => {
   if (!env.MONDAY_CLIENT_SECRET) {
     res.status(503).json({ error: 'The monday integration is not configured (set MONDAY_CLIENT_SECRET).' });
     return;
   }
   const header = req.headers.authorization;
-  const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
+  const bearer = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
+  const query = typeof req.query.sessionToken === 'string' ? req.query.sessionToken : null;
+  const token = bearer ?? query;
   const identity = token ? verifyMondaySessionToken(token) : null;
   if (!identity) {
     res.status(401).json({ error: 'Invalid monday session token.' });

@@ -10,6 +10,7 @@ import * as whitelist from '../db/queries/whitelist.js';
 import { isAdminEmail, requireWhitelisted } from './auth.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { createMondayLinkToken, requireMondayIdentity, requireMondayUser } from './mondayAuth.js';
+import { workspaceRouter } from './workspace.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -144,6 +145,37 @@ mondayRouter.get('/link-url', (req, res) => {
   const token = createMondayLinkToken(req.monday!.accountId, req.monday!.userId);
   res.json({ url: `${env.APP_BASE_URL}/api/auth/google?monday_link=${encodeURIComponent(token)}` });
 });
+
+/**
+ * GET /api/monday/me — the standalone GET /api/me payload for the monday-mapped
+ * user, so the custom object can boot the same workspace shell the SPA uses.
+ * No impersonation here: monday sessions are always the mapped user themselves.
+ */
+mondayRouter.get(
+  '/me',
+  wrap(requireMondayUser),
+  wrap(async (req, res) => {
+    const user = await users.getById(req.userId!);
+    if (!user) {
+      res.json({ authenticated: false });
+      return;
+    }
+    const isAdmin = isAdminEmail(user.email);
+    res.json({
+      authenticated: true,
+      user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },
+      isAdmin,
+      whitelisted: isAdmin || (await whitelist.isWhitelisted(user.email)),
+      tier: await whitelist.getTier(user.email),
+      contactEmail: env.ADMIN_EMAILS[0] ?? null,
+    });
+  }),
+);
+
+// The full accountant workspace API (clients, documents, files, conversation,
+// mailbox) under monday auth — same router the cookie-authenticated /api/*
+// mount uses; requireMondayUser supplies the req.userId those handlers read.
+mondayRouter.use('/app', wrap(requireMondayUser), wrap(requireWhitelisted), workspaceRouter);
 
 // Slightly wider than the 8 Monday-based weeks the activity chart shows (same
 // window as GET /api/dashboard).

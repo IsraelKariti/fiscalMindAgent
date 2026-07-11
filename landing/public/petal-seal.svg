@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <defs>
+    <radialGradient id="bg" cx="46%" cy="34%" r="95%">
+      <stop offset="0%" stop-color="#1b1338"/>
+      <stop offset="60%" stop-color="#130e2c"/>
+      <stop offset="100%" stop-color="#0d0a1f"/>
+    </radialGradient>
+    <!-- shield violet descending into flower gold -->
+    <linearGradient id="seal" gradientUnits="userSpaceOnUse" x1="300" y1="230" x2="520" y2="580">
+      <stop offset="0%"  stop-color="#8e52e8"/>
+      <stop offset="45%" stop-color="#d84fc0"/>
+      <stop offset="78%" stop-color="#f7607e"/>
+      <stop offset="100%" stop-color="#f8a05c"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <rect width="800" height="800" fill="url(#bg)"/>
+
+  <!-- whisper of a shadow -->
+  <path d="M 433.1 241.3 L 576.4 345.4 Q 597.5 360.7 589.5 385.5 L 534.6 554.0
+           Q 526.6 578.8 500.6 578.8 L 323.4 578.8 Q 297.4 578.8 289.4 554.0
+           L 234.5 385.5 Q 226.5 360.7 247.6 345.4 L 390.9 241.3 Q 412 226 433.1 241.3 Z"
+        fill="#06040f" opacity="0.4" filter="url(#soft)"/>
+
+  <!-- the seal, with a petal of night carved through it -->
+  <path fill-rule="evenodd" fill="url(#seal)"
+        d="M 421.1 225.3 L 564.4 329.4 Q 585.5 344.7 577.5 369.5 L 522.6 538.0
+           Q 514.6 562.8 488.6 562.8 L 311.4 562.8 Q 285.4 562.8 277.4 538.0
+           L 222.5 369.5 Q 214.5 344.7 235.6 329.4 L 378.9 225.3 Q 400 210 421.1 225.3 Z
+           M 360.7 503.1 Q 508.1 434.3 439.3 286.9 Q 291.9 355.7 360.7 503.1 Z"/>
+
+  <!-- faint rim light on the seal -->
+  <path d="M 421.1 225.3 L 564.4 329.4 Q 585.5 344.7 577.5 369.5 L 522.6 538.0
+           Q 514.6 562.8 488.6 562.8 L 311.4 562.8 Q 285.4 562.8 277.4 538.0
+           L 222.5 369.5 Q 214.5 344.7 235.6 329.4 L 378.9 225.3 Q 400 210 421.1 225.3 Z"
+        fill="none" stroke="#ffffff" stroke-width="2" opacity="0.25"/>
+
+  <!-- hairline glow tracing the void -->
+  <path d="M 360.7 503.1 Q 508.1 434.3 439.3 286.9 Q 291.9 355.7 360.7 503.1 Z"
+        fill="none" stroke="#ffc4d8" stroke-width="2" opacity="0.4"/>
+</svg>

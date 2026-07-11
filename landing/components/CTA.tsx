@@ -19,22 +19,7 @@ export default function CTA() {
               הצטרפו לרואי חשבון שכבר חוסכים 10+ שעות בשבוע עם FiscalMind. השיחה הראשונה חינמית — ללא לחץ, ללא מצגת מכירות.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="mailto:hello@fiscalmind.ai"
-                className="px-8 py-4 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-base transition-all duration-200 hover:scale-105 hover:shadow-[0_8px_32px_rgba(59,130,246,0.35)]"
-              >
-                קבע פגישה חינם
-              </a>
-              <a
-                href="#pricing"
-                className="px-8 py-4 rounded-xl border border-[#1E1E2E] hover:border-blue-500/40 text-white font-semibold text-base transition-all duration-200 hover:bg-[#1a1a2e]"
-              >
-                לצפייה במחירים
-              </a>
-            </div>
-
-            <p className="mt-6 text-[#64748B] text-xs">
+            <p className="text-[#64748B] text-xs">
               ללא כרטיס אשראי · הקמה תוך 4 שבועות · ביטול בכל עת
             </p>
           </div>

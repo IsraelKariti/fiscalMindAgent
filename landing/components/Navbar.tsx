@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 const links = [
   { label: 'שירותים', href: '#services' },
   { label: 'איך זה עובד', href: '#how-it-works' },
-  { label: 'מחירים', href: '#pricing' },
+  // If the Pricing section is commented out in app/page.tsx, comment out this link too
+  // { label: 'מחירים', href: '#pricing' },
   // If the Testimonials section is commented out in app/page.tsx, comment out this link too
   { label: 'המלצות', href: '#testimonials' },
   { label: 'שאלות נפוצות', href: '#faq' },
@@ -45,7 +46,7 @@ export default function Navbar() {
     >
       <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#" className="flex items-center gap-2.5 select-none">
-          <img src="/logo.png" alt="" className="w-7 h-7 rounded-lg" />
+          <img src="/petal-seal.svg" alt="" className="w-7 h-7 rounded-lg" />
           <span className="shimmer-text text-xl font-extrabold tracking-tight">FiscalMind</span>
         </a>
 
@@ -59,12 +60,6 @@ export default function Navbar() {
               {l.label}
             </a>
           ))}
-          <a
-            href="#cta"
-            className="mr-4 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-sm font-semibold transition-colors"
-          >
-            קבע פגישה
-          </a>
           <a
             href={LOGIN_URL}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#1E1E2E] bg-[#111118] hover:border-[#3B82F6] text-white text-sm font-semibold transition-colors"
@@ -108,13 +103,6 @@ export default function Navbar() {
               {l.label}
             </a>
           ))}
-          <a
-            href="#cta"
-            onClick={() => setOpen(false)}
-            className="mt-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-sm font-semibold text-center transition-colors"
-          >
-            קבע פגישה
-          </a>
           <a
             href={LOGIN_URL}
             onClick={() => setOpen(false)}

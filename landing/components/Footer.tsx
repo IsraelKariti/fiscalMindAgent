@@ -2,7 +2,6 @@ const LINKS = {
   מוצר: [
     { label: 'שירותים', href: '#services' },
     { label: 'איך זה עובד', href: '#how-it-works' },
-    { label: 'מחירים', href: '#pricing' },
     { label: 'שאלות נפוצות', href: '#faq' },
   ],
   חברה: [
@@ -25,7 +24,7 @@ export default function Footer() {
         <div className="grid md:grid-cols-4 gap-12 mb-12">
           <div>
             <span className="flex items-center gap-2.5 mb-3">
-              <img src="/logo.png" alt="" className="w-7 h-7 rounded-lg" />
+              <img src="/petal-seal.svg" alt="" className="w-7 h-7 rounded-lg" />
               <span className="shimmer-text text-xl font-extrabold tracking-tight">FiscalMind</span>
             </span>
             <p className="text-[#64748B] text-sm leading-relaxed max-w-xs">

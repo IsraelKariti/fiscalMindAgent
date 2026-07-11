@@ -51,13 +51,6 @@ export default function Hero() {
           </p>
 
           <div className="flex flex-wrap items-center gap-6 mb-14 animate-fade-in-up-delay-1">
-            <a
-              href="#cta"
-              className="gradient-border-btn"
-              style={{ '--btn-accent': accentColor } as React.CSSProperties}
-            >
-              <span className="gradient-border-btn-inner">קבע פגישה חינם</span>
-            </a>
             <a href="#how-it-works" className="arrow-link">
               <span>←</span>
               <span>איך זה עובד</span>

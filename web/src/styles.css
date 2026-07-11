@@ -2835,6 +2835,9 @@ button.meta-chip:hover {
   text-align: start;
   cursor: pointer;
   border: 1px solid var(--border);
+  /* It's a <button>: the UA's near-black button text is invisible on the dark card. */
+  color: var(--text);
+  font: inherit;
 }
 
 .agent-card:hover {

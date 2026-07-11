@@ -327,6 +327,17 @@ export const api = {
     }),
   waSenderStatus: () => request<WaSenderStatus>('/wa-sender'),
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/admin/accountants'),
+  adminListAccountantAgents: (userId: string) =>
+    request<{ agents: AgentInstance[]; availableTypes: string[] }>(`/admin/accountants/${userId}/agents`),
+  adminEnableAgent: (userId: string, agentType: string) =>
+    request<{ agent: AgentInstance }>(`/admin/accountants/${userId}/agents`, {
+      method: 'POST',
+      body: JSON.stringify({ agentType }),
+    }),
+  adminDisableAgent: (userId: string, agentType: string) =>
+    request<{ ok: true }>(`/admin/accountants/${userId}/agents/${encodeURIComponent(agentType)}`, {
+      method: 'DELETE',
+    }),
   adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { agentApi, api, type AccountTier, type AgentInstance, type Client, type MailboxStatus } from '../api';
 import { WorkspaceApiProvider } from '../agents/ApiContext';
 import { getAgentUI } from '../agents/registry';
+import { AgentsHome } from './AgentsHome';
 import { Sidebar } from './Sidebar';
 import { ClientView } from './ClientView';
 import { PromptSettings } from './PromptSettings';
@@ -35,6 +36,11 @@ interface Props {
    * the import stays decoupled from the monday SDK this component must not know.
    */
   renderImportPanel?: (props: { onImported: () => void; onClose: () => void }) => ReactNode;
+  /**
+   * Locks the shell to one agent type (monday surfaces pin the doc collector):
+   * no agents-home page and no switcher, whatever the account has enabled.
+   */
+  pinnedAgentType?: string;
 }
 
 /**
@@ -51,8 +57,10 @@ export function Workspace({
   onStopImpersonating,
   onLogout,
   renderImportPanel,
+  pinnedAgentType,
 }: Props) {
   const { t } = useT();
+  const [agents, setAgents] = useState<AgentInstance[] | null>(null);
   const [agent, setAgent] = useState<AgentInstance | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
@@ -61,21 +69,43 @@ export function Workspace({
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
 
-  // Which agent workspace this shell shows. One instance (everyone today)
-  // auto-enters it — same UX as before agents existed; with several, the last
-  // used one wins until the agent switcher ships.
+  // Which agent workspace this shell shows. A single instance (or a pinned
+  // type) auto-enters it — same UX as before agents existed; with several,
+  // the remembered one wins and no memory lands on the agents-home page.
   useEffect(() => {
     api
       .listAgents()
-      .then(({ agents }) => {
+      .then(({ agents: list }) => {
+        setAgents(list);
+        if (pinnedAgentType) {
+          setAgent(list.find((a) => a.agentType === pinnedAgentType) ?? list[0] ?? null);
+          return;
+        }
+        if (list.length <= 1) {
+          setAgent(list[0] ?? null);
+          return;
+        }
         const stored = sessionStorage.getItem('fm.lastAgentId');
-        setAgent(agents.find((a) => a.id === stored) ?? agents[0] ?? null);
+        setAgent(list.find((a) => a.id === stored) ?? null);
       })
       .catch(console.error);
-  }, []);
+  }, [pinnedAgentType]);
   useEffect(() => {
     if (agent) sessionStorage.setItem('fm.lastAgentId', agent.id);
   }, [agent]);
+
+  const enterAgent = (next: AgentInstance) => {
+    setClients([]);
+    setView({ kind: 'empty' });
+    setAgent(next);
+  };
+  const showAgentsHome = () => {
+    // Explicitly leaving an agent also forgets it, so a refresh lands back home.
+    sessionStorage.removeItem('fm.lastAgentId');
+    setClients([]);
+    setView({ kind: 'empty' });
+    setAgent(null);
+  };
 
   const wsApi = useMemo(() => (agent ? agentApi(agent.id) : null), [agent]);
   const agentUI = getAgentUI(agent?.agentType ?? 'doc_collector');
@@ -125,8 +155,14 @@ export function Workspace({
   };
 
   // Until the agent list arrives there is no workspace to scope requests to.
-  if (!agent || !wsApi) {
+  if (!agents) {
     return <div className="screen-center muted">{t.loading}</div>;
+  }
+  // No active agent: the top-level registry page (multi-agent accounts only —
+  // single-agent and pinned shells auto-enter above; empty accounts see the
+  // none-enabled message inside).
+  if (!agent || !wsApi) {
+    return <AgentsHome agents={agents} onSelectAgent={enterAgent} />;
   }
 
   return (
@@ -140,6 +176,8 @@ export function Workspace({
       )}
       <div className="layout">
         <Sidebar
+          agentName={agent.name}
+          onShowAgents={!pinnedAgentType && agents.length > 1 ? showAgentsHome : undefined}
           clients={clients}
           selectedClientId={view.kind === 'client' ? view.clientId : null}
           dashboardSelected={view.kind === 'overview'}

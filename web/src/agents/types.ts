@@ -46,5 +46,9 @@ export interface ClientTab {
  */
 export interface AgentTypeUI {
   agentType: string;
+  /** Type display name — instances carry their own (DB) name; this covers not-yet-enabled types. */
+  nameKey: MessageStringKey;
+  descriptionKey: MessageStringKey;
+  icon: ReactNode;
   clientTabs: ClientTab[];
 }

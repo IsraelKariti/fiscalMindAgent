@@ -57,6 +57,9 @@ export function MondayObject() {
       userEmail={me.user?.email ?? null}
       tier={me.tier ?? null}
       contactEmail={me.contactEmail ?? null}
+      // The monday surface stays the document collector; other agents live in
+      // the standalone app until they get a monday surface of their own.
+      pinnedAgentType="doc_collector"
       // A custom object has no board context, so the panel starts from its
       // all-boards fallback (every readable board with an email-capable column).
       renderImportPanel={(props) => <ImportPanel boardIds={[]} {...props} />}

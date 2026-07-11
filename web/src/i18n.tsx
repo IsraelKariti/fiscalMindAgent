@@ -38,6 +38,18 @@ const he = {
   accessPendingTail: '. לאחר ההפעלה, התחברו שוב והדשבורד שלכם יהיה מוכן.',
   accessPendingSwitchAccount: 'התחברות עם חשבון אחר',
 
+  // Agents
+  agentsHomeTitle: 'הסוכנים שלי',
+  agentsHomeHint: 'בחרו סוכן כדי להיכנס לסביבת העבודה שלו.',
+  allAgents: 'כל הסוכנים',
+  agentsNoneEnabled: 'אין סוכנים פעילים בחשבון זה.',
+  agentDocCollectorName: 'איסוף מסמכים',
+  agentDocCollectorDesc: 'אוסף מהלקוחות את המסמכים הנדרשים באימייל ובוואטסאפ, עם תזכורות אוטומטיות.',
+  adminAgentsTitle: 'סוכנים',
+  adminAgentEnable: 'הפעל',
+  adminAgentDisable: 'השבת',
+  adminAgentsUpdateFailed: 'עדכון הסוכנים נכשל.',
+
   // Sidebar
   navDashboard: 'דשבורד',
   clientsHeading: 'לקוחות',
@@ -432,6 +444,18 @@ const en: Messages = {
   accessPendingTail: '. Once activated, sign in again and your dashboard will be ready.',
   accessPendingSwitchAccount: 'Sign in with a different account',
 
+  // Agents
+  agentsHomeTitle: 'My agents',
+  agentsHomeHint: 'Pick an agent to enter its workspace.',
+  allAgents: 'All agents',
+  agentsNoneEnabled: 'No agents are enabled for this account.',
+  agentDocCollectorName: 'Document collection',
+  agentDocCollectorDesc: 'Collects the required documents from clients over email and WhatsApp, with automatic follow-ups.',
+  adminAgentsTitle: 'Agents',
+  adminAgentEnable: 'Enable',
+  adminAgentDisable: 'Disable',
+  adminAgentsUpdateFailed: 'Updating agents failed.',
+
   // Sidebar
   navDashboard: 'Dashboard',
   clientsHeading: 'Clients',
@@ -825,6 +849,18 @@ const ru: Messages = {
   accessPendingYourAccount: ' вашего аккаунта',
   accessPendingTail: '. После активации войдите снова — и ваша панель будет готова.',
   accessPendingSwitchAccount: 'Войти с другим аккаунтом',
+
+  // Agents
+  agentsHomeTitle: 'Мои агенты',
+  agentsHomeHint: 'Выберите агента, чтобы открыть его рабочую область.',
+  allAgents: 'Все агенты',
+  agentsNoneEnabled: 'Для этого аккаунта не включены агенты.',
+  agentDocCollectorName: 'Сбор документов',
+  agentDocCollectorDesc: 'Собирает у клиентов необходимые документы по эл. почте и WhatsApp с автоматическими напоминаниями.',
+  adminAgentsTitle: 'Агенты',
+  adminAgentEnable: 'Включить',
+  adminAgentDisable: 'Отключить',
+  adminAgentsUpdateFailed: 'Не удалось обновить агентов.',
 
   // Sidebar
   navDashboard: 'Панель',

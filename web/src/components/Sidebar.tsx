@@ -2,6 +2,10 @@ import type { AccountTier, Client } from '../api';
 import { useT } from '../i18n';
 
 interface Props {
+  /** The active agent's display name, shown in the switcher row. */
+  agentName?: string | null;
+  /** Multi-agent accounts only: navigates back to the agents-home page; the row hides when absent. */
+  onShowAgents?: () => void;
   clients: Client[];
   selectedClientId: string | null;
   dashboardSelected: boolean;
@@ -84,9 +88,19 @@ const icon = {
       <path d="M19 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z" />
     </svg>
   ),
+  grid: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  ),
 };
 
 export function Sidebar({
+  agentName,
+  onShowAgents,
   clients,
   selectedClientId,
   dashboardSelected,
@@ -114,6 +128,16 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-scroll">
+        {/* Multi-agent accounts: which agent this workspace is, + the way back to all of them. */}
+        {onShowAgents && (
+          <button className="client-item sidebar-nav-item agent-switcher" onClick={onShowAgents} title={t.allAgents}>
+            <span className="nav-item-icon">{icon.grid}</span>
+            <span className="client-item-text">
+              <span className="client-item-name">{agentName}</span>
+              <span className="client-item-email muted">{t.allAgents}</span>
+            </span>
+          </button>
+        )}
         <button
           className={`client-item sidebar-nav-item ${dashboardSelected ? 'selected' : ''}`}
           onClick={onSelectDashboard}

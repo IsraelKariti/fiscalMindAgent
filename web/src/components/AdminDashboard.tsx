@@ -4,9 +4,11 @@ import {
   ApiError,
   type Accountant,
   type AccountTier,
+  type AgentInstance,
   type GeminiModelState,
   type WhitelistEntry,
 } from '../api';
+import { getAgentUI } from '../agents/registry';
 import { formatTimestamp, formatUsd, LOCALE } from '../format';
 import { useT } from '../i18n';
 import { AddAccountantModal } from './AddAccountantModal';
@@ -140,6 +142,44 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       { clients: 0, clientsComplete: 0, docs: 0, docsCollected: 0 },
     );
   }, [accountants]);
+
+  // The selected accountant's agent instances (incl. disabled) + enableable types.
+  const selectedUserId = selected?.user?.id ?? null;
+  const [agentInfo, setAgentInfo] = useState<{ agents: AgentInstance[]; availableTypes: string[] } | null>(null);
+  const [agentBusy, setAgentBusy] = useState(false);
+  useEffect(() => {
+    setAgentInfo(null);
+    if (!selectedUserId) return;
+    api.adminListAccountantAgents(selectedUserId).then(setAgentInfo).catch(() => {});
+  }, [selectedUserId]);
+
+  const toggleAgent = async (agentType: string, enable: boolean) => {
+    if (!selectedUserId) return;
+    setAgentBusy(true);
+    setError(null);
+    try {
+      if (enable) await api.adminEnableAgent(selectedUserId, agentType);
+      else await api.adminDisableAgent(selectedUserId, agentType);
+      setAgentInfo(await api.adminListAccountantAgents(selectedUserId));
+    } catch {
+      setError(t.adminAgentsUpdateFailed);
+    } finally {
+      setAgentBusy(false);
+    }
+  };
+
+  // One row per agent type: the accountant's instance when it exists, else the
+  // enableable type itself (named from the frontend registry).
+  const agentRows = useMemo(() => {
+    if (!agentInfo) return [];
+    const instantiated = new Set(agentInfo.agents.map((a) => a.agentType));
+    return [
+      ...agentInfo.agents,
+      ...agentInfo.availableTypes
+        .filter((type) => !instantiated.has(type))
+        .map((type) => ({ id: type, agentType: type, name: null as string | null, enabled: false })),
+    ];
+  }, [agentInfo]);
 
   // Per-model usage of the selected accountant, its total spend, and whether any
   // model's tokens are still unpriced (missing registry entry — cost incomplete).
@@ -459,6 +499,29 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                       </dd>
                     </div>
                   </dl>
+                  {selected.user && agentRows.length > 0 && (
+                    <div className="settings-section">
+                      <h3>{t.adminAgentsTitle}</h3>
+                      <ul className="doc-list">
+                        {agentRows.map((row) => (
+                          <li key={row.id} className="doc-row">
+                            <span className="doc-text">
+                              <span className="doc-name">{row.name ?? t[getAgentUI(row.agentType).nameKey]}</span>
+                              <span className="doc-desc muted">{t[getAgentUI(row.agentType).descriptionKey]}</span>
+                            </span>
+                            {row.enabled && <span className="badge badge-success">{t.activeBadge}</span>}
+                            <button
+                              className="btn btn-ghost btn-small"
+                              disabled={agentBusy}
+                              onClick={() => toggleAgent(row.agentType, !row.enabled)}
+                            >
+                              {row.enabled ? t.adminAgentDisable : t.adminAgentEnable}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {selectedUsage.length > 0 && (
                     <table className="usage-table">
                       <thead>

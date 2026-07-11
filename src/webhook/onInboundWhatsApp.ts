@@ -73,7 +73,7 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
     body,
     sentAt: new Date(),
   });
-  const messageRow = inserted ?? (await emails.getByMessageId(params.MessageSid));
+  const messageRow = inserted ?? (await emails.getByMessageIdForClient(client.id, params.MessageSid));
 
   // Client-side opt-out: flip the channel off before the agent re-plans, so
   // the next decision already sees WhatsApp as unavailable and uses email.

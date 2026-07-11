@@ -39,13 +39,55 @@ export async function getByWaPhoneForUser(userId: string, waPhone: string): Prom
 
 export async function insert(args: { userId: string; name: string; emailAddress: string }): Promise<ClientRow> {
   const { rows } = await pool.query<ClientRow>(
-    `INSERT INTO clients (user_id, name, email_address, goal_status) VALUES ($1, $2, $3, 'pending') RETURNING *`,
+    // Until the API is agent-scoped, new clients belong to the user's
+    // doc_collector instance — the only agent that exists so far.
+    `INSERT INTO clients (user_id, agent_instance_id, name, email_address, goal_status)
+     VALUES ($1, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector'), $2, $3, 'pending')
+     RETURNING *`,
     // Stored lowercased — inbound routing and the import dedupe match on it.
     [args.userId, args.name, args.emailAddress.trim().toLowerCase()],
   );
   const row = rows[0];
   if (!row) throw new Error('insert client: no row returned');
   return row;
+}
+
+/** getById constrained to one agent instance — agent-scoped API routes use this. */
+export async function getByIdForInstance(id: string, agentInstanceId: string): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE id = $1 AND agent_instance_id = $2', [
+    id,
+    agentInstanceId,
+  ]);
+  return rows[0] ?? null;
+}
+
+export async function listForInstance(agentInstanceId: string): Promise<ClientRow[]> {
+  const { rows } = await pool.query<ClientRow>(
+    'SELECT * FROM clients WHERE agent_instance_id = $1 ORDER BY created_at DESC',
+    [agentInstanceId],
+  );
+  return rows;
+}
+
+/** Case-insensitive: addresses are stored lowercased, but callers may pass any casing. */
+export async function getByEmailAddressForInstance(
+  agentInstanceId: string,
+  emailAddress: string,
+): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(
+    'SELECT * FROM clients WHERE agent_instance_id = $1 AND lower(email_address) = lower($2)',
+    [agentInstanceId, emailAddress],
+  );
+  return rows[0] ?? null;
+}
+
+/** Inbound WhatsApp routing: the instance's client with this (E.164) number. */
+export async function getByWaPhoneForInstance(agentInstanceId: string, waPhone: string): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE agent_instance_id = $1 AND wa_phone = $2', [
+    agentInstanceId,
+    waPhone,
+  ]);
+  return rows[0] ?? null;
 }
 
 export interface ClientDetailsPatch {

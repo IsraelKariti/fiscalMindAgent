@@ -1,5 +1,22 @@
 export type GoalStatus = 'pending' | 'complete';
 
+/**
+ * One enabled agent (of a code-defined type, src/agents/registry.ts) for one
+ * accountant. Each instance owns its own client list.
+ */
+export interface AgentInstanceRow {
+  id: string;
+  user_id: string;
+  /** Registry id, e.g. 'doc_collector'; validated in code, not the DB. */
+  agent_type: string;
+  name: string;
+  enabled: boolean;
+  /** Per-instance config (cron pattern, prompt override, …) — shape owned by the agent type. */
+  settings: Record<string, unknown>;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface UserRow {
   id: string;
   google_sub: string;
@@ -49,6 +66,10 @@ export interface ClientRow {
   id: string;
   /** NULL only on legacy rows created via the CLI before multi-tenancy. */
   user_id: string | null;
+  /** NULL only on the same legacy CLI rows; runtime falls back to doc_collector. */
+  agent_instance_id: string | null;
+  /** Per-agent scalar fields (e.g. debt amount) — shape owned by the agent type's Zod schema. */
+  agent_fields: Record<string, unknown>;
   name: string;
   email_address: string;
   goal_status: GoalStatus;

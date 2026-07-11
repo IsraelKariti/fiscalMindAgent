@@ -74,15 +74,19 @@ export async function insertInboundIfNew(
   const { rows } = await pool.query<EmailRow>(
     `INSERT INTO emails (client_id, direction, status, channel, message_id, resend_id, subject, body, sent_at)
      VALUES ($1, 'inbound', 'received', $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (message_id) DO NOTHING
+     ON CONFLICT (client_id, message_id) DO NOTHING
      RETURNING *`,
     [clientId, args.channel, args.messageId, args.resendId ?? null, args.subject, args.body, args.sentAt],
   );
   return rows[0] ?? null;
 }
 
-export async function getByMessageId(messageId: string): Promise<EmailRow | null> {
-  const { rows } = await pool.query<EmailRow>('SELECT * FROM emails WHERE message_id = $1', [messageId]);
+/** Dedupe is per conversation (019): the same provider message may exist in several clients' threads. */
+export async function getByMessageIdForClient(clientId: string, messageId: string): Promise<EmailRow | null> {
+  const { rows } = await pool.query<EmailRow>('SELECT * FROM emails WHERE client_id = $1 AND message_id = $2', [
+    clientId,
+    messageId,
+  ]);
   return rows[0] ?? null;
 }
 

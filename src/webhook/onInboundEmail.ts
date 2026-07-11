@@ -78,7 +78,7 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
     body,
     sentAt: new Date(data.created_at),
   });
-  const emailRow = inserted ?? (await emails.getByMessageId(messageId));
+  const emailRow = inserted ?? (await emails.getByMessageIdForClient(client.id, messageId));
 
   if (inserted) {
     // A new reply always leads to a fresh draft, so cancel the now-outdated pending send

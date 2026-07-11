@@ -1,5 +1,6 @@
 import { pool } from '../pool.js';
 import type { UserRow } from '../types.js';
+import { ensureInstance } from './agentInstances.js';
 import type { AccountTier } from './whitelist.js';
 
 export async function getById(id: string): Promise<UserRow | null> {
@@ -74,5 +75,9 @@ export async function upsertFromGoogle(args: {
   );
   const row = rows[0];
   if (!row) throw new Error('upsertFromGoogle: no row returned');
+  // Both sign-in paths (Google OAuth, monday auto-provision) come through
+  // here, so this is the one place that keeps the 019 backfill invariant:
+  // every accountant has a doc_collector instance.
+  await ensureInstance(row.id, 'doc_collector');
   return row;
 }

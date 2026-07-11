@@ -72,9 +72,9 @@ for (let i = 0; i < TESTIMONIALS.length; i += PER_PAGE) {
 
 function Stars() {
   return (
-    <div className="flex gap-1 mb-4">
+    <div className="flex gap-1 mb-4" role="img" aria-label="דירוג 5 מתוך 5 כוכבים">
       {Array.from({ length: 5 }).map((_, i) => (
-        <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="#F59E0B">
+        <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="#F59E0B" aria-hidden="true">
           <path d="M12 2l2.9 6.1 6.7.9-4.9 4.7 1.2 6.6L12 17.1l-5.9 3.2 1.2-6.6L2.4 9l6.7-.9L12 2z" />
         </svg>
       ))}
@@ -84,18 +84,26 @@ function Stars() {
 
 export default function Testimonials() {
   const [page, setPage] = useState(0)
+  const [paused, setPaused] = useState(false)
 
   useEffect(() => {
+    if (paused) return
     const t = setTimeout(() => setPage((p) => (p + 1) % PAGES.length), 7000)
     return () => clearTimeout(t)
-  }, [page])
+  }, [page, paused])
 
   const prev = () => setPage((p) => (p - 1 + PAGES.length) % PAGES.length)
   const next = () => setPage((p) => (p + 1) % PAGES.length)
 
   return (
     <section id="testimonials" className="py-28 bg-[#070709]">
-      <div className="max-w-6xl mx-auto px-6">
+      <div
+        className="max-w-6xl mx-auto px-6"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onFocus={() => setPaused(true)}
+        onBlur={() => setPaused(false)}
+      >
         <div className="text-center mb-16">
           <p className="text-blue-400 text-sm font-semibold tracking-widest uppercase mb-4">לקוחות ממליצים</p>
           <h2 className="text-4xl md:text-5xl font-extrabold text-white">מה אומרים עלינו</h2>
@@ -108,24 +116,31 @@ export default function Testimonials() {
             style={{ transform: `translateX(${page * 100}%)` }}
           >
             {PAGES.map((items, pi) => (
-              <div key={pi} className="w-full shrink-0 grid gap-4 md:grid-cols-3 px-1">
+              <div
+                key={pi}
+                aria-hidden={pi !== page}
+                className="w-full shrink-0 grid gap-4 md:grid-cols-3 px-1"
+              >
                 {items.map((t, i) => (
-                  <div
+                  <figure
                     key={i}
                     className="rounded-xl border border-[#1E1E2E] bg-[#111118] p-6 flex flex-col transition-colors duration-200 hover:border-[#2a2a3e]"
                   >
                     <Stars />
-                    <p className="text-[#94A3B8] text-sm leading-relaxed grow">”{t.text}“</p>
-                    <div className="flex items-center gap-3 mt-6 pt-5 border-t border-[#1E1E2E]">
-                      <div className="w-9 h-9 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center text-sm font-bold shrink-0">
+                    <blockquote className="text-[#94A3B8] text-sm leading-relaxed grow">”{t.text}“</blockquote>
+                    <figcaption className="flex items-center gap-3 mt-6 pt-5 border-t border-[#1E1E2E]">
+                      <div
+                        aria-hidden="true"
+                        className="w-9 h-9 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center text-sm font-bold shrink-0"
+                      >
                         {t.name.replace('רו״ח ', '').charAt(0)}
                       </div>
                       <div>
                         <p className="text-white text-sm font-semibold">{t.name}</p>
                         <p className="text-[#64748B] text-xs">{t.role}</p>
                       </div>
-                    </div>
-                  </div>
+                    </figcaption>
+                  </figure>
                 ))}
               </div>
             ))}
@@ -138,7 +153,7 @@ export default function Testimonials() {
             aria-label="ההמלצות הקודמות"
             className="w-10 h-10 rounded-full border border-[#1E1E2E] bg-[#111118] text-[#94A3B8] flex items-center justify-center transition-colors hover:border-[#2a2a3e] hover:text-white"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="rtl:rotate-180">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="rtl:rotate-180" aria-hidden="true">
               <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
@@ -149,6 +164,7 @@ export default function Testimonials() {
                 key={i}
                 onClick={() => setPage(i)}
                 aria-label={`עמוד המלצות ${i + 1}`}
+                aria-current={page === i}
                 className={`h-2 rounded-full transition-all duration-300 ${
                   page === i ? 'w-6 bg-blue-400' : 'w-2 bg-[#1E1E2E] hover:bg-[#2a2a3e]'
                 }`}
@@ -161,7 +177,7 @@ export default function Testimonials() {
             aria-label="ההמלצות הבאות"
             className="w-10 h-10 rounded-full border border-[#1E1E2E] bg-[#111118] text-[#94A3B8] flex items-center justify-center transition-colors hover:border-[#2a2a3e] hover:text-white"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="rtl:rotate-180">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="rtl:rotate-180" aria-hidden="true">
               <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>

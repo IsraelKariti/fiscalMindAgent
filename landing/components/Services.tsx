@@ -1,7 +1,7 @@
 const SERVICES = [
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M9 12h6M9 16h6M9 8h3" />
         <rect x="3" y="3" width="18" height="18" rx="3" />
         <circle cx="18" cy="18" r="4" fill="#3B82F6" stroke="none" />
@@ -13,7 +13,7 @@ const SERVICES = [
   },
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <circle cx="5" cy="12" r="2" />
         <circle cx="19" cy="12" r="2" />
         <circle cx="12" cy="5" r="2" />
@@ -26,7 +26,7 @@ const SERVICES = [
   },
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M3 20h18M6 20V14M10 20V10M14 20V14M18 20V6" />
         <path d="M4 10l6-5 5 4 5-7" />
       </svg>
@@ -36,7 +36,7 @@ const SERVICES = [
   },
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <rect x="3" y="3" width="18" height="18" rx="3" />
         <path d="M8 12h8M12 8v8" />
         <circle cx="17" cy="7" r="3" fill="#8B5CF6" stroke="none" />
@@ -48,7 +48,7 @@ const SERVICES = [
   },
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         <path d="M8 10h8M8 14h5" />
       </svg>
@@ -58,7 +58,7 @@ const SERVICES = [
   },
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         <path d="M9 12l2 2 4-4" />
       </svg>
@@ -86,9 +86,9 @@ export default function Services() {
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {SERVICES.map((s) => (
-            <div
+            <li
               key={s.title}
               className="group rounded-2xl border border-[#1E1E2E] bg-[#111118] p-7 hover:border-blue-500/30 hover:bg-[#13131e] transition-all duration-300"
             >
@@ -97,9 +97,9 @@ export default function Services() {
               </div>
               <h3 className="text-white font-bold text-lg mb-2">{s.title}</h3>
               <p className="text-[#64748B] text-sm leading-relaxed">{s.desc}</p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   )

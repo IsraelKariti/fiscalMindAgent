@@ -11,18 +11,23 @@ import Footer from '@/components/Footer'
 
 export default function Home() {
   return (
-    <main>
+    <>
+      <a href="#main-content" className="skip-link">
+        דלגו לתוכן הראשי
+      </a>
       <Navbar />
-      <Hero />
-      <Services />
-      <HowItWorks />
-      {/* מחירים — uncomment this line (and the import above) to restore the section */}
-      {/* <Pricing /> */}
-      {/* המלצות — comment out this line (and the import above) to hide the section */}
-      <Testimonials />
-      <FAQ />
-      <CTA />
+      <main id="main-content">
+        <Hero />
+        <Services />
+        <HowItWorks />
+        {/* מחירים — uncomment this line (and the import above) to restore the section */}
+        {/* <Pricing /> */}
+        {/* המלצות — comment out this line (and the import above) to hide the section */}
+        <Testimonials />
+        <FAQ />
+        <CTA />
+      </main>
       <Footer />
-    </main>
+    </>
   )
 }

@@ -52,7 +52,7 @@ export default function Hero() {
 
           <div className="flex flex-wrap items-center gap-6 mb-14 animate-fade-in-up-delay-1">
             <a href="#how-it-works" className="arrow-link">
-              <span>←</span>
+              <span aria-hidden="true">←</span>
               <span>איך זה עובד</span>
             </a>
           </div>

@@ -199,6 +199,7 @@ export default function PolygonMorph({ onAccentChange }: PolygonMorphProps) {
   return (
     <div className="relative w-full h-full flex items-center justify-center">
       <div
+        aria-hidden="true"
         className="relative w-[290px] h-[310px] md:w-[420px] md:h-[460px]"
         style={{
           clipPath: state.shape,
@@ -281,6 +282,8 @@ export default function PolygonMorph({ onAccentChange }: PolygonMorphProps) {
           <button
             key={i}
             onClick={() => setIndex(i)}
+            aria-label={`הצג הדגמה ${i + 1} מתוך ${STATES.length}`}
+            aria-current={i === index}
             className="w-2 h-2 rounded-full transition-all duration-300"
             style={{
               background: i === index ? state.accent : '#1E1E2E',

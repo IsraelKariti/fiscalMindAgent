@@ -14,6 +14,7 @@ const LINKS = {
     { label: 'מדיניות פרטיות', href: '#' },
     { label: 'תנאי שימוש', href: '#' },
     { label: 'מדיניות עוגיות', href: '#' },
+    { label: 'הצהרת נגישות', href: '/accessibility' },
   ],
 }
 
@@ -37,7 +38,7 @@ export default function Footer() {
                 aria-label="LinkedIn"
                 className="w-9 h-9 rounded-lg border border-[#1E1E2E] flex items-center justify-center text-[#64748B] hover:text-white hover:border-[#3B82F6]/40 transition-colors"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z" />
                   <circle cx="4" cy="4" r="2" />
                 </svg>
@@ -47,7 +48,7 @@ export default function Footer() {
                 aria-label="Twitter / X"
                 className="w-9 h-9 rounded-lg border border-[#1E1E2E] flex items-center justify-center text-[#64748B] hover:text-white hover:border-[#3B82F6]/40 transition-colors"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
               </a>
@@ -55,7 +56,7 @@ export default function Footer() {
           </div>
 
           {Object.entries(LINKS).map(([group, items]) => (
-            <div key={group}>
+            <nav key={group} aria-label={group}>
               <h4 className="text-white font-semibold text-sm mb-4">{group}</h4>
               <ul className="space-y-3">
                 {items.map((item) => (
@@ -69,7 +70,7 @@ export default function Footer() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </nav>
           ))}
         </div>
 

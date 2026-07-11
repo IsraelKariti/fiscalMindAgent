@@ -44,8 +44,11 @@ export default function Navbar() {
           : 'bg-transparent'
       }`}
     >
-      <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <a href="#" className="flex items-center gap-2.5 select-none">
+      <nav
+        aria-label="ניווט ראשי"
+        className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between"
+      >
+        <a href="#" className="flex items-center gap-2.5 select-none" aria-label="FiscalMind — חזרה לראש הדף">
           <img src="/petal-seal.svg" alt="" className="w-7 h-7 rounded-lg" />
           <span className="shimmer-text text-xl font-extrabold tracking-tight">FiscalMind</span>
         </a>
@@ -72,9 +75,11 @@ export default function Navbar() {
         <button
           className="md:hidden text-[#94A3B8] hover:text-white"
           onClick={() => setOpen(!open)}
-          aria-label="פתח תפריט"
+          aria-label={open ? 'סגור תפריט' : 'פתח תפריט'}
+          aria-expanded={open}
+          aria-controls="mobile-menu"
         >
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
             {open ? (
               <>
                 <line x1="4" y1="4" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -92,7 +97,11 @@ export default function Navbar() {
       </nav>
 
       {open && (
-        <div className="md:hidden bg-[#0A0A0F]/95 backdrop-blur-md border-b border-[#1E1E2E] px-6 pb-6 flex flex-col gap-4">
+        <nav
+          id="mobile-menu"
+          aria-label="תפריט נייד"
+          className="md:hidden bg-[#0A0A0F]/95 backdrop-blur-md border-b border-[#1E1E2E] px-6 pb-6 flex flex-col gap-4"
+        >
           {links.map((l) => (
             <a
               key={l.href}
@@ -111,7 +120,7 @@ export default function Navbar() {
             <GoogleIcon />
             התחברות עם Google
           </a>
-        </div>
+        </nav>
       )}
     </header>
   )

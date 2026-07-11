@@ -47,22 +47,29 @@ export default function FAQ() {
               key={i}
               className="rounded-xl border border-[#1E1E2E] bg-[#111118] overflow-hidden transition-all duration-200 hover:border-[#2a2a3e]"
             >
-              <button
-                className="w-full text-right px-6 py-5 flex items-center justify-between gap-4"
-                onClick={() => setOpen(open === i ? null : i)}
-              >
-                <span className="text-white font-medium text-sm md:text-base">{item.q}</span>
-                <span
-                  className="text-[#64748B] shrink-0 transition-transform duration-300"
-                  style={{ transform: open === i ? 'rotate(45deg)' : 'rotate(0)' }}
+              <h3>
+                <button
+                  className="w-full text-right px-6 py-5 flex items-center justify-between gap-4"
+                  onClick={() => setOpen(open === i ? null : i)}
+                  aria-expanded={open === i}
+                  aria-controls={`faq-answer-${i}`}
                 >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  </svg>
-                </span>
-              </button>
+                  <span className="text-white font-medium text-sm md:text-base">{item.q}</span>
+                  <span
+                    aria-hidden="true"
+                    className="text-[#64748B] shrink-0 transition-transform duration-300"
+                    style={{ transform: open === i ? 'rotate(45deg)' : 'rotate(0)' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                </button>
+              </h3>
 
               <div
+                id={`faq-answer-${i}`}
+                aria-hidden={open !== i}
                 className="overflow-hidden transition-all duration-300"
                 style={{ maxHeight: open === i ? '300px' : '0px' }}
               >

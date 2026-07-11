@@ -46,16 +46,16 @@ export default function HowItWorks() {
         <div className="relative">
           <div className="hidden md:block absolute left-[calc(50%-1px)] top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-[#1E1E2E] to-transparent" />
 
-          <div className="grid gap-12">
+          <ol className="grid gap-12">
             {STEPS.map((step, i) => (
-              <div
+              <li
                 key={step.number}
                 className={`relative grid md:grid-cols-2 gap-8 items-center ${
                   i % 2 === 0 ? '' : 'md:[&>*:first-child]:order-last'
                 }`}
               >
                 <div className={`${i % 2 === 0 ? 'md:text-right md:pl-16' : 'md:pr-16'}`}>
-                  <span className="text-6xl font-black text-[#1E1E2E] leading-none block mb-3">
+                  <span aria-hidden="true" className="text-6xl font-black text-[#1E1E2E] leading-none block mb-3">
                     {step.number}
                   </span>
                   <h3 className="text-2xl font-bold text-white mb-3">{step.title}</h3>
@@ -63,14 +63,14 @@ export default function HowItWorks() {
                   <p className="text-[#64748B] text-sm mt-3 italic">{step.detail}</p>
                 </div>
 
-                <div className="hidden md:flex justify-center relative">
+                <div aria-hidden="true" className="hidden md:flex justify-center relative">
                   <div className="w-12 h-12 rounded-full bg-blue-500 border-4 border-[#0A0A0F] flex items-center justify-center z-10">
                     <span className="text-white text-xs font-bold">{step.number}</span>
                   </div>
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       </div>
     </section>

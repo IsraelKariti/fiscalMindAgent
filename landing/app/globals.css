@@ -36,6 +36,47 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Visible keyboard focus for every interactive element (WCAG 2.4.7) */
+:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Skip link — hidden until it receives keyboard focus (WCAG 2.4.1) */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  inset-inline-start: 16px;
+  z-index: 100;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 10px;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: 16px;
+}
+
+/* Respect the user's reduced-motion preference (WCAG 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @keyframes shimmer {
   0% { background-position: -200% center; }
   100% { background-position: 200% center; }

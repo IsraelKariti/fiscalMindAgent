@@ -5,6 +5,8 @@ const links = [
   { label: 'שירותים', href: '#services' },
   { label: 'איך זה עובד', href: '#how-it-works' },
   { label: 'מחירים', href: '#pricing' },
+  // If the Testimonials section is commented out in app/page.tsx, comment out this link too
+  { label: 'המלצות', href: '#testimonials' },
   { label: 'שאלות נפוצות', href: '#faq' },
 ]
 

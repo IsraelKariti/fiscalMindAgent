@@ -9,6 +9,8 @@ import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { isAdminEmail, requireWhitelisted } from './auth.js';
+import { accountRouter } from './account.js';
+import { listAgents, resolveAgentInstance } from './agents.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { createMondayHandoffToken, createMondayLinkToken, requireMondayIdentity, requireMondayUser } from './mondayAuth.js';
 import { workspaceRouter } from './workspace.js';
@@ -189,10 +191,17 @@ mondayRouter.get(
   }),
 );
 
-// The full accountant workspace API (clients, documents, files, conversation,
-// mailbox) under monday auth — same router the cookie-authenticated /api/*
-// mount uses; requireMondayUser supplies the req.userId those handlers read.
-mondayRouter.use('/app', wrap(requireMondayUser), wrap(requireWhitelisted), workspaceRouter);
+// The full agent workspace API (clients, documents, files, conversation) plus
+// account routes under monday auth — same routers the cookie-authenticated
+// /api/* mounts use; requireMondayUser supplies the req.userId they read.
+// Mirrors router.ts: agent-scoped under /app/agents/:agentId, with the
+// unprefixed /app mount resolving to the user's doc_collector instance.
+const appRouter = Router();
+appRouter.use(accountRouter);
+appRouter.get('/agents', wrap(listAgents));
+appRouter.use('/agents/:agentId', wrap(resolveAgentInstance), workspaceRouter);
+appRouter.use(wrap(resolveAgentInstance), workspaceRouter);
+mondayRouter.use('/app', wrap(requireMondayUser), wrap(requireWhitelisted), appRouter);
 
 // Slightly wider than the 8 Monday-based weeks the activity chart shows (same
 // window as GET /api/dashboard).

@@ -3,6 +3,7 @@ import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { planFollowUp } from './plan.js';
 import { analyzeInboundFile } from './analyzeInboundFile.js';
+import { buildRouter } from './router.js';
 import type { AgentTypeDefinition } from '../types.js';
 
 /**
@@ -24,4 +25,5 @@ export const docCollectorAgent: AgentTypeDefinition = {
     });
   },
   analyzeInboundFile,
+  buildRouter,
 };

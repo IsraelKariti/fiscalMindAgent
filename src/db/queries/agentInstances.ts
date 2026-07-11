@@ -36,6 +36,15 @@ export async function getByTypeForUser(userId: string, agentType: string): Promi
   return rows[0] ?? null;
 }
 
+/** All instances including disabled ones — admin panel only. */
+export async function listAllForUser(userId: string): Promise<AgentInstanceRow[]> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'SELECT * FROM agent_instances WHERE user_id = $1 ORDER BY created_at ASC',
+    [userId],
+  );
+  return rows;
+}
+
 /**
  * Idempotent: every accountant gets the doc collector. Called on every
  * sign-in/provisioning (users.upsertFromGoogle), mirroring the 019 backfill
@@ -48,4 +57,32 @@ export async function ensureInstance(userId: string, agentType: string): Promise
      ON CONFLICT (user_id, agent_type) DO NOTHING`,
     [userId, agentType, DEFAULT_INSTANCE_NAMES[agentType] ?? agentType],
   );
+}
+
+/** Admin enablement: creates the instance on first enable, re-enables a disabled one. */
+export async function enableInstance(userId: string, agentType: string): Promise<AgentInstanceRow> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    `INSERT INTO agent_instances (user_id, agent_type, name)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (user_id, agent_type) DO UPDATE SET enabled = true, updated_at = now()
+     RETURNING *`,
+    [userId, agentType, DEFAULT_INSTANCE_NAMES[agentType] ?? agentType],
+  );
+  const row = rows[0];
+  if (!row) throw new Error('enableInstance: no row returned');
+  return row;
+}
+
+/**
+ * Admin disablement. Never DELETE an instance — clients cascade off it, so a
+ * delete would destroy the agent's client data; disabled instances just stop
+ * being listed/resolvable and can be re-enabled with everything intact.
+ */
+export async function disableInstance(userId: string, agentType: string): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    `UPDATE agent_instances SET enabled = false, updated_at = now()
+     WHERE user_id = $1 AND agent_type = $2 RETURNING *`,
+    [userId, agentType],
+  );
+  return rows[0] ?? null;
 }

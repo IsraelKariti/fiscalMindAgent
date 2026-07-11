@@ -10,3 +10,7 @@ export function getAgentType(id: string): AgentTypeDefinition {
   if (!definition) throw new Error(`unknown agent type: ${id}`);
   return definition;
 }
+
+export function listAgentTypes(): AgentTypeDefinition[] {
+  return Object.values(registry);
+}

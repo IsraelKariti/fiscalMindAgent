@@ -1,8 +1,10 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
+import * as agentInstances from '../db/queries/agentInstances.js';
 import * as llmUsage from '../db/queries/llmUsage.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
+import { listAgentTypes } from '../agents/registry.js';
 import { getPricingForModel } from '../gemini/pricing.js';
 import {
   GEMINI_MODEL_OPTIONS,
@@ -91,6 +93,60 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         llmUsage: usageByUser.get(u.id) ?? [],
       })),
   });
+};
+
+const AgentEnableSchema = z.object({ agentType: z.string().min(1) }).strict();
+
+function knownAgentTypes(): Set<string> {
+  return new Set(listAgentTypes().map((d) => d.id));
+}
+
+/** GET /api/admin/accountants/:userId/agents — the accountant's instances (incl. disabled) + enableable types. */
+export const adminListAccountantAgents: RequestHandler = async (req, res) => {
+  const userId = z.string().uuid().safeParse(req.params.userId);
+  if (!userId.success || !(await users.getById(userId.data))) {
+    res.status(404).json({ error: 'User not found.' });
+    return;
+  }
+  const instances = await agentInstances.listAllForUser(userId.data);
+  res.json({
+    agents: instances.map((i) => ({ id: i.id, agentType: i.agent_type, name: i.name, enabled: i.enabled })),
+    availableTypes: [...knownAgentTypes()],
+  });
+};
+
+/** POST /api/admin/accountants/:userId/agents — enable an agent type for the accountant (creates or re-enables). */
+export const adminEnableAgent: RequestHandler = async (req, res) => {
+  const userId = z.string().uuid().safeParse(req.params.userId);
+  const parsed = AgentEnableSchema.safeParse(req.body);
+  if (!parsed.success || !knownAgentTypes().has(parsed.data.agentType)) {
+    res.status(400).json({ error: 'Unknown agent type.' });
+    return;
+  }
+  if (!userId.success || !(await users.getById(userId.data))) {
+    res.status(404).json({ error: 'User not found.' });
+    return;
+  }
+  const instance = await agentInstances.enableInstance(userId.data, parsed.data.agentType);
+  logger.info('agent enabled', { adminUserId: req.realUserId, userId: userId.data, agentType: instance.agent_type });
+  res.status(201).json({ agent: { id: instance.id, agentType: instance.agent_type, name: instance.name, enabled: instance.enabled } });
+};
+
+/**
+ * DELETE /api/admin/accountants/:userId/agents/:agentType — disable (never
+ * delete: clients cascade off the instance row, so deleting would destroy the
+ * agent's client data; disabling keeps everything for a later re-enable).
+ */
+export const adminDisableAgent: RequestHandler = async (req, res) => {
+  const userId = z.string().uuid().safeParse(req.params.userId);
+  const agentType = req.params.agentType;
+  const instance = userId.success && agentType ? await agentInstances.disableInstance(userId.data, agentType) : null;
+  if (!instance) {
+    res.status(404).json({ error: 'Agent not found.' });
+    return;
+  }
+  logger.info('agent disabled', { adminUserId: req.realUserId, userId: userId.success ? userId.data : null, agentType });
+  res.json({ ok: true });
 };
 
 /** POST /api/admin/impersonate — start viewing the given accountant's dashboard. */

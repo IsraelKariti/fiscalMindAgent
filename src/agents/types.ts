@@ -1,3 +1,4 @@
+import type { Router } from 'express';
 import type { AgentInstanceRow, ClientRow, DocumentFileRow, MessageChannel, UserRow } from '../db/types.js';
 
 /**
@@ -50,4 +51,10 @@ export interface AgentTypeDefinition {
    * Undefined = the agent doesn't analyze files; rows are marked unsupported.
    */
   analyzeInboundFile?(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<void>;
+  /**
+   * Agent-type-specific API routes (e.g. the doc collector's required-documents
+   * CRUD), composed into the agent-scoped workspace router. Handlers see
+   * req.agentInstance and must skip (next('router')) when it isn't their type.
+   */
+  buildRouter?(): Router;
 }

@@ -4,11 +4,16 @@ import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../agents/docColle
 import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
 import { googleLoginCallback, logout, me, mondayHandoff, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
+import { accountRouter } from './account.js';
+import { listAgents, resolveAgentInstance } from './agents.js';
 import { mondayRouter } from './monday.js';
 import { workspaceRouter } from './workspace.js';
 import {
   adminAddToWhitelist,
+  adminDisableAgent,
+  adminEnableAgent,
   adminGetModel,
+  adminListAccountantAgents,
   adminListAccountants,
   adminListWhitelist,
   adminRemoveFromWhitelist,
@@ -52,6 +57,9 @@ apiRouter.use(requireAuth);
 apiRouter.use(wrap(requireWhitelisted));
 
 apiRouter.get('/admin/accountants', wrap(requireAdmin), wrap(adminListAccountants));
+apiRouter.get('/admin/accountants/:userId/agents', wrap(requireAdmin), wrap(adminListAccountantAgents));
+apiRouter.post('/admin/accountants/:userId/agents', wrap(requireAdmin), wrap(adminEnableAgent));
+apiRouter.delete('/admin/accountants/:userId/agents/:agentType', wrap(requireAdmin), wrap(adminDisableAgent));
 apiRouter.post('/admin/impersonate', wrap(requireAdmin), wrap(startImpersonation));
 apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersonation));
 apiRouter.get('/admin/model', wrap(requireAdmin), wrap(adminGetModel));
@@ -104,9 +112,16 @@ apiRouter.post(
   }),
 );
 
-// The accountant workspace (clients, documents, files, conversation, mailbox),
-// shared with the monday mount in monday.ts.
-apiRouter.use(workspaceRouter);
+// Account-level routes shared by every agent (mailbox, WhatsApp sender).
+apiRouter.use(accountRouter);
+
+// The agent workspace (clients, documents, files, conversation), shared with
+// the monday mount in monday.ts. Agent-scoped under /agents/:agentId; the
+// unprefixed mount resolves to the user's doc_collector instance so existing
+// clients keep working during the transition.
+apiRouter.get('/agents', wrap(listAgents));
+apiRouter.use('/agents/:agentId', wrap(resolveAgentInstance), workspaceRouter);
+apiRouter.use(wrap(resolveAgentInstance), workspaceRouter);
 
 // Terminal error handler for this router: log and return JSON instead of Express's HTML error page.
 apiRouter.use(((err: unknown, _req, res, _next) => {

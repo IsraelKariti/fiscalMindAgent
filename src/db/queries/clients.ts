@@ -37,15 +37,19 @@ export async function getByWaPhoneForUser(userId: string, waPhone: string): Prom
   return rows[0] ?? null;
 }
 
-export async function insert(args: { userId: string; name: string; emailAddress: string }): Promise<ClientRow> {
+export async function insert(args: {
+  userId: string;
+  /** Callers without agent scope (monday import) default to the user's doc_collector instance. */
+  agentInstanceId?: string;
+  name: string;
+  emailAddress: string;
+}): Promise<ClientRow> {
   const { rows } = await pool.query<ClientRow>(
-    // Until the API is agent-scoped, new clients belong to the user's
-    // doc_collector instance — the only agent that exists so far.
     `INSERT INTO clients (user_id, agent_instance_id, name, email_address, goal_status)
-     VALUES ($1, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector'), $2, $3, 'pending')
+     VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, 'pending')
      RETURNING *`,
     // Stored lowercased — inbound routing and the import dedupe match on it.
-    [args.userId, args.name, args.emailAddress.trim().toLowerCase()],
+    [args.userId, args.agentInstanceId ?? null, args.name, args.emailAddress.trim().toLowerCase()],
   );
   const row = rows[0];
   if (!row) throw new Error('insert client: no row returned');
@@ -88,6 +92,37 @@ export async function getByWaPhoneForInstance(agentInstanceId: string, waPhone: 
     waPhone,
   ]);
   return rows[0] ?? null;
+}
+
+/** updateDetailsForUser constrained to one agent instance — agent-scoped API routes use this. */
+export async function updateDetailsForInstance(
+  id: string,
+  agentInstanceId: string,
+  patch: ClientDetailsPatch,
+): Promise<ClientRow | null> {
+  const sets: string[] = [];
+  const values: unknown[] = [id, agentInstanceId];
+  for (const field of ['name', 'occupation', 'phone', 'company', 'notes'] as const) {
+    if (patch[field] !== undefined) {
+      values.push(patch[field]);
+      sets.push(`${field} = $${values.length}`);
+    }
+  }
+  if (sets.length === 0) return getByIdForInstance(id, agentInstanceId);
+  const { rows } = await pool.query<ClientRow>(
+    `UPDATE clients SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 AND agent_instance_id = $2 RETURNING *`,
+    values,
+  );
+  return rows[0] ?? null;
+}
+
+/** Deletes the instance's client; documents, files, emails and the scheduled-job row cascade. */
+export async function removeForInstance(id: string, agentInstanceId: string): Promise<boolean> {
+  const { rowCount } = await pool.query('DELETE FROM clients WHERE id = $1 AND agent_instance_id = $2', [
+    id,
+    agentInstanceId,
+  ]);
+  return (rowCount ?? 0) > 0;
 }
 
 export interface ClientDetailsPatch {

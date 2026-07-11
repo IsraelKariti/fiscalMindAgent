@@ -19,10 +19,9 @@ import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
+import { listAgentTypes } from '../agents/registry.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
-import { claimMailbox, mailboxAvailability, mailboxStatus } from './mailbox.js';
-import { waSenderStatus } from './waAdmin.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -64,57 +63,21 @@ const ClientCreateSchema = z
   })
   .strict();
 
-const DocumentPatchSchema = z
-  .object({
-    name: z.string().min(1).max(200).optional(),
-    description: z.string().max(2000).nullable().optional(),
-    status: z.enum(['pending', 'collected']).optional(),
-  })
-  .strict();
-
-/**
- * Re-derives goal_status from the documents list after a manual change and keeps the follow-up
- * loop consistent: all collected -> mark complete and cancel any pending send; a document (re)opened
- * on a complete client -> reopen the goal and have the agent draft the next chase email.
- * While the goal stays pending, an already-scheduled email is left alone — the updated list is
- * picked up when the next email is drafted.
- */
-async function onDocumentsChanged(clientId: string): Promise<void> {
-  const [client, docs] = await Promise.all([clients.getById(clientId), clientDocuments.listForClient(clientId)]);
-  if (!client) return;
-  const allCollected = docs.length > 0 && docs.every((d) => d.status === 'collected');
-
-  if (allCollected && client.goal_status === 'pending') {
-    await clients.updateGoalStatus(clientId, 'complete');
-    await withClientLock(clientId, () => removeFutureEmail(clientId));
-  } else if (!allCollected && client.goal_status === 'complete') {
-    await clients.updateGoalStatus(clientId, 'pending');
-    await withClientLock(clientId, async () => {
-      await removeFutureEmail(clientId);
-      await setFutureEmail(clientId);
-    });
-  }
-}
-
 /** Postgres rejects non-UUID ids with an error (→ 500); pre-validate so they 404 like other misses. */
 function uuidParam(value: string | undefined): string | null {
   return value && z.string().uuid().safeParse(value).success ? value : null;
 }
 
 /**
- * The accountant workspace API: everything a signed-in, whitelisted accountant
- * uses (clients, documents, files, conversation, mailbox). Carries no auth of
- * its own — it is mounted twice with the caller's auth in front:
- *   - /api/*            after requireAuth + requireWhitelisted (session cookie)
- *   - /api/monday/app/* after requireMondayUser + requireWhitelisted (monday sessionToken)
- * Both stacks set req.userId/req.realUserId, which is all these handlers read.
+ * The agent workspace API: one agent instance's clients, files, conversation
+ * and dashboard. Carries no auth of its own — it is mounted (via
+ * resolveAgentInstance, which sets req.agentInstance) with the caller's auth
+ * in front:
+ *   - /api/agents/:agentId/* and /api/*            (session cookie)
+ *   - /api/monday/app/agents/:agentId/* and /api/monday/app/*  (monday sessionToken)
+ * The unprefixed legacy mounts resolve to the user's doc_collector instance.
  */
 export const workspaceRouter = Router();
-
-workspaceRouter.get('/mailbox', wrap(mailboxStatus));
-workspaceRouter.get('/mailbox/availability', wrap(mailboxAvailability));
-workspaceRouter.post('/mailbox', wrap(claimMailbox));
-workspaceRouter.get('/wa-sender', wrap(waSenderStatus));
 
 // Slightly wider than the 8 Monday-based weeks the activity chart shows, so the
 // oldest visible week is always fully covered regardless of timezone.
@@ -124,9 +87,9 @@ workspaceRouter.get(
   '/dashboard',
   wrap(async (req, res) => {
     const [clientSummaries, activity, filesTotal] = await Promise.all([
-      dashboard.listClientSummaries(req.userId!),
-      dashboard.listEmailActivity(req.userId!, ACTIVITY_WINDOW_DAYS),
-      dashboard.countFilesForUser(req.userId!),
+      dashboard.listClientSummariesForInstance(req.agentInstance!.id),
+      dashboard.listEmailActivityForInstance(req.agentInstance!.id, ACTIVITY_WINDOW_DAYS),
+      dashboard.countFilesForInstance(req.agentInstance!.id),
     ]);
     res.json({ clients: clientSummaries, activity, filesTotal });
   }),
@@ -135,7 +98,7 @@ workspaceRouter.get(
 workspaceRouter.get(
   '/clients',
   wrap(async (req, res) => {
-    res.json({ clients: await clients.listForUser(req.userId!) });
+    res.json({ clients: await clients.listForInstance(req.agentInstance!.id) });
   }),
 );
 
@@ -153,12 +116,17 @@ workspaceRouter.post(
       res.status(409).json({ error: "Choose your agent's email address first — the agent has no mailbox to send from." });
       return;
     }
-    if (await clients.getByEmailAddressForUser(req.userId!, email)) {
+    if (await clients.getByEmailAddressForInstance(req.agentInstance!.id, email)) {
       res.status(409).json({ error: 'A client with this email already exists.' });
       return;
     }
 
-    const client = await clients.insert({ userId: req.userId!, name, emailAddress: email });
+    const client = await clients.insert({
+      userId: req.userId!,
+      agentInstanceId: req.agentInstance!.id,
+      name,
+      emailAddress: email,
+    });
     for (const doc of documents) {
       await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
     }
@@ -173,7 +141,7 @@ workspaceRouter.get(
   '/clients/:id',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -206,7 +174,7 @@ workspaceRouter.get(
   '/clients/:id/events',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -227,80 +195,6 @@ workspaceRouter.get(
   }),
 );
 
-workspaceRouter.get(
-  '/clients/:id/documents',
-  wrap(async (req, res) => {
-    const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
-    if (!client) {
-      res.status(404).json({ error: 'Client not found.' });
-      return;
-    }
-    res.json({ documents: await clientDocuments.listForClient(client.id) });
-  }),
-);
-
-workspaceRouter.post(
-  '/clients/:id/documents',
-  wrap(async (req, res) => {
-    const parsed = DocumentCreateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid document fields.', details: parsed.error.flatten() });
-      return;
-    }
-    const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
-    if (!client) {
-      res.status(404).json({ error: 'Client not found.' });
-      return;
-    }
-    const document = await clientDocuments.insert({
-      clientId: client.id,
-      name: parsed.data.name,
-      description: parsed.data.description ?? null,
-    });
-    await onDocumentsChanged(client.id);
-    res.status(201).json({ document });
-  }),
-);
-
-workspaceRouter.patch(
-  '/clients/:id/documents/:docId',
-  wrap(async (req, res) => {
-    const parsed = DocumentPatchSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid document fields.', details: parsed.error.flatten() });
-      return;
-    }
-    const id = uuidParam(req.params.id);
-    const docId = uuidParam(req.params.docId);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
-    const document = client && docId ? await clientDocuments.updateForClient(docId, client.id, parsed.data) : null;
-    if (!document) {
-      res.status(404).json({ error: 'Document not found.' });
-      return;
-    }
-    await onDocumentsChanged(client!.id);
-    res.json({ document });
-  }),
-);
-
-workspaceRouter.delete(
-  '/clients/:id/documents/:docId',
-  wrap(async (req, res) => {
-    const id = uuidParam(req.params.id);
-    const docId = uuidParam(req.params.docId);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
-    const removed = client && docId ? await clientDocuments.removeForClient(docId, client.id) : false;
-    if (!removed) {
-      res.status(404).json({ error: 'Document not found.' });
-      return;
-    }
-    await onDocumentsChanged(client!.id);
-    res.json({ ok: true });
-  }),
-);
-
 workspaceRouter.patch(
   '/clients/:id',
   wrap(async (req, res) => {
@@ -310,7 +204,7 @@ workspaceRouter.patch(
       return;
     }
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.updateDetailsForUser(id, req.userId!, parsed.data) : null;
+    const client = id ? await clients.updateDetailsForInstance(id, req.agentInstance!.id, parsed.data) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -332,7 +226,7 @@ workspaceRouter.put(
       return;
     }
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -360,8 +254,8 @@ workspaceRouter.put(
       try {
         updated = await clients.enableWhatsApp(client.id, { waPhone, optedInBy: req.userId! });
       } catch (err) {
-        // 23505 = unique_violation on (user_id, wa_phone): another of this
-        // accountant's clients already uses this number.
+        // 23505 = unique_violation on (agent_instance_id, wa_phone): another of this
+        // agent's clients already uses this number.
         if (err instanceof Error && 'code' in err && (err as { code?: string }).code === '23505') {
           res.status(409).json({ error: 'Another client of yours already uses this phone number.' });
           return;
@@ -391,7 +285,7 @@ workspaceRouter.delete(
   '/clients/:id',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -400,7 +294,7 @@ workspaceRouter.delete(
     // then snapshot blob keys before the cascade wipes the document_files rows.
     await withClientLock(client.id, () => removeFutureEmail(client.id));
     const files = await documentFiles.listForClient(client.id);
-    await clients.removeForUser(client.id, req.userId!);
+    await clients.removeForInstance(client.id, req.agentInstance!.id);
     // Best-effort blob cleanup after the rows are gone — a failure only orphans a blob.
     await Promise.all(
       files.map((file) =>
@@ -417,7 +311,7 @@ workspaceRouter.get(
   '/clients/:id/files',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -433,7 +327,7 @@ workspaceRouter.get(
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
     const fileId = uuidParam(req.params.fileId);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     const file = client && fileId ? await documentFiles.getForClient(fileId, client.id) : null;
     if (!file) {
       res.status(404).json({ error: 'File not found.' });
@@ -452,7 +346,7 @@ workspaceRouter.get(
   '/clients/:id/emails',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -477,7 +371,7 @@ workspaceRouter.put(
       return;
     }
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -507,7 +401,7 @@ workspaceRouter.post(
   '/clients/:id/redraft',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -532,7 +426,7 @@ workspaceRouter.post(
   '/clients/:id/send-now',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForUser(id, req.userId!) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -546,3 +440,9 @@ workspaceRouter.post(
     res.json({ ok: true });
   }),
 );
+
+// Agent-type-specific routes (e.g. the doc collector's required-documents CRUD).
+// Each router guards on req.agentInstance.agent_type and skips itself otherwise.
+for (const definition of listAgentTypes()) {
+  if (definition.buildRouter) workspaceRouter.use(definition.buildRouter());
+}

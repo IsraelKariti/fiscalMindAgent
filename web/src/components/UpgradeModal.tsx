@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useT } from '../i18n';
 
 interface Props {
@@ -9,7 +10,9 @@ interface Props {
 /** Premium upsell shown when a Standard-plan accountant taps a premium-only feature. */
 export function UpgradeModal({ contactEmail, onClose }: Props) {
   const { t } = useT();
-  return (
+  // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
+  // which re-anchor position:fixed to the card instead of the viewport.
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="card modal modal-upgrade"
@@ -42,6 +45,7 @@ export function UpgradeModal({ contactEmail, onClose }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api, ApiError } from '../api';
 import { useT } from '../i18n';
 
@@ -26,7 +27,9 @@ export function UpgradeAccountModal({ email, onUpgraded, onClose }: Props) {
     }
   };
 
-  return (
+  // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
+  // which re-anchor position:fixed to the card instead of the viewport.
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="card modal modal-warning"
@@ -55,6 +58,7 @@ export function UpgradeAccountModal({ email, onUpgraded, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

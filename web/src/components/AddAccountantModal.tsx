@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { api, ApiError, type AccountTier } from '../api';
 import { useT } from '../i18n';
 
@@ -29,7 +30,9 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
     }
   };
 
-  return (
+  // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
+  // which re-anchor position:fixed to the card instead of the viewport.
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>{t.addAccountantTitle}</h2>
@@ -67,6 +70,7 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

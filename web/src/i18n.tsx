@@ -128,7 +128,6 @@ const he = {
   nMessages: (n: number) => `${n} הודעות`,
   noEmailsExchangedYet: 'עדיין לא הוחלפו הודעות.',
   scheduledDivider: 'מתוזמן',
-  willBeSentAt: (ts: string) => `יישלח ב־${ts}`,
   sendNow: 'שלח עכשיו',
   sendingNow: 'שולח…',
   sendNowConfirm: (channel: 'email' | 'whatsapp'): string =>
@@ -523,7 +522,6 @@ const en: Messages = {
   nMessages: (n: number) => `${n} messages`,
   noEmailsExchangedYet: 'No messages exchanged yet.',
   scheduledDivider: 'Scheduled',
-  willBeSentAt: (ts: string) => `Will be sent ${ts}`,
   sendNow: 'Send now',
   sendingNow: 'Sending…',
   sendNowConfirm: (channel: 'email' | 'whatsapp') =>
@@ -918,7 +916,6 @@ const ru: Messages = {
   nMessages: (n: number) => `${n} ${ruPlural(n, 'сообщение', 'сообщения', 'сообщений')}`,
   noEmailsExchangedYet: 'Сообщений пока не было.',
   scheduledDivider: 'Запланировано',
-  willBeSentAt: (ts: string) => `Будет отправлено ${ts}`,
   sendNow: 'Отправить сейчас',
   sendingNow: 'Отправка…',
   sendNowConfirm: (channel: 'email' | 'whatsapp') =>

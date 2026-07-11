@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { api, type AccountTier, type Client, type MailboxStatus } from '../api';
 import { Sidebar } from './Sidebar';
 import { ClientView } from './ClientView';
@@ -159,16 +160,20 @@ export function Workspace({
           }}
         />
       )}
-      {importing && renderImportPanel && (
-        <div className="modal-backdrop" onClick={() => setImporting(false)}>
-          <div className="card modal modal-import" onClick={(e) => e.stopPropagation()}>
-            {renderImportPanel({
-              onImported: () => loadClients().catch(console.error),
-              onClose: () => setImporting(false),
-            })}
-          </div>
-        </div>
-      )}
+      {importing && renderImportPanel &&
+        // Portaled to <body> like the modal components: ancestors with
+        // backdrop-filter/transforms re-anchor position:fixed away from the viewport.
+        createPortal(
+          <div className="modal-backdrop" onClick={() => setImporting(false)}>
+            <div className="card modal modal-import" onClick={(e) => e.stopPropagation()}>
+              {renderImportPanel({
+                onImported: () => loadClients().catch(console.error),
+                onClose: () => setImporting(false),
+              })}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

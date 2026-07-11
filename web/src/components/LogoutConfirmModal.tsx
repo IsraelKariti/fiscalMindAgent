@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useT } from '../i18n';
 
 interface Props {
@@ -19,7 +20,9 @@ export function LogoutConfirmModal({ onConfirm, onClose }: Props) {
     }
   };
 
-  return (
+  // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
+  // which re-anchor position:fixed to the card instead of the viewport.
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="card modal modal-confirm" onClick={(e) => e.stopPropagation()}>
         <h2>{t.logoutQuestion}</h2>
@@ -33,6 +36,7 @@ export function LogoutConfirmModal({ onConfirm, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

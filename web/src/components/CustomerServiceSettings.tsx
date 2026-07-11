@@ -6,6 +6,7 @@ import {
   type MondayBoardMeta,
   type MondayConnection,
   type MondayDocMeta,
+  type WaSenderStatus,
 } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import { useT } from '../i18n';
@@ -20,6 +21,7 @@ export function CustomerServiceSettings() {
   const { t } = useT();
   const wsApi = useWorkspaceApi();
   const [connection, setConnection] = useState<MondayConnection | null>(null);
+  const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
   const [settings, setSettings] = useState<CsSettings | null>(null);
   const [docs, setDocs] = useState<MondayDocMeta[] | null>(null);
   const [boards, setBoards] = useState<MondayBoardMeta[] | null>(null);
@@ -46,9 +48,14 @@ export function CustomerServiceSettings() {
 
   const load = useCallback(async () => {
     try {
-      const [conn, { settings: current }] = await Promise.all([api.mondayConnection(), wsApi.csGetSettings()]);
+      const [conn, { settings: current }, sender] = await Promise.all([
+        api.mondayConnection(),
+        wsApi.csGetSettings(),
+        api.waSenderStatus(),
+      ]);
       setConnection(conn);
       setSettings(current);
+      setWaSender(sender);
       if (conn.connected) await loadPickers();
     } catch {
       setLoadFailed(true);
@@ -178,6 +185,16 @@ export function CustomerServiceSettings() {
     <div className="settings-section">
       <h3>{t.csSettingsTitle}</h3>
       <p className="muted">{t.csSettingsDesc}</p>
+      {/* The number clients write to. Assigned account-wide by an admin (wa_senders). */}
+      {waSender &&
+        (waSender.assigned ? (
+          <p>
+            {t.csWaNumber}{' '}
+            <strong dir="ltr">{waSender.phoneNumber}</strong>
+          </p>
+        ) : (
+          <p className="muted">{t.csWaNumberMissing}</p>
+        ))}
       {loadFailed && <p className="muted">{t.csLoadFailed}</p>}
 
       {!connection.configured ? (

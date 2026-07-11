@@ -25,6 +25,7 @@ const he = {
   // App shell
   connectBanner: 'בחרו כתובת אימייל לסוכן — הלקוחות יתכתבו איתה.',
   noClientsUseAdd: 'אין עדיין לקוחות — השתמשו בכפתור ה־+ שליד "לקוחות" בסרגל הצד.',
+  noClientsInboundWa: 'אין עדיין שיחות — לקוח יופיע כאן אוטומטית ברגע שיכתוב למספר ה-WhatsApp של הסוכן.',
 
   // Login
   loginLead: 'התחברו כדי לנהל את סוכן איסוף המסמכים.',
@@ -68,6 +69,8 @@ const he = {
   csLoadFailed: 'טעינת ההגדרות נכשלה.',
   csNoDocs: 'לא נמצאו מסמכי monday בחשבון.',
   csNoBoards: 'לא נמצאו לוחות מתאימים (נדרש לוח עם עמודת טלפון או טקסט).',
+  csWaNumber: 'מספר ה-WhatsApp של הסוכן:',
+  csWaNumberMissing: 'טרם הוקצה לחשבון מספר WhatsApp — פנו למנהל המערכת כדי לקבל מספר.',
   adminAgentsTitle: 'סוכנים',
   adminAgentEnable: 'הפעל',
   adminAgentDisable: 'השבת',
@@ -454,6 +457,7 @@ const en: Messages = {
   // App shell
   connectBanner: 'Choose an email address for the agent — your clients will correspond with it.',
   noClientsUseAdd: 'No clients yet — use the + button next to "Clients" in the sidebar.',
+  noClientsInboundWa: 'No conversations yet — a client appears here automatically the moment they message the agent’s WhatsApp number.',
 
   // Login
   loginLead: 'Sign in to manage your document-collection agent.',
@@ -497,6 +501,8 @@ const en: Messages = {
   csLoadFailed: 'Loading the settings failed.',
   csNoDocs: 'No monday docs found on this account.',
   csNoBoards: 'No suitable boards found (a board needs a phone or text column).',
+  csWaNumber: 'The agent’s WhatsApp number:',
+  csWaNumberMissing: 'No WhatsApp number is assigned to this account yet — contact the administrator to get one.',
   adminAgentsTitle: 'Agents',
   adminAgentEnable: 'Enable',
   adminAgentDisable: 'Disable',
@@ -883,6 +889,7 @@ const ru: Messages = {
   // App shell
   connectBanner: 'Выберите адрес электронной почты для агента — клиенты будут переписываться с ним.',
   noClientsUseAdd: 'Клиентов пока нет — используйте кнопку «+» рядом с «Клиенты» в боковой панели.',
+  noClientsInboundWa: 'Разговоров пока нет — клиент появится здесь автоматически, как только напишет на WhatsApp-номер агента.',
 
   // Login
   loginLead: 'Войдите, чтобы управлять агентом по сбору документов.',
@@ -926,6 +933,8 @@ const ru: Messages = {
   csLoadFailed: 'Не удалось загрузить настройки.',
   csNoDocs: 'В аккаунте не найдено документов monday.',
   csNoBoards: 'Подходящие доски не найдены (нужна доска с колонкой телефона или текста).',
+  csWaNumber: 'Номер WhatsApp агента:',
+  csWaNumberMissing: 'Аккаунту ещё не назначен номер WhatsApp — обратитесь к администратору.',
   adminAgentsTitle: 'Агенты',
   adminAgentEnable: 'Включить',
   adminAgentDisable: 'Отключить',

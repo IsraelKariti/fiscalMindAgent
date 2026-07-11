@@ -15,7 +15,8 @@ interface Props {
   onSelectDashboard: () => void;
   onSelectPrompt: () => void;
   onSelectSettings: () => void;
-  onAddClient: () => void;
+  /** Absent for inbound-only agents, whose clients enroll themselves — the + button hides. */
+  onAddClient?: () => void;
   onDeleteClient: (client: Client) => void;
   userEmail: string | null;
   /** Tier of the workspace being viewed (the impersonated accountant's while impersonating). */
@@ -157,9 +158,11 @@ export function Sidebar({
               {icon.download}
             </button>
           )}
-          <button className="icon-btn" onClick={onAddClient} title={t.addClient}>
-            {icon.plus}
-          </button>
+          {onAddClient && (
+            <button className="icon-btn" onClick={onAddClient} title={t.addClient}>
+              {icon.plus}
+            </button>
+          )}
         </div>
         <ul className="client-list">
           {clients.map((client) => (

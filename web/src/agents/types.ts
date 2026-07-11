@@ -64,4 +64,11 @@ export interface AgentTypeUI {
    * other agents connect monday through their own settings panel instead.
    */
   supportsBoardImport?: boolean;
+  /**
+   * Clients enroll themselves (inbound-only agents: a WhatsApp sender becomes
+   * a client on their first message). The shell hides the manual add-client
+   * button — whose email + documents form is follow-up-agent shaped — and
+   * shows an inbound-oriented empty state instead.
+   */
+  inboundOnlyClients?: boolean;
 }

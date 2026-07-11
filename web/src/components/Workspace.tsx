@@ -187,7 +187,7 @@ export function Workspace({
           onSelectDashboard={() => setView({ kind: 'overview' })}
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onSelectSettings={() => setView({ kind: 'settings' })}
-          onAddClient={() => setAdding(true)}
+          onAddClient={agentUI.inboundOnlyClients ? undefined : () => setAdding(true)}
           // The board→clients import is doc-collector behavior — agents that
           // connect monday differently (customer service: settings panel)
           // must not offer it, or their imports land in the wrong instance.
@@ -224,7 +224,9 @@ export function Workspace({
             />
           )}
           {view.kind === 'empty' && (
-            <div className="screen-center muted">{t.noClientsUseAdd}</div>
+            <div className="screen-center muted">
+              {agentUI.inboundOnlyClients ? t.noClientsInboundWa : t.noClientsUseAdd}
+            </div>
           )}
         </main>
       </div>

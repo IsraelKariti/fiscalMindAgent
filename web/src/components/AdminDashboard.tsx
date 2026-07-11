@@ -252,7 +252,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     <div className="admin-shell">
       <header className="admin-topbar">
         <div className="brand">
-          <img className="brand-mark" src="/logo.png" alt={t.logoAlt} />
+          <img className="brand-mark" src="/petal-seal.svg" alt={t.logoAlt} />
           <span>FiscalMind</span>
           <span className="badge badge-neutral">{t.adminBadge}</span>
         </div>

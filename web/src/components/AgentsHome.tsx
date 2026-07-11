@@ -22,7 +22,7 @@ export function AgentsHome({ agents, onSelectAgent, userEmail, onLogout }: Props
     <div className="agents-home">
       <div className="agents-home-header">
         <div className="brand">
-          <img className="brand-mark" src="/logo.png" alt={t.logoAlt} />
+          <img className="brand-mark" src="/petal-seal.svg" alt={t.logoAlt} />
           <span>FiscalMind</span>
         </div>
         <h1>{t.agentsHomeTitle}</h1>

@@ -123,7 +123,7 @@ export function Sidebar({
   return (
     <nav className="sidebar">
       <div className="brand sidebar-brand">
-        <img className="brand-mark" src="/logo.png" alt={t.logoAlt} />
+        <img className="brand-mark" src="/petal-seal.svg" alt={t.logoAlt} />
         <span>FiscalMind</span>
       </div>
 

@@ -32,7 +32,7 @@ export function Login() {
     <div className="screen-center">
       <div className="card login-card">
         <div className="brand login-brand">
-          <img className="brand-mark" src="/logo.png" alt={t.logoAlt} />
+          <img className="brand-mark" src="/petal-seal.svg" alt={t.logoAlt} />
           <span>FiscalMind</span>
         </div>
         <p className="muted">{t.loginLead}</p>

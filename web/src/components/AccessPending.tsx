@@ -16,7 +16,7 @@ export function AccessPending({ userEmail, onLogout }: Props) {
     <div className="screen-center">
       <div className="card login-card">
         <div className="brand login-brand">
-          <img className="brand-mark" src="/logo.png" alt={t.logoAlt} />
+          <img className="brand-mark" src="/petal-seal.svg" alt={t.logoAlt} />
           <span>FiscalMind</span>
         </div>
         <div className="access-pending-icon" aria-hidden="true">

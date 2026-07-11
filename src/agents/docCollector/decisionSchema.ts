@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { isWallClockDateTime } from '../util/time.js';
-import { renderTemplateBody } from '../twilio/renderTemplate.js';
-import type { WaTemplateRow } from '../db/types.js';
+import { isWallClockDateTime } from '../../util/time.js';
+import { renderTemplateBody } from '../../twilio/renderTemplate.js';
+import type { WaTemplateRow } from '../../db/types.js';
 
 // Gemini's `responseJsonSchema` doesn't support Zod's `.optional()` the same way structured
 // outputs need every property always present; the "message fields only apply when

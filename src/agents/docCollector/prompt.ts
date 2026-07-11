@@ -1,6 +1,6 @@
-import type { ClientDocumentRow, ClientRow, DocumentFileRow, EmailRow, UserRow, WaTemplateRow } from '../db/types.js';
-import { env } from '../config/env.js';
-import { humanizeDuration } from '../util/time.js';
+import type { ClientDocumentRow, ClientRow, DocumentFileRow, EmailRow, UserRow, WaTemplateRow } from '../../db/types.js';
+import { env } from '../../config/env.js';
+import { humanizeDuration } from '../../util/time.js';
 
 /** Everything the prompt tells the LLM about the WhatsApp channel's current availability. */
 export interface WaChannelState {

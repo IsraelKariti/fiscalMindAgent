@@ -1,7 +1,7 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { logger } from '../util/logger.js';
-import { getGeminiModel } from './modelSettings.js';
-import { generateWithRetry, usageFromResponse, type GeminiUsage } from './generate.js';
+import { logger } from '../../util/logger.js';
+import { getGeminiModel } from '../../gemini/modelSettings.js';
+import { generateWithRetry, usageFromResponse, type GeminiUsage } from '../../gemini/generate.js';
 import {
   DecisionResponseSchema,
   EMAIL_ONLY_CONTEXT,

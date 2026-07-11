@@ -7,7 +7,7 @@ import { resend } from '../resend/client.js';
 import { parseEmailAddress, stripQuotedReply } from '../util/email.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
-import { setFutureEmail } from '../orchestration/setFutureEmail.js';
+import { loadAgentContext } from '../agents/resolve.js';
 import { ingestAttachments } from './ingestAttachments.js';
 import { logger } from '../util/logger.js';
 
@@ -80,7 +80,8 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
   });
   const emailRow = inserted ?? (await emails.getByMessageIdForClient(client.id, messageId));
 
-  if (inserted) {
+  const agent = await loadAgentContext(client);
+  if (inserted && agent.definition.conversationModel === 'scheduled_follow_up') {
     // A new reply always leads to a fresh draft, so cancel the now-outdated pending send
     // right away — before the slow attachment ingestion below — and signal the UI: the
     // timeline must never show the reply alongside the scheduled email it obsoletes, and
@@ -95,11 +96,11 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
   const newFiles = await ingestAttachments(client.id, emailRow?.id ?? null, resendId, full.attachments ?? []);
 
   if (inserted || newFiles > 0) {
-    await withClientLock(client.id, async () => {
-      // The remove is a no-op for a fresh reply (canceled above); it still matters on the
-      // duplicate-delivery path where backfilled attachments trigger a redraft.
-      await removeFutureEmail(client.id);
-      await setFutureEmail(client.id);
+    await agent.definition.onInboundMessage(agent, {
+      channel: 'email',
+      messageRowId: emailRow?.id ?? null,
+      isNewMessage: inserted !== null,
+      newFileCount: newFiles,
     });
   }
 }

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { logger } from '../util/logger.js';
-import { getGeminiModel } from './modelSettings.js';
-import { generateWithRetry, usageFromResponse, type GeminiUsage } from './generate.js';
-import type { ClientDocumentRow } from '../db/types.js';
+import { logger } from '../../util/logger.js';
+import { getGeminiModel } from '../../gemini/modelSettings.js';
+import { generateWithRetry, usageFromResponse, type GeminiUsage } from '../../gemini/generate.js';
+import type { ClientDocumentRow } from '../../db/types.js';
 
 /** Verdict from reading the file's actual contents; persisted as document_files.analysis. */
 export const FileAnalysisSchema = z.object({

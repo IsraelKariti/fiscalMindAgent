@@ -1,5 +1,5 @@
 import * as userSettings from '../db/queries/userSettings.js';
-import { DEFAULT_PROMPT_TEMPLATE } from './prompt.js';
+import { DEFAULT_PROMPT_TEMPLATE } from '../agents/docCollector/prompt.js';
 
 export const PROMPT_TEMPLATE_SETTING_KEY = 'gemini_system_prompt_template';
 

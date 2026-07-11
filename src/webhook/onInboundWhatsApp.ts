@@ -4,7 +4,7 @@ import * as waSenders from '../db/queries/waSenders.js';
 import { withClientLock } from '../db/withClientLock.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
-import { setFutureEmail } from '../orchestration/setFutureEmail.js';
+import { loadAgentContext } from '../agents/resolve.js';
 import { ingestWaMedia, type WaMediaItem } from './ingestWaMedia.js';
 import { logger } from '../util/logger.js';
 
@@ -82,7 +82,8 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
     logger.info('whatsapp opt-out detected, channel disabled', { clientId: client.id });
   }
 
-  if (inserted) {
+  const agent = await loadAgentContext(client);
+  if (inserted && agent.definition.conversationModel === 'scheduled_follow_up') {
     // A new reply always leads to a fresh draft, so cancel the now-outdated
     // pending send right away — before the slow media ingestion below — and
     // signal the UI (same contract as inbound email).
@@ -102,9 +103,11 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
   const newFiles = media.length > 0 ? await ingestWaMedia(client.id, messageRow?.id ?? null, params.MessageSid, media) : 0;
 
   if (inserted || newFiles > 0) {
-    await withClientLock(client.id, async () => {
-      await removeFutureEmail(client.id);
-      await setFutureEmail(client.id);
+    await agent.definition.onInboundMessage(agent, {
+      channel: 'whatsapp',
+      messageRowId: messageRow?.id ?? null,
+      isNewMessage: inserted !== null,
+      newFileCount: newFiles,
     });
   }
 }

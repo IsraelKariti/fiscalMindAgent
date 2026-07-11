@@ -29,7 +29,7 @@ export function AgentsHome({ agents, onSelectAgent, userEmail, onLogout }: Props
         <p className="muted">{t.agentsHomeHint}</p>
       </div>
       {agents.length === 0 ? (
-        <div className="screen-center muted">{t.agentsNoneEnabled}</div>
+        <div className="agents-home-empty muted">{t.agentsNoneEnabled}</div>
       ) : (
         <div className="agents-grid">
           {agents.map((agent) => {

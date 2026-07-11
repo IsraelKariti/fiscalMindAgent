@@ -2881,3 +2881,11 @@ button.meta-chip:hover {
   align-items: center;
   gap: 10px;
 }
+
+/* Fills the space between header and footer without forcing its own 100vh
+   (screen-center would push the footer below the fold). */
+.agents-home-empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}

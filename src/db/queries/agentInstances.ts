@@ -4,6 +4,7 @@ import type { AgentInstanceRow } from '../types.js';
 /** Hebrew display name used when an instance of this type is provisioned. */
 export const DEFAULT_INSTANCE_NAMES: Record<string, string> = {
   doc_collector: 'איסוף מסמכים',
+  debt_collector: 'גביית חובות',
 };
 
 export async function listForUser(userId: string): Promise<AgentInstanceRow[]> {

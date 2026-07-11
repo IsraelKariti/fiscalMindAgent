@@ -1308,6 +1308,9 @@ textarea {
 
 .scheduled-note {
   color: var(--pending);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 /* "Send now" on the scheduled bubble: compact, pushed to the row's far edge. */

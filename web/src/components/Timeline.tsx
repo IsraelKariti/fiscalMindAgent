@@ -288,31 +288,34 @@ export function Timeline({
           {showScheduled && nextScheduled && (
             <li className={`timeline-item outbound scheduled ${paused ? 'paused' : ''}`}>
               <div className="timeline-meta">
-                <span className="timeline-author">
-                  {paused ? (
+                {paused && (
+                  <span className="timeline-author">
                     <span className="paused-icon">{icon.pause}</span>
-                  ) : (
-                    <svg
-                      className="scheduled-clock"
-                      viewBox="0 0 16 16"
-                      width="12"
-                      height="12"
-                      aria-hidden="true"
-                    >
-                      <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                      <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  )}
-                </span>
+                  </span>
+                )}
                 {hasWhatsApp && (
                   <span className={`channel-badge channel-${nextScheduled.channel}`}>
                     {channelLabel(nextScheduled.channel)}
                   </span>
                 )}
                 <span className="scheduled-note">
-                  {paused
-                    ? t.pausedScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
-                    : t.willBeSentAt(formatTimestamp(nextScheduled.scheduledFor))}
+                  {paused ? (
+                    t.pausedScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
+                  ) : (
+                    <>
+                      <svg
+                        className="scheduled-clock"
+                        viewBox="0 0 16 16"
+                        width="12"
+                        height="12"
+                        aria-hidden="true"
+                      >
+                        <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                        <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                      {formatTimestamp(nextScheduled.scheduledFor)}
+                    </>
+                  )}
                 </span>
                 {paused ? (
                   <button

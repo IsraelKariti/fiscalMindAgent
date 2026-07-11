@@ -233,7 +233,6 @@ export function CustomerServiceSettings() {
                       onChange={() => toggleDoc(doc.id)}
                     />{' '}
                     {doc.name}
-                    {doc.workspaceName ? <span className="muted"> — {doc.workspaceName}</span> : null}
                   </label>
                 </li>
               ))}

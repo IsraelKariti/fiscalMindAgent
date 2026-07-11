@@ -9,7 +9,6 @@ import { normalizeE164 } from '../../util/phone.js';
 export interface MondayDocMeta {
   id: string;
   name: string;
-  workspaceName: string | null;
 }
 
 export interface MondayBoardMeta {
@@ -20,14 +19,18 @@ export interface MondayBoardMeta {
 
 const TEXT_TYPES = new Set(['text', 'long_text']);
 
-/** Workdocs the accountant can attach as knowledge sources (settings picker). */
+/**
+ * Workdocs the accountant can attach as knowledge sources (settings picker).
+ * Deliberately no `workspace { name }` — that field needs the extra
+ * workspaces:read scope and errors the whole query without it.
+ */
 export async function listDocs(accessToken: string): Promise<MondayDocMeta[]> {
   const data = await mondayGraphQL<{
-    docs: ({ id: string; name: string; workspace: { name: string } | null } | null)[] | null;
-  }>(accessToken, 'query { docs (limit: 100, order_by: used_at) { id name workspace { name } } }');
+    docs: ({ id: string; name: string } | null)[] | null;
+  }>(accessToken, 'query { docs (limit: 100, order_by: used_at) { id name } }');
   return (data.docs ?? [])
     .filter((d): d is NonNullable<typeof d> => d !== null)
-    .map((d) => ({ id: d.id, name: d.name, workspaceName: d.workspace?.name ?? null }));
+    .map((d) => ({ id: d.id, name: d.name }));
 }
 
 export interface MondayDocText {

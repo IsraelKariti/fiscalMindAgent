@@ -261,7 +261,6 @@ export interface CustomerServiceSettings {
 export interface MondayDocMeta {
   id: string;
   name: string;
-  workspaceName: string | null;
 }
 
 export interface MondayBoardMeta {

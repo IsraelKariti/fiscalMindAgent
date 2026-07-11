@@ -5,6 +5,7 @@ import type { AgentInstanceRow } from '../types.js';
 export const DEFAULT_INSTANCE_NAMES: Record<string, string> = {
   doc_collector: 'איסוף מסמכים',
   debt_collector: 'גביית חובות',
+  customer_service: 'שירות לקוחות',
 };
 
 export async function listForUser(userId: string): Promise<AgentInstanceRow[]> {
@@ -72,6 +73,15 @@ export async function enableInstance(userId: string, agentType: string): Promise
   const row = rows[0];
   if (!row) throw new Error('enableInstance: no row returned');
   return row;
+}
+
+/** Replaces the instance's settings JSONB — shape owned by the agent type's Zod schema. */
+export async function updateSettings(id: string, settings: Record<string, unknown>): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'UPDATE agent_instances SET settings = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, JSON.stringify(settings)],
+  );
+  return rows[0] ?? null;
 }
 
 /**

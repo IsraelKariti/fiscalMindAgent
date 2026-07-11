@@ -5,6 +5,7 @@ import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../g
 import { logger } from '../util/logger.js';
 import { googleLoginCallback, logout, me, mondayHandoff, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
 import { accountRouter } from './account.js';
+import { mondayOauthCallback, startMondayOauth } from './mondayOauth.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
 import { mondayRouter } from './monday.js';
 import { workspaceRouter } from './workspace.js';
@@ -44,6 +45,10 @@ export const apiRouter = Router();
 apiRouter.get('/auth/google', startGoogleLogin);
 apiRouter.get('/auth/google/callback', wrap(googleLoginCallback));
 apiRouter.get('/auth/monday-handoff', wrap(mondayHandoff));
+// monday OAuth connect (server-side API token): pre-auth — the signed state
+// token carries the user identity through the top-level popup.
+apiRouter.get('/auth/monday/start', startMondayOauth);
+apiRouter.get('/auth/monday/callback', wrap(mondayOauthCallback));
 apiRouter.post('/logout', logout);
 apiRouter.get('/me', wrap(me));
 

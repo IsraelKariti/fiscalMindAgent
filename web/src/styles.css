@@ -2620,6 +2620,36 @@ button.meta-chip:hover {
   margin: 0;
 }
 
+/* Customer-service agent: monday knowledge-source pickers */
+.settings-section h4 {
+  margin: 10px 0 0;
+  font-size: 15px;
+}
+
+.cs-doc-list,
+.cs-board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cs-board-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.cs-board-row > span:first-child {
+  font-weight: 600;
+}
+
 /* Language picker: one chip per language, labeled in its own language */
 .lang-switch {
   display: flex;

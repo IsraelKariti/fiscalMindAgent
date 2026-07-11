@@ -59,6 +59,7 @@ export function Timeline({
   onRetryDraft,
   premiumLocked,
   contactEmail,
+  hideStatusFooter = false,
 }: {
   emails: Email[];
   nextScheduled: NextScheduled | null;
@@ -75,6 +76,8 @@ export function Timeline({
   /** True on the Standard plan: WhatsApp stays visible but taps open the upgrade modal. */
   premiumLocked: boolean;
   contactEmail: string | null;
+  /** Goal-less agents (customer service) pass goalStatus="complete" just to mute the scheduling UI — hide its footer too. */
+  hideStatusFooter?: boolean;
 }) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
@@ -431,7 +434,7 @@ export function Timeline({
             </li>
           )}
         </ol>
-        {!nextScheduled && goalStatus === 'complete' && (
+        {!nextScheduled && goalStatus === 'complete' && !hideStatusFooter && (
           <p className="muted timeline-footer">{t.goalCompleteFooter}</p>
         )}
       </div>

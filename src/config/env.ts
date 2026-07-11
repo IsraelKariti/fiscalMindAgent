@@ -55,6 +55,11 @@ const EnvSchema = z.object({
   // Client Secret that signs the widget iframe's sessionToken JWTs. Optional —
   // the /api/monday endpoints return 503 until it is set.
   MONDAY_CLIENT_SECRET: z.string().min(1).optional(),
+  // Client ID of the same monday app — needed (with the secret) only for the
+  // OAuth connect flow that stores a server-side monday API token per
+  // accountant (customer_service agent). Optional — the connect endpoints
+  // return 503 until both are set.
+  MONDAY_CLIENT_ID: z.string().min(1).optional(),
   // Azure Blob Storage holding client document files. The default is the
   // well-known Azurite dev connection (docker-compose `azurite` service);
   // production sets the real storage-account connection string.

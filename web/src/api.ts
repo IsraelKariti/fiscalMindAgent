@@ -244,6 +244,32 @@ export interface MailboxAvailability {
   reason?: 'invalid' | 'reserved' | 'taken';
 }
 
+/** The signed-in accountant's monday OAuth connection (server-side API token). */
+export interface MondayConnection {
+  /** False until MONDAY_CLIENT_ID/SECRET are set server-side. */
+  configured: boolean;
+  connected: boolean;
+  scopes: string | null;
+}
+
+/** The customer-service agent's per-instance config (agent_instances.settings). */
+export interface CustomerServiceSettings {
+  docIds: string[];
+  boards: { boardId: string; phoneColumnId: string; boardName?: string }[];
+}
+
+export interface MondayDocMeta {
+  id: string;
+  name: string;
+  workspaceName: string | null;
+}
+
+export interface MondayBoardMeta {
+  id: string;
+  name: string;
+  columns: { id: string; title: string; type: string }[];
+}
+
 /** One enabled agent of the signed-in accountant (GET /agents). */
 export interface AgentInstance {
   id: string;
@@ -302,6 +328,16 @@ function makeWorkspaceApi(prefix: string) {
     fileDownloadUrl: (clientId: string, fileId: string) =>
       tokenizedUrl(`${prefix}/clients/${clientId}/files/${fileId}/download`),
     eventsUrl: (clientId: string) => tokenizedUrl(`${prefix}/clients/${clientId}/events`),
+    // Customer-service agent (routes exist only on customer_service instances).
+    csGetSettings: () =>
+      request<{ settings: CustomerServiceSettings; mondayConnected: boolean }>(`${prefix}/customer-service/settings`),
+    csSaveSettings: (settings: CustomerServiceSettings) =>
+      request<{ settings: CustomerServiceSettings }>(`${prefix}/customer-service/settings`, {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      }),
+    csListMondayDocs: () => request<{ docs: MondayDocMeta[] }>(`${prefix}/customer-service/monday/docs`),
+    csListMondayBoards: () => request<{ boards: MondayBoardMeta[] }>(`${prefix}/customer-service/monday/boards`),
   };
 }
 
@@ -326,6 +362,9 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   waSenderStatus: () => request<WaSenderStatus>('/wa-sender'),
+  mondayConnection: () => request<MondayConnection>('/monday-connection'),
+  mondayConnectUrl: () => request<{ url: string }>('/monday-connection/url'),
+  mondayDisconnect: () => request<{ ok: true }>('/monday-connection', { method: 'DELETE' }),
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/admin/accountants'),
   adminListAccountantAgents: (userId: string) =>
     request<{ agents: AgentInstance[]; availableTypes: string[] }>(`/admin/accountants/${userId}/agents`),

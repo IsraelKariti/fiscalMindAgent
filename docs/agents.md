@@ -93,6 +93,20 @@ custom object pins `doc_collector`.
 
 ## Current state & deferred work
 
+- `customer_service` is the first `'immediate_reply'` agent: an inbound-only
+  WhatsApp Q&A agent. `onInboundMessage` fetches monday workdocs + board rows
+  **live** (no caching) via a per-accountant OAuth token (`monday_oauth_tokens`,
+  migration 020; connect flow in `src/api/mondayOauth.ts`), generates one
+  answer, and sends it synchronously — nothing ever goes through the BullMQ
+  scheduler (`planNextAction` is a no-op by design). Sender phone is the only
+  authentication; board rows are re-verified server-side against the sender's
+  number (`mondayData.ts` `phonesMatch`) before entering the prompt — the
+  privacy boundary. Unknown WhatsApp senders are auto-enrolled into the CS
+  instance by the webhook (`onInboundWhatsApp.ts`) when one is enabled; a
+  number already belonging to another agent's client keeps routing there
+  (the deferred fan-out below). Config lives in `agent_instances.settings`
+  (`customerService/settings.ts`); the settings UI is the `settingsPanel`
+  slot on `AgentTypeUI`, rendered in the workspace Settings view.
 - `debt_collector` is a **stub**: `planNextAction` is a no-op — it never
   drafts or sends. Real implementation needs a prompt + decision schema +
   `client_debt` field, mirroring `docCollector/`.

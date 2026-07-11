@@ -68,7 +68,18 @@ server and built from `web/src/monday/`:
    (dev host: `<NGROK_DOMAIN>`; prod host: the Azure app.)
 4. **Permissions (scopes)**: enable `me:read` and `boards:read` (the surfaces
    query `me { email }`, and the widget reads board items via seamless auth).
-5. Install the app on the account (**Install** / share URL). Then:
+   For the customer-service agent's server-side reads also enable `docs:read`
+   (workdocs).
+5. **OAuth** (customer-service agent only): copy the **Client ID** (Basic
+   Information) into `MONDAY_CLIENT_ID` in `.env`, and register the redirect
+   URL `https://<host>/api/auth/monday/callback` under the app's OAuth
+   settings. This powers the "Connect monday" popup
+   (`GET /api/auth/monday/start` → monday authorize → callback stores a
+   per-accountant API token in `monday_oauth_tokens`, migration 020). Unlike
+   the seamless in-iframe auth above, this token lets the *server* query
+   monday at webhook time (boards + docs) with no browser involved. monday
+   access tokens don't expire; "Disconnect" just deletes the row.
+6. Install the app on the account (**Install** / share URL). Then:
    - widget: on any dashboard, **Add widget → Apps → your widget**, and connect
      the board(s) holding clients via the widget settings.
    - custom object: in a workspace, **+ Add item → Apps → your app**.

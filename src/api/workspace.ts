@@ -19,7 +19,7 @@ import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
-import { listAgentTypes } from '../agents/registry.js';
+import { getAgentType, listAgentTypes } from '../agents/registry.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 
@@ -132,7 +132,11 @@ workspaceRouter.post(
     }
     // Respond before the LLM drafts the first email — the drafting takes seconds, and the
     // conversation tab shows a "drafting…" placeholder until the scheduled email appears.
-    draftFirstEmail(client.id);
+    // Only follow-up agents initiate; an immediate_reply agent (customer service)
+    // never drafts first, so kicking it off would leave the client in "drafting…" forever.
+    if (getAgentType(req.agentInstance!.agent_type).conversationModel === 'scheduled_follow_up') {
+      draftFirstEmail(client.id);
+    }
     res.status(201).json({ client });
   }),
 );

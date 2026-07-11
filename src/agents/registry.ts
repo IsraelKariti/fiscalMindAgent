@@ -1,3 +1,4 @@
+import { customerServiceAgent } from './customerService/index.js';
 import { debtCollectorAgent } from './debtCollector/index.js';
 import { docCollectorAgent } from './docCollector/index.js';
 import type { AgentTypeDefinition } from './types.js';
@@ -5,6 +6,7 @@ import type { AgentTypeDefinition } from './types.js';
 const registry: Record<string, AgentTypeDefinition> = {
   [docCollectorAgent.id]: docCollectorAgent,
   [debtCollectorAgent.id]: debtCollectorAgent,
+  [customerServiceAgent.id]: customerServiceAgent,
 };
 
 export function getAgentType(id: string): AgentTypeDefinition {

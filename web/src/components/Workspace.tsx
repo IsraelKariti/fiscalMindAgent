@@ -212,7 +212,13 @@ export function Workspace({
           )}
           {view.kind === 'prompt' && impersonatingEmail && <PromptSettings />}
           {view.kind === 'settings' && (
-            <Settings mailbox={mailbox} onClaimed={setMailbox} tier={tier} contactEmail={contactEmail} />
+            <Settings
+              mailbox={mailbox}
+              onClaimed={setMailbox}
+              tier={tier}
+              contactEmail={contactEmail}
+              agentPanel={agentUI.settingsPanel?.()}
+            />
           )}
           {view.kind === 'empty' && (
             <div className="screen-center muted">{t.noClientsUseAdd}</div>

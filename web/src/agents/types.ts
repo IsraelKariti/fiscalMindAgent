@@ -51,4 +51,10 @@ export interface AgentTypeUI {
   descriptionKey: MessageStringKey;
   icon: ReactNode;
   clientTabs: ClientTab[];
+  /**
+   * Optional agent-level settings panel, rendered as an extra section of the
+   * workspace Settings view (inside WorkspaceApiProvider, so it may call
+   * useWorkspaceApi() for agent-scoped requests).
+   */
+  settingsPanel?: () => ReactNode;
 }

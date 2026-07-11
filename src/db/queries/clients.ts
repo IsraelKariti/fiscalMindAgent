@@ -56,6 +56,33 @@ export async function insert(args: {
   return row;
 }
 
+/**
+ * Auto-enrollment of an unknown WhatsApp sender into a customer_service
+ * instance: WhatsApp-only client, opted in (they messaged us first), no goal.
+ * email_address is NOT NULL + unique per instance, so a synthetic address is
+ * derived from the phone. Race-safe: two concurrent webhook deliveries hit the
+ * clients_instance_wa_phone_key index; ON CONFLICT DO NOTHING returns null and
+ * the caller re-selects the winner's row.
+ */
+export async function insertWhatsAppOnly(args: {
+  userId: string;
+  agentInstanceId: string;
+  name: string;
+  waPhone: string;
+  optedInBy: string;
+}): Promise<ClientRow | null> {
+  const syntheticEmail = `wa-${args.waPhone.replace(/\D/g, '')}@wa.invalid`;
+  const { rows } = await pool.query<ClientRow>(
+    `INSERT INTO clients (user_id, agent_instance_id, name, email_address, goal_status,
+                          wa_phone, wa_enabled, wa_opted_in_at, wa_opted_in_by)
+     VALUES ($1, $2, $3, $4, 'complete', $5, true, now(), $6)
+     ON CONFLICT (agent_instance_id, wa_phone) WHERE wa_phone IS NOT NULL DO NOTHING
+     RETURNING *`,
+    [args.userId, args.agentInstanceId, args.name, syntheticEmail, args.waPhone, args.optedInBy],
+  );
+  return rows[0] ?? null;
+}
+
 /** getById constrained to one agent instance — agent-scoped API routes use this. */
 export async function getByIdForInstance(id: string, agentInstanceId: string): Promise<ClientRow | null> {
   const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE id = $1 AND agent_instance_id = $2', [

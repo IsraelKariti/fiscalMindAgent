@@ -1,3 +1,4 @@
+import * as agentInstances from '../db/queries/agentInstances.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
 import * as waSenders from '../db/queries/waSenders.js';
@@ -58,11 +59,33 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
     return;
   }
 
-  // Only this accountant's clients — the same person may be another user's client.
-  const client = await clients.getByWaPhoneForUser(sender.user_id, clientNumber);
+  // Only this accountant's clients — the same person may be another user's
+  // client. When the number already belongs to one of this accountant's
+  // clients (any agent), that agent keeps handling it (the documented
+  // single-match routing, docs/agents.md "deferred fan-out").
+  let client = await clients.getByWaPhoneForUser(sender.user_id, clientNumber);
   if (!client) {
-    logger.warn('inbound whatsapp from unknown number, ignoring', { from: clientNumber, to: senderNumber });
-    return;
+    // Unknown number: auto-enroll into the accountant's customer_service
+    // agent, if enabled — the CS agent answers anyone who messages the office
+    // number, authenticated by their phone alone.
+    const cs = await agentInstances.getByTypeForUser(sender.user_id, 'customer_service');
+    if (!cs?.enabled) {
+      logger.warn('inbound whatsapp from unknown number, ignoring', { from: clientNumber, to: senderNumber });
+      return;
+    }
+    client =
+      (await clients.insertWhatsAppOnly({
+        userId: sender.user_id,
+        agentInstanceId: cs.id,
+        name: clientNumber,
+        waPhone: clientNumber,
+        optedInBy: sender.user_id,
+      })) ?? (await clients.getByWaPhoneForInstance(cs.id, clientNumber)); // conflict: a concurrent delivery won the insert
+    if (!client) {
+      logger.warn('customer service auto-enroll raced and lost, ignoring', { from: clientNumber });
+      return;
+    }
+    logger.info('customer service client auto-created from inbound whatsapp', { clientId: client.id });
   }
 
   const body = params.Body ?? '';

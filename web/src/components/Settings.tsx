@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, type AccountTier, type MailboxStatus, type WaSenderStatus } from '../api';
 import { useT, type Lang } from '../i18n';
 import { ClaimMailbox } from './ClaimMailbox';
@@ -9,6 +9,8 @@ interface Props {
   tier: AccountTier | null;
   /** Where the upgrade CTA points until self-serve billing exists. */
   contactEmail: string | null;
+  /** The active agent type's own settings section (AgentTypeUI.settingsPanel), if it has one. */
+  agentPanel?: ReactNode;
 }
 
 const icon = {
@@ -33,7 +35,7 @@ const LANGUAGES: { value: Lang; label: string }[] = [
   { value: 'ru', label: 'Русский' },
 ];
 
-export function Settings({ mailbox, onClaimed, tier, contactEmail }: Props) {
+export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel }: Props) {
   const { t, lang, setLang } = useT();
   const [copied, setCopied] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -132,6 +134,8 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail }: Props) {
             <p className="muted">{t.agentWhatsAppNone}</p>
           )}
         </div>
+
+        {agentPanel}
       </section>
     </div>
   );

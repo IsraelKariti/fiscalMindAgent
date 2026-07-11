@@ -1,0 +1,106 @@
+# Multi-agent platform architecture
+
+Since 2026-07-11 (prod v11, migration 019) fiscalMind is a multi-agent
+platform: one app hosting several developer-built agent types, each enabled
+per accountant and owning its own client list. The document collector is
+agent #1; `debt_collector` exists as a stub. Industry pattern followed: one
+app with an agent registry (HubSpot Breeze / Salesforce Agentforce model) —
+never one app per agent.
+
+## Concepts
+
+- **Agent type** — behavior + UI defined in code. Backend half in
+  `src/agents/<type>/`, frontend half in `web/src/agents/<type>.tsx`,
+  registered in `src/agents/registry.ts` and `web/src/agents/registry.ts`.
+- **Agent instance** — one row in `agent_instances` per (accountant, type),
+  created by admin enablement or auto-provisioning (`users.upsertFromGoogle`
+  ensures every accountant has a `doc_collector` instance). `enabled=false`
+  hides an instance; **never DELETE an instance row — clients cascade off it
+  and the agent's data would be destroyed.**
+- **Clients belong to an instance** — `clients.agent_instance_id` (NULL only
+  on legacy CLI-era rows, treated as doc_collector). Per-agent scalar fields
+  go in `clients.agent_fields` JSONB; relational per-agent data gets its own
+  tables keyed by `client_id` (pattern: `client_documents`).
+
+## Backend (`src/agents/`)
+
+`AgentTypeDefinition` (types.ts):
+
+- `conversationModel`: `'scheduled_follow_up'` (plan → draft → delayed BullMQ
+  send; collectors), `'immediate_reply'` (support agents, reserved), `'none'`
+  (periodic agents, reserved).
+- `planNextAction(ctx)` — one planning step for one client. Runs inside
+  `setFutureEmail`'s generic wrapper (complete/paused guards, drafting stamps,
+  failure recording) — keep that contract.
+- `onInboundMessage(ctx, evt)` — reaction after the shared webhook half
+  (routing, dedupe, attachment/media ingestion) stored an inbound message.
+- `analyzeInboundFile?(ctx, file, body)` — content analysis; absent = files
+  marked `unsupported`.
+- `buildRouter?()` — agent-specific API routes composed into the workspace
+  router (guard on `req.agentInstance.agent_type`, `next('router')` otherwise).
+
+Dispatch seams: `src/orchestration/setFutureEmail.ts` (generic dispatcher),
+`src/webhook/onInbound{Email,WhatsApp}.ts` (reaction half),
+`src/webhook/analyzeStoredFile.ts`, `src/agents/resolve.ts`
+(`loadAgentContext(client)` → instance + definition + accountant).
+
+Shared infrastructure (agent-agnostic, reuse as-is): Resend/Twilio transport,
+`emails` messages table, BullMQ delayed-send queue + `scheduled_jobs` +
+`withClientLock`, Azure blob storage, Gemini plumbing (`src/gemini/`), auth /
+tenancy / admin impersonation / monday token auth.
+
+## API
+
+- `GET /api/agents` — caller's enabled instances.
+- `/api/agents/:agentId/...` — the agent-scoped workspace (clients, emails,
+  files, dashboard, SSE); `resolveAgentInstance` middleware sets
+  `req.agentInstance` (404 on other users' or disabled instances).
+- Legacy unprefixed `/api/clients...` mounts still exist and resolve to the
+  user's doc_collector instance (removal is pending phase-6 cleanup).
+- Same three shapes under `/api/monday/app/...` (monday sessionToken auth).
+- Account-level (not agent-scoped): `/api/mailbox*`, `/api/wa-sender`
+  (`src/api/account.ts`).
+- Admin: `GET/POST /api/admin/accountants/:userId/agents`,
+  `DELETE .../agents/:agentType` (disable = flip `enabled`, never delete).
+
+## Frontend (`web/src/agents/`)
+
+`AgentTypeUI`: `nameKey`/`descriptionKey` (i18n), `icon`, `clientTabs[]`
+(id, labelKey, `render(ClientTabContext)`). The generic
+`components/ClientView.tsx` owns load/SSE/poll/drafting logic and renders the
+active type's tabs. Requests flow through `agentApi(agentId)` provided via
+`WorkspaceApiContext` (`useWorkspaceApi()` in components; the default context
+value is the legacy unprefixed `api`).
+
+Shell behavior (`Workspace.tsx`): boots on `GET /agents`; one instance →
+auto-enter (pre-agents UX); several → `AgentsHome` card grid + sidebar
+switcher; `pinnedAgentType` prop locks a surface to one type — the monday
+custom object pins `doc_collector`.
+
+## Adding an agent type (checklist)
+
+1. `src/agents/<type>/index.ts` — the `AgentTypeDefinition` (see
+   `docCollector/` for the full shape, `debtCollector/` for the minimal stub).
+2. Register in `src/agents/registry.ts` + add a Hebrew default name in
+   `DEFAULT_INSTANCE_NAMES` (`src/db/queries/agentInstances.ts`).
+3. `web/src/agents/<type>.tsx` — `AgentTypeUI` with tabs; register in
+   `web/src/agents/registry.ts`; add `agent<Type>Name/Desc` strings to all
+   three locales in `web/src/i18n.tsx`.
+4. Per-client scalar fields → `agent_fields` JSONB; relational data → new
+   tables keyed by `client_id` (own migration).
+5. No migration needed for the type itself (`agent_type` is TEXT, validated in
+   code). Enable it per accountant from the admin panel.
+
+## Current state & deferred work
+
+- `debt_collector` is a **stub**: `planNextAction` is a no-op — it never
+  drafts or sends. Real implementation needs a prompt + decision schema +
+  `client_debt` field, mirroring `docCollector/`.
+- Deferred (unblocked by design, not built): removal of the legacy unprefixed
+  mounts; per-agent prompt-template keys (`prompt_template.<agent_type>`,
+  today the admin prompt editor edits the doc collector via the legacy key);
+  inbound webhook fan-out when one accountant has the same client
+  email/phone in two agents (the 019 uniqueness relaxation to
+  `(client_id, message_id)` already allows it — today routing picks the
+  user-scoped match); BullMQ repeatable-job queue for `'none'`-model periodic
+  agents; per-agent LLM cost attribution (`llm_token_usage.agent_instance_id`).

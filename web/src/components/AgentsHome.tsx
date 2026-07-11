@@ -5,6 +5,9 @@ import { useT } from '../i18n';
 interface Props {
   agents: AgentInstance[];
   onSelectAgent: (agent: AgentInstance) => void;
+  userEmail?: string | null;
+  /** Absent in the monday iframe — identity belongs to monday, so there is nothing to log out of. */
+  onLogout?: () => void;
 }
 
 /**
@@ -13,7 +16,7 @@ interface Props {
  * the accountant has more than one agent — single-agent accounts land
  * straight in their workspace, as the app always has.
  */
-export function AgentsHome({ agents, onSelectAgent }: Props) {
+export function AgentsHome({ agents, onSelectAgent, userEmail, onLogout }: Props) {
   const { t } = useT();
   return (
     <div className="agents-home">
@@ -41,6 +44,15 @@ export function AgentsHome({ agents, onSelectAgent }: Props) {
               </button>
             );
           })}
+        </div>
+      )}
+      {onLogout && (
+        <div className="agents-home-footer" title={t.googleAccountTitle}>
+          <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
+          <span className="muted" dir="ltr">{userEmail ?? '…'}</span>
+          <button className="btn btn-ghost btn-small" onClick={onLogout}>
+            {t.logout}
+          </button>
         </div>
       )}
     </div>

@@ -2874,3 +2874,10 @@ button.meta-chip:hover {
   border-radius: 0;
   padding-bottom: 10px;
 }
+
+.agents-home-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

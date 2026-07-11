@@ -162,7 +162,7 @@ export function Workspace({
   // single-agent and pinned shells auto-enter above; empty accounts see the
   // none-enabled message inside).
   if (!agent || !wsApi) {
-    return <AgentsHome agents={agents} onSelectAgent={enterAgent} />;
+    return <AgentsHome agents={agents} onSelectAgent={enterAgent} userEmail={userEmail} onLogout={onLogout} />;
   }
 
   return (

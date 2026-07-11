@@ -10,6 +10,7 @@ import type { AgentTypeUI } from './types';
 /** The document collector's workspace UI: the four tabs the app has always had. */
 export const docCollectorUI: AgentTypeUI = {
   agentType: 'doc_collector',
+  supportsBoardImport: true,
   nameKey: 'agentDocCollectorName',
   descriptionKey: 'agentDocCollectorDesc',
   icon: (

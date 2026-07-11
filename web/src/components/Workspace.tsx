@@ -188,7 +188,10 @@ export function Workspace({
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onSelectSettings={() => setView({ kind: 'settings' })}
           onAddClient={() => setAdding(true)}
-          onImportClients={renderImportPanel ? () => setImporting(true) : undefined}
+          // The board→clients import is doc-collector behavior — agents that
+          // connect monday differently (customer service: settings panel)
+          // must not offer it, or their imports land in the wrong instance.
+          onImportClients={renderImportPanel && agentUI.supportsBoardImport ? () => setImporting(true) : undefined}
           onDeleteClient={setDeleting}
           userEmail={userEmail}
           tier={tier}

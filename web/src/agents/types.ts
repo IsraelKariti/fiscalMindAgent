@@ -57,4 +57,11 @@ export interface AgentTypeUI {
    * useWorkspaceApi() for agent-scoped requests).
    */
   settingsPanel?: () => ReactNode;
+  /**
+   * monday surfaces only: offers the board→clients import in this agent's
+   * workspace. The import endpoint creates doc-collector clients (required
+   * documents + first-email draft), so only the doc collector sets this;
+   * other agents connect monday through their own settings panel instead.
+   */
+  supportsBoardImport?: boolean;
 }

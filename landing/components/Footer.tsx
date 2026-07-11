@@ -28,7 +28,7 @@ export default function Footer() {
               <img src="/petal-seal.svg" alt="" className="w-7 h-7 rounded-lg" />
               <span className="shimmer-text text-xl font-extrabold tracking-tight">FiscalMind</span>
             </span>
-            <p className="text-[#64748B] text-sm leading-relaxed max-w-xs">
+            <p className="text-[#7E8CA0] text-sm leading-relaxed max-w-xs">
               פתרונות AI מותאמים אישית למשרדי רואי חשבון. הצד החכם של הנהלת החשבונות.
             </p>
 
@@ -36,7 +36,7 @@ export default function Footer() {
               <a
                 href="#"
                 aria-label="LinkedIn"
-                className="w-9 h-9 rounded-lg border border-[#1E1E2E] flex items-center justify-center text-[#64748B] hover:text-white hover:border-[#3B82F6]/40 transition-colors"
+                className="w-9 h-9 rounded-lg border border-[#1E1E2E] flex items-center justify-center text-[#7E8CA0] hover:text-white hover:border-[#3B82F6]/40 transition-colors"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z" />
@@ -46,7 +46,7 @@ export default function Footer() {
               <a
                 href="#"
                 aria-label="Twitter / X"
-                className="w-9 h-9 rounded-lg border border-[#1E1E2E] flex items-center justify-center text-[#64748B] hover:text-white hover:border-[#3B82F6]/40 transition-colors"
+                className="w-9 h-9 rounded-lg border border-[#1E1E2E] flex items-center justify-center text-[#7E8CA0] hover:text-white hover:border-[#3B82F6]/40 transition-colors"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -57,13 +57,13 @@ export default function Footer() {
 
           {Object.entries(LINKS).map(([group, items]) => (
             <nav key={group} aria-label={group}>
-              <h4 className="text-white font-semibold text-sm mb-4">{group}</h4>
+              <h3 className="text-white font-semibold text-sm mb-4">{group}</h3>
               <ul className="space-y-3">
                 {items.map((item) => (
                   <li key={item.label}>
                     <a
                       href={item.href}
-                      className="text-[#64748B] hover:text-white text-sm transition-colors"
+                      className="text-[#7E8CA0] hover:text-white text-sm transition-colors"
                     >
                       {item.label}
                     </a>
@@ -75,10 +75,10 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-[#1E1E2E] pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-[#64748B] text-sm">
+          <p className="text-[#7E8CA0] text-sm">
             © {new Date().getFullYear()} FiscalMind. כל הזכויות שמורות.
           </p>
-          <p className="text-[#64748B] text-sm">
+          <p className="text-[#7E8CA0] text-sm">
             נבנה עבור רואי חשבון, על ידי אנשים שמבינים מספרים.
           </p>
         </div>

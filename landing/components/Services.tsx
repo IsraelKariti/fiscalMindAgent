@@ -81,7 +81,7 @@ export default function Services() {
             <br />
             רואי חשבון עובדים בפועל
           </h2>
-          <p className="mt-4 text-[#64748B] text-lg max-w-xl mx-auto">
+          <p className="mt-4 text-[#7E8CA0] text-lg max-w-xl mx-auto">
             כל כלי שאנחנו בונים מתוכנן סביב הזרימות, התוכנות ונקודות הכאב הספציפיות של משרדי רואי חשבון.
           </p>
         </div>
@@ -96,7 +96,7 @@ export default function Services() {
                 {s.icon}
               </div>
               <h3 className="text-white font-bold text-lg mb-2">{s.title}</h3>
-              <p className="text-[#64748B] text-sm leading-relaxed">{s.desc}</p>
+              <p className="text-[#7E8CA0] text-sm leading-relaxed">{s.desc}</p>
             </li>
           ))}
         </ul>

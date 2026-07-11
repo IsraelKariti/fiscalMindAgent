@@ -66,7 +66,7 @@ export default function Hero() {
                 >
                   {s.value}
                 </p>
-                <p className="text-xs text-[#64748B] mt-0.5">{s.label}</p>
+                <p className="text-xs text-[#7E8CA0] mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>

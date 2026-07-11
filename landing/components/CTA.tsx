@@ -19,7 +19,7 @@ export default function CTA() {
               הצטרפו לרואי חשבון שכבר חוסכים 10+ שעות בשבוע עם FiscalMind. השיחה הראשונה חינמית — ללא לחץ, ללא מצגת מכירות.
             </p>
 
-            <p className="text-[#64748B] text-xs">
+            <p className="text-[#7E8CA0] text-xs">
               ללא כרטיס אשראי · הקמה תוך 4 שבועות · ביטול בכל עת
             </p>
           </div>

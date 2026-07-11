@@ -3,10 +3,13 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'הצהרת נגישות — FiscalMind',
   description:
-    'הצהרת הנגישות של אתר FiscalMind בהתאם לתקן הישראלי 5568 ולהנחיות WCAG 2.0 ברמה AA.',
+    'הצהרת הנגישות של אתר FiscalMind בהתאם לתקן הישראלי ת״י 5568 ולהנחיות WCAG 2.1 ברמה AA.',
 }
 
+const COORDINATOR_NAME = 'עידו פרלמוטר'
 const CONTACT_EMAIL = 'admin@fiscalmind.app'
+const CONTACT_PHONE_DISPLAY = '054-968-6540'
+const CONTACT_PHONE_TEL = '+972549686540'
 
 export default function AccessibilityStatement() {
   return (
@@ -37,9 +40,9 @@ export default function AccessibilityStatement() {
           </p>
 
           <p className="mb-6">
-            אתר זה הונגש בהתאם לתקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות
-            לשירות), התשע״ג–2013, ועומד בדרישות התקן הישראלי (ת״י 5568) לנגישות תכנים
-            באינטרנט ברמת AA, בהתאם להנחיות הנגישות הבינלאומיות WCAG 2.0.
+            אתר זה הונגש בהתאם לתקנה 35 לתקנות שוויון זכויות לאנשים עם מוגבלות (התאמות
+            נגישות לשירות), התשע״ג–2013, ועומד בדרישות התקן הישראלי ת״י 5568 חלק 1
+            לנגישות תכנים באינטרנט ברמת AA, בהתאם להנחיות הנגישות הבינלאומיות WCAG 2.1.
           </p>
 
           <h2 className="text-2xl font-bold text-white mt-10 mb-4">התאמות הנגישות באתר</h2>
@@ -70,6 +73,13 @@ export default function AccessibilityStatement() {
           <h2 className="text-2xl font-bold text-white mt-10 mb-4">פנייה בנושא נגישות</h2>
           <p className="mb-2">לכל שאלה, בקשה או דיווח על בעיית נגישות ניתן לפנות אל רכז הנגישות שלנו:</p>
           <ul className="list-disc pr-6 space-y-2 mb-6">
+            <li>שם רכז הנגישות: {COORDINATOR_NAME}</li>
+            <li>
+              טלפון:{' '}
+              <a href={`tel:${CONTACT_PHONE_TEL}`} className="text-blue-400 hover:text-blue-300 underline" dir="ltr">
+                {CONTACT_PHONE_DISPLAY}
+              </a>
+            </li>
             <li>
               דוא״ל:{' '}
               <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-400 hover:text-blue-300 underline">
@@ -79,10 +89,11 @@ export default function AccessibilityStatement() {
           </ul>
           <p className="mb-6">
             כדי שנוכל לטפל בפנייה בצורה הטובה ביותר, נודה לתיאור הבעיה, כתובת העמוד שבו
-            התרחשה, וסוג הטכנולוגיה המסייעת שבה נעשה שימוש (אם רלוונטי).
+            התרחשה, וסוג הטכנולוגיה המסייעת שבה נעשה שימוש (אם רלוונטי). אנו מתחייבים
+            להשיב לכל פנייה בנושא נגישות בתוך 14 ימי עסקים.
           </p>
 
-          <p className="text-[#64748B] text-sm mt-12">הצהרת הנגישות עודכנה לאחרונה בתאריך: 11 ביולי 2026.</p>
+          <p className="text-[#7E8CA0] text-sm mt-12">הצהרת הנגישות עודכנה לאחרונה בתאריך: 11 ביולי 2026.</p>
         </article>
       </main>
     </>

@@ -137,7 +137,7 @@ export default function Testimonials() {
                       </div>
                       <div>
                         <p className="text-white text-sm font-semibold">{t.name}</p>
-                        <p className="text-[#64748B] text-xs">{t.role}</p>
+                        <p className="text-[#7E8CA0] text-xs">{t.role}</p>
                       </div>
                     </figcaption>
                   </figure>
@@ -166,7 +166,7 @@ export default function Testimonials() {
                 aria-label={`עמוד המלצות ${i + 1}`}
                 aria-current={page === i}
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  page === i ? 'w-6 bg-blue-400' : 'w-2 bg-[#1E1E2E] hover:bg-[#2a2a3e]'
+                  page === i ? 'w-6 bg-blue-400' : 'w-2 bg-[#64748B] hover:bg-[#7E8CA0]'
                 }`}
               />
             ))}

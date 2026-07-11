@@ -60,7 +60,7 @@ export default function Pricing() {
           <h2 className="text-4xl md:text-5xl font-extrabold text-white">
             תמחור פשוט ושקוף
           </h2>
-          <p className="mt-4 text-[#64748B] text-lg max-w-xl mx-auto">
+          <p className="mt-4 text-[#7E8CA0] text-lg max-w-xl mx-auto">
             ללא דמי הקמה. ללא עלויות נסתרות. ביטול בכל עת.
           </p>
         </div>
@@ -85,11 +85,11 @@ export default function Pricing() {
 
               <div className="mb-8">
                 <h3 className="text-white font-bold text-xl mb-1">{tier.name}</h3>
-                <p className="text-[#64748B] text-sm mb-5">{tier.target}</p>
+                <p className="text-[#7E8CA0] text-sm mb-5">{tier.target}</p>
                 <div className="flex items-end gap-1">
                   <span className="text-4xl font-black text-white">{tier.price}</span>
                   {tier.period && (
-                    <span className="text-[#64748B] mb-1">{tier.period}</span>
+                    <span className="text-[#7E8CA0] mb-1">{tier.period}</span>
                   )}
                 </div>
               </div>

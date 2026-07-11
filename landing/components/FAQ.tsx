@@ -57,7 +57,7 @@ export default function FAQ() {
                   <span className="text-white font-medium text-sm md:text-base">{item.q}</span>
                   <span
                     aria-hidden="true"
-                    className="text-[#64748B] shrink-0 transition-transform duration-300"
+                    className="text-[#7E8CA0] shrink-0 transition-transform duration-300"
                     style={{ transform: open === i ? 'rotate(45deg)' : 'rotate(0)' }}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

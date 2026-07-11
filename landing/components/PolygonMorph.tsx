@@ -286,7 +286,7 @@ export default function PolygonMorph({ onAccentChange }: PolygonMorphProps) {
             aria-current={i === index}
             className="w-2 h-2 rounded-full transition-all duration-300"
             style={{
-              background: i === index ? state.accent : '#1E1E2E',
+              background: i === index ? state.accent : '#64748B',
               transform: i === index ? 'scale(1.3)' : 'scale(1)',
             }}
           />

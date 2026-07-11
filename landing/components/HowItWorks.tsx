@@ -38,7 +38,7 @@ export default function HowItWorks() {
             <br />
             ועד לאוטומציה מלאה
           </h2>
-          <p className="mt-4 text-[#64748B] text-lg max-w-xl mx-auto">
+          <p className="mt-4 text-[#7E8CA0] text-lg max-w-xl mx-auto">
             אנחנו מטפלים בהכל. אתם רק צריכים להגיע לשיחת ההיכרות.
           </p>
         </div>
@@ -55,16 +55,16 @@ export default function HowItWorks() {
                 }`}
               >
                 <div className={`${i % 2 === 0 ? 'md:text-right md:pl-16' : 'md:pr-16'}`}>
-                  <span aria-hidden="true" className="text-6xl font-black text-[#1E1E2E] leading-none block mb-3">
+                  <span aria-hidden="true" className="text-6xl font-black text-[#5D5D78] leading-none block mb-3">
                     {step.number}
                   </span>
                   <h3 className="text-2xl font-bold text-white mb-3">{step.title}</h3>
                   <p className="text-[#94A3B8] leading-relaxed">{step.desc}</p>
-                  <p className="text-[#64748B] text-sm mt-3 italic">{step.detail}</p>
+                  <p className="text-[#7E8CA0] text-sm mt-3 italic">{step.detail}</p>
                 </div>
 
                 <div aria-hidden="true" className="hidden md:flex justify-center relative">
-                  <div className="w-12 h-12 rounded-full bg-blue-500 border-4 border-[#0A0A0F] flex items-center justify-center z-10">
+                  <div className="w-12 h-12 rounded-full bg-blue-600 border-4 border-[#0A0A0F] flex items-center justify-center z-10">
                     <span className="text-white text-xs font-bold">{step.number}</span>
                   </div>
                 </div>

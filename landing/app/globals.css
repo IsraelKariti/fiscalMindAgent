@@ -5,7 +5,7 @@
   --surface: #111118;
   --border: #1E1E2E;
   --text: #F1F5F9;
-  --muted: #64748B;
+  --muted: #7E8CA0; /* ≥4.5:1 on all page/card backgrounds (WCAG 1.4.3) */
   --accent: #3B82F6;
   --accent-light: #60A5FA;
 }
@@ -179,7 +179,7 @@ body {
 /* Secondary: text link with animated underline */
 .arrow-link {
   position: relative;
-  color: #64748B;
+  color: #7E8CA0;
   font-size: 0.875rem;
   font-weight: 600;
   display: inline-flex;

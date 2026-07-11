@@ -8,7 +8,7 @@ const LINKS = {
     { label: 'אודות', href: '#' },
     { label: 'בלוג', href: '#' },
     { label: 'קריירה', href: '#' },
-    { label: 'צור קשר', href: 'mailto:hello@fiscalmind.ai' },
+    { label: 'צור קשר', href: 'mailto:admin@fiscalmind.app' },
   ],
   משפטי: [
     { label: 'מדיניות פרטיות', href: '#' },

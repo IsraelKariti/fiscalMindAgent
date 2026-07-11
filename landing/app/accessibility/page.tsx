@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     'הצהרת הנגישות של אתר FiscalMind בהתאם לתקן הישראלי 5568 ולהנחיות WCAG 2.0 ברמה AA.',
 }
 
-const CONTACT_EMAIL = 'hello@fiscalmind.ai'
+const CONTACT_EMAIL = 'admin@fiscalmind.app'
 
 export default function AccessibilityStatement() {
   return (

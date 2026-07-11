@@ -74,8 +74,10 @@ value is the legacy unprefixed `api`).
 
 Shell behavior (`Workspace.tsx`): boots on `GET /agents`; one instance →
 auto-enter (pre-agents UX); several → `AgentsHome` card grid + sidebar
-switcher; `pinnedAgentType` prop locks a surface to one type — the monday
-custom object pins `doc_collector`.
+switcher. A `pinnedAgentType` prop can lock a surface to one type; no surface
+uses it today — the monday custom object was unpinned from `doc_collector`
+once `customer_service` shipped, so it shows the same multi-agent shell as
+the standalone app.
 
 ## Adding an agent type (checklist)
 

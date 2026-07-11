@@ -1,4 +1,5 @@
-import { api, type ClientDocument, type DocumentFile } from '../api';
+import { type ClientDocument, type DocumentFile } from '../api';
+import { useWorkspaceApi } from '../agents/ApiContext';
 import { LOCALE } from '../format';
 import { useT } from '../i18n';
 
@@ -41,6 +42,7 @@ function AnalysisLine({ file }: { file: DocumentFile }) {
 
 export function FilesCard({ clientId, files, documents }: Props) {
   const { t } = useT();
+  const api = useWorkspaceApi();
   if (files.length === 0) return null;
 
   const documentName = (id: string | null) => documents.find((d) => d.id === id)?.name ?? null;

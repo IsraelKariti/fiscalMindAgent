@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { api, ApiError, type ClientDocument } from '../api';
+import { ApiError, type ClientDocument } from '../api';
+import { useWorkspaceApi } from '../agents/ApiContext';
 import { useT } from '../i18n';
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 
 export function DocumentsCard({ clientId, documents, onChanged }: Props) {
   const { t } = useT();
+  const api = useWorkspaceApi();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);

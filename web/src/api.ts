@@ -244,9 +244,79 @@ export interface MailboxAvailability {
   reason?: 'invalid' | 'reserved' | 'taken';
 }
 
+/** One enabled agent of the signed-in accountant (GET /agents). */
+export interface AgentInstance {
+  id: string;
+  agentType: string;
+  name: string;
+  enabled: boolean;
+}
+
+/**
+ * The agent-workspace endpoints, rooted at a path prefix: '' hits the legacy
+ * unprefixed mount (resolves to the doc_collector instance server-side),
+ * `/agents/<id>` hits that instance explicitly. Same handlers either way.
+ */
+function makeWorkspaceApi(prefix: string) {
+  return {
+    dashboard: () => request<DashboardSummary>(`${prefix}/dashboard`),
+    listClients: () => request<{ clients: Client[] }>(`${prefix}/clients`),
+    createClient: (args: {
+      name: string;
+      email: string;
+      documents: { name: string; description?: string | null }[];
+    }) => request<{ client: Client }>(`${prefix}/clients`, { method: 'POST', body: JSON.stringify(args) }),
+    getClient: (id: string) =>
+      request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(
+        `${prefix}/clients/${id}`,
+      ),
+    addDocument: (clientId: string, args: { name: string; description?: string | null }) =>
+      request<{ document: ClientDocument }>(`${prefix}/clients/${clientId}/documents`, {
+        method: 'POST',
+        body: JSON.stringify(args),
+      }),
+    updateDocument: (
+      clientId: string,
+      docId: string,
+      patch: Partial<Pick<ClientDocument, 'name' | 'description' | 'status'>>,
+    ) =>
+      request<{ document: ClientDocument }>(`${prefix}/clients/${clientId}/documents/${docId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    deleteDocument: (clientId: string, docId: string) =>
+      request<{ ok: true }>(`${prefix}/clients/${clientId}/documents/${docId}`, { method: 'DELETE' }),
+    updateClient: (id: string, patch: Partial<Pick<Client, 'name' | 'occupation' | 'phone' | 'company' | 'notes'>>) =>
+      request<{ client: Client }>(`${prefix}/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+    deleteClient: (id: string) => request<{ ok: true }>(`${prefix}/clients/${id}`, { method: 'DELETE' }),
+    setWhatsApp: (id: string, args: { enabled: boolean; phone?: string }) =>
+      request<{ client: Client }>(`${prefix}/clients/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(args) }),
+    listEmails: (clientId: string) => request<{ emails: Email[] }>(`${prefix}/clients/${clientId}/emails`),
+    sendScheduledNow: (clientId: string) =>
+      request<{ ok: true }>(`${prefix}/clients/${clientId}/send-now`, { method: 'POST' }),
+    setPaused: (clientId: string, paused: boolean) =>
+      request<{ client: Client }>(`${prefix}/clients/${clientId}/pause`, { method: 'PUT', body: JSON.stringify({ paused }) }),
+    retryDraft: (clientId: string) => request<{ ok: true }>(`${prefix}/clients/${clientId}/redraft`, { method: 'POST' }),
+    listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`${prefix}/clients/${clientId}/files`),
+    /** Async because the monday transport appends a freshly fetched ?sessionToken=. */
+    fileDownloadUrl: (clientId: string, fileId: string) =>
+      tokenizedUrl(`${prefix}/clients/${clientId}/files/${fileId}/download`),
+    eventsUrl: (clientId: string) => tokenizedUrl(`${prefix}/clients/${clientId}/events`),
+  };
+}
+
+export type WorkspaceApi = ReturnType<typeof makeWorkspaceApi>;
+
+/** The workspace API scoped to one agent instance (/agents/:agentId/...). */
+export function agentApi(agentId: string): WorkspaceApi {
+  return makeWorkspaceApi(`/agents/${agentId}`);
+}
+
 export const api = {
+  ...makeWorkspaceApi(''),
   me: () => request<Me>('/me'),
   logout: () => request<{ ok: true }>('/logout', { method: 'POST' }),
+  listAgents: () => request<{ agents: AgentInstance[] }>('/agents'),
   mailboxStatus: () => request<MailboxStatus>('/mailbox'),
   mailboxAvailability: (name: string) =>
     request<MailboxAvailability>(`/mailbox/availability?name=${encodeURIComponent(name)}`),
@@ -256,47 +326,6 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   waSenderStatus: () => request<WaSenderStatus>('/wa-sender'),
-  dashboard: () => request<DashboardSummary>('/dashboard'),
-  listClients: () => request<{ clients: Client[] }>('/clients'),
-  createClient: (args: {
-    name: string;
-    email: string;
-    documents: { name: string; description?: string | null }[];
-  }) => request<{ client: Client }>('/clients', { method: 'POST', body: JSON.stringify(args) }),
-  getClient: (id: string) =>
-    request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(
-      `/clients/${id}`,
-    ),
-  addDocument: (clientId: string, args: { name: string; description?: string | null }) =>
-    request<{ document: ClientDocument }>(`/clients/${clientId}/documents`, {
-      method: 'POST',
-      body: JSON.stringify(args),
-    }),
-  updateDocument: (
-    clientId: string,
-    docId: string,
-    patch: Partial<Pick<ClientDocument, 'name' | 'description' | 'status'>>,
-  ) =>
-    request<{ document: ClientDocument }>(`/clients/${clientId}/documents/${docId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(patch),
-    }),
-  deleteDocument: (clientId: string, docId: string) =>
-    request<{ ok: true }>(`/clients/${clientId}/documents/${docId}`, { method: 'DELETE' }),
-  updateClient: (id: string, patch: Partial<Pick<Client, 'name' | 'occupation' | 'phone' | 'company' | 'notes'>>) =>
-    request<{ client: Client }>(`/clients/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
-  deleteClient: (id: string) => request<{ ok: true }>(`/clients/${id}`, { method: 'DELETE' }),
-  setWhatsApp: (id: string, args: { enabled: boolean; phone?: string }) =>
-    request<{ client: Client }>(`/clients/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(args) }),
-  listEmails: (clientId: string) => request<{ emails: Email[] }>(`/clients/${clientId}/emails`),
-  sendScheduledNow: (clientId: string) => request<{ ok: true }>(`/clients/${clientId}/send-now`, { method: 'POST' }),
-  setPaused: (clientId: string, paused: boolean) =>
-    request<{ client: Client }>(`/clients/${clientId}/pause`, { method: 'PUT', body: JSON.stringify({ paused }) }),
-  retryDraft: (clientId: string) => request<{ ok: true }>(`/clients/${clientId}/redraft`, { method: 'POST' }),
-  listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`/clients/${clientId}/files`),
-  /** Async because the monday transport appends a freshly fetched ?sessionToken=. */
-  fileDownloadUrl: (clientId: string, fileId: string) => tokenizedUrl(`/clients/${clientId}/files/${fileId}/download`),
-  eventsUrl: (clientId: string) => tokenizedUrl(`/clients/${clientId}/events`),
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/admin/accountants'),
   adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, type DashboardSummary } from '../api';
+import { type DashboardSummary } from '../api';
+import { useWorkspaceApi } from '../agents/ApiContext';
 import { LOCALE } from '../format';
 import { useT } from '../i18n';
 import { ChartCard, ChartEmpty, SERIES } from './charts/common';
@@ -14,6 +15,7 @@ interface Props {
 
 export function Overview({ onSelectClient }: Props) {
   const { t } = useT();
+  const api = useWorkspaceApi();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +26,7 @@ export function Overview({ onSelectClient }: Props) {
     } catch {
       setError(t.dashboardLoadFailed);
     }
-  }, [t]);
+  }, [api, t]);
 
   // Keep the numbers current while the user watches: refetch every 30s when
   // the tab is visible, and immediately when it becomes visible again.

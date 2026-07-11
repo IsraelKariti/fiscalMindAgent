@@ -1,39 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type AccountTier, type Client, type ClientDocument, type DocumentFile, type Email, type NextScheduled } from '../api';
-import { ClientHeader } from './ClientHeader';
-import { WhatsAppCard } from './WhatsAppCard';
-import { DocumentsCard } from './DocumentsCard';
-import { FilesCard } from './FilesCard';
-import { StatTiles } from './StatTiles';
-import { Timeline } from './Timeline';
-import { DashboardCharts } from './charts/DashboardCharts';
-import { useT, type Messages } from '../i18n';
-
-const TABS = [
-  { id: 'conversation', labelKey: 'tabConversation' },
-  { id: 'dashboard', labelKey: 'tabDashboard' },
-  { id: 'documents', labelKey: 'tabDocuments' },
-  { id: 'details', labelKey: 'tabDetails' },
-] as const satisfies readonly { id: string; labelKey: keyof Messages }[];
-
-type TabId = (typeof TABS)[number]['id'];
+import type { AccountTier, Client, ClientDocument, DocumentFile, Email, NextScheduled } from '../api';
+import { useWorkspaceApi } from '../agents/ApiContext';
+import type { AgentTypeUI, ClientTabContext } from '../agents/types';
+import { useT } from '../i18n';
 
 // Per-client last-viewed tab, in memory only: switching between clients
 // restores each client's tab, but a page load always starts on Conversation.
-const lastViewedTab = new Map<string, TabId>();
+const lastViewedTab = new Map<string, string>();
 
+/**
+ * The generic per-client view: loads the client + conversation, keeps them
+ * fresh (SSE + fallback polling), tracks the drafting placeholder state, and
+ * renders the active agent type's tabs around that shared context.
+ */
 export function ClientView({
   clientId,
+  agentUI,
   onClientUpdated,
   tier,
   contactEmail,
 }: {
   clientId: string;
+  agentUI: AgentTypeUI;
   onClientUpdated: () => Promise<void>;
   tier: AccountTier | null;
   contactEmail: string | null;
 }) {
   const { t } = useT();
+  const api = useWorkspaceApi();
   // WhatsApp is premium-only. Null tier means an admin workspace — never locked.
   const premiumLocked = tier === 'normal';
   const [client, setClient] = useState<Client | null>(null);
@@ -42,9 +36,13 @@ export function ClientView({
   const [emails, setEmails] = useState<Email[]>([]);
   const [files, setFiles] = useState<DocumentFile[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>(() => lastViewedTab.get(clientId) ?? 'conversation');
+  const tabs = agentUI.clientTabs;
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const stored = lastViewedTab.get(clientId);
+    return stored && tabs.some((tab) => tab.id === stored) ? stored : (tabs[0]?.id ?? '');
+  });
 
-  const selectTab = (tab: TabId) => {
+  const selectTab = (tab: string) => {
     setActiveTab(tab);
     lastViewedTab.set(clientId, tab);
   };
@@ -69,7 +67,7 @@ export function ClientView({
       const detail = err instanceof Error ? err.message : String(err);
       setError(`${t.clientLoadFailed} [${detail}]`);
     }
-  }, [clientId, t]);
+  }, [api, clientId, t]);
 
   // Server-pushed refresh: the API streams a tick whenever this client's state changes
   // (reply stored, scheduled email canceled for redrafting, new draft scheduled, goal
@@ -90,7 +88,7 @@ export function ClientView({
       cancelled = true;
       events?.close();
     };
-  }, [clientId, load]);
+  }, [api, clientId, load]);
 
   // Goal open with nothing scheduled means the agent is drafting the next email in the
   // background (e.g. right after client creation) — poll fast so it pops in when ready.
@@ -129,10 +127,26 @@ export function ClientView({
   if (error) return <div className="error-banner">{error}</div>;
   if (!client) return <div className="muted">{t.loading}</div>;
 
+  const ctx: ClientTabContext = {
+    api,
+    client,
+    emails,
+    nextScheduled,
+    documents,
+    files,
+    load,
+    onClientUpdated,
+    setClient,
+    premiumLocked,
+    contactEmail,
+    draftFailed,
+    draftStale,
+  };
+
   return (
     <div className="client-view dashboard">
       <div className="client-tabs" role="tablist" aria-label={t.clientSectionsAria}>
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -145,83 +159,7 @@ export function ClientView({
           </button>
         ))}
       </div>
-      {activeTab === 'dashboard' && (
-        <div className="tab-pane tab-pane-dashboard" role="tabpanel">
-          <StatTiles
-            documents={documents}
-            emails={emails}
-            nextScheduled={nextScheduled}
-            goalStatus={client.goal_status}
-          />
-          <DashboardCharts documents={documents} emails={emails} files={files} nextScheduled={nextScheduled} />
-        </div>
-      )}
-      {activeTab === 'documents' && (
-        <div className="tab-pane panel-stack" role="tabpanel">
-          <DocumentsCard
-            clientId={client.id}
-            documents={documents}
-            onChanged={async () => {
-              // A document change can flip goal_status and (re)schedule emails — refresh everything.
-              await load();
-              await onClientUpdated();
-            }}
-          />
-          <FilesCard clientId={client.id} files={files} documents={documents} />
-        </div>
-      )}
-      {activeTab === 'conversation' && (
-        <div className="tab-pane tab-pane-fill" role="tabpanel">
-          <Timeline
-            emails={emails}
-            nextScheduled={nextScheduled}
-            goalStatus={client.goal_status}
-            paused={client.paused}
-            draftFailed={draftFailed}
-            draftStale={draftStale}
-            premiumLocked={premiumLocked}
-            contactEmail={contactEmail}
-            onRetryDraft={async () => {
-              await api.retryDraft(clientId);
-              // The server restamped the drafting state — refetch so the placeholder
-              // swaps back to "drafting…" immediately.
-              await load();
-            }}
-            onSendNow={async () => {
-              await api.sendScheduledNow(clientId);
-              // The SSE tick also fires, but refetch right away so the bubble reflects the send.
-              await load();
-            }}
-            onTogglePause={async (paused) => {
-              await api.setPaused(clientId, paused);
-              // Pausing holds the schedule / resuming restores or redrafts it — refresh right away.
-              await load();
-            }}
-          />
-        </div>
-      )}
-      {activeTab === 'details' && (
-        <div className="tab-pane panel-stack" role="tabpanel">
-          <ClientHeader
-            client={client}
-            onSaved={async (updated) => {
-              setClient(updated);
-              await onClientUpdated();
-            }}
-          />
-          <WhatsAppCard
-            client={client}
-            premiumLocked={premiumLocked}
-            contactEmail={contactEmail}
-            onSaved={async (updated) => {
-              setClient(updated);
-              // Toggling the channel re-plans the next message — refresh the schedule too.
-              await load();
-              await onClientUpdated();
-            }}
-          />
-        </div>
-      )}
+      {tabs.find((tab) => tab.id === activeTab)?.render(ctx)}
     </div>
   );
 }

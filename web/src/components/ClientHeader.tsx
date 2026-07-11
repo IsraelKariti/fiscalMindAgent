@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { api, type Client } from '../api';
+import { type Client } from '../api';
+import { useWorkspaceApi } from '../agents/ApiContext';
 import { LOCALE } from '../format';
 import { useT } from '../i18n';
 
@@ -91,6 +92,7 @@ function MetaChip({ icon, label, value }: { icon: React.ReactNode; label: string
 
 export function ClientHeader({ client, onSaved }: Props) {
   const { t } = useT();
+  const api = useWorkspaceApi();
   const [editing, setEditing] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => toDraft(client));

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { api, ApiError, type Client } from '../api';
+import { ApiError, type Client } from '../api';
+import { useWorkspaceApi } from '../agents/ApiContext';
 import { useT } from '../i18n';
 
 interface Props {
@@ -74,6 +75,7 @@ const DEFAULT_DOCUMENTS: DocumentDraft[] = [
 
 export function AddClientModal({ onCreated, onClose }: Props) {
   const { t } = useT();
+  const api = useWorkspaceApi();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [documents, setDocuments] = useState<DocumentDraft[]>(DEFAULT_DOCUMENTS);

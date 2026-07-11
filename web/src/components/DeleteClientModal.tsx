@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { api, ApiError, type Client } from '../api';
+import { ApiError, type Client } from '../api';
+import { useWorkspaceApi } from '../agents/ApiContext';
 import { useT } from '../i18n';
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 
 export function DeleteClientModal({ client, onDeleted, onClose }: Props) {
   const { t } = useT();
+  const api = useWorkspaceApi();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

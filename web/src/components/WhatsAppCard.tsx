@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { api, ApiError, type Client } from '../api';
+import { ApiError, type Client } from '../api';
+import { useWorkspaceApi } from '../agents/ApiContext';
 import { LOCALE } from '../format';
 import { useT } from '../i18n';
 import { UpgradeModal } from './UpgradeModal';
@@ -19,6 +20,7 @@ interface Props {
  */
 export function WhatsAppCard({ client, onSaved, premiumLocked, contactEmail }: Props) {
   const { t } = useT();
+  const api = useWorkspaceApi();
   const [phone, setPhone] = useState(client.wa_phone ?? client.phone ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

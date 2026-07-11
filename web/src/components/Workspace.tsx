@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { api, type AccountTier, type Client, type MailboxStatus } from '../api';
+import { agentApi, api, type AccountTier, type AgentInstance, type Client, type MailboxStatus } from '../api';
+import { WorkspaceApiProvider } from '../agents/ApiContext';
+import { getAgentUI } from '../agents/registry';
 import { Sidebar } from './Sidebar';
 import { ClientView } from './ClientView';
 import { PromptSettings } from './PromptSettings';
@@ -51,6 +53,7 @@ export function Workspace({
   renderImportPanel,
 }: Props) {
   const { t } = useT();
+  const [agent, setAgent] = useState<AgentInstance | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
   const [view, setView] = useState<View>({ kind: 'empty' });
@@ -58,8 +61,30 @@ export function Workspace({
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
 
+  // Which agent workspace this shell shows. One instance (everyone today)
+  // auto-enters it — same UX as before agents existed; with several, the last
+  // used one wins until the agent switcher ships.
+  useEffect(() => {
+    api
+      .listAgents()
+      .then(({ agents }) => {
+        const stored = sessionStorage.getItem('fm.lastAgentId');
+        setAgent(agents.find((a) => a.id === stored) ?? agents[0] ?? null);
+      })
+      .catch(console.error);
+  }, []);
+  useEffect(() => {
+    if (agent) sessionStorage.setItem('fm.lastAgentId', agent.id);
+  }, [agent]);
+
+  const wsApi = useMemo(() => (agent ? agentApi(agent.id) : null), [agent]);
+  const agentUI = getAgentUI(agent?.agentType ?? 'doc_collector');
+  // Per-agent so switching agents restores each one's last viewed client.
+  const lastClientKey = agent ? `fm.lastClientId.${agent.id}` : null;
+
   const loadClients = useCallback(async () => {
-    const { clients: list } = await api.listClients();
+    if (!wsApi || !lastClientKey) return;
+    const { clients: list } = await wsApi.listClients();
     setClients(list);
     setView((v) => {
       if (v.kind !== 'empty') return v;
@@ -67,22 +92,24 @@ export function Workspace({
       const lastView = sessionStorage.getItem('fm.lastView');
       if (lastView === 'overview') return { kind: 'overview' };
       if (lastView === 'settings') return { kind: 'settings' };
-      const stored = sessionStorage.getItem('fm.lastClientId');
+      const stored = sessionStorage.getItem(lastClientKey);
       const restored = stored && list.some((c) => c.id === stored) ? stored : list[0]?.id;
       return restored ? { kind: 'client', clientId: restored } : v;
     });
-  }, []);
+  }, [wsApi, lastClientKey]);
 
   useEffect(() => {
-    if (view.kind === 'client') sessionStorage.setItem('fm.lastClientId', view.clientId);
+    if (view.kind === 'client' && lastClientKey) sessionStorage.setItem(lastClientKey, view.clientId);
     if (view.kind === 'client' || view.kind === 'overview' || view.kind === 'settings')
       sessionStorage.setItem('fm.lastView', view.kind);
-  }, [view]);
+  }, [view, lastClientKey]);
 
   useEffect(() => {
     loadClients().catch(console.error);
-    api.mailboxStatus().then(setMailbox).catch(console.error);
   }, [loadClients]);
+  useEffect(() => {
+    api.mailboxStatus().then(setMailbox).catch(console.error);
+  }, []);
 
   const clientDeleted = (client: Client) => {
     setDeleting(null);
@@ -97,7 +124,13 @@ export function Workspace({
     );
   };
 
+  // Until the agent list arrives there is no workspace to scope requests to.
+  if (!agent || !wsApi) {
+    return <div className="screen-center muted">{t.loading}</div>;
+  }
+
   return (
+    <WorkspaceApiProvider value={wsApi}>
     <div className="app">
       {mailbox && !mailbox.claimed && (
         <div className="connect-banner">
@@ -133,6 +166,7 @@ export function Workspace({
             <ClientView
               key={view.clientId}
               clientId={view.clientId}
+              agentUI={agentUI}
               onClientUpdated={loadClients}
               tier={tier}
               contactEmail={contactEmail}
@@ -175,5 +209,6 @@ export function Workspace({
           document.body,
         )}
     </div>
+    </WorkspaceApiProvider>
   );
 }

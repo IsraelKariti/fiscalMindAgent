@@ -10,70 +10,13 @@ import {
 import { useWorkspaceApi } from '../agents/ApiContext';
 import { useT } from '../i18n';
 import { SettingsGroup, SettingsRow } from './SettingsUI';
+import { SourcePickerModal, type PickerSelection } from './SourcePickerModal';
 
 const removeIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M18 6 6 18M6 6l12 12" />
   </svg>
 );
-
-/**
- * A "+ Add …" button that opens a styled dropdown of the not-yet-chosen
- * items. Shared by the workdoc and board pickers so both read the same way.
- */
-function AddPicker({
-  label,
-  options,
-  onPick,
-}: {
-  label: string;
-  options: { id: string; name: string }[];
-  onPick: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open]);
-
-  return (
-    <div className="add-picker" ref={rootRef}>
-      <button
-        type="button"
-        className="btn btn-ghost btn-small"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        + {label}
-      </button>
-      {open && (
-        <ul className="add-picker-menu" role="menu">
-          {options.map((option) => (
-            <li key={option.id}>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  onPick(option.id);
-                }}
-              >
-                {option.name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 /**
  * The customer-service agent's settings sections: connect the accountant's
@@ -91,6 +34,7 @@ export function CustomerServiceSettings() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [picker, setPicker] = useState<'docs' | 'boards' | null>(null);
   const savedResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const connectPoll = useRef<ReturnType<typeof setInterval>>();
 
@@ -193,27 +137,27 @@ export function CustomerServiceSettings() {
     }
   };
 
-  const addDoc = (docId: string) => {
-    if (!settings || settings.docIds.includes(docId)) return;
-    save({ ...settings, docIds: [...settings.docIds, docId] }).catch(console.error);
+  const applyDocSelection = (selection: PickerSelection[]) => {
+    setPicker(null);
+    if (!settings) return;
+    save({ ...settings, docIds: selection.map((s) => s.id) }).catch(console.error);
+  };
+
+  const applyBoardSelection = (selection: PickerSelection[]) => {
+    setPicker(null);
+    if (!settings || !boards) return;
+    save({
+      ...settings,
+      boards: selection.flatMap(({ id, columnId }) => {
+        const board = boards.find((b) => b.id === id);
+        return board && columnId ? [{ boardId: id, phoneColumnId: columnId, boardName: board.name }] : [];
+      }),
+    }).catch(console.error);
   };
 
   const removeDoc = (docId: string) => {
     if (!settings) return;
     save({ ...settings, docIds: settings.docIds.filter((id) => id !== docId) }).catch(console.error);
-  };
-
-  const addBoard = (boardId: string) => {
-    if (!settings || !boards) return;
-    const board = boards.find((b) => b.id === boardId);
-    if (!board || settings.boards.some((b) => b.boardId === boardId)) return;
-    // Preselect the most likely phone column: a real phone column first, else the first text column.
-    const phoneColumn = board.columns.find((c) => c.type === 'phone') ?? board.columns.find((c) => c.type === 'text' || c.type === 'long_text');
-    if (!phoneColumn) return;
-    save({
-      ...settings,
-      boards: [...settings.boards, { boardId: board.id, phoneColumnId: phoneColumn.id, boardName: board.name }],
-    }).catch(console.error);
   };
 
   const removeBoard = (boardId: string) => {
@@ -242,8 +186,6 @@ export function CustomerServiceSettings() {
 
   const phoneColumnCandidates = (board: MondayBoardMeta) =>
     board.columns.filter((c) => c.type === 'phone' || c.type === 'text' || c.type === 'long_text');
-  const availableDocs = docs?.filter((d) => !settings.docIds.includes(d.id)) ?? [];
-  const availableBoards = boards?.filter((b) => !settings.boards.some((chosen) => chosen.boardId === b.id)) ?? [];
 
   return (
     <>
@@ -294,8 +236,10 @@ export function CustomerServiceSettings() {
               control={
                 docs === null ? (
                   <span className="muted">{t.loading}</span>
-                ) : availableDocs.length > 0 ? (
-                  <AddPicker label={t.csAddDoc} options={availableDocs} onPick={addDoc} />
+                ) : docs.length > 0 ? (
+                  <button type="button" className="btn btn-ghost btn-small" onClick={() => setPicker('docs')}>
+                    {t.csChooseDocs}
+                  </button>
                 ) : undefined
               }
             />
@@ -330,12 +274,10 @@ export function CustomerServiceSettings() {
               control={
                 boards === null ? (
                   <span className="muted">{t.loading}</span>
-                ) : availableBoards.length > 0 ? (
-                  <AddPicker
-                    label={t.csAddBoard}
-                    options={availableBoards.map((b) => ({ id: b.id, name: b.name }))}
-                    onPick={addBoard}
-                  />
+                ) : boards.length > 0 ? (
+                  <button type="button" className="btn btn-ghost btn-small" onClick={() => setPicker('boards')}>
+                    {t.csChooseBoards}
+                  </button>
                 ) : undefined
               }
             />
@@ -381,6 +323,36 @@ export function CustomerServiceSettings() {
             )}
           </div>
         </SettingsGroup>
+      )}
+
+      {picker === 'docs' && docs && (
+        <SourcePickerModal
+          title={t.csChooseDocs}
+          items={docs.map((d) => ({ id: d.id, name: d.name }))}
+          initial={settings.docIds.map((id) => ({ id }))}
+          onConfirm={applyDocSelection}
+          onClose={() => setPicker(null)}
+        />
+      )}
+      {picker === 'boards' && boards && (
+        <SourcePickerModal
+          title={t.csChooseBoards}
+          columnLabel={t.csPhoneColumn}
+          items={boards.map((board) => {
+            const candidates = phoneColumnCandidates(board);
+            // Preselect the most likely phone column: a real phone column first, else the first text column.
+            const preferred = candidates.find((c) => c.type === 'phone') ?? candidates[0];
+            return {
+              id: board.id,
+              name: board.name,
+              columns: candidates.map((c) => ({ id: c.id, title: c.title })),
+              defaultColumnId: preferred?.id,
+            };
+          })}
+          initial={settings.boards.map((b) => ({ id: b.boardId, columnId: b.phoneColumnId }))}
+          onConfirm={applyBoardSelection}
+          onClose={() => setPicker(null)}
+        />
       )}
     </>
   );

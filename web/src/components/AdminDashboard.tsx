@@ -15,6 +15,7 @@ import { useT } from '../i18n';
 import { AddAccountantModal } from './AddAccountantModal';
 import { ConfirmModal } from './ConfirmModal';
 import { UpgradeAccountModal } from './UpgradeAccountModal';
+import { WaPoolModal } from './WaPoolModal';
 
 interface Props {
   userEmail: string | null;
@@ -276,12 +277,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   };
 
   // Twilio-owned numbers not assigned to any agent (still billed monthly).
-  // Listed on the Settings tab and suggested in the agent cards' number
-  // inputs, so assignment happens from the agent side; null = still loading.
+  // Listed on the Settings tab and offered in the agent cards' pool-picker
+  // modal, so assignment happens from the agent side; null = still loading.
   const [orphans, setOrphans] = useState<OrphanedWaNumber[] | null>(null);
   const [orphansError, setOrphansError] = useState<string | null>(null);
   const [orphanReleasing, setOrphanReleasing] = useState<string | null>(null);
   const [orphanReleaseConfirm, setOrphanReleaseConfirm] = useState<string | null>(null);
+  // Agent instance the pool-picker modal is open for.
+  const [poolPickerId, setPoolPickerId] = useState<string | null>(null);
 
   const loadOrphans = useCallback(async () => {
     setOrphans(null);
@@ -647,8 +650,6 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                                     dir="ltr"
                                     aria-label={t.adminWaNumberLabel}
                                     placeholder={t.adminWaNumberNone}
-                                    title={t.adminWaNumberInputTitle}
-                                    list="wa-pool-numbers"
                                     value={waDrafts[row.id] ?? row.waPhoneNumber ?? ''}
                                     disabled={agentBusy}
                                     onChange={(e) => setWaDrafts((d) => ({ ...d, [row.id]: e.target.value }))}
@@ -663,6 +664,17 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                                     onClick={() => saveWaNumber(row.id, (waDrafts[row.id] ?? '').trim())}
                                   >
                                     {t.adminWaNumberSave}
+                                  </button>
+                                  <button
+                                    className="btn btn-ghost btn-small"
+                                    disabled={agentBusy}
+                                    title={t.adminWaPoolTitle}
+                                    onClick={() => {
+                                      setPoolPickerId(row.id);
+                                      void loadOrphans();
+                                    }}
+                                  >
+                                    {t.adminWaPoolButton}
                                   </button>
                                   {row.waPhoneNumber ? (
                                     <>
@@ -708,12 +720,6 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                           </li>
                         ))}
                       </ul>
-                      {/* Pool suggestions for the number inputs: owned-but-unassigned numbers. */}
-                      <datalist id="wa-pool-numbers">
-                        {(orphans ?? []).map((n) => (
-                          <option key={n.phoneNumber} value={n.phoneNumber} />
-                        ))}
-                      </datalist>
                     </div>
                   )}
                   {selectedUsage.length > 0 && (
@@ -868,6 +874,18 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
           danger
           onConfirm={() => releaseWaNumber(releaseConfirm.id)}
           onClose={() => setReleaseConfirm(null)}
+        />
+      )}
+
+      {poolPickerId && (
+        <WaPoolModal
+          numbers={orphans}
+          error={orphansError}
+          onSelect={(phoneNumber) => {
+            setPoolPickerId(null);
+            void saveWaNumber(poolPickerId, phoneNumber);
+          }}
+          onClose={() => setPoolPickerId(null)}
         />
       )}
 

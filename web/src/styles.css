@@ -475,6 +475,12 @@ code {
   box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
 }
 
+/* Inbound-only agents: the sender is muted, the agent stays silent. */
+.status-dot.wa-muted {
+  background: var(--error);
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.6);
+}
+
 .main {
   flex: 1;
   overflow-y: auto;

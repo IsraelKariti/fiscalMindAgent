@@ -188,6 +188,8 @@ export function Workspace({
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onSelectSettings={() => setView({ kind: 'settings' })}
           onAddClient={agentUI.inboundOnlyClients ? undefined : () => setAdding(true)}
+          // Inbound-only agents are goal-less; their client dot shows the mute state instead.
+          muteDots={agentUI.inboundOnlyClients}
           // The board→clients import is doc-collector behavior — agents that
           // connect monday differently (customer service: settings panel)
           // must not offer it, or their imports land in the wrong instance.

@@ -18,6 +18,11 @@ interface Props {
   onSelectSettings: () => void;
   /** Absent for inbound-only agents, whose clients enroll themselves — the + button hides. */
   onAddClient?: () => void;
+  /**
+   * Inbound-only agents have no goal to track, so the client dot shows the
+   * mute state instead: green while the agent answers, red while muted.
+   */
+  muteDots?: boolean;
   onDeleteClient: (client: Client) => void;
   userEmail: string | null;
   /** Tier of the workspace being viewed (the impersonated accountant's while impersonating). */
@@ -113,6 +118,7 @@ export function Sidebar({
   onSelectPrompt,
   onSelectSettings,
   onAddClient,
+  muteDots,
   onDeleteClient,
   userEmail,
   tier,
@@ -122,6 +128,15 @@ export function Sidebar({
   onImportClients,
 }: Props) {
   const { t } = useT();
+  const dotFor = (client: Client) =>
+    muteDots
+      ? client.wa_enabled
+        ? { cls: 'complete', title: t.muteStatusAnswering }
+        : { cls: 'wa-muted', title: t.muteStatusMuted }
+      : {
+          cls: client.goal_status,
+          title: client.goal_status === 'complete' ? t.goalCompleteTitle : t.goalPendingTitle,
+        };
   return (
     <nav className="sidebar">
       <div className="brand sidebar-brand">
@@ -166,36 +181,36 @@ export function Sidebar({
           )}
         </div>
         <ul className="client-list">
-          {clients.map((client) => (
-            <li key={client.id} className="client-row">
-              <button
-                className={`client-item ${client.id === selectedClientId ? 'selected' : ''}`}
-                onClick={() => onSelectClient(client.id)}
-              >
-                <span
-                  className={`status-dot ${client.goal_status}`}
-                  title={client.goal_status === 'complete' ? t.goalCompleteTitle : t.goalPendingTitle}
-                />
-                <span className="client-item-text">
-                  <span className="client-item-name">{displayClientName(client.name)}</span>
-                  <span className="client-item-email muted" dir="ltr">{contactLabel(client)}</span>
-                </span>
-              </button>
-              <button
-                className="client-delete"
-                title={t.deleteClientAction(displayClientName(client.name))}
-                onClick={() => onDeleteClient(client)}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                  <path d="M10 11v6" />
-                  <path d="M14 11v6" />
-                </svg>
-              </button>
-            </li>
-          ))}
+          {clients.map((client) => {
+            const dot = dotFor(client);
+            return (
+              <li key={client.id} className="client-row">
+                <button
+                  className={`client-item ${client.id === selectedClientId ? 'selected' : ''}`}
+                  onClick={() => onSelectClient(client.id)}
+                >
+                  <span className={`status-dot ${dot.cls}`} title={dot.title} />
+                  <span className="client-item-text">
+                    <span className="client-item-name">{displayClientName(client.name)}</span>
+                    <span className="client-item-email muted" dir="ltr">{contactLabel(client)}</span>
+                  </span>
+                </button>
+                <button
+                  className="client-delete"
+                  title={t.deleteClientAction(displayClientName(client.name))}
+                  onClick={() => onDeleteClient(client)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                  </svg>
+                </button>
+              </li>
+            );
+          })}
           {clients.length === 0 && <li className="muted sidebar-empty">{t.sidebarNoClients}</li>}
         </ul>
 

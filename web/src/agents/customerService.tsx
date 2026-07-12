@@ -13,6 +13,7 @@ import type { AgentTypeUI } from './types';
 export const customerServiceUI: AgentTypeUI = {
   agentType: 'customer_service',
   inboundOnlyClients: true,
+  whatsAppOnly: true,
   nameKey: 'agentCustomerServiceName',
   descriptionKey: 'agentCustomerServiceDesc',
   icon: (

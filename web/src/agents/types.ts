@@ -71,4 +71,9 @@ export interface AgentTypeUI {
    * shows an inbound-oriented empty state instead.
    */
   inboundOnlyClients?: boolean;
+  /**
+   * The agent only speaks WhatsApp — it has no mailbox, so the workspace
+   * Settings view hides the agent-mailbox section.
+   */
+  whatsAppOnly?: boolean;
 }

@@ -580,18 +580,6 @@ code {
   color: var(--primary);
 }
 
-/* "Your plan" section in Settings */
-.plan-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.plan-row p {
-  margin: 0;
-}
-
 a.plan-upgrade-btn {
   display: inline-block;
   text-decoration: none;
@@ -2738,34 +2726,46 @@ button.meta-chip:hover {
   margin: 0;
 }
 
-/* Customer-service agent: monday knowledge-source pickers */
-.settings-section h4 {
-  margin: 10px 0 0;
-  font-size: 15px;
+/* "+ Add …" pickers: a button that opens a menu of the not-yet-chosen items */
+.add-picker {
+  position: relative;
+  align-self: flex-start;
 }
 
-.cs-doc-list,
-.cs-board-list {
-  list-style: none;
+.add-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-start: 0;
+  z-index: 30;
+  min-width: 240px;
+  max-width: 360px;
+  max-height: 280px;
+  overflow-y: auto;
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
-.cs-board-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+.add-picker-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--speed) ease;
 }
 
-.cs-board-row > span:first-child {
-  font-weight: 600;
+.add-picker-menu button:hover {
+  background: var(--primary-soft);
 }
 
 /* Language picker: one chip per language, labeled in its own language */
@@ -2790,21 +2790,194 @@ button.meta-chip:hover {
   min-width: 260px;
 }
 
-/* The mailbox address reads as a copyable value, not editable text */
-.settings-mailbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: rgba(148, 163, 216, 0.06);
-}
-
+/* The WhatsApp number on the admin agent card reads as a value, not editable text */
 .settings-mailbox-address {
   font-size: 15.5px;
   font-weight: 600;
+}
+
+/* Workspace Settings: titled groups of label–control rows. Each setting is
+   one row — title + short description at the inline start, its control at
+   the inline end — with hairline dividers between rows. */
+.settings-page {
+  max-width: 720px;
+  gap: 26px;
+}
+
+.settings-header {
+  padding-inline: 6px;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-inline: 6px;
+}
+
+.settings-group-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* Transient save state next to the group label */
+.settings-group-status {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.settings-group-status-ok {
+  color: var(--success);
+}
+
+.settings-group-card {
+  background: var(--surface);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  animation: fade-up 0.35s ease both;
+}
+
+.settings-group-card > * + * {
+  border-top: 1px solid var(--border);
+}
+
+.settings-subsection {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 32px;
+  padding: 16px 18px;
+}
+
+.settings-row-text {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-row-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-row-desc {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 52ch;
+}
+
+.settings-row-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-inline-start: auto;
+}
+
+.settings-row-control > .muted {
+  font-size: 13.5px;
+  max-width: 280px;
+  text-align: end;
+}
+
+/* Wide controls (e.g. the claim-mailbox form) drop below the text instead */
+.settings-row-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Read-only values (mailbox address, WhatsApp number) */
+.settings-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(148, 163, 216, 0.07);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Chosen sources listed under their picker row */
+.settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-list-empty {
+  margin: 0;
+  padding: 0 18px 14px;
+  font-size: 13.5px;
+}
+
+.settings-list-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding-block: 8px;
+  padding-inline: 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(148, 163, 216, 0.05);
+  font-size: 14px;
+}
+
+.settings-list-name {
+  font-weight: 600;
+  margin-inline-end: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-list-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.settings-list-field select {
+  padding: 4px 10px;
+  font-size: 13.5px;
+  border-radius: 8px;
+}
+
+/* The row control sits at the card's end edge — open the picker menu inward */
+.settings-row-control .add-picker-menu {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
 }
 
 /* Upcoming follow-ups: one chip per client, wrapping across the wide card */

@@ -3,6 +3,7 @@ import { type AccountTier, type MailboxStatus, type WaSenderStatus } from '../ap
 import { useWorkspaceApi } from '../agents/ApiContext';
 import { useT, type Lang } from '../i18n';
 import { ClaimMailbox } from './ClaimMailbox';
+import { SettingsGroup, SettingsRow } from './SettingsUI';
 
 interface Props {
   mailbox: MailboxStatus | null;
@@ -12,6 +13,8 @@ interface Props {
   contactEmail: string | null;
   /** The active agent type's own settings section (AgentTypeUI.settingsPanel), if it has one. */
   agentPanel?: ReactNode;
+  /** WhatsApp-only agent (AgentTypeUI.whatsAppOnly): no mailbox to show or claim. */
+  hideMailbox?: boolean;
 }
 
 const icon = {
@@ -36,7 +39,7 @@ const LANGUAGES: { value: Lang; label: string }[] = [
   { value: 'ru', label: 'Русский' },
 ];
 
-export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel }: Props) {
+export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, hideMailbox }: Props) {
   const { t, lang, setLang } = useT();
   const [copied, setCopied] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -58,87 +61,98 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel }:
   };
 
   return (
-    <div className="client-view">
-      <section className="card">
-        <div className="card-header">
-          <div>
-            <h2>{t.settingsTitle}</h2>
-          </div>
-        </div>
+    <div className="client-view settings-page">
+      <header className="settings-header">
+        <h2>{t.settingsTitle}</h2>
+      </header>
 
-        <div className="settings-section">
-          <h3>{t.yourPlan}</h3>
-          <div className="plan-row">
-            <span className={`badge ${tier === 'premium' ? 'badge-premium' : 'badge-neutral'}`}>
-              {tier === 'premium' ? t.tierPremium : t.tierNormal}
-            </span>
-            <p className="muted">{tier === 'premium' ? t.planPremiumDesc : t.planStandardDesc}</p>
-          </div>
-          {tier !== 'premium' && contactEmail && (
-            <a
-              className="btn btn-primary plan-upgrade-btn"
-              href={`mailto:${contactEmail}?subject=${encodeURIComponent(t.upgradeMailSubject)}`}
-            >
-              {t.upgradeToPremium}
-            </a>
-          )}
-        </div>
-
-        <div className="settings-section">
-          <h3>{t.language}</h3>
-          <p className="muted">{t.languageDesc}</p>
-          <div className="lang-switch">
-            {LANGUAGES.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`chip ${lang === option.value ? 'chip-selected' : ''}`}
-                aria-pressed={lang === option.value}
-                onClick={() => setLang(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h3>{t.agentMailbox}</h3>
-          <p className="muted">{t.agentMailboxDesc}</p>
-          {address ? (
-            <div className="settings-mailbox" dir="ltr">
-              <span className="settings-mailbox-address">{address}</span>
-              <button
-                className={`icon-btn ${copied ? 'icon-btn-success' : ''}`}
-                onClick={copyMailbox}
-                title={copied ? t.copied : t.copyAddress}
-              >
-                {copied ? icon.check : icon.copy}
-              </button>
+      <SettingsGroup title={t.settingsGroupAccount}>
+        <SettingsRow
+          title={t.yourPlan}
+          description={tier === 'premium' ? t.planPremiumDesc : t.planStandardDesc}
+          control={
+            <>
+              <span className={`badge ${tier === 'premium' ? 'badge-premium' : 'badge-neutral'}`}>
+                {tier === 'premium' ? t.tierPremium : t.tierNormal}
+              </span>
+              {tier !== 'premium' && contactEmail && (
+                <a
+                  className="btn btn-primary btn-small plan-upgrade-btn"
+                  href={`mailto:${contactEmail}?subject=${encodeURIComponent(t.upgradeMailSubject)}`}
+                >
+                  {t.upgradeToPremium}
+                </a>
+              )}
+            </>
+          }
+        />
+        <SettingsRow
+          title={t.language}
+          description={t.languageDesc}
+          control={
+            <div className="lang-switch">
+              {LANGUAGES.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`chip ${lang === option.value ? 'chip-selected' : ''}`}
+                  aria-pressed={lang === option.value}
+                  onClick={() => setLang(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-          ) : mailbox ? (
-            <ClaimMailbox domain={mailbox.domain} onClaimed={onClaimed} />
-          ) : (
-            <p className="muted">{t.loading}</p>
-          )}
-        </div>
+          }
+        />
+      </SettingsGroup>
 
-        <div className="settings-section">
-          <h3>{t.agentWhatsApp}</h3>
-          <p className="muted">{t.agentWhatsAppDesc}</p>
-          {waSender === null ? (
-            <p className="muted">{t.loading}</p>
-          ) : waSender.assigned ? (
-            <div className="settings-mailbox" dir="ltr">
-              <span className="settings-mailbox-address">{waSender.phoneNumber}</span>
-            </div>
+      <SettingsGroup title={t.settingsGroupChannels}>
+        {!hideMailbox &&
+          (address ? (
+            <SettingsRow
+              title={t.agentMailbox}
+              description={t.agentMailboxDesc}
+              control={
+                <span className="settings-value" dir="ltr">
+                  {address}
+                  <button
+                    className={`icon-btn ${copied ? 'icon-btn-success' : ''}`}
+                    onClick={copyMailbox}
+                    title={copied ? t.copied : t.copyAddress}
+                  >
+                    {copied ? icon.check : icon.copy}
+                  </button>
+                </span>
+              }
+            />
           ) : (
-            <p className="muted">{t.agentWhatsAppNone}</p>
-          )}
-        </div>
+            <SettingsRow title={t.agentMailbox} description={t.agentMailboxDesc} stack>
+              {mailbox ? (
+                <ClaimMailbox domain={mailbox.domain} onClaimed={onClaimed} />
+              ) : (
+                <p className="muted">{t.loading}</p>
+              )}
+            </SettingsRow>
+          ))}
+        <SettingsRow
+          title={t.agentWhatsApp}
+          description={t.agentWhatsAppDesc}
+          control={
+            waSender === null ? (
+              <span className="muted">{t.loading}</span>
+            ) : waSender.assigned ? (
+              <span className="settings-value" dir="ltr">
+                {waSender.phoneNumber}
+              </span>
+            ) : (
+              <span className="muted">{t.agentWhatsAppNone}</span>
+            )
+          }
+        />
+      </SettingsGroup>
 
-        {agentPanel}
-      </section>
+      {agentPanel}
     </div>
   );
 }

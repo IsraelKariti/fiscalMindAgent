@@ -6,13 +6,77 @@ import {
   type MondayBoardMeta,
   type MondayConnection,
   type MondayDocMeta,
-  type WaSenderStatus,
 } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import { useT } from '../i18n';
+import { SettingsGroup, SettingsRow } from './SettingsUI';
+
+const removeIcon = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M18 6 6 18M6 6l12 12" />
+  </svg>
+);
 
 /**
- * The customer-service agent's settings section: connect the accountant's
+ * A "+ Add …" button that opens a styled dropdown of the not-yet-chosen
+ * items. Shared by the workdoc and board pickers so both read the same way.
+ */
+function AddPicker({
+  label,
+  options,
+  onPick,
+}: {
+  label: string;
+  options: { id: string; name: string }[];
+  onPick: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  return (
+    <div className="add-picker" ref={rootRef}>
+      <button
+        type="button"
+        className="btn btn-ghost btn-small"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        + {label}
+      </button>
+      {open && (
+        <ul className="add-picker-menu" role="menu">
+          {options.map((option) => (
+            <li key={option.id}>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onPick(option.id);
+                }}
+              >
+                {option.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The customer-service agent's settings sections: connect the accountant's
  * monday account (OAuth popup), then pick the knowledge workdocs and the
  * client-data boards (each with its phone column). Rendered inside the
  * workspace Settings view via AgentTypeUI.settingsPanel.
@@ -21,14 +85,12 @@ export function CustomerServiceSettings() {
   const { t } = useT();
   const wsApi = useWorkspaceApi();
   const [connection, setConnection] = useState<MondayConnection | null>(null);
-  const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
   const [settings, setSettings] = useState<CsSettings | null>(null);
   const [docs, setDocs] = useState<MondayDocMeta[] | null>(null);
   const [boards, setBoards] = useState<MondayBoardMeta[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [addingBoardId, setAddingBoardId] = useState('');
   const savedResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const connectPoll = useRef<ReturnType<typeof setInterval>>();
 
@@ -48,14 +110,12 @@ export function CustomerServiceSettings() {
 
   const load = useCallback(async () => {
     try {
-      const [conn, { settings: current }, sender] = await Promise.all([
+      const [conn, { settings: current }] = await Promise.all([
         api.mondayConnection(),
         wsApi.csGetSettings(),
-        wsApi.waSenderStatus(),
       ]);
       setConnection(conn);
       setSettings(current);
-      setWaSender(sender);
       if (conn.connected) await loadPickers();
     } catch {
       setLoadFailed(true);
@@ -133,12 +193,14 @@ export function CustomerServiceSettings() {
     }
   };
 
-  const toggleDoc = (docId: string) => {
+  const addDoc = (docId: string) => {
+    if (!settings || settings.docIds.includes(docId)) return;
+    save({ ...settings, docIds: [...settings.docIds, docId] }).catch(console.error);
+  };
+
+  const removeDoc = (docId: string) => {
     if (!settings) return;
-    const docIds = settings.docIds.includes(docId)
-      ? settings.docIds.filter((id) => id !== docId)
-      : [...settings.docIds, docId];
-    save({ ...settings, docIds }).catch(console.error);
+    save({ ...settings, docIds: settings.docIds.filter((id) => id !== docId) }).catch(console.error);
   };
 
   const addBoard = (boardId: string) => {
@@ -148,7 +210,6 @@ export function CustomerServiceSettings() {
     // Preselect the most likely phone column: a real phone column first, else the first text column.
     const phoneColumn = board.columns.find((c) => c.type === 'phone') ?? board.columns.find((c) => c.type === 'text' || c.type === 'long_text');
     if (!phoneColumn) return;
-    setAddingBoardId('');
     save({
       ...settings,
       boards: [...settings.boards, { boardId: board.id, phoneColumnId: phoneColumn.id, boardName: board.name }],
@@ -170,91 +231,127 @@ export function CustomerServiceSettings() {
 
   if (!connection || !settings) {
     return (
-      <div className="settings-section">
-        <h3>{t.csSettingsTitle}</h3>
-        <p className="muted">{loadFailed ? t.csLoadFailed : t.loading}</p>
-      </div>
+      <SettingsGroup title={t.csSettingsTitle}>
+        <SettingsRow
+          title={t.csMondayAccount}
+          control={<span className="muted">{loadFailed ? t.csLoadFailed : t.loading}</span>}
+        />
+      </SettingsGroup>
     );
   }
 
   const phoneColumnCandidates = (board: MondayBoardMeta) =>
     board.columns.filter((c) => c.type === 'phone' || c.type === 'text' || c.type === 'long_text');
+  const availableDocs = docs?.filter((d) => !settings.docIds.includes(d.id)) ?? [];
   const availableBoards = boards?.filter((b) => !settings.boards.some((chosen) => chosen.boardId === b.id)) ?? [];
 
   return (
-    <div className="settings-section">
-      <h3>{t.csSettingsTitle}</h3>
-      <p className="muted">{t.csSettingsDesc}</p>
-      {/* The number clients write to. Dedicated to this agent instance, assigned by an admin (wa_senders). */}
-      {waSender &&
-        (waSender.assigned ? (
-          <p>
-            {t.csWaNumber}{' '}
-            <strong dir="ltr">{waSender.phoneNumber}</strong>
-          </p>
-        ) : (
-          <p className="muted">{t.csWaNumberMissing}</p>
-        ))}
-      {loadFailed && <p className="muted">{t.csLoadFailed}</p>}
+    <>
+      <SettingsGroup title={t.csSettingsTitle}>
+        <SettingsRow
+          title={t.csMondayAccount}
+          description={
+            loadFailed
+              ? t.csLoadFailed
+              : !connection.configured
+                ? t.csMondayNotConfigured
+                : !connection.connected
+                  ? t.csConnectFirstHint
+                  : undefined
+          }
+          control={
+            !connection.configured ? undefined : !connection.connected ? (
+              <button type="button" className="btn btn-primary" onClick={connect}>
+                {t.csConnectMonday}
+              </button>
+            ) : (
+              <>
+                <span className="badge badge-success">{t.csMondayConnected}</span>
+                <button type="button" className="btn btn-ghost btn-small" onClick={disconnect}>
+                  {t.csDisconnect}
+                </button>
+              </>
+            )
+          }
+        />
+      </SettingsGroup>
 
-      {!connection.configured ? (
-        <p className="muted">{t.csMondayNotConfigured}</p>
-      ) : !connection.connected ? (
-        <div>
-          <p className="muted">{t.csConnectFirstHint}</p>
-          <button type="button" className="btn btn-primary" onClick={connect}>
-            {t.csConnectMonday}
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="plan-row">
-            <span className="badge badge-neutral">{t.csMondayConnected}</span>
-            <button type="button" className="btn btn-ghost btn-small" onClick={disconnect}>
-              {t.csDisconnect}
-            </button>
-            {saving ? <span className="muted">{t.loading}</span> : saved ? <span className="muted">{t.csSaved}</span> : null}
+      {connection.connected && (
+        <SettingsGroup
+          title={t.csGroupSources}
+          aside={
+            saving ? (
+              <span className="settings-group-status">{t.loading}</span>
+            ) : saved ? (
+              <span className="settings-group-status settings-group-status-ok">{t.csSaved}</span>
+            ) : undefined
+          }
+        >
+          <div className="settings-subsection">
+            <SettingsRow
+              title={t.csKnowledgeDocs}
+              description={t.csKnowledgeDocsDesc}
+              control={
+                docs === null ? (
+                  <span className="muted">{t.loading}</span>
+                ) : availableDocs.length > 0 ? (
+                  <AddPicker label={t.csAddDoc} options={availableDocs} onPick={addDoc} />
+                ) : undefined
+              }
+            />
+            {docs?.length === 0 ? (
+              <p className="settings-list-empty muted">{t.csNoDocs}</p>
+            ) : (
+              settings.docIds.length > 0 && (
+                <ul className="settings-list">
+                  {settings.docIds.map((docId) => (
+                    <li key={docId} className="settings-list-row">
+                      <span className="settings-list-name">{docs?.find((d) => d.id === docId)?.name ?? docId}</span>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        title={t.csRemove}
+                        aria-label={t.csRemove}
+                        onClick={() => removeDoc(docId)}
+                      >
+                        {removeIcon}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            )}
           </div>
 
-          <h4>{t.csKnowledgeDocs}</h4>
-          <p className="muted">{t.csKnowledgeDocsDesc}</p>
-          {docs === null ? (
-            <p className="muted">{t.loading}</p>
-          ) : docs.length === 0 ? (
-            <p className="muted">{t.csNoDocs}</p>
-          ) : (
-            <ul className="cs-doc-list">
-              {docs.map((doc) => (
-                <li key={doc.id}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={settings.docIds.includes(doc.id)}
-                      onChange={() => toggleDoc(doc.id)}
-                    />{' '}
-                    {doc.name}
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <h4>{t.csBoards}</h4>
-          <p className="muted">{t.csBoardsDesc}</p>
-          {boards === null ? (
-            <p className="muted">{t.loading}</p>
-          ) : (
-            <>
-              {settings.boards.length > 0 && (
-                <ul className="cs-board-list">
+          <div className="settings-subsection">
+            <SettingsRow
+              title={t.csBoards}
+              description={t.csBoardsDesc}
+              control={
+                boards === null ? (
+                  <span className="muted">{t.loading}</span>
+                ) : availableBoards.length > 0 ? (
+                  <AddPicker
+                    label={t.csAddBoard}
+                    options={availableBoards.map((b) => ({ id: b.id, name: b.name }))}
+                    onPick={addBoard}
+                  />
+                ) : undefined
+              }
+            />
+            {boards?.length === 0 ? (
+              <p className="settings-list-empty muted">{t.csNoBoards}</p>
+            ) : (
+              settings.boards.length > 0 && (
+                <ul className="settings-list">
                   {settings.boards.map((chosen) => {
-                    const board = boards.find((b) => b.id === chosen.boardId);
+                    const board = boards?.find((b) => b.id === chosen.boardId);
                     return (
-                      <li key={chosen.boardId} className="cs-board-row">
-                        <span>{board?.name ?? chosen.boardName ?? chosen.boardId}</span>
+                      <li key={chosen.boardId} className="settings-list-row">
+                        <span className="settings-list-name">{board?.name ?? chosen.boardName ?? chosen.boardId}</span>
                         {board && (
-                          <label>
-                            {t.csPhoneColumn}{' '}
+                          <label className="settings-list-field">
+                            <span className="muted">{t.csPhoneColumn}</span>
                             <select
                               value={chosen.phoneColumnId}
                               onChange={(e) => setPhoneColumn(chosen.boardId, e.target.value)}
@@ -269,35 +366,22 @@ export function CustomerServiceSettings() {
                         )}
                         <button
                           type="button"
-                          className="btn btn-ghost btn-small"
+                          className="icon-btn"
+                          title={t.csRemove}
+                          aria-label={t.csRemove}
                           onClick={() => removeBoard(chosen.boardId)}
                         >
-                          {t.csRemoveBoard}
+                          {removeIcon}
                         </button>
                       </li>
                     );
                   })}
                 </ul>
-              )}
-              {boards.length === 0 ? (
-                <p className="muted">{t.csNoBoards}</p>
-              ) : availableBoards.length > 0 ? (
-                <label>
-                  {t.csAddBoard}{' '}
-                  <select value={addingBoardId} onChange={(e) => addBoard(e.target.value)}>
-                    <option value="">—</option>
-                    {availableBoards.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-            </>
-          )}
-        </>
+              )
+            )}
+          </div>
+        </SettingsGroup>
       )}
-    </div>
+    </>
   );
 }

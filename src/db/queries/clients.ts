@@ -235,3 +235,7 @@ export async function removeForUser(id: string, userId: string): Promise<boolean
 export async function updateGoalStatus(id: string, goalStatus: GoalStatus): Promise<void> {
   await pool.query('UPDATE clients SET goal_status = $2, updated_at = now() WHERE id = $1', [id, goalStatus]);
 }
+
+export async function updateName(id: string, name: string): Promise<void> {
+  await pool.query('UPDATE clients SET name = $2, updated_at = now() WHERE id = $1', [id, name]);
+}

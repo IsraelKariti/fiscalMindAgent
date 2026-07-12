@@ -129,6 +129,8 @@ export function phonesMatch(cellValue: string, waPhone: string): boolean {
 
 export interface MondayBoardRows {
   boardName: string;
+  /** Display name of the first phone-verified row: the configured name column, else the item name. */
+  clientName: string | null;
   /** Phone-verified items, flattened to { column title: cell text }. */
   rows: Record<string, string>[];
 }
@@ -154,8 +156,13 @@ const PAGE_SIZE = 500;
 /** Hard cap on rows scanned per board per message, to keep one reply bounded. */
 const MAX_SCANNED_ITEMS = 2000;
 
-function cellPhoneText(item: RawItem, phoneColumnId: string): string {
-  const cell = item.column_values.find((cv) => cv.id === phoneColumnId);
+/** First non-blank item name among the verified rows. */
+function firstName(names: string[]): string | null {
+  return names.map((n) => n.trim()).find((n) => n !== '') ?? null;
+}
+
+function cellText(item: RawItem, columnId: string): string {
+  const cell = item.column_values.find((cv) => cv.id === columnId);
   return (cell?.phone ?? cell?.text ?? '').trim();
 }
 
@@ -165,11 +172,13 @@ function verifyAndFlatten(
   columns: { id: string; title: string }[],
   phoneColumnId: string,
   waPhone: string,
-): Record<string, string>[] {
+  nameColumnId?: string,
+): { rows: Record<string, string>[]; names: string[] } {
   const titles = new Map(columns.map((c) => [c.id, c.title]));
   const rows: Record<string, string>[] = [];
+  const names: string[] = [];
   for (const item of items) {
-    const cell = cellPhoneText(item, phoneColumnId);
+    const cell = cellText(item, phoneColumnId);
     if (!cell || !phonesMatch(cell, waPhone)) continue;
     const row: Record<string, string> = { שם: item.name };
     for (const cv of item.column_values) {
@@ -177,8 +186,10 @@ function verifyAndFlatten(
       if (text) row[titles.get(cv.id) ?? cv.id] = text;
     }
     rows.push(row);
+    // The configured name column, with the item name as fallback for unset config or empty cells.
+    names.push((nameColumnId ? cellText(item, nameColumnId) : '') || item.name);
   }
-  return rows;
+  return { rows, names };
 }
 
 /**
@@ -193,6 +204,7 @@ export async function fetchRowsByPhone(
   boardId: string,
   phoneColumnId: string,
   waPhone: string,
+  nameColumnId?: string,
 ): Promise<MondayBoardRows> {
   const searchTerm = significantDigits(waPhone).slice(-MIN_MATCH_DIGITS);
 
@@ -216,8 +228,8 @@ export async function fetchRowsByPhone(
   }
 
   if (filtered) {
-    const rows = verifyAndFlatten(filtered.items_page.items, filtered.columns, phoneColumnId, waPhone);
-    if (rows.length > 0) return { boardName: filtered.name, rows };
+    const { rows, names } = verifyAndFlatten(filtered.items_page.items, filtered.columns, phoneColumnId, waPhone, nameColumnId);
+    if (rows.length > 0) return { boardName: filtered.name, clientName: firstName(names), rows };
   }
 
   // Full scan fallback — also confirms a genuine "no rows for this client".
@@ -229,9 +241,9 @@ export async function fetchRowsByPhone(
       { ids: [boardId], limit: PAGE_SIZE },
     )
   ).boards?.[0];
-  if (!first) return { boardName: filtered?.name ?? boardId, rows: [] };
+  if (!first) return { boardName: filtered?.name ?? boardId, clientName: null, rows: [] };
 
-  const rows = verifyAndFlatten(first.items_page.items, first.columns, phoneColumnId, waPhone);
+  const { rows, names } = verifyAndFlatten(first.items_page.items, first.columns, phoneColumnId, waPhone, nameColumnId);
   let cursor = first.items_page.cursor;
   let scanned = first.items_page.items.length;
   while (cursor && scanned < MAX_SCANNED_ITEMS) {
@@ -242,9 +254,11 @@ export async function fetchRowsByPhone(
         { cursor, limit: PAGE_SIZE },
       )
     ).next_items_page;
-    rows.push(...verifyAndFlatten(page.items, first.columns, phoneColumnId, waPhone));
+    const verified = verifyAndFlatten(page.items, first.columns, phoneColumnId, waPhone, nameColumnId);
+    rows.push(...verified.rows);
+    names.push(...verified.names);
     scanned += page.items.length;
     cursor = page.cursor;
   }
-  return { boardName: first.name, rows };
+  return { boardName: first.name, clientName: firstName(names), rows };
 }

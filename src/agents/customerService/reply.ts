@@ -15,6 +15,12 @@ import { parseSettings } from './settings.js';
 /** Sent instead of silence when answer generation itself failed. */
 const FALLBACK_ANSWER = 'מצטערים, לא הצלחנו לטפל בפנייתך כרגע. נסו שוב מאוחר יותר או פנו למשרד ישירות.';
 
+/** True while the client still carries the auto-enroll placeholder name — their own phone number. */
+function nameIsPhonePlaceholder(name: string, waPhone: string): boolean {
+  const digits = name.replace(/\D/g, '');
+  return digits.length > 0 && digits === waPhone.replace(/\D/g, '');
+}
+
 /**
  * Fetches everything live from monday for this reply. Each source fails
  * independently into failedSources — a monday outage degrades the answer, it
@@ -36,7 +42,9 @@ async function loadKnowledge(ctx: AgentContext, waPhone: string): Promise<Knowle
 
   const [docsResult, ...boardResults] = await Promise.allSettled([
     fetchDocsText(token.access_token, settings.docIds),
-    ...settings.boards.map((board) => fetchRowsByPhone(token.access_token, board.boardId, board.phoneColumnId, waPhone)),
+    ...settings.boards.map((board) =>
+      fetchRowsByPhone(token.access_token, board.boardId, board.phoneColumnId, waPhone, board.nameColumnId),
+    ),
   ]);
 
   if (docsResult.status === 'fulfilled') knowledge.docs = docsResult.value;
@@ -91,6 +99,14 @@ export async function replyToInbound(ctx: AgentContext): Promise<void> {
 
   try {
     const knowledge = await loadKnowledge(ctx, client.wa_phone);
+    // Auto-enrolled clients are named by their phone number; once a board row
+    // matches, adopt the board item's name so the dashboard shows a person.
+    // A manually renamed client is never overwritten.
+    const boardClientName = knowledge.boardRows.map((b) => b.clientName).find((n): n is string => n !== null);
+    if (boardClientName && nameIsPhonePlaceholder(client.name, client.wa_phone)) {
+      await clients.updateName(client.id, boardClientName);
+      client.name = boardClientName;
+    }
     const history = await emails.listForClient(client.id);
     const prompt = buildPrompt(client, ctx.accountant, history, knowledge);
     const result = await generateAnswer(prompt.systemInstruction, prompt.contents);

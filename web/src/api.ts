@@ -262,7 +262,7 @@ export interface MondayConnection {
 /** The customer-service agent's per-instance config (agent_instances.settings). */
 export interface CustomerServiceSettings {
   docIds: string[];
-  boards: { boardId: string; phoneColumnId: string; boardName?: string }[];
+  boards: { boardId: string; phoneColumnId: string; nameColumnId?: string; boardName?: string }[];
 }
 
 export interface MondayDocMeta {

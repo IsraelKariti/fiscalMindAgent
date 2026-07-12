@@ -15,6 +15,8 @@ export const CustomerServiceSettingsSchema = z
           .object({
             boardId: z.string().min(1),
             phoneColumnId: z.string().min(1),
+            /** Column holding the client's display name; unset = the monday item name. */
+            nameColumnId: z.string().min(1).optional(),
             /** Display cache for the settings UI; the live fetch re-reads the real name. */
             boardName: z.string().optional(),
           })

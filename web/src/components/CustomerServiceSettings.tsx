@@ -150,7 +150,10 @@ export function CustomerServiceSettings() {
       ...settings,
       boards: selection.flatMap(({ id, columnId }) => {
         const board = boards.find((b) => b.id === id);
-        return board && columnId ? [{ boardId: id, phoneColumnId: columnId, boardName: board.name }] : [];
+        if (!board || !columnId) return [];
+        // Re-confirming the picker must not reset a previously chosen name column.
+        const existing = settings.boards.find((b) => b.boardId === id);
+        return [{ boardId: id, phoneColumnId: columnId, nameColumnId: existing?.nameColumnId, boardName: board.name }];
       }),
     }).catch(console.error);
   };
@@ -173,6 +176,15 @@ export function CustomerServiceSettings() {
     }).catch(console.error);
   };
 
+  // '' = the default (monday item name); undefined keeps the stored settings free of the key.
+  const setNameColumn = (boardId: string, nameColumnId: string) => {
+    if (!settings) return;
+    save({
+      ...settings,
+      boards: settings.boards.map((b) => (b.boardId === boardId ? { ...b, nameColumnId: nameColumnId || undefined } : b)),
+    }).catch(console.error);
+  };
+
   if (!connection || !settings) {
     return (
       <SettingsGroup title={t.csSettingsTitle}>
@@ -186,6 +198,9 @@ export function CustomerServiceSettings() {
 
   const phoneColumnCandidates = (board: MondayBoardMeta) =>
     board.columns.filter((c) => c.type === 'phone' || c.type === 'text' || c.type === 'long_text');
+
+  // Any column can hold the display name; the built-in item-name column is the dropdown's default option.
+  const nameColumnCandidates = (board: MondayBoardMeta) => board.columns.filter((c) => c.type !== 'name');
 
   return (
     <>
@@ -292,19 +307,35 @@ export function CustomerServiceSettings() {
                       <li key={chosen.boardId} className="settings-list-row">
                         <span className="settings-list-name">{board?.name ?? chosen.boardName ?? chosen.boardId}</span>
                         {board && (
-                          <label className="settings-list-field">
-                            <span className="muted">{t.csPhoneColumn}</span>
-                            <select
-                              value={chosen.phoneColumnId}
-                              onChange={(e) => setPhoneColumn(chosen.boardId, e.target.value)}
-                            >
-                              {phoneColumnCandidates(board).map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.title}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
+                          <>
+                            <label className="settings-list-field">
+                              <span className="muted">{t.csPhoneColumn}</span>
+                              <select
+                                value={chosen.phoneColumnId}
+                                onChange={(e) => setPhoneColumn(chosen.boardId, e.target.value)}
+                              >
+                                {phoneColumnCandidates(board).map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.title}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="settings-list-field">
+                              <span className="muted">{t.csNameColumn}</span>
+                              <select
+                                value={chosen.nameColumnId ?? ''}
+                                onChange={(e) => setNameColumn(chosen.boardId, e.target.value)}
+                              >
+                                <option value="">{t.csNameColumnDefault}</option>
+                                {nameColumnCandidates(board).map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.title}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </>
                         )}
                         <button
                           type="button"

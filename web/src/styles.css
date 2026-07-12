@@ -1739,7 +1739,7 @@ textarea {
 .admin-main {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1749,39 +1749,165 @@ textarea {
   margin: 0 auto;
 }
 
-/* Admin accountants: master-detail split — a compact roster on the start
-   side and a detail card for the selected accountant on the other half. */
-.admin-split {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(0, 1.3fr);
-  gap: 14px;
-}
-
-/* The page never scrolls; each half of the split scrolls on its own, so the
-   topbar and tab titles stay put. */
-.admin-split-list,
-.admin-split-detail {
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.admin-accountant-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Admin drill-down navigation: roster table → accountant page → agent page */
+.breadcrumbs {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
 }
 
-.admin-accountant-list .client-item {
-  justify-content: space-between;
+.breadcrumb-link {
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--speed) ease;
 }
 
-.admin-list-badge {
+.breadcrumb-link:hover {
+  color: var(--text);
+}
+
+.breadcrumb-sep {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.breadcrumb-current {
+  font-weight: 600;
+}
+
+/* Roster toolbar: search + status filter above the table */
+.admin-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-search {
+  flex: 1;
+  max-width: 340px;
+}
+
+/* The accountant roster table; a row opens the accountant's page */
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px;
+  text-align: start;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-table th {
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.admin-table-row {
+  cursor: pointer;
+  transition: background var(--speed) ease;
+}
+
+.admin-table-row:hover,
+.admin-table-row:focus-visible {
+  background: rgba(148, 163, 216, 0.08);
+  outline: none;
+}
+
+.admin-table-name {
+  font-weight: 600;
+}
+
+/* Agent summary rows on the accountant page: number + status only — the
+   configuration itself lives on the agent's own page. */
+.admin-agent-summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-shrink: 0;
+  font-size: 14px;
+}
+
+/* Destructive actions sit at the bottom of the page, visually fenced off */
+.danger-zone {
+  border-color: rgba(251, 113, 133, 0.35);
+}
+
+.danger-zone h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  color: var(--error);
+}
+
+.danger-zone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.danger-zone-row p {
+  margin: 0;
+}
+
+.danger-action {
+  color: var(--error);
+  border-color: rgba(251, 113, 133, 0.4);
+}
+
+.danger-action:not(:disabled):hover {
+  background: var(--error-bg);
+  border-color: rgba(251, 113, 133, 0.6);
+}
+
+/* Agent page: the assigned WhatsApp number and its lifecycle actions */
+.wa-number-display {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.wa-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.wa-action-row.danger {
+  border-color: rgba(251, 113, 133, 0.35);
+}
+
+.wa-manual-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.wa-manual-entry input {
+  max-width: 190px;
+  padding: 6px 10px;
+  font-size: 14px;
 }
 
 .admin-detail-note {
@@ -1820,19 +1946,11 @@ textarea {
 }
 
 @media (max-width: 860px) {
-  /* Stacked cards can't share the viewport height, so revert to page scroll. */
-  .admin-main {
-    overflow-y: auto;
-  }
-
-  .admin-split {
-    flex: none;
-    grid-template-columns: 1fr;
-  }
-
-  .admin-split-list,
-  .admin-split-detail {
-    overflow-y: visible;
+  /* Explanation + action rows stack when there is no room side by side. */
+  .danger-zone-row,
+  .wa-action-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
@@ -2520,20 +2638,6 @@ button.meta-chip:hover {
 .admin-row-actions {
   white-space: nowrap;
   justify-content: flex-end;
-}
-
-/* Admin agents list: per-instance WhatsApp number editor under the agent name */
-.admin-wa-editor {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.admin-wa-editor input {
-  max-width: 200px;
-  padding: 4px 8px;
-  font-size: 14px;
 }
 
 /* Workspace overview dashboard (sidebar "דשבורד") */

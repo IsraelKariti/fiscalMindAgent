@@ -204,6 +204,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       await api.adminSetWaSender(agentInstanceId, phoneNumber);
       setWaDrafts(({ [agentInstanceId]: _saved, ...rest }) => rest);
       setAgentInfo(await api.adminListAccountantAgents(selectedUserId));
+      void loadOrphans();
     } catch (err) {
       setError(err instanceof ApiError && err.status === 409 ? t.adminWaNumberConflict : t.adminWaNumberSaveFailed);
     } finally {
@@ -226,6 +227,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       await api.adminProvisionWaSender(agentInstanceId);
       setWaDrafts(({ [agentInstanceId]: _bought, ...rest }) => rest);
       setAgentInfo(await api.adminListAccountantAgents(selectedUserId));
+      void loadOrphans();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t.adminWaNumberBuyFailed);
     } finally {
@@ -242,6 +244,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       await api.adminDeleteWaSender(agentInstanceId);
       setWaDrafts(({ [agentInstanceId]: _removed, ...rest }) => rest);
       setAgentInfo(await api.adminListAccountantAgents(selectedUserId));
+      void loadOrphans();
     } catch {
       setError(t.adminWaNumberSaveFailed);
     } finally {
@@ -263,6 +266,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       await api.adminReleaseWaSender(agentInstanceId);
       setWaDrafts(({ [agentInstanceId]: _released, ...rest }) => rest);
       setAgentInfo(await api.adminListAccountantAgents(selectedUserId));
+      void loadOrphans();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t.adminWaNumberReleaseFailed);
     } finally {
@@ -272,7 +276,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   };
 
   // Twilio-owned numbers not assigned to any agent (still billed monthly).
-  // Loaded when the Settings tab opens; null = still loading.
+  // Listed on the Settings tab and suggested in the agent cards' number
+  // inputs, so assignment happens from the agent side; null = still loading.
   const [orphans, setOrphans] = useState<OrphanedWaNumber[] | null>(null);
   const [orphansError, setOrphansError] = useState<string | null>(null);
   const [orphanReleasing, setOrphanReleasing] = useState<string | null>(null);
@@ -291,7 +296,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   }, []);
 
   useEffect(() => {
-    if (tab === 'settings') loadOrphans();
+    if (tab === 'settings' || tab === 'accountants') loadOrphans();
   }, [tab, loadOrphans]);
 
   const releaseOrphan = async (phoneNumber: string) => {
@@ -642,6 +647,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                                     dir="ltr"
                                     aria-label={t.adminWaNumberLabel}
                                     placeholder={t.adminWaNumberNone}
+                                    title={t.adminWaNumberInputTitle}
+                                    list="wa-pool-numbers"
                                     value={waDrafts[row.id] ?? row.waPhoneNumber ?? ''}
                                     disabled={agentBusy}
                                     onChange={(e) => setWaDrafts((d) => ({ ...d, [row.id]: e.target.value }))}
@@ -701,6 +708,12 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                           </li>
                         ))}
                       </ul>
+                      {/* Pool suggestions for the number inputs: owned-but-unassigned numbers. */}
+                      <datalist id="wa-pool-numbers">
+                        {(orphans ?? []).map((n) => (
+                          <option key={n.phoneNumber} value={n.phoneNumber} />
+                        ))}
+                      </datalist>
                     </div>
                   )}
                   {selectedUsage.length > 0 && (

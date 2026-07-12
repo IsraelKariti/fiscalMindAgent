@@ -77,6 +77,7 @@ const he = {
   adminAgentsUpdateFailed: 'עדכון הסוכנים נכשל.',
   adminWaNumberLabel: 'מספר WhatsApp',
   adminWaNumberNone: 'לא הוקצה מספר',
+  adminWaNumberInputTitle: 'אפשר להקליד מספר או לבחור מספר פנוי מהמאגר מהרשימה הנפתחת.',
   adminWaNumberSave: 'שמירה',
   adminWaNumberRemove: 'הסרה',
   adminWaNumberRemoveTitle: 'ביטול הקצאת המספר לסוכן בלבד — המספר נשאר בחשבון Twilio (והחיוב נמשך) וניתן להקצות אותו מחדש.',
@@ -531,6 +532,7 @@ const en: Messages = {
   adminAgentsUpdateFailed: 'Updating agents failed.',
   adminWaNumberLabel: 'WhatsApp number',
   adminWaNumberNone: 'No number assigned',
+  adminWaNumberInputTitle: 'Type a number, or pick an unassigned pool number from the dropdown.',
   adminWaNumberSave: 'Save',
   adminWaNumberRemove: 'Remove',
   adminWaNumberRemoveTitle:
@@ -988,6 +990,7 @@ const ru: Messages = {
   adminAgentsUpdateFailed: 'Не удалось обновить агентов.',
   adminWaNumberLabel: 'Номер WhatsApp',
   adminWaNumberNone: 'Номер не назначен',
+  adminWaNumberInputTitle: 'Введите номер или выберите свободный номер из выпадающего списка.',
   adminWaNumberSave: 'Сохранить',
   adminWaNumberRemove: 'Убрать',
   adminWaNumberRemoveTitle:

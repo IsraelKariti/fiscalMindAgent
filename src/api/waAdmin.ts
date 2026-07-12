@@ -5,6 +5,7 @@ import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
 import {
   isProvisioningConfigured,
+  listOwnedNumbers,
   NumberNotOwnedError,
   provisionWhatsAppNumber,
   releaseWhatsAppNumber,
@@ -140,6 +141,57 @@ export const adminDeleteWaSender: RequestHandler = async (req, res) => {
   }
   await waSenders.deleteForInstance(instanceId.data);
   logger.info('wa sender unassigned', { adminUserId: req.realUserId, agentInstanceId: instanceId.data });
+  res.json({ ok: true });
+};
+
+/**
+ * GET /api/admin/wa-numbers/orphaned — numbers the Twilio account owns (and is
+ * billed monthly for) that are not assigned to any agent instance.
+ */
+export const adminListOrphanedWaNumbers: RequestHandler = async (_req, res) => {
+  if (!isTwilioConfigured()) {
+    res.status(503).json({ error: 'Twilio is not configured: set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.' });
+    return;
+  }
+  const [owned, senders] = await Promise.all([listOwnedNumbers(), waSenders.listAll()]);
+  const assigned = new Set(senders.map((s) => s.phone_number));
+  res.json({ numbers: owned.filter((n) => !assigned.has(n.phoneNumber)) });
+};
+
+const OrphanedReleaseSchema = z.object({ phoneNumber: z.string().min(1) }).strict();
+
+/**
+ * POST /api/admin/wa-numbers/release — permanently release an *unassigned*
+ * owned number back to Twilio (assigned numbers go through the per-instance
+ * release endpoint, which also clears the assignment).
+ */
+export const adminReleaseOrphanedWaNumber: RequestHandler = async (req, res) => {
+  const parsed = OrphanedReleaseSchema.safeParse(req.body);
+  const phoneNumber = parsed.success ? normalizeE164(parsed.data.phoneNumber) : null;
+  if (!phoneNumber) {
+    res.status(400).json({ error: 'Expected { phoneNumber } as a valid E.164 number.' });
+    return;
+  }
+  if (!isTwilioConfigured()) {
+    res.status(503).json({ error: 'Twilio is not configured: set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.' });
+    return;
+  }
+  if (await waSenders.getByPhoneNumber(phoneNumber)) {
+    res.status(409).json({ error: 'This number is assigned to an agent; release it from that agent instead.' });
+    return;
+  }
+  try {
+    await releaseWhatsAppNumber(phoneNumber);
+  } catch (err) {
+    if (err instanceof NumberNotOwnedError) {
+      res.status(404).json({ error: err.message });
+      return;
+    }
+    logger.error('orphaned wa number release failed', err);
+    res.status(502).json({ error: 'Releasing the number on Twilio failed.' });
+    return;
+  }
+  logger.info('orphaned wa number released', { adminUserId: req.realUserId, phoneNumber });
   res.json({ ok: true });
 };
 

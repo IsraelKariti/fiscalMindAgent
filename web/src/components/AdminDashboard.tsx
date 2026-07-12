@@ -6,6 +6,7 @@ import {
   type AccountTier,
   type AgentInstance,
   type GeminiModelState,
+  type OrphanedWaNumber,
   type WhitelistEntry,
 } from '../api';
 import { getAgentUI } from '../agents/registry';
@@ -267,6 +268,42 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     } finally {
       setAgentBusy(false);
       setReleasingId(null);
+    }
+  };
+
+  // Twilio-owned numbers not assigned to any agent (still billed monthly).
+  // Loaded when the Settings tab opens; null = still loading.
+  const [orphans, setOrphans] = useState<OrphanedWaNumber[] | null>(null);
+  const [orphansError, setOrphansError] = useState<string | null>(null);
+  const [orphanReleasing, setOrphanReleasing] = useState<string | null>(null);
+  const [orphanReleaseConfirm, setOrphanReleaseConfirm] = useState<string | null>(null);
+
+  const loadOrphans = useCallback(async () => {
+    setOrphans(null);
+    setOrphansError(null);
+    try {
+      setOrphans((await api.adminListOrphanedWaNumbers()).numbers);
+    } catch (err) {
+      setOrphans([]);
+      setOrphansError(err instanceof ApiError ? err.message : t.adminOrphanNumbersLoadFailed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'settings') loadOrphans();
+  }, [tab, loadOrphans]);
+
+  const releaseOrphan = async (phoneNumber: string) => {
+    setOrphanReleasing(phoneNumber);
+    setOrphansError(null);
+    try {
+      await api.adminReleaseOrphanedWaNumber(phoneNumber);
+      setOrphans((await api.adminListOrphanedWaNumbers()).numbers);
+    } catch (err) {
+      setOrphansError(err instanceof ApiError ? err.message : t.adminWaNumberReleaseFailed);
+    } finally {
+      setOrphanReleasing(null);
     }
   };
 
@@ -625,6 +662,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                                       <button
                                         className="btn btn-ghost btn-small"
                                         disabled={agentBusy}
+                                        title={t.adminWaNumberRemoveTitle}
                                         onClick={() => removeWaNumber(row.id)}
                                       >
                                         {t.adminWaNumberRemove}
@@ -632,6 +670,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                                       <button
                                         className="btn btn-ghost btn-small"
                                         disabled={agentBusy}
+                                        title={t.adminWaNumberReleaseTitle}
                                         onClick={() =>
                                           setReleaseConfirm({ id: row.id, phoneNumber: row.waPhoneNumber! })
                                         }
@@ -749,6 +788,40 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                 </>
               )}
             </div>
+            <div className="settings-section">
+              <h3>{t.adminOrphanNumbersTitle}</h3>
+              <p className="muted">{t.adminOrphanNumbersDesc}</p>
+              {orphansError && <div className="error-banner">{orphansError}</div>}
+              {orphans === null ? (
+                <p className="muted">{t.loading}</p>
+              ) : orphans.length === 0 ? (
+                !orphansError && <p className="muted">{t.adminOrphanNumbersEmpty}</p>
+              ) : (
+                <ul className="doc-list">
+                  {orphans.map((n) => (
+                    <li key={n.phoneNumber} className="doc-row">
+                      <span className="doc-text">
+                        <span className="doc-name" dir="ltr">
+                          {n.phoneNumber}
+                        </span>
+                        <span className="doc-desc muted">
+                          {n.friendlyName && n.friendlyName !== n.phoneNumber ? `${n.friendlyName} · ` : ''}
+                          {formatTimestamp(n.dateCreated)}
+                        </span>
+                      </span>
+                      <button
+                        className="btn btn-ghost btn-small"
+                        disabled={orphanReleasing !== null}
+                        title={t.adminWaNumberReleaseTitle}
+                        onClick={() => setOrphanReleaseConfirm(n.phoneNumber)}
+                      >
+                        {orphanReleasing === n.phoneNumber ? t.adminWaNumberReleasing : t.adminWaNumberRelease}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
         )}
       </main>
@@ -782,6 +855,17 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
           danger
           onConfirm={() => releaseWaNumber(releaseConfirm.id)}
           onClose={() => setReleaseConfirm(null)}
+        />
+      )}
+
+      {orphanReleaseConfirm && (
+        <ConfirmModal
+          title={t.adminWaNumberRelease}
+          note={t.adminWaNumberReleaseConfirm(orphanReleaseConfirm)}
+          confirmLabel={t.adminWaNumberRelease}
+          danger
+          onConfirm={() => releaseOrphan(orphanReleaseConfirm)}
+          onClose={() => setOrphanReleaseConfirm(null)}
         />
       )}
 

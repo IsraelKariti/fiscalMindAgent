@@ -75,6 +75,23 @@ export async function provisionWhatsAppNumber(friendlyName: string): Promise<Pro
   }
 }
 
+export interface OwnedNumber {
+  /** E.164 number. */
+  phoneNumber: string;
+  friendlyName: string;
+  dateCreated: string;
+}
+
+/** Every number the Twilio account currently owns (and pays monthly rent for). */
+export async function listOwnedNumbers(): Promise<OwnedNumber[]> {
+  const numbers = await twilioClient().incomingPhoneNumbers.list();
+  return numbers.map((n) => ({
+    phoneNumber: n.phoneNumber,
+    friendlyName: n.friendlyName,
+    dateCreated: n.dateCreated.toISOString(),
+  }));
+}
+
 /** The number isn't on this Twilio account, so there is nothing to release. */
 export class NumberNotOwnedError extends Error {
   constructor(phoneNumber: string) {

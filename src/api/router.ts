@@ -28,9 +28,11 @@ import {
   adminCreateWaTemplate,
   adminDeleteWaSender,
   adminDeleteWaTemplate,
+  adminListOrphanedWaNumbers,
   adminListWaSenders,
   adminListWaTemplates,
   adminProvisionWaSender,
+  adminReleaseOrphanedWaNumber,
   adminReleaseWaSender,
   adminUpsertWaSender,
 } from './waAdmin.js';
@@ -81,6 +83,8 @@ apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender
 apiRouter.post('/admin/wa-senders/provision', wrap(requireAdmin), wrap(adminProvisionWaSender));
 apiRouter.delete('/admin/wa-senders/:agentInstanceId', wrap(requireAdmin), wrap(adminDeleteWaSender));
 apiRouter.post('/admin/wa-senders/:agentInstanceId/release', wrap(requireAdmin), wrap(adminReleaseWaSender));
+apiRouter.get('/admin/wa-numbers/orphaned', wrap(requireAdmin), wrap(adminListOrphanedWaNumbers));
+apiRouter.post('/admin/wa-numbers/release', wrap(requireAdmin), wrap(adminReleaseOrphanedWaNumber));
 apiRouter.get('/admin/wa-templates', wrap(requireAdmin), wrap(adminListWaTemplates));
 apiRouter.post('/admin/wa-templates', wrap(requireAdmin), wrap(adminCreateWaTemplate));
 apiRouter.delete('/admin/wa-templates/:id', wrap(requireAdmin), wrap(adminDeleteWaTemplate));

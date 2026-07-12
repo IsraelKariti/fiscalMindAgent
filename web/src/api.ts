@@ -216,6 +216,13 @@ export interface GeminiModelState {
   options: string[];
 }
 
+/** A Twilio-owned (billed) number not assigned to any agent instance. */
+export interface OrphanedWaNumber {
+  phoneNumber: string;
+  friendlyName: string;
+  dateCreated: string;
+}
+
 export type AccountTier = 'normal' | 'premium';
 
 export interface WhitelistEntry {
@@ -392,6 +399,9 @@ export const api = {
     request<{ ok: true }>(`/admin/wa-senders/${agentInstanceId}`, { method: 'DELETE' }),
   adminReleaseWaSender: (agentInstanceId: string) =>
     request<{ ok: true }>(`/admin/wa-senders/${agentInstanceId}/release`, { method: 'POST' }),
+  adminListOrphanedWaNumbers: () => request<{ numbers: OrphanedWaNumber[] }>('/admin/wa-numbers/orphaned'),
+  adminReleaseOrphanedWaNumber: (phoneNumber: string) =>
+    request<{ ok: true }>('/admin/wa-numbers/release', { method: 'POST', body: JSON.stringify({ phoneNumber }) }),
   adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),

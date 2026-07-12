@@ -79,6 +79,7 @@ const he = {
   adminWaNumberNone: 'לא הוקצה מספר',
   adminWaNumberSave: 'שמירה',
   adminWaNumberRemove: 'הסרה',
+  adminWaNumberRemoveTitle: 'ביטול הקצאת המספר לסוכן בלבד — המספר נשאר בחשבון Twilio (והחיוב נמשך) וניתן להקצות אותו מחדש.',
   adminWaNumberSaveFailed: 'עדכון מספר ה-WhatsApp נכשל.',
   adminWaNumberConflict: 'המספר הזה כבר מוקצה לסוכן אחר.',
   adminWaNumberBuy: 'קניית מספר',
@@ -86,10 +87,16 @@ const he = {
   adminWaNumberBuyConfirm: 'לקנות מספר WhatsApp חדש מ-Twilio (בערך ‎$1.15 לחודש)? המספר יירשם ויוקצה לסוכן הזה אוטומטית.',
   adminWaNumberBuyFailed: 'קניית המספר נכשלה.',
   adminWaNumberRelease: 'שחרור מספר',
+  adminWaNumberReleaseTitle: 'החזרת המספר ל-Twilio לצמיתות — החיוב החודשי נפסק והמספר לא ניתן לשחזור.',
   adminWaNumberReleasing: 'משחרר מספר…',
   adminWaNumberReleaseConfirm: (phoneNumber: string) =>
     `לשחרר את ‎${phoneNumber} בחזרה ל-Twilio? החיוב החודשי ייפסק, המספר יימחק מהחשבון ולא ניתן יהיה לשחזר אותו.`,
   adminWaNumberReleaseFailed: 'שחרור המספר נכשל.',
+  adminOrphanNumbersTitle: 'מספרי WhatsApp לא משויכים',
+  adminOrphanNumbersDesc:
+    'מספרים שבבעלות חשבון ה-Twilio (ומחויבים חודשית) אך אינם משויכים לאף סוכן. אפשר לשייך מספר מחדש דרך כרטיס הסוכן, או לשחרר אותו כאן כדי להפסיק את החיוב.',
+  adminOrphanNumbersEmpty: 'כל המספרים בחשבון משויכים לסוכנים.',
+  adminOrphanNumbersLoadFailed: 'טעינת המספרים הלא משויכים נכשלה.',
 
   // Sidebar
   navDashboard: 'דשבורד',
@@ -526,6 +533,8 @@ const en: Messages = {
   adminWaNumberNone: 'No number assigned',
   adminWaNumberSave: 'Save',
   adminWaNumberRemove: 'Remove',
+  adminWaNumberRemoveTitle:
+    'Unassign the number from this agent only — it stays on the Twilio account (billing continues) and can be reassigned.',
   adminWaNumberSaveFailed: 'Updating the WhatsApp number failed.',
   adminWaNumberConflict: 'This number is already assigned to another agent.',
   adminWaNumberBuy: 'Buy number',
@@ -534,10 +543,17 @@ const en: Messages = {
     'Buy a new WhatsApp number from Twilio (~$1.15/month)? It will be registered and assigned to this agent automatically.',
   adminWaNumberBuyFailed: 'Buying the number failed.',
   adminWaNumberRelease: 'Release number',
+  adminWaNumberReleaseTitle:
+    'Permanently return the number to Twilio — monthly billing stops and the number cannot be recovered.',
   adminWaNumberReleasing: 'Releasing number…',
   adminWaNumberReleaseConfirm: (phoneNumber: string) =>
     `Release ${phoneNumber} back to Twilio? Monthly billing stops, the number is removed from the account and cannot be recovered.`,
   adminWaNumberReleaseFailed: 'Releasing the number failed.',
+  adminOrphanNumbersTitle: 'Unassigned WhatsApp numbers',
+  adminOrphanNumbersDesc:
+    'Numbers the Twilio account owns (and is billed monthly for) that are not assigned to any agent. Reassign a number from an agent card, or release it here to stop the billing.',
+  adminOrphanNumbersEmpty: 'Every owned number is assigned to an agent.',
+  adminOrphanNumbersLoadFailed: 'Loading the unassigned numbers failed.',
 
   // Sidebar
   navDashboard: 'Dashboard',
@@ -974,6 +990,8 @@ const ru: Messages = {
   adminWaNumberNone: 'Номер не назначен',
   adminWaNumberSave: 'Сохранить',
   adminWaNumberRemove: 'Убрать',
+  adminWaNumberRemoveTitle:
+    'Только отвязать номер от этого агента — он остаётся на аккаунте Twilio (оплата продолжается) и может быть назначен снова.',
   adminWaNumberSaveFailed: 'Не удалось обновить номер WhatsApp.',
   adminWaNumberConflict: 'Этот номер уже назначен другому агенту.',
   adminWaNumberBuy: 'Купить номер',
@@ -982,10 +1000,17 @@ const ru: Messages = {
     'Купить новый номер WhatsApp у Twilio (~$1.15/мес)? Он будет зарегистрирован и назначен этому агенту автоматически.',
   adminWaNumberBuyFailed: 'Не удалось купить номер.',
   adminWaNumberRelease: 'Освободить номер',
+  adminWaNumberReleaseTitle:
+    'Навсегда вернуть номер Twilio — ежемесячная оплата прекращается, восстановить номер нельзя.',
   adminWaNumberReleasing: 'Освобождение номера…',
   adminWaNumberReleaseConfirm: (phoneNumber: string) =>
     `Освободить ${phoneNumber} и вернуть его Twilio? Ежемесячная оплата прекратится, номер будет удалён из аккаунта и восстановить его будет невозможно.`,
   adminWaNumberReleaseFailed: 'Не удалось освободить номер.',
+  adminOrphanNumbersTitle: 'Неназначенные номера WhatsApp',
+  adminOrphanNumbersDesc:
+    'Номера, принадлежащие аккаунту Twilio (с ежемесячной оплатой), но не назначенные ни одному агенту. Назначьте номер в карточке агента или освободите его здесь, чтобы прекратить оплату.',
+  adminOrphanNumbersEmpty: 'Все номера аккаунта назначены агентам.',
+  adminOrphanNumbersLoadFailed: 'Не удалось загрузить неназначенные номера.',
 
   // Sidebar
   navDashboard: 'Панель',

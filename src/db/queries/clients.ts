@@ -28,15 +28,6 @@ export async function getByEmailAddressForUser(userId: string, emailAddress: str
   return rows[0] ?? null;
 }
 
-/** Inbound WhatsApp routing: the accountant's client with this (E.164) number. */
-export async function getByWaPhoneForUser(userId: string, waPhone: string): Promise<ClientRow | null> {
-  const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE user_id = $1 AND wa_phone = $2', [
-    userId,
-    waPhone,
-  ]);
-  return rows[0] ?? null;
-}
-
 export async function insert(args: {
   userId: string;
   /** Callers without agent scope (monday import) default to the user's doc_collector instance. */

@@ -76,7 +76,7 @@ apiRouter.put('/admin/whitelist/:email/tier', wrap(requireAdmin), wrap(adminSetT
 
 apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));
 apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender));
-apiRouter.delete('/admin/wa-senders/:userId', wrap(requireAdmin), wrap(adminDeleteWaSender));
+apiRouter.delete('/admin/wa-senders/:agentInstanceId', wrap(requireAdmin), wrap(adminDeleteWaSender));
 apiRouter.get('/admin/wa-templates', wrap(requireAdmin), wrap(adminListWaTemplates));
 apiRouter.post('/admin/wa-templates', wrap(requireAdmin), wrap(adminCreateWaTemplate));
 apiRouter.delete('/admin/wa-templates/:id', wrap(requireAdmin), wrap(adminDeleteWaTemplate));
@@ -117,7 +117,7 @@ apiRouter.post(
   }),
 );
 
-// Account-level routes shared by every agent (mailbox, WhatsApp sender).
+// Account-level routes shared by every agent (mailbox, monday connection).
 apiRouter.use(accountRouter);
 
 // The agent workspace (clients, documents, files, conversation), shared with

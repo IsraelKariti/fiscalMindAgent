@@ -51,7 +51,7 @@ export function CustomerServiceSettings() {
       const [conn, { settings: current }, sender] = await Promise.all([
         api.mondayConnection(),
         wsApi.csGetSettings(),
-        api.waSenderStatus(),
+        wsApi.waSenderStatus(),
       ]);
       setConnection(conn);
       setSettings(current);
@@ -185,7 +185,7 @@ export function CustomerServiceSettings() {
     <div className="settings-section">
       <h3>{t.csSettingsTitle}</h3>
       <p className="muted">{t.csSettingsDesc}</p>
-      {/* The number clients write to. Assigned account-wide by an admin (wa_senders). */}
+      {/* The number clients write to. Dedicated to this agent instance, assigned by an admin (wa_senders). */}
       {waSender &&
         (waSender.assigned ? (
           <p>

@@ -2522,6 +2522,20 @@ button.meta-chip:hover {
   justify-content: flex-end;
 }
 
+/* Admin agents list: per-instance WhatsApp number editor under the agent name */
+.admin-wa-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.admin-wa-editor input {
+  max-width: 200px;
+  padding: 4px 8px;
+  font-size: 14px;
+}
+
 /* Workspace overview dashboard (sidebar "דשבורד") */
 .overview {
   display: flex;

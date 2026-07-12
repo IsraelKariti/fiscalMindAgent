@@ -83,9 +83,9 @@ export async function replyToInbound(ctx: AgentContext): Promise<void> {
   // dashboard's drafting machinery.
   if (client.goal_status === 'pending') await clients.updateGoalStatus(client.id, 'complete');
 
-  const sender = await waSenders.getByUserId(ctx.accountant!.id);
+  const sender = ctx.instance ? await waSenders.getByInstanceId(ctx.instance.id) : null;
   if (!sender) {
-    logger.warn('customer service: accountant has no wa sender, cannot reply', { userId: ctx.accountant!.id });
+    logger.warn('customer service: instance has no wa sender, cannot reply', { instanceId: ctx.instance?.id });
     return;
   }
 

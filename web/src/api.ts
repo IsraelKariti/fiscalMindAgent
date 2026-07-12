@@ -275,6 +275,8 @@ export interface AgentInstance {
   agentType: string;
   name: string;
   enabled: boolean;
+  /** Only populated by the admin listing (GET /admin/accountants/:userId/agents). */
+  waPhoneNumber?: string | null;
 }
 
 /**
@@ -316,6 +318,7 @@ function makeWorkspaceApi(prefix: string) {
     deleteClient: (id: string) => request<{ ok: true }>(`${prefix}/clients/${id}`, { method: 'DELETE' }),
     setWhatsApp: (id: string, args: { enabled: boolean; phone?: string }) =>
       request<{ client: Client }>(`${prefix}/clients/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(args) }),
+    waSenderStatus: () => request<WaSenderStatus>(`${prefix}/wa-sender`),
     listEmails: (clientId: string) => request<{ emails: Email[] }>(`${prefix}/clients/${clientId}/emails`),
     sendScheduledNow: (clientId: string) =>
       request<{ ok: true }>(`${prefix}/clients/${clientId}/send-now`, { method: 'POST' }),
@@ -360,7 +363,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name }),
     }),
-  waSenderStatus: () => request<WaSenderStatus>('/wa-sender'),
   mondayConnection: () => request<MondayConnection>('/monday-connection'),
   mondayConnectUrl: () => request<{ url: string }>('/monday-connection/url'),
   mondayDisconnect: () => request<{ ok: true }>('/monday-connection', { method: 'DELETE' }),
@@ -376,6 +378,13 @@ export const api = {
     request<{ ok: true }>(`/admin/accountants/${userId}/agents/${encodeURIComponent(agentType)}`, {
       method: 'DELETE',
     }),
+  adminSetWaSender: (agentInstanceId: string, phoneNumber: string) =>
+    request<{ sender: { agentInstanceId: string; phoneNumber: string } }>('/admin/wa-senders', {
+      method: 'POST',
+      body: JSON.stringify({ agentInstanceId, phoneNumber }),
+    }),
+  adminDeleteWaSender: (agentInstanceId: string) =>
+    request<{ ok: true }>(`/admin/wa-senders/${agentInstanceId}`, { method: 'DELETE' }),
   adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),

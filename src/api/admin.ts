@@ -3,6 +3,7 @@ import { z } from 'zod';
 import * as agentInstances from '../db/queries/agentInstances.js';
 import * as llmUsage from '../db/queries/llmUsage.js';
 import * as users from '../db/queries/users.js';
+import * as waSenders from '../db/queries/waSenders.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { listAgentTypes } from '../agents/registry.js';
 import { getPricingForModel } from '../gemini/pricing.js';
@@ -109,8 +110,16 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
     return;
   }
   const instances = await agentInstances.listAllForUser(userId.data);
+  const senders = await waSenders.listForUser(userId.data);
+  const numberByInstance = new Map(senders.map((s) => [s.agent_instance_id, s.phone_number]));
   res.json({
-    agents: instances.map((i) => ({ id: i.id, agentType: i.agent_type, name: i.name, enabled: i.enabled })),
+    agents: instances.map((i) => ({
+      id: i.id,
+      agentType: i.agent_type,
+      name: i.name,
+      enabled: i.enabled,
+      waPhoneNumber: numberByInstance.get(i.id) ?? null,
+    })),
     availableTypes: [...knownAgentTypes()],
   });
 };

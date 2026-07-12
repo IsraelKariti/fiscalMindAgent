@@ -46,11 +46,11 @@ async function getWaChannelState(client: ClientRow, accountant: UserRow | null, 
       templates: [],
     };
   }
-  const sender = client.user_id ? await waSenders.getByUserId(client.user_id) : null;
+  const sender = client.agent_instance_id ? await waSenders.getByInstanceId(client.agent_instance_id) : null;
   if (!sender) {
     return {
       allowed: false,
-      unavailableReason: 'no WhatsApp sender number is assigned to the accountant',
+      unavailableReason: 'no WhatsApp sender number is assigned to this agent',
       windowOpen: false,
       windowClosesAt: null,
       templates: [],

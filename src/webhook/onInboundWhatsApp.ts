@@ -51,36 +51,40 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
   const senderNumber = stripWhatsAppPrefix(params.To);
   const clientNumber = stripWhatsAppPrefix(params.From);
 
-  // Route by which of our numbers received the message — that number belongs
-  // to exactly one accountant (mirrors the agent-mailbox recipient match).
+  // Route by which of our numbers received the message — each number is
+  // dedicated to exactly one agent instance, so the To-number alone decides
+  // both the accountant and the agent.
   const sender = await waSenders.getByPhoneNumber(senderNumber);
   if (!sender) {
     logger.warn('inbound whatsapp for unassigned number, ignoring', { to: senderNumber });
     return;
   }
+  const instance = await agentInstances.getById(sender.agent_instance_id);
+  if (!instance || !instance.enabled) {
+    logger.warn('inbound whatsapp for disabled agent instance, ignoring', {
+      to: senderNumber,
+      instanceId: sender.agent_instance_id,
+    });
+    return;
+  }
 
-  // Only this accountant's clients — the same person may be another user's
-  // client. When the number already belongs to one of this accountant's
-  // clients (any agent), that agent keeps handling it (the documented
-  // single-match routing, docs/agents.md "deferred fan-out").
-  let client = await clients.getByWaPhoneForUser(sender.user_id, clientNumber);
+  let client = await clients.getByWaPhoneForInstance(instance.id, clientNumber);
   if (!client) {
-    // Unknown number: auto-enroll into the accountant's customer_service
-    // agent, if enabled — the CS agent answers anyone who messages the office
-    // number, authenticated by their phone alone.
-    const cs = await agentInstances.getByTypeForUser(sender.user_id, 'customer_service');
-    if (!cs?.enabled) {
+    // Unknown number: only the customer_service agent auto-enrolls — it
+    // answers anyone who messages its number, authenticated by their phone
+    // alone. Other agents' clients are pre-created, so strangers are ignored.
+    if (instance.agent_type !== 'customer_service') {
       logger.warn('inbound whatsapp from unknown number, ignoring', { from: clientNumber, to: senderNumber });
       return;
     }
     client =
       (await clients.insertWhatsAppOnly({
-        userId: sender.user_id,
-        agentInstanceId: cs.id,
+        userId: instance.user_id,
+        agentInstanceId: instance.id,
         name: clientNumber,
         waPhone: clientNumber,
-        optedInBy: sender.user_id,
-      })) ?? (await clients.getByWaPhoneForInstance(cs.id, clientNumber)); // conflict: a concurrent delivery won the insert
+        optedInBy: instance.user_id,
+      })) ?? (await clients.getByWaPhoneForInstance(instance.id, clientNumber)); // conflict: a concurrent delivery won the insert
     if (!client) {
       logger.warn('customer service auto-enroll raced and lost, ignoring', { from: clientNumber });
       return;

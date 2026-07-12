@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { api, type AccountTier, type MailboxStatus, type WaSenderStatus } from '../api';
+import { type AccountTier, type MailboxStatus, type WaSenderStatus } from '../api';
+import { useWorkspaceApi } from '../agents/ApiContext';
 import { useT, type Lang } from '../i18n';
 import { ClaimMailbox } from './ClaimMailbox';
 
@@ -40,10 +41,11 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel }:
   const [copied, setCopied] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
+  const wsApi = useWorkspaceApi();
 
   useEffect(() => {
-    api.waSenderStatus().then(setWaSender).catch(() => setWaSender({ assigned: false, phoneNumber: null }));
-  }, []);
+    wsApi.waSenderStatus().then(setWaSender).catch(() => setWaSender({ assigned: false, phoneNumber: null }));
+  }, [wsApi]);
 
   const address = mailbox?.claimed ? mailbox.emailAddress : null;
 

@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
-import * as users from '../db/queries/users.js';
+import * as agentInstances from '../db/queries/agentInstances.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
 import { normalizeE164 } from '../util/phone.js';
@@ -8,9 +8,9 @@ import { logger } from '../util/logger.js';
 
 const SenderUpsertSchema = z
   .object({
-    userId: z.string().uuid(),
+    agentInstanceId: z.string().uuid(),
     // Registered as a WhatsApp sender in the Twilio console first; here it is
-    // only assigned to an accountant.
+    // only assigned to an agent instance.
     phoneNumber: z.string().min(1),
   })
   .strict();
@@ -25,19 +25,25 @@ const TemplateCreateSchema = z
   })
   .strict();
 
-/** GET /api/admin/wa-senders — every accountant→number assignment. */
+/** GET /api/admin/wa-senders — every agent-instance→number assignment. */
 export const adminListWaSenders: RequestHandler = async (_req, res) => {
   const senders = await waSenders.listAll();
   res.json({
-    senders: senders.map((s) => ({ userId: s.user_id, phoneNumber: s.phone_number, createdAt: s.created_at })),
+    senders: senders.map((s) => ({
+      agentInstanceId: s.agent_instance_id,
+      userId: s.user_id,
+      agentType: s.agent_type,
+      phoneNumber: s.phone_number,
+      createdAt: s.created_at,
+    })),
   });
 };
 
-/** POST /api/admin/wa-senders — assign (or reassign) an accountant's WhatsApp sender number. */
+/** POST /api/admin/wa-senders — assign (or reassign) an agent instance's WhatsApp sender number. */
 export const adminUpsertWaSender: RequestHandler = async (req, res) => {
   const parsed = SenderUpsertSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Expected { userId, phoneNumber }.', details: parsed.error.flatten() });
+    res.status(400).json({ error: 'Expected { agentInstanceId, phoneNumber }.', details: parsed.error.flatten() });
     return;
   }
   const phoneNumber = normalizeE164(parsed.data.phoneNumber);
@@ -45,33 +51,37 @@ export const adminUpsertWaSender: RequestHandler = async (req, res) => {
     res.status(400).json({ error: 'phoneNumber must be a valid E.164 number (e.g. +972501234567).' });
     return;
   }
-  if (!(await users.getById(parsed.data.userId))) {
-    res.status(404).json({ error: 'User not found.' });
+  if (!(await agentInstances.getById(parsed.data.agentInstanceId))) {
+    res.status(404).json({ error: 'Agent instance not found.' });
     return;
   }
   try {
-    const sender = await waSenders.upsertForUser(parsed.data.userId, phoneNumber);
-    logger.info('wa sender assigned', { adminUserId: req.realUserId, userId: sender.user_id, phoneNumber });
-    res.status(201).json({ sender: { userId: sender.user_id, phoneNumber: sender.phone_number } });
+    const sender = await waSenders.upsertForInstance(parsed.data.agentInstanceId, phoneNumber);
+    logger.info('wa sender assigned', {
+      adminUserId: req.realUserId,
+      agentInstanceId: sender.agent_instance_id,
+      phoneNumber,
+    });
+    res.status(201).json({ sender: { agentInstanceId: sender.agent_instance_id, phoneNumber: sender.phone_number } });
   } catch (err) {
-    // 23505 = unique_violation: the number is already assigned to another accountant.
+    // 23505 = unique_violation: the number is already assigned to another agent.
     if (err instanceof Error && 'code' in err && (err as { code?: string }).code === '23505') {
-      res.status(409).json({ error: 'This number is already assigned to another accountant.' });
+      res.status(409).json({ error: 'This number is already assigned to another agent.' });
       return;
     }
     throw err;
   }
 };
 
-/** DELETE /api/admin/wa-senders/:userId — unassign the accountant's number. */
+/** DELETE /api/admin/wa-senders/:agentInstanceId — unassign the agent instance's number. */
 export const adminDeleteWaSender: RequestHandler = async (req, res) => {
-  const userId = z.string().uuid().safeParse(req.params.userId);
-  if (!userId.success || !(await waSenders.getByUserId(userId.data))) {
-    res.status(404).json({ error: 'No WhatsApp sender assigned to this user.' });
+  const instanceId = z.string().uuid().safeParse(req.params.agentInstanceId);
+  if (!instanceId.success || !(await waSenders.getByInstanceId(instanceId.data))) {
+    res.status(404).json({ error: 'No WhatsApp sender assigned to this agent instance.' });
     return;
   }
-  await waSenders.deleteForUser(userId.data);
-  logger.info('wa sender unassigned', { adminUserId: req.realUserId, userId: userId.data });
+  await waSenders.deleteForInstance(instanceId.data);
+  logger.info('wa sender unassigned', { adminUserId: req.realUserId, agentInstanceId: instanceId.data });
   res.json({ ok: true });
 };
 
@@ -122,10 +132,4 @@ export const adminDeleteWaTemplate: RequestHandler = async (req, res) => {
   }
   await waTemplates.remove(id.data);
   res.json({ ok: true });
-};
-
-/** GET /api/wa-sender — the signed-in accountant's own WhatsApp sender number (read-only). */
-export const waSenderStatus: RequestHandler = async (req, res) => {
-  const sender = await waSenders.getByUserId(req.userId!);
-  res.json({ assigned: sender !== null, phoneNumber: sender?.phone_number ?? null });
 };

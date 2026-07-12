@@ -80,7 +80,7 @@ async function sendEmailDraft(client: ClientRow, draft: EmailRow): Promise<SendO
 async function sendWhatsAppDraft(client: ClientRow, draft: EmailRow): Promise<SendOutcome> {
   // The channel may have been disabled (opt-out, toggle) after drafting; a
   // re-plan falls back to email rather than sending anyway.
-  const sender = client.user_id ? await waSenders.getByUserId(client.user_id) : null;
+  const sender = client.agent_instance_id ? await waSenders.getByInstanceId(client.agent_instance_id) : null;
   if (!client.wa_enabled || !client.wa_phone || !sender) {
     logger.warn('whatsapp draft no longer sendable, re-planning', {
       clientId: client.id,

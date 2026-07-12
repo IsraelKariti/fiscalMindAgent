@@ -169,17 +169,60 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   };
 
   // One row per agent type: the accountant's instance when it exists, else the
-  // enableable type itself (named from the frontend registry).
+  // enableable type itself (named from the frontend registry). A WhatsApp
+  // number can only attach to a real instance, so placeholder rows are marked.
   const agentRows = useMemo(() => {
     if (!agentInfo) return [];
     const instantiated = new Set(agentInfo.agents.map((a) => a.agentType));
     return [
-      ...agentInfo.agents,
+      ...agentInfo.agents.map((a) => ({ ...a, instantiated: true })),
       ...agentInfo.availableTypes
         .filter((type) => !instantiated.has(type))
-        .map((type) => ({ id: type, agentType: type, name: null as string | null, enabled: false })),
+        .map((type) => ({
+          id: type,
+          agentType: type,
+          name: null as string | null,
+          enabled: false,
+          waPhoneNumber: null as string | null,
+          instantiated: false,
+        })),
     ];
   }, [agentInfo]);
+
+  // Per-instance WhatsApp number drafts, keyed by instance id; unset = show
+  // the currently assigned number.
+  const [waDrafts, setWaDrafts] = useState<Record<string, string>>({});
+  useEffect(() => setWaDrafts({}), [selectedUserId]);
+
+  const saveWaNumber = async (agentInstanceId: string, phoneNumber: string) => {
+    if (!selectedUserId) return;
+    setAgentBusy(true);
+    setError(null);
+    try {
+      await api.adminSetWaSender(agentInstanceId, phoneNumber);
+      setWaDrafts(({ [agentInstanceId]: _saved, ...rest }) => rest);
+      setAgentInfo(await api.adminListAccountantAgents(selectedUserId));
+    } catch (err) {
+      setError(err instanceof ApiError && err.status === 409 ? t.adminWaNumberConflict : t.adminWaNumberSaveFailed);
+    } finally {
+      setAgentBusy(false);
+    }
+  };
+
+  const removeWaNumber = async (agentInstanceId: string) => {
+    if (!selectedUserId) return;
+    setAgentBusy(true);
+    setError(null);
+    try {
+      await api.adminDeleteWaSender(agentInstanceId);
+      setWaDrafts(({ [agentInstanceId]: _removed, ...rest }) => rest);
+      setAgentInfo(await api.adminListAccountantAgents(selectedUserId));
+    } catch {
+      setError(t.adminWaNumberSaveFailed);
+    } finally {
+      setAgentBusy(false);
+    }
+  };
 
   // Per-model usage of the selected accountant, its total spend, and whether any
   // model's tokens are still unpriced (missing registry entry — cost incomplete).
@@ -508,6 +551,38 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                             <span className="doc-text">
                               <span className="doc-name">{row.name ?? t[getAgentUI(row.agentType).nameKey]}</span>
                               <span className="doc-desc muted">{t[getAgentUI(row.agentType).descriptionKey]}</span>
+                              {row.instantiated && (
+                                <span className="admin-wa-editor">
+                                  <input
+                                    dir="ltr"
+                                    aria-label={t.adminWaNumberLabel}
+                                    placeholder={t.adminWaNumberNone}
+                                    value={waDrafts[row.id] ?? row.waPhoneNumber ?? ''}
+                                    disabled={agentBusy}
+                                    onChange={(e) => setWaDrafts((d) => ({ ...d, [row.id]: e.target.value }))}
+                                  />
+                                  <button
+                                    className="btn btn-ghost btn-small"
+                                    disabled={
+                                      agentBusy ||
+                                      !(waDrafts[row.id] ?? '').trim() ||
+                                      (waDrafts[row.id] ?? '').trim() === row.waPhoneNumber
+                                    }
+                                    onClick={() => saveWaNumber(row.id, (waDrafts[row.id] ?? '').trim())}
+                                  >
+                                    {t.adminWaNumberSave}
+                                  </button>
+                                  {row.waPhoneNumber && (
+                                    <button
+                                      className="btn btn-ghost btn-small"
+                                      disabled={agentBusy}
+                                      onClick={() => removeWaNumber(row.id)}
+                                    >
+                                      {t.adminWaNumberRemove}
+                                    </button>
+                                  )}
+                                </span>
+                              )}
                             </span>
                             {row.enabled && <span className="badge badge-success">{t.activeBadge}</span>}
                             <button

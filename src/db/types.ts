@@ -35,10 +35,10 @@ export interface AgentMailboxRow {
   created_at: Date;
 }
 
-/** Per-accountant WhatsApp sender number (E.164), assigned by an admin; mirrors agent_mailboxes. */
+/** Per-agent-instance WhatsApp sender number (E.164), assigned by an admin. */
 export interface WaSenderRow {
   id: string;
-  user_id: string;
+  agent_instance_id: string;
   phone_number: string;
   created_at: Date;
 }

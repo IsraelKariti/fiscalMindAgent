@@ -102,6 +102,15 @@ workspaceRouter.get(
   }),
 );
 
+// This agent's dedicated WhatsApp sender number (read-only; admins assign it).
+workspaceRouter.get(
+  '/wa-sender',
+  wrap(async (req, res) => {
+    const sender = await waSenders.getByInstanceId(req.agentInstance!.id);
+    res.json({ assigned: sender !== null, phoneNumber: sender?.phone_number ?? null });
+  }),
+);
+
 workspaceRouter.post(
   '/clients',
   wrap(async (req, res) => {
@@ -245,8 +254,8 @@ workspaceRouter.put(
         res.status(403).json({ error: 'WhatsApp is available on the Premium plan.' });
         return;
       }
-      if (!(await waSenders.getByUserId(req.userId!))) {
-        res.status(409).json({ error: 'No WhatsApp number is assigned to your account yet.' });
+      if (!(await waSenders.getByInstanceId(req.agentInstance!.id))) {
+        res.status(409).json({ error: 'No WhatsApp number is assigned to this agent yet.' });
         return;
       }
       const rawPhone = parsed.data.phone ?? client.wa_phone;

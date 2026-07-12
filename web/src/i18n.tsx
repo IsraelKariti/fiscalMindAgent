@@ -194,6 +194,15 @@ const he = {
   waPhonePlaceholder: '050-1234567',
   waOptedInOn: (date: string) => `הופעל ב־${date}`,
 
+  // Mute-sender card (inbound-only agents' details tab)
+  muteSenderTitle: 'השתקת השולח',
+  muteSenderDesc: 'בהשתקה הסוכן מפסיק לענות להודעות הוואטסאפ של הלקוח. הודעות נכנסות ימשיכו להופיע בשיחה.',
+  muteStatusMuted: 'מושתק',
+  muteStatusAnswering: 'הסוכן עונה',
+  muteSenderBtn: 'השתקת השולח',
+  unmuteSenderBtn: 'ביטול ההשתקה',
+  muteMutedOn: (date: string) => `הושתק ב־${date}`,
+
   // Timeline
   conversationTimeline: 'ציר הזמן של השיחה',
   copyConversation: 'העתקת השיחה',
@@ -676,6 +685,15 @@ const en: Messages = {
   waPhoneLabel: 'WhatsApp number',
   waPhonePlaceholder: '050-1234567',
   waOptedInOn: (date: string) => `Enabled on ${date}`,
+
+  // Mute-sender card (inbound-only agents' details tab)
+  muteSenderTitle: 'Mute sender',
+  muteSenderDesc: "When muted, the agent stops answering this sender's WhatsApp messages. Incoming messages still appear in the conversation.",
+  muteStatusMuted: 'Muted',
+  muteStatusAnswering: 'Agent is answering',
+  muteSenderBtn: 'Mute sender',
+  unmuteSenderBtn: 'Unmute',
+  muteMutedOn: (date: string) => `Muted on ${date}`,
 
   // Timeline
   conversationTimeline: 'Conversation timeline',
@@ -1161,6 +1179,15 @@ const ru: Messages = {
   waPhoneLabel: 'Номер WhatsApp',
   waPhonePlaceholder: '050-1234567',
   waOptedInOn: (date: string) => `Включён ${date}`,
+
+  // Mute-sender card (inbound-only agents' details tab)
+  muteSenderTitle: 'Заглушить отправителя',
+  muteSenderDesc: 'Когда отправитель заглушён, агент перестаёт отвечать на его сообщения WhatsApp. Входящие сообщения по-прежнему видны в переписке.',
+  muteStatusMuted: 'Заглушён',
+  muteStatusAnswering: 'Агент отвечает',
+  muteSenderBtn: 'Заглушить отправителя',
+  unmuteSenderBtn: 'Снять заглушение',
+  muteMutedOn: (date: string) => `Заглушён ${date}`,
 
   // Timeline
   conversationTimeline: 'Хронология переписки',

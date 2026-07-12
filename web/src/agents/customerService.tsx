@@ -1,8 +1,7 @@
 import type { MessageChannel } from '../api';
-import { ClientHeader } from '../components/ClientHeader';
 import { CustomerServiceSettings } from '../components/CustomerServiceSettings';
+import { MuteSenderCard } from '../components/MuteSenderCard';
 import { Timeline } from '../components/Timeline';
-import { WhatsAppCard } from '../components/WhatsAppCard';
 import type { AgentTypeUI } from './types';
 
 const CHANNELS: readonly MessageChannel[] = ['whatsapp'];
@@ -11,7 +10,9 @@ const CHANNELS: readonly MessageChannel[] = ['whatsapp'];
  * The customer-service agent's workspace surface: an inbound-only WhatsApp
  * Q&A agent, so the conversation tab mutes all scheduling UI (goal-less,
  * nothing is ever scheduled) and the agent-level settings section configures
- * the monday knowledge sources.
+ * the monday knowledge sources. Clients self-enroll from their first WhatsApp
+ * message, so the details tab carries no edit/opt-in forms — only the mute
+ * switch that silences the agent for one sender.
  */
 export const customerServiceUI: AgentTypeUI = {
   agentType: 'customer_service',
@@ -58,20 +59,12 @@ export const customerServiceUI: AgentTypeUI = {
       labelKey: 'tabDetails',
       render: (ctx) => (
         <div className="tab-pane panel-stack" role="tabpanel">
-          <ClientHeader
-            client={ctx.client}
-            onSaved={async (updated) => {
-              ctx.setClient(updated);
-              await ctx.onClientUpdated();
-            }}
-          />
-          <WhatsAppCard
+          <MuteSenderCard
             client={ctx.client}
             premiumLocked={ctx.premiumLocked}
             contactEmail={ctx.contactEmail}
             onSaved={async (updated) => {
               ctx.setClient(updated);
-              await ctx.load();
               await ctx.onClientUpdated();
             }}
           />

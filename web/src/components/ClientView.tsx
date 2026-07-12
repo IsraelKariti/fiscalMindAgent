@@ -145,20 +145,22 @@ export function ClientView({
 
   return (
     <div className="client-view dashboard">
-      <div className="client-tabs" role="tablist" aria-label={t.clientSectionsAria}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            className={`client-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => selectTab(tab.id)}
-          >
-            {t[tab.labelKey]}
-          </button>
-        ))}
-      </div>
+      {tabs.length > 1 && (
+        <div className="client-tabs" role="tablist" aria-label={t.clientSectionsAria}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              className={`client-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => selectTab(tab.id)}
+            >
+              {t[tab.labelKey]}
+            </button>
+          ))}
+        </div>
+      )}
       {tabs.find((tab) => tab.id === activeTab)?.render(ctx)}
     </div>
   );

@@ -193,6 +193,11 @@ const he = {
   waPhoneLabel: 'מספר וואטסאפ',
   waPhonePlaceholder: '050-1234567',
   waOptedInOn: (date: string) => `הופעל ב־${date}`,
+  waConfirmTitle: (phone: string) => `לשלוח הודעות וואטסאפ אל ${phone}?`,
+  waConfirmNote:
+    'הסוכן יוכל לשלוח ללקוח הודעות וואטסאפ ולקבל ממנו תשובות. ההפעלה מאשרת שהלקוח הסכים לקבל הודעות וואטסאפ.',
+  waConfirmWarning:
+    'שימו לב: שליחת הודעות ללא הסכמת הלקוח עלולה לגרום לחסימת מספר הוואטסאפ של הסוכן — עבור כל הלקוחות.',
 
   // Mute-sender card (inbound-only agents' details tab)
   muteSenderTitle: 'השתקת השולח',
@@ -685,6 +690,11 @@ const en: Messages = {
   waPhoneLabel: 'WhatsApp number',
   waPhonePlaceholder: '050-1234567',
   waOptedInOn: (date: string) => `Enabled on ${date}`,
+  waConfirmTitle: (phone: string) => `Send WhatsApp messages to ${phone}?`,
+  waConfirmNote:
+    'The agent will be able to message the client on WhatsApp and receive replies. Enabling confirms the client agreed to receive WhatsApp messages.',
+  waConfirmWarning:
+    "Note: messaging clients without their consent can get the agent's WhatsApp number blocked — for all clients.",
 
   // Mute-sender card (inbound-only agents' details tab)
   muteSenderTitle: 'Mute sender',
@@ -1179,6 +1189,11 @@ const ru: Messages = {
   waPhoneLabel: 'Номер WhatsApp',
   waPhonePlaceholder: '050-1234567',
   waOptedInOn: (date: string) => `Включён ${date}`,
+  waConfirmTitle: (phone: string) => `Отправлять сообщения WhatsApp на ${phone}?`,
+  waConfirmNote:
+    'Агент сможет отправлять клиенту сообщения WhatsApp и получать ответы. Включение подтверждает, что клиент согласился получать сообщения WhatsApp.',
+  waConfirmWarning:
+    'Внимание: отправка сообщений без согласия клиента может привести к блокировке номера WhatsApp агента — для всех клиентов.',
 
   // Mute-sender card (inbound-only agents' details tab)
   muteSenderTitle: 'Заглушить отправителя',

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ApiError, type Client } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
-import { LOCALE } from '../format';
+import { formatPhoneForDisplay, LOCALE } from '../format';
 import { useT } from '../i18n';
+import { ConfirmModal } from './ConfirmModal';
 import { UpgradeModal } from './UpgradeModal';
 
 interface Props {
@@ -21,17 +22,23 @@ interface Props {
 export function WhatsAppCard({ client, onSaved, premiumLocked, contactEmail }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
-  const [phone, setPhone] = useState(client.wa_phone ?? client.phone ?? '');
+  // Prefill in local Israeli format; the server normalizes either form to E.164.
+  const [phone, setPhone] = useState(formatPhoneForDisplay(client.wa_phone ?? client.phone ?? ''));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const setEnabled = async (enabled: boolean) => {
+  const requestEnable = () => {
     // Turning the channel on is premium-only; turning it off always works.
-    if (enabled && premiumLocked) {
+    if (premiumLocked) {
       setShowUpgrade(true);
       return;
     }
+    setShowConfirm(true);
+  };
+
+  const setEnabled = async (enabled: boolean) => {
     setBusy(true);
     setError(null);
     try {
@@ -64,7 +71,7 @@ export function WhatsAppCard({ client, onSaved, premiumLocked, contactEmail }: P
       {client.wa_enabled ? (
         <div className="btn-row">
           <span className="settings-mailbox-address" dir="ltr">
-            {client.wa_phone}
+            {client.wa_phone && formatPhoneForDisplay(client.wa_phone)}
           </span>
           {client.wa_opted_in_at && (
             <span className="muted">{t.waOptedInOn(new Date(client.wa_opted_in_at).toLocaleDateString(LOCALE))}</span>
@@ -84,10 +91,24 @@ export function WhatsAppCard({ client, onSaved, premiumLocked, contactEmail }: P
               placeholder={t.waPhonePlaceholder}
             />
           </label>
-          <button className="btn btn-primary" onClick={() => setEnabled(true)} disabled={busy || !phone.trim()}>
+          <button className="btn btn-primary" onClick={requestEnable} disabled={busy || !phone.trim()}>
             {busy ? t.saving : t.waEnable}
           </button>
         </div>
+      )}
+      {showConfirm && (
+        <ConfirmModal
+          title={t.waConfirmTitle(phone.replace(/[\s\-().]/g, ''))}
+          note={
+            <>
+              {t.waConfirmNote} <strong>{t.waConfirmWarning}</strong>
+            </>
+          }
+          confirmLabel={t.waEnable}
+          warning
+          onConfirm={() => setEnabled(true)}
+          onClose={() => setShowConfirm(false)}
+        />
       )}
       {showUpgrade && <UpgradeModal contactEmail={contactEmail} onClose={() => setShowUpgrade(false)} />}
     </section>

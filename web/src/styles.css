@@ -541,6 +541,9 @@ code {
   font-size: 14px;
   font-weight: 600;
   border: 1px solid transparent;
+  /* Badges are short labels — never let flex parents squeeze them into wrapping. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .badge-success {

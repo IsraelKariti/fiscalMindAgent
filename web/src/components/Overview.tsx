@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type DashboardSummary } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
-import { LOCALE } from '../format';
+import { displayClientName, LOCALE } from '../format';
 import { useT } from '../i18n';
 import { ChartCard, ChartEmpty, SERIES } from './charts/common';
 import { DonutChart, type DonutDatum } from './charts/DonutChart';
@@ -123,7 +123,7 @@ export function Overview({ onSelectClient }: Props) {
                         className={`status-dot ${client.goal_status}`}
                         title={client.goal_status === 'complete' ? t.goalCompleteTitle : t.goalPendingTitle}
                       />
-                      {client.name}
+                      {displayClientName(client.name)}
                     </span>
                     <span className="overview-row-value">
                       {client.docs_total === 0 ? t.noDocuments : `${client.docs_collected} / ${client.docs_total}`}
@@ -156,7 +156,7 @@ export function Overview({ onSelectClient }: Props) {
                         {' · '}
                         {when.toLocaleTimeString(LOCALE, { timeStyle: 'short' })}
                       </span>
-                      <span className="overview-chip-name">{client.name}</span>
+                      <span className="overview-chip-name">{displayClientName(client.name)}</span>
                     </button>
                   </li>
                 );

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { DashboardClientSummary, DashboardSummary } from '../api';
-import { daysSince, LOCALE } from '../format';
+import { daysSince, displayClientName, LOCALE } from '../format';
 import { useT, type Messages } from '../i18n';
 import { ChartCard, ChartEmpty } from './charts/common';
 
@@ -143,7 +143,7 @@ export function NeedsAttentionCard({
             <li key={client.id}>
               <button className="overview-row" onClick={() => onSelectClient(client.id)}>
                 <span className="overview-row-top">
-                  <span className="overview-row-name">{client.name}</span>
+                  <span className="overview-row-name">{displayClientName(client.name)}</span>
                   <span className="stat-flag">
                     <span className="stat-flag-dot" />
                     {reason}

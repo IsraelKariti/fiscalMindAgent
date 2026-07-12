@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ApiError, type Client } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
+import { displayClientName } from '../format';
 import { useT } from '../i18n';
 
 interface Props {
@@ -35,7 +36,7 @@ export function DeleteClientModal({ client, onDeleted, onClose }: Props) {
       <div className="card modal modal-confirm" onClick={(e) => e.stopPropagation()}>
         <h2>
           {t.deleteQuestionPrefix}
-          <span className="modal-highlight">{client.name}</span>
+          <span className="modal-highlight">{displayClientName(client.name)}</span>
           {t.deleteQuestionSuffix}
         </h2>
         <p className="muted">{t.deleteWarning}</p>

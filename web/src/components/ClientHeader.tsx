@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { type Client } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
-import { LOCALE } from '../format';
+import { displayClientName, LOCALE } from '../format';
 import { useT } from '../i18n';
 
 interface Props {
@@ -126,7 +126,7 @@ export function ClientHeader({ client, onSaved }: Props) {
     <section className="card client-header">
       <div className="client-header-top">
         <div className="client-header-id">
-          <h2>{client.name}</h2>
+          <h2>{displayClientName(client.name)}</h2>
           <span className={`badge ${client.goal_status === 'complete' ? 'badge-success' : 'badge-pending'}`}>
             {client.goal_status === 'complete' ? t.allDocsReceived : t.docCollectionInProgress}
           </span>

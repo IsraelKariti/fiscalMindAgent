@@ -1,4 +1,5 @@
 import type { AccountTier, Client } from '../api';
+import { contactLabel, displayClientName } from '../format';
 import { useT } from '../i18n';
 
 interface Props {
@@ -176,13 +177,13 @@ export function Sidebar({
                   title={client.goal_status === 'complete' ? t.goalCompleteTitle : t.goalPendingTitle}
                 />
                 <span className="client-item-text">
-                  <span className="client-item-name">{client.name}</span>
-                  <span className="client-item-email muted" dir="ltr">{client.email_address}</span>
+                  <span className="client-item-name">{displayClientName(client.name)}</span>
+                  <span className="client-item-email muted" dir="ltr">{contactLabel(client)}</span>
                 </span>
               </button>
               <button
                 className="client-delete"
-                title={t.deleteClientAction(client.name)}
+                title={t.deleteClientAction(displayClientName(client.name))}
                 onClick={() => onDeleteClient(client)}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

@@ -221,7 +221,7 @@ export function Workspace({
               tier={tier}
               contactEmail={contactEmail}
               agentPanel={agentUI.settingsPanel?.()}
-              hideMailbox={agentUI.whatsAppOnly}
+              hideMailbox={!agentUI.channels.includes('email')}
             />
           )}
           {view.kind === 'empty' && (

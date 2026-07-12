@@ -13,7 +13,7 @@ interface Props {
   contactEmail: string | null;
   /** The active agent type's own settings section (AgentTypeUI.settingsPanel), if it has one. */
   agentPanel?: ReactNode;
-  /** WhatsApp-only agent (AgentTypeUI.whatsAppOnly): no mailbox to show or claim. */
+  /** Agent without an email channel (AgentTypeUI.channels): no mailbox to show or claim. */
   hideMailbox?: boolean;
 }
 

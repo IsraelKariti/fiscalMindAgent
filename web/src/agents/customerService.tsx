@@ -1,8 +1,11 @@
+import type { MessageChannel } from '../api';
 import { ClientHeader } from '../components/ClientHeader';
 import { CustomerServiceSettings } from '../components/CustomerServiceSettings';
 import { Timeline } from '../components/Timeline';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import type { AgentTypeUI } from './types';
+
+const CHANNELS: readonly MessageChannel[] = ['whatsapp'];
 
 /**
  * The customer-service agent's workspace surface: an inbound-only WhatsApp
@@ -13,7 +16,7 @@ import type { AgentTypeUI } from './types';
 export const customerServiceUI: AgentTypeUI = {
   agentType: 'customer_service',
   inboundOnlyClients: true,
-  whatsAppOnly: true,
+  channels: CHANNELS,
   nameKey: 'agentCustomerServiceName',
   descriptionKey: 'agentCustomerServiceDesc',
   icon: (
@@ -32,6 +35,7 @@ export const customerServiceUI: AgentTypeUI = {
         <div className="tab-pane tab-pane-fill" role="tabpanel">
           <Timeline
             emails={ctx.emails}
+            channels={CHANNELS}
             nextScheduled={null}
             // Goal-less agent: "complete" + hidden footer mutes every
             // scheduling/drafting placeholder the Timeline can render.

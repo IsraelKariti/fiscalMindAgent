@@ -8,9 +8,6 @@ import { UpgradeModal } from './UpgradeModal';
 
 type ChannelFilter = 'all' | MessageChannel;
 
-// Order matters: the segmented control's sliding thumb is positioned by index.
-const CHANNEL_FILTERS = ['all', 'email', 'whatsapp'] as const satisfies readonly ChannelFilter[];
-
 // "Re: X" is the same thread title as "X" — ignore reply/forward prefixes when
 // deciding whether a message actually renamed the thread.
 function subjectKey(subject: string): string {
@@ -59,6 +56,7 @@ export function Timeline({
   onRetryDraft,
   premiumLocked,
   contactEmail,
+  channels,
   hideStatusFooter = false,
 }: {
   emails: Email[];
@@ -76,6 +74,12 @@ export function Timeline({
   /** True on the Standard plan: WhatsApp stays visible but taps open the upgrade modal. */
   premiumLocked: boolean;
   contactEmail: string | null;
+  /**
+   * The channels the agent type speaks (AgentTypeUI.channels). Single-channel
+   * agents get no channel filter and no per-message channel badges — there is
+   * nothing to tell apart.
+   */
+  channels: readonly MessageChannel[];
   /** Goal-less agents (customer service) pass goalStatus="complete" just to mute the scheduling UI — hide its footer too. */
   hideStatusFooter?: boolean;
 }) {
@@ -89,9 +93,14 @@ export function Timeline({
   const [retryError, setRetryError] = useState<string | null>(null);
   const [regenBusy, setRegenBusy] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
+  // A single-channel agent has nothing to filter or badge — the control and the
+  // per-message channel badges only exist when the agent speaks several channels.
+  const multiChannel = channels.length > 1;
+  // Order matters: the segmented control's sliding thumb is positioned by index.
+  const channelFilters: readonly ChannelFilter[] = ['all', ...channels];
   // Cross-channel filters are premium-only: the Standard plan starts (and stays)
   // on Email, and the other segments open the upgrade modal.
-  const [filter, setFilter] = useState<ChannelFilter>(premiumLocked ? 'email' : 'all');
+  const [filter, setFilter] = useState<ChannelFilter>(multiChannel && premiumLocked ? 'email' : 'all');
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
   // Whether the user is scrolled near the bottom — sampled on every scroll so the
@@ -101,10 +110,12 @@ export function Timeline({
 
   // The filter only exists when the client actually has (or is about to get)
   // WhatsApp traffic — email-only conversations keep the plain header. On the
-  // Standard plan the control always shows: the All and WhatsApp segments are
-  // the upsell surface (tapping them opens the upgrade modal instead of filtering).
+  // Standard plan the control shows regardless of traffic: the All and WhatsApp
+  // segments are the upsell surface (tapping them opens the upgrade modal
+  // instead of filtering).
   const hasWhatsApp = emails.some((e) => e.channel === 'whatsapp') || nextScheduled?.channel === 'whatsapp';
-  const showChannelFilter = hasWhatsApp || premiumLocked;
+  const showChannelFilter = multiChannel && (hasWhatsApp || premiumLocked);
+  const showChannelBadges = multiChannel && hasWhatsApp;
   const visibleEmails = filter === 'all' ? emails : emails.filter((e) => e.channel === filter);
   // Pausing preserves the draft and its time, so the bubble stays visible while
   // paused — just with a paused note and a Resume button instead of Send now.
@@ -208,10 +219,10 @@ export function Timeline({
             className="seg-control"
             role="group"
             aria-label={t.conversationTimeline}
-            style={{ '--seg-i': CHANNEL_FILTERS.indexOf(filter) } as CSSProperties}
+            style={{ '--seg-i': channelFilters.indexOf(filter), '--seg-n': channelFilters.length } as CSSProperties}
           >
             <span className="seg-thumb" aria-hidden="true" />
-            {CHANNEL_FILTERS.map((option) => (
+            {channelFilters.map((option) => (
               <button
                 key={option}
                 type="button"
@@ -268,7 +279,7 @@ export function Timeline({
             return (
               <li key={email.id} className={`timeline-item ${outbound ? 'outbound' : 'inbound'}`}>
                 <div className="timeline-meta">
-                  {hasWhatsApp && (
+                  {showChannelBadges && (
                     <span className={`channel-badge channel-${email.channel}`}>{channelLabel(email.channel)}</span>
                   )}
                   <span className="muted">{formatTimestamp(email.sent_at ?? email.created_at)}</span>
@@ -296,7 +307,7 @@ export function Timeline({
                     <span className="paused-icon">{icon.pause}</span>
                   </span>
                 )}
-                {hasWhatsApp && (
+                {showChannelBadges && (
                   <span className={`channel-badge channel-${nextScheduled.channel}`}>
                     {channelLabel(nextScheduled.channel)}
                   </span>

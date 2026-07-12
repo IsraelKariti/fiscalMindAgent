@@ -5,6 +5,7 @@ import type {
   ClientDocument,
   DocumentFile,
   Email,
+  MessageChannel,
   NextScheduled,
   WorkspaceApi,
 } from '../api';
@@ -72,8 +73,11 @@ export interface AgentTypeUI {
    */
   inboundOnlyClients?: boolean;
   /**
-   * The agent only speaks WhatsApp — it has no mailbox, so the workspace
-   * Settings view hides the agent-mailbox section.
+   * The channels this agent type communicates over. Drives every
+   * channel-conditional surface: single-channel agents get no channel filter
+   * in the Timeline (pass this to its `channels` prop) and no per-message
+   * channel badges, and agents without 'email' have no mailbox to show in
+   * the workspace Settings view.
    */
-  whatsAppOnly?: boolean;
+  channels: readonly MessageChannel[];
 }

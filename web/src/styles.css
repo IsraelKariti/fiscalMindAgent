@@ -614,8 +614,9 @@ a.plan-upgrade-btn {
 
 /* Channel filter in the timeline header: a segmented control with a sliding
    thumb. Segments are equal-width grid columns, so the thumb is one column
-   wide and slides by whole multiples of its own width; --seg-i (set inline
-   from React) picks the segment, --seg-x flips the slide for RTL. */
+   wide and slides by whole multiples of its own width; --seg-i / --seg-n (set
+   inline from React) pick the segment and count them, --seg-x flips the slide
+   for RTL. */
 .seg-control {
   position: relative;
   display: inline-grid;
@@ -632,7 +633,7 @@ a.plan-upgrade-btn {
   position: absolute;
   inset-block: 3px;
   inset-inline-start: 3px;
-  width: calc((100% - 6px) / 3);
+  width: calc((100% - 6px) / var(--seg-n, 3));
   border-radius: 999px;
   background:
     linear-gradient(180deg, rgba(148, 163, 216, 0.18), rgba(148, 163, 216, 0.05)),

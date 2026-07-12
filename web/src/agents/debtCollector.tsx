@@ -1,7 +1,10 @@
+import type { MessageChannel } from '../api';
 import { ClientHeader } from '../components/ClientHeader';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { Timeline } from '../components/Timeline';
 import type { AgentTypeUI } from './types';
+
+const CHANNELS: readonly MessageChannel[] = ['email', 'whatsapp'];
 
 /**
  * STUB — the workspace surface for the (not yet implemented) debt collector.
@@ -10,6 +13,7 @@ import type { AgentTypeUI } from './types';
  */
 export const debtCollectorUI: AgentTypeUI = {
   agentType: 'debt_collector',
+  channels: CHANNELS,
   nameKey: 'agentDebtCollectorName',
   descriptionKey: 'agentDebtCollectorDesc',
   icon: (
@@ -28,6 +32,7 @@ export const debtCollectorUI: AgentTypeUI = {
         <div className="tab-pane tab-pane-fill" role="tabpanel">
           <Timeline
             emails={ctx.emails}
+            channels={CHANNELS}
             nextScheduled={ctx.nextScheduled}
             goalStatus={ctx.client.goal_status}
             paused={ctx.client.paused}

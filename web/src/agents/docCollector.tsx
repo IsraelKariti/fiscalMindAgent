@@ -1,3 +1,4 @@
+import type { MessageChannel } from '../api';
 import { ClientHeader } from '../components/ClientHeader';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
@@ -7,10 +8,13 @@ import { Timeline } from '../components/Timeline';
 import { DashboardCharts } from '../components/charts/DashboardCharts';
 import type { AgentTypeUI } from './types';
 
+const CHANNELS: readonly MessageChannel[] = ['email', 'whatsapp'];
+
 /** The document collector's workspace UI: the four tabs the app has always had. */
 export const docCollectorUI: AgentTypeUI = {
   agentType: 'doc_collector',
   supportsBoardImport: true,
+  channels: CHANNELS,
   nameKey: 'agentDocCollectorName',
   descriptionKey: 'agentDocCollectorDesc',
   icon: (
@@ -28,6 +32,7 @@ export const docCollectorUI: AgentTypeUI = {
         <div className="tab-pane tab-pane-fill" role="tabpanel">
           <Timeline
             emails={ctx.emails}
+            channels={CHANNELS}
             nextScheduled={ctx.nextScheduled}
             goalStatus={ctx.client.goal_status}
             paused={ctx.client.paused}

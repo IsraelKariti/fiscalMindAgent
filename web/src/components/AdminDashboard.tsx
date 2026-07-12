@@ -248,6 +248,28 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     }
   };
 
+  // Instance whose number release (Twilio deregister + release) is in flight,
+  // and the one awaiting confirmation in the ConfirmModal.
+  const [releasingId, setReleasingId] = useState<string | null>(null);
+  const [releaseConfirm, setReleaseConfirm] = useState<{ id: string; phoneNumber: string } | null>(null);
+
+  const releaseWaNumber = async (agentInstanceId: string) => {
+    if (!selectedUserId) return;
+    setAgentBusy(true);
+    setReleasingId(agentInstanceId);
+    setError(null);
+    try {
+      await api.adminReleaseWaSender(agentInstanceId);
+      setWaDrafts(({ [agentInstanceId]: _released, ...rest }) => rest);
+      setAgentInfo(await api.adminListAccountantAgents(selectedUserId));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t.adminWaNumberReleaseFailed);
+    } finally {
+      setAgentBusy(false);
+      setReleasingId(null);
+    }
+  };
+
   // Per-model usage of the selected accountant, its total spend, and whether any
   // model's tokens are still unpriced (missing registry entry — cost incomplete).
   const selectedUsage = selected?.user?.llmUsage ?? [];
@@ -599,13 +621,24 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                                     {t.adminWaNumberSave}
                                   </button>
                                   {row.waPhoneNumber ? (
-                                    <button
-                                      className="btn btn-ghost btn-small"
-                                      disabled={agentBusy}
-                                      onClick={() => removeWaNumber(row.id)}
-                                    >
-                                      {t.adminWaNumberRemove}
-                                    </button>
+                                    <>
+                                      <button
+                                        className="btn btn-ghost btn-small"
+                                        disabled={agentBusy}
+                                        onClick={() => removeWaNumber(row.id)}
+                                      >
+                                        {t.adminWaNumberRemove}
+                                      </button>
+                                      <button
+                                        className="btn btn-ghost btn-small"
+                                        disabled={agentBusy}
+                                        onClick={() =>
+                                          setReleaseConfirm({ id: row.id, phoneNumber: row.waPhoneNumber! })
+                                        }
+                                      >
+                                        {releasingId === row.id ? t.adminWaNumberReleasing : t.adminWaNumberRelease}
+                                      </button>
+                                    </>
                                   ) : (
                                     <button
                                       className="btn btn-ghost btn-small"
@@ -738,6 +771,17 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
           confirmLabel={t.adminWaNumberBuy}
           onConfirm={() => buyWaNumber(buyConfirmId)}
           onClose={() => setBuyConfirmId(null)}
+        />
+      )}
+
+      {releaseConfirm && (
+        <ConfirmModal
+          title={t.adminWaNumberRelease}
+          note={t.adminWaNumberReleaseConfirm(releaseConfirm.phoneNumber)}
+          confirmLabel={t.adminWaNumberRelease}
+          danger
+          onConfirm={() => releaseWaNumber(releaseConfirm.id)}
+          onClose={() => setReleaseConfirm(null)}
         />
       )}
 

@@ -3,7 +3,13 @@ import { z } from 'zod';
 import * as agentInstances from '../db/queries/agentInstances.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
-import { isProvisioningConfigured, provisionWhatsAppNumber } from '../twilio/provision.js';
+import {
+  isProvisioningConfigured,
+  NumberNotOwnedError,
+  provisionWhatsAppNumber,
+  releaseWhatsAppNumber,
+} from '../twilio/provision.js';
+import { isTwilioConfigured } from '../twilio/client.js';
 import { normalizeE164 } from '../util/phone.js';
 import { logger } from '../util/logger.js';
 
@@ -134,6 +140,45 @@ export const adminDeleteWaSender: RequestHandler = async (req, res) => {
   }
   await waSenders.deleteForInstance(instanceId.data);
   logger.info('wa sender unassigned', { adminUserId: req.realUserId, agentInstanceId: instanceId.data });
+  res.json({ ok: true });
+};
+
+/**
+ * POST /api/admin/wa-senders/:agentInstanceId/release — permanently release the
+ * agent instance's number back to Twilio (deregister the WhatsApp sender +
+ * release the number, stopping the monthly billing), then unassign it. Unlike
+ * DELETE, this destroys the number — it cannot be reassigned afterwards.
+ */
+export const adminReleaseWaSender: RequestHandler = async (req, res) => {
+  const instanceId = z.string().uuid().safeParse(req.params.agentInstanceId);
+  const sender = instanceId.success ? await waSenders.getByInstanceId(instanceId.data) : null;
+  if (!sender) {
+    res.status(404).json({ error: 'No WhatsApp sender assigned to this agent instance.' });
+    return;
+  }
+  if (!isTwilioConfigured()) {
+    res.status(503).json({ error: 'Twilio is not configured: set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.' });
+    return;
+  }
+  try {
+    await releaseWhatsAppNumber(sender.phone_number);
+  } catch (err) {
+    if (err instanceof NumberNotOwnedError) {
+      // Manually assigned external number — releasing it here is impossible;
+      // the admin should use the plain remove (unassign) instead.
+      res.status(409).json({ error: err.message });
+      return;
+    }
+    logger.error('wa number release failed', err);
+    res.status(502).json({ error: 'Releasing the number on Twilio failed.' });
+    return;
+  }
+  await waSenders.deleteForInstance(sender.agent_instance_id);
+  logger.info('wa sender released', {
+    adminUserId: req.realUserId,
+    agentInstanceId: sender.agent_instance_id,
+    phoneNumber: sender.phone_number,
+  });
   res.json({ ok: true });
 };
 

@@ -390,6 +390,8 @@ export const api = {
     ),
   adminDeleteWaSender: (agentInstanceId: string) =>
     request<{ ok: true }>(`/admin/wa-senders/${agentInstanceId}`, { method: 'DELETE' }),
+  adminReleaseWaSender: (agentInstanceId: string) =>
+    request<{ ok: true }>(`/admin/wa-senders/${agentInstanceId}/release`, { method: 'POST' }),
   adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),

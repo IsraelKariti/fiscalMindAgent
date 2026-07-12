@@ -74,3 +74,34 @@ export async function provisionWhatsAppNumber(friendlyName: string): Promise<Pro
     throw err;
   }
 }
+
+/** The number isn't on this Twilio account, so there is nothing to release. */
+export class NumberNotOwnedError extends Error {
+  constructor(phoneNumber: string) {
+    super(`${phoneNumber} is not owned by this Twilio account.`);
+  }
+}
+
+/**
+ * Permanently releases a number back to Twilio: deregisters its WhatsApp
+ * sender (freeing the WABA slot), then releases the number itself, which stops
+ * the monthly rental billing. The number goes back to Twilio's pool and cannot
+ * be recovered.
+ */
+export async function releaseWhatsAppNumber(phoneNumber: string): Promise<void> {
+  const client = twilioClient();
+
+  const [owned] = await client.incomingPhoneNumbers.list({ phoneNumber, limit: 1 });
+  if (!owned) throw new NumberNotOwnedError(phoneNumber);
+
+  // The senders API has no per-number lookup, only a channel-wide list.
+  const senders = await client.messaging.v2.channelsSenders.list({ channel: 'whatsapp' });
+  const sender = senders.find((s) => s.senderId === `whatsapp:${owned.phoneNumber}`);
+  if (sender) {
+    await client.messaging.v2.channelsSenders(sender.sid).remove();
+    logger.info('wa sender deregistered', { phoneNumber: owned.phoneNumber, senderSid: sender.sid });
+  }
+
+  await client.incomingPhoneNumbers(owned.sid).remove();
+  logger.info('twilio number released', { phoneNumber: owned.phoneNumber, sid: owned.sid });
+}

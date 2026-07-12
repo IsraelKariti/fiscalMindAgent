@@ -85,6 +85,11 @@ const he = {
   adminWaNumberBuying: 'קונה מספר…',
   adminWaNumberBuyConfirm: 'לקנות מספר WhatsApp חדש מ-Twilio (בערך ‎$1.15 לחודש)? המספר יירשם ויוקצה לסוכן הזה אוטומטית.',
   adminWaNumberBuyFailed: 'קניית המספר נכשלה.',
+  adminWaNumberRelease: 'שחרור מספר',
+  adminWaNumberReleasing: 'משחרר מספר…',
+  adminWaNumberReleaseConfirm: (phoneNumber: string) =>
+    `לשחרר את ‎${phoneNumber} בחזרה ל-Twilio? החיוב החודשי ייפסק, המספר יימחק מהחשבון ולא ניתן יהיה לשחזר אותו.`,
+  adminWaNumberReleaseFailed: 'שחרור המספר נכשל.',
 
   // Sidebar
   navDashboard: 'דשבורד',
@@ -528,6 +533,11 @@ const en: Messages = {
   adminWaNumberBuyConfirm:
     'Buy a new WhatsApp number from Twilio (~$1.15/month)? It will be registered and assigned to this agent automatically.',
   adminWaNumberBuyFailed: 'Buying the number failed.',
+  adminWaNumberRelease: 'Release number',
+  adminWaNumberReleasing: 'Releasing number…',
+  adminWaNumberReleaseConfirm: (phoneNumber: string) =>
+    `Release ${phoneNumber} back to Twilio? Monthly billing stops, the number is removed from the account and cannot be recovered.`,
+  adminWaNumberReleaseFailed: 'Releasing the number failed.',
 
   // Sidebar
   navDashboard: 'Dashboard',
@@ -971,6 +981,11 @@ const ru: Messages = {
   adminWaNumberBuyConfirm:
     'Купить новый номер WhatsApp у Twilio (~$1.15/мес)? Он будет зарегистрирован и назначен этому агенту автоматически.',
   adminWaNumberBuyFailed: 'Не удалось купить номер.',
+  adminWaNumberRelease: 'Освободить номер',
+  adminWaNumberReleasing: 'Освобождение номера…',
+  adminWaNumberReleaseConfirm: (phoneNumber: string) =>
+    `Освободить ${phoneNumber} и вернуть его Twilio? Ежемесячная оплата прекратится, номер будет удалён из аккаунта и восстановить его будет невозможно.`,
+  adminWaNumberReleaseFailed: 'Не удалось освободить номер.',
 
   // Sidebar
   navDashboard: 'Панель',

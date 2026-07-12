@@ -81,6 +81,10 @@ const he = {
   adminWaNumberRemove: 'הסרה',
   adminWaNumberSaveFailed: 'עדכון מספר ה-WhatsApp נכשל.',
   adminWaNumberConflict: 'המספר הזה כבר מוקצה לסוכן אחר.',
+  adminWaNumberBuy: 'קניית מספר',
+  adminWaNumberBuying: 'קונה מספר…',
+  adminWaNumberBuyConfirm: 'לקנות מספר WhatsApp חדש מ-Twilio (בערך ‎$1.15 לחודש)? המספר יירשם ויוקצה לסוכן הזה אוטומטית.',
+  adminWaNumberBuyFailed: 'קניית המספר נכשלה.',
 
   // Sidebar
   navDashboard: 'דשבורד',
@@ -519,6 +523,11 @@ const en: Messages = {
   adminWaNumberRemove: 'Remove',
   adminWaNumberSaveFailed: 'Updating the WhatsApp number failed.',
   adminWaNumberConflict: 'This number is already assigned to another agent.',
+  adminWaNumberBuy: 'Buy number',
+  adminWaNumberBuying: 'Buying number…',
+  adminWaNumberBuyConfirm:
+    'Buy a new WhatsApp number from Twilio (~$1.15/month)? It will be registered and assigned to this agent automatically.',
+  adminWaNumberBuyFailed: 'Buying the number failed.',
 
   // Sidebar
   navDashboard: 'Dashboard',
@@ -957,6 +966,11 @@ const ru: Messages = {
   adminWaNumberRemove: 'Убрать',
   adminWaNumberSaveFailed: 'Не удалось обновить номер WhatsApp.',
   adminWaNumberConflict: 'Этот номер уже назначен другому агенту.',
+  adminWaNumberBuy: 'Купить номер',
+  adminWaNumberBuying: 'Покупка номера…',
+  adminWaNumberBuyConfirm:
+    'Купить новый номер WhatsApp у Twilio (~$1.15/мес)? Он будет зарегистрирован и назначен этому агенту автоматически.',
+  adminWaNumberBuyFailed: 'Не удалось купить номер.',
 
   // Sidebar
   navDashboard: 'Панель',

@@ -51,6 +51,14 @@ const EnvSchema = z.object({
   // covers the full URL, so this must match what's configured on the sender
   // (in dev: https://<NGROK_DOMAIN>/webhooks/twilio).
   TWILIO_WEBHOOK_URL: z.string().url().optional(),
+  // WhatsApp Business Account all the platform's senders live under (Twilio
+  // console -> Messaging -> WhatsApp senders). Only needed for the admin
+  // panel's "buy number" auto-provisioning; assigning manually registered
+  // numbers works without it.
+  TWILIO_WABA_ID: z.string().min(1).optional(),
+  // Display name auto-provisioned senders register with on WhatsApp — must
+  // follow Meta's display-name guidelines and match the WABA's business.
+  TWILIO_WA_SENDER_NAME: z.string().min(1).default('FiscalMind'),
   // monday.com app (Developer Center -> your app -> Basic Information): the
   // Client Secret that signs the widget iframe's sessionToken JWTs. Optional —
   // the /api/monday endpoints return 503 until it is set.

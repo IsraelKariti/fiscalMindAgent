@@ -383,6 +383,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ agentInstanceId, phoneNumber }),
     }),
+  adminProvisionWaSender: (agentInstanceId: string) =>
+    request<{ sender: { agentInstanceId: string; phoneNumber: string }; senderStatus: string }>(
+      '/admin/wa-senders/provision',
+      { method: 'POST', body: JSON.stringify({ agentInstanceId }) },
+    ),
   adminDeleteWaSender: (agentInstanceId: string) =>
     request<{ ok: true }>(`/admin/wa-senders/${agentInstanceId}`, { method: 'DELETE' }),
   adminGetModel: () => request<GeminiModelState>('/admin/model'),

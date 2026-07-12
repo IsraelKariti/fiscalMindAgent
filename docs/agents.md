@@ -24,8 +24,11 @@ never one app per agent.
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
   UNIQUE (migration 021): each agent instance that uses WhatsApp gets its own
   dedicated Twilio number, assigned by an admin (AdminDashboard agents section
-  or `POST /api/admin/wa-senders`). Inbound routing is by the `To` number →
-  instance; outbound `from` is the client's instance's number.
+  or `POST /api/admin/wa-senders`). The admin panel can also auto-buy one
+  (`POST /api/admin/wa-senders/provision`, `src/twilio/provision.ts`): it
+  purchases a US number and registers it as a WhatsApp sender under
+  `TWILIO_WABA_ID` — no Twilio-console step. Inbound routing is by the `To`
+  number → instance; outbound `from` is the client's instance's number.
 
 ## Backend (`src/agents/`)
 

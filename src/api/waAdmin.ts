@@ -3,6 +3,7 @@ import { z } from 'zod';
 import * as agentInstances from '../db/queries/agentInstances.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
+import { isProvisioningConfigured, provisionWhatsAppNumber } from '../twilio/provision.js';
 import { normalizeE164 } from '../util/phone.js';
 import { logger } from '../util/logger.js';
 
@@ -71,6 +72,57 @@ export const adminUpsertWaSender: RequestHandler = async (req, res) => {
     }
     throw err;
   }
+};
+
+const SenderProvisionSchema = z.object({ agentInstanceId: z.string().uuid() }).strict();
+
+/**
+ * POST /api/admin/wa-senders/provision — buy a Twilio number, register it as a
+ * WhatsApp sender under the platform WABA, and assign it to the agent instance.
+ * Synchronous: waits (up to ~1 min) for the sender to come ONLINE, so the
+ * response may take a while.
+ */
+export const adminProvisionWaSender: RequestHandler = async (req, res) => {
+  const parsed = SenderProvisionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Expected { agentInstanceId }.', details: parsed.error.flatten() });
+    return;
+  }
+  if (!isProvisioningConfigured()) {
+    res.status(503).json({
+      error:
+        'Number provisioning is not configured: set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WEBHOOK_URL and TWILIO_WABA_ID.',
+    });
+    return;
+  }
+  const instance = await agentInstances.getById(parsed.data.agentInstanceId);
+  if (!instance) {
+    res.status(404).json({ error: 'Agent instance not found.' });
+    return;
+  }
+  if (await waSenders.getByInstanceId(instance.id)) {
+    res.status(409).json({ error: 'This agent already has a number; remove it before buying a new one.' });
+    return;
+  }
+  let provisioned;
+  try {
+    provisioned = await provisionWhatsAppNumber(`fiscalmind ${instance.agent_type} ${instance.id}`);
+  } catch (err) {
+    logger.error('wa number provisioning failed', err);
+    res.status(502).json({ error: err instanceof Error ? err.message : 'Buying the number from Twilio failed.' });
+    return;
+  }
+  const sender = await waSenders.upsertForInstance(instance.id, provisioned.phoneNumber);
+  logger.info('wa sender provisioned', {
+    adminUserId: req.realUserId,
+    agentInstanceId: instance.id,
+    phoneNumber: provisioned.phoneNumber,
+    senderStatus: provisioned.senderStatus,
+  });
+  res.status(201).json({
+    sender: { agentInstanceId: sender.agent_instance_id, phoneNumber: sender.phone_number },
+    senderStatus: provisioned.senderStatus,
+  });
 };
 
 /** DELETE /api/admin/wa-senders/:agentInstanceId — unassign the agent instance's number. */

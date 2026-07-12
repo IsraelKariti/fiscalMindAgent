@@ -209,6 +209,27 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     }
   };
 
+  // Instance a Twilio number purchase is in flight for — the whole flow (buy +
+  // WhatsApp sender registration) can take up to a minute.
+  const [provisioningId, setProvisioningId] = useState<string | null>(null);
+
+  const buyWaNumber = async (agentInstanceId: string) => {
+    if (!selectedUserId || !window.confirm(t.adminWaNumberBuyConfirm)) return;
+    setAgentBusy(true);
+    setProvisioningId(agentInstanceId);
+    setError(null);
+    try {
+      await api.adminProvisionWaSender(agentInstanceId);
+      setWaDrafts(({ [agentInstanceId]: _bought, ...rest }) => rest);
+      setAgentInfo(await api.adminListAccountantAgents(selectedUserId));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t.adminWaNumberBuyFailed);
+    } finally {
+      setAgentBusy(false);
+      setProvisioningId(null);
+    }
+  };
+
   const removeWaNumber = async (agentInstanceId: string) => {
     if (!selectedUserId) return;
     setAgentBusy(true);
@@ -572,13 +593,21 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                                   >
                                     {t.adminWaNumberSave}
                                   </button>
-                                  {row.waPhoneNumber && (
+                                  {row.waPhoneNumber ? (
                                     <button
                                       className="btn btn-ghost btn-small"
                                       disabled={agentBusy}
                                       onClick={() => removeWaNumber(row.id)}
                                     >
                                       {t.adminWaNumberRemove}
+                                    </button>
+                                  ) : (
+                                    <button
+                                      className="btn btn-ghost btn-small"
+                                      disabled={agentBusy}
+                                      onClick={() => buyWaNumber(row.id)}
+                                    >
+                                      {provisioningId === row.id ? t.adminWaNumberBuying : t.adminWaNumberBuy}
                                     </button>
                                   )}
                                 </span>

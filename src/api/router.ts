@@ -30,6 +30,7 @@ import {
   adminDeleteWaTemplate,
   adminListWaSenders,
   adminListWaTemplates,
+  adminProvisionWaSender,
   adminUpsertWaSender,
 } from './waAdmin.js';
 
@@ -76,6 +77,7 @@ apiRouter.put('/admin/whitelist/:email/tier', wrap(requireAdmin), wrap(adminSetT
 
 apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));
 apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender));
+apiRouter.post('/admin/wa-senders/provision', wrap(requireAdmin), wrap(adminProvisionWaSender));
 apiRouter.delete('/admin/wa-senders/:agentInstanceId', wrap(requireAdmin), wrap(adminDeleteWaSender));
 apiRouter.get('/admin/wa-templates', wrap(requireAdmin), wrap(adminListWaTemplates));
 apiRouter.post('/admin/wa-templates', wrap(requireAdmin), wrap(adminCreateWaTemplate));

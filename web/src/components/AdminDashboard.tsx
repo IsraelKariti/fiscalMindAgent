@@ -12,6 +12,7 @@ import { getAgentUI } from '../agents/registry';
 import { formatTimestamp, formatUsd, LOCALE } from '../format';
 import { useT } from '../i18n';
 import { AddAccountantModal } from './AddAccountantModal';
+import { ConfirmModal } from './ConfirmModal';
 import { UpgradeAccountModal } from './UpgradeAccountModal';
 
 interface Props {
@@ -212,9 +213,11 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   // Instance a Twilio number purchase is in flight for — the whole flow (buy +
   // WhatsApp sender registration) can take up to a minute.
   const [provisioningId, setProvisioningId] = useState<string | null>(null);
+  // Instance awaiting purchase confirmation in the ConfirmModal.
+  const [buyConfirmId, setBuyConfirmId] = useState<string | null>(null);
 
   const buyWaNumber = async (agentInstanceId: string) => {
-    if (!selectedUserId || !window.confirm(t.adminWaNumberBuyConfirm)) return;
+    if (!selectedUserId) return;
     setAgentBusy(true);
     setProvisioningId(agentInstanceId);
     setError(null);
@@ -278,8 +281,10 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     }
   };
 
+  // Email awaiting revoke confirmation in the ConfirmModal.
+  const [revokeEmail, setRevokeEmail] = useState<string | null>(null);
+
   const revoke = async (row: AccountantRow) => {
-    if (!window.confirm(t.revokeConfirm(row.email))) return;
     setBusyEmail(row.email);
     setError(null);
     try {
@@ -468,7 +473,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                         <button
                           className="btn btn-ghost btn-small"
                           disabled={busyEmail !== null}
-                          onClick={() => revoke(selected)}
+                          onClick={() => setRevokeEmail(selected.email)}
                         >
                           {t.revokeAccess}
                         </button>
@@ -605,7 +610,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
                                     <button
                                       className="btn btn-ghost btn-small"
                                       disabled={agentBusy}
-                                      onClick={() => buyWaNumber(row.id)}
+                                      onClick={() => setBuyConfirmId(row.id)}
                                     >
                                       {provisioningId === row.id ? t.adminWaNumberBuying : t.adminWaNumberBuy}
                                     </button>
@@ -723,6 +728,30 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             setUpgradeEmail(null);
             refresh().catch(() => setError(t.accountantsRefreshFailed));
           }}
+        />
+      )}
+
+      {buyConfirmId && (
+        <ConfirmModal
+          title={t.adminWaNumberBuy}
+          note={t.adminWaNumberBuyConfirm}
+          confirmLabel={t.adminWaNumberBuy}
+          onConfirm={() => buyWaNumber(buyConfirmId)}
+          onClose={() => setBuyConfirmId(null)}
+        />
+      )}
+
+      {revokeEmail && (
+        <ConfirmModal
+          title={t.revokeAccess}
+          note={t.revokeConfirm(revokeEmail)}
+          confirmLabel={t.revokeAccess}
+          danger
+          onConfirm={() => {
+            const row = rows?.find((r) => r.email === revokeEmail);
+            if (row) revoke(row);
+          }}
+          onClose={() => setRevokeEmail(null)}
         />
       )}
 

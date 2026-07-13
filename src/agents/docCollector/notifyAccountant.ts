@@ -1,13 +1,13 @@
 import * as users from '../../db/queries/users.js';
-import * as agentMailboxes from '../../db/queries/agentMailboxes.js';
 import { sendEmail } from '../../resend/send.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../util/logger.js';
 import type { ClientRow } from '../../db/types.js';
 
 /**
- * Notifications from the agent to its own accountant, sent from the
- * accountant's agent mailbox to their login address. Deliberately NOT stored
+ * Notifications from the platform to the accountant, sent from a no-reply
+ * address on the verified sending domain (no mailbox needs to exist — Resend
+ * authorizes the whole domain) to their login address. Deliberately NOT stored
  * in the emails table — that table is the client conversation (it feeds the
  * timeline, the LLM transcript and the threading headers). Callers fire and
  * forget; a notification failure must never fail planning or a route.
@@ -17,18 +17,12 @@ async function sendToAccountant(client: ClientRow, subject: string, body: string
     logger.warn('accountant notification skipped: legacy client without owner', { clientId: client.id });
     return;
   }
-  const [user, mailbox] = await Promise.all([
-    users.getById(client.user_id),
-    agentMailboxes.getByUserId(client.user_id),
-  ]);
-  if (!user || !mailbox) {
-    logger.warn('accountant notification skipped: missing user or mailbox', {
-      clientId: client.id,
-      userId: client.user_id,
-    });
+  const user = await users.getById(client.user_id);
+  if (!user) {
+    logger.warn('accountant notification skipped: missing user', { clientId: client.id, userId: client.user_id });
     return;
   }
-  await sendEmail({ from: mailbox.email_address, to: user.email, subject, body });
+  await sendEmail({ from: `FiscalMind <no-reply@${env.AGENT_EMAIL_DOMAIN}>`, to: user.email, subject, body });
   logger.info('accountant notified', { clientId: client.id, to: user.email, subject });
 }
 

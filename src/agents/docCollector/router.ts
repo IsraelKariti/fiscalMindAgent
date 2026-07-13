@@ -7,7 +7,7 @@ import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
-import { DueDateSchema } from '../../api/workspace.js';
+import { DueDateSchema } from '../../api/schemas.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { logger } from '../../util/logger.js';
 
@@ -61,15 +61,11 @@ function uuidParam(value: string | undefined): string | null {
   return value && z.string().uuid().safeParse(value).success ? value : null;
 }
 
+const DueDatePutSchema = z.object({ dueDate: DueDateSchema.nullable() }).strict();
+
 /** The doc collector's required-documents CRUD and due-date editing, composed into the workspace router. */
 export function buildRouter(): Router {
   const router = Router();
-
-  // Built here, not at module top level: this module and workspace.ts import
-  // each other, and workspace.ts only initializes DueDateSchema after this
-  // module's body has already run. buildRouter is called later (workspace.ts
-  // composes agent routers after its own consts), so the binding is live.
-  const DueDatePutSchema = z.object({ dueDate: DueDateSchema.nullable() }).strict();
 
   // Composed into the shared workspace router alongside other agent types'
   // routes — bail out to it when the active agent isn't the doc collector.

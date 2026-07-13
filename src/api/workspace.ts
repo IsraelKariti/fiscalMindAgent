@@ -22,6 +22,7 @@ import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
+import { DueDateSchema } from './schemas.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -54,12 +55,6 @@ const DocumentCreateSchema = z
     description: z.string().max(2000).nullable().optional(),
   })
   .strict();
-
-/** "YYYY-MM-DD", must be a real calendar date (V8 rejects e.g. 2026-02-30 as Invalid Date). */
-export const DueDateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((s) => !Number.isNaN(Date.parse(s)), 'not a valid date');
 
 const ClientCreateSchema = z
   .object({

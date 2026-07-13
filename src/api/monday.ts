@@ -13,7 +13,8 @@ import { accountRouter } from './account.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { createMondayHandoffToken, createMondayLinkToken, requireMondayIdentity, requireMondayUser } from './mondayAuth.js';
-import { DueDateSchema, workspaceRouter } from './workspace.js';
+import { DueDateSchema } from './schemas.js';
+import { workspaceRouter } from './workspace.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {

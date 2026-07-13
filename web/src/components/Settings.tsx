@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { type AccountTier, type MailboxStatus, type WaSenderStatus } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
-import { useT, type Lang } from '../i18n';
+import { useT } from '../i18n';
 import { ClaimMailbox } from './ClaimMailbox';
 import { SettingsGroup, SettingsRow } from './SettingsUI';
 
@@ -31,16 +31,8 @@ const icon = {
   ),
 };
 
-// Each language is labeled in itself so it stays recognizable whichever
-// language is currently active.
-const LANGUAGES: { value: Lang; label: string }[] = [
-  { value: 'he', label: 'עברית' },
-  { value: 'en', label: 'English' },
-  { value: 'ru', label: 'Русский' },
-];
-
 export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, hideMailbox }: Props) {
-  const { t, lang, setLang } = useT();
+  const { t } = useT();
   const [copied, setCopied] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
@@ -84,25 +76,6 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, h
                 </a>
               )}
             </>
-          }
-        />
-        <SettingsRow
-          title={t.language}
-          description={t.languageDesc}
-          control={
-            <div className="lang-switch">
-              {LANGUAGES.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`chip ${lang === option.value ? 'chip-selected' : ''}`}
-                  aria-pressed={lang === option.value}
-                  onClick={() => setLang(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
           }
         />
       </SettingsGroup>

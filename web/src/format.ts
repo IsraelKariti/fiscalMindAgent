@@ -1,12 +1,5 @@
-/**
- * UI locale for dates and times. A live binding kept in sync with the selected
- * interface language by I18nProvider (Hebrew is the default).
- */
-export let LOCALE = 'he-IL';
-
-export function setDateLocale(locale: string) {
-  LOCALE = locale;
-}
+/** UI locale for dates and times — the app is Hebrew-only. */
+export const LOCALE = 'he-IL';
 
 export function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(LOCALE, {

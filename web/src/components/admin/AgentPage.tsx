@@ -123,7 +123,7 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
 
       <section className="card">
         <div className="card-header">
-          <div>
+          <div className="card-title-row">
             <h2>{instance?.name ?? t[ui.nameKey]}</h2>
             {instance?.enabled && <span className="badge badge-success">{t.activeBadge}</span>}
           </div>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { getAgentUI } from '../../agents/registry';
 import { useT } from '../../i18n';
 import { AddAccountantModal } from '../AddAccountantModal';
 import { StatusBadge, TierBadge, rowStatus, type AccountantRow, type RowStatus } from './shared';
@@ -28,7 +29,7 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
   return (
     <section className="card admin-roster">
       <div className="card-header">
-        <div>
+        <div className="card-title-row">
           <h2>{t.accountantsLabel}</h2>
           <span className="badge badge-neutral">{rows.length === 1 ? t.oneAccount : t.nAccounts(rows.length)}</span>
         </div>
@@ -68,12 +69,11 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>{t.nameLabel}</th>
-                    <th>{t.emailLabel}</th>
+                    <th className="admin-col-name">{t.nameLabel}</th>
+                    <th className="admin-col-email">{t.emailLabel}</th>
                     <th>{t.adminStatusLabel}</th>
                     <th>{t.tierLabel}</th>
-                    <th>{t.clientsLabel}</th>
-                    <th>{t.docsCollectedLabel}</th>
+                    <th>{t.adminAgentsTitle}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -88,33 +88,22 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
                       }}
                     >
                       <td className="admin-table-name">{row.name ?? <span className="muted">—</span>}</td>
-                      <td dir="ltr">{row.email}</td>
+                      <td>
+                        <span dir="ltr">{row.email}</span>
+                      </td>
                       <td>
                         <StatusBadge row={row} />
                       </td>
                       <td>{row.tier === 'premium' ? <TierBadge row={row} /> : row.tier ? t.tierNormal : '—'}</td>
-                      <td dir="ltr">
-                        {row.user && row.user.clientCount > 0 ? (
-                          `${row.user.clientsComplete} / ${row.user.clientCount}`
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </td>
                       <td>
-                        {row.user && row.user.docsTotal > 0 ? (
+                        {row.user && row.user.agents.some((a) => a.enabled) ? (
                           <span
-                            className="table-meter"
-                            title={t.collectedOfTitle(row.user.docsCollected, row.user.docsTotal)}
+                            title={row.user.agents
+                              .filter((a) => a.enabled)
+                              .map((a) => a.name ?? t[getAgentUI(a.agentType).nameKey])
+                              .join(' · ')}
                           >
-                            <span className="stat-meter table-meter-track">
-                              <span
-                                className={`stat-meter-fill ${row.user.docsCollected === row.user.docsTotal ? 'complete' : ''}`}
-                                style={{ width: `${(row.user.docsCollected / row.user.docsTotal) * 100}%` }}
-                              />
-                            </span>
-                            <span className="table-meter-count" dir="ltr">
-                              {row.user.docsCollected} / {row.user.docsTotal}
-                            </span>
+                            {row.user.agents.filter((a) => a.enabled).length}
                           </span>
                         ) : (
                           <span className="muted">—</span>

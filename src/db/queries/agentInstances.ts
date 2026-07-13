@@ -47,6 +47,26 @@ export async function listEnabledByType(agentType: string): Promise<AgentInstanc
   return rows;
 }
 
+export type AgentInstanceWithClientCount = AgentInstanceRow & { client_count: number };
+
+/**
+ * Every instance on the platform (incl. disabled) with its client count —
+ * the admin roster. Legacy CLI-era clients (NULL agent_instance_id) count
+ * toward their user's doc_collector instance, mirroring the resolver fallback.
+ */
+export async function listAllWithClientCounts(): Promise<AgentInstanceWithClientCount[]> {
+  const { rows } = await pool.query<AgentInstanceWithClientCount>(
+    `SELECT i.*, COUNT(c.id)::int AS client_count
+     FROM agent_instances i
+     LEFT JOIN clients c
+       ON c.agent_instance_id = i.id
+       OR (c.agent_instance_id IS NULL AND c.user_id = i.user_id AND i.agent_type = 'doc_collector')
+     GROUP BY i.id
+     ORDER BY i.created_at ASC`,
+  );
+  return rows;
+}
+
 /** All instances including disabled ones — admin panel only. */
 export async function listAllForUser(userId: string): Promise<AgentInstanceRow[]> {
   const { rows } = await pool.query<AgentInstanceRow>(

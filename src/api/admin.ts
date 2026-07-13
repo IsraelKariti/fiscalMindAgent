@@ -45,13 +45,32 @@ export const requireAdmin: RequestHandler = async (req, res, next) => {
 };
 
 /**
- * GET /api/admin/accountants — every accountant with their collection progress
- * and per-model Gemini usage, each model's tokens priced at its own rates
- * (cost null while the pricing registry has no entry for it). Admin accounts
- * (ADMIN_EMAILS) are not accountants and are excluded.
+ * GET /api/admin/accountants — every accountant with their agent instances
+ * (type, enabled, client count) and per-model Gemini usage, each model's
+ * tokens priced at its own rates (cost null while the pricing registry has no
+ * entry for it). Agent-specific progress lives on the per-agent admin pages,
+ * not here. Admin accounts (ADMIN_EMAILS) are not accountants and are
+ * excluded.
  */
 export const adminListAccountants: RequestHandler = async (_req, res) => {
-  const [list, usageRows] = await Promise.all([users.listAll(), llmUsage.listAll()]);
+  const [list, usageRows, instances] = await Promise.all([
+    users.listAll(),
+    llmUsage.listAll(),
+    agentInstances.listAllWithClientCounts(),
+  ]);
+
+  const agentsByUser = new Map<string, object[]>();
+  for (const instance of instances) {
+    const entries = agentsByUser.get(instance.user_id) ?? [];
+    entries.push({
+      id: instance.id,
+      agentType: instance.agent_type,
+      name: instance.name,
+      enabled: instance.enabled,
+      clientCount: instance.client_count,
+    });
+    agentsByUser.set(instance.user_id, entries);
+  }
 
   const models = [...new Set(usageRows.map((r) => r.model))];
   const pricingByModel = new Map(
@@ -87,10 +106,7 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         mailbox: u.mailbox_address,
         whitelisted: u.whitelisted,
         tier: u.tier,
-        clientCount: u.client_count,
-        clientsComplete: u.clients_complete,
-        docsTotal: u.docs_total,
-        docsCollected: u.docs_collected,
+        agents: agentsByUser.get(u.id) ?? [],
         llmUsage: usageByUser.get(u.id) ?? [],
       })),
   });

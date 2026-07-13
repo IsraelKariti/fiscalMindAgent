@@ -220,6 +220,15 @@ export interface AccountantModelUsage {
   cost: number | null;
 }
 
+/** One agent instance in the admin roster: identity + how many clients it owns. */
+export interface AccountantAgentSummary {
+  id: string;
+  agentType: string;
+  name: string | null;
+  enabled: boolean;
+  clientCount: number;
+}
+
 export interface Accountant {
   id: string;
   email: string;
@@ -229,10 +238,8 @@ export interface Accountant {
   whitelisted: boolean;
   /** Null when the user is not whitelisted (tier lives on the whitelist entry). */
   tier: AccountTier | null;
-  clientCount: number;
-  clientsComplete: number;
-  docsTotal: number;
-  docsCollected: number;
+  /** Every agent instance incl. disabled ones (agent-specific stats live on the agent pages). */
+  agents: AccountantAgentSummary[];
   llmUsage: AccountantModelUsage[];
 }
 

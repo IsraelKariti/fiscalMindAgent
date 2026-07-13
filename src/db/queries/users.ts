@@ -17,33 +17,21 @@ export interface UserListRow {
   whitelisted: boolean;
   /** Null when the user is not whitelisted (tier lives on the whitelist entry). */
   tier: AccountTier | null;
-  client_count: number;
-  clients_complete: number;
-  docs_total: number;
-  docs_collected: number;
 }
 
 /**
- * All users with their collection-progress rollups, newest first — admin panel only.
- * Each document row joins through exactly one client, so COUNT(d.id) is exact while
- * client counts need DISTINCT to undo the per-document fan-out.
+ * All users, newest first — admin panel only. No agent-specific rollups here:
+ * per-agent client counts come from agentInstances.listAllWithClientCounts().
  */
 export async function listAll(): Promise<UserListRow[]> {
   const { rows } = await pool.query<UserListRow>(
     `SELECT u.id, u.email, u.name, u.created_at,
             m.email_address AS mailbox_address,
             (w.email IS NOT NULL) AS whitelisted,
-            w.tier,
-            COUNT(DISTINCT c.id)::int AS client_count,
-            COUNT(DISTINCT c.id) FILTER (WHERE c.goal_status = 'complete')::int AS clients_complete,
-            COUNT(d.id)::int AS docs_total,
-            COUNT(d.id) FILTER (WHERE d.status = 'collected')::int AS docs_collected
+            w.tier
      FROM users u
      LEFT JOIN agent_mailboxes m ON m.user_id = u.id
      LEFT JOIN whitelisted_emails w ON w.email = lower(u.email)
-     LEFT JOIN clients c ON c.user_id = u.id
-     LEFT JOIN client_documents d ON d.client_id = c.id
-     GROUP BY u.id, m.email_address, w.email, w.tier
      ORDER BY u.created_at DESC`,
   );
   return rows;

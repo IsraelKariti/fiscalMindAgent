@@ -57,6 +57,13 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
     ];
   }, [agentInfo]);
 
+  const enabledAgents = useMemo(() => (row?.user?.agents ?? []).filter((a) => a.enabled), [row]);
+  const clientTotal = enabledAgents.reduce((sum, a) => sum + a.clientCount, 0);
+  const clientCountByType = useMemo(
+    () => new Map((row?.user?.agents ?? []).map((a) => [a.agentType, a.clientCount])),
+    [row],
+  );
+
   const usage = row?.user?.llmUsage ?? [];
   const totalCost = usage.reduce((sum, u) => sum + (u.cost ?? 0), 0);
   const hasUnpriced = usage.some((u) => u.cost === null);
@@ -132,7 +139,7 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
 
       <section className="card">
         <div className="card-header">
-          <div>
+          <div className="card-title-row">
             <h2>{row.name ?? row.email}</h2>
             <TierBadge row={row} />
             <StatusBadge row={row} />
@@ -178,32 +185,18 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
       {row.user && (
         <div className="stat-row">
           <div className="card stat-tile">
-            <span className="stat-label">{t.clientsCompleteLabel}</span>
-            <span className="stat-value">
-              {row.user.clientCount === 0 ? '—' : `${row.user.clientsComplete} / ${row.user.clientCount}`}
-            </span>
+            <span className="stat-label">{t.adminActiveAgentsLabel}</span>
+            <span className="stat-value">{enabledAgents.length === 0 ? '—' : enabledAgents.length}</span>
             <span className="stat-context">
-              {row.user.clientCount === 0
-                ? t.noClients
-                : t.stillInProgress(row.user.clientCount - row.user.clientsComplete)}
+              {enabledAgents.length === 0
+                ? t.adminNoActiveAgents
+                : enabledAgents.map((a) => a.name ?? t[getAgentUI(a.agentType).nameKey]).join(' · ')}
             </span>
           </div>
           <div className="card stat-tile">
-            <span className="stat-label">{t.docsCollectedLabel}</span>
-            <span className="stat-value">
-              {row.user.docsTotal === 0 ? '—' : `${row.user.docsCollected} / ${row.user.docsTotal}`}
-            </span>
-            {row.user.docsTotal > 0 && (
-              <div className="stat-meter">
-                <div
-                  className={`stat-meter-fill ${row.user.docsCollected === row.user.docsTotal ? 'complete' : ''}`}
-                  style={{ width: `${(row.user.docsCollected / row.user.docsTotal) * 100}%` }}
-                />
-              </div>
-            )}
-            <span className="stat-context">
-              {row.user.docsTotal === 0 ? t.noDocsRequestedYet : t.nMissing(row.user.docsTotal - row.user.docsCollected)}
-            </span>
+            <span className="stat-label">{t.clientsLabel}</span>
+            <span className="stat-value">{clientTotal}</span>
+            <span className="stat-context">{clientTotal === 0 ? t.noClients : t.acrossAllAgents}</span>
           </div>
           <div className="card stat-tile">
             <span className="stat-label">{t.adminLlmSpendLabel}</span>
@@ -230,6 +223,9 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
                   <span className="doc-desc muted">{t[getAgentUI(agent.agentType).descriptionKey]}</span>
                 </span>
                 <span className="admin-agent-summary-meta">
+                  {agent.instantiated && (
+                    <span className="muted">{t.nClientsTitle(clientCountByType.get(agent.agentType) ?? 0)}</span>
+                  )}
                   {agent.waPhoneNumber ? (
                     <span className="muted" dir="ltr">
                       {agent.waPhoneNumber}

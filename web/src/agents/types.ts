@@ -53,6 +53,12 @@ export interface AgentTypeUI {
   icon: ReactNode;
   clientTabs: ClientTab[];
   /**
+   * A stub agent type with no behavior yet: it gets a normal picker card, but
+   * entering it renders a "coming soon" pane instead of the client workspace
+   * (clientTabs/channels are ignored and may be empty).
+   */
+  comingSoon?: boolean;
+  /**
    * Optional agent-level settings panel, rendered as an extra section of the
    * workspace Settings view (inside WorkspaceApiProvider, so it may call
    * useWorkspaceApi() for agent-scoped requests).

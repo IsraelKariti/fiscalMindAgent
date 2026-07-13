@@ -3272,6 +3272,31 @@ button.meta-chip:hover {
   place-items: center;
 }
 
+/* Stub agent types: full-pane "coming soon" note instead of a workspace */
+.coming-soon-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  padding: 32px 28px;
+  text-align: center;
+}
+
+.coming-soon-card h2 {
+  margin: 6px 0 0;
+  font-size: 20px;
+}
+
+.coming-soon-card .muted {
+  line-height: 1.6;
+}
+
+.coming-soon-note {
+  margin: 4px 0 8px;
+  font-weight: 600;
+}
+
 /* ---------- Debt collector: per-client debt snapshot card ---------- */
 
 .debt-details {

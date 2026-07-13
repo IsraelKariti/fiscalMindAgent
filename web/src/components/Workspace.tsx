@@ -164,6 +164,25 @@ export function Workspace({
   if (!agent || !wsApi) {
     return <AgentsHome agents={agents} onSelectAgent={enterAgent} userEmail={userEmail} onLogout={onLogout} />;
   }
+  // Stub agent types have no workspace yet — a full-pane "coming soon" note
+  // instead of the client shell.
+  if (agentUI.comingSoon) {
+    return (
+      <div className="screen-center">
+        <div className="card coming-soon-card">
+          <span className="agent-card-icon">{agentUI.icon}</span>
+          <h2>{agent.name}</h2>
+          <p className="muted">{t[agentUI.descriptionKey]}</p>
+          <p className="coming-soon-note">{t.agentComingSoon}</p>
+          {!pinnedAgentType && agents.length > 1 && (
+            <button className="btn btn-ghost" onClick={showAgentsHome}>
+              {t.allAgents}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <WorkspaceApiProvider value={wsApi}>

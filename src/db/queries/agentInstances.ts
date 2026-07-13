@@ -6,6 +6,15 @@ export const DEFAULT_INSTANCE_NAMES: Record<string, string> = {
   doc_collector: 'איסוף מסמכים',
   debt_collector: 'גביית חובות',
   customer_service: 'שירות לקוחות',
+  invoice_processing: 'עיבוד חשבוניות',
+  bank_reconciliation: 'התאמות בנקים',
+  transaction_categorization: 'סיווג תנועות',
+  tax_deadlines: 'מועדי דיווח ומס',
+  client_onboarding: 'קליטת לקוחות',
+  payroll_prep: 'הכנת שכר',
+  financial_reports: 'דוחות ותובנות',
+  expense_tracking: 'קליטת קבלות',
+  cashflow_forecast: 'תזרים מזומנים',
 };
 
 export async function listForUser(userId: string): Promise<AgentInstanceRow[]> {

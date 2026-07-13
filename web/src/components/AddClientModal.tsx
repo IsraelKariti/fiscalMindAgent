@@ -7,6 +7,8 @@ import { useT } from '../i18n';
 interface Props {
   onCreated: (client: Client) => void;
   onClose: () => void;
+  /** Name + email only — no documents/due-date (doc-collector concepts); see AgentTypeUI.simpleClientForm. */
+  simple?: boolean;
 }
 
 interface DocumentDraft {
@@ -73,13 +75,13 @@ const DEFAULT_DOCUMENTS: DocumentDraft[] = [
   },
 ];
 
-export function AddClientModal({ onCreated, onClose }: Props) {
+export function AddClientModal({ onCreated, onClose, simple = false }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [documents, setDocuments] = useState<DocumentDraft[]>(DEFAULT_DOCUMENTS);
+  const [documents, setDocuments] = useState<DocumentDraft[]>(simple ? [] : DEFAULT_DOCUMENTS);
   const [docDraft, setDocDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -93,7 +95,7 @@ export function AddClientModal({ onCreated, onClose }: Props) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (documents.length === 0) {
+    if (!simple && documents.length === 0) {
       setError(t.atLeastOneDoc);
       return;
     }
@@ -114,7 +116,7 @@ export function AddClientModal({ onCreated, onClose }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>{t.addClientTitle}</h2>
-        <p className="muted">{t.addClientLead}</p>
+        <p className="muted">{simple ? t.addClientLeadDebt : t.addClientLead}</p>
         <label className="field">
           <span>{t.nameLabel}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
@@ -123,6 +125,8 @@ export function AddClientModal({ onCreated, onClose }: Props) {
           <span>{t.emailLabel}</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
+        {!simple && (
+        <>
         <label className="field">
           <span>{t.dueDateLabel}</span>
           <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -164,6 +168,8 @@ export function AddClientModal({ onCreated, onClose }: Props) {
             </button>
           </div>
         </div>
+        </>
+        )}
         {error && <div className="error-banner">{error}</div>}
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose} disabled={busy}>

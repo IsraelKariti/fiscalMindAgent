@@ -3,9 +3,9 @@ import { requireGoogleToken, requireMondayToken } from '../../api/integrationGua
 import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as googleOauthTokens from '../../db/queries/googleOauthTokens.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
-import { getSpreadsheetMeta } from './googleData.js';
-import { listBoards, listDocs } from './mondayData.js';
-import { CustomerServiceSettingsSchema, parseSettings } from './settings.js';
+import { getSpreadsheetMeta } from '../customerService/googleData.js';
+import { EMAIL_CAPABLE, listBoards } from '../customerService/mondayData.js';
+import { DebtCollectorSettingsSchema, parseSettings } from './settings.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -13,17 +13,16 @@ function wrap(handler: RequestHandler): RequestHandler {
 }
 
 /**
- * The customer-service agent's settings + monday-picker routes, composed into
- * the workspace router (so they serve both the cookie /api/* and the monday
- * /api/monday/app/* mounts). Paths are prefixed /customer-service to stay
- * clear of the shared workspace routes.
+ * The debt collector's settings + source-picker routes, composed into the
+ * workspace router. Paths are prefixed /debt-collector to stay clear of the
+ * shared workspace routes.
  */
 export function buildRouter(): Router {
   const router = Router();
 
   // Bail out to the next agent type's router when this instance isn't ours.
   router.use((req, _res, next) => {
-    if (req.agentInstance && req.agentInstance.agent_type !== 'customer_service') {
+    if (req.agentInstance && req.agentInstance.agent_type !== 'debt_collector') {
       next('router');
       return;
     }
@@ -31,7 +30,7 @@ export function buildRouter(): Router {
   });
 
   router.get(
-    '/customer-service/settings',
+    '/debt-collector/settings',
     wrap(async (req, res) => {
       const [mondayToken, googleToken] = await Promise.all([
         mondayOauthTokens.getByUserId(req.userId!),
@@ -46,9 +45,9 @@ export function buildRouter(): Router {
   );
 
   router.put(
-    '/customer-service/settings',
+    '/debt-collector/settings',
     wrap(async (req, res) => {
-      const parsed = CustomerServiceSettingsSchema.safeParse(req.body);
+      const parsed = DebtCollectorSettingsSchema.safeParse(req.body);
       if (!parsed.success) {
         res.status(400).json({ error: 'Invalid settings.', details: parsed.error.flatten() });
         return;
@@ -63,24 +62,16 @@ export function buildRouter(): Router {
   );
 
   router.get(
-    '/customer-service/monday/docs',
+    '/debt-collector/monday/boards',
     wrap(requireMondayToken),
     wrap(async (_req, res) => {
-      res.json({ docs: await listDocs(res.locals.mondayAccessToken as string) });
+      res.json({ boards: await listBoards(res.locals.mondayAccessToken as string, EMAIL_CAPABLE) });
     }),
   );
 
+  /** Tabs + header columns of one picked spreadsheet — powers the email/name column mapping UI. */
   router.get(
-    '/customer-service/monday/boards',
-    wrap(requireMondayToken),
-    wrap(async (_req, res) => {
-      res.json({ boards: await listBoards(res.locals.mondayAccessToken as string) });
-    }),
-  );
-
-  /** Tabs + header columns of one picked spreadsheet — powers the phone/name column mapping UI. */
-  router.get(
-    '/customer-service/google/spreadsheets/:spreadsheetId/meta',
+    '/debt-collector/google/spreadsheets/:spreadsheetId/meta',
     wrap(requireGoogleToken),
     wrap(async (req, res) => {
       res.json({ meta: await getSpreadsheetMeta(res.locals.googleAccessToken as string, req.params.spreadsheetId!) });

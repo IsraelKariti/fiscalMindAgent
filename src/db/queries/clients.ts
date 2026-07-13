@@ -317,6 +317,18 @@ export async function clearOverdueStopped(id: string): Promise<void> {
   await pool.query(`UPDATE clients SET agent_fields = agent_fields - 'overdue_stopped_at' WHERE id = $1`, [id]);
 }
 
+/**
+ * Overwrites the debt collector's per-client analysis snapshot
+ * (agent_fields.debt). Agent-status write, so updated_at is left alone — it
+ * tracks accountant edits.
+ */
+export async function setDebtSnapshot(id: string, snapshot: Record<string, unknown>): Promise<void> {
+  await pool.query(
+    `UPDATE clients SET agent_fields = agent_fields || jsonb_build_object('debt', $2::jsonb) WHERE id = $1`,
+    [id, JSON.stringify(snapshot)],
+  );
+}
+
 export async function updateName(id: string, name: string): Promise<void> {
   await pool.query('UPDATE clients SET name = $2, updated_at = now() WHERE id = $1', [id, name]);
 }

@@ -1,6 +1,20 @@
 export type GoalStatus = 'pending' | 'complete';
 
-/** Per-agent scalar fields (clients.agent_fields JSONB); today all doc-collector keys. */
+/** The debt collector's latest per-client analysis (clients.agent_fields.debt). */
+export interface DebtSnapshot {
+  status: 'in_debt' | 'no_debt' | 'paid' | 'no_data';
+  amount: string | null;
+  reason: string | null;
+  payment_plan: 'monthly' | 'bi_monthly' | 'other' | 'unknown';
+  recurring_payments: string | null;
+  one_time_payments: string | null;
+  /** The LLM's explanation — the workspace surface for silent completions. */
+  reasoning: string;
+  analyzed_at: string;
+  paid_confirmed_at?: string;
+}
+
+/** Per-agent scalar fields (clients.agent_fields JSONB). */
 export interface ClientAgentFields {
   /** The doc collector's optional collection deadline ("YYYY-MM-DD"). */
   due_date?: string | null;
@@ -8,6 +22,8 @@ export interface ClientAgentFields {
   overdue_notified_at?: string;
   /** Set while the agent is stopped because the due date passed — the "handed off" UI state. */
   overdue_stopped_at?: string;
+  /** The debt collector's latest analysis snapshot. */
+  debt?: DebtSnapshot;
 }
 
 export interface Client {
@@ -301,6 +317,12 @@ export interface CustomerServiceSettings {
   googleDocs: { documentId: string; name: string }[];
 }
 
+/** The debt collector's per-instance config (agent_instances.settings). */
+export interface DebtCollectorSettings {
+  boards: { boardId: string; emailColumnId: string; nameColumnId?: string; boardName?: string }[];
+  sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; emailColumn: string; nameColumn?: string }[];
+}
+
 export interface MondayDocMeta {
   id: string;
   name: string;
@@ -396,6 +418,21 @@ function makeWorkspaceApi(prefix: string) {
     csSpreadsheetMeta: (spreadsheetId: string) =>
       request<{ meta: SpreadsheetMeta }>(
         `${prefix}/customer-service/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/meta`,
+      ),
+    // Debt-collector agent (routes exist only on debt_collector instances).
+    dcGetSettings: () =>
+      request<{ settings: DebtCollectorSettings; mondayConnected: boolean; googleConnected: boolean }>(
+        `${prefix}/debt-collector/settings`,
+      ),
+    dcSaveSettings: (settings: DebtCollectorSettings) =>
+      request<{ settings: DebtCollectorSettings }>(`${prefix}/debt-collector/settings`, {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      }),
+    dcListMondayBoards: () => request<{ boards: MondayBoardMeta[] }>(`${prefix}/debt-collector/monday/boards`),
+    dcSpreadsheetMeta: (spreadsheetId: string) =>
+      request<{ meta: SpreadsheetMeta }>(
+        `${prefix}/debt-collector/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/meta`,
       ),
   };
 }

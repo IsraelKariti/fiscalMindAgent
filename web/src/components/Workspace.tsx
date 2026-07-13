@@ -238,6 +238,7 @@ export function Workspace({
       )}
       {adding && (
         <AddClientModal
+          simple={agentUI.simpleClientForm}
           onClose={() => setAdding(false)}
           onCreated={(client) => {
             setAdding(false);

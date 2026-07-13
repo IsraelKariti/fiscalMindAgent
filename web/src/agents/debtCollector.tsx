@@ -1,21 +1,28 @@
 import type { MessageChannel } from '../api';
 import { ClientHeader } from '../components/ClientHeader';
-import { WhatsAppCard } from '../components/WhatsAppCard';
+import { DebtCard } from '../components/DebtCard';
+import { DebtCollectorSettings } from '../components/DebtCollectorSettings';
 import { Timeline } from '../components/Timeline';
 import type { AgentTypeUI } from './types';
 
-const CHANNELS: readonly MessageChannel[] = ['email', 'whatsapp'];
+// Email-only in v1: the collection flow (payment confirmations as replies and
+// receipt attachments) is built around the mailbox.
+const CHANNELS: readonly MessageChannel[] = ['email'];
 
 /**
- * STUB — the workspace surface for the (not yet implemented) debt collector.
- * No documents/dashboard tabs: this agent has no required-documents concept,
- * which is exactly what the per-agent-type tab registry exists to express.
+ * The debt collector's workspace surface: the shared conversation timeline, a
+ * debt tab showing the agent's latest analysis snapshot (agent_fields.debt),
+ * and details. Clients are added with name + email only (simpleClientForm) —
+ * their financial data lives in the sheets/boards configured in the settings
+ * panel, not in the workspace.
  */
 export const debtCollectorUI: AgentTypeUI = {
   agentType: 'debt_collector',
   channels: CHANNELS,
   nameKey: 'agentDebtCollectorName',
   descriptionKey: 'agentDebtCollectorDesc',
+  simpleClientForm: true,
+  settingsPanel: () => <DebtCollectorSettings />,
   icon: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
@@ -57,6 +64,15 @@ export const debtCollectorUI: AgentTypeUI = {
       ),
     },
     {
+      id: 'debt',
+      labelKey: 'tabDebt',
+      render: (ctx) => (
+        <div className="tab-pane panel-stack" role="tabpanel">
+          <DebtCard client={ctx.client} />
+        </div>
+      ),
+    },
+    {
       id: 'details',
       labelKey: 'tabDetails',
       render: (ctx) => (
@@ -65,16 +81,6 @@ export const debtCollectorUI: AgentTypeUI = {
             client={ctx.client}
             onSaved={async (updated) => {
               ctx.setClient(updated);
-              await ctx.onClientUpdated();
-            }}
-          />
-          <WhatsAppCard
-            client={ctx.client}
-            premiumLocked={ctx.premiumLocked}
-            contactEmail={ctx.contactEmail}
-            onSaved={async (updated) => {
-              ctx.setClient(updated);
-              await ctx.load();
               await ctx.onClientUpdated();
             }}
           />

@@ -20,11 +20,16 @@ export function SheetMappingModal({
   meta,
   onConfirm,
   onClose,
+  columnLabel,
+  description,
 }: {
   spreadsheetName: string;
   meta: SpreadsheetMeta;
   onConfirm: (mapping: SheetMapping) => void;
   onClose: () => void;
+  /** Label of the key column being mapped; defaults to the CS phone column. */
+  columnLabel?: string;
+  description?: string;
 }) {
   const { t } = useT();
   const [sheetTitle, setSheetTitle] = useState(meta.sheets[0]?.title ?? '');
@@ -52,7 +57,7 @@ export function SheetMappingModal({
         <h2>
           {t.csSheetMappingTitle}: {spreadsheetName}
         </h2>
-        <p className="muted">{t.csSheetMappingDesc}</p>
+        <p className="muted">{description ?? t.csSheetMappingDesc}</p>
         <label className="settings-list-field">
           <span className="muted">{t.csSheetTab}</span>
           <select value={sheetTitle} onChange={(e) => selectTab(e.target.value)}>
@@ -68,7 +73,7 @@ export function SheetMappingModal({
         ) : (
           <>
             <label className="settings-list-field">
-              <span className="muted">{t.csPhoneColumn}</span>
+              <span className="muted">{columnLabel ?? t.csPhoneColumn}</span>
               <select value={phoneColumn} onChange={(e) => setPhoneColumn(e.target.value)}>
                 {headers.map((h) => (
                   <option key={h} value={h}>

@@ -73,6 +73,12 @@ export interface AgentTypeUI {
    */
   inboundOnlyClients?: boolean;
   /**
+   * The manual add-client form collects only name + email — no required
+   * documents or due date (doc-collector concepts). Used by agents whose
+   * per-client data comes from elsewhere (debt collector: the sheets/boards).
+   */
+  simpleClientForm?: boolean;
+  /**
    * The channels this agent type communicates over. Drives every
    * channel-conditional surface: single-channel agents get no channel filter
    * in the Timeline (pass this to its `channels` prop) and no per-message

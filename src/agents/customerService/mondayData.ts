@@ -82,14 +82,23 @@ export async function fetchDocsText(accessToken: string, docIds: string[]): Prom
     });
 }
 
-/** Boards the accountant can attach for per-client rows: must have a column that could hold a phone. */
-export async function listBoards(accessToken: string): Promise<MondayBoardMeta[]> {
+/** Default board filter: has a column that could hold a phone number. */
+const PHONE_CAPABLE = (type: string): boolean => type === 'phone' || TEXT_TYPES.has(type);
+
+/** Board filter for agents matching clients by email column instead of phone. */
+export const EMAIL_CAPABLE = (type: string): boolean => type === 'email' || TEXT_TYPES.has(type);
+
+/** Boards the accountant can attach for per-client rows: must have a column the key value could live in. */
+export async function listBoards(
+  accessToken: string,
+  columnTypeOk: (type: string) => boolean = PHONE_CAPABLE,
+): Promise<MondayBoardMeta[]> {
   const data = await mondayGraphQL<{
     boards: ({ id: string; name: string; type: string; columns: MondayBoardMeta['columns'] } | null)[] | null;
   }>(accessToken, 'query { boards (limit: 200, order_by: used_at) { id name type columns { id title type } } }');
   return (data.boards ?? [])
     .filter((b): b is NonNullable<typeof b> => b !== null)
-    .filter((b) => b.type === 'board' && b.columns.some((c) => c.type === 'phone' || TEXT_TYPES.has(c.type)))
+    .filter((b) => b.type === 'board' && b.columns.some((c) => columnTypeOk(c.type)))
     .map(({ id, name, columns }) => ({ id, name, columns }));
 }
 
@@ -166,20 +175,31 @@ function cellText(item: RawItem, columnId: string): string {
   return (cell?.phone ?? cell?.text ?? '').trim();
 }
 
-/** Keeps only phone-verified items and flattens them for the prompt. */
+/**
+ * How a board row is recognized as the client's: `matches` is the in-memory
+ * verification every item must pass (the privacy boundary), `searchTerm` seeds
+ * monday's filtered fast path (contains_text) — its semantics may be loose,
+ * which is fine because `matches` re-verifies everything.
+ */
+export interface CellMatcher {
+  searchTerm: string;
+  matches(cell: string): boolean;
+}
+
+/** Keeps only matcher-verified items and flattens them for the prompt. */
 function verifyAndFlatten(
   items: RawItem[],
   columns: { id: string; title: string }[],
-  phoneColumnId: string,
-  waPhone: string,
+  keyColumnId: string,
+  matcher: CellMatcher,
   nameColumnId?: string,
 ): { rows: Record<string, string>[]; names: string[] } {
   const titles = new Map(columns.map((c) => [c.id, c.title]));
   const rows: Record<string, string>[] = [];
   const names: string[] = [];
   for (const item of items) {
-    const cell = cellText(item, phoneColumnId);
-    if (!cell || !phonesMatch(cell, waPhone)) continue;
+    const cell = cellText(item, keyColumnId);
+    if (!cell || !matcher.matches(cell)) continue;
     const row: Record<string, string> = { שם: item.name };
     for (const cv of item.column_values) {
       const text = (cv.phone ?? cv.text ?? '').trim();
@@ -194,19 +214,19 @@ function verifyAndFlatten(
 
 /**
  * Fetches the client's rows from one board. Fast path: a filtered items_page
- * (contains_text on the phone column with the sender's subscriber digits).
- * Because that filter's semantics aren't guaranteed for every column type, a
- * filter error — or zero verified hits — falls back to a full cursor scan
- * (capped) with the same in-memory verification.
+ * (contains_text on the key column with the matcher's search term). Because
+ * that filter's semantics aren't guaranteed for every column type, a filter
+ * error — or zero verified hits — falls back to a full cursor scan (capped)
+ * with the same in-memory verification.
  */
-export async function fetchRowsByPhone(
+export async function fetchRowsMatching(
   accessToken: string,
   boardId: string,
-  phoneColumnId: string,
-  waPhone: string,
+  keyColumnId: string,
+  matcher: CellMatcher,
   nameColumnId?: string,
 ): Promise<MondayBoardRows> {
-  const searchTerm = significantDigits(waPhone).slice(-MIN_MATCH_DIGITS);
+  const { searchTerm } = matcher;
 
   let filtered: RawBoard | null | undefined;
   try {
@@ -219,7 +239,7 @@ export async function fetchRowsByPhone(
         {
           ids: [boardId],
           limit: PAGE_SIZE,
-          rules: [{ column_id: phoneColumnId, compare_value: searchTerm, operator: 'contains_text' }],
+          rules: [{ column_id: keyColumnId, compare_value: searchTerm, operator: 'contains_text' }],
         },
       )
     ).boards?.[0];
@@ -228,7 +248,7 @@ export async function fetchRowsByPhone(
   }
 
   if (filtered) {
-    const { rows, names } = verifyAndFlatten(filtered.items_page.items, filtered.columns, phoneColumnId, waPhone, nameColumnId);
+    const { rows, names } = verifyAndFlatten(filtered.items_page.items, filtered.columns, keyColumnId, matcher, nameColumnId);
     if (rows.length > 0) return { boardName: filtered.name, clientName: firstName(names), rows };
   }
 
@@ -243,7 +263,7 @@ export async function fetchRowsByPhone(
   ).boards?.[0];
   if (!first) return { boardName: filtered?.name ?? boardId, clientName: null, rows: [] };
 
-  const { rows, names } = verifyAndFlatten(first.items_page.items, first.columns, phoneColumnId, waPhone, nameColumnId);
+  const { rows, names } = verifyAndFlatten(first.items_page.items, first.columns, keyColumnId, matcher, nameColumnId);
   let cursor = first.items_page.cursor;
   let scanned = first.items_page.items.length;
   while (cursor && scanned < MAX_SCANNED_ITEMS) {
@@ -254,11 +274,90 @@ export async function fetchRowsByPhone(
         { cursor, limit: PAGE_SIZE },
       )
     ).next_items_page;
-    const verified = verifyAndFlatten(page.items, first.columns, phoneColumnId, waPhone, nameColumnId);
+    const verified = verifyAndFlatten(page.items, first.columns, keyColumnId, matcher, nameColumnId);
     rows.push(...verified.rows);
     names.push(...verified.names);
     scanned += page.items.length;
     cursor = page.cursor;
   }
   return { boardName: first.name, clientName: firstName(names), rows };
+}
+
+/** The customer-service form of fetchRowsMatching: rows verified by phonesMatch. */
+export async function fetchRowsByPhone(
+  accessToken: string,
+  boardId: string,
+  phoneColumnId: string,
+  waPhone: string,
+  nameColumnId?: string,
+): Promise<MondayBoardRows> {
+  return fetchRowsMatching(
+    accessToken,
+    boardId,
+    phoneColumnId,
+    { searchTerm: significantDigits(waPhone).slice(-MIN_MATCH_DIGITS), matches: (cell) => phonesMatch(cell, waPhone) },
+    nameColumnId,
+  );
+}
+
+/** One board item as the daily debt scan sees it: raw cells by column id plus the flattened prompt row. */
+export interface BoardScanRow {
+  itemName: string;
+  /** Cell text keyed by column id — for key-column lookups (email/name). */
+  cells: Record<string, string>;
+  /** Cell text keyed by column title — the shape the prompts consume. */
+  row: Record<string, string>;
+}
+
+/**
+ * Every row of a board (capped at MAX_SCANNED_ITEMS), unfiltered — for
+ * whole-board sweeps like the debt collector's daily scan. Callers own the
+ * privacy question: the entire board content leaves this module.
+ */
+export async function fetchAllBoardRows(
+  accessToken: string,
+  boardId: string,
+): Promise<{ boardName: string; rows: BoardScanRow[] }> {
+  const first = (
+    await mondayGraphQL<{ boards: (RawBoard | null)[] | null }>(
+      accessToken,
+      `query ($ids: [ID!], $limit: Int!) {
+         boards (ids: $ids) { name columns { id title } items_page (limit: $limit) { cursor ${ITEM_FIELDS} } } }`,
+      { ids: [boardId], limit: PAGE_SIZE },
+    )
+  ).boards?.[0];
+  if (!first) return { boardName: boardId, rows: [] };
+
+  const titles = new Map(first.columns.map((c) => [c.id, c.title]));
+  const rows: BoardScanRow[] = [];
+  const collect = (items: RawItem[]) => {
+    for (const item of items) {
+      const cells: Record<string, string> = {};
+      const row: Record<string, string> = { שם: item.name };
+      for (const cv of item.column_values) {
+        const text = (cv.phone ?? cv.text ?? '').trim();
+        if (!text) continue;
+        cells[cv.id] = text;
+        row[titles.get(cv.id) ?? cv.id] = text;
+      }
+      rows.push({ itemName: item.name, cells, row });
+    }
+  };
+
+  collect(first.items_page.items);
+  let cursor = first.items_page.cursor;
+  let scanned = first.items_page.items.length;
+  while (cursor && scanned < MAX_SCANNED_ITEMS) {
+    const page = (
+      await mondayGraphQL<{ next_items_page: RawItemsPage }>(
+        accessToken,
+        `query ($cursor: String!, $limit: Int!) { next_items_page (cursor: $cursor, limit: $limit) { cursor ${ITEM_FIELDS} } }`,
+        { cursor, limit: PAGE_SIZE },
+      )
+    ).next_items_page;
+    collect(page.items);
+    scanned += page.items.length;
+    cursor = page.cursor;
+  }
+  return { boardName: first.name, rows };
 }

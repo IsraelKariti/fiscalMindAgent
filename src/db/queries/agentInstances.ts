@@ -38,6 +38,15 @@ export async function getByTypeForUser(userId: string, agentType: string): Promi
   return rows[0] ?? null;
 }
 
+/** Every accountant's enabled instance of one agent type — periodic whole-platform sweeps. */
+export async function listEnabledByType(agentType: string): Promise<AgentInstanceRow[]> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'SELECT * FROM agent_instances WHERE agent_type = $1 AND enabled ORDER BY created_at ASC',
+    [agentType],
+  );
+  return rows;
+}
+
 /** All instances including disabled ones — admin panel only. */
 export async function listAllForUser(userId: string): Promise<AgentInstanceRow[]> {
   const { rows } = await pool.query<AgentInstanceRow>(

@@ -3266,3 +3266,29 @@ button.meta-chip:hover {
   display: grid;
   place-items: center;
 }
+
+/* ---------- Debt collector: per-client debt snapshot card ---------- */
+
+.debt-details {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.debt-details-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px 16px;
+  align-items: baseline;
+}
+
+.debt-details-row dt {
+  font-size: 13px;
+}
+
+.debt-details-row dd {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}

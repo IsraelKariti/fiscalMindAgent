@@ -1,7 +1,9 @@
 import { createSendEmailWorker } from './queue/sendEmailWorker.js';
 import { resyncScheduledJobs } from './queue/resyncScheduledJobs.js';
 import { createOverdueScanWorker, ensureOverdueScanScheduler } from './queue/overdueScanWorker.js';
+import { createDebtScanWorker, ensureDebtScanScheduler } from './queue/debtScanWorker.js';
 import { runOverdueScan } from './agents/docCollector/overdueScan.js';
+import { runDebtScan } from './agents/debtCollector/dailyScan.js';
 import { logger } from './util/logger.js';
 
 await resyncScheduledJobs();
@@ -14,9 +16,15 @@ logger.info('overdue_scan worker started');
 // Catch-up scan: covers the worker being down at the daily cron moment.
 runOverdueScan().catch((err) => logger.error('boot overdue scan failed', err));
 
+await ensureDebtScanScheduler();
+const debtScanWorker = createDebtScanWorker();
+logger.info('debt_scan worker started');
+// Catch-up sweep, same rationale; already-enrolled clients make re-runs no-ops.
+runDebtScan().catch((err) => logger.error('boot debt scan failed', err));
+
 async function shutdown(): Promise<void> {
   logger.info('shutting down worker...');
-  await Promise.all([worker.close(), overdueWorker.close()]);
+  await Promise.all([worker.close(), overdueWorker.close(), debtScanWorker.close()]);
   process.exit(0);
 }
 

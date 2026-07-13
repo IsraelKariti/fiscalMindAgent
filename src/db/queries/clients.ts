@@ -244,6 +244,79 @@ export async function updateGoalStatus(id: string, goalStatus: GoalStatus): Prom
   await pool.query('UPDATE clients SET goal_status = $2, updated_at = now() WHERE id = $1', [id, goalStatus]);
 }
 
+/**
+ * Doc-collector clients whose collection due date has passed and whose
+ * accountant has not been notified yet. `todayLocal` is "YYYY-MM-DD" in the
+ * accountant's timezone — the string compare works because due_date shares the
+ * format (enforced by the regex). Manually paused clients are skipped (the
+ * agent wasn't chasing them anyway), as are ownerless legacy CLI rows.
+ */
+export async function listOverdueDocCollector(todayLocal: string): Promise<ClientRow[]> {
+  const { rows } = await pool.query<ClientRow>(
+    `SELECT c.* FROM clients c
+     JOIN agent_instances ai ON ai.id = c.agent_instance_id
+     WHERE ai.agent_type = 'doc_collector'
+       AND c.goal_status = 'pending' AND c.paused = false AND c.user_id IS NOT NULL
+       AND (c.agent_fields->>'due_date') ~ '^\\d{4}-\\d{2}-\\d{2}$'
+       AND (c.agent_fields->>'due_date') < $1
+       AND (c.agent_fields->>'overdue_notified_at') IS NULL`,
+    [todayLocal],
+  );
+  return rows;
+}
+
+/**
+ * Atomically claims an overdue client: pauses it and stamps both overdue
+ * markers. The WHERE conditions make concurrent scans (boot + cron) race-safe —
+ * only one run gets the row back; null means another run already handled it or
+ * the client's state changed since it was listed.
+ */
+export async function markOverdueStopped(id: string): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(
+    `UPDATE clients
+     SET paused = true,
+         agent_fields = agent_fields || jsonb_build_object('overdue_notified_at', $2::text, 'overdue_stopped_at', $2::text),
+         updated_at = now()
+     WHERE id = $1 AND goal_status = 'pending' AND paused = false
+       AND (agent_fields->>'overdue_notified_at') IS NULL
+     RETURNING *`,
+    [id, new Date().toISOString()],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Sets or clears the doc collector's collection due date. Either way both
+ * overdue markers are dropped, so a changed date can notify again when the new
+ * date passes and any "handed off" UI state is cleared.
+ */
+export async function setDocCollectorDueDate(
+  id: string,
+  agentInstanceId: string,
+  dueDate: string | null,
+): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(
+    `UPDATE clients
+     SET agent_fields = CASE WHEN $3::text IS NULL
+           THEN agent_fields - 'due_date' - 'overdue_notified_at' - 'overdue_stopped_at'
+           ELSE (agent_fields - 'overdue_notified_at' - 'overdue_stopped_at') || jsonb_build_object('due_date', $3::text) END,
+         updated_at = now()
+     WHERE id = $1 AND agent_instance_id = $2
+     RETURNING *`,
+    [id, agentInstanceId, dueDate],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Clears the "stopped because overdue" UI marker on resume. The
+ * overdue_notified_at idempotency key stays, so the accountant is not emailed
+ * again for the same due date.
+ */
+export async function clearOverdueStopped(id: string): Promise<void> {
+  await pool.query(`UPDATE clients SET agent_fields = agent_fields - 'overdue_stopped_at' WHERE id = $1`, [id]);
+}
+
 export async function updateName(id: string, name: string): Promise<void> {
   await pool.query('UPDATE clients SET name = $2, updated_at = now() WHERE id = $1', [id, name]);
 }

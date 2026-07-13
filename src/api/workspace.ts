@@ -399,16 +399,24 @@ workspaceRouter.put(
       return;
     }
 
-    const updated = await clients.setPaused(client.id, parsed.data.paused);
-    if (!updated) {
+    const paused = await clients.setPaused(client.id, parsed.data.paused);
+    if (!paused) {
       res.status(404).json({ error: 'Client not found.' });
       return;
     }
+    let updated = paused;
 
     if (parsed.data.paused) {
       await withClientLock(updated.id, () => pauseFutureEmail(updated.id));
     } else if (updated.goal_status === 'pending') {
-      await withClientLock(updated.id, () => resumeFutureEmail(updated.id));
+      // Resuming an overdue-stopped client hands it back to the agent: drop the
+      // "handed off" marker (the notified stamp stays — no repeat email for the
+      // same due date).
+      if (typeof updated.agent_fields['overdue_stopped_at'] === 'string') {
+        await clients.clearOverdueStopped(updated.id);
+        updated = (await clients.getById(updated.id)) ?? updated;
+      }
+      await withClientLock(client.id, () => resumeFutureEmail(client.id));
     }
     res.json({ client: updated });
   }),

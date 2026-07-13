@@ -49,6 +49,7 @@ export function Timeline({
   nextScheduled,
   goalStatus,
   paused,
+  overdueStopped = false,
   draftFailed,
   draftStale,
   onSendNow,
@@ -64,6 +65,8 @@ export function Timeline({
   goalStatus: GoalStatus;
   /** True while the agent's outreach to this client is paused. */
   paused: boolean;
+  /** Doc collector: the pause is because the collection due date passed — swap the paused copy for the handed-off copy. */
+  overdueStopped?: boolean;
   /** The last drafting attempt threw — show the failure notice with a Retry button. */
   draftFailed: boolean;
   /** Drafting has been "in progress" implausibly long (attempt killed mid-flight) — offer Retry too. */
@@ -314,7 +317,11 @@ export function Timeline({
                 )}
                 <span className="scheduled-note">
                   {paused ? (
-                    t.pausedScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
+                    overdueStopped ? (
+                      t.overdueScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
+                    ) : (
+                      t.pausedScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
+                    )
                   ) : (
                     <>
                       <svg
@@ -392,7 +399,7 @@ export function Timeline({
             <li className="timeline-item outbound scheduled">
               <div className="bubble bubble-scheduled bubble-paused">
                 <span className="paused-icon">{icon.pause}</span>
-                <span>{t.pausedNotice}</span>
+                <span>{overdueStopped ? t.overdueNotice : t.pausedNotice}</span>
                 <button
                   type="button"
                   className="btn btn-ghost btn-small resume-btn"

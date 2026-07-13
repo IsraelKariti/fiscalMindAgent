@@ -5,6 +5,11 @@ import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import { withClientLock } from '../../db/withClientLock.js';
 import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
+import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
+import { publishClientUpdated } from '../../events/clientEvents.js';
+import { DueDateSchema } from '../../api/workspace.js';
+import { sendGoalCompleteEmail } from './notifyAccountant.js';
+import { logger } from '../../util/logger.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -41,6 +46,7 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
   if (allCollected && client.goal_status === 'pending') {
     await clients.updateGoalStatus(clientId, 'complete');
     await withClientLock(clientId, () => removeFutureEmail(clientId));
+    sendGoalCompleteEmail(client).catch((err) => logger.error('goal-complete notification failed', err, { clientId }));
   } else if (!allCollected && client.goal_status === 'complete') {
     await clients.updateGoalStatus(clientId, 'pending');
     await withClientLock(clientId, async () => {
@@ -55,9 +61,15 @@ function uuidParam(value: string | undefined): string | null {
   return value && z.string().uuid().safeParse(value).success ? value : null;
 }
 
-/** The doc collector's required-documents CRUD, composed into the workspace router. */
+/** The doc collector's required-documents CRUD and due-date editing, composed into the workspace router. */
 export function buildRouter(): Router {
   const router = Router();
+
+  // Built here, not at module top level: this module and workspace.ts import
+  // each other, and workspace.ts only initializes DueDateSchema after this
+  // module's body has already run. buildRouter is called later (workspace.ts
+  // composes agent routers after its own consts), so the binding is live.
+  const DueDatePutSchema = z.object({ dueDate: DueDateSchema.nullable() }).strict();
 
   // Composed into the shared workspace router alongside other agent types'
   // routes — bail out to it when the active agent isn't the doc collector.
@@ -68,6 +80,39 @@ export function buildRouter(): Router {
     }
     next();
   });
+
+  // Sets or clears the collection due date. Editing it always clears both
+  // overdue markers (a new deadline may notify again when it passes); if the
+  // agent had stopped because the old deadline passed, editing the date is the
+  // accountant's signal to hand the client back — unpause and re-plan.
+  router.put(
+    '/clients/:id/due-date',
+    wrap(async (req, res) => {
+      const parsed = DueDatePutSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid due date.', details: parsed.error.flatten() });
+        return;
+      }
+      const id = uuidParam(req.params.id);
+      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+      if (!client) {
+        res.status(404).json({ error: 'Client not found.' });
+        return;
+      }
+      const wasOverdueStopped = client.paused && typeof client.agent_fields['overdue_stopped_at'] === 'string';
+      let updated = await clients.setDocCollectorDueDate(client.id, req.agentInstance!.id, parsed.data.dueDate);
+      if (!updated) {
+        res.status(404).json({ error: 'Client not found.' });
+        return;
+      }
+      if (wasOverdueStopped) {
+        updated = (await clients.setPaused(client.id, false)) ?? updated;
+        await withClientLock(client.id, () => resumeFutureEmail(client.id));
+      }
+      publishClientUpdated(client.id);
+      res.json({ client: updated });
+    }),
+  );
 
   router.get(
     '/clients/:id/documents',

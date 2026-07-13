@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { ClientDocument, Email, GoalStatus, NextScheduled } from '../api';
-import { daysSince, LOCALE } from '../format';
+import { daysSince, formatDateOnly, LOCALE } from '../format';
 import { useT } from '../i18n';
 
 interface Props {
@@ -8,11 +8,15 @@ interface Props {
   emails: Email[];
   nextScheduled: NextScheduled | null;
   goalStatus: GoalStatus;
+  /** Doc collector: the collection due date ("YYYY-MM-DD"), shown on the follow-up tile. */
+  dueDate?: string | null;
+  /** Doc collector: the agent stopped because the due date passed — flag the follow-up tile. */
+  overdueStopped?: boolean;
 }
 
 const STALE_REPLY_DAYS = 7;
 
-export function StatTiles({ documents, emails, nextScheduled, goalStatus }: Props) {
+export function StatTiles({ documents, emails, nextScheduled, goalStatus, dueDate = null, overdueStopped = false }: Props) {
   const { t } = useT();
   const stats = useMemo(() => {
     const collected = documents.filter((d) => d.status === 'collected').length;
@@ -108,6 +112,18 @@ export function StatTiles({ documents, emails, nextScheduled, goalStatus }: Prop
             : goalStatus === 'complete'
               ? t.noFurtherFollowUps
               : t.notScheduled}
+          {dueDate && goalStatus === 'pending' && (
+            <>
+              {' · '}
+              {t.dueDateContext(formatDateOnly(dueDate))}
+              {overdueStopped && (
+                <span className="stat-flag">
+                  <span className="stat-flag-dot" />
+                  {t.overdueFlag}
+                </span>
+              )}
+            </>
+          )}
         </span>
       </div>
     </div>

@@ -104,6 +104,25 @@ the standalone app.
 5. No migration needed for the type itself (`agent_type` is TEXT, validated in
    code). Enable it per accountant from the admin panel.
 
+## Doc-collector lifecycle (completion & due date)
+
+- **Goal complete** (every required document collected): the agent stops
+  (guards in `setFutureEmail`/`sendEmailWorker`) and emails the accountant —
+  `docCollector/notifyAccountant.ts`, sent from the accountant's agent mailbox
+  to their login address, deliberately *not* stored in `emails` (that table is
+  the client conversation). Both completion paths notify: the LLM plan
+  (`plan.ts`) and the manual documents toggle (`router.ts`). No closing
+  message is sent to the client.
+- **Due date passed** (`agent_fields.due_date`, "YYYY-MM-DD"): the
+  `overdue_scan` BullMQ queue (daily job scheduler at 00:10 local +
+  a catch-up scan on worker boot, `docCollector/overdueScan.ts`) pauses the
+  client and emails the accountant the missing documents — the client is
+  handed off. Two `agent_fields` markers: `overdue_notified_at` (idempotency —
+  cleared only by a due-date edit) and `overdue_stopped_at` (the "handed off"
+  UI state — cleared on resume or due-date edit). Resuming, or editing the due
+  date (`PUT /clients/:id/due-date`, doc-collector router), puts the agent
+  back to work; manually paused clients are never overdue-stopped.
+
 ## Current state & deferred work
 
 - `customer_service` is the first `'immediate_reply'` agent: an inbound-only

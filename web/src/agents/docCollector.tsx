@@ -1,4 +1,5 @@
 import type { MessageChannel } from '../api';
+import { isOverdueStopped } from '../format';
 import { ClientHeader } from '../components/ClientHeader';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
@@ -36,6 +37,7 @@ export const docCollectorUI: AgentTypeUI = {
             nextScheduled={ctx.nextScheduled}
             goalStatus={ctx.client.goal_status}
             paused={ctx.client.paused}
+            overdueStopped={isOverdueStopped(ctx.client)}
             draftFailed={ctx.draftFailed}
             draftStale={ctx.draftStale}
             premiumLocked={ctx.premiumLocked}
@@ -70,6 +72,8 @@ export const docCollectorUI: AgentTypeUI = {
             emails={ctx.emails}
             nextScheduled={ctx.nextScheduled}
             goalStatus={ctx.client.goal_status}
+            dueDate={ctx.client.agent_fields?.due_date ?? null}
+            overdueStopped={isOverdueStopped(ctx.client)}
           />
           <DashboardCharts
             documents={ctx.documents}
@@ -105,6 +109,7 @@ export const docCollectorUI: AgentTypeUI = {
         <div className="tab-pane panel-stack" role="tabpanel">
           <ClientHeader
             client={ctx.client}
+            withDueDate
             onSaved={async (updated) => {
               ctx.setClient(updated);
               await ctx.onClientUpdated();

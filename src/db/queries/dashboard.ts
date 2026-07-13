@@ -7,6 +7,8 @@ export interface ClientSummaryRow {
   name: string;
   email_address: string;
   goal_status: GoalStatus;
+  /** The agent stopped chasing because the collection due date passed (doc collector). */
+  overdue_stopped: boolean;
   created_at: Date;
   docs_total: number;
   docs_collected: number;
@@ -19,6 +21,7 @@ export interface ClientSummaryRow {
 export async function listClientSummaries(userId: string): Promise<ClientSummaryRow[]> {
   const { rows } = await pool.query<ClientSummaryRow>(
     `SELECT c.id, c.name, c.email_address, c.goal_status, c.created_at,
+            (c.goal_status = 'pending' AND c.paused AND c.agent_fields ? 'overdue_stopped_at') AS overdue_stopped,
             COALESCE(d.total, 0)::int AS docs_total,
             COALESCE(d.collected, 0)::int AS docs_collected,
             COALESCE(e.sent, 0)::int AS emails_sent,
@@ -54,6 +57,7 @@ export async function listClientSummaries(userId: string): Promise<ClientSummary
 export async function listClientSummariesForInstance(agentInstanceId: string): Promise<ClientSummaryRow[]> {
   const { rows } = await pool.query<ClientSummaryRow>(
     `SELECT c.id, c.name, c.email_address, c.goal_status, c.created_at,
+            (c.goal_status = 'pending' AND c.paused AND c.agent_fields ? 'overdue_stopped_at') AS overdue_stopped,
             COALESCE(d.total, 0)::int AS docs_total,
             COALESCE(d.collected, 0)::int AS docs_collected,
             COALESCE(e.sent, 0)::int AS emails_sent,

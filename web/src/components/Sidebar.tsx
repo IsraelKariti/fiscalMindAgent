@@ -1,5 +1,5 @@
 import type { AccountTier, Client } from '../api';
-import { contactLabel, displayClientName } from '../format';
+import { contactLabel, displayClientName, isOverdueStopped } from '../format';
 import { useT } from '../i18n';
 
 interface Props {
@@ -133,10 +133,12 @@ export function Sidebar({
       ? client.wa_enabled
         ? { cls: 'complete', title: t.muteStatusAnswering }
         : { cls: 'wa-muted', title: t.muteStatusMuted }
-      : {
-          cls: client.goal_status,
-          title: client.goal_status === 'complete' ? t.goalCompleteTitle : t.goalPendingTitle,
-        };
+      : isOverdueStopped(client)
+        ? { cls: 'overdue', title: t.goalOverdueTitle }
+        : {
+            cls: client.goal_status,
+            title: client.goal_status === 'complete' ? t.goalCompleteTitle : t.goalPendingTitle,
+          };
   return (
     <nav className="sidebar">
       <div className="brand sidebar-brand">

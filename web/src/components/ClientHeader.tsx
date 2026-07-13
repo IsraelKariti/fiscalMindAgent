@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { type Client } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
-import { displayClientName, LOCALE } from '../format';
+import { displayClientName, formatDateOnly, isOverdueStopped, LOCALE } from '../format';
 import { useT } from '../i18n';
 
 interface Props {
   client: Client;
   onSaved: (client: Client) => Promise<void>;
+  /** Doc collector only: shows and edits the collection due date (agent_fields.due_date). */
+  withDueDate?: boolean;
 }
 
 interface Draft {
@@ -15,6 +17,8 @@ interface Draft {
   phone: string;
   company: string;
   notes: string;
+  /** "YYYY-MM-DD" or '' — only rendered/saved when withDueDate. */
+  dueDate: string;
 }
 
 function toDraft(client: Client): Draft {
@@ -24,6 +28,7 @@ function toDraft(client: Client): Draft {
     phone: client.phone ?? '',
     company: client.company ?? '',
     notes: client.notes ?? '',
+    dueDate: client.agent_fields?.due_date ?? '',
   };
 }
 
@@ -81,16 +86,16 @@ const icons = {
   ),
 };
 
-function MetaChip({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function MetaChip({ icon, label, value, warn = false }: { icon: React.ReactNode; label: string; value: string; warn?: boolean }) {
   return (
-    <span className="meta-chip" title={`${label}: ${value}`}>
+    <span className={`meta-chip ${warn ? 'meta-chip-warn' : ''}`} title={`${label}: ${value}`}>
       {icon}
       <span className="meta-chip-text">{value}</span>
     </span>
   );
 }
 
-export function ClientHeader({ client, onSaved }: Props) {
+export function ClientHeader({ client, onSaved, withDueDate = false }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [editing, setEditing] = useState(false);
@@ -99,6 +104,9 @@ export function ClientHeader({ client, onSaved }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const overdueStopped = withDueDate && isOverdueStopped(client);
+  const dueDate = withDueDate ? (client.agent_fields?.due_date ?? null) : null;
+
   const set = (field: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setDraft({ ...draft, [field]: e.target.value });
 
@@ -106,13 +114,18 @@ export function ClientHeader({ client, onSaved }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const { client: updated } = await api.updateClient(client.id, {
+      let { client: updated } = await api.updateClient(client.id, {
         name: draft.name.trim() || client.name,
         occupation: draft.occupation.trim() || null,
         phone: draft.phone.trim() || null,
         company: draft.company.trim() || null,
         notes: draft.notes.trim() || null,
       });
+      if (withDueDate && draft.dueDate !== (client.agent_fields?.due_date ?? '')) {
+        // Separate agent-scoped endpoint: editing the date also un-stops an
+        // overdue-stopped client server-side.
+        ({ client: updated } = await api.setDueDate(client.id, draft.dueDate || null));
+      }
       await onSaved(updated);
       setEditing(false);
     } catch {
@@ -127,8 +140,16 @@ export function ClientHeader({ client, onSaved }: Props) {
       <div className="client-header-top">
         <div className="client-header-id">
           <h2>{displayClientName(client.name)}</h2>
-          <span className={`badge ${client.goal_status === 'complete' ? 'badge-success' : 'badge-pending'}`}>
-            {client.goal_status === 'complete' ? t.allDocsReceived : t.docCollectionInProgress}
+          <span
+            className={`badge ${
+              overdueStopped ? 'badge-danger' : client.goal_status === 'complete' ? 'badge-success' : 'badge-pending'
+            }`}
+          >
+            {overdueStopped
+              ? t.overdueBadge
+              : client.goal_status === 'complete'
+                ? t.allDocsReceived
+                : t.docCollectionInProgress}
           </span>
         </div>
         {!editing ? (
@@ -169,6 +190,14 @@ export function ClientHeader({ client, onSaved }: Props) {
               label={t.clientSinceLabel}
               value={t.sinceDate(new Date(client.created_at).toLocaleDateString(LOCALE))}
             />
+            {dueDate && (
+              <MetaChip
+                icon={icons.calendar}
+                label={t.dueDateChipLabel}
+                value={t.dueDateByDate(formatDateOnly(dueDate))}
+                warn={overdueStopped}
+              />
+            )}
             {client.notes && (
               <button className="meta-chip" aria-expanded={notesOpen} onClick={() => setNotesOpen((o) => !o)}>
                 {icons.notes}
@@ -197,6 +226,12 @@ export function ClientHeader({ client, onSaved }: Props) {
             <span>{t.phoneLabel}</span>
             <input value={draft.phone} onChange={set('phone')} />
           </label>
+          {withDueDate && (
+            <label className="field">
+              <span>{t.dueDateEditLabel}</span>
+              <input type="date" value={draft.dueDate} onChange={set('dueDate')} />
+            </label>
+          )}
           <label className="field detail-wide">
             <span>{t.notesLabel}</span>
             <textarea value={draft.notes} onChange={set('notes')} rows={3} />

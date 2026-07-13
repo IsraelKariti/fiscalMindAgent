@@ -481,6 +481,12 @@ code {
   box-shadow: 0 0 8px rgba(251, 113, 133, 0.6);
 }
 
+/* Doc collector: the collection due date passed and the agent stopped chasing. */
+.status-dot.overdue {
+  background: var(--error);
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.6);
+}
+
 .main {
   flex: 1;
   overflow-y: auto;
@@ -562,6 +568,13 @@ code {
   background: rgba(148, 163, 216, 0.12);
   color: var(--text-muted);
   border-color: var(--border);
+}
+
+/* Attention states, e.g. the collection due date passed. */
+.badge-danger {
+  background: var(--error-bg);
+  color: var(--error);
+  border-color: rgba(251, 113, 133, 0.35);
 }
 
 /* Premium-tier accountants (admin roster + plan card) */
@@ -2021,6 +2034,13 @@ textarea {
 .meta-chip svg {
   flex-shrink: 0;
   opacity: 0.7;
+}
+
+/* Due-date chip while the deadline has passed and the agent stopped. */
+.meta-chip-warn {
+  background: var(--error-bg);
+  border-color: rgba(251, 113, 133, 0.35);
+  color: var(--error);
 }
 
 .meta-chip-text {

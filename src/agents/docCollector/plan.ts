@@ -6,6 +6,7 @@ import * as emails from '../../db/queries/emails.js';
 import * as waSenders from '../../db/queries/waSenders.js';
 import * as waTemplates from '../../db/queries/waTemplates.js';
 import { buildPrompt, type WaChannelState } from './prompt.js';
+import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
 import type { DecisionContext } from './decisionSchema.js';
@@ -118,6 +119,11 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
+    // Fire-and-forget; skipped for document-less clients (trivially "complete"
+    // on arrival, e.g. monday imports) where the email would be nonsense.
+    if (documents.length > 0) {
+      sendGoalCompleteEmail(client).catch((err) => logger.error('goal-complete notification failed', err, { clientId }));
+    }
     return;
   }
 

@@ -41,6 +41,22 @@ export function contactLabel(client: { email_address: string; wa_phone: string |
   return client.email_address;
 }
 
+/**
+ * The doc-collector agent stopped chasing because the collection due date
+ * passed and handed the client off to the accountant.
+ */
+export function isOverdueStopped(client: {
+  goal_status: 'pending' | 'complete';
+  agent_fields: { overdue_stopped_at?: string };
+}): boolean {
+  return client.goal_status === 'pending' && typeof client.agent_fields?.overdue_stopped_at === 'string';
+}
+
+/** "YYYY-MM-DD" → localized date, without a time-of-day. */
+export function formatDateOnly(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString(LOCALE, { dateStyle: 'medium' });
+}
+
 /** Compact USD amount for LLM costs, which range from fractions of a cent upward. */
 export function formatUsd(value: number): string {
   if (value > 0 && value < 0.0001) return '<$0.0001';

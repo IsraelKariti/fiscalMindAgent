@@ -103,6 +103,7 @@ const he = {
   addClient: 'הוספת לקוח',
   goalCompleteTitle: 'היעד הושלם',
   goalPendingTitle: 'איסוף בתהליך',
+  goalOverdueTitle: 'תאריך היעד עבר — הלקוח בטיפולך',
   deleteClientAction: (name: string) => `מחיקת ${name}`,
   sidebarNoClients: 'אין עדיין לקוחות',
   adminTools: 'כלי ניהול',
@@ -165,6 +166,10 @@ const he = {
   notesLabel: 'הערות',
   nameLabel: 'שם',
   occupationPlaceholder: 'למשל: מהנדס תוכנה',
+  overdueBadge: 'תאריך היעד עבר — הטיפול הועבר אליך',
+  dueDateChipLabel: 'תאריך יעד לאיסוף',
+  dueDateByDate: (date: string) => `עד ${date}`,
+  dueDateEditLabel: 'תאריך יעד לאיסוף',
 
   // WhatsApp card (details tab)
   waTitle: 'וואטסאפ',
@@ -211,6 +216,8 @@ const he = {
   resuming: 'מחדש…',
   pausedScheduledNote: (ts: string) => `מושהה — מתוזמן ל־${ts}`,
   pausedNotice: 'המעקבים מושהים — שום הודעה לא תישלח ללקוח עד לחידוש.',
+  overdueScheduledNote: (ts: string) => `תאריך היעד עבר — הסוכן עצר (היה מתוזמן ל־${ts})`,
+  overdueNotice: 'תאריך היעד לאיסוף עבר — הסוכן הפסיק לשלוח תזכורות והלקוח בטיפולך. חידוש המעקבים יחזיר את הסוכן לפעולה.',
   pauseFailed: 'עדכון ההשהיה נכשל.',
   scheduledDraftUnavailable: 'מעקב מתוזמן (הטיוטה אינה זמינה)',
   draftingEmail: (first: boolean) => `הסוכן מנסח כעת את ההודעה ${first ? 'הראשונה' : 'הבאה'}…`,
@@ -243,6 +250,8 @@ const he = {
   atTime: (time: string) => `בשעה ${time}`,
   noFurtherFollowUps: 'אין מעקבים נוספים',
   notScheduled: 'לא מתוכנן',
+  dueDateContext: (date: string) => `תאריך יעד: ${date}`,
+  overdueFlag: 'תאריך היעד עבר',
 
   // Overview
   dashboardLoadFailed: 'טעינת הדשבורד נכשלה.',

@@ -1,10 +1,21 @@
 export type GoalStatus = 'pending' | 'complete';
 
+/** Per-agent scalar fields (clients.agent_fields JSONB); today all doc-collector keys. */
+export interface ClientAgentFields {
+  /** The doc collector's optional collection deadline ("YYYY-MM-DD"). */
+  due_date?: string | null;
+  /** Set when the accountant was emailed that the due date passed (idempotency key). */
+  overdue_notified_at?: string;
+  /** Set while the agent is stopped because the due date passed — the "handed off" UI state. */
+  overdue_stopped_at?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
   email_address: string;
   goal_status: GoalStatus;
+  agent_fields: ClientAgentFields;
   occupation: string | null;
   phone: string | null;
   company: string | null;
@@ -94,6 +105,8 @@ export interface DashboardClientSummary {
   name: string;
   email_address: string;
   goal_status: GoalStatus;
+  /** The agent stopped chasing because the collection due date passed (doc collector). */
+  overdue_stopped: boolean;
   created_at: string;
   docs_total: number;
   docs_collected: number;
@@ -333,6 +346,12 @@ function makeWorkspaceApi(prefix: string) {
       request<{ ok: true }>(`${prefix}/clients/${clientId}/send-now`, { method: 'POST' }),
     setPaused: (clientId: string, paused: boolean) =>
       request<{ client: Client }>(`${prefix}/clients/${clientId}/pause`, { method: 'PUT', body: JSON.stringify({ paused }) }),
+    /** Doc collector only: sets or clears the collection due date; editing it un-stops an overdue-stopped client. */
+    setDueDate: (clientId: string, dueDate: string | null) =>
+      request<{ client: Client }>(`${prefix}/clients/${clientId}/due-date`, {
+        method: 'PUT',
+        body: JSON.stringify({ dueDate }),
+      }),
     retryDraft: (clientId: string) => request<{ ok: true }>(`${prefix}/clients/${clientId}/redraft`, { method: 'POST' }),
     listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`${prefix}/clients/${clientId}/files`),
     /** Async because the monday transport appends a freshly fetched ?sessionToken=. */

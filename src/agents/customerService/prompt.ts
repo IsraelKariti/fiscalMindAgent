@@ -1,11 +1,14 @@
 import type { ClientRow, EmailRow, UserRow } from '../../db/types.js';
-import type { MondayBoardRows, MondayDocText } from './mondayData.js';
+import type { SheetRows } from './googleData.js';
+import type { MondayBoardRows } from './mondayData.js';
 
-/** Everything fetched live from monday for one reply (plus what failed to load). */
+/** Everything fetched live from monday + Google for one reply (plus what failed to load). */
 export interface KnowledgeContext {
-  docs: MondayDocText[];
+  /** Office knowledge: monday workdocs and Google Docs, flattened alike. */
+  docs: { id: string; name: string; text: string }[];
   boardRows: MondayBoardRows[];
-  /** Human-readable names of sources that failed to load this turn (monday down, token missing…). */
+  sheetRows: SheetRows[];
+  /** Human-readable names of sources that failed to load this turn (API down, token missing…). */
   failedSources: string[];
 }
 
@@ -51,24 +54,25 @@ function buildKnowledgeSection(knowledge: KnowledgeContext): string {
   return `--- OFFICE KNOWLEDGE (general office information) ---\n${docs}\n--- END OFFICE KNOWLEDGE ---`;
 }
 
+function formatRows(rows: Record<string, string>[], emptyNote: string): string {
+  if (rows.length === 0) return emptyNote;
+  return rows
+    .map((row, i) => [`[row ${i + 1}]`, ...Object.entries(row).map(([key, value]) => `${key}: ${value}`)].join('\n'))
+    .join('\n\n');
+}
+
 function buildClientRecordsSection(knowledge: KnowledgeContext, waPhone: string): string {
-  const boards =
-    knowledge.boardRows.length === 0
-      ? '(no client records found for this phone number)'
-      : knowledge.boardRows
-          .map((board) => {
-            const rows =
-              board.rows.length === 0
-                ? '(no rows for this client in this board)'
-                : board.rows
-                    .map((row, i) =>
-                      [`[row ${i + 1}]`, ...Object.entries(row).map(([key, value]) => `${key}: ${value}`)].join('\n'),
-                    )
-                    .join('\n\n');
-            return `### Board: ${board.boardName}\n${rows}`;
-          })
-          .join('\n\n');
-  return `--- CLIENT RECORDS (belonging ONLY to the asking client, phone-verified for ${waPhone}) ---\n${boards}\n--- END CLIENT RECORDS ---`;
+  const sources = [
+    ...knowledge.boardRows.map(
+      (board) => `### Board: ${board.boardName}\n${formatRows(board.rows, '(no rows for this client in this board)')}`,
+    ),
+    ...knowledge.sheetRows.map(
+      (sheet) =>
+        `### Spreadsheet: ${sheet.sheetName}\n${formatRows(sheet.rows, '(no rows for this client in this spreadsheet)')}`,
+    ),
+  ];
+  const records = sources.length === 0 ? '(no client records found for this phone number)' : sources.join('\n\n');
+  return `--- CLIENT RECORDS (belonging ONLY to the asking client, phone-verified for ${waPhone}) ---\n${records}\n--- END CLIENT RECORDS ---`;
 }
 
 function buildFailedSourcesSection(failedSources: string[]): string {

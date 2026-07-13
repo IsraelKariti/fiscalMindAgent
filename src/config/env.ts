@@ -21,6 +21,13 @@ const EnvSchema = z.object({
   // 503 until both are set.
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  // Google Picker (customer_service agent: pick Sheets/Docs knowledge sources).
+  // Browser API key from the same Google Cloud project as the OAuth client;
+  // the Picker endpoints return 503 until it is set.
+  GOOGLE_PICKER_API_KEY: z.string().min(1).optional(),
+  // The Google Cloud project *number* — ties the Picker to the OAuth client so
+  // drive.file grants cover picked files. Optional but recommended.
+  GOOGLE_APP_ID: z.string().min(1).optional(),
   // Signs the dashboard session cookie. If unset, a random per-process secret
   // is used (sessions are invalidated whenever the web process restarts).
   DASHBOARD_SESSION_SECRET: z.string().min(16).optional(),

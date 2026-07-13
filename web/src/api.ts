@@ -272,10 +272,33 @@ export interface MondayConnection {
   scopes: string | null;
 }
 
+/** The signed-in accountant's Google OAuth connection (drive.file — Sheets/Docs knowledge sources). */
+export interface GoogleConnection {
+  /** False until GOOGLE_OAUTH_CLIENT_ID/SECRET are set server-side. */
+  configured: boolean;
+  connected: boolean;
+  scopes: string | null;
+}
+
+/** What the Google Picker popup needs: a fresh access token + the (public) API key and app id. */
+export interface GooglePickerConfig {
+  accessToken: string;
+  apiKey: string;
+  appId: string | null;
+}
+
+/** Tabs + header columns of one picked spreadsheet (the phone/name mapping UI). */
+export interface SpreadsheetMeta {
+  title: string;
+  sheets: { title: string; headers: string[] }[];
+}
+
 /** The customer-service agent's per-instance config (agent_instances.settings). */
 export interface CustomerServiceSettings {
   docIds: string[];
   boards: { boardId: string; phoneColumnId: string; nameColumnId?: string; boardName?: string }[];
+  sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; phoneColumn: string; nameColumn?: string }[];
+  googleDocs: { documentId: string; name: string }[];
 }
 
 export interface MondayDocMeta {
@@ -360,7 +383,9 @@ function makeWorkspaceApi(prefix: string) {
     eventsUrl: (clientId: string) => tokenizedUrl(`${prefix}/clients/${clientId}/events`),
     // Customer-service agent (routes exist only on customer_service instances).
     csGetSettings: () =>
-      request<{ settings: CustomerServiceSettings; mondayConnected: boolean }>(`${prefix}/customer-service/settings`),
+      request<{ settings: CustomerServiceSettings; mondayConnected: boolean; googleConnected: boolean }>(
+        `${prefix}/customer-service/settings`,
+      ),
     csSaveSettings: (settings: CustomerServiceSettings) =>
       request<{ settings: CustomerServiceSettings }>(`${prefix}/customer-service/settings`, {
         method: 'PUT',
@@ -368,6 +393,10 @@ function makeWorkspaceApi(prefix: string) {
       }),
     csListMondayDocs: () => request<{ docs: MondayDocMeta[] }>(`${prefix}/customer-service/monday/docs`),
     csListMondayBoards: () => request<{ boards: MondayBoardMeta[] }>(`${prefix}/customer-service/monday/boards`),
+    csSpreadsheetMeta: (spreadsheetId: string) =>
+      request<{ meta: SpreadsheetMeta }>(
+        `${prefix}/customer-service/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/meta`,
+      ),
   };
 }
 
@@ -394,6 +423,10 @@ export const api = {
   mondayConnection: () => request<MondayConnection>('/monday-connection'),
   mondayConnectUrl: () => request<{ url: string }>('/monday-connection/url'),
   mondayDisconnect: () => request<{ ok: true }>('/monday-connection', { method: 'DELETE' }),
+  googleConnection: () => request<GoogleConnection>('/google-connection'),
+  googleConnectUrl: () => request<{ url: string }>('/google-connection/url'),
+  googleDisconnect: () => request<{ ok: true }>('/google-connection', { method: 'DELETE' }),
+  googlePickerConfig: () => request<GooglePickerConfig>('/google-connection/picker'),
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/admin/accountants'),
   adminListAccountantAgents: (userId: string) =>
     request<{ agents: AgentInstance[]; availableTypes: string[] }>(`/admin/accountants/${userId}/agents`),

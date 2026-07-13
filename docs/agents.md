@@ -126,13 +126,25 @@ the standalone app.
 ## Current state & deferred work
 
 - `customer_service` is the first `'immediate_reply'` agent: an inbound-only
-  WhatsApp Q&A agent. `onInboundMessage` fetches monday workdocs + board rows
-  **live** (no caching) via a per-accountant OAuth token (`monday_oauth_tokens`,
-  migration 020; connect flow in `src/api/mondayOauth.ts`), generates one
-  answer, and sends it synchronously — nothing ever goes through the BullMQ
-  scheduler (`planNextAction` is a no-op by design). Sender phone is the only
-  authentication; board rows are re-verified server-side against the sender's
-  number (`mondayData.ts` `phonesMatch`) before entering the prompt — the
+  WhatsApp Q&A agent. `onInboundMessage` fetches its knowledge sources
+  **live** (no caching), generates one answer, and sends it synchronously —
+  nothing ever goes through the BullMQ scheduler (`planNextAction` is a no-op
+  by design). Two source families, each behind its own per-accountant OAuth
+  connection:
+  - **monday**: workdocs (office knowledge) + board rows (client records),
+    via `monday_oauth_tokens` (migration 020; connect flow in
+    `src/api/mondayOauth.ts`). monday tokens never expire.
+  - **Google**: Docs (office knowledge) + Sheet rows (client records), via
+    `google_oauth_tokens` (migration 022; connect flow in
+    `src/api/googleOauth.ts`). Scope is `drive.file` only — the accountant
+    picks specific files in the Google Picker popup
+    (`web/google-picker.html`), and the app can read only those. Google
+    access tokens expire ~hourly; `getFreshGoogleAccessToken()` refreshes
+    from the stored refresh token before every read.
+
+  Sender phone is the only authentication; board and sheet rows are
+  re-verified server-side against the sender's number (`mondayData.ts`
+  `phonesMatch`, shared by `googleData.ts`) before entering the prompt — the
   privacy boundary. The CS instance has its own dedicated WhatsApp number
   (`wa_senders`); unknown senders who message that number are auto-enrolled
   into the CS instance by the webhook (`onInboundWhatsApp.ts`) when it is

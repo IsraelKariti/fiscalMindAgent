@@ -5,6 +5,7 @@ import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../g
 import { logger } from '../util/logger.js';
 import { googleLoginCallback, logout, me, mondayHandoff, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
 import { accountRouter } from './account.js';
+import { googleDriveOauthCallback, startGoogleDriveOauth } from './googleOauth.js';
 import { mondayOauthCallback, startMondayOauth } from './mondayOauth.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
 import { mondayRouter } from './monday.js';
@@ -53,6 +54,10 @@ apiRouter.get('/auth/monday-handoff', wrap(mondayHandoff));
 // token carries the user identity through the top-level popup.
 apiRouter.get('/auth/monday/start', startMondayOauth);
 apiRouter.get('/auth/monday/callback', wrap(mondayOauthCallback));
+// Google Drive OAuth connect (drive.file for Sheets/Docs knowledge sources):
+// same pre-auth signed-state-token popup pattern as the monday connect.
+apiRouter.get('/auth/google-drive/start', startGoogleDriveOauth);
+apiRouter.get('/auth/google-drive/callback', wrap(googleDriveOauthCallback));
 apiRouter.post('/logout', logout);
 apiRouter.get('/me', wrap(me));
 

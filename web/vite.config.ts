@@ -12,13 +12,15 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     build: {
       rollupOptions: {
-        // Three documents: the dashboard SPA and the two monday.com iframes —
+        // Four documents: the dashboard SPA, the two monday.com iframes —
         // the dashboard widget (served by Express at /monday-widget) and the
-        // custom-object full app (/monday-object).
+        // custom-object full app (/monday-object) — and the Google Picker
+        // popup (/google-picker.html, served by express.static).
         input: {
           main: fileURLToPath(new URL('index.html', import.meta.url)),
           'monday-widget': fileURLToPath(new URL('monday-widget.html', import.meta.url)),
           'monday-object': fileURLToPath(new URL('monday-object.html', import.meta.url)),
+          'google-picker': fileURLToPath(new URL('google-picker.html', import.meta.url)),
         },
       },
     },

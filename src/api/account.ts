@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import { claimMailbox, mailboxAvailability, mailboxStatus } from './mailbox.js';
+import { googleConnectionStatus, googleConnectionUrl, googleDisconnect, googlePickerConfig } from './googleOauth.js';
 import { mondayConnectionStatus, mondayConnectionUrl, mondayDisconnect } from './mondayOauth.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
@@ -22,3 +23,7 @@ accountRouter.post('/mailbox', wrap(claimMailbox));
 accountRouter.get('/monday-connection', wrap(mondayConnectionStatus));
 accountRouter.get('/monday-connection/url', wrap(mondayConnectionUrl));
 accountRouter.delete('/monday-connection', wrap(mondayDisconnect));
+accountRouter.get('/google-connection', wrap(googleConnectionStatus));
+accountRouter.get('/google-connection/url', wrap(googleConnectionUrl));
+accountRouter.get('/google-connection/picker', wrap(googlePickerConfig));
+accountRouter.delete('/google-connection', wrap(googleDisconnect));

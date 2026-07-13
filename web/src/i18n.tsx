@@ -27,7 +27,6 @@ const he = {
   // Agents
   agentsHomeTitle: 'הסוכנים שלי',
   agentsHomeHint: 'בחרו סוכן כדי להיכנס לסביבת העבודה שלו.',
-  allAgents: 'כל הסוכנים',
   agentsNoneEnabled: 'אין סוכנים פעילים בחשבון זה.',
   agentDocCollectorName: 'איסוף מסמכים',
   agentDocCollectorDesc: 'אוסף מהלקוחות את המסמכים הנדרשים באימייל ובוואטסאפ, עם תזכורות אוטומטיות.',
@@ -179,6 +178,7 @@ const he = {
   viewingAs: 'צפייה בתור',
   exitImpersonation: 'יציאה',
   googleAccountTitle: 'חשבון Google שאיתו התחברתם',
+  accountMenuTitle: 'תפריט חשבון',
   logout: 'התנתקות',
 
   // LogoutConfirmModal

@@ -176,7 +176,7 @@ export function Workspace({
           <p className="coming-soon-note">{t.agentComingSoon}</p>
           {!pinnedAgentType && agents.length > 1 && (
             <button className="btn btn-ghost" onClick={showAgentsHome}>
-              {t.allAgents}
+              {t.agentsHomeTitle}
             </button>
           )}
         </div>
@@ -196,6 +196,7 @@ export function Workspace({
       <div className="layout">
         <Sidebar
           agentName={agent.name}
+          agentIcon={agentUI.icon}
           onShowAgents={!pinnedAgentType && agents.length > 1 ? showAgentsHome : undefined}
           clients={clients}
           selectedClientId={view.kind === 'client' ? view.clientId : null}

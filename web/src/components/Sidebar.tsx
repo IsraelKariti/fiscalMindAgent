@@ -1,11 +1,14 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AccountTier, Client } from '../api';
 import { contactLabel, displayClientName, isOverdueStopped } from '../format';
 import { useT } from '../i18n';
 
 interface Props {
-  /** The active agent's display name, shown in the switcher row. */
+  /** The active agent's display name, shown in the identity header. */
   agentName?: string | null;
-  /** Multi-agent accounts only: navigates back to the agents-home page; the row hides when absent. */
+  /** The active agent type's icon, shown next to the name in the identity header. */
+  agentIcon?: ReactNode;
+  /** Multi-agent accounts only: navigates back to the agents-home page; the account-menu item hides when absent. */
   onShowAgents?: () => void;
   clients: Client[];
   selectedClientId: string | null;
@@ -103,10 +106,17 @@ const icon = {
       <rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   ),
+  chevronsUpDown: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m7 15 5 5 5-5" />
+      <path d="m7 9 5-5 5 5" />
+    </svg>
+  ),
 };
 
 export function Sidebar({
   agentName,
+  agentIcon,
   onShowAgents,
   clients,
   selectedClientId,
@@ -128,6 +138,24 @@ export function Sidebar({
   onImportClients,
 }: Props) {
   const { t } = useT();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
+  const hasAccountMenu = Boolean(onShowAgents || onLogout);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!menuWrapRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
   const dotFor = (client: Client) =>
     muteDots
       ? client.wa_enabled
@@ -147,15 +175,12 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-scroll">
-        {/* Multi-agent accounts: which agent this workspace is, + the way back to all of them. */}
-        {onShowAgents && (
-          <button className="client-item sidebar-nav-item agent-switcher" onClick={onShowAgents} title={t.allAgents}>
-            <span className="nav-item-icon">{icon.grid}</span>
-            <span className="client-item-text">
-              <span className="client-item-name">{agentName}</span>
-              <span className="client-item-email muted">{t.allAgents}</span>
-            </span>
-          </button>
+        {/* Identity label only — switching agents lives in the footer account menu. */}
+        {agentName && (
+          <div className="agent-identity">
+            <span className="agent-identity-icon">{agentIcon}</span>
+            <span className="client-item-name">{agentName}</span>
+          </div>
         )}
         <button
           className={`client-item sidebar-nav-item ${dashboardSelected ? 'selected' : ''}`}
@@ -257,20 +282,66 @@ export function Sidebar({
             </button>
           </div>
         )}
-        <div className="account-row" title={t.googleAccountTitle}>
-          <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
-          <span className="id-card-text">
-            {/* The account row shows the real signed-in user, so the tier chip
-                hides while impersonating (the tier is the impersonated one's). */}
-            {tier === 'premium' && !impersonatingEmail && (
-              <span className="microlabel tier-chip-premium">{t.tierPremium}</span>
-            )}
-            <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
-          </span>
-          {onLogout && (
-            <button className="icon-btn" onClick={onLogout} title={t.logout}>
-              {icon.logout}
+        <div className="account-menu-wrap" ref={menuWrapRef}>
+          {menuOpen && (
+            <div className="account-menu" role="menu">
+              {onShowAgents && (
+                <button
+                  className="account-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onShowAgents();
+                  }}
+                >
+                  <span className="nav-item-icon">{icon.grid}</span>
+                  <span>{t.agentsHomeTitle}</span>
+                </button>
+              )}
+              {onLogout && (
+                <button
+                  className="account-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onLogout();
+                  }}
+                >
+                  <span className="nav-item-icon">{icon.logout}</span>
+                  <span>{t.logout}</span>
+                </button>
+              )}
+            </div>
+          )}
+          {hasAccountMenu ? (
+            <button
+              className="account-row account-row-btn"
+              title={t.accountMenuTitle}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
+              <span className="id-card-text">
+                {/* The account row shows the real signed-in user, so the tier chip
+                    hides while impersonating (the tier is the impersonated one's). */}
+                {tier === 'premium' && !impersonatingEmail && (
+                  <span className="microlabel tier-chip-premium">{t.tierPremium}</span>
+                )}
+                <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
+              </span>
+              <span className="account-row-chevron">{icon.chevronsUpDown}</span>
             </button>
+          ) : (
+            <div className="account-row" title={t.googleAccountTitle}>
+              <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
+              <span className="id-card-text">
+                {tier === 'premium' && !impersonatingEmail && (
+                  <span className="microlabel tier-chip-premium">{t.tierPremium}</span>
+                )}
+                <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
+              </span>
+            </div>
           )}
         </div>
       </div>

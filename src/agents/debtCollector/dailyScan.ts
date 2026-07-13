@@ -85,7 +85,7 @@ async function screenForDebtors(instance: AgentInstanceRow, candidates: Candidat
 
   const usage = usageFromResponse(response);
   logger.info('gemini tokens used (debt scan)', { model, instanceId: instance.id, ...usage });
-  await llmUsage.add(instance.user_id, model, usage);
+  await llmUsage.add(instance.user_id, instance.id, model, usage);
 
   const text = response.text;
   if (!text) throw new Error(`Gemini returned no text output for debt scan: ${JSON.stringify(response)}`);

@@ -29,7 +29,7 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
     const { analysis, usage, model } = await analyzeReceipt(body, file.content_type, file.filename);
     await documentFiles.setAnalysis(file.id, 'done', analysis);
     if (ctx.client.user_id) {
-      await llmUsage.add(ctx.client.user_id, model, usage);
+      await llmUsage.add(ctx.client.user_id, ctx.client.agent_instance_id, model, usage);
     }
     logger.info('attachment content analyzed (receipt)', {
       clientId,

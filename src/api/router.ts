@@ -18,6 +18,7 @@ import {
   adminListAccountantAgents,
   adminListAccountants,
   adminListWhitelist,
+  adminLlmUsageDaily,
   adminRemoveFromWhitelist,
   adminSetModel,
   adminSetTier,
@@ -76,6 +77,7 @@ apiRouter.post('/admin/accountants/:userId/agents', wrap(requireAdmin), wrap(adm
 apiRouter.delete('/admin/accountants/:userId/agents/:agentType', wrap(requireAdmin), wrap(adminDisableAgent));
 apiRouter.post('/admin/impersonate', wrap(requireAdmin), wrap(startImpersonation));
 apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersonation));
+apiRouter.get('/admin/llm-usage/daily', wrap(requireAdmin), wrap(adminLlmUsageDaily));
 apiRouter.get('/admin/model', wrap(requireAdmin), wrap(adminGetModel));
 apiRouter.put('/admin/model', wrap(requireAdmin), wrap(adminSetModel));
 apiRouter.get('/admin/whitelist', wrap(requireAdmin), wrap(adminListWhitelist));

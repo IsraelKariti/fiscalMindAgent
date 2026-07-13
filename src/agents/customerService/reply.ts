@@ -180,7 +180,7 @@ export async function replyToInbound(ctx: AgentContext): Promise<void> {
     const history = await emails.listForClient(client.id);
     const prompt = buildPrompt(client, ctx.accountant, history, knowledge);
     const result = await generateAnswer(prompt.systemInstruction, prompt.contents);
-    await llmUsage.add(ctx.accountant!.id, result.model, result.usage);
+    await llmUsage.add(ctx.accountant!.id, ctx.instance?.id ?? client.agent_instance_id, result.model, result.usage);
     await persistAndSend(client.id, sender.phone_number, client.wa_phone, result.answer, result.reasoning);
   } catch (err) {
     // Generation failed after retries — a short static apology beats silence.

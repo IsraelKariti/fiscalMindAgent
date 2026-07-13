@@ -10,9 +10,10 @@ export interface LineSeries {
 
 const PAD = { top: 14, right: 34, bottom: 26, left: 34 };
 
-function niceStep(max: number): number {
-  const raw = max / 4;
-  const mag = 10 ** Math.floor(Math.log10(Math.max(1, raw)));
+/** Steps below `minStep` are never offered — integer data keeps integer ticks. */
+function niceStep(max: number, minStep: number): number {
+  const raw = Math.max(minStep, max / 4);
+  const mag = 10 ** Math.floor(Math.log10(raw));
   for (const m of [1, 2, 5]) {
     if (m * mag >= raw) return m * mag;
   }
@@ -25,28 +26,38 @@ export function LineChart({
   series,
   area = false,
   height = 200,
+  format,
 }: {
   title: string;
   labels: string[];
   series: LineSeries[];
   area?: boolean;
   height?: number;
+  /** Value renderer for ticks, tooltip, end labels and legend totals (default: toLocaleString). */
+  format?: (value: number) => string;
 }) {
   const { t } = useT();
   const { ref, width, tip, showTip, hideTip } = useChartBox<HTMLDivElement>();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const fmt = format ?? ((v: number) => v.toLocaleString());
 
   const n = labels.length;
-  const plotW = Math.max(0, width - PAD.left - PAD.right);
   const plotH = height - PAD.top - PAD.bottom;
-  const maxV = Math.max(1, ...series.flatMap((s) => s.values));
-  const step = niceStep(maxV);
-  const yMax = Math.ceil(maxV / step) * step;
-  const ticks: number[] = [];
-  for (let t = 0; t <= yMax; t += step) ticks.push(t);
+  // Fractional data (LLM dollar costs) gets a fractional scale; integer data
+  // keeps the old ≥1 steps so count charts never show 0.5 gridlines.
+  const dataMax = Math.max(0, ...series.flatMap((s) => s.values));
+  const allInts = series.every((s) => s.values.every((v) => Number.isInteger(v)));
+  const maxV = dataMax > 0 ? dataMax : 1;
+  const step = niceStep(maxV, allInts ? 1 : maxV / 1e6);
+  const tickCount = Math.max(1, Math.ceil(maxV / step - 1e-9));
+  const yMax = tickCount * step;
+  const ticks = Array.from({ length: tickCount + 1 }, (_, i) => i * step);
+  // Left pad grows with the widest tick label (formatted costs run long).
+  const padLeft = Math.max(PAD.left, 12 + Math.max(...ticks.map((v) => fmt(v).length)) * 6.5);
+  const plotW = Math.max(0, width - padLeft - PAD.right);
 
   const at = (s: LineSeries, i: number) => s.values[i] ?? 0;
-  const x = (i: number) => PAD.left + (n <= 1 ? plotW / 2 : (i * plotW) / (n - 1));
+  const x = (i: number) => padLeft + (n <= 1 ? plotW / 2 : (i * plotW) / (n - 1));
   const y = (v: number) => PAD.top + plotH - (v / yMax) * plotH;
 
   const setHover = (i: number, clientY: number) => {
@@ -56,7 +67,7 @@ export function LineChart({
     showTip(
       { clientX: el.getBoundingClientRect().left + x(i), clientY },
       labels[i],
-      series.map((s) => ({ color: s.color, value: String(at(s, i)), label: s.name })),
+      series.map((s) => ({ color: s.color, value: fmt(at(s, i)), label: s.name })),
     );
   };
 
@@ -74,7 +85,7 @@ export function LineChart({
   const handlePointer = (e: PointerEvent<SVGSVGElement>) => {
     if (plotW <= 0) return;
     const px = e.clientX - e.currentTarget.getBoundingClientRect().left;
-    const i = n <= 1 ? 0 : Math.min(n - 1, Math.max(0, Math.round(((px - PAD.left) / plotW) * (n - 1))));
+    const i = n <= 1 ? 0 : Math.min(n - 1, Math.max(0, Math.round(((px - padLeft) / plotW) * (n - 1))));
     setHover(i, e.clientY);
   };
 
@@ -90,6 +101,8 @@ export function LineChart({
   const labelEvery = plotW > 0 ? Math.max(1, Math.ceil(n / Math.max(2, Math.floor(plotW / 64)))) : 1;
 
   // Direct labels on each series' endpoint; nudge apart when two collide.
+  // With three or more converging series, nudging detaches labels from their
+  // lines — drop the end labels and let the legend + tooltip carry identity.
   const endYs = series.map((s) => y(at(s, n - 1)));
   const [e0, e1] = [endYs[0], endYs[1]];
   if (endYs.length === 2 && e0 !== undefined && e1 !== undefined && Math.abs(e0 - e1) < 15) {
@@ -97,6 +110,9 @@ export function LineChart({
     endYs[e0 <= e1 ? 0 : 1] = mid - 8;
     endYs[e0 <= e1 ? 1 : 0] = mid + 8;
   }
+  const sortedEndYs = [...endYs].sort((a, b) => a - b);
+  const showEndLabels =
+    series.length <= 2 || sortedEndYs.every((v, i) => i === 0 || v - (sortedEndYs[i - 1] ?? 0) >= 14);
 
   return (
     <div className="chart-block">
@@ -117,14 +133,14 @@ export function LineChart({
             {ticks.map((t) => (
               <g key={t}>
                 <line
-                  x1={PAD.left}
+                  x1={padLeft}
                   x2={width - PAD.right}
                   y1={y(t)}
                   y2={y(t)}
                   className={t === 0 ? 'chart-axis-line' : 'chart-grid-line'}
                 />
-                <text x={PAD.left - 7} y={y(t) + 3.5} textAnchor="end" className="chart-tick-label">
-                  {t.toLocaleString()}
+                <text x={padLeft - 7} y={y(t) + 3.5} textAnchor="end" className="chart-tick-label">
+                  {fmt(t)}
                 </text>
               </g>
             ))}
@@ -159,11 +175,12 @@ export function LineChart({
                 </g>
               );
             })}
-            {series.map((s, si) => (
-              <text key={s.name} x={x(n - 1) + 9} y={(endYs[si] ?? 0) + 4} className="chart-halo">
-                {at(s, n - 1).toLocaleString()}
-              </text>
-            ))}
+            {showEndLabels &&
+              series.map((s, si) => (
+                <text key={s.name} x={x(n - 1) + 9} y={(endYs[si] ?? 0) + 4} className="chart-halo">
+                  {fmt(at(s, n - 1))}
+                </text>
+              ))}
           </svg>
         )}
         <ChartTooltip tip={tip} />
@@ -174,7 +191,7 @@ export function LineChart({
             <li key={s.name} className="chart-legend-item">
               <span className="chart-legend-key" style={{ background: s.color }} />
               <span className="chart-legend-label">{s.name}</span>
-              <span className="chart-legend-value">{s.values.reduce((a, b) => a + b, 0)}</span>
+              <span className="chart-legend-value">{fmt(s.values.reduce((a, b) => a + b, 0))}</span>
             </li>
           ))}
         </ul>
@@ -182,7 +199,7 @@ export function LineChart({
       <SrTable
         caption={title}
         head={[t.srPeriod, ...series.map((s) => s.name)]}
-        rows={labels.map((label, i) => [label, ...series.map((s) => at(s, i))])}
+        rows={labels.map((label, i) => [label, ...series.map((s) => fmt(at(s, i)))])}
       />
     </div>
   );

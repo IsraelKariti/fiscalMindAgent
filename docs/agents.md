@@ -164,4 +164,11 @@ the standalone app.
   WhatsApp half of that ambiguity is resolved since migration 021: each
   number is dedicated to one instance, so the `To` number picks the agent.
   Also deferred: BullMQ repeatable-job queue for `'none'`-model periodic
-  agents; per-agent LLM cost attribution (`llm_token_usage.agent_instance_id`).
+  agents.
+- Per-agent LLM cost attribution shipped with migration 023: `llmUsage.add`
+  writes both the lifetime `llm_model_usage` counters and a daily
+  `llm_usage_daily` bucket per (day, accountant, agent instance, model), days
+  bucketed in `ACCOUNTANT_TIMEZONE`. `GET /api/admin/llm-usage/daily?days=N`
+  returns the priced cube; the admin `#/usage` page (AdminUsage.tsx) charts it
+  with client-side grouping (accountants / agent types) and filters. Every new
+  Gemini call site must pass its agent instance id to `llmUsage.add`.

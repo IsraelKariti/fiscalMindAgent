@@ -5,6 +5,7 @@ import { AccountantPage } from './admin/AccountantPage';
 import { AccountantsTable } from './admin/AccountantsTable';
 import { AdminOverview } from './admin/AdminOverview';
 import { AdminSettings } from './admin/AdminSettings';
+import { AdminUsage } from './admin/AdminUsage';
 import { AgentPage } from './admin/AgentPage';
 import { useAdminRoute } from './admin/route';
 import { buildAccountantRows, type AccountantRow } from './admin/shared';
@@ -51,7 +52,10 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
 
   // The routed screen highlights its top-level tab; accountant/agent pages
   // belong under the Accountants tab.
-  const activeTab = route.screen === 'settings' ? 'settings' : route.screen === 'overview' ? 'overview' : 'accountants';
+  const activeTab =
+    route.screen === 'settings' || route.screen === 'usage' || route.screen === 'overview'
+      ? route.screen
+      : 'accountants';
 
   return (
     <div className="admin-shell">
@@ -86,6 +90,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             onClick={() => navigate({ screen: 'accountants' })}
           >
             {t.accountantsLabel}
+          </button>
+          <button
+            className={`client-tab ${activeTab === 'usage' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === 'usage'}
+            onClick={() => navigate({ screen: 'usage' })}
+          >
+            {t.adminUsageTab}
           </button>
           <button
             className={`client-tab ${activeTab === 'settings' ? 'active' : ''}`}
@@ -127,6 +139,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             onBackToAccountant={() => navigate({ screen: 'accountant', email: route.email })}
           />
         )}
+
+        {route.screen === 'usage' && accountants && <AdminUsage accountants={accountants} />}
 
         {route.screen === 'settings' && <AdminSettings />}
       </main>

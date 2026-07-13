@@ -9,23 +9,18 @@ export function AdminOverview({ accountants }: { accountants: Accountant[] }) {
 
   const totals = useMemo(() => {
     let activeAgents = 0;
-    let clients = 0;
     let llmCost = 0;
     let hasUnpriced = false;
     let hasUsage = false;
     for (const accountant of accountants) {
-      for (const agent of accountant.agents) {
-        if (!agent.enabled) continue;
-        activeAgents += 1;
-        clients += agent.clientCount;
-      }
+      activeAgents += accountant.agents.filter((a) => a.enabled).length;
       for (const usage of accountant.llmUsage) {
         hasUsage = true;
         if (usage.cost === null) hasUnpriced = true;
         else llmCost += usage.cost;
       }
     }
-    return { activeAgents, clients, llmCost, hasUnpriced, hasUsage };
+    return { activeAgents, llmCost, hasUnpriced, hasUsage };
   }, [accountants]);
 
   return (
@@ -39,11 +34,6 @@ export function AdminOverview({ accountants }: { accountants: Accountant[] }) {
         <span className="stat-label">{t.adminActiveAgentsLabel}</span>
         <span className="stat-value">{totals.activeAgents === 0 ? '—' : totals.activeAgents}</span>
         <span className="stat-context">{t.acrossAllAccountants}</span>
-      </div>
-      <div className="card stat-tile">
-        <span className="stat-label">{t.clientsLabel}</span>
-        <span className="stat-value">{totals.clients}</span>
-        <span className="stat-context">{t.acrossAllAgents}</span>
       </div>
       <div className="card stat-tile">
         <span className="stat-label">{t.adminLlmSpendLabel}</span>

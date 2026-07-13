@@ -6,6 +6,7 @@ import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { listAgentTypes } from '../agents/registry.js';
+import { env } from '../config/env.js';
 import { getPricingForModel } from '../gemini/pricing.js';
 import {
   GEMINI_MODEL_OPTIONS,
@@ -109,6 +110,55 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         agents: agentsByUser.get(u.id) ?? [],
         llmUsage: usageByUser.get(u.id) ?? [],
       })),
+  });
+};
+
+const DailyUsageQuerySchema = z.object({ days: z.coerce.number().int().min(1).max(365).default(30) });
+
+/**
+ * GET /api/admin/llm-usage/daily?days=N — the last N days (default 30) of LLM
+ * token usage, one row per (day, accountant, agent instance, model), each
+ * model's tokens priced at its own rates (cost null while the pricing registry
+ * has no entry). Days are bucketed in ACCOUNTANT_TIMEZONE, matching how the
+ * rows were written. The rows are the raw cube — the admin dashboard groups
+ * and filters client-side, so one endpoint serves every comparison view.
+ */
+export const adminLlmUsageDaily: RequestHandler = async (req, res) => {
+  const parsed = DailyUsageQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid range.' });
+    return;
+  }
+  const sinceInstant = new Date(Date.now() - (parsed.data.days - 1) * 86_400_000);
+  const since = new Intl.DateTimeFormat('en-CA', { timeZone: env.ACCOUNTANT_TIMEZONE }).format(sinceInstant);
+  const rows = await llmUsage.listDaily(since);
+
+  const models = [...new Set(rows.map((r) => r.model))];
+  const pricingByModel = new Map(
+    await Promise.all(models.map(async (m) => [m, await getPricingForModel(m)] as const)),
+  );
+
+  res.json({
+    since,
+    rows: rows.map((r) => {
+      const pricing = pricingByModel.get(r.model) ?? null;
+      return {
+        day: r.day,
+        userId: r.user_id,
+        agentInstanceId: r.agent_instance_id,
+        agentType: r.agent_type,
+        instanceName: r.instance_name,
+        model: r.model,
+        inputTokens: r.input_tokens,
+        outputTokens: r.output_tokens,
+        thinkingTokens: r.thinking_tokens,
+        cost: pricing
+          ? r.input_tokens * pricing.inputCostPerToken +
+            r.output_tokens * pricing.outputCostPerToken +
+            r.thinking_tokens * pricing.thinkingCostPerToken
+          : null,
+      };
+    }),
   });
 };
 

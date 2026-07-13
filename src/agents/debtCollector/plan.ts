@@ -82,7 +82,7 @@ export async function planDebtCollection(ctx: AgentContext): Promise<void> {
   // Bill the tokens to the owning accountant right away, so they count even if
   // acting on the decision fails below.
   if (client.user_id) {
-    await llmUsage.add(client.user_id, model, usage);
+    await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
   }
 
   const previous = readDebtSnapshot(client.agent_fields);

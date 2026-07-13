@@ -62,3 +62,8 @@ export function formatUsd(value: number): string {
   if (value > 0 && value < 0.0001) return '<$0.0001';
   return `$${value.toFixed(value >= 1 ? 2 : 4)}`;
 }
+
+/** Compact count for token totals (1.3K / 4.2M), localized. */
+export function formatCompact(value: number): string {
+  return new Intl.NumberFormat(LOCALE, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+}

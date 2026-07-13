@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
  *   #/accountants                        roster table
  *   #/accountants/:email                 one accountant's page
  *   #/accountants/:email/agents/:type    one agent of that accountant
+ *   #/usage                              LLM spend analytics
  *   #/settings                           platform settings
  */
 export type AdminRoute =
@@ -14,6 +15,7 @@ export type AdminRoute =
   | { screen: 'accountants' }
   | { screen: 'accountant'; email: string }
   | { screen: 'agent'; email: string; agentType: string }
+  | { screen: 'usage' }
   | { screen: 'settings' };
 
 export function routeHash(route: AdminRoute): string {
@@ -26,6 +28,8 @@ export function routeHash(route: AdminRoute): string {
       return `#/accountants/${encodeURIComponent(route.email)}`;
     case 'agent':
       return `#/accountants/${encodeURIComponent(route.email)}/agents/${encodeURIComponent(route.agentType)}`;
+    case 'usage':
+      return '#/usage';
     case 'settings':
       return '#/settings';
   }
@@ -38,6 +42,7 @@ function parseHash(hash: string): AdminRoute {
     .filter(Boolean)
     .map(decodeURIComponent);
   if (parts[0] === 'settings') return { screen: 'settings' };
+  if (parts[0] === 'usage') return { screen: 'usage' };
   if (parts[0] === 'accountants') {
     const email = parts[1];
     if (!email) return { screen: 'accountants' };

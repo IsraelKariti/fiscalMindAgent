@@ -243,6 +243,27 @@ export interface Accountant {
   llmUsage: AccountantModelUsage[];
 }
 
+/**
+ * One day×accountant×agent-instance×model bucket of the admin spend time
+ * series (GET /admin/llm-usage/daily). The endpoint returns the raw cube; the
+ * usage page groups and filters client-side.
+ */
+export interface LlmDailyUsage {
+  /** "YYYY-MM-DD", bucketed in the server's ACCOUNTANT_TIMEZONE. */
+  day: string;
+  userId: string;
+  /** Null only for legacy CLI-era clients that predate agent_instances. */
+  agentInstanceId: string | null;
+  agentType: string;
+  instanceName: string | null;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+  /** USD; null while the pricing registry has no entry for this model. */
+  cost: number | null;
+}
+
 /** The Gemini model every LLM call runs on, for every accountant and client. */
 export interface GeminiModelState {
   model: string;
@@ -472,6 +493,8 @@ export const api = {
   googleDisconnect: () => request<{ ok: true }>('/google-connection', { method: 'DELETE' }),
   googlePickerConfig: () => request<GooglePickerConfig>('/google-connection/picker'),
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/admin/accountants'),
+  adminLlmUsageDaily: (days: number) =>
+    request<{ since: string; rows: LlmDailyUsage[] }>(`/admin/llm-usage/daily?days=${days}`),
   adminListAccountantAgents: (userId: string) =>
     request<{ agents: AgentInstance[]; availableTypes: string[] }>(`/admin/accountants/${userId}/agents`),
   adminEnableAgent: (userId: string, agentType: string) =>

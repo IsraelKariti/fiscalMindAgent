@@ -89,7 +89,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // Bill the tokens to the owning accountant right away, so they count even if
   // acting on the decision fails below. Legacy CLI clients have no owner.
   if (client.user_id) {
-    await llmUsage.add(client.user_id, model, usage);
+    await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
   }
 
   // Record which pending documents the LLM saw the client provide (unknown ids are ignored).

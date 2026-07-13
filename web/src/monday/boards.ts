@@ -22,6 +22,8 @@ export interface ImportRow {
   phone: string | null;
   /** Required-document names parsed from the documents column (comma-separated). */
   documents: string[];
+  /** Optional collection deadline ("YYYY-MM-DD") from the due-date column. */
+  dueDate: string | null;
 }
 
 interface ColumnValue {
@@ -30,6 +32,7 @@ interface ColumnValue {
   text: string | null;
   email?: string | null;
   phone?: string | null;
+  date?: string | null;
 }
 
 interface ItemsPage {
@@ -68,6 +71,18 @@ const DOCUMENTS_TITLES = new Set([
   'מסמכיםנדרשים',
   'документы',
 ]);
+const DUE_DATE_TITLES = new Set([
+  'duedate',
+  'due',
+  'deadline',
+  'targetdate',
+  'תאריךיעד',
+  'יעד',
+  'דדליין',
+  'תאריךהגשה',
+  'срок',
+  'дедлайн',
+]);
 
 /** Lowercase and strip separators/punctuation so "E-Mail_Address " → "emailaddress". */
 function normalizeTitle(title: string): string {
@@ -90,6 +105,11 @@ export function nameColumnCandidates(board: BoardMeta): BoardColumn[] {
 /** Required documents live in a text column of comma-separated names (no dedicated monday type). */
 export function documentsColumnCandidates(board: BoardMeta): BoardColumn[] {
   return board.columns.filter((c) => TEXT_TYPES.has(c.type));
+}
+
+/** The collection deadline: monday date columns, plus text columns holding "YYYY-MM-DD". */
+export function dueDateColumnCandidates(board: BoardMeta): BoardColumn[] {
+  return board.columns.filter((c) => c.type === 'date' || TEXT_TYPES.has(c.type));
 }
 
 /**
@@ -121,6 +141,11 @@ export function guessDocumentsColumn(board: BoardMeta): string {
   return documentsColumnCandidates(board).find((c) => DOCUMENTS_TITLES.has(normalizeTitle(c.title)))?.id ?? '';
 }
 
+/** Title-only guess: boards often carry unrelated date columns (created, last contact…), so type alone can't pick one. */
+export function guessDueDateColumn(board: BoardMeta): string {
+  return dueDateColumnCandidates(board).find((c) => DUE_DATE_TITLES.has(normalizeTitle(c.title)))?.id ?? '';
+}
+
 const PAGE_SIZE = 500;
 /** Hard cap on rows read per import, to keep one interaction bounded. */
 const MAX_ROWS = 2500;
@@ -147,12 +172,21 @@ export async function fetchImportableBoards(): Promise<BoardMeta[]> {
 }
 
 const ITEM_FIELDS =
-  'items { name column_values { id type text ... on EmailValue { email } ... on PhoneValue { phone } } }';
+  'items { name column_values { id type text ... on EmailValue { email } ... on PhoneValue { phone } ... on DateValue { date } } }';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 /** Server-side max documents per client (see ImportSchema). */
 const MAX_DOCUMENTS = 50;
+
+/**
+ * Date columns arrive as "YYYY-MM-DD" in `date`; text columns may hold the same
+ * (or with a trailing time) — anything else is dropped rather than rejected server-side.
+ */
+function parseDueDate(value: ColumnValue | undefined): string | null {
+  const raw = (value?.date ?? value?.text ?? '').trim().slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) && !Number.isNaN(Date.parse(raw)) ? raw : null;
+}
 
 /** "טופס 106, אישור ניכוי מס , דוח שנתי" → unique trimmed names, capped. */
 function parseDocumentNames(text: string): string[] {
@@ -176,6 +210,7 @@ export async function fetchImportRows(
   phoneColumnId: string | null,
   nameColumnId: string | null,
   documentsColumnId: string | null,
+  dueDateColumnId: string | null,
 ): Promise<ImportRow[]> {
   const rows: ImportRow[] = [];
 
@@ -199,7 +234,10 @@ export async function fetchImportRows(
         ? item.column_values.find((cv) => cv.id === documentsColumnId)
         : undefined;
       const documents = parseDocumentNames(documentsValue?.text ?? '');
-      rows.push({ name, email, phone, documents });
+      const dueDate = dueDateColumnId
+        ? parseDueDate(item.column_values.find((cv) => cv.id === dueDateColumnId))
+        : null;
+      rows.push({ name, email, phone, documents, dueDate });
     }
     if (!page.cursor || rows.length >= MAX_ROWS) break;
     page = (

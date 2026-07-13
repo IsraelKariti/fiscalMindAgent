@@ -78,6 +78,7 @@ export function AddClientModal({ onCreated, onClose }: Props) {
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [documents, setDocuments] = useState<DocumentDraft[]>(DEFAULT_DOCUMENTS);
   const [docDraft, setDocDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +100,7 @@ export function AddClientModal({ onCreated, onClose }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const { client } = await api.createClient({ name, email, documents });
+      const { client } = await api.createClient({ name, email, documents, dueDate: dueDate || null });
       onCreated(client);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t.createClientFailed);
@@ -121,6 +122,10 @@ export function AddClientModal({ onCreated, onClose }: Props) {
         <label className="field">
           <span>{t.emailLabel}</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </label>
+        <label className="field">
+          <span>{t.dueDateLabel}</span>
+          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </label>
         <div className="field">
           <span>{t.documentsToCollect}</span>

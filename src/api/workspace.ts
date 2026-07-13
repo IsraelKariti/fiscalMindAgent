@@ -55,11 +55,19 @@ const DocumentCreateSchema = z
   })
   .strict();
 
+/** "YYYY-MM-DD", must be a real calendar date (V8 rejects e.g. 2026-02-30 as Invalid Date). */
+export const DueDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((s) => !Number.isNaN(Date.parse(s)), 'not a valid date');
+
 const ClientCreateSchema = z
   .object({
     name: z.string().min(1),
     email: z.string().email(),
     documents: z.array(DocumentCreateSchema).max(50).default([]),
+    // Optional collection deadline; the agent paces its follow-ups toward it.
+    dueDate: DueDateSchema.nullable().optional(),
   })
   .strict();
 
@@ -119,7 +127,7 @@ workspaceRouter.post(
       res.status(400).json({ error: 'Invalid client fields.', details: parsed.error.flatten() });
       return;
     }
-    const { name, email, documents } = parsed.data;
+    const { name, email, documents, dueDate } = parsed.data;
 
     if (!(await agentMailboxes.getByUserId(req.userId!))) {
       res.status(409).json({ error: "Choose your agent's email address first — the agent has no mailbox to send from." });
@@ -135,6 +143,7 @@ workspaceRouter.post(
       agentInstanceId: req.agentInstance!.id,
       name,
       emailAddress: email,
+      agentFields: dueDate ? { due_date: dueDate } : undefined,
     });
     for (const doc of documents) {
       await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });

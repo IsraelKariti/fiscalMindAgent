@@ -34,13 +34,21 @@ export async function insert(args: {
   agentInstanceId?: string;
   name: string;
   emailAddress: string;
+  /** Per-agent scalar fields (agent_fields JSONB), e.g. the doc collector's due_date. */
+  agentFields?: Record<string, unknown>;
 }): Promise<ClientRow> {
   const { rows } = await pool.query<ClientRow>(
-    `INSERT INTO clients (user_id, agent_instance_id, name, email_address, goal_status)
-     VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, 'pending')
+    `INSERT INTO clients (user_id, agent_instance_id, name, email_address, goal_status, agent_fields)
+     VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, 'pending', COALESCE($5::jsonb, '{}'::jsonb))
      RETURNING *`,
     // Stored lowercased — inbound routing and the import dedupe match on it.
-    [args.userId, args.agentInstanceId ?? null, args.name, args.emailAddress.trim().toLowerCase()],
+    [
+      args.userId,
+      args.agentInstanceId ?? null,
+      args.name,
+      args.emailAddress.trim().toLowerCase(),
+      args.agentFields ? JSON.stringify(args.agentFields) : null,
+    ],
   );
   const row = rows[0];
   if (!row) throw new Error('insert client: no row returned');

@@ -13,7 +13,7 @@ import { accountRouter } from './account.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { createMondayHandoffToken, createMondayLinkToken, requireMondayIdentity, requireMondayUser } from './mondayAuth.js';
-import { workspaceRouter } from './workspace.js';
+import { DueDateSchema, workspaceRouter } from './workspace.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -40,6 +40,8 @@ const ImportSchema = z
             phone: z.string().max(50).nullable().optional(),
             // Required-document names read from the board's documents column.
             documents: z.array(z.string().min(1).max(200)).max(50).default([]),
+            // Optional collection deadline read from the board's due-date column.
+            dueDate: DueDateSchema.nullable().optional(),
           })
           .strict(),
       )
@@ -253,7 +255,12 @@ mondayRouter.post(
         skipped += 1;
         continue;
       }
-      const client = await clients.insert({ userId: req.userId!, name: row.name.trim(), emailAddress: email });
+      const client = await clients.insert({
+        userId: req.userId!,
+        name: row.name.trim(),
+        emailAddress: email,
+        agentFields: row.dueDate ? { due_date: row.dueDate } : undefined,
+      });
       if (row.phone) await clients.updateDetailsForUser(client.id, req.userId!, { phone: row.phone });
       // The documents to collect come from the board row; without any, the first
       // draft finds nothing pending and the goal completes with no outreach.

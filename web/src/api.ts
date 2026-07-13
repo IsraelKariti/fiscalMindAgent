@@ -299,6 +299,8 @@ function makeWorkspaceApi(prefix: string) {
       name: string;
       email: string;
       documents: { name: string; description?: string | null }[];
+      /** Optional collection deadline ("YYYY-MM-DD"); the agent paces follow-ups toward it. */
+      dueDate?: string | null;
     }) => request<{ client: Client }>(`${prefix}/clients`, { method: 'POST', body: JSON.stringify(args) }),
     getClient: (id: string) =>
       request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(

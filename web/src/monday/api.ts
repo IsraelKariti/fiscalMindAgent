@@ -52,7 +52,9 @@ export const mondayApi = {
   linkUrl: () => request<{ url: string }>('/api/monday/link-url'),
   /** Single-use handoff URL that opens the standalone app already signed in (works without Google). */
   appLoginUrl: () => request<{ url: string }>('/api/monday/app-login-url'),
-  importClients: (clients: { name: string; email: string; phone?: string | null; documents?: string[] }[]) =>
+  importClients: (
+    clients: { name: string; email: string; phone?: string | null; documents?: string[]; dueDate?: string | null }[],
+  ) =>
     request<{ created: number; skipped: number }>('/api/monday/clients/import', {
       method: 'POST',
       body: JSON.stringify({ clients }),

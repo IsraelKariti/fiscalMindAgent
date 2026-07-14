@@ -319,9 +319,15 @@ export function CustomerServiceSettings() {
   // Any column can hold the display name; the built-in item-name column is the dropdown's default option.
   const nameColumnCandidates = (board: MondayBoardMeta) => board.columns.filter((c) => c.type !== 'name');
 
+  const savedAside = saving ? (
+    <span className="settings-group-status">{t.loading}</span>
+  ) : saved ? (
+    <span className="settings-group-status settings-group-status-ok">{t.csSaved}</span>
+  ) : undefined;
+
   return (
     <>
-      <SettingsGroup title={t.csSettingsTitle}>
+      <SettingsGroup title={t.csSettingsTitle} aside={savedAside}>
         <SettingsRow
           title={t.csMondayAccount}
           description={
@@ -348,19 +354,7 @@ export function CustomerServiceSettings() {
             )
           }
         />
-      </SettingsGroup>
-
-      {connection.connected && (
-        <SettingsGroup
-          title={t.csGroupSources}
-          aside={
-            saving ? (
-              <span className="settings-group-status">{t.loading}</span>
-            ) : saved ? (
-              <span className="settings-group-status settings-group-status-ok">{t.csSaved}</span>
-            ) : undefined
-          }
-        >
+        {connection.connected && (
           <div className="settings-subsection">
             <SettingsRow
               title={t.csKnowledgeDocs}
@@ -398,7 +392,8 @@ export function CustomerServiceSettings() {
               )
             )}
           </div>
-
+        )}
+        {connection.connected && (
           <div className="settings-subsection">
             <SettingsRow
               title={t.csBoards}
@@ -470,11 +465,11 @@ export function CustomerServiceSettings() {
               )
             )}
           </div>
-        </SettingsGroup>
-      )}
+        )}
+      </SettingsGroup>
 
       {gConnection && (
-        <SettingsGroup title={t.csGoogleSettingsTitle}>
+        <SettingsGroup title={t.csGoogleSettingsTitle} aside={savedAside}>
           <SettingsRow
             title={t.csGoogleAccount}
             description={
@@ -499,84 +494,73 @@ export function CustomerServiceSettings() {
               )
             }
           />
-        </SettingsGroup>
-      )}
-
-      {gConnection?.connected && (
-        <SettingsGroup
-          title={t.csGoogleGroupSources}
-          aside={
-            saving ? (
-              <span className="settings-group-status">{t.loading}</span>
-            ) : saved ? (
-              <span className="settings-group-status settings-group-status-ok">{t.csSaved}</span>
-            ) : undefined
-          }
-        >
-          <div className="settings-subsection">
-            <SettingsRow
-              title={t.csGoogleDocs}
-              description={t.csGoogleDocsDesc}
-              control={
-                <button type="button" className="btn btn-ghost btn-small" onClick={() => addGoogleSource('documents')}>
-                  {t.csAddGoogleDoc}
-                </button>
-              }
-            />
-            {settings.googleDocs.length > 0 && (
-              <ul className="settings-list">
-                {settings.googleDocs.map((doc) => (
-                  <li key={doc.documentId} className="settings-list-row">
-                    <span className="settings-list-name">{doc.name || doc.documentId}</span>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title={t.csRemove}
-                      aria-label={t.csRemove}
-                      onClick={() => removeGoogleDoc(doc.documentId)}
-                    >
-                      {removeIcon}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="settings-subsection">
-            <SettingsRow
-              title={t.csGoogleSheets}
-              description={t.csGoogleSheetsDesc}
-              control={
-                <button type="button" className="btn btn-ghost btn-small" onClick={() => addGoogleSource('spreadsheets')}>
-                  {t.csAddGoogleSheet}
-                </button>
-              }
-            />
-            {pickFailed && <p className="settings-list-empty muted">{t.csPickerFailed}</p>}
-            {settings.sheets.length > 0 && (
-              <ul className="settings-list">
-                {settings.sheets.map((sheet) => (
-                  <li key={`${sheet.spreadsheetId}:${sheet.sheetTitle}`} className="settings-list-row">
-                    <span className="settings-list-name">{sheet.spreadsheetName ?? sheet.spreadsheetId}</span>
-                    <span className="muted">
-                      {t.csSheetTab}: {sheet.sheetTitle} · {t.csPhoneColumn}: {sheet.phoneColumn}
-                      {sheet.nameColumn ? ` · ${t.csNameColumn}: ${sheet.nameColumn}` : ''}
-                    </span>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title={t.csRemove}
-                      aria-label={t.csRemove}
-                      onClick={() => removeSheet(sheet.spreadsheetId, sheet.sheetTitle)}
-                    >
-                      {removeIcon}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {gConnection.connected && (
+            <div className="settings-subsection">
+              <SettingsRow
+                title={t.csGoogleDocs}
+                description={t.csGoogleDocsDesc}
+                control={
+                  <button type="button" className="btn btn-ghost btn-small" onClick={() => addGoogleSource('documents')}>
+                    {t.csAddGoogleDoc}
+                  </button>
+                }
+              />
+              {settings.googleDocs.length > 0 && (
+                <ul className="settings-list">
+                  {settings.googleDocs.map((doc) => (
+                    <li key={doc.documentId} className="settings-list-row">
+                      <span className="settings-list-name">{doc.name || doc.documentId}</span>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        title={t.csRemove}
+                        aria-label={t.csRemove}
+                        onClick={() => removeGoogleDoc(doc.documentId)}
+                      >
+                        {removeIcon}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {gConnection.connected && (
+            <div className="settings-subsection">
+              <SettingsRow
+                title={t.csGoogleSheets}
+                description={t.csGoogleSheetsDesc}
+                control={
+                  <button type="button" className="btn btn-ghost btn-small" onClick={() => addGoogleSource('spreadsheets')}>
+                    {t.csAddGoogleSheet}
+                  </button>
+                }
+              />
+              {pickFailed && <p className="settings-list-empty muted">{t.csPickerFailed}</p>}
+              {settings.sheets.length > 0 && (
+                <ul className="settings-list">
+                  {settings.sheets.map((sheet) => (
+                    <li key={`${sheet.spreadsheetId}:${sheet.sheetTitle}`} className="settings-list-row">
+                      <span className="settings-list-name">{sheet.spreadsheetName ?? sheet.spreadsheetId}</span>
+                      <span className="muted">
+                        {t.csSheetTab}: {sheet.sheetTitle} · {t.csPhoneColumn}: {sheet.phoneColumn}
+                        {sheet.nameColumn ? ` · ${t.csNameColumn}: ${sheet.nameColumn}` : ''}
+                      </span>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        title={t.csRemove}
+                        aria-label={t.csRemove}
+                        onClick={() => removeSheet(sheet.spreadsheetId, sheet.sheetTitle)}
+                      >
+                        {removeIcon}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </SettingsGroup>
       )}
 

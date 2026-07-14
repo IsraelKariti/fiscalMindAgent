@@ -370,7 +370,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
 
   return (
     <>
-      <SettingsGroup title={t.csSettingsTitle}>
+      <SettingsGroup title={t.csSettingsTitle} aside={savedAside}>
         <SettingsRow
           title={t.csMondayAccount}
           description={
@@ -397,10 +397,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
             )
           }
         />
-      </SettingsGroup>
-
-      {connection.connected && (
-        <SettingsGroup title={t.csBoards} aside={savedAside}>
+        {connection.connected && (
           <div className="settings-subsection">
             <SettingsRow
               title={t.csBoards}
@@ -472,11 +469,11 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
               )
             )}
           </div>
-        </SettingsGroup>
-      )}
+        )}
+      </SettingsGroup>
 
       {gConnection && (
-        <SettingsGroup title={t.csGoogleSettingsTitle}>
+        <SettingsGroup title={t.csGoogleSettingsTitle} aside={savedAside}>
           <SettingsRow
             title={t.csGoogleAccount}
             description={
@@ -501,45 +498,42 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
               )
             }
           />
-        </SettingsGroup>
-      )}
-
-      {gConnection?.connected && (
-        <SettingsGroup title={t.csGoogleSheets} aside={savedAside}>
-          <div className="settings-subsection">
-            <SettingsRow
-              title={t.csGoogleSheets}
-              description={t[sheetsDescKey]}
-              control={
-                <button type="button" className="btn btn-ghost btn-small" onClick={addGoogleSheet}>
-                  {t.csAddGoogleSheet}
-                </button>
-              }
-            />
-            {pickFailed && <p className="settings-list-empty muted">{t.csPickerFailed}</p>}
-            {settings.sheets.length > 0 && (
-              <ul className="settings-list">
-                {settings.sheets.map((sheet) => (
-                  <li key={`${sheet.spreadsheetId}:${sheet.sheetTitle}`} className="settings-list-row">
-                    <span className="settings-list-name">{sheet.spreadsheetName ?? sheet.spreadsheetId}</span>
-                    <span className="muted">
-                      {t.csSheetTab}: {sheet.sheetTitle} · {t.dcEmailColumn}: {sheet.emailColumn}
-                      {sheet.nameColumn ? ` · ${t.csNameColumn}: ${sheet.nameColumn}` : ''}
-                    </span>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title={t.csRemove}
-                      aria-label={t.csRemove}
-                      onClick={() => removeSheet(sheet.spreadsheetId, sheet.sheetTitle)}
-                    >
-                      {removeIcon}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {gConnection.connected && (
+            <div className="settings-subsection">
+              <SettingsRow
+                title={t.csGoogleSheets}
+                description={t[sheetsDescKey]}
+                control={
+                  <button type="button" className="btn btn-ghost btn-small" onClick={addGoogleSheet}>
+                    {t.csAddGoogleSheet}
+                  </button>
+                }
+              />
+              {pickFailed && <p className="settings-list-empty muted">{t.csPickerFailed}</p>}
+              {settings.sheets.length > 0 && (
+                <ul className="settings-list">
+                  {settings.sheets.map((sheet) => (
+                    <li key={`${sheet.spreadsheetId}:${sheet.sheetTitle}`} className="settings-list-row">
+                      <span className="settings-list-name">{sheet.spreadsheetName ?? sheet.spreadsheetId}</span>
+                      <span className="muted">
+                        {t.csSheetTab}: {sheet.sheetTitle} · {t.dcEmailColumn}: {sheet.emailColumn}
+                        {sheet.nameColumn ? ` · ${t.csNameColumn}: ${sheet.nameColumn}` : ''}
+                      </span>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        title={t.csRemove}
+                        aria-label={t.csRemove}
+                        onClick={() => removeSheet(sheet.spreadsheetId, sheet.sheetTitle)}
+                      >
+                        {removeIcon}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </SettingsGroup>
       )}
 

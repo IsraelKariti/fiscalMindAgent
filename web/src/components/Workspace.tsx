@@ -259,6 +259,7 @@ export function Workspace({
       {adding && (
         <AddClientModal
           simple={agentUI.simpleClientForm}
+          leadKey={agentUI.addClientLeadKey}
           onClose={() => setAdding(false)}
           onCreated={(client) => {
             setAdding(false);

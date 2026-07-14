@@ -1,15 +1,20 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError, type ClientDocument } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
+import type { MessageStringKey } from '../agents/types';
 import { useT } from '../i18n';
 
 interface Props {
   clientId: string;
   documents: ClientDocument[];
   onChanged: () => Promise<void>;
+  /** Panel title override — agents where the list isn't accountant-defined rename it. */
+  titleKey?: MessageStringKey;
+  /** Empty-state override — for agents whose list starts empty by design. */
+  emptyTextKey?: MessageStringKey;
 }
 
-export function DocumentsCard({ clientId, documents, onChanged }: Props) {
+export function DocumentsCard({ clientId, documents, onChanged, titleKey, emptyTextKey }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
@@ -46,7 +51,7 @@ export function DocumentsCard({ clientId, documents, onChanged }: Props) {
   return (
     <section className="card panel">
       <div className="panel-header">
-        <h3>{t.requiredDocuments}</h3>
+        <h3>{t[titleKey ?? 'requiredDocuments']}</h3>
         {documents.length > 0 && (
           <span className={`badge ${collected === documents.length ? 'badge-success' : 'badge-pending'}`}>
             {t.collectedBadge(collected, documents.length)}
@@ -58,7 +63,7 @@ export function DocumentsCard({ clientId, documents, onChanged }: Props) {
         {error && <div className="error-banner">{error}</div>}
 
         {documents.length === 0 ? (
-          <p className="muted">{t.noDocsNothingToCollect}</p>
+          <p className="muted">{t[emptyTextKey ?? 'noDocsNothingToCollect']}</p>
         ) : (
           <ul className="doc-list">
             {documents.map((doc) => (

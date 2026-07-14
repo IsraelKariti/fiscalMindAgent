@@ -62,7 +62,7 @@ export interface DecisionContext {
 
 export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, windowOpen: false, templates: [] };
 
-function normalizeFollowUpMessage(raw: DecisionResponse, ctx: DecisionContext): FollowUpMessage {
+export function normalizeFollowUpMessage(raw: DecisionResponse, ctx: DecisionContext): FollowUpMessage {
   // Old-style / email answers: a missing channel means email (backward-safe).
   if (raw.channel !== 'whatsapp') {
     if (raw.email_body == null || raw.email_subject == null) {

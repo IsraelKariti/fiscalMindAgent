@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ApiError, type Client } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
+import type { MessageStringKey } from '../agents/types';
 import { useT } from '../i18n';
 
 interface Props {
@@ -9,6 +10,8 @@ interface Props {
   onClose: () => void;
   /** Name + email only — no documents/due-date (doc-collector concepts); see AgentTypeUI.simpleClientForm. */
   simple?: boolean;
+  /** Lead paragraph for the simple form (AgentTypeUI.addClientLeadKey); defaults to the debt collector's copy. */
+  leadKey?: MessageStringKey;
 }
 
 interface DocumentDraft {
@@ -75,7 +78,7 @@ const DEFAULT_DOCUMENTS: DocumentDraft[] = [
   },
 ];
 
-export function AddClientModal({ onCreated, onClose, simple = false }: Props) {
+export function AddClientModal({ onCreated, onClose, simple = false, leadKey }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
@@ -116,7 +119,7 @@ export function AddClientModal({ onCreated, onClose, simple = false }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>{t.addClientTitle}</h2>
-        <p className="muted">{simple ? t.addClientLeadDebt : t.addClientLead}</p>
+        <p className="muted">{simple ? t[leadKey ?? 'addClientLeadDebt'] : t.addClientLead}</p>
         <label className="field">
           <span>{t.nameLabel}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus required />

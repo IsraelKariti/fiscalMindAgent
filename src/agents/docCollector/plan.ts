@@ -26,7 +26,7 @@ import type { ClientRow, UserRow } from '../../db/types.js';
  * accountant must have a sender, and there must be something sendable (an
  * open 24h window for free-form text, or at least one approved template).
  */
-async function getWaChannelState(client: ClientRow, accountant: UserRow | null, now: Date): Promise<WaChannelState> {
+export async function getWaChannelState(client: ClientRow, accountant: UserRow | null, now: Date): Promise<WaChannelState> {
   if (!client.wa_enabled || !client.wa_phone) {
     return {
       allowed: false,

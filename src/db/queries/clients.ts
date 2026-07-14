@@ -245,22 +245,22 @@ export async function updateGoalStatus(id: string, goalStatus: GoalStatus): Prom
 }
 
 /**
- * Doc-collector clients whose collection due date has passed and whose
- * accountant has not been notified yet. `todayLocal` is "YYYY-MM-DD" in the
- * accountant's timezone — the string compare works because due_date shares the
- * format (enforced by the regex). Manually paused clients are skipped (the
+ * Clients of the given agent types whose collection due date has passed and
+ * whose accountant has not been notified yet. `todayLocal` is "YYYY-MM-DD" in
+ * the accountant's timezone — the string compare works because due_date shares
+ * the format (enforced by the regex). Manually paused clients are skipped (the
  * agent wasn't chasing them anyway), as are ownerless legacy CLI rows.
  */
-export async function listOverdueDocCollector(todayLocal: string): Promise<ClientRow[]> {
+export async function listOverdueForAgentTypes(todayLocal: string, agentTypes: string[]): Promise<ClientRow[]> {
   const { rows } = await pool.query<ClientRow>(
     `SELECT c.* FROM clients c
      JOIN agent_instances ai ON ai.id = c.agent_instance_id
-     WHERE ai.agent_type = 'doc_collector'
+     WHERE ai.agent_type = ANY($2::text[])
        AND c.goal_status = 'pending' AND c.paused = false AND c.user_id IS NOT NULL
        AND (c.agent_fields->>'due_date') ~ '^\\d{4}-\\d{2}-\\d{2}$'
        AND (c.agent_fields->>'due_date') < $1
        AND (c.agent_fields->>'overdue_notified_at') IS NULL`,
-    [todayLocal],
+    [todayLocal, agentTypes],
   );
   return rows;
 }
@@ -326,6 +326,18 @@ export async function setDebtSnapshot(id: string, snapshot: Record<string, unkno
   await pool.query(
     `UPDATE clients SET agent_fields = agent_fields || jsonb_build_object('debt', $2::jsonb) WHERE id = $1`,
     [id, JSON.stringify(snapshot)],
+  );
+}
+
+/**
+ * Stamps the annual-report assistant's sticky interview-complete flag
+ * (agent_fields.interview_complete). Agent-status write, so updated_at is left
+ * alone — it tracks accountant edits.
+ */
+export async function markInterviewComplete(id: string): Promise<void> {
+  await pool.query(
+    `UPDATE clients SET agent_fields = agent_fields || jsonb_build_object('interview_complete', true) WHERE id = $1`,
+    [id],
   );
 }
 

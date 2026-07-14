@@ -13,14 +13,15 @@ function todayLocal(): string {
 }
 
 /**
- * Stops the chase for doc-collector clients whose collection due date has
- * passed: pauses the client (stamping the overdue markers) and emails the
- * accountant the list of still-missing documents. Runs daily just after local
- * midnight plus once on worker boot; markOverdueStopped's conditional UPDATE
- * makes overlapping runs claim each client exactly once.
+ * Stops the chase for document-collecting clients (doc collector and
+ * annual-report assistant) whose collection due date has passed: pauses the
+ * client (stamping the overdue markers) and emails the accountant the list of
+ * still-missing documents. Runs daily just after local midnight plus once on
+ * worker boot; markOverdueStopped's conditional UPDATE makes overlapping runs
+ * claim each client exactly once.
  */
 export async function runOverdueScan(): Promise<void> {
-  const candidates = await clients.listOverdueDocCollector(todayLocal());
+  const candidates = await clients.listOverdueForAgentTypes(todayLocal(), ['doc_collector', 'annual_report_assistant']);
   let stopped = 0;
   for (const candidate of candidates) {
     await withClientLock(candidate.id, async () => {

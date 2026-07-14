@@ -12,7 +12,7 @@ import type { ClientRow } from '../../db/types.js';
  * timeline, the LLM transcript and the threading headers). Callers fire and
  * forget; a notification failure must never fail planning or a route.
  */
-async function sendToAccountant(client: ClientRow, subject: string, body: string): Promise<void> {
+export async function sendToAccountant(client: ClientRow, subject: string, body: string): Promise<void> {
   if (!client.user_id) {
     logger.warn('accountant notification skipped: legacy client without owner', { clientId: client.id });
     return;

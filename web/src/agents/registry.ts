@@ -1,3 +1,4 @@
+import { annualReportUI } from './annualReport';
 import { customerServiceUI } from './customerService';
 import { debtCollectorUI } from './debtCollector';
 import { docCollectorUI } from './docCollector';
@@ -6,6 +7,7 @@ import type { AgentTypeUI } from './types';
 
 const registry: Record<string, AgentTypeUI> = {
   [docCollectorUI.agentType]: docCollectorUI,
+  [annualReportUI.agentType]: annualReportUI,
   [debtCollectorUI.agentType]: debtCollectorUI,
   [customerServiceUI.agentType]: customerServiceUI,
   ...Object.fromEntries(stubAgentUIs.map((ui) => [ui.agentType, ui])),

@@ -3,9 +3,9 @@
 Since 2026-07-11 (prod v11, migration 019) fiscalMind is a multi-agent
 platform: one app hosting several developer-built agent types, each enabled
 per accountant and owning its own client list. The document collector is
-agent #1; `debt_collector` exists as a stub. Industry pattern followed: one
-app with an agent registry (HubSpot Breeze / Salesforce Agentforce model) —
-never one app per agent.
+agent #1; `debt_collector`, `customer_service` and `annual_report_assistant`
+are live too. Industry pattern followed: one app with an agent registry
+(HubSpot Breeze / Salesforce Agentforce model) — never one app per agent.
 
 ## Concepts
 
@@ -152,9 +152,22 @@ the standalone app.
   Config lives in `agent_instances.settings`
   (`customerService/settings.ts`); the settings UI is the `settingsPanel`
   slot on `AgentTypeUI`, rendered in the workspace Settings view.
-- `debt_collector` is a **stub**: `planNextAction` is a no-op — it never
-  drafts or sends. Real implementation needs a prompt + decision schema +
-  `client_debt` field, mirroring `docCollector/`.
+- `annual_report_assistant` is the doc collector's autonomous sibling
+  (`src/agents/annualReport/`): no accountant-defined document list — clients
+  are added name+email only (`simpleClientForm`), and the agent interviews the
+  client (annual personal return, טופס 1301/135: triage שכיר/עצמאי, capital
+  income, proactive credits). Documents it determines become ordinary
+  `client_documents` rows via the decision field `add_documents` (deduped by
+  normalized name; `matched_file_id` lets a volunteered file create the row
+  already collected), so the collection machinery is shared. Completion is
+  derived, never trusted from the LLM: sticky `agent_fields.interview_complete`
+  AND ≥1 document AND none pending — zero rows can never complete. Checking
+  every box in the documents tab is an accountant override (stamps the
+  interview flag too). Reuses docCollector's `getWaChannelState`, prompt
+  section builders, `analyzeInboundFile` and `sendToAccountant` via cross-dir
+  imports; has its own prompt template and deliberately does NOT honor the doc
+  collector's per-user custom template. The overdue scan covers both types
+  (`clients.listOverdueForAgentTypes`).
 - Deferred (unblocked by design, not built): removal of the legacy unprefixed
   mounts; per-agent prompt-template keys (`prompt_template.<agent_type>`,
   today the admin prompt editor edits the doc collector via the legacy key);

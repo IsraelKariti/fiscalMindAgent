@@ -85,6 +85,12 @@ export interface AgentTypeUI {
    */
   simpleClientForm?: boolean;
   /**
+   * Lead paragraph for the simple add-client form. The simple form is shared
+   * by several agent types whose "what happens after you add a client" story
+   * differs; defaults to the debt collector's copy for back-compat.
+   */
+  addClientLeadKey?: MessageStringKey;
+  /**
    * The channels this agent type communicates over. Drives every
    * channel-conditional surface: single-channel agents get no channel filter
    * in the Timeline (pass this to its `channels` prop) and no per-message

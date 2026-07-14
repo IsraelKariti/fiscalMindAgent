@@ -73,4 +73,5 @@ export const customerServiceUI: AgentTypeUI = {
     },
   ],
   settingsPanel: () => <CustomerServiceSettings />,
+  settingsPanelTabKey: 'settingsTabConnections',
 };

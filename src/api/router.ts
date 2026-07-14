@@ -20,6 +20,7 @@ import {
   adminListWhitelist,
   adminLlmUsageDaily,
   adminRemoveFromWhitelist,
+  adminSetAgentEmail,
   adminSetModel,
   adminSetTier,
   requireAdmin,
@@ -85,6 +86,7 @@ apiRouter.post('/admin/whitelist', wrap(requireAdmin), wrap(adminAddToWhitelist)
 apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemoveFromWhitelist));
 apiRouter.put('/admin/whitelist/:email/tier', wrap(requireAdmin), wrap(adminSetTier));
 
+apiRouter.post('/admin/agent-emails', wrap(requireAdmin), wrap(adminSetAgentEmail));
 apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));
 apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender));
 apiRouter.post('/admin/wa-senders/provision', wrap(requireAdmin), wrap(adminProvisionWaSender));

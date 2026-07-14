@@ -26,7 +26,11 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   const [busy, setBusy] = useState(false);
 
   const userId = row?.user?.id ?? null;
-  const [agentInfo, setAgentInfo] = useState<{ agents: AgentInstance[]; availableTypes: string[] } | null>(null);
+  const [agentInfo, setAgentInfo] = useState<{
+    agents: AgentInstance[];
+    availableTypes: string[];
+    emailDomain: string;
+  } | null>(null);
   const loadAgents = useCallback(async () => {
     if (!userId) return;
     setAgentInfo(await api.adminListAccountantAgents(userId));
@@ -37,6 +41,14 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   }, [loadAgents]);
 
   const instance = useMemo(() => agentInfo?.agents.find((a) => a.agentType === agentType) ?? null, [agentInfo, agentType]);
+
+  // The address input starts from the assigned local part, else the derived
+  // suggestion, so "enable → confirm the default" is a single click.
+  const [emailLocalPart, setEmailLocalPart] = useState('');
+  const [confirmingEmailChange, setConfirmingEmailChange] = useState(false);
+  useEffect(() => {
+    setEmailLocalPart(instance?.emailAddress?.split('@')[0] ?? instance?.suggestedEmailLocalPart ?? '');
+  }, [instance?.emailAddress, instance?.suggestedEmailLocalPart]);
 
   // The unassigned-numbers pool: shown as a count on the pool option and
   // offered in the picker modal.
@@ -63,7 +75,7 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   const [confirmingRelease, setConfirmingRelease] = useState(false);
   const [releasing, setReleasing] = useState(false);
 
-  const run = async (op: () => Promise<unknown>, failMessage: string) => {
+  const run = async (op: () => Promise<unknown>, failMessage: string, conflictMessage?: string) => {
     setBusy(true);
     setError(null);
     try {
@@ -72,12 +84,19 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
       await loadAgents();
       void loadOrphans();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) setError(t.adminWaNumberConflict);
+      if (err instanceof ApiError && err.status === 409) setError(conflictMessage ?? t.adminWaNumberConflict);
       else setError(err instanceof ApiError ? err.message : failMessage);
     } finally {
       setBusy(false);
     }
   };
+
+  const saveAgentEmail = () =>
+    run(
+      () => api.adminSetAgentEmail(instance!.id, emailLocalPart.trim()),
+      t.adminAgentEmailSaveFailed,
+      t.adminAgentEmailConflict,
+    );
 
   const toggleEnabled = async () => {
     if (!userId) return;
@@ -137,6 +156,54 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
         {agentInfo && !instance && <p className="muted">{t.adminAgentNotInstantiated}</p>}
         {!agentInfo && <p className="muted">{t.loading}</p>}
       </section>
+
+      {instance && instance.emailCapable && (
+        <section className="card">
+          <div className="settings-section">
+            <h3>{t.adminAgentEmailTitle}</h3>
+            <p className="muted">{t.adminAgentEmailDesc}</p>
+
+            {instance.emailAddress && (
+              <div className="wa-number-display" dir="ltr">
+                {instance.emailAddress}
+              </div>
+            )}
+
+            <div className="wa-action-row">
+              <span className="doc-text">
+                <span className="doc-name">
+                  {instance.emailAddress ? t.adminAgentEmailChange : t.adminAgentEmailAssign}
+                </span>
+                <span className="doc-desc muted">
+                  {instance.emailAddress ? t.adminAgentEmailChangeDesc : t.adminAgentEmailAssignDesc}
+                </span>
+              </span>
+              <span className="wa-manual-entry" dir="ltr">
+                <input
+                  dir="ltr"
+                  aria-label={t.adminAgentEmailTitle}
+                  placeholder={instance.suggestedEmailLocalPart ?? ''}
+                  value={emailLocalPart}
+                  disabled={busy}
+                  onChange={(e) => setEmailLocalPart(e.target.value)}
+                />
+                <span className="muted">@{agentInfo?.emailDomain}</span>
+                <button
+                  className="btn btn-ghost btn-small"
+                  disabled={
+                    busy ||
+                    !emailLocalPart.trim() ||
+                    `${emailLocalPart.trim().toLowerCase()}@${agentInfo?.emailDomain}` === instance.emailAddress
+                  }
+                  onClick={() => (instance.emailAddress ? setConfirmingEmailChange(true) : void saveAgentEmail())}
+                >
+                  {t.adminAgentEmailSave}
+                </button>
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
 
       {instance && (
         <section className="card">
@@ -251,6 +318,20 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
             void run(() => api.adminSetWaSender(instance.id, phoneNumber), t.adminWaNumberSaveFailed);
           }}
           onClose={() => setPoolPicking(false)}
+        />
+      )}
+
+      {confirmingEmailChange && instance?.emailAddress && (
+        <ConfirmModal
+          title={t.adminAgentEmailChange}
+          note={t.adminAgentEmailChangeConfirm(instance.emailAddress)}
+          confirmLabel={t.adminAgentEmailChange}
+          danger
+          onConfirm={() => {
+            setConfirmingEmailChange(false);
+            void saveAgentEmail();
+          }}
+          onClose={() => setConfirmingEmailChange(false)}
         />
       )}
 

@@ -17,6 +17,32 @@ export async function getByInstanceId(agentInstanceId: string): Promise<AgentMai
   return rows[0] ?? null;
 }
 
+/** All of a user's per-instance sender rows (the account mailbox is excluded). */
+export async function listForInstancesOfUser(userId: string): Promise<AgentMailboxRow[]> {
+  const { rows } = await pool.query<AgentMailboxRow>(
+    'SELECT * FROM agent_mailboxes WHERE user_id = $1 AND agent_instance_id IS NOT NULL',
+    [userId],
+  );
+  return rows;
+}
+
+/**
+ * Re-addresses an instance's sender. The old address stops routing (inbound
+ * exact-match finds no row) — callers own warning the admin about that. The
+ * UNIQUE constraints are the race-safe arbiter (23505 = "address taken").
+ */
+export async function updateForInstance(args: {
+  agentInstanceId: string;
+  localPart: string;
+  emailAddress: string;
+}): Promise<AgentMailboxRow | null> {
+  const { rows } = await pool.query<AgentMailboxRow>(
+    'UPDATE agent_mailboxes SET local_part = $2, email_address = $3 WHERE agent_instance_id = $1 RETURNING *',
+    [args.agentInstanceId, args.localPart, args.emailAddress],
+  );
+  return rows[0] ?? null;
+}
+
 export async function getByEmailAddress(emailAddress: string): Promise<AgentMailboxRow | null> {
   const { rows } = await pool.query<AgentMailboxRow>('SELECT * FROM agent_mailboxes WHERE email_address = $1', [
     emailAddress.toLowerCase(),

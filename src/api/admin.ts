@@ -1,12 +1,13 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import * as agentInstances from '../db/queries/agentInstances.js';
+import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as llmUsage from '../db/queries/llmUsage.js';
 import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as whitelist from '../db/queries/whitelist.js';
-import { ensureInstanceEmail } from '../agents/instanceEmail.js';
-import { listAgentTypes } from '../agents/registry.js';
+import { getAgentType, listAgentTypes } from '../agents/registry.js';
+import { RESERVED } from './mailbox.js';
 import { env } from '../config/env.js';
 import { getPricingForModel } from '../gemini/pricing.js';
 import {
@@ -179,15 +180,28 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
   const instances = await agentInstances.listAllForUser(userId.data);
   const senders = await waSenders.listForUser(userId.data);
   const numberByInstance = new Map(senders.map((s) => [s.agent_instance_id, s.phone_number]));
+  const instanceMailboxes = await agentMailboxes.listForInstancesOfUser(userId.data);
+  const emailByInstance = new Map(instanceMailboxes.map((m) => [m.agent_instance_id, m.email_address]));
+  const accountMailbox = await agentMailboxes.getByUserId(userId.data);
   res.json({
-    agents: instances.map((i) => ({
-      id: i.id,
-      agentType: i.agent_type,
-      name: i.name,
-      enabled: i.enabled,
-      waPhoneNumber: numberByInstance.get(i.id) ?? null,
-    })),
+    agents: instances.map((i) => {
+      // The derived default shown in the admin's address input for agents
+      // that don't have an address yet (null when the type doesn't email
+      // clients or the accountant hasn't claimed a mailbox).
+      const suffix = getAgentType(i.agent_type).emailSuffix;
+      return {
+        id: i.id,
+        agentType: i.agent_type,
+        name: i.name,
+        enabled: i.enabled,
+        waPhoneNumber: numberByInstance.get(i.id) ?? null,
+        emailAddress: emailByInstance.get(i.id) ?? null,
+        suggestedEmailLocalPart: suffix && accountMailbox ? `${accountMailbox.local_part}-${suffix}` : null,
+        emailCapable: Boolean(suffix),
+      };
+    }),
     availableTypes: [...knownAgentTypes()],
+    emailDomain: env.AGENT_EMAIL_DOMAIN,
   });
 };
 
@@ -204,16 +218,9 @@ export const adminEnableAgent: RequestHandler = async (req, res) => {
     return;
   }
   const instance = await agentInstances.enableInstance(userId.data, parsed.data.agentType);
-  // Best-effort: derive the agent's sender address now (no-op when the
-  // accountant hasn't claimed a mailbox yet); send time re-ensures anyway.
-  try {
-    await ensureInstanceEmail(instance);
-  } catch (err) {
-    logger.warn('failed to provision instance email address on enable', {
-      instanceId: instance.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
+  // Deliberately no address provisioning here: the admin decides the agent's
+  // address on the agent page right after enabling (lazy auto-derivation at
+  // send/settings time remains the fallback if they don't).
   logger.info('agent enabled', { adminUserId: req.realUserId, userId: userId.data, agentType: instance.agent_type });
   res.status(201).json({ agent: { id: instance.id, agentType: instance.agent_type, name: instance.name, enabled: instance.enabled } });
 };
@@ -233,6 +240,72 @@ export const adminDisableAgent: RequestHandler = async (req, res) => {
   }
   logger.info('agent disabled', { adminUserId: req.realUserId, userId: userId.success ? userId.data : null, agentType });
   res.json({ ok: true });
+};
+
+const AgentEmailSchema = z.object({ agentInstanceId: z.string().uuid(), localPart: z.string() }).strict();
+
+// Instance addresses use the DB's widened cap (prefix + suffix), not the
+// 30-char claim regex in mailbox.ts.
+const INSTANCE_LOCAL_PART_RE = /^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])?$/;
+
+/**
+ * POST /api/admin/agent-emails — set or change an agent instance's sender
+ * address. Changing re-addresses the existing row, so mail sent to the OLD
+ * address stops routing (inbound is exact-match) — the admin UI warns before
+ * calling this on an assigned agent.
+ */
+export const adminSetAgentEmail: RequestHandler = async (req, res) => {
+  const parsed = AgentEmailSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Expected { agentInstanceId, localPart }.' });
+    return;
+  }
+  const instance = await agentInstances.getById(parsed.data.agentInstanceId);
+  if (!instance) {
+    res.status(404).json({ error: 'Agent not found.' });
+    return;
+  }
+  if (!getAgentType(instance.agent_type).emailSuffix) {
+    res.status(400).json({ error: 'This agent type does not email clients.' });
+    return;
+  }
+
+  const localPart = parsed.data.localPart.trim().toLowerCase();
+  if (!INSTANCE_LOCAL_PART_RE.test(localPart)) {
+    res.status(400).json({ error: 'Addresses are 3–40 characters: lowercase letters, digits and hyphens (not at the edges).' });
+    return;
+  }
+  if (RESERVED.has(localPart)) {
+    res.status(409).json({ error: 'That name is reserved.' });
+    return;
+  }
+
+  const emailAddress = `${localPart}@${env.AGENT_EMAIL_DOMAIN}`;
+  try {
+    const existing = await agentMailboxes.getByInstanceId(instance.id);
+    const row = existing
+      ? await agentMailboxes.updateForInstance({ agentInstanceId: instance.id, localPart, emailAddress })
+      : await agentMailboxes.insertForInstance({
+          userId: instance.user_id,
+          agentInstanceId: instance.id,
+          localPart,
+          emailAddress,
+        });
+    logger.info('agent email address set', {
+      adminUserId: req.realUserId,
+      instanceId: instance.id,
+      emailAddress,
+      previous: existing?.email_address ?? null,
+    });
+    res.json({ emailAddress: row?.email_address ?? emailAddress });
+  } catch (err) {
+    // 23505 = unique_violation: the address is another mailbox or instance address.
+    if (err instanceof Error && 'code' in err && (err as { code?: string }).code === '23505') {
+      res.status(409).json({ error: 'That address is already taken.' });
+      return;
+    }
+    throw err;
+  }
 };
 
 /** POST /api/admin/impersonate — start viewing the given accountant's dashboard. */

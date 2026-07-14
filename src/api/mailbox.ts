@@ -11,8 +11,9 @@ import { logger } from '../util/logger.js';
 const LOCAL_PART_RE = /^[a-z0-9]([a-z0-9-]{1,28}[a-z0-9])?$/;
 
 // Names that must never become an agent mailbox: RFC 2142 role addresses,
-// deliverability/abuse contacts, and brand/system names.
-const RESERVED = new Set([
+// deliverability/abuse contacts, and brand/system names. Shared with the
+// admin's per-agent address endpoint (admin.ts).
+export const RESERVED = new Set([
   'admin',
   'administrator',
   'abuse',

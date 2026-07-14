@@ -185,6 +185,17 @@ const he = {
   adminWaNumberReleaseConfirm: (phoneNumber: string) =>
     `לשחרר את ‎${phoneNumber} בחזרה ל-Twilio? החיוב החודשי ייפסק, המספר יימחק מהחשבון ולא ניתן יהיה לשחזר אותו.`,
   adminWaNumberReleaseFailed: 'שחרור המספר נכשל.',
+  adminAgentEmailTitle: 'אימייל של הסוכן',
+  adminAgentEmailDesc: 'הכתובת שממנה הסוכן הזה שולח ומקבל מיילים מול הלקוחות — לכל סוכן כתובת משלו.',
+  adminAgentEmailAssign: 'הקצאת כתובת',
+  adminAgentEmailAssignDesc: 'קובעים את החלק שלפני ה-@. ברירת המחדל נגזרת משם התיבה של רואה החשבון.',
+  adminAgentEmailChange: 'שינוי כתובת',
+  adminAgentEmailChangeDesc: 'מיילים לכתובת הישנה יפסיקו להגיע לסוכן.',
+  adminAgentEmailSave: 'שמירה',
+  adminAgentEmailConflict: 'הכתובת הזו כבר תפוסה.',
+  adminAgentEmailSaveFailed: 'שמירת הכתובת נכשלה.',
+  adminAgentEmailChangeConfirm: (emailAddress: string) =>
+    `להחליף את ‎${emailAddress}? הכתובת הישנה תפסיק לקבל מיילים — תשובות של לקוחות לשיחות קיימות לא יגיעו לסוכן.`,
   adminOrphanNumbersTitle: 'מספרי WhatsApp לא משויכים',
   adminOrphanNumbersDesc:
     'מספרים שבבעלות חשבון ה-Twilio (ומחויבים חודשית) אך אינם משויכים לאף סוכן. אפשר לשייך מספר מחדש דרך כרטיס הסוכן, או לשחרר אותו כאן כדי להפסיק את החיוב.',

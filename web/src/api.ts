@@ -392,6 +392,12 @@ export interface AgentInstance {
   enabled: boolean;
   /** Only populated by the admin listing (GET /admin/accountants/:userId/agents). */
   waPhoneNumber?: string | null;
+  /** Admin listing only: the agent's sender address, null until assigned/derived. */
+  emailAddress?: string | null;
+  /** Admin listing only: derived default for the address input (null: no mailbox claimed / type doesn't email). */
+  suggestedEmailLocalPart?: string | null;
+  /** Admin listing only: false for agent types that never email clients (no address to manage). */
+  emailCapable?: boolean;
 }
 
 /**
@@ -535,7 +541,14 @@ export const api = {
   adminLlmUsageDaily: (days: number) =>
     request<{ since: string; rows: LlmDailyUsage[] }>(`/admin/llm-usage/daily?days=${days}`),
   adminListAccountantAgents: (userId: string) =>
-    request<{ agents: AgentInstance[]; availableTypes: string[] }>(`/admin/accountants/${userId}/agents`),
+    request<{ agents: AgentInstance[]; availableTypes: string[]; emailDomain: string }>(
+      `/admin/accountants/${userId}/agents`,
+    ),
+  adminSetAgentEmail: (agentInstanceId: string, localPart: string) =>
+    request<{ emailAddress: string }>('/admin/agent-emails', {
+      method: 'POST',
+      body: JSON.stringify({ agentInstanceId, localPart }),
+    }),
   adminEnableAgent: (userId: string, agentType: string) =>
     request<{ agent: AgentInstance }>(`/admin/accountants/${userId}/agents`, {
       method: 'POST',

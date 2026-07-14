@@ -2786,6 +2786,25 @@ button.meta-chip:hover {
   gap: 26px;
 }
 
+/* The groups live in one wrapper so the tabbed variant can scroll them under
+   a fixed header + tab bar (same internal-scroll pattern as .client-view.dashboard). */
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  min-height: 0;
+}
+
+.settings-page-tabbed {
+  height: 100%;
+  width: 100%;
+}
+
+.settings-page-tabbed .settings-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .settings-header {
   padding-inline: 6px;
 }

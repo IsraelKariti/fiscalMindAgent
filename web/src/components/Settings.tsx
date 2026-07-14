@@ -60,7 +60,7 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
   };
 
   return (
-    <div className="client-view settings-page">
+    <div className={`client-view settings-page${tabbed ? ' settings-page-tabbed' : ''}`}>
       <header className="settings-header">
         <h2>{t.settingsTitle}</h2>
       </header>
@@ -88,6 +88,7 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
         </div>
       )}
 
+      <div className="settings-content">
       {tabbed && activeTab === 'agent' ? (
         agentPanel
       ) : (
@@ -162,6 +163,7 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
           {!tabbed && agentPanel}
         </>
       )}
+      </div>
     </div>
   );
 }

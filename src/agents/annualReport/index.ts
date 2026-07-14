@@ -16,6 +16,7 @@ import type { AgentTypeDefinition } from '../types.js';
 export const annualReportAgent: AgentTypeDefinition = {
   id: 'annual_report_assistant',
   conversationModel: 'scheduled_follow_up',
+  emailSuffix: 'annual',
   planNextAction: planAnnualReport,
   async onInboundMessage(ctx) {
     // A reply (or backfilled files) always obsoletes the pending send; the

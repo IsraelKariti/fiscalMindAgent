@@ -5,6 +5,7 @@ import * as llmUsage from '../db/queries/llmUsage.js';
 import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as whitelist from '../db/queries/whitelist.js';
+import { ensureInstanceEmail } from '../agents/instanceEmail.js';
 import { listAgentTypes } from '../agents/registry.js';
 import { env } from '../config/env.js';
 import { getPricingForModel } from '../gemini/pricing.js';
@@ -203,6 +204,16 @@ export const adminEnableAgent: RequestHandler = async (req, res) => {
     return;
   }
   const instance = await agentInstances.enableInstance(userId.data, parsed.data.agentType);
+  // Best-effort: derive the agent's sender address now (no-op when the
+  // accountant hasn't claimed a mailbox yet); send time re-ensures anyway.
+  try {
+    await ensureInstanceEmail(instance);
+  } catch (err) {
+    logger.warn('failed to provision instance email address on enable', {
+      instanceId: instance.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
   logger.info('agent enabled', { adminUserId: req.realUserId, userId: userId.data, agentType: instance.agent_type });
   res.status(201).json({ agent: { id: instance.id, agentType: instance.agent_type, name: instance.name, enabled: instance.enabled } });
 };

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { type AccountTier, type MailboxStatus, type WaSenderStatus } from '../api';
+import { type AccountTier, type EmailSenderStatus, type MailboxStatus, type WaSenderStatus } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
 import { useT } from '../i18n';
@@ -39,6 +39,7 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
   const [copied, setCopied] = useState(false);
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
+  const [emailSender, setEmailSender] = useState<EmailSenderStatus | null>(null);
   const [activeTab, setActiveTab] = useState<'general' | 'agent'>('general');
   const wsApi = useWorkspaceApi();
 
@@ -49,7 +50,14 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
     wsApi.waSenderStatus().then(setWaSender).catch(() => setWaSender({ assigned: false, phoneNumber: null }));
   }, [wsApi]);
 
-  const address = mailbox?.claimed ? mailbox.emailAddress : null;
+  // Refetched when the mailbox gets claimed: the claim provisions this
+  // agent's derived address, which should replace the bare one right away.
+  useEffect(() => {
+    wsApi.emailSender().then(setEmailSender).catch(() => setEmailSender({ assigned: false, emailAddress: null }));
+  }, [wsApi, mailbox?.claimed]);
+
+  // Prefer the agent's own derived address; fall back to the account mailbox.
+  const address = (emailSender?.assigned ? emailSender.emailAddress : null) ?? (mailbox?.claimed ? mailbox.emailAddress : null);
 
   const copyMailbox = async () => {
     if (!address) return;
@@ -120,7 +128,7 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
           (address ? (
             <SettingsRow
               title={t.agentMailbox}
-              description={t.agentMailboxDesc}
+              description={emailSender?.assigned ? t.agentMailboxInstanceDesc : t.agentMailboxDesc}
               control={
                 <span className="settings-value" dir="ltr">
                   {address}

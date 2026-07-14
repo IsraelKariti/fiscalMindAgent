@@ -1,7 +1,10 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { env } from '../config/env.js';
+import * as agentInstances from '../db/queries/agentInstances.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
+import { ensureInstanceEmail } from '../agents/instanceEmail.js';
+import { logger } from '../util/logger.js';
 
 // 3–30 chars, lowercase letters/digits/hyphens, no leading/trailing hyphen —
 // mirrors the CHECK constraint on agent_mailboxes.local_part.
@@ -108,6 +111,18 @@ export async function claimMailbox(req: Request, res: Response): Promise<void> {
       localPart: name,
       emailAddress: `${name}@${env.AGENT_EMAIL_DOMAIN}`,
     });
+    // Best-effort: derive each enabled agent's sender address now so settings
+    // pages show them right away; send time re-ensures on any failure here.
+    try {
+      for (const instance of await agentInstances.listForUser(req.userId!)) {
+        await ensureInstanceEmail(instance);
+      }
+    } catch (err) {
+      logger.warn('failed to provision instance email addresses after claim', {
+        userId: req.userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
     res.status(201).json({ mailbox: { emailAddress: mailbox.email_address, localPart: mailbox.local_part } });
   } catch (err) {
     // 23505 = unique_violation: someone claimed the name (or this user claimed

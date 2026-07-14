@@ -302,6 +302,12 @@ export interface WaSenderStatus {
   phoneNumber: string | null;
 }
 
+/** This agent's derived sender address (null until the account mailbox is claimed). */
+export interface EmailSenderStatus {
+  assigned: boolean;
+  emailAddress: string | null;
+}
+
 export interface MailboxAvailability {
   name: string;
   available: boolean;
@@ -430,6 +436,7 @@ function makeWorkspaceApi(prefix: string) {
     setWhatsApp: (id: string, args: { enabled: boolean; phone?: string }) =>
       request<{ client: Client }>(`${prefix}/clients/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(args) }),
     waSenderStatus: () => request<WaSenderStatus>(`${prefix}/wa-sender`),
+    emailSender: () => request<EmailSenderStatus>(`${prefix}/email-sender`),
     listEmails: (clientId: string) => request<{ emails: Email[] }>(`${prefix}/clients/${clientId}/emails`),
     sendScheduledNow: (clientId: string) =>
       request<{ ok: true }>(`${prefix}/clients/${clientId}/send-now`, { method: 'POST' }),

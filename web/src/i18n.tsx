@@ -231,6 +231,7 @@ const he = {
   settingsGroupChannels: 'ערוצי הסוכן',
   agentMailbox: 'תיבת הסוכן',
   agentMailboxDesc: 'תיבת הדואר שממנה הסוכן שולח ומקבל מיילים. הלקוחות מתכתבים עם הכתובת הזו.',
+  agentMailboxInstanceDesc: 'הכתובת הייעודית של הסוכן הזה — לכל סוכן כתובת משלו, שנגזרת משם התיבה שבחרת. הלקוחות מתכתבים איתה.',
   agentWhatsApp: 'וואטסאפ של הסוכן',
   agentWhatsAppDesc: 'המספר שממנו הסוכן שולח ומקבל הודעות וואטסאפ.',
   agentWhatsAppNone: 'עדיין לא הוקצה מספר וואטסאפ לסוכן הזה.',

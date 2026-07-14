@@ -38,6 +38,14 @@ export interface AgentTypeDefinition {
   id: string;
   conversationModel: ConversationModel;
   /**
+   * Local-part suffix of this type's per-instance sender address
+   * (<accountant-prefix>-<suffix>@AGENT_EMAIL_DOMAIN). Only agent types that
+   * email clients set it. Lowercase letters/digits only, and no suffix may be
+   * a trailing substring of another — derived addresses across types must
+   * stay distinct while accountant prefixes are unique.
+   */
+  emailSuffix?: string;
+  /**
    * One planning step for one client — decide, act on goal state, and (for
    * conversational agents) schedule the next message. Runs inside
    * setFutureEmail's drafting-state wrapper (paused/complete guards, drafting

@@ -1,3 +1,4 @@
+import * as agentInstances from '../db/queries/agentInstances.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
@@ -51,10 +52,30 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
   }
 
   const fromAddress = parseEmailAddress(data.from);
-  if (fromAddress === mailbox.email_address) return; // our own mail looping back
+  // Our own mail looping back: the sender may be any of this user's agent
+  // addresses (account mailbox or a derived per-instance one).
+  const fromMailbox = await agentMailboxes.getByEmailAddress(fromAddress);
+  if (fromMailbox && fromMailbox.user_id === mailbox.user_id) return;
 
-  // Only this mailbox owner's clients — the same address may be another user's client.
-  const client = await clients.getByEmailAddressForUser(mailbox.user_id, fromAddress);
+  let client;
+  if (mailbox.agent_instance_id) {
+    // Per-instance address: the To-address alone identifies the agent
+    // instance (exact match — local parts may contain hyphens, never parse).
+    const instance = await agentInstances.getById(mailbox.agent_instance_id);
+    if (!instance || !instance.enabled) {
+      logger.warn('inbound email for disabled agent instance, ignoring', {
+        to: mailbox.email_address,
+        instanceId: mailbox.agent_instance_id,
+      });
+      return;
+    }
+    client = await clients.getByEmailAddressForInstance(instance.id, fromAddress);
+  } else {
+    // Legacy account address: replies to threads started from the bare
+    // mailbox keep routing by owner, as before per-instance addresses existed.
+    // Only this mailbox owner's clients — the same address may be another user's client.
+    client = await clients.getByEmailAddressForUser(mailbox.user_id, fromAddress);
+  }
   if (!client) {
     logger.warn('inbound email from unknown address, ignoring', { fromAddress, mailbox: mailbox.email_address });
     return;

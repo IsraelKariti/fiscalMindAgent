@@ -17,6 +17,7 @@ import { buildRouter } from './router.js';
 export const debtCollectorAgent: AgentTypeDefinition = {
   id: 'debt_collector',
   conversationModel: 'scheduled_follow_up',
+  emailSuffix: 'debt',
   planNextAction: planDebtCollection,
   async onInboundMessage(ctx) {
     // Same contract as the doc collector: a reply obsoletes the pending send

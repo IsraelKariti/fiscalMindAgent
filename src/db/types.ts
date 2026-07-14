@@ -30,6 +30,8 @@ export interface UserRow {
 export interface AgentMailboxRow {
   id: string;
   user_id: string;
+  /** NULL = the accountant's claimed account mailbox; set = a derived per-agent-instance sender address. */
+  agent_instance_id: string | null;
   local_part: string;
   email_address: string;
   created_at: Date;

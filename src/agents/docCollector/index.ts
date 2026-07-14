@@ -14,6 +14,7 @@ import type { AgentTypeDefinition } from '../types.js';
 export const docCollectorAgent: AgentTypeDefinition = {
   id: 'doc_collector',
   conversationModel: 'scheduled_follow_up',
+  emailSuffix: 'document',
   planNextAction: planFollowUp,
   async onInboundMessage(ctx) {
     // A reply (or backfilled files) always obsoletes the pending send; the

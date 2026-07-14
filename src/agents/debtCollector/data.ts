@@ -1,15 +1,7 @@
 import { getFreshGoogleAccessToken } from '../../api/googleOauth.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
-import {
-  fetchAllSheetRows,
-  fetchSheetRowsMatching,
-  type SheetRows,
-} from '../customerService/googleData.js';
-import {
-  fetchAllBoardRows,
-  fetchRowsMatching,
-  type MondayBoardRows,
-} from '../customerService/mondayData.js';
+import { fetchSheetRowsMatching, type SheetRows } from '../customerService/googleData.js';
+import { fetchRowsMatching, type MondayBoardRows } from '../customerService/mondayData.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
 import type { DebtCollectorSettings } from './settings.js';
@@ -147,90 +139,6 @@ async function getGoogleToken(ctx: AgentContext, data: { failedSources: string[]
   return token;
 }
 
-/** One source's rows as the daily scan sees them: each row keyed by its email cell. */
-export interface ScanSourceRows {
-  sourceName: string;
-  rows: { email: string; name: string; row: Record<string, string> }[];
-}
-
-/**
- * Every row (with a non-empty email cell) of every configured source — the
- * daily scan's sweep for debtors that have no client yet. Rows without an
- * email can never be contacted, so they are dropped here.
- */
-export async function loadAllRows(
-  accountantId: string,
-  settings: DebtCollectorSettings,
-): Promise<{ sources: ScanSourceRows[]; failedSources: string[] }> {
-  const sources: ScanSourceRows[] = [];
-  const failedSources: string[] = [];
-
-  if (settings.boards.length > 0) {
-    const token = await mondayOauthTokens.getByUserId(accountantId);
-    if (!token) failedSources.push('monday (not connected)');
-    else {
-      const results = await Promise.allSettled(
-        settings.boards.map((board) => fetchAllBoardRows(token.access_token, board.boardId)),
-      );
-      results.forEach((result, i) => {
-        const board = settings.boards[i]!;
-        if (result.status === 'rejected') {
-          logger.warn('debt scan: board fetch failed', { boardId: board.boardId, reason: String(result.reason) });
-          failedSources.push(`board ${board.boardName ?? board.boardId}`);
-          return;
-        }
-        sources.push({
-          sourceName: `monday board "${result.value.boardName}"`,
-          rows: result.value.rows
-            .map((item) => ({
-              email: (item.cells[board.emailColumnId] ?? '').trim().toLowerCase(),
-              name: (board.nameColumnId ? (item.cells[board.nameColumnId] ?? '') : '').trim() || item.itemName.trim(),
-              row: item.row,
-            }))
-            .filter((r) => r.email !== ''),
-        });
-      });
-    }
-  }
-
-  if (settings.sheets.length > 0) {
-    let token: string | null = null;
-    try {
-      token = await getFreshGoogleAccessToken(accountantId);
-      if (!token) failedSources.push('Google (not connected)');
-    } catch (err) {
-      logger.warn('debt scan: google token refresh failed', { accountantId, reason: String(err) });
-      failedSources.push('Google (connection failed)');
-    }
-    if (token) {
-      const results = await Promise.allSettled(
-        settings.sheets.map((sheet) =>
-          fetchAllSheetRows(token, { spreadsheetId: sheet.spreadsheetId, sheetTitle: sheet.sheetTitle }),
-        ),
-      );
-      results.forEach((result, i) => {
-        const sheet = settings.sheets[i]!;
-        if (result.status === 'rejected') {
-          logger.warn('debt scan: sheet fetch failed', {
-            spreadsheetId: sheet.spreadsheetId,
-            reason: String(result.reason),
-          });
-          failedSources.push(`spreadsheet ${sheet.spreadsheetName ?? sheet.spreadsheetId}`);
-          return;
-        }
-        sources.push({
-          sourceName: `spreadsheet "${sheet.spreadsheetName ?? result.value.sheetName}" / tab "${result.value.sheetName}"`,
-          rows: result.value.rows
-            .map((row) => ({
-              email: (row[sheet.emailColumn] ?? '').trim().toLowerCase(),
-              name: (sheet.nameColumn ? (row[sheet.nameColumn] ?? '') : '').trim(),
-              row,
-            }))
-            .filter((r) => r.email !== ''),
-        });
-      });
-    }
-  }
-
-  return { sources, failedSources };
-}
+// The whole-source sweep (loadAllRows / ScanSourceRows / collectCandidates)
+// moved to ../shared/clientSources.ts — it now also powers the doc collector's
+// and annual-report assistant's client-import scans.

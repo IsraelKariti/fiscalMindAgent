@@ -351,6 +351,22 @@ export interface DebtCollectorSettings {
   sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; emailColumn: string; nameColumn?: string }[];
 }
 
+/** Client-import sources config (doc collector + annual report; agent_instances.settings). */
+export interface ClientSourcesConfig {
+  boards: { boardId: string; emailColumnId: string; nameColumnId?: string; boardName?: string }[];
+  sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; emailColumn: string; nameColumn?: string }[];
+  /** Doc collector only: the required-documents checklist every imported client is created with. */
+  documents?: { name: string; description?: string | null }[];
+}
+
+/** Outcome of one client-import run (POST /client-sources/scan). */
+export interface ClientImportScanResult {
+  enrolled: number;
+  skipped: number;
+  failedSources: string[];
+  notReady: 'no_sources' | 'no_mailbox' | 'no_documents' | null;
+}
+
 export interface MondayDocMeta {
   id: string;
   name: string;
@@ -462,6 +478,22 @@ function makeWorkspaceApi(prefix: string) {
       request<{ meta: SpreadsheetMeta }>(
         `${prefix}/debt-collector/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/meta`,
       ),
+    // Client-import sources (routes exist only on doc_collector / annual_report_assistant instances).
+    sourcesGetSettings: () =>
+      request<{ settings: ClientSourcesConfig; mondayConnected: boolean; googleConnected: boolean }>(
+        `${prefix}/client-sources/settings`,
+      ),
+    sourcesSaveSettings: (settings: ClientSourcesConfig) =>
+      request<{ settings: ClientSourcesConfig }>(`${prefix}/client-sources/settings`, {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      }),
+    sourcesListMondayBoards: () => request<{ boards: MondayBoardMeta[] }>(`${prefix}/client-sources/monday/boards`),
+    sourcesSpreadsheetMeta: (spreadsheetId: string) =>
+      request<{ meta: SpreadsheetMeta }>(
+        `${prefix}/client-sources/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/meta`,
+      ),
+    sourcesScanNow: () => request<ClientImportScanResult>(`${prefix}/client-sources/scan`, { method: 'POST' }),
   };
 }
 

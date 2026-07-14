@@ -8,7 +8,9 @@ import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { DueDateSchema } from '../../api/schemas.js';
+import { registerClientSourceRoutes } from '../shared/clientSourcesRoutes.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
+import { DocCollectorSettingsSchema, parseSettings } from './settings.js';
 import { logger } from '../../util/logger.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
@@ -76,6 +78,9 @@ export function buildRouter(): Router {
     }
     next();
   });
+
+  // Client-import sources (boards/sheets + the default-documents checklist).
+  registerClientSourceRoutes(router, { schema: DocCollectorSettingsSchema, parse: parseSettings });
 
   // Sets or clears the collection due date. Editing it always clears both
   // overdue markers (a new deadline may notify again when it passes); if the

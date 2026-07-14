@@ -168,6 +168,22 @@ the standalone app.
   imports; has its own prompt template and deliberately does NOT honor the doc
   collector's per-user custom template. The overdue scan covers both types
   (`clients.listOverdueForAgentTypes`).
+- **Client-import sources** (doc collector + annual-report assistant): the
+  accountant links monday boards / Google Sheets (email + optional name
+  column, per-instance in `agent_instances.settings`) and every row that isn't
+  a client yet is enrolled — immediately via the settings panel's "import now"
+  (`POST /client-sources/scan`) and by a daily sweep (queue
+  `client_import_scan`, 00:50 local + boot catch-up). Shared machinery lives
+  in `src/agents/shared/`: `clientSources.ts` (source schemas + whole-source
+  sweep + candidate collection — the debt collector's settings/scan now build
+  on it too), `clientImportScan.ts` (enroll-all scan; no LLM screening),
+  `clientSourcesRoutes.ts` (the `/client-sources/*` routes both agents mount).
+  The doc collector additionally keeps a `documents` checklist in its settings
+  (`docCollector/settings.ts`) — every imported client is created with it, and
+  the import refuses to run while the checklist is empty (a document-less
+  client would complete trivially). Web: `ClientSourcesSettings.tsx` is the
+  shared panel (connections, board/sheet pickers, optional documents editor +
+  import-now); `DebtCollectorSettings.tsx` is now a thin wrapper around it.
 - Deferred (unblocked by design, not built): removal of the legacy unprefixed
   mounts; per-agent prompt-template keys (`prompt_template.<agent_type>`,
   today the admin prompt editor edits the doc collector via the legacy key);

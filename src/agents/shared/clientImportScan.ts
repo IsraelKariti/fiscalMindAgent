@@ -1,0 +1,147 @@
+import * as agentInstances from '../../db/queries/agentInstances.js';
+import * as agentMailboxes from '../../db/queries/agentMailboxes.js';
+import * as clientDocuments from '../../db/queries/clientDocuments.js';
+import * as clients from '../../db/queries/clients.js';
+import { draftFirstEmail } from '../../api/draftFirstEmail.js';
+import { logger } from '../../util/logger.js';
+import type { AgentInstanceRow } from '../../db/types.js';
+import { parseSettings as parseDocCollectorSettings } from '../docCollector/settings.js';
+import { collectCandidates, loadAllRows, parseClientSources, type ClientSources } from './clientSources.js';
+
+/** Agent types whose clients are auto-enrolled from the configured sources (every row, no screening). */
+export const CLIENT_IMPORT_AGENT_TYPES = ['doc_collector', 'annual_report_assistant'] as const;
+
+/** New clients enrolled per instance per run — keeps a huge board from flooding the send pipeline. */
+const MAX_ENROLL = 500;
+
+/** Spacing between the enrolled clients' first-draft kicks (same rationale as the monday-widget import). */
+const DRAFT_STAGGER_MS = 1500;
+
+export interface SourceScanResult {
+  enrolled: number;
+  /** Candidate emails that already have a client in this instance. */
+  skipped: number;
+  /** Sources that were configured but could not be read this run. */
+  failedSources: string[];
+  /** Why enrollment could not run at all; null when the scan ran. */
+  notReady: 'no_sources' | 'no_mailbox' | 'no_documents' | null;
+}
+
+interface InstanceImportConfig {
+  sources: ClientSources;
+  /** Required-documents checklist each enrolled client is created with (doc collector only). */
+  documents: { name: string; description?: string | null }[];
+  /** Config gap that must block enrollment (beyond having no sources). */
+  notReady: 'no_documents' | null;
+}
+
+function importConfig(instance: AgentInstanceRow): InstanceImportConfig {
+  if (instance.agent_type === 'doc_collector') {
+    const settings = parseDocCollectorSettings(instance.settings);
+    return {
+      sources: settings,
+      documents: settings.documents,
+      // A doc-collector client without documents completes trivially and never
+      // gets emailed — refuse to mass-create useless clients.
+      notReady: settings.documents.length === 0 ? 'no_documents' : null,
+    };
+  }
+  return { sources: parseClientSources(instance.settings), documents: [], notReady: null };
+}
+
+/**
+ * Enrolls every not-yet-known row of the instance's configured boards/sheets
+ * as a client (name+email; doc collector adds its checklist) and kicks the
+ * staggered first drafts. Existing clients are skipped, so re-runs and the
+ * daily sweep are idempotent. Also serves the settings panel's "import now".
+ */
+export async function scanClientImportInstance(instance: AgentInstanceRow): Promise<SourceScanResult> {
+  const config = importConfig(instance);
+  const result: SourceScanResult = { enrolled: 0, skipped: 0, failedSources: [], notReady: null };
+
+  if (config.sources.boards.length === 0 && config.sources.sheets.length === 0) {
+    result.notReady = 'no_sources';
+    return result;
+  }
+  if (config.notReady) {
+    result.notReady = config.notReady;
+    return result;
+  }
+  if (!(await agentMailboxes.getByUserId(instance.user_id))) {
+    // Without a mailbox the first email could never send; skip rather than
+    // enroll clients that immediately fail.
+    logger.warn('client import: accountant has no agent mailbox, skipping instance', { instanceId: instance.id });
+    result.notReady = 'no_mailbox';
+    return result;
+  }
+
+  const { sources, failedSources } = await loadAllRows(instance.user_id, config.sources);
+  result.failedSources = failedSources;
+  if (failedSources.length > 0) {
+    logger.warn('client import: some sources unreadable this run', { instanceId: instance.id, failedSources });
+  }
+
+  const candidates = collectCandidates(sources);
+  const fresh = [];
+  for (const candidate of candidates.values()) {
+    if (await clients.getByEmailAddressForInstance(instance.id, candidate.email)) result.skipped += 1;
+    else fresh.push(candidate);
+  }
+  if (fresh.length > MAX_ENROLL) {
+    logger.warn('client import: candidates truncated', { instanceId: instance.id, total: fresh.length, kept: MAX_ENROLL });
+    fresh.length = MAX_ENROLL;
+  }
+
+  for (const candidate of fresh) {
+    const name = candidate.name || candidate.email.split('@')[0] || candidate.email;
+    try {
+      const client = await clients.insert({
+        userId: instance.user_id,
+        agentInstanceId: instance.id,
+        name,
+        emailAddress: candidate.email,
+      });
+      for (const doc of config.documents) {
+        await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
+      }
+      // Same fire-and-forget first-draft path as manual client creation,
+      // staggered so a big import doesn't fire hundreds of concurrent Gemini calls.
+      setTimeout(() => draftFirstEmail(client.id), result.enrolled * DRAFT_STAGGER_MS);
+      result.enrolled += 1;
+      logger.info('client import: client enrolled', { instanceId: instance.id, clientId: client.id, email: candidate.email });
+    } catch (err) {
+      // 23505 = unique_violation: enrolled concurrently (webhook, another run) — fine.
+      if (err instanceof Error && 'code' in err && (err as { code?: string }).code === '23505') {
+        result.skipped += 1;
+        continue;
+      }
+      logger.error('client import: client insert failed', err, { instanceId: instance.id, email: candidate.email });
+    }
+  }
+  return result;
+}
+
+/**
+ * The daily sweep: for every enabled doc-collector / annual-report instance
+ * with configured sources, enroll any new rows. Runs daily just after local
+ * midnight plus once on worker boot; existing clients are skipped, so
+ * overlapping runs are harmless.
+ */
+export async function runClientImportScan(): Promise<void> {
+  let instanceCount = 0;
+  let enrolled = 0;
+  for (const agentType of CLIENT_IMPORT_AGENT_TYPES) {
+    const instances = await agentInstances.listEnabledByType(agentType);
+    instanceCount += instances.length;
+    for (const instance of instances) {
+      try {
+        const result = await scanClientImportInstance(instance);
+        enrolled += result.enrolled;
+      } catch (err) {
+        // One accountant's bad config/outage must not stop the rest.
+        logger.error('client import scan failed for instance', err, { instanceId: instance.id });
+      }
+    }
+  }
+  logger.info('client import scan finished', { instances: instanceCount, enrolled });
+}

@@ -1,6 +1,7 @@
 import type { MessageChannel } from '../api';
 import { isOverdueStopped } from '../format';
 import { ClientHeader } from '../components/ClientHeader';
+import { ClientImportSettings } from '../components/ClientSourcesSettings';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
 import { FilesCard } from '../components/FilesCard';
@@ -15,6 +16,7 @@ const CHANNELS: readonly MessageChannel[] = ['email', 'whatsapp'];
 export const docCollectorUI: AgentTypeUI = {
   agentType: 'doc_collector',
   supportsBoardImport: true,
+  settingsPanel: () => <ClientImportSettings withDocuments />,
   channels: CHANNELS,
   nameKey: 'agentDocCollectorName',
   descriptionKey: 'agentDocCollectorDesc',

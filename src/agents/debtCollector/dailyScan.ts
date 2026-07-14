@@ -9,13 +9,11 @@ import { getGeminiModel } from '../../gemini/modelSettings.js';
 import { generateWithRetry, usageFromResponse } from '../../gemini/generate.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
-import { loadAllRows, type ScanSourceRows } from './data.js';
+import { collectCandidates, loadAllRows, type Candidate } from '../shared/clientSources.js';
 import { parseSettings } from './settings.js';
 
 /** Rows the screening prompt may carry per instance per day — keeps one Gemini call bounded. */
 const MAX_CANDIDATE_ROWS = 1000;
-
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Which of the listed rows show an open debt: emails only — names/rows stay
 // authoritative on our side, the LLM merely screens.
@@ -37,33 +35,6 @@ const SCAN_SYSTEM_PROMPT = `אתה סוכן גביית חובות של משרד 
 זהה אילו מהשורות מעידות על חוב פתוח שטרם שולם: יתרת חוב, תשלום שלא הוסדר, פיגור בתשלומים וכדומה. שורה שאינה מראה חוב פתוח (שולם, יתרה אפס, אין אינדיקציה) — אל תכלול.
 
 השב אך ורק לפי סכמת ה-JSON: מערך debtors ובו, לכל לקוח עם חוב פתוח, כתובת האימייל שלו בדיוק כפי שהופיעה בשורה, ו-reasoning קצר (לשימוש פנימי). אם אין חייבים — החזר מערך ריק.`;
-
-interface Candidate {
-  email: string;
-  name: string;
-  lines: string[];
-}
-
-/** Rows keyed by (valid, lowercased) email, merged across sources; first non-empty name wins. */
-function collectCandidates(sources: ScanSourceRows[]): Map<string, Candidate> {
-  const candidates = new Map<string, Candidate>();
-  for (const source of sources) {
-    for (const row of source.rows) {
-      if (!EMAIL_SHAPE.test(row.email)) continue;
-      const line = `[${source.sourceName}] ${Object.entries(row.row)
-        .map(([header, value]) => `${header}: ${value}`)
-        .join(' | ')}`;
-      const existing = candidates.get(row.email);
-      if (existing) {
-        existing.lines.push(line);
-        if (!existing.name) existing.name = row.name;
-      } else {
-        candidates.set(row.email, { email: row.email, name: row.name, lines: [line] });
-      }
-    }
-  }
-  return candidates;
-}
 
 /** One Gemini screening call over the not-yet-enrolled rows; returns the debtor emails it flagged. */
 async function screenForDebtors(instance: AgentInstanceRow, candidates: Candidate[]): Promise<Set<string>> {

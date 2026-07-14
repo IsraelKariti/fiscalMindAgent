@@ -2,6 +2,7 @@ import type { MessageChannel } from '../api';
 import { isOverdueStopped } from '../format';
 import { ClientHeader } from '../components/ClientHeader';
 import { WhatsAppCard } from '../components/WhatsAppCard';
+import { ClientImportSettings } from '../components/ClientSourcesSettings';
 import { DocumentsCard } from '../components/DocumentsCard';
 import { FilesCard } from '../components/FilesCard';
 import { StatTiles } from '../components/StatTiles';
@@ -21,6 +22,7 @@ export const annualReportUI: AgentTypeUI = {
   agentType: 'annual_report_assistant',
   simpleClientForm: true,
   addClientLeadKey: 'addClientLeadAnnual',
+  settingsPanel: () => <ClientImportSettings />,
   channels: CHANNELS,
   nameKey: 'agentAnnualReportName',
   descriptionKey: 'agentAnnualReportDesc',

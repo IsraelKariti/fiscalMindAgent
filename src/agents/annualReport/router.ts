@@ -8,6 +8,8 @@ import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { DueDateSchema } from '../../api/schemas.js';
+import { ClientSourcesSchema, parseClientSources } from '../shared/clientSources.js';
+import { registerClientSourceRoutes } from '../shared/clientSourcesRoutes.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { isInterviewComplete } from './prompt.js';
 import { logger } from '../../util/logger.js';
@@ -83,6 +85,9 @@ export function buildRouter(): Router {
     }
     next();
   });
+
+  // Client-import sources (boards/sheets; no default documents — the interview determines them).
+  registerClientSourceRoutes(router, { schema: ClientSourcesSchema, parse: parseClientSources });
 
   // Sets or clears the collection due date. Editing it always clears both
   // overdue markers (a new deadline may notify again when it passes); if the

@@ -65,6 +65,27 @@ const he = {
   dcAnalyzedAt: 'נותח לאחרונה',
   addClientLeadDebt:
     'הסוכן יאתר את שורת הלקוח בגיליונות ובלוחות שהוגדרו, ינתח את החוב הפתוח וינסח את מייל הגבייה הראשון בעצמו. אם לא יימצא חוב פתוח — הטיפול יסתיים בשקט ללא שליחת מייל.',
+  // Client-import sources (doc collector + annual report settings panel)
+  sourcesBoardsDesc:
+    'הסוכן קורא מכל לוח את שורות הלקוחות לפי עמודת האימייל, ורושם אוטומטית לקוח חדש לכל שורה שעדיין אינה לקוח — מיד בלחיצה על "ייבוא עכשיו" וכן בסריקה יומית.',
+  sourcesSheetsDesc:
+    'הסוכן קורא מכל גיליון את שורות הלקוחות לפי עמודת האימייל, ורושם אוטומטית לקוח חדש לכל שורה שעדיין אינה לקוח — מיד בלחיצה על "ייבוא עכשיו" וכן בסריקה יומית.',
+  sourcesSheetMappingDesc: 'בחרו את הלשונית שבה נמצאות שורות הלקוחות ואת עמודת האימייל שלהם.',
+  sourcesImportTitle: 'ייבוא לקוחות',
+  sourcesImportDesc:
+    'מוסיף עכשיו לקוח חדש לכל שורה במקורות שעדיין אינה לקוח, ומתחיל את הטיפול בו. שורות חדשות שיתווספו למקורות ייקלטו גם בסריקה היומית האוטומטית.',
+  sourcesImportNow: 'ייבוא עכשיו',
+  sourcesImporting: 'מייבא…',
+  sourcesImportResult: (enrolled: number, skipped: number) =>
+    `נוספו ${enrolled} לקוחות חדשים; ${skipped} כבר היו קיימים.`,
+  sourcesImportFailedSources: (list: string) => `מקורות שלא נקראו הפעם: ${list}.`,
+  sourcesImportNoSources: 'הגדירו קודם לוח monday או גיליון Google.',
+  sourcesImportNoMailbox: 'בחרו קודם כתובת אימייל לסוכן — אין תיבה לשלוח ממנה.',
+  sourcesImportNoDocuments: 'הגדירו קודם את רשימת המסמכים ללקוחות מיובאים.',
+  sourcesImportFailed: 'הייבוא נכשל.',
+  sourcesDocsTitle: 'מסמכים ללקוחות מיובאים',
+  sourcesDocsDesc: 'כל לקוח מיובא ייווצר עם רשימת המסמכים הזו. בלי רשימה — הייבוא לא ירוץ.',
+  sourcesDocsUseDefault: 'הוספת רשימת ברירת המחדל',
   agentCustomerServiceName: 'שירות לקוחות',
   agentCustomerServiceDesc: 'עונה לשאלות לקוחות ב-WhatsApp על סמך מסמכי מידע ולוחות monday, וכן גיליונות ומסמכי Google של המשרד.',
   // Coming-soon agent stubs (web/src/agents/stubs.tsx)

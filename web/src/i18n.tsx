@@ -86,6 +86,8 @@ const he = {
   sourcesDocsTitle: 'מסמכים ללקוחות מיובאים',
   sourcesDocsDesc: 'כל לקוח מיובא ייווצר עם רשימת המסמכים הזו. בלי רשימה — הייבוא לא ירוץ.',
   sourcesDocsUseDefault: 'הוספת רשימת ברירת המחדל',
+  settingsTabGeneral: 'כללי',
+  settingsTabConnections: 'חיבורים ומקורות',
   agentCustomerServiceName: 'שירות לקוחות',
   agentCustomerServiceDesc: 'עונה לשאלות לקוחות ב-WhatsApp על סמך מסמכי מידע ולוחות monday, וכן גיליונות ומסמכי Google של המשרד.',
   // Coming-soon agent stubs (web/src/agents/stubs.tsx)

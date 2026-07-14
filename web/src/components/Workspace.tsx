@@ -243,6 +243,7 @@ export function Workspace({
               tier={tier}
               contactEmail={contactEmail}
               agentPanel={agentUI.settingsPanel?.()}
+              agentPanelTabKey={agentUI.settingsPanelTabKey}
               hideMailbox={!agentUI.channels.includes('email')}
             />
           )}

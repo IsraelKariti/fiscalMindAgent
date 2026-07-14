@@ -23,6 +23,7 @@ export const annualReportUI: AgentTypeUI = {
   simpleClientForm: true,
   addClientLeadKey: 'addClientLeadAnnual',
   settingsPanel: () => <ClientImportSettings />,
+  settingsPanelTabKey: 'settingsTabConnections',
   channels: CHANNELS,
   nameKey: 'agentAnnualReportName',
   descriptionKey: 'agentAnnualReportDesc',

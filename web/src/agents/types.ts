@@ -65,6 +65,11 @@ export interface AgentTypeUI {
    */
   settingsPanel?: () => ReactNode;
   /**
+   * When set, the settingsPanel renders in its own tab of the Settings view
+   * (labeled by this key) instead of inline below the general sections.
+   */
+  settingsPanelTabKey?: MessageStringKey;
+  /**
    * monday surfaces only: offers the board→clients import in this agent's
    * workspace. The import endpoint creates doc-collector clients (required
    * documents + first-email draft), so only the doc collector sets this;

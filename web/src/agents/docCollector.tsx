@@ -17,6 +17,7 @@ export const docCollectorUI: AgentTypeUI = {
   agentType: 'doc_collector',
   supportsBoardImport: true,
   settingsPanel: () => <ClientImportSettings withDocuments />,
+  settingsPanelTabKey: 'settingsTabConnections',
   channels: CHANNELS,
   nameKey: 'agentDocCollectorName',
   descriptionKey: 'agentDocCollectorDesc',

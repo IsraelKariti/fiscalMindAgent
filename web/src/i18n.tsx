@@ -127,6 +127,7 @@ const he = {
   csChooseDocs: 'בחירת מסמכים',
   csChooseBoards: 'בחירת לוחות',
   csPickerSearch: 'חיפוש…',
+  csPickerSelectAll: 'בחירת הכל',
   csPickerNoMatches: 'אין תוצאות.',
   csRemove: 'הסרה',
   csSaved: 'נשמר',

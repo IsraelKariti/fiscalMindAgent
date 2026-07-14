@@ -74,6 +74,18 @@ export function SourcePickerModal({
   const needle = query.trim().toLowerCase();
   const visible = needle ? items.filter((item) => item.name.toLowerCase().includes(needle)) : items;
 
+  const allVisibleChecked = visible.length > 0 && visible.every((item) => checked.has(item.id));
+  const someVisibleChecked = visible.some((item) => checked.has(item.id));
+
+  const toggleAll = () => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (allVisibleChecked) visible.forEach((item) => next.delete(item.id));
+      else visible.forEach((item) => next.add(item.id));
+      return next;
+    });
+  };
+
   // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
   // which re-anchor position:fixed to the card instead of the viewport.
   return createPortal(
@@ -90,34 +102,47 @@ export function SourcePickerModal({
         {visible.length === 0 ? (
           <p className="picker-empty muted">{t.csPickerNoMatches}</p>
         ) : (
-          <ul className="picker-list">
-            {visible.map((item) => {
-              const isChecked = checked.has(item.id);
-              return (
-                <li key={item.id} className={`picker-row ${isChecked ? 'picker-row-checked' : ''}`}>
-                  <label className="picker-row-main">
-                    <input type="checkbox" checked={isChecked} onChange={() => toggle(item.id)} />
-                    <span className="picker-row-name">{item.name}</span>
-                  </label>
-                  {item.columns && columnLabel && (
-                    <label className="picker-row-column">
-                      <span className="muted">{columnLabel}</span>
-                      <select
-                        value={columnById[item.id]}
-                        onChange={(e) => setColumnById((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                      >
-                        {item.columns.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.title}
-                          </option>
-                        ))}
-                      </select>
+          <>
+            <label className="picker-select-all">
+              <input
+                type="checkbox"
+                checked={allVisibleChecked}
+                ref={(el) => {
+                  if (el) el.indeterminate = someVisibleChecked && !allVisibleChecked;
+                }}
+                onChange={toggleAll}
+              />
+              <span className="picker-row-name">{t.csPickerSelectAll}</span>
+            </label>
+            <ul className="picker-list">
+              {visible.map((item) => {
+                const isChecked = checked.has(item.id);
+                return (
+                  <li key={item.id} className={`picker-row ${isChecked ? 'picker-row-checked' : ''}`}>
+                    <label className="picker-row-main">
+                      <input type="checkbox" checked={isChecked} onChange={() => toggle(item.id)} />
+                      <span className="picker-row-name">{item.name}</span>
                     </label>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                    {item.columns && columnLabel && (
+                      <label className="picker-row-column">
+                        <span className="muted">{columnLabel}</span>
+                        <select
+                          value={columnById[item.id]}
+                          onChange={(e) => setColumnById((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                        >
+                          {item.columns.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.title}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose}>

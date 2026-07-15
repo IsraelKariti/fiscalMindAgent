@@ -19,7 +19,9 @@ const he = {
 
   // AccessPending
   accessPendingTitle: 'החשבון שלכם עדיין לא הופעל',
-  accessPendingLead: 'FiscalMind זמין ללקוחות משלמים בלבד. פנו למנהל המערכת כדי להפעיל גישה עבור',
+  accessPendingLead: 'FiscalMind זמין ללקוחות משלמים בלבד. פנו למנהל המערכת בכתובת',
+  accessPendingAdminEmail: 'admin@fiscalmind.app',
+  accessPendingLeadAfterEmail: 'כדי להפעיל גישה עבור',
   accessPendingYourAccount: ' החשבון שלכם',
   accessPendingTail: '. לאחר ההפעלה, התחברו שוב והדשבורד שלכם יהיה מוכן.',
   accessPendingSwitchAccount: 'התחברות עם חשבון אחר',

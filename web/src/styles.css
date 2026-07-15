@@ -2618,6 +2618,10 @@ button.meta-chip:hover {
 }
 
 /* Access-pending screen (signed in but not whitelisted) */
+.access-pending-card {
+  text-align: center;
+}
+
 .access-pending-icon {
   font-size: 36px;
   line-height: 1;

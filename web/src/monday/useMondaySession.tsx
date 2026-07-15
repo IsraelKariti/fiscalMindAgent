@@ -118,7 +118,8 @@ export function SessionGate({ phase, onRetry, onLink, shellClass }: GateProps) {
       <div className="mw-message">
         <h2>{t.accessPendingTitle}</h2>
         <p className="muted">
-          {t.accessPendingLead} {phase.email}
+          {t.accessPendingLead} {t.accessPendingAdminEmail} {t.accessPendingLeadAfterEmail}{' '}
+          {phase.email}
           {t.accessPendingTail}
         </p>
       </div>

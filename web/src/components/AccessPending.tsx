@@ -14,7 +14,7 @@ export function AccessPending({ userEmail, onLogout }: Props) {
   const { t } = useT();
   return (
     <div className="screen-center">
-      <div className="card login-card">
+      <div className="card login-card access-pending-card">
         <div className="brand login-brand">
           <img className="brand-mark" src="/petal-seal.svg" alt={t.logoAlt} />
           <span>FiscalMind</span>
@@ -24,7 +24,11 @@ export function AccessPending({ userEmail, onLogout }: Props) {
         </div>
         <h2 className="access-pending-title">{t.accessPendingTitle}</h2>
         <p className="muted">
-          {t.accessPendingLead}
+          {t.accessPendingLead}{' '}
+          <a href={`mailto:${t.accessPendingAdminEmail}`}>
+            <strong>{t.accessPendingAdminEmail}</strong>
+          </a>{' '}
+          {t.accessPendingLeadAfterEmail}
           {userEmail ? <strong> {userEmail}</strong> : t.accessPendingYourAccount}
           {t.accessPendingTail}
         </p>

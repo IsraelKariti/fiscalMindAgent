@@ -7,7 +7,7 @@ const links = [
   // If the Pricing section is commented out in app/page.tsx, comment out this link too
   // { label: 'מחירים', href: '#pricing' },
   // If the Testimonials section is commented out in app/page.tsx, comment out this link too
-  { label: 'המלצות', href: '#testimonials' },
+  // { label: 'המלצות', href: '#testimonials' },
   { label: 'שאלות נפוצות', href: '#faq' },
 ]
 

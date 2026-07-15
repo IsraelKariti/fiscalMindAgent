@@ -149,12 +149,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
           />
         )}
 
-        {route.screen === 'agents' && accountants && (
-          <AdminAgents
-            accountants={accountants}
-            onOpenAgent={(email, agentType) => navigate({ screen: 'agent', email, agentType })}
-          />
-        )}
+        {route.screen === 'agents' && accountants && <AdminAgents accountants={accountants} />}
 
         {route.screen === 'usage' && accountants && <AdminUsage accountants={accountants} />}
 

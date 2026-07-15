@@ -1843,12 +1843,28 @@ textarea {
   font-weight: 600;
 }
 
-/* Agent cell on the platform agents roster: instance name over a one-line
-   type description (truncated — the full text lives on the agent page). */
+/* Agent cell on the platform agent catalog: icon + type name over a one-line
+   description (truncated — the description is a summary, not documentation). */
 .admin-agent-cell {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.admin-agent-cell-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-agent-cell-icon {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.admin-agent-cell-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .admin-agent-cell-desc {

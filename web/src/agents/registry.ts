@@ -17,3 +17,8 @@ const registry: Record<string, AgentTypeUI> = {
 export function getAgentUI(agentType: string): AgentTypeUI {
   return registry[agentType] ?? docCollectorUI;
 }
+
+/** Every registered agent type, live agents first (registry insertion order). */
+export function getAllAgentUIs(): AgentTypeUI[] {
+  return Object.values(registry);
+}

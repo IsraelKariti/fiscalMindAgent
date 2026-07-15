@@ -46,8 +46,6 @@ export const debtCollectorUI: AgentTypeUI = {
             paused={ctx.client.paused}
             draftFailed={ctx.draftFailed}
             draftStale={ctx.draftStale}
-            premiumLocked={ctx.premiumLocked}
-            contactEmail={ctx.contactEmail}
             onRetryDraft={async () => {
               await ctx.api.retryDraft(ctx.client.id);
               await ctx.load();

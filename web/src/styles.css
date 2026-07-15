@@ -997,42 +997,6 @@ textarea {
   color: transparent;
 }
 
-/* Premium upsell modal (shown when a Standard account taps a premium feature) */
-.modal-upgrade {
-  width: 400px;
-  align-items: center;
-  text-align: center;
-  border-top: 2px solid transparent;
-  background:
-    linear-gradient(rgba(19, 25, 46, 0.96), rgba(19, 25, 46, 0.96)) padding-box,
-    var(--gradient) border-box;
-  box-shadow:
-    0 0 60px rgba(139, 92, 246, 0.3),
-    0 30px 70px rgba(4, 6, 14, 0.7);
-}
-
-.modal-upgrade .muted {
-  margin: 0;
-}
-
-.modal-upgrade .modal-actions {
-  justify-content: center;
-  margin-top: 6px;
-}
-
-.upgrade-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  color: var(--primary);
-  background: var(--primary-soft);
-  border: 1px solid rgba(139, 92, 246, 0.35);
-  box-shadow: 0 0 24px rgba(139, 92, 246, 0.25);
-}
-
 /* Hazard-styled warning modal (admin grants Premium without payment) */
 .modal-warning {
   width: 400px;

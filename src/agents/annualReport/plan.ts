@@ -35,7 +35,7 @@ export async function planAnnualReport(ctx: AgentContext): Promise<void> {
   const history = await emails.listForClient(clientId);
   const documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
-  const waState = await getWaChannelState(client, accountant, now);
+  const waState = await getWaChannelState(client, now);
   const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, waState);
   const decisionCtx: DecisionContext = { whatsappAllowed: waState.allowed, windowOpen: waState.windowOpen, templates: waState.templates };
   const { decision, usage, model } = await decide(systemInstruction, contents, decisionCtx);

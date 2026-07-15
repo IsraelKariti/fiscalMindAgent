@@ -45,8 +45,6 @@ export const customerServiceUI: AgentTypeUI = {
             paused={false}
             draftFailed={false}
             draftStale={false}
-            premiumLocked={ctx.premiumLocked}
-            contactEmail={ctx.contactEmail}
             onRetryDraft={async () => {}}
             onSendNow={async () => {}}
             onTogglePause={async () => {}}
@@ -61,8 +59,6 @@ export const customerServiceUI: AgentTypeUI = {
         <div className="tab-pane panel-stack" role="tabpanel">
           <MuteSenderCard
             client={ctx.client}
-            premiumLocked={ctx.premiumLocked}
-            contactEmail={ctx.contactEmail}
             onSaved={async (updated) => {
               ctx.setClient(updated);
               await ctx.onClientUpdated();

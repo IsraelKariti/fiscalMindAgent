@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import type {
-  AccountTier,
   Client,
   ClientDocument,
   DocumentFile,
@@ -26,8 +25,6 @@ export interface ClientTabContext {
   /** Notify the shell (sidebar list, dashboard) that the client changed. */
   onClientUpdated: () => Promise<void>;
   setClient: (client: Client) => void;
-  premiumLocked: boolean;
-  contactEmail: string | null;
   draftFailed: boolean;
   draftStale: boolean;
 }

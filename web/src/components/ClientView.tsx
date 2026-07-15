@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AccountTier, Client, ClientDocument, DocumentFile, Email, NextScheduled } from '../api';
+import type { Client, ClientDocument, DocumentFile, Email, NextScheduled } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { AgentTypeUI, ClientTabContext } from '../agents/types';
 import { useT } from '../i18n';
@@ -17,19 +17,13 @@ export function ClientView({
   clientId,
   agentUI,
   onClientUpdated,
-  tier,
-  contactEmail,
 }: {
   clientId: string;
   agentUI: AgentTypeUI;
   onClientUpdated: () => Promise<void>;
-  tier: AccountTier | null;
-  contactEmail: string | null;
 }) {
   const { t } = useT();
   const api = useWorkspaceApi();
-  // WhatsApp is premium-only. Null tier means an admin workspace — never locked.
-  const premiumLocked = tier === 'normal';
   const [client, setClient] = useState<Client | null>(null);
   const [nextScheduled, setNextScheduled] = useState<NextScheduled | null>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
@@ -137,8 +131,6 @@ export function ClientView({
     load,
     onClientUpdated,
     setClient,
-    premiumLocked,
-    contactEmail,
     draftFailed,
     draftStale,
   };

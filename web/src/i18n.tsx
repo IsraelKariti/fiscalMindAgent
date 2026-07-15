@@ -561,13 +561,10 @@ const he = {
 
   // Plan section (Settings) + sidebar upgrade
   yourPlan: 'המנוי שלך',
-  planStandardDesc: 'מנוי סטנדרט — כל יכולות הליבה לאיסוף מסמכים מלקוחות.',
+  planStandardDesc: 'מנוי סטנדרט — כל היכולות הקיימות פתוחות.',
   planPremiumDesc: 'מנוי פרימיום — כל היכולות פתוחות. תודה שאתם איתנו!',
   upgradeToPremium: 'שדרוג לפרימיום',
   upgradeMailSubject: 'שדרוג לפרימיום ב־FiscalMind',
-  premiumFeatureTitle: 'יכולת פרימיום',
-  waPremiumPitch: 'ערוץ הוואטסאפ זמין במנוי הפרימיום. שדרגו כדי שהסוכן יוכל להתכתב עם הלקוחות גם בוואטסאפ — ולא רק באימייל.',
-  maybeLater: 'אולי מאוחר יותר',
   addAccountantFailed: 'הוספת רואה החשבון נכשלה.',
   adding: 'מוסיף…',
 

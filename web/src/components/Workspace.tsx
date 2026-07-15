@@ -231,8 +231,6 @@ export function Workspace({
               clientId={view.clientId}
               agentUI={agentUI}
               onClientUpdated={loadClients}
-              tier={tier}
-              contactEmail={contactEmail}
             />
           )}
           {view.kind === 'prompt' && impersonatingEmail && <PromptSettings />}

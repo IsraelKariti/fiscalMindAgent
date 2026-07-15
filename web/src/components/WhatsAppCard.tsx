@@ -4,14 +4,10 @@ import { useWorkspaceApi } from '../agents/ApiContext';
 import { formatPhoneForDisplay, LOCALE } from '../format';
 import { useT } from '../i18n';
 import { ConfirmModal } from './ConfirmModal';
-import { UpgradeModal } from './UpgradeModal';
 
 interface Props {
   client: Client;
   onSaved: (client: Client) => Promise<void>;
-  /** True on the Standard plan: the card stays visible but enabling opens the upgrade modal. */
-  premiumLocked: boolean;
-  contactEmail: string | null;
 }
 
 /**
@@ -19,24 +15,14 @@ interface Props {
  * client's consent; the server records who enabled it and when, and lets the
  * agent start using the channel.
  */
-export function WhatsAppCard({ client, onSaved, premiumLocked, contactEmail }: Props) {
+export function WhatsAppCard({ client, onSaved }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   // Prefill in local Israeli format; the server normalizes either form to E.164.
   const [phone, setPhone] = useState(formatPhoneForDisplay(client.wa_phone ?? client.phone ?? ''));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showUpgrade, setShowUpgrade] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
-  const requestEnable = () => {
-    // Turning the channel on is premium-only; turning it off always works.
-    if (premiumLocked) {
-      setShowUpgrade(true);
-      return;
-    }
-    setShowConfirm(true);
-  };
 
   const setEnabled = async (enabled: boolean) => {
     setBusy(true);
@@ -91,7 +77,7 @@ export function WhatsAppCard({ client, onSaved, premiumLocked, contactEmail }: P
               placeholder={t.waPhonePlaceholder}
             />
           </label>
-          <button className="btn btn-primary" onClick={requestEnable} disabled={busy || !phone.trim()}>
+          <button className="btn btn-primary" onClick={() => setShowConfirm(true)} disabled={busy || !phone.trim()}>
             {busy ? t.saving : t.waEnable}
           </button>
         </div>
@@ -110,7 +96,6 @@ export function WhatsAppCard({ client, onSaved, premiumLocked, contactEmail }: P
           onClose={() => setShowConfirm(false)}
         />
       )}
-      {showUpgrade && <UpgradeModal contactEmail={contactEmail} onClose={() => setShowUpgrade(false)} />}
     </section>
   );
 }

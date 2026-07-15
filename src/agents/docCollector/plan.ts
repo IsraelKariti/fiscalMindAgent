@@ -15,33 +15,21 @@ import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js'
 import { windowCloseTime } from '../../orchestration/whatsappWindow.js';
 import { zonedTimeToUtc } from '../../util/time.js';
 import { env } from '../../config/env.js';
-import { hasPremiumAccess } from '../../util/premium.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
-import type { ClientRow, UserRow } from '../../db/types.js';
+import type { ClientRow } from '../../db/types.js';
 
 /**
- * What the agent may do on WhatsApp right now: the accountant must be on the
- * premium plan, the client must be opted in with a valid number, the
- * accountant must have a sender, and there must be something sendable (an
- * open 24h window for free-form text, or at least one approved template).
+ * What the agent may do on WhatsApp right now: the client must be opted in
+ * with a valid number, the accountant must have a sender, and there must be
+ * something sendable (an open 24h window for free-form text, or at least one
+ * approved template).
  */
-export async function getWaChannelState(client: ClientRow, accountant: UserRow | null, now: Date): Promise<WaChannelState> {
+export async function getWaChannelState(client: ClientRow, now: Date): Promise<WaChannelState> {
   if (!client.wa_enabled || !client.wa_phone) {
     return {
       allowed: false,
       unavailableReason: 'the client has not opted in to WhatsApp',
-      windowOpen: false,
-      windowClosesAt: null,
-      templates: [],
-    };
-  }
-  // Covers accounts downgraded after opting clients in: enabling anew is
-  // blocked at the API, but existing opt-ins must also stop sending.
-  if (!accountant || !(await hasPremiumAccess(accountant.email))) {
-    return {
-      allowed: false,
-      unavailableReason: "the accountant's plan does not include WhatsApp",
       windowOpen: false,
       windowClosesAt: null,
       templates: [],
@@ -80,7 +68,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const history = await emails.listForClient(clientId);
   const documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
-  const waState = await getWaChannelState(client, accountant, now);
+  const waState = await getWaChannelState(client, now);
   const { template } = await getPromptTemplate(client.user_id);
   const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, template, waState);
   const decisionCtx: DecisionContext = { whatsappAllowed: waState.allowed, windowOpen: waState.windowOpen, templates: waState.templates };

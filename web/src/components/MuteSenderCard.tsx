@@ -3,37 +3,27 @@ import { ApiError, type Client } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import { LOCALE } from '../format';
 import { useT } from '../i18n';
-import { UpgradeModal } from './UpgradeModal';
 
 interface Props {
   client: Client;
   onSaved: (client: Client) => Promise<void>;
-  /** True on the Standard plan: muting always works, unmuting opens the upgrade modal. */
-  premiumLocked: boolean;
-  contactEmail: string | null;
 }
 
 /**
  * Mute switch for inbound-only agents: muting disables the client's WhatsApp
  * channel, which the reply path checks before answering — inbound messages
  * still land in the timeline, the agent just stays silent. Unmuting re-enables
- * the channel with the client's stored number (an enable, so premium-gated
- * like the WhatsApp card's).
+ * the channel with the client's stored number.
  */
-export function MuteSenderCard({ client, onSaved, premiumLocked, contactEmail }: Props) {
+export function MuteSenderCard({ client, onSaved }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const muted = !client.wa_enabled;
 
   const setMuted = async (mute: boolean) => {
-    if (!mute && premiumLocked) {
-      setShowUpgrade(true);
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -69,7 +59,6 @@ export function MuteSenderCard({ client, onSaved, premiumLocked, contactEmail }:
           {busy ? t.saving : muted ? t.unmuteSenderBtn : t.muteSenderBtn}
         </button>
       </div>
-      {showUpgrade && <UpgradeModal contactEmail={contactEmail} onClose={() => setShowUpgrade(false)} />}
     </section>
   );
 }

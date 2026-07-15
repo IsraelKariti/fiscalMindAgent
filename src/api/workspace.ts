@@ -7,10 +7,8 @@ import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
 import { deleteBlob, downloadBlob } from '../storage/blob.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
-import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import { normalizeE164 } from '../util/phone.js';
-import { hasPremiumAccess } from '../util/premium.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
 import { onClientUpdated, publishClientUpdated } from '../events/clientEvents.js';
@@ -263,13 +261,6 @@ workspaceRouter.put(
 
     let updated;
     if (parsed.data.enabled) {
-      // WhatsApp is premium-only; the UI shows an upgrade modal instead of
-      // calling this, so a 403 here only backstops direct API calls.
-      const owner = await users.getById(req.userId!);
-      if (!owner || !(await hasPremiumAccess(owner.email))) {
-        res.status(403).json({ error: 'WhatsApp is available on the Premium plan.' });
-        return;
-      }
       if (!(await waSenders.getByInstanceId(req.agentInstance!.id))) {
         res.status(409).json({ error: 'No WhatsApp number is assigned to this agent yet.' });
         return;

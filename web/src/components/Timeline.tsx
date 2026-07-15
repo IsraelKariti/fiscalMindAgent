@@ -4,7 +4,6 @@ import { ApiError, type Email, type GoalStatus, type MessageChannel, type NextSc
 import { formatTimestamp } from '../format';
 import { useT } from '../i18n';
 import { SendNowModal } from './SendNowModal';
-import { UpgradeModal } from './UpgradeModal';
 
 type ChannelFilter = 'all' | MessageChannel;
 
@@ -55,8 +54,6 @@ export function Timeline({
   onSendNow,
   onTogglePause,
   onRetryDraft,
-  premiumLocked,
-  contactEmail,
   channels,
   hideStatusFooter = false,
 }: {
@@ -74,9 +71,6 @@ export function Timeline({
   onSendNow: () => Promise<void>;
   onTogglePause: (paused: boolean) => Promise<void>;
   onRetryDraft: () => Promise<void>;
-  /** True on the Standard plan: WhatsApp stays visible but taps open the upgrade modal. */
-  premiumLocked: boolean;
-  contactEmail: string | null;
   /**
    * The channels the agent type speaks (AgentTypeUI.channels). Single-channel
    * agents get no channel filter and no per-message channel badges — there is
@@ -89,7 +83,6 @@ export function Timeline({
   const { t } = useT();
   const [copied, setCopied] = useState(false);
   const [confirmingSendNow, setConfirmingSendNow] = useState(false);
-  const [showUpgrade, setShowUpgrade] = useState(false);
   const [pauseBusy, setPauseBusy] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState(false);
@@ -101,9 +94,7 @@ export function Timeline({
   const multiChannel = channels.length > 1;
   // Order matters: the segmented control's sliding thumb is positioned by index.
   const channelFilters: readonly ChannelFilter[] = ['all', ...channels];
-  // Cross-channel filters are premium-only: the Standard plan starts (and stays)
-  // on Email, and the other segments open the upgrade modal.
-  const [filter, setFilter] = useState<ChannelFilter>(multiChannel && premiumLocked ? 'email' : 'all');
+  const [filter, setFilter] = useState<ChannelFilter>('all');
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
   // Whether the user is scrolled near the bottom — sampled on every scroll so the
@@ -112,12 +103,9 @@ export function Timeline({
   const didInitRef = useRef(false);
 
   // The filter only exists when the client actually has (or is about to get)
-  // WhatsApp traffic — email-only conversations keep the plain header. On the
-  // Standard plan the control shows regardless of traffic: the All and WhatsApp
-  // segments are the upsell surface (tapping them opens the upgrade modal
-  // instead of filtering).
+  // WhatsApp traffic — email-only conversations keep the plain header.
   const hasWhatsApp = emails.some((e) => e.channel === 'whatsapp') || nextScheduled?.channel === 'whatsapp';
-  const showChannelFilter = multiChannel && (hasWhatsApp || premiumLocked);
+  const showChannelFilter = multiChannel && hasWhatsApp;
   const showChannelBadges = multiChannel && hasWhatsApp;
   const visibleEmails = filter === 'all' ? emails : emails.filter((e) => e.channel === filter);
   // Pausing preserves the draft and its time, so the bubble stays visible while
@@ -231,9 +219,7 @@ export function Timeline({
                 type="button"
                 className={`seg-option ${filter === option ? 'seg-active' : ''}`}
                 aria-pressed={filter === option}
-                onClick={() =>
-                  option !== 'email' && premiumLocked ? setShowUpgrade(true) : setFilter(option)
-                }
+                onClick={() => setFilter(option)}
               >
                 {option !== 'all' && (
                   <span className={`seg-icon seg-icon-${option}`}>
@@ -463,7 +449,6 @@ export function Timeline({
           onClose={() => setConfirmingSendNow(false)}
         />
       )}
-      {showUpgrade && <UpgradeModal contactEmail={contactEmail} onClose={() => setShowUpgrade(false)} />}
     </section>
   );
 }

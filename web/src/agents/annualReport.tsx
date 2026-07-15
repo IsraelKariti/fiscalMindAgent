@@ -50,8 +50,6 @@ export const annualReportUI: AgentTypeUI = {
             overdueStopped={isOverdueStopped(ctx.client)}
             draftFailed={ctx.draftFailed}
             draftStale={ctx.draftStale}
-            premiumLocked={ctx.premiumLocked}
-            contactEmail={ctx.contactEmail}
             onRetryDraft={async () => {
               await ctx.api.retryDraft(ctx.client.id);
               // The server restamped the drafting state — refetch so the placeholder
@@ -129,8 +127,6 @@ export const annualReportUI: AgentTypeUI = {
           />
           <WhatsAppCard
             client={ctx.client}
-            premiumLocked={ctx.premiumLocked}
-            contactEmail={ctx.contactEmail}
             onSaved={async (updated) => {
               ctx.setClient(updated);
               // Toggling the channel re-plans the next message — refresh the schedule too.

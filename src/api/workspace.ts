@@ -17,7 +17,6 @@ import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
-import { ensureInstanceEmail } from '../agents/instanceEmail.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
@@ -104,13 +103,13 @@ workspaceRouter.get(
   }),
 );
 
-// This agent's dedicated sender address (read-only; derived from the claimed
-// mailbox, provisioned lazily — null until the accountant claims a prefix or
-// for agent types that don't email clients).
+// This agent's dedicated sender address (read-only; admins assign it at
+// activation or on the agent page — null for agent types that don't email
+// clients or pre-mandatory-email instances that never got an address).
 workspaceRouter.get(
   '/email-sender',
   wrap(async (req, res) => {
-    const sender = await ensureInstanceEmail(req.agentInstance!);
+    const sender = await agentMailboxes.getByInstanceId(req.agentInstance!.id);
     res.json({ assigned: sender !== null, emailAddress: sender?.email_address ?? null });
   }),
 );

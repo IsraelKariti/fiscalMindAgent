@@ -70,7 +70,13 @@ tenancy / admin impersonation / monday token auth.
   `/api/wa-sender` is agent-scoped (workspace router): the instance's own
   dedicated number.
 - Admin: `GET/POST /api/admin/accountants/:userId/agents`,
-  `DELETE .../agents/:agentType` (disable = flip `enabled`, never delete);
+  `DELETE .../agents/:agentType` (disable = flip `enabled`, never delete).
+  Activation of a type that emails clients (has `emailSuffix`) is email-gated:
+  the first enable must carry `emailLocalPart` (the admin picks it with the
+  accountant in the activation modal; a re-enable keeps the existing address).
+  There is deliberately NO auto-derivation of instance sender addresses
+  anywhere — `POST /api/admin/agent-emails` (also modal-confirmed in the UI)
+  is the only other way an instance gets or changes its address;
   `GET/POST /api/admin/wa-senders`, `DELETE /api/admin/wa-senders/:agentInstanceId`
   (per-instance number assignment).
 

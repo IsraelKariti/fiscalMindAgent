@@ -8,7 +8,7 @@ import * as agentInstances from '../db/queries/agentInstances.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
-import { ensureInstanceEmail, formatFrom } from '../agents/instanceEmail.js';
+import { formatFrom } from '../agents/instanceEmail.js';
 import { sendEmail } from '../resend/send.js';
 import { sendWhatsAppTemplate, sendWhatsAppText } from '../twilio/send.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
@@ -64,11 +64,12 @@ async function sendEmailDraft(client: ClientRow, draft: EmailRow): Promise<SendO
     return 'skip_planning';
   }
 
-  // Each agent sends from its own derived address with a role display name so
-  // clients can tell the conversations apart; legacy clients without an
-  // instance keep the bare account mailbox (their replies route by owner).
+  // Each agent sends from its own admin-assigned address with a role display
+  // name so clients can tell the conversations apart; legacy clients without
+  // an instance (or pre-mandatory-email instances that never got an address)
+  // keep the bare account mailbox (their replies route by owner).
   const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
-  const sender = instance ? await ensureInstanceEmail(instance) : null;
+  const sender = instance ? await agentMailboxes.getByInstanceId(instance.id) : null;
   const accountant = client.user_id ? await users.getById(client.user_id) : null;
   const displayName = [accountant?.name, instance?.name].filter(Boolean).join(' – ') || null;
 

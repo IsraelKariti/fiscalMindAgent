@@ -191,6 +191,17 @@ const he = {
   adminAgentEmailDesc: 'הכתובת שממנה הסוכן הזה שולח ומקבל מיילים מול הלקוחות — לכל סוכן כתובת משלו.',
   adminAgentEmailAssign: 'הקצאת כתובת',
   adminAgentEmailAssignDesc: 'קובעים את החלק שלפני ה-@. ברירת המחדל נגזרת משם התיבה של רואה החשבון.',
+  adminAgentActivateTitle: 'הפעלת הסוכן',
+  adminAgentActivateEmailExplain:
+    'הסוכן יתכתב עם הלקוחות מכתובת אימייל ייעודית משלו. בחרו את הכתובת בתיאום עם רואה החשבון — הלקוחות יראו אותה בכל מייל, ותשובות אליה ינותבו לסוכן הזה בלבד. אי אפשר להפעיל את הסוכן בלי כתובת; אפשר לשנות אותה בהמשך, אבל מיילים לכתובת הישנה יפסיקו להגיע.',
+  adminAgentActivateResumeExplain: (emailAddress: string) =>
+    `הסוכן יחזור לפעול עם הכתובת הקיימת שלו ‎${emailAddress} — הוא ימשיך לשלוח ולקבל מיילים מול הלקוחות מהכתובת הזו.`,
+  adminAgentActivateEmailLabel: 'כתובת האימייל של הסוכן',
+  adminAgentActivateConfirm: 'הפעלת הסוכן',
+  adminAgentNotInstantiatedEmail:
+    'ההפעלה תחייב הקצאת כתובת אימייל ייעודית לסוכן, בתיאום עם רואה החשבון.',
+  adminAgentEmailAssignConfirm: (emailAddress: string) =>
+    `להקצות את ‎${emailAddress} לסוכן? מרגע ההקצאה הסוכן ישלח מהכתובת הזו מול הלקוחות, ותשובות אליה ינותבו אליו בלבד.`,
   adminAgentEmailChange: 'שינוי כתובת',
   adminAgentEmailChangeDesc: 'מיילים לכתובת הישנה יפסיקו להגיע לסוכן.',
   adminAgentEmailSave: 'שמירה',

@@ -392,12 +392,18 @@ export interface AgentInstance {
   enabled: boolean;
   /** Only populated by the admin listing (GET /admin/accountants/:userId/agents). */
   waPhoneNumber?: string | null;
-  /** Admin listing only: the agent's sender address, null until assigned/derived. */
+  /** Admin listing only: the agent's sender address, null until an admin assigns one. */
   emailAddress?: string | null;
   /** Admin listing only: derived default for the address input (null: no mailbox claimed / type doesn't email). */
   suggestedEmailLocalPart?: string | null;
   /** Admin listing only: false for agent types that never email clients (no address to manage). */
   emailCapable?: boolean;
+}
+
+/** Per-type email facts for the admin agent page — covers types with no instance yet. */
+export interface AgentTypeEmailInfo {
+  emailCapable: boolean;
+  suggestedEmailLocalPart: string | null;
 }
 
 /**
@@ -541,18 +547,21 @@ export const api = {
   adminLlmUsageDaily: (days: number) =>
     request<{ since: string; rows: LlmDailyUsage[] }>(`/admin/llm-usage/daily?days=${days}`),
   adminListAccountantAgents: (userId: string) =>
-    request<{ agents: AgentInstance[]; availableTypes: string[]; emailDomain: string }>(
-      `/admin/accountants/${userId}/agents`,
-    ),
+    request<{
+      agents: AgentInstance[];
+      availableTypes: string[];
+      emailInfoByType: Record<string, AgentTypeEmailInfo>;
+      emailDomain: string;
+    }>(`/admin/accountants/${userId}/agents`),
   adminSetAgentEmail: (agentInstanceId: string, localPart: string) =>
     request<{ emailAddress: string }>('/admin/agent-emails', {
       method: 'POST',
       body: JSON.stringify({ agentInstanceId, localPart }),
     }),
-  adminEnableAgent: (userId: string, agentType: string) =>
+  adminEnableAgent: (userId: string, agentType: string, emailLocalPart?: string) =>
     request<{ agent: AgentInstance }>(`/admin/accountants/${userId}/agents`, {
       method: 'POST',
-      body: JSON.stringify({ agentType }),
+      body: JSON.stringify(emailLocalPart ? { agentType, emailLocalPart } : { agentType }),
     }),
   adminDisableAgent: (userId: string, agentType: string) =>
     request<{ ok: true }>(`/admin/accountants/${userId}/agents/${encodeURIComponent(agentType)}`, {

@@ -164,7 +164,9 @@ export const adminLlmUsageDaily: RequestHandler = async (req, res) => {
   });
 };
 
-const AgentEnableSchema = z.object({ agentType: z.string().min(1) }).strict();
+const AgentEnableSchema = z
+  .object({ agentType: z.string().min(1), emailLocalPart: z.string().optional() })
+  .strict();
 
 function knownAgentTypes(): Set<string> {
   return new Set(listAgentTypes().map((d) => d.id));
@@ -201,11 +203,45 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
       };
     }),
     availableTypes: [...knownAgentTypes()],
+    // Per-type email facts for types with no instance yet — first activation
+    // happens before an instance exists, and it must collect an address then.
+    emailInfoByType: Object.fromEntries(
+      listAgentTypes().map((d) => [
+        d.id,
+        {
+          emailCapable: Boolean(d.emailSuffix),
+          suggestedEmailLocalPart:
+            d.emailSuffix && accountMailbox ? `${accountMailbox.local_part}-${d.emailSuffix}` : null,
+        },
+      ]),
+    ),
     emailDomain: env.AGENT_EMAIL_DOMAIN,
   });
 };
 
-/** POST /api/admin/accountants/:userId/agents — enable an agent type for the accountant (creates or re-enables). */
+// Instance addresses use the DB's widened cap (prefix + suffix), not the
+// 30-char claim regex in mailbox.ts.
+const INSTANCE_LOCAL_PART_RE = /^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])?$/;
+
+/** Normalizes and validates an instance address local part; shared by enable and re-address. */
+function parseInstanceLocalPart(raw: string): { localPart: string } | { status: number; error: string } {
+  const localPart = raw.trim().toLowerCase();
+  if (!INSTANCE_LOCAL_PART_RE.test(localPart)) {
+    return { status: 400, error: 'Addresses are 3–40 characters: lowercase letters, digits and hyphens (not at the edges).' };
+  }
+  if (RESERVED.has(localPart)) {
+    return { status: 409, error: 'That name is reserved.' };
+  }
+  return { localPart };
+}
+
+/**
+ * POST /api/admin/accountants/:userId/agents — enable an agent type for the
+ * accountant (creates or re-enables). Types that email clients cannot be
+ * activated without an address: the first enable must carry `emailLocalPart`
+ * (deliberately chosen by the admin with the accountant — there is no
+ * auto-derivation anywhere); a re-enable keeps the instance's existing address.
+ */
 export const adminEnableAgent: RequestHandler = async (req, res) => {
   const userId = z.string().uuid().safeParse(req.params.userId);
   const parsed = AgentEnableSchema.safeParse(req.body);
@@ -217,11 +253,53 @@ export const adminEnableAgent: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'User not found.' });
     return;
   }
-  const instance = await agentInstances.enableInstance(userId.data, parsed.data.agentType);
-  // Deliberately no address provisioning here: the admin decides the agent's
-  // address on the agent page right after enabling (lazy auto-derivation at
-  // send/settings time remains the fallback if they don't).
-  logger.info('agent enabled', { adminUserId: req.realUserId, userId: userId.data, agentType: instance.agent_type });
+
+  const agentType = parsed.data.agentType;
+  const existing = await agentInstances.getByTypeForUser(userId.data, agentType);
+  const emailCapable = Boolean(getAgentType(agentType).emailSuffix);
+  const hasEmail = existing ? Boolean(await agentMailboxes.getByInstanceId(existing.id)) : false;
+
+  let localPart: string | null = null;
+  if (emailCapable && !hasEmail) {
+    if (!parsed.data.emailLocalPart?.trim()) {
+      res.status(400).json({ error: 'An email address is required to activate this agent.' });
+      return;
+    }
+    const result = parseInstanceLocalPart(parsed.data.emailLocalPart);
+    if ('error' in result) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    localPart = result.localPart;
+  }
+
+  const instance = await agentInstances.enableInstance(userId.data, agentType);
+  if (localPart) {
+    try {
+      await agentMailboxes.insertForInstance({
+        userId: userId.data,
+        agentInstanceId: instance.id,
+        localPart,
+        emailAddress: `${localPart}@${env.AGENT_EMAIL_DOMAIN}`,
+      });
+    } catch (err) {
+      // Activation is email-gated: if the address can't be created, don't
+      // leave a freshly enabled agent running address-less.
+      if (!existing?.enabled) await agentInstances.disableInstance(userId.data, agentType);
+      // 23505 = unique_violation: the address is another mailbox or instance address.
+      if (err instanceof Error && 'code' in err && (err as { code?: string }).code === '23505') {
+        res.status(409).json({ error: 'That address is already taken.' });
+        return;
+      }
+      throw err;
+    }
+  }
+  logger.info('agent enabled', {
+    adminUserId: req.realUserId,
+    userId: userId.data,
+    agentType: instance.agent_type,
+    emailAddress: localPart ? `${localPart}@${env.AGENT_EMAIL_DOMAIN}` : undefined,
+  });
   res.status(201).json({ agent: { id: instance.id, agentType: instance.agent_type, name: instance.name, enabled: instance.enabled } });
 };
 
@@ -243,10 +321,6 @@ export const adminDisableAgent: RequestHandler = async (req, res) => {
 };
 
 const AgentEmailSchema = z.object({ agentInstanceId: z.string().uuid(), localPart: z.string() }).strict();
-
-// Instance addresses use the DB's widened cap (prefix + suffix), not the
-// 30-char claim regex in mailbox.ts.
-const INSTANCE_LOCAL_PART_RE = /^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])?$/;
 
 /**
  * POST /api/admin/agent-emails — set or change an agent instance's sender
@@ -270,15 +344,12 @@ export const adminSetAgentEmail: RequestHandler = async (req, res) => {
     return;
   }
 
-  const localPart = parsed.data.localPart.trim().toLowerCase();
-  if (!INSTANCE_LOCAL_PART_RE.test(localPart)) {
-    res.status(400).json({ error: 'Addresses are 3–40 characters: lowercase letters, digits and hyphens (not at the edges).' });
+  const result = parseInstanceLocalPart(parsed.data.localPart);
+  if ('error' in result) {
+    res.status(result.status).json({ error: result.error });
     return;
   }
-  if (RESERVED.has(localPart)) {
-    res.status(409).json({ error: 'That name is reserved.' });
-    return;
-  }
+  const { localPart } = result;
 
   const emailAddress = `${localPart}@${env.AGENT_EMAIL_DOMAIN}`;
   try {

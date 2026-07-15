@@ -1,10 +1,81 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, ApiError, type AgentInstance, type OrphanedWaNumber } from '../../api';
+import { createPortal } from 'react-dom';
+import { api, ApiError, type AgentInstance, type AgentTypeEmailInfo, type OrphanedWaNumber } from '../../api';
 import { getAgentUI } from '../../agents/registry';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
 import { WaPoolModal } from '../WaPoolModal';
 import type { AccountantRow } from './shared';
+
+/**
+ * Activation is deliberate: an agent that emails clients cannot be turned on
+ * without an address the admin agreed on with the accountant, so the modal
+ * explains the implications and (on first activation) demands the address.
+ * A re-enable keeps the instance's existing address and just explains that.
+ */
+function ActivateAgentModal({
+  agentName,
+  existingEmail,
+  suggestedLocalPart,
+  emailDomain,
+  onConfirm,
+  onClose,
+}: {
+  agentName: string;
+  /** Non-null on re-enable: the instance already has an address that will keep working. */
+  existingEmail: string | null;
+  suggestedLocalPart: string | null;
+  emailDomain: string;
+  onConfirm: (emailLocalPart: string | null) => void;
+  onClose: () => void;
+}) {
+  const { t } = useT();
+  const [localPart, setLocalPart] = useState(suggestedLocalPart ?? '');
+  const needsEmail = !existingEmail;
+
+  // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
+  // which re-anchor position:fixed to the card instead of the viewport.
+  return createPortal(
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="card modal modal-confirm" onClick={(e) => e.stopPropagation()}>
+        <h2>{`${t.adminAgentActivateTitle} — ${agentName}`}</h2>
+        <p className="muted">
+          {existingEmail ? t.adminAgentActivateResumeExplain(existingEmail) : t.adminAgentActivateEmailExplain}
+        </p>
+        {needsEmail && (
+          <span className="wa-manual-entry" dir="ltr">
+            <input
+              dir="ltr"
+              autoFocus
+              aria-label={t.adminAgentActivateEmailLabel}
+              placeholder={suggestedLocalPart ?? ''}
+              value={localPart}
+              onChange={(e) => setLocalPart(e.target.value)}
+            />
+            <span className="muted">@{emailDomain}</span>
+          </span>
+        )}
+        <div className="btn-row modal-actions">
+          <button className="btn btn-ghost" type="button" onClick={onClose}>
+            {t.cancel}
+          </button>
+          <button
+            className="btn btn-primary"
+            type="button"
+            disabled={needsEmail && !localPart.trim()}
+            onClick={() => {
+              onClose();
+              onConfirm(needsEmail ? localPart.trim() : null);
+            }}
+          >
+            {t.adminAgentActivateConfirm}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 interface Props {
   /** Null when the routed email matches no known accountant (stale link). */
@@ -29,6 +100,7 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   const [agentInfo, setAgentInfo] = useState<{
     agents: AgentInstance[];
     availableTypes: string[];
+    emailInfoByType: Record<string, AgentTypeEmailInfo>;
     emailDomain: string;
   } | null>(null);
   const loadAgents = useCallback(async () => {
@@ -42,10 +114,18 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
 
   const instance = useMemo(() => agentInfo?.agents.find((a) => a.agentType === agentType) ?? null, [agentInfo, agentType]);
 
+  // Email facts must exist before the instance does — first activation is
+  // where the mandatory address gets collected.
+  const typeEmailInfo = agentInfo?.emailInfoByType[agentType] ?? null;
+  const emailCapable = instance ? Boolean(instance.emailCapable) : Boolean(typeEmailInfo?.emailCapable);
+  const suggestedLocalPart = instance?.suggestedEmailLocalPart ?? typeEmailInfo?.suggestedEmailLocalPart ?? null;
+
   // The address input starts from the assigned local part, else the derived
   // suggestion, so "enable → confirm the default" is a single click.
   const [emailLocalPart, setEmailLocalPart] = useState('');
   const [confirmingEmailChange, setConfirmingEmailChange] = useState(false);
+  const [confirmingEmailAssign, setConfirmingEmailAssign] = useState(false);
+  const [activating, setActivating] = useState(false);
   useEffect(() => {
     setEmailLocalPart(instance?.emailAddress?.split('@')[0] ?? instance?.suggestedEmailLocalPart ?? '');
   }, [instance?.emailAddress, instance?.suggestedEmailLocalPart]);
@@ -101,9 +181,24 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   const toggleEnabled = async () => {
     if (!userId) return;
     const enable = !(instance?.enabled ?? false);
+    // Email-capable agents activate through the modal: it explains the
+    // implications and (on first activation) collects the mandatory address.
+    if (enable && emailCapable) {
+      setActivating(true);
+      return;
+    }
     await run(
       () => (enable ? api.adminEnableAgent(userId, agentType) : api.adminDisableAgent(userId, agentType)),
       t.adminAgentsUpdateFailed,
+    );
+  };
+
+  const activate = (chosenLocalPart: string | null) => {
+    if (!userId) return;
+    void run(
+      () => api.adminEnableAgent(userId, agentType, chosenLocalPart ?? undefined),
+      t.adminAgentsUpdateFailed,
+      t.adminAgentEmailConflict,
     );
   };
 
@@ -153,7 +248,12 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
           )}
         </div>
         <p className="muted">{t[ui.descriptionKey]}</p>
-        {agentInfo && !instance && <p className="muted">{t.adminAgentNotInstantiated}</p>}
+        {agentInfo && !instance && (
+          <p className="muted">
+            {t.adminAgentNotInstantiated}
+            {emailCapable ? ` ${t.adminAgentNotInstantiatedEmail}` : ''}
+          </p>
+        )}
         {!agentInfo && <p className="muted">{t.loading}</p>}
       </section>
 
@@ -195,7 +295,7 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
                     !emailLocalPart.trim() ||
                     `${emailLocalPart.trim().toLowerCase()}@${agentInfo?.emailDomain}` === instance.emailAddress
                   }
-                  onClick={() => (instance.emailAddress ? setConfirmingEmailChange(true) : void saveAgentEmail())}
+                  onClick={() => (instance.emailAddress ? setConfirmingEmailChange(true) : setConfirmingEmailAssign(true))}
                 >
                   {t.adminAgentEmailSave}
                 </button>
@@ -318,6 +418,30 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
             void run(() => api.adminSetWaSender(instance.id, phoneNumber), t.adminWaNumberSaveFailed);
           }}
           onClose={() => setPoolPicking(false)}
+        />
+      )}
+
+      {activating && userId && (
+        <ActivateAgentModal
+          agentName={instance?.name ?? t[ui.nameKey]}
+          existingEmail={instance?.emailAddress ?? null}
+          suggestedLocalPart={suggestedLocalPart}
+          emailDomain={agentInfo?.emailDomain ?? ''}
+          onConfirm={activate}
+          onClose={() => setActivating(false)}
+        />
+      )}
+
+      {confirmingEmailAssign && instance && (
+        <ConfirmModal
+          title={t.adminAgentEmailAssign}
+          note={t.adminAgentEmailAssignConfirm(`${emailLocalPart.trim().toLowerCase()}@${agentInfo?.emailDomain}`)}
+          confirmLabel={t.adminAgentEmailSave}
+          onConfirm={() => {
+            setConfirmingEmailAssign(false);
+            void saveAgentEmail();
+          }}
+          onClose={() => setConfirmingEmailAssign(false)}
         />
       )}
 

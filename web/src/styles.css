@@ -1843,6 +1843,22 @@ textarea {
   font-weight: 600;
 }
 
+/* Agent cell on the platform agents roster: instance name over a one-line
+   type description (truncated — the full text lives on the agent page). */
+.admin-agent-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-agent-cell-desc {
+  font-weight: 400;
+  font-size: 13px;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Agent summary rows on the accountant page: number + status only — the
    configuration itself lives on the agent's own page. */
 .admin-agent-summary-meta {

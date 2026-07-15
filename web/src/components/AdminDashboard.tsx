@@ -3,6 +3,7 @@ import { api, type Accountant, type WhitelistEntry } from '../api';
 import { useT } from '../i18n';
 import { AccountantPage } from './admin/AccountantPage';
 import { AccountantsTable } from './admin/AccountantsTable';
+import { AdminAgents } from './admin/AdminAgents';
 import { AdminOverview } from './admin/AdminOverview';
 import { AdminSettings } from './admin/AdminSettings';
 import { AdminUsage } from './admin/AdminUsage';
@@ -53,7 +54,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   // The routed screen highlights its top-level tab; accountant/agent pages
   // belong under the Accountants tab.
   const activeTab =
-    route.screen === 'settings' || route.screen === 'usage' || route.screen === 'overview'
+    route.screen === 'settings' || route.screen === 'usage' || route.screen === 'overview' || route.screen === 'agents'
       ? route.screen
       : 'accountants';
 
@@ -90,6 +91,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             onClick={() => navigate({ screen: 'accountants' })}
           >
             {t.accountantsLabel}
+          </button>
+          <button
+            className={`client-tab ${activeTab === 'agents' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === 'agents'}
+            onClick={() => navigate({ screen: 'agents' })}
+          >
+            {t.adminAgentsTitle}
           </button>
           <button
             className={`client-tab ${activeTab === 'usage' ? 'active' : ''}`}
@@ -137,6 +146,13 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             agentType={route.agentType}
             onBackToList={() => navigate({ screen: 'accountants' })}
             onBackToAccountant={() => navigate({ screen: 'accountant', email: route.email })}
+          />
+        )}
+
+        {route.screen === 'agents' && accountants && (
+          <AdminAgents
+            accountants={accountants}
+            onOpenAgent={(email, agentType) => navigate({ screen: 'agent', email, agentType })}
           />
         )}
 

@@ -488,6 +488,15 @@ const he = {
   adminLlmSpendLabel: 'הוצאות LLM',
   adminLlmSpendNone: 'אין עדיין שימוש',
 
+  // Admin agents roster (#/agents)
+  adminAgentColumn: 'סוכן',
+  adminAccountantColumn: 'רואה חשבון',
+  adminAgentDisabledBadge: 'מושבת',
+  oneAgent: 'סוכן אחד',
+  nAgents: (n: number) => `${n} סוכנים`,
+  adminNoAgentsYet: 'אין עדיין סוכנים — הסוכנים מופעלים מהעמוד של כל רואה חשבון.',
+  adminAgentsSearchPlaceholder: 'חיפוש לפי סוכן או רואה חשבון…',
+
   // Admin usage analytics (#/usage)
   adminUsageTab: 'שימוש ועלויות',
   usageRangeDays: (n: number) => `${n} ימים`,

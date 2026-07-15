@@ -116,7 +116,7 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
 
   // Email facts must exist before the instance does — first activation is
   // where the mandatory address gets collected.
-  const typeEmailInfo = agentInfo?.emailInfoByType[agentType] ?? null;
+  const typeEmailInfo = agentInfo?.emailInfoByType?.[agentType] ?? null;
   const emailCapable = instance ? Boolean(instance.emailCapable) : Boolean(typeEmailInfo?.emailCapable);
   const suggestedLocalPart = instance?.suggestedEmailLocalPart ?? typeEmailInfo?.suggestedEmailLocalPart ?? null;
 

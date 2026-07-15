@@ -4,6 +4,7 @@ import { getAgentUI } from '../../agents/registry';
 import { formatTimestamp, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
+import { CopyButton } from '../CopyButton';
 import { UpgradeAccountModal } from '../UpgradeAccountModal';
 import { MODEL_LABELS, StatusBadge, TierBadge, type AccountantRow } from './shared';
 
@@ -165,7 +166,10 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
         <dl className="detail-grid">
           <div>
             <dt>{t.emailLabel}</dt>
-            <dd dir="ltr">{row.email}</dd>
+            <dd className="detail-copy-row">
+              <span dir="ltr">{row.email}</span>
+              <CopyButton text={row.email} />
+            </dd>
           </div>
           <div>
             <dt>{t.tierLabel}</dt>

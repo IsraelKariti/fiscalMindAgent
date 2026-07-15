@@ -754,6 +754,13 @@ a.plan-upgrade-btn {
   overflow-wrap: anywhere;
 }
 
+/* Value with an inline copy button, aligned under the label */
+.detail-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .detail-wide {
   grid-column: 1 / -1;
 }

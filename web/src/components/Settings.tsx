@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { type AccountTier, type EmailSenderStatus, type MailboxStatus, type WaSenderStatus } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
 import { useT } from '../i18n';
 import { ClaimMailbox } from './ClaimMailbox';
+import { CopyButton } from './CopyButton';
 import { SettingsGroup, SettingsRow } from './SettingsUI';
 
 interface Props {
@@ -20,24 +21,8 @@ interface Props {
   hideMailbox?: boolean;
 }
 
-const icon = {
-  copy: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  ),
-  check: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
-  ),
-};
-
 export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, agentPanelTabKey, hideMailbox }: Props) {
   const { t } = useT();
-  const [copied, setCopied] = useState(false);
-  const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
   const [emailSender, setEmailSender] = useState<EmailSenderStatus | null>(null);
   const [activeTab, setActiveTab] = useState<'general' | 'agent'>('general');
@@ -58,14 +43,6 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
 
   // Prefer the agent's own derived address; fall back to the account mailbox.
   const address = (emailSender?.assigned ? emailSender.emailAddress : null) ?? (mailbox?.claimed ? mailbox.emailAddress : null);
-
-  const copyMailbox = async () => {
-    if (!address) return;
-    await navigator.clipboard.writeText(address);
-    setCopied(true);
-    clearTimeout(copyResetTimer.current);
-    copyResetTimer.current = setTimeout(() => setCopied(false), 1600);
-  };
 
   return (
     <div className={`client-view settings-page${tabbed ? ' settings-page-tabbed' : ''}`}>
@@ -132,13 +109,7 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
               control={
                 <span className="settings-value" dir="ltr">
                   {address}
-                  <button
-                    className={`icon-btn ${copied ? 'icon-btn-success' : ''}`}
-                    onClick={copyMailbox}
-                    title={copied ? t.copied : t.copyAddress}
-                  >
-                    {copied ? icon.check : icon.copy}
-                  </button>
+                  <CopyButton text={address} />
                 </span>
               }
             />

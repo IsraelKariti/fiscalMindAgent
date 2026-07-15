@@ -25,7 +25,7 @@ export function AccessPending({ userEmail, onLogout }: Props) {
         <h2 className="access-pending-title">{t.accessPendingTitle}</h2>
         <p className="muted">
           {t.accessPendingLead}{' '}
-          <a href={`mailto:${t.accessPendingAdminEmail}`}>
+          <a className="access-pending-admin" href={`mailto:${t.accessPendingAdminEmail}`}>
             <strong>{t.accessPendingAdminEmail}</strong>
           </a>{' '}
           {t.accessPendingLeadAfterEmail}

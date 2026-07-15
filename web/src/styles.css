@@ -2622,6 +2622,18 @@ button.meta-chip:hover {
   text-align: center;
 }
 
+.access-pending-card .brand {
+  justify-content: center;
+}
+
+.access-pending-admin {
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-decoration: none;
+}
+
 .access-pending-icon {
   font-size: 36px;
   line-height: 1;

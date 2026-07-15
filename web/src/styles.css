@@ -3464,8 +3464,14 @@ button.meta-chip:hover {
   pointer-events: none;
 }
 
-/* One filter row above everything it scopes; wraps on narrow screens. */
+/* Two control rows above everything they scope: toggles, then dropdowns. */
 .usage-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.usage-toolbar-row {
   align-items: center;
   flex-wrap: wrap;
   row-gap: 10px;

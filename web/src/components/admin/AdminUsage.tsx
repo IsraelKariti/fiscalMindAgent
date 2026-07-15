@@ -4,6 +4,7 @@ import { getAgentUI } from '../../agents/registry';
 import { formatCompact, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { ChartCard, ChartEmpty, NEUTRAL, SERIES } from '../charts/common';
+import { MODEL_LABELS } from './shared';
 import { LineChart, type LineSeries } from '../charts/LineChart';
 
 const RANGES = [7, 30, 90] as const;
@@ -70,6 +71,7 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
   const [metric, setMetric] = useState<Metric>('cost');
   const [accountantFilter, setAccountantFilter] = useState('all');
   const [agentTypeFilter, setAgentTypeFilter] = useState('all');
+  const [modelFilter, setModelFilter] = useState('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -147,9 +149,10 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
       (data?.rows ?? []).filter(
         (r) =>
           (accountantFilter === 'all' || r.userId === accountantFilter) &&
-          (agentTypeFilter === 'all' || r.agentType === agentTypeFilter),
+          (agentTypeFilter === 'all' || r.agentType === agentTypeFilter) &&
+          (modelFilter === 'all' || r.model === modelFilter),
       ),
-    [data, accountantFilter, agentTypeFilter],
+    [data, accountantFilter, agentTypeFilter, modelFilter],
   );
 
   const hasUnpriced = useMemo(() => filtered.some((r) => r.cost === null && tokensOf(r) > 0), [filtered]);
@@ -235,6 +238,12 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
     return [...types];
   }, [accountants, data]);
 
+  const models = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of data?.rows ?? []) set.add(r.model);
+    return [...set].sort();
+  }, [data]);
+
   const plus = hasUnpriced ? '+' : '';
   const hasData = filtered.length > 0;
   const peakLabel =
@@ -244,53 +253,68 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
 
   return (
     <div className={`usage-page${loading && data ? ' usage-stale' : ''}`}>
-      <div className="admin-toolbar usage-toolbar">
-        <Seg
-          label={t.usageRangeDays(days)}
-          value={days}
-          options={RANGES.map((n) => ({ value: n, label: t.usageRangeDays(n) }))}
-          onChange={setDays}
-        />
-        <Seg
-          label={t.usageGroupByLabel}
-          value={groupBy}
-          options={[
-            { value: 'accountant' as const, label: t.usageGroupAccountants },
-            { value: 'agent' as const, label: t.usageGroupAgents },
-          ]}
-          onChange={setGroupBy}
-        />
-        <label className="usage-filter">
-          <span className="usage-filter-label">{t.usageAccountantFilterLabel}</span>
-          <select value={accountantFilter} onChange={(e) => setAccountantFilter(e.target.value)}>
-            <option value="all">{t.usageAllAccountants}</option>
-            {accountants.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name ?? a.email}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="usage-filter">
-          <span className="usage-filter-label">{t.usageAgentFilterLabel}</span>
-          <select value={agentTypeFilter} onChange={(e) => setAgentTypeFilter(e.target.value)}>
-            <option value="all">{t.usageAllAgentTypes}</option>
-            {agentTypes.map((type) => (
-              <option key={type} value={type}>
-                {t[getAgentUI(type).nameKey]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Seg
-          label={t.usageMetricCost}
-          value={metric}
-          options={[
-            { value: 'cost' as const, label: t.usageMetricCost },
-            { value: 'tokens' as const, label: t.usageMetricTokens },
-          ]}
-          onChange={setMetric}
-        />
+      <div className="usage-toolbar">
+        <div className="admin-toolbar usage-toolbar-row">
+          <Seg
+            label={t.usageRangeDays(days)}
+            value={days}
+            options={RANGES.map((n) => ({ value: n, label: t.usageRangeDays(n) }))}
+            onChange={setDays}
+          />
+          <Seg
+            label={t.usageGroupByLabel}
+            value={groupBy}
+            options={[
+              { value: 'accountant' as const, label: t.usageGroupAccountants },
+              { value: 'agent' as const, label: t.usageGroupAgents },
+            ]}
+            onChange={setGroupBy}
+          />
+          <Seg
+            label={t.usageMetricCost}
+            value={metric}
+            options={[
+              { value: 'cost' as const, label: t.usageMetricCost },
+              { value: 'tokens' as const, label: t.usageMetricTokens },
+            ]}
+            onChange={setMetric}
+          />
+        </div>
+        <div className="admin-toolbar usage-toolbar-row">
+          <label className="usage-filter">
+            <span className="usage-filter-label">{t.usageAccountantFilterLabel}</span>
+            <select value={accountantFilter} onChange={(e) => setAccountantFilter(e.target.value)}>
+              <option value="all">{t.usageAllAccountants}</option>
+              {accountants.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name ?? a.email}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="usage-filter">
+            <span className="usage-filter-label">{t.usageAgentFilterLabel}</span>
+            <select value={agentTypeFilter} onChange={(e) => setAgentTypeFilter(e.target.value)}>
+              <option value="all">{t.usageAllAgentTypes}</option>
+              {agentTypes.map((type) => (
+                <option key={type} value={type}>
+                  {t[getAgentUI(type).nameKey]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="usage-filter">
+            <span className="usage-filter-label">{t.usageModelFilterLabel}</span>
+            <select value={modelFilter} onChange={(e) => setModelFilter(e.target.value)}>
+              <option value="all">{t.usageAllModels}</option>
+              {models.map((model) => (
+                <option key={model} value={model}>
+                  {MODEL_LABELS[model] ?? model}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}

@@ -495,7 +495,7 @@ const he = {
   nAgentTypes: (n: number) => `${n} סוגי סוכנים`,
 
   // Admin usage analytics (#/usage)
-  adminUsageTab: 'שימוש ועלויות',
+  adminUsageTab: 'עלויות',
   usageRangeDays: (n: number) => `${n} ימים`,
   usageGroupByLabel: 'השוואה לפי',
   usageGroupAccountants: 'רואי חשבון',

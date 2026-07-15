@@ -8,7 +8,6 @@ const he = {
   logoAlt: 'הלוגו של FiscalMind',
 
   // App shell
-  connectBanner: 'בחרו כתובת אימייל לסוכן — הלקוחות יתכתבו איתה.',
   noClientsUseAdd: 'אין עדיין לקוחות — השתמשו בכפתור ה־+ שליד "לקוחות" בסרגל הצד.',
   noClientsInboundWa: 'אין עדיין שיחות — לקוח יופיע כאן אוטומטית ברגע שיכתוב למספר ה-WhatsApp של הסוכן.',
 
@@ -82,7 +81,7 @@ const he = {
     `נוספו ${enrolled} לקוחות חדשים; ${skipped} כבר היו קיימים.`,
   sourcesImportFailedSources: (list: string) => `מקורות שלא נקראו הפעם: ${list}.`,
   sourcesImportNoSources: 'הגדירו קודם לוח monday או גיליון Google.',
-  sourcesImportNoMailbox: 'בחרו קודם כתובת אימייל לסוכן — אין תיבה לשלוח ממנה.',
+  sourcesImportNoMailbox: 'לסוכן אין עדיין כתובת אימייל לשלוח ממנה — פנו למנהל המערכת.',
   sourcesImportNoDocuments: 'הגדירו קודם את רשימת המסמכים ללקוחות מיובאים.',
   sourcesImportFailed: 'הייבוא נכשל.',
   sourcesDocsTitle: 'מסמכים ללקוחות מיובאים',
@@ -239,23 +238,13 @@ const he = {
   logoutNote: 'כדי לחזור, תצטרכו להתחבר שוב עם חשבון Google.',
   loggingOut: 'מתנתק…',
 
-  // ClaimMailbox
-  mailboxRulesHint: '3–30 תווים: אותיות לטיניות קטנות, ספרות ומקפים (לא בקצוות).',
-  mailboxReserved: 'השם הזה שמור.',
-  mailboxTaken: 'השם הזה כבר תפוס.',
-  mailboxClaimFailed: 'לא ניתן לשריין את השם. נסו שוב.',
-  claiming: 'משריין…',
-  claim: 'שריון',
-  checking: 'בודק…',
-  mailboxAvailableTail: ' פנוי. הבחירה קבועה — לא ניתן לשנות אותה בהמשך.',
-
   // Settings
   settingsTitle: 'הגדרות',
   settingsGroupAccount: 'חשבון',
   settingsGroupChannels: 'ערוצי הסוכן',
   agentMailbox: 'תיבת הסוכן',
-  agentMailboxDesc: 'תיבת הדואר שממנה הסוכן שולח ומקבל מיילים. הלקוחות מתכתבים עם הכתובת הזו.',
-  agentMailboxInstanceDesc: 'הכתובת הייעודית של הסוכן הזה — לכל סוכן כתובת משלו, שנגזרת משם התיבה שבחרת. הלקוחות מתכתבים איתה.',
+  agentMailboxDesc: 'הכתובת שממנה הסוכן שולח ומקבל מיילים. הלקוחות מתכתבים איתה; מנהל המערכת מקצה אותה.',
+  agentMailboxNone: 'עדיין לא הוקצתה כתובת אימייל לסוכן הזה — פנו למנהל המערכת.',
   agentWhatsApp: 'וואטסאפ של הסוכן',
   agentWhatsAppDesc: 'המספר שממנו הסוכן שולח ומקבל הודעות וואטסאפ.',
   agentWhatsAppNone: 'עדיין לא הוקצה מספר וואטסאפ לסוכן הזה.',
@@ -659,7 +648,7 @@ const he = {
   mwImporting: 'מייבא…',
   mwImportDone: (created: number, skipped: number) => `${created} לקוחות נוספו, ${skipped} דולגו (קיימים).`,
   mwImportFailed: 'הייבוא נכשל.',
-  mwMailboxNeeded: 'לפני ייבוא לקוחות, בחרו כתובת לסוכן באפליקציית FiscalMind.',
+  mwMailboxNeeded: 'לסוכן אין עדיין כתובת אימייל — מנהל המערכת צריך להקצות אחת לפני ייבוא לקוחות.',
 };
 
 export type Messages = typeof he;

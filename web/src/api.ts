@@ -290,6 +290,7 @@ export interface WhitelistEntry {
   createdAt: string;
 }
 
+/** Legacy account mailbox (read-only) — instances that predate admin-assigned addresses still send from it. */
 export interface MailboxStatus {
   claimed: boolean;
   emailAddress: string | null;
@@ -302,16 +303,10 @@ export interface WaSenderStatus {
   phoneNumber: string | null;
 }
 
-/** This agent's derived sender address (null until the account mailbox is claimed). */
+/** This agent's admin-assigned sender address (null until an admin assigns one). */
 export interface EmailSenderStatus {
   assigned: boolean;
   emailAddress: string | null;
-}
-
-export interface MailboxAvailability {
-  name: string;
-  available: boolean;
-  reason?: 'invalid' | 'reserved' | 'taken';
 }
 
 /** The signed-in accountant's monday OAuth connection (server-side API token). */
@@ -529,13 +524,6 @@ export const api = {
   logout: () => request<{ ok: true }>('/logout', { method: 'POST' }),
   listAgents: () => request<{ agents: AgentInstance[] }>('/agents'),
   mailboxStatus: () => request<MailboxStatus>('/mailbox'),
-  mailboxAvailability: (name: string) =>
-    request<MailboxAvailability>(`/mailbox/availability?name=${encodeURIComponent(name)}`),
-  claimMailbox: (name: string) =>
-    request<{ mailbox: { emailAddress: string; localPart: string } }>('/mailbox', {
-      method: 'POST',
-      body: JSON.stringify({ name }),
-    }),
   mondayConnection: () => request<MondayConnection>('/monday-connection'),
   mondayConnectUrl: () => request<{ url: string }>('/monday-connection/url'),
   mondayDisconnect: () => request<{ ok: true }>('/monday-connection', { method: 'DELETE' }),

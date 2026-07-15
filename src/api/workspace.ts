@@ -18,6 +18,7 @@ import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
+import { resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { DueDateSchema } from './schemas.js';
@@ -133,8 +134,13 @@ workspaceRouter.post(
     }
     const { name, email, documents, dueDate } = parsed.data;
 
-    if (!(await agentMailboxes.getByUserId(req.userId!))) {
-      res.status(409).json({ error: "Choose your agent's email address first — the agent has no mailbox to send from." });
+    // Email-capable agents can't take clients without a sender address —
+    // the first email could never send. Admins assign the address.
+    if (
+      getAgentType(req.agentInstance!.agent_type).emailSuffix &&
+      !(await resolveSenderMailbox(req.agentInstance!.id, req.userId!))
+    ) {
+      res.status(409).json({ error: 'This agent has no email address yet — an administrator must assign one.' });
       return;
     }
     if (await clients.getByEmailAddressForInstance(req.agentInstance!.id, email)) {

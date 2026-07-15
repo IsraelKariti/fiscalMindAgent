@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import * as agentInstances from '../../db/queries/agentInstances.js';
-import * as agentMailboxes from '../../db/queries/agentMailboxes.js';
 import * as clients from '../../db/queries/clients.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { draftFirstEmail } from '../../api/draftFirstEmail.js';
+import { resolveSenderMailbox } from '../instanceEmail.js';
 import { getGeminiModel } from '../../gemini/modelSettings.js';
 import { generateWithRetry, usageFromResponse } from '../../gemini/generate.js';
 import { logger } from '../../util/logger.js';
@@ -70,10 +70,10 @@ async function screenForDebtors(instance: AgentInstanceRow, candidates: Candidat
 async function scanInstance(instance: AgentInstanceRow): Promise<number> {
   const settings = parseSettings(instance.settings);
   if (settings.boards.length === 0 && settings.sheets.length === 0) return 0;
-  if (!(await agentMailboxes.getByUserId(instance.user_id))) {
-    // Without a mailbox the first email could never send; skip rather than
-    // enroll clients that immediately fail.
-    logger.warn('debt scan: accountant has no agent mailbox, skipping instance', { instanceId: instance.id });
+  if (!(await resolveSenderMailbox(instance.id, instance.user_id))) {
+    // Without a sender address the first email could never send; skip rather
+    // than enroll clients that immediately fail.
+    logger.warn('debt scan: instance has no sender address, skipping', { instanceId: instance.id });
     return 0;
   }
 

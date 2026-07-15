@@ -66,9 +66,13 @@ tenancy / admin impersonation / monday token auth.
 - Legacy unprefixed `/api/clients...` mounts still exist and resolve to the
   user's doc_collector instance (removal is pending phase-6 cleanup).
 - Same three shapes under `/api/monday/app/...` (monday sessionToken auth).
-- Account-level (not agent-scoped): `/api/mailbox*` (`src/api/account.ts`).
-  `/api/wa-sender` is agent-scoped (workspace router): the instance's own
-  dedicated number.
+- Account-level (not agent-scoped): `GET /api/mailbox` (`src/api/account.ts`)
+  — read-only status of the legacy account mailbox; there is no
+  accountant-facing claim anymore (addresses are per-instance and
+  admin-assigned; grandfathered instances without one still send from the
+  account mailbox — `resolveSenderMailbox` in `src/agents/instanceEmail.ts`
+  encodes that fallback). `/api/wa-sender` is agent-scoped (workspace router):
+  the instance's own dedicated number.
 - Admin: `GET/POST /api/admin/accountants/:userId/agents`,
   `DELETE .../agents/:agentType` (disable = flip `enabled`, never delete).
   Activation of a type that emails clients (has `emailSuffix`) is email-gated:
@@ -114,7 +118,7 @@ the standalone app.
 
 - **Goal complete** (every required document collected): the agent stops
   (guards in `setFutureEmail`/`sendEmailWorker`) and emails the accountant —
-  `docCollector/notifyAccountant.ts`, sent from the accountant's agent mailbox
+  `docCollector/notifyAccountant.ts`, sent from a no-reply platform address
   to their login address, deliberately *not* stored in `emails` (that table is
   the client conversation). Both completion paths notify: the LLM plan
   (`plan.ts`) and the manual documents toggle (`router.ts`). No closing

@@ -5,10 +5,9 @@ import { withClientLock } from '../db/withClientLock.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
 import * as agentInstances from '../db/queries/agentInstances.js';
-import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
-import { formatFrom } from '../agents/instanceEmail.js';
+import { formatFrom, resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { sendEmail } from '../resend/send.js';
 import { sendWhatsAppTemplate, sendWhatsAppText } from '../twilio/send.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
@@ -58,18 +57,21 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
 type SendOutcome = 'sent' | 'not_sent' | 'skip_planning';
 
 async function sendEmailDraft(client: ClientRow, draft: EmailRow): Promise<SendOutcome> {
-  const mailbox = client.user_id ? await agentMailboxes.getByUserId(client.user_id) : null;
-  if (!mailbox) {
-    logger.warn('client owner has no agent mailbox, skipping send', { clientId: client.id, userId: client.user_id });
+  // Each agent sends from its own admin-assigned address with a role display
+  // name so clients can tell the conversations apart; pre-mandatory-email
+  // instances that never got an address keep the accountant's legacy account
+  // mailbox (their replies route by owner).
+  const sender = await resolveSenderMailbox(client.agent_instance_id, client.user_id);
+  if (!sender) {
+    logger.warn('no sender address for client, skipping send', {
+      clientId: client.id,
+      instanceId: client.agent_instance_id,
+      userId: client.user_id,
+    });
     return 'skip_planning';
   }
 
-  // Each agent sends from its own admin-assigned address with a role display
-  // name so clients can tell the conversations apart; legacy clients without
-  // an instance (or pre-mandatory-email instances that never got an address)
-  // keep the bare account mailbox (their replies route by owner).
   const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
-  const sender = instance ? await agentMailboxes.getByInstanceId(instance.id) : null;
   const accountant = client.user_id ? await users.getById(client.user_id) : null;
   const displayName = [accountant?.name, instance?.name].filter(Boolean).join(' – ') || null;
 
@@ -77,7 +79,7 @@ async function sendEmailDraft(client: ClientRow, draft: EmailRow): Promise<SendO
   // Message-IDs exchanged with this client so far (capped to the last 20).
   const messageIds = await emails.listMessageIdsForClient(client.id);
   const result = await sendEmail({
-    from: formatFrom(displayName, sender?.email_address ?? mailbox.email_address),
+    from: formatFrom(displayName, sender.email_address),
     to: client.email_address,
     subject: draft.subject,
     body: draft.body,

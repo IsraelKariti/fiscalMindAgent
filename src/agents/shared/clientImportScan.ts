@@ -1,8 +1,8 @@
 import * as agentInstances from '../../db/queries/agentInstances.js';
-import * as agentMailboxes from '../../db/queries/agentMailboxes.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as clients from '../../db/queries/clients.js';
 import { draftFirstEmail } from '../../api/draftFirstEmail.js';
+import { resolveSenderMailbox } from '../instanceEmail.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
 import { parseSettings as parseDocCollectorSettings } from '../docCollector/settings.js';
@@ -67,10 +67,10 @@ export async function scanClientImportInstance(instance: AgentInstanceRow): Prom
     result.notReady = config.notReady;
     return result;
   }
-  if (!(await agentMailboxes.getByUserId(instance.user_id))) {
-    // Without a mailbox the first email could never send; skip rather than
-    // enroll clients that immediately fail.
-    logger.warn('client import: accountant has no agent mailbox, skipping instance', { instanceId: instance.id });
+  if (!(await resolveSenderMailbox(instance.id, instance.user_id))) {
+    // Without a sender address the first email could never send; skip rather
+    // than enroll clients that immediately fail.
+    logger.warn('client import: instance has no sender address, skipping', { instanceId: instance.id });
     result.notReady = 'no_mailbox';
     return result;
   }

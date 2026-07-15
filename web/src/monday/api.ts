@@ -9,7 +9,8 @@ export interface MondaySessionStatus {
   email: string;
   whitelisted: boolean;
   tier: AccountTier | null;
-  mailboxClaimed: boolean;
+  /** Whether the doc collector has a sender address (admin-assigned, or the legacy account mailbox). */
+  senderAssigned: boolean;
   /** Base URL of the standalone app, for "open in FiscalMind" links. */
   appUrl: string;
 }

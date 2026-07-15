@@ -9,7 +9,6 @@ import { ClientView } from './ClientView';
 import { PromptSettings } from './PromptSettings';
 import { AddClientModal } from './AddClientModal';
 import { DeleteClientModal } from './DeleteClientModal';
-import { ClaimMailbox } from './ClaimMailbox';
 import { Overview } from './Overview';
 import { Settings } from './Settings';
 import { useT } from '../i18n';
@@ -187,12 +186,6 @@ export function Workspace({
   return (
     <WorkspaceApiProvider value={wsApi}>
     <div className="app">
-      {mailbox && !mailbox.claimed && (
-        <div className="connect-banner">
-          <span>{t.connectBanner}</span>
-          <ClaimMailbox domain={mailbox.domain} onClaimed={setMailbox} />
-        </div>
-      )}
       <div className="layout">
         <Sidebar
           agentName={agent.name}
@@ -237,7 +230,6 @@ export function Workspace({
           {view.kind === 'settings' && (
             <Settings
               mailbox={mailbox}
-              onClaimed={setMailbox}
               tier={tier}
               contactEmail={contactEmail}
               agentPanel={agentUI.settingsPanel?.()}

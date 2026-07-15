@@ -111,7 +111,7 @@ export function MondayWidget() {
         </div>
       </header>
 
-      {!status.mailboxClaimed && <div className="error-banner">{t.mwMailboxNeeded}</div>}
+      {!status.senderAssigned && <div className="error-banner">{t.mwMailboxNeeded}</div>}
 
       {importOpen && (
         <div className="card mw-import-card">

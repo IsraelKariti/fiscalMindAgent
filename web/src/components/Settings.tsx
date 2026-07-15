@@ -3,13 +3,12 @@ import { type AccountTier, type EmailSenderStatus, type MailboxStatus, type WaSe
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
 import { useT } from '../i18n';
-import { ClaimMailbox } from './ClaimMailbox';
 import { CopyButton } from './CopyButton';
 import { SettingsGroup, SettingsRow } from './SettingsUI';
 
 interface Props {
+  /** Legacy account mailbox — shown as a fallback for instances that predate admin-assigned addresses. */
   mailbox: MailboxStatus | null;
-  onClaimed: (status: MailboxStatus) => void;
   tier: AccountTier | null;
   /** Where the upgrade CTA points until self-serve billing exists. */
   contactEmail: string | null;
@@ -17,11 +16,11 @@ interface Props {
   agentPanel?: ReactNode;
   /** When set (AgentTypeUI.settingsPanelTabKey), agentPanel gets its own tab instead of rendering inline. */
   agentPanelTabKey?: MessageStringKey;
-  /** Agent without an email channel (AgentTypeUI.channels): no mailbox to show or claim. */
+  /** Agent without an email channel (AgentTypeUI.channels): no mailbox to show. */
   hideMailbox?: boolean;
 }
 
-export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, agentPanelTabKey, hideMailbox }: Props) {
+export function Settings({ mailbox, tier, contactEmail, agentPanel, agentPanelTabKey, hideMailbox }: Props) {
   const { t } = useT();
   const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
   const [emailSender, setEmailSender] = useState<EmailSenderStatus | null>(null);
@@ -35,13 +34,11 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
     wsApi.waSenderStatus().then(setWaSender).catch(() => setWaSender({ assigned: false, phoneNumber: null }));
   }, [wsApi]);
 
-  // Refetched when the mailbox gets claimed: the claim provisions this
-  // agent's derived address, which should replace the bare one right away.
   useEffect(() => {
     wsApi.emailSender().then(setEmailSender).catch(() => setEmailSender({ assigned: false, emailAddress: null }));
-  }, [wsApi, mailbox?.claimed]);
+  }, [wsApi]);
 
-  // Prefer the agent's own derived address; fall back to the account mailbox.
+  // Prefer the agent's own admin-assigned address; fall back to the legacy account mailbox.
   const address = (emailSender?.assigned ? emailSender.emailAddress : null) ?? (mailbox?.claimed ? mailbox.emailAddress : null);
 
   return (
@@ -101,27 +98,24 @@ export function Settings({ mailbox, onClaimed, tier, contactEmail, agentPanel, a
       </SettingsGroup>
 
       <SettingsGroup title={t.settingsGroupChannels}>
-        {!hideMailbox &&
-          (address ? (
-            <SettingsRow
-              title={t.agentMailbox}
-              description={emailSender?.assigned ? t.agentMailboxInstanceDesc : t.agentMailboxDesc}
-              control={
+        {!hideMailbox && (
+          <SettingsRow
+            title={t.agentMailbox}
+            description={t.agentMailboxDesc}
+            control={
+              emailSender === null || mailbox === null ? (
+                <span className="muted">{t.loading}</span>
+              ) : address ? (
                 <span className="settings-value" dir="ltr">
                   {address}
                   <CopyButton text={address} />
                 </span>
-              }
-            />
-          ) : (
-            <SettingsRow title={t.agentMailbox} description={t.agentMailboxDesc} stack>
-              {mailbox ? (
-                <ClaimMailbox domain={mailbox.domain} onClaimed={onClaimed} />
               ) : (
-                <p className="muted">{t.loading}</p>
-              )}
-            </SettingsRow>
-          ))}
+                <span className="muted">{t.agentMailboxNone}</span>
+              )
+            }
+          />
+        )}
         <SettingsRow
           title={t.agentWhatsApp}
           description={t.agentWhatsAppDesc}

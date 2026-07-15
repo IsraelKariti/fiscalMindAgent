@@ -1,13 +1,14 @@
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { env } from '../config/env.js';
-import * as agentMailboxes from '../db/queries/agentMailboxes.js';
+import * as agentInstances from '../db/queries/agentInstances.js';
 import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as clients from '../db/queries/clients.js';
 import * as dashboard from '../db/queries/dashboard.js';
 import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
+import { resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { isAdminEmail, requireWhitelisted } from './auth.js';
 import { accountRouter } from './account.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
@@ -55,8 +56,12 @@ const ImportSchema = z
 async function sessionStatus(userId: string) {
   const user = await users.getById(userId);
   if (!user) return null;
-  const [mailbox, whitelisted, tier] = await Promise.all([
-    agentMailboxes.getByUserId(user.id),
+  // The widget imports into the doc collector, so what matters is whether
+  // that instance can send (its admin-assigned address, or the legacy
+  // account mailbox for grandfathered accounts).
+  const docCollector = await agentInstances.getByTypeForUser(user.id, 'doc_collector');
+  const [sender, whitelisted, tier] = await Promise.all([
+    resolveSenderMailbox(docCollector?.id ?? null, user.id),
     whitelist.isWhitelisted(user.email),
     whitelist.getTier(user.email),
   ]);
@@ -68,7 +73,7 @@ async function sessionStatus(userId: string) {
     email: user.email,
     whitelisted: isAdminEmail(user.email) || whitelisted,
     tier,
-    mailboxClaimed: mailbox !== null,
+    senderAssigned: sender !== null,
     appUrl: env.APP_BASE_URL,
   };
 }
@@ -240,9 +245,12 @@ mondayRouter.post(
       res.status(400).json({ error: 'Invalid import payload.', details: parsed.error.flatten() });
       return;
     }
-    if (!(await agentMailboxes.getByUserId(req.userId!))) {
+    // Imported clients land in the doc collector (clients.insert defaults
+    // there) — it needs a sender address before enrolling anyone.
+    const docCollector = await agentInstances.getByTypeForUser(req.userId!, 'doc_collector');
+    if (!(await resolveSenderMailbox(docCollector?.id ?? null, req.userId!))) {
       res.status(409).json({
-        error: "Choose your agent's email address in fiscalMind first — the agent has no mailbox to send from.",
+        error: 'The agent has no email address yet — an administrator must assign one in fiscalMind.',
         code: 'no_mailbox',
       });
       return;

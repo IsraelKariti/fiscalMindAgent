@@ -1,5 +1,5 @@
 import { Router, type RequestHandler } from 'express';
-import { claimMailbox, mailboxAvailability, mailboxStatus } from './mailbox.js';
+import { mailboxStatus } from './mailbox.js';
 import { googleConnectionStatus, googleConnectionUrl, googleDisconnect, googlePickerConfig } from './googleOauth.js';
 import { mondayConnectionStatus, mondayConnectionUrl, mondayDisconnect } from './mondayOauth.js';
 
@@ -18,8 +18,6 @@ function wrap(handler: RequestHandler): RequestHandler {
 export const accountRouter = Router();
 
 accountRouter.get('/mailbox', wrap(mailboxStatus));
-accountRouter.get('/mailbox/availability', wrap(mailboxAvailability));
-accountRouter.post('/mailbox', wrap(claimMailbox));
 accountRouter.get('/monday-connection', wrap(mondayConnectionStatus));
 accountRouter.get('/monday-connection/url', wrap(mondayConnectionUrl));
 accountRouter.delete('/monday-connection', wrap(mondayDisconnect));

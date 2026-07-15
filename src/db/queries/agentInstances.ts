@@ -86,20 +86,6 @@ export async function listAllForUser(userId: string): Promise<AgentInstanceRow[]
   return rows;
 }
 
-/**
- * Idempotent: every accountant gets the doc collector. Called on every
- * sign-in/provisioning (users.upsertFromGoogle), mirroring the 019 backfill
- * for users created after it.
- */
-export async function ensureInstance(userId: string, agentType: string): Promise<void> {
-  await pool.query(
-    `INSERT INTO agent_instances (user_id, agent_type, name)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (user_id, agent_type) DO NOTHING`,
-    [userId, agentType, DEFAULT_INSTANCE_NAMES[agentType] ?? agentType],
-  );
-}
-
 /** Admin enablement: creates the instance on first enable, re-enables a disabled one. */
 export async function enableInstance(userId: string, agentType: string): Promise<AgentInstanceRow> {
   const { rows } = await pool.query<AgentInstanceRow>(

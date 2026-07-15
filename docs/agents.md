@@ -13,8 +13,8 @@ are live too. Industry pattern followed: one app with an agent registry
   `src/agents/<type>/`, frontend half in `web/src/agents/<type>.tsx`,
   registered in `src/agents/registry.ts` and `web/src/agents/registry.ts`.
 - **Agent instance** — one row in `agent_instances` per (accountant, type),
-  created by admin enablement or auto-provisioning (`users.upsertFromGoogle`
-  ensures every accountant has a `doc_collector` instance). `enabled=false`
+  created by admin enablement only (`agentInstances.enableInstance`); new
+  accounts start with zero agents. `enabled=false`
   hides an instance; **never DELETE an instance row — clients cascade off it
   and the agent's data would be destroyed.**
 - **Clients belong to an instance** — `clients.agent_instance_id` (NULL only

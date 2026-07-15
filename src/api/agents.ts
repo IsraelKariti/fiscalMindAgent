@@ -36,13 +36,9 @@ export const resolveAgentInstance: RequestHandler = async (req, res, next) => {
     next();
     return;
   }
-  let instance = await agentInstances.getByTypeForUser(req.userId!, 'doc_collector');
-  if (!instance) {
-    // Users predating the provisioning hook (or whose backfill was missed):
-    // create the default instance on the spot rather than 404 their workspace.
-    await agentInstances.ensureInstance(req.userId!, 'doc_collector');
-    instance = await agentInstances.getByTypeForUser(req.userId!, 'doc_collector');
-  }
+  // No auto-provisioning here: accounts without an enabled doc_collector
+  // (agents are admin-enabled only) just 404 the legacy unprefixed routes.
+  const instance = await agentInstances.getByTypeForUser(req.userId!, 'doc_collector');
   if (!instance || !instance.enabled) {
     res.status(404).json({ error: 'Agent not found.' });
     return;

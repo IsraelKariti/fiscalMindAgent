@@ -207,7 +207,7 @@ export const startGoogleLogin: RequestHandler = (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   const mondayLink = typeof req.query.monday_link === 'string' ? req.query.monday_link : '';
   setOAuthStateCookie(res, state, loginReturnOrigin(req), mondayLink);
-  res.redirect(oauth.generateAuthUrl({ scope: IDENTITY_SCOPES, state }));
+  res.redirect(oauth.generateAuthUrl({ scope: IDENTITY_SCOPES, state, prompt: 'select_account' }));
 };
 
 /** Bare-bones closing page for the monday "link account" popup (no SPA involved). */

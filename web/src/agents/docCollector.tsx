@@ -16,7 +16,7 @@ const CHANNELS: readonly MessageChannel[] = ['email', 'whatsapp'];
 export const docCollectorUI: AgentTypeUI = {
   agentType: 'doc_collector',
   supportsBoardImport: true,
-  settingsPanel: () => <ClientImportSettings withDocuments />,
+  settingsPanel: () => <ClientImportSettings withDocuments withPortalCredentials />,
   settingsPanelTabKey: 'settingsTabConnections',
   channels: CHANNELS,
   nameKey: 'agentDocCollectorName',

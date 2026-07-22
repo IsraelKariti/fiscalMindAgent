@@ -7,6 +7,8 @@ export interface SheetMapping {
   sheetTitle: string;
   phoneColumn: string;
   nameColumn?: string;
+  idNumberColumn?: string;
+  taxUserCodeColumn?: string;
 }
 
 /**
@@ -22,6 +24,7 @@ export function SheetMappingModal({
   onClose,
   columnLabel,
   description,
+  withPortalCredentials = false,
 }: {
   spreadsheetName: string;
   meta: SpreadsheetMeta;
@@ -30,23 +33,35 @@ export function SheetMappingModal({
   /** Label of the key column being mapped; defaults to the CS phone column. */
   columnLabel?: string;
   description?: string;
+  /** Also map the tax-portal credential columns (ת"ז + permanent user code) — doc collector. */
+  withPortalCredentials?: boolean;
 }) {
   const { t } = useT();
   const [sheetTitle, setSheetTitle] = useState(meta.sheets[0]?.title ?? '');
   const headers = meta.sheets.find((s) => s.title === sheetTitle)?.headers ?? [];
   const [phoneColumn, setPhoneColumn] = useState(headers[0] ?? '');
   const [nameColumn, setNameColumn] = useState('');
+  const [idNumberColumn, setIdNumberColumn] = useState('');
+  const [taxUserCodeColumn, setTaxUserCodeColumn] = useState('');
 
   const selectTab = (title: string) => {
     setSheetTitle(title);
     const nextHeaders = meta.sheets.find((s) => s.title === title)?.headers ?? [];
     setPhoneColumn(nextHeaders[0] ?? '');
     setNameColumn('');
+    setIdNumberColumn('');
+    setTaxUserCodeColumn('');
   };
 
   const confirm = () => {
     if (!sheetTitle || !phoneColumn) return;
-    onConfirm({ sheetTitle, phoneColumn, nameColumn: nameColumn || undefined });
+    onConfirm({
+      sheetTitle,
+      phoneColumn,
+      nameColumn: nameColumn || undefined,
+      idNumberColumn: idNumberColumn || undefined,
+      taxUserCodeColumn: taxUserCodeColumn || undefined,
+    });
   };
 
   // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
@@ -95,6 +110,36 @@ export function SheetMappingModal({
                   ))}
               </select>
             </label>
+            {withPortalCredentials && (
+              <>
+                <label className="settings-list-field">
+                  <span className="muted">{t.sourcesIdNumberColumn}</span>
+                  <select value={idNumberColumn} onChange={(e) => setIdNumberColumn(e.target.value)}>
+                    <option value="">{t.csSheetNameColumnNone}</option>
+                    {headers
+                      .filter((h) => h !== phoneColumn)
+                      .map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="settings-list-field">
+                  <span className="muted">{t.sourcesTaxCodeColumn}</span>
+                  <select value={taxUserCodeColumn} onChange={(e) => setTaxUserCodeColumn(e.target.value)}>
+                    <option value="">{t.csSheetNameColumnNone}</option>
+                    {headers
+                      .filter((h) => h !== phoneColumn)
+                      .map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </>
+            )}
           </>
         )}
         <div className="btn-row modal-actions">

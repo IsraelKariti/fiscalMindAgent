@@ -80,6 +80,19 @@ const EnvSchema = z.object({
   // production sets the real storage-account connection string.
   AZURE_STORAGE_CONNECTION_STRING: z.string().min(1).default('UseDevelopmentStorage=true'),
   AZURE_STORAGE_CONTAINER: z.string().min(1).default('client-documents'),
+  // Signs the short-lived public media URLs Twilio fetches when the agent sends
+  // a document over WhatsApp (the blob container is private). Optional — media
+  // sending throws a clear error until it is set.
+  MEDIA_SIGNING_SECRET: z.string().min(16).optional(),
+  // Tax-authority document fetch (browser automation). When true, the mock
+  // provider is used instead of driving a real browser — every real login SMSes
+  // a real citizen, so iterate on the mock. Default false.
+  TAX_FETCH_MOCK: z.coerce.boolean().default(false),
+  // How long a live browser session waits for the client's OTP before it is
+  // closed and the fetch is marked expired (ms). Default 10 minutes.
+  TAX_FETCH_SESSION_TTL_MS: z.coerce.number().int().positive().default(600_000),
+  // When set, the tax-authority provider saves step screenshots here (dev only).
+  TAX_FETCH_DEBUG_DIR: z.string().min(1).optional(),
 });
 
 export const env = EnvSchema.parse(process.env);

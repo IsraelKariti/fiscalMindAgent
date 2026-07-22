@@ -3,6 +3,7 @@ import path from 'node:path';
 import express, { type Express } from 'express';
 import { resendRoute } from './resendRoute.js';
 import { twilioRoute } from './twilioRoute.js';
+import { mediaRoute } from './mediaRoute.js';
 import { apiRouter } from '../api/router.js';
 
 // Built dashboard SPA (web/dist), resolved from the process cwd — both `npm run
@@ -18,6 +19,8 @@ export function createApp(): Express {
   app.use(twilioRoute);
   app.use(express.json());
   app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+  // Signed, expiring public file links (Twilio media fetches) — before the SPA fallback.
+  app.use(mediaRoute);
   app.use('/api', apiRouter);
 
   if (fs.existsSync(path.join(guiDist, 'index.html'))) {

@@ -24,6 +24,12 @@ export const DecisionResponseSchema = z.object({
   whatsapp_template: z.object({ template_id: z.string(), variables: z.array(z.string()) }).nullable(),
   /** When to send, as "YYYY-MM-DD HH:MM" wall-clock time in the accountant's timezone. */
   send_at: z.string().nullable(),
+  /**
+   * Tax-authority 106-fetch step, or null. Which values are valid depends on the
+   * current fetch state (see the prompt's TAX AUTHORITY 106 FETCH section and
+   * allowedTaxFetchActions below).
+   */
+  tax_fetch_action: z.enum(['offer', 'client_agreed', 'start_login', 'cancel']).nullable(),
 });
 
 export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
@@ -38,8 +44,16 @@ export type FollowUpMessage =
   | { channel: 'whatsapp'; kind: 'freeform'; body: string }
   | { channel: 'whatsapp'; kind: 'template'; contentSid: string; variables: string[]; renderedBody: string };
 
+export type TaxFetchAction = 'offer' | 'client_agreed' | 'start_login' | 'cancel';
+
 export type NormalizedDecision =
-  | { decision: 'goal_complete'; reasoning: string; collected_document_ids: string[]; matched_files: MatchedFile[] }
+  | {
+      decision: 'goal_complete';
+      reasoning: string;
+      collected_document_ids: string[];
+      matched_files: MatchedFile[];
+      tax_fetch_action: TaxFetchAction | null;
+    }
   | {
       decision: 'follow_up';
       reasoning: string;
@@ -48,7 +62,14 @@ export type NormalizedDecision =
       message: FollowUpMessage;
       /** Validated wall-clock datetime in the accountant's timezone. */
       send_at: string;
+      tax_fetch_action: TaxFetchAction | null;
     };
+
+/** The tax-fetch situation the validator needs: its state and whether it's on offer. */
+export interface TaxFetchDecisionState {
+  state: string;
+  available: boolean;
+}
 
 /** What the surrounding code knows about the WhatsApp channel when validating the LLM's choice. */
 export interface DecisionContext {
@@ -58,11 +79,43 @@ export interface DecisionContext {
   windowOpen: boolean;
   /** Approved templates the LLM may pick from (by content_sid). */
   templates: WaTemplateRow[];
+  /** Tax-fetch state; absent when the capability doesn't apply to this client. */
+  taxFetch?: TaxFetchDecisionState;
 }
 
 export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, windowOpen: false, templates: [] };
 
-export function normalizeFollowUpMessage(raw: DecisionResponse, ctx: DecisionContext): FollowUpMessage {
+/**
+ * The tax_fetch_action values valid in a given state — the single source of
+ * truth shared by the prompt (what to tell the LLM it may do) and the validator
+ * (what to reject). Offering requires the fetch to be currently available.
+ */
+export function allowedTaxFetchActions(state: string, available: boolean): string[] {
+  switch (state) {
+    case 'none':
+      return available ? ['offer'] : [];
+    case 'offered':
+      return available ? ['offer', 'client_agreed'] : ['client_agreed'];
+    case 'agreed':
+    case 'wa_intro_sent':
+      return ['start_login', 'cancel'];
+    case 'awaiting_otp':
+    case 'in_progress':
+      return ['cancel'];
+    case 'failed':
+      return available ? ['offer'] : [];
+    default:
+      return [];
+  }
+}
+
+/** Just the message-shaping fields, so agents reusing this (annual report) needn't carry every field. */
+export type FollowUpMessageInput = Pick<
+  DecisionResponse,
+  'channel' | 'email_subject' | 'email_body' | 'whatsapp_text' | 'whatsapp_template'
+>;
+
+export function normalizeFollowUpMessage(raw: FollowUpMessageInput, ctx: DecisionContext): FollowUpMessage {
   // Old-style / email answers: a missing channel means email (backward-safe).
   if (raw.channel !== 'whatsapp') {
     if (raw.email_body == null || raw.email_subject == null) {
@@ -102,13 +155,28 @@ export function normalizeFollowUpMessage(raw: DecisionResponse, ctx: DecisionCon
   throw new Error(`follow_up chose whatsapp but filled neither whatsapp_text nor whatsapp_template: ${JSON.stringify(raw)}`);
 }
 
+/** Rejects a tax_fetch_action that isn't valid in the current state (contract violation). */
+function validateTaxFetchAction(raw: DecisionResponse, ctx: DecisionContext): TaxFetchAction | null {
+  const action = raw.tax_fetch_action;
+  if (!action) return null;
+  const allowed = ctx.taxFetch ? allowedTaxFetchActions(ctx.taxFetch.state, ctx.taxFetch.available) : [];
+  if (!allowed.includes(action)) {
+    throw new Error(
+      `tax_fetch_action "${action}" not allowed in state "${ctx.taxFetch?.state ?? 'none'}" (allowed: ${allowed.join(', ') || 'none'})`,
+    );
+  }
+  return action;
+}
+
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {
+  const taxFetchAction = validateTaxFetchAction(raw, ctx);
   if (raw.decision === 'goal_complete') {
     return {
       decision: 'goal_complete',
       reasoning: raw.reasoning,
       collected_document_ids: raw.collected_document_ids,
       matched_files: raw.matched_files,
+      tax_fetch_action: taxFetchAction,
     };
   }
   if (raw.send_at == null || !isWallClockDateTime(raw.send_at)) {
@@ -121,5 +189,6 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
     matched_files: raw.matched_files,
     message: normalizeFollowUpMessage(raw, ctx),
     send_at: raw.send_at.trim(),
+    tax_fetch_action: taxFetchAction,
   };
 }

@@ -354,8 +354,23 @@ export interface DebtCollectorSettings {
 
 /** Client-import sources config (doc collector + annual report; agent_instances.settings). */
 export interface ClientSourcesConfig {
-  boards: { boardId: string; emailColumnId: string; nameColumnId?: string; boardName?: string }[];
-  sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; emailColumn: string; nameColumn?: string }[];
+  boards: {
+    boardId: string;
+    emailColumnId: string;
+    nameColumnId?: string;
+    idNumberColumnId?: string;
+    taxUserCodeColumnId?: string;
+    boardName?: string;
+  }[];
+  sheets: {
+    spreadsheetId: string;
+    spreadsheetName?: string;
+    sheetTitle: string;
+    emailColumn: string;
+    nameColumn?: string;
+    idNumberColumn?: string;
+    taxUserCodeColumn?: string;
+  }[];
   /** Doc collector only: the required-documents checklist every imported client is created with. */
   documents?: { name: string; description?: string | null }[];
 }

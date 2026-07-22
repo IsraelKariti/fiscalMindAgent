@@ -84,6 +84,8 @@ const he = {
   sourcesImportNoMailbox: 'לסוכן אין עדיין כתובת אימייל לשלוח ממנה — פנו למנהל המערכת.',
   sourcesImportNoDocuments: 'הגדירו קודם את רשימת המסמכים ללקוחות מיובאים.',
   sourcesImportFailed: 'הייבוא נכשל.',
+  sourcesIdNumberColumn: 'עמודת ת"ז',
+  sourcesTaxCodeColumn: 'עמודת קוד משתמש (רשות המסים)',
   sourcesDocsTitle: 'מסמכים ללקוחות מיובאים',
   sourcesDocsDesc: 'כל לקוח מיובא ייווצר עם רשימת המסמכים הזו. בלי רשימה — הייבוא לא ירוץ.',
   sourcesDocsUseDefault: 'הוספת רשימת ברירת המחדל',

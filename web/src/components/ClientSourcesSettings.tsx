@@ -40,6 +40,8 @@ interface Props {
   sheetMappingDescKey: MessageStringKey;
   /** Renders the default-documents checklist editor (doc collector: imported clients get this list). */
   withDocuments?: boolean;
+  /** Maps the tax-portal credential columns (ת"ז + permanent user code) — doc collector only. */
+  withPortalCredentials?: boolean;
 }
 
 /**
@@ -51,7 +53,7 @@ interface Props {
  * checklist. Rendered inside the workspace Settings view via
  * AgentTypeUI.settingsPanel; the debt collector wraps it too.
  */
-export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDescKey, sheetMappingDescKey, withDocuments = false }: Props) {
+export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDescKey, sheetMappingDescKey, withDocuments = false, withPortalCredentials = false }: Props) {
   const { t } = useT();
   const [connection, setConnection] = useState<MondayConnection | null>(null);
   const [gConnection, setGConnection] = useState<GoogleConnection | null>(null);
@@ -191,9 +193,18 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
       boards: selection.flatMap(({ id, columnId }) => {
         const board = boards.find((b) => b.id === id);
         if (!board || !columnId) return [];
-        // Re-confirming the picker must not reset a previously chosen name column.
+        // Re-confirming the picker must not reset previously chosen extra columns.
         const existing = settings.boards.find((b) => b.boardId === id);
-        return [{ boardId: id, emailColumnId: columnId, nameColumnId: existing?.nameColumnId, boardName: board.name }];
+        return [
+          {
+            boardId: id,
+            emailColumnId: columnId,
+            nameColumnId: existing?.nameColumnId,
+            idNumberColumnId: existing?.idNumberColumnId,
+            taxUserCodeColumnId: existing?.taxUserCodeColumnId,
+            boardName: board.name,
+          },
+        ];
       }),
     }).catch(console.error);
   };
@@ -217,6 +228,14 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     save({
       ...settings,
       boards: settings.boards.map((b) => (b.boardId === boardId ? { ...b, nameColumnId: nameColumnId || undefined } : b)),
+    }).catch(console.error);
+  };
+
+  const setBoardCredentialColumn = (boardId: string, key: 'idNumberColumnId' | 'taxUserCodeColumnId', columnId: string) => {
+    if (!settings) return;
+    save({
+      ...settings,
+      boards: settings.boards.map((b) => (b.boardId === boardId ? { ...b, [key]: columnId || undefined } : b)),
     }).catch(console.error);
   };
 
@@ -287,6 +306,8 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
           sheetTitle: chosen.sheetTitle,
           emailColumn: chosen.phoneColumn,
           nameColumn: chosen.nameColumn,
+          idNumberColumn: chosen.idNumberColumn,
+          taxUserCodeColumn: chosen.taxUserCodeColumn,
         },
       ],
     }).catch(console.error);
@@ -451,6 +472,38 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                                 ))}
                               </select>
                             </label>
+                            {withPortalCredentials && (
+                              <>
+                                <label className="settings-list-field">
+                                  <span className="muted">{t.sourcesIdNumberColumn}</span>
+                                  <select
+                                    value={chosen.idNumberColumnId ?? ''}
+                                    onChange={(e) => setBoardCredentialColumn(chosen.boardId, 'idNumberColumnId', e.target.value)}
+                                  >
+                                    <option value="">{t.csSheetNameColumnNone}</option>
+                                    {nameColumnCandidates(board).map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.title}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="settings-list-field">
+                                  <span className="muted">{t.sourcesTaxCodeColumn}</span>
+                                  <select
+                                    value={chosen.taxUserCodeColumnId ?? ''}
+                                    onChange={(e) => setBoardCredentialColumn(chosen.boardId, 'taxUserCodeColumnId', e.target.value)}
+                                  >
+                                    <option value="">{t.csSheetNameColumnNone}</option>
+                                    {nameColumnCandidates(board).map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.title}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              </>
+                            )}
                           </>
                         )}
                         <button
@@ -518,6 +571,8 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                       <span className="muted">
                         {t.csSheetTab}: {sheet.sheetTitle} · {t.dcEmailColumn}: {sheet.emailColumn}
                         {sheet.nameColumn ? ` · ${t.csNameColumn}: ${sheet.nameColumn}` : ''}
+                        {sheet.idNumberColumn ? ` · ${t.sourcesIdNumberColumn}: ${sheet.idNumberColumn}` : ''}
+                        {sheet.taxUserCodeColumn ? ` · ${t.sourcesTaxCodeColumn}: ${sheet.taxUserCodeColumn}` : ''}
                       </span>
                       <button
                         type="button"
@@ -604,6 +659,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
           meta={mapping.meta}
           columnLabel={t.dcEmailColumn}
           description={t[sheetMappingDescKey]}
+          withPortalCredentials={withPortalCredentials}
           onConfirm={applySheetMapping}
           onClose={() => setMapping(null)}
         />
@@ -634,7 +690,13 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
 }
 
 /** The doc collector's / annual-report assistant's panel, bound to the shared /client-sources routes. */
-export function ClientImportSettings({ withDocuments = false }: { withDocuments?: boolean }) {
+export function ClientImportSettings({
+  withDocuments = false,
+  withPortalCredentials = false,
+}: {
+  withDocuments?: boolean;
+  withPortalCredentials?: boolean;
+}) {
   const wsApi = useWorkspaceApi();
   const panelApi = useMemo<ClientSourcesPanelApi>(
     () => ({
@@ -653,6 +715,7 @@ export function ClientImportSettings({ withDocuments = false }: { withDocuments?
       sheetsDescKey="sourcesSheetsDesc"
       sheetMappingDescKey="sourcesSheetMappingDesc"
       withDocuments={withDocuments}
+      withPortalCredentials={withPortalCredentials}
     />
   );
 }

@@ -1,12 +1,13 @@
 import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
+import * as clientPortalCredentials from '../../db/queries/clientPortalCredentials.js';
 import * as clients from '../../db/queries/clients.js';
 import { draftFirstEmail } from '../../api/draftFirstEmail.js';
 import { resolveSenderMailbox } from '../instanceEmail.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
 import { parseSettings as parseDocCollectorSettings } from '../docCollector/settings.js';
-import { collectCandidates, loadAllRows, parseClientSources, type ClientSources } from './clientSources.js';
+import { collectCandidates, loadAllRows, parseClientSources, type ClientSources, type PortalCredentials } from './clientSources.js';
 
 /** Agent types whose clients are auto-enrolled from the configured sources (every row, no screening). */
 export const CLIENT_IMPORT_AGENT_TYPES = ['doc_collector', 'annual_report_assistant'] as const;
@@ -33,6 +34,21 @@ interface InstanceImportConfig {
   documents: { name: string; description?: string | null }[];
   /** Config gap that must block enrollment (beyond having no sources). */
   notReady: 'no_documents' | null;
+}
+
+/** Best-effort: a bad credentials cell must not block enrollment of the client itself. */
+async function syncCredentials(clientId: string, credentials: PortalCredentials | null): Promise<void> {
+  if (!credentials) return;
+  try {
+    await clientPortalCredentials.upsert({
+      clientId,
+      provider: 'israel_tax_authority',
+      idNumber: credentials.idNumber,
+      userCode: credentials.userCode,
+    });
+  } catch (err) {
+    logger.error('client import: credentials upsert failed', err, { clientId });
+  }
 }
 
 function importConfig(instance: AgentInstanceRow): InstanceImportConfig {
@@ -84,8 +100,15 @@ export async function scanClientImportInstance(instance: AgentInstanceRow): Prom
   const candidates = collectCandidates(sources);
   const fresh = [];
   for (const candidate of candidates.values()) {
-    if (await clients.getByEmailAddressForInstance(instance.id, candidate.email)) result.skipped += 1;
-    else fresh.push(candidate);
+    const existing = await clients.getByEmailAddressForInstance(instance.id, candidate.email);
+    if (existing) {
+      result.skipped += 1;
+      // Credentials keep syncing for already-enrolled clients — this is how a
+      // later-filled tax-portal column reaches them without re-import.
+      await syncCredentials(existing.id, candidate.credentials);
+    } else {
+      fresh.push(candidate);
+    }
   }
   if (fresh.length > MAX_ENROLL) {
     logger.warn('client import: candidates truncated', { instanceId: instance.id, total: fresh.length, kept: MAX_ENROLL });
@@ -104,6 +127,7 @@ export async function scanClientImportInstance(instance: AgentInstanceRow): Prom
       for (const doc of config.documents) {
         await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
       }
+      await syncCredentials(client.id, candidate.credentials);
       // Same fire-and-forget first-draft path as manual client creation,
       // staggered so a big import doesn't fire hundreds of concurrent Gemini calls.
       setTimeout(() => draftFirstEmail(client.id), result.enrolled * DRAFT_STAGGER_MS);

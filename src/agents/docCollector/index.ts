@@ -4,6 +4,7 @@ import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { planFollowUp } from './plan.js';
 import { analyzeInboundFile } from './analyzeInboundFile.js';
 import { buildRouter } from './router.js';
+import { maybeHandleOtpInbound } from './taxFetch/inboundOtp.js';
 import type { AgentTypeDefinition } from '../types.js';
 
 /**
@@ -16,7 +17,10 @@ export const docCollectorAgent: AgentTypeDefinition = {
   conversationModel: 'scheduled_follow_up',
   emailSuffix: 'document',
   planNextAction: planFollowUp,
-  async onInboundMessage(ctx) {
+  async onInboundMessage(ctx, evt) {
+    // A WhatsApp reply carrying the tax-authority OTP is time-critical: route it
+    // straight to the worker without an LLM round-trip or a re-plan.
+    if (await maybeHandleOtpInbound(ctx, evt)) return;
     // A reply (or backfilled files) always obsoletes the pending send; the
     // re-plan drafts the next one. Locked so a concurrent worker send and this
     // re-plan can't interleave.

@@ -9,6 +9,11 @@ export async function listForClient(clientId: string): Promise<DocumentFileRow[]
   return rows;
 }
 
+export async function getById(id: string): Promise<DocumentFileRow | null> {
+  const { rows } = await pool.query<DocumentFileRow>('SELECT * FROM document_files WHERE id = $1', [id]);
+  return rows[0] ?? null;
+}
+
 export async function getForClient(id: string, clientId: string): Promise<DocumentFileRow | null> {
   const { rows } = await pool.query<DocumentFileRow>(
     'SELECT * FROM document_files WHERE id = $1 AND client_id = $2',

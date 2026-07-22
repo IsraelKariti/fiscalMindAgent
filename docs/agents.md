@@ -133,6 +133,48 @@ the standalone app.
   date (`PUT /clients/:id/due-date`, doc-collector router), puts the agent
   back to work; manually paused clients are never overdue-stopped.
 
+## Doc-collector tax-authority 106 fetch (browser automation)
+
+The doc collector can fetch a client's Form 106 (טופס 106) straight from the
+Israeli tax authority by driving a real browser, entirely as a **conversational
+capability** — there is no accountant button.
+
+- **Flow**: the LLM offers the fetch in the email thread when a pending required
+  document matches `/106/` and credentials are on file; on agreement it moves to
+  WhatsApp, warns an SMS is coming, and starts the login (which triggers the
+  tax authority's OTP SMS to the client). The client's WhatsApp reply with the
+  code is intercepted (`taxFetch/inboundOtp.ts`, before the LLM re-plan — OTPs
+  expire in minutes), the worker submits it, downloads the PDF, sends it to the
+  client over WhatsApp and stores it as a `document_files` row with the matching
+  `client_documents` row marked collected.
+- **State machine**: `tax_fetch_sessions` (migration 025) tracks one attempt
+  offer→delivery; the LLM only ever sees the actions valid in the current state
+  (`allowedTaxFetchActions` in `decisionSchema.ts`, gated in the prompt's
+  `buildTaxFetchSection` and re-validated in `normalizeDecision` via the new
+  `tax_fetch_action` decision field). `taxFetch/flow.ts` loads state + acts.
+- **Where the browser lives**: the worker, in an in-memory session manager
+  (`src/browser/sessionManager.ts`) keyed by session id, driven by the
+  `tax_fetch` BullMQ queue (`start_login` / `submit_otp` / `cancel`). The live
+  Playwright page is held between the login and OTP jobs; a TTL
+  (`TAX_FETCH_SESSION_TTL_MS`) closes it if the OTP never arrives, and a
+  worker-boot sweep marks orphaned sessions `expired`. The web process never
+  touches Playwright.
+- **Providers**: `src/browser/providers/` is provider-structured
+  (`DocumentFetchProvider`) so other sites can be added; today only
+  `israel_tax_authority`. `TAX_FETCH_MOCK=true` swaps in a no-browser mock (every
+  real login SMSes a real citizen — iterate on the mock). `scripts/taxFetchSmoke.ts`
+  validates the real-site port once, interactively.
+- **Credentials**: `client_portal_credentials` (migration 025, plaintext, same
+  precedent as the OAuth token tables), imported from the accountant's
+  boards/sheets via the shared client-import mapping (two optional columns:
+  national ID + permanent user code), synced for new *and* existing clients.
+- **WhatsApp media**: `sendWhatsAppMedia` + a signed, expiring public link
+  (`src/storage/mediaUrl.ts` + `GET /media/:token`, `MEDIA_SIGNING_SECRET`),
+  since Twilio fetches media server-side and blobs are otherwise private.
+- **Deferred (prod)**: the worker Docker image is still Alpine; running the
+  headful browser in prod needs a Playwright/Debian base + Xvfb (worker image
+  only — keep Chromium out of the web image).
+
 ## Current state & deferred work
 
 - `customer_service` is the first `'immediate_reply'` agent: an inbound-only

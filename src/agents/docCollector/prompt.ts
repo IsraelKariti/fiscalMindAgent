@@ -167,6 +167,40 @@ export function buildWhatsAppSection(wa: WaChannelState): string {
   return `--- WHATSAPP CHANNEL ---\nstatus: ENABLED — the client agreed to receive WhatsApp messages\n${windowLine}\napproved templates:\n${templates}\n--- END WHATSAPP ---`;
 }
 
+/**
+ * Lives in `contents` (like the WhatsApp section) so custom system prompts still
+ * see the tax-fetch capability and its current state. Omitted entirely when the
+ * fetch isn't available and no session is in flight — zero noise for the many
+ * clients this never applies to. `state` and `allowedActions` are derived by the
+ * caller (loadTaxFetchContext) so the LLM only ever sees actions valid right now.
+ */
+export function buildTaxFetchSection(state: string, available: boolean, allowedActions: string[]): string {
+  if (!available && state === 'none') return '';
+
+  const stateGuidance: Record<string, string> = {
+    none: 'ניתן להציע ללקוח למשוך עבורו את טופס ה-106 ישירות מאתר רשות המסים (יש לנו את פרטי ההזדהות שלו). כשמתאים בשיחה, הצע זאת ושלח `tax_fetch_action: "offer"` יחד עם ההודעה שבה אתה מציע.',
+    offered: 'הצעת ללקוח למשוך את הטופס. אם הלקוח הסכים — שלח `tax_fetch_action: "client_agreed"`, ונסח הודעת WhatsApp שמסבירה שתתחיל למשוך את הטופס מרשות המסים, שיישלח אליו קוד חד-פעמי ב-SMS, ושיעביר לך אותו כאן. אם עדיין לא ברור — המשך לשוחח רגיל.',
+    agreed:
+      'הלקוח הסכים. כשהוא מאותת שהוא מוכן ב-WhatsApp, שלח `tax_fetch_action: "start_login"` עם הודעת WhatsApp קצרה שמודיעה שאתה מתחיל ושתכף יגיע קוד ב-SMS. המערכת תטפל בהזדהות ובקוד.',
+    wa_intro_sent:
+      'שלחת ללקוח את ההסבר ב-WhatsApp. כשהוא מוכן, שלח `tax_fetch_action: "start_login"` עם הודעת WhatsApp קצרה. אם הוא מבקש לא להמשיך — `tax_fetch_action: "cancel"`.',
+    awaiting_otp:
+      'המערכת ממתינה לקוד ה-SMS מהלקוח ותטפל בו אוטומטית — פשוט המשך לשוחח רגיל. אל תבקש את הקוד שוב בעצמך. אם הלקוח מבקש להפסיק — `tax_fetch_action: "cancel"`.',
+    in_progress: 'תהליך המשיכה מרשות המסים מתבצע כעת אוטומטית. המשך לשוחח רגיל; שלח `tax_fetch_action: "cancel"` רק אם הלקוח מבקש להפסיק.',
+    delivered: 'טופס ה-106 כבר נמשך ונשלח ללקוח. אין צורך להציע שוב.',
+    failed: 'ניסיון קודם למשוך את הטופס נכשל. אם מתאים, אפשר להציע לנסות שוב עם `tax_fetch_action: "offer"`.',
+  };
+
+  const actions = allowedActions.length > 0 ? allowedActions.join(', ') : '(אין)';
+  return [
+    '--- TAX AUTHORITY 106 FETCH ---',
+    `status: ${state}`,
+    stateGuidance[state] ?? '',
+    `tax_fetch_action מותר כעת: ${actions}. בכל מצב אחר השאר את השדה null.`,
+    '--- END 106 FETCH ---',
+  ].join('\n');
+}
+
 /** The client's optional collection deadline, stored as "YYYY-MM-DD" in agent_fields.due_date. */
 export function clientDueDate(client: ClientRow): string | null {
   const value = client.agent_fields?.['due_date'];
@@ -255,6 +289,13 @@ export interface Prompt {
   contents: string;
 }
 
+/** The tax-fetch state the prompt should surface, already gated to valid actions. */
+export interface TaxFetchPromptInput {
+  state: string;
+  available: boolean;
+  allowedActions: string[];
+}
+
 export function buildPrompt(
   client: ClientRow,
   accountant: UserRow | null,
@@ -264,11 +305,13 @@ export function buildPrompt(
   now: Date,
   template?: string,
   waState: WaChannelState = WHATSAPP_UNAVAILABLE,
+  taxFetch?: TaxFetchPromptInput,
 ): Prompt {
   const sections = [
     buildDocumentsSection(documents),
     buildDeadlineSection(client, now),
     buildWhatsAppSection(waState),
+    taxFetch ? buildTaxFetchSection(taxFetch.state, taxFetch.available, taxFetch.allowedActions) : '',
     buildThreadTranscript(history, files),
   ].filter((s) => s !== '');
   return {

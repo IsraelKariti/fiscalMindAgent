@@ -5,7 +5,7 @@ import * as llmUsage from '../../db/queries/llmUsage.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import * as waSenders from '../../db/queries/waSenders.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
-import { sendWhatsAppText } from '../../twilio/send.js';
+import { sendWhatsAppTextAndRecord } from '../../twilio/sendAndRecord.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
 import { generateAnswer } from './answer.js';
@@ -135,11 +135,7 @@ async function loadKnowledge(ctx: AgentContext, waPhone: string): Promise<Knowle
 
 /** Persist + send in the worker's markSent order, so the reply shows in the timeline. */
 async function persistAndSend(clientId: string, from: string, to: string, body: string, reasoning: string | null): Promise<void> {
-  const draft = await emails.insertDraft(clientId, { channel: 'whatsapp', subject: '', body, reasoning });
-  // A Twilio failure leaves the row in 'draft' status (the established
-  // pattern) — visible in the DB, never re-sent.
-  const { sid } = await sendWhatsAppText({ from, to, body });
-  await emails.markSent(draft.id, { messageId: sid, sentAt: new Date() });
+  await sendWhatsAppTextAndRecord(clientId, { from, to, body, reasoning });
 }
 
 /**

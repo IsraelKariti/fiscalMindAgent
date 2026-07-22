@@ -9,7 +9,8 @@ import { buildPrompt, type WaChannelState } from './prompt.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
-import type { DecisionContext } from './decisionSchema.js';
+import { allowedTaxFetchActions, type DecisionContext } from './decisionSchema.js';
+import { applyTaxFetchAction, loadTaxFetchContext } from './taxFetch/flow.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js';
 import { windowCloseTime } from '../../orchestration/whatsappWindow.js';
@@ -69,9 +70,20 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
   const waState = await getWaChannelState(client, now);
+  const taxFetch = await loadTaxFetchContext(client, documents, waState);
+  const taxFetchAllowed = allowedTaxFetchActions(taxFetch.state, taxFetch.available);
   const { template } = await getPromptTemplate(client.user_id);
-  const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, template, waState);
-  const decisionCtx: DecisionContext = { whatsappAllowed: waState.allowed, windowOpen: waState.windowOpen, templates: waState.templates };
+  const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, template, waState, {
+    state: taxFetch.state,
+    available: taxFetch.available,
+    allowedActions: taxFetchAllowed,
+  });
+  const decisionCtx: DecisionContext = {
+    whatsappAllowed: waState.allowed,
+    windowOpen: waState.windowOpen,
+    templates: waState.templates,
+    taxFetch: { state: taxFetch.state, available: taxFetch.available },
+  };
   const { decision, usage, model } = await decide(systemInstruction, contents, decisionCtx);
 
   // Bill the tokens to the owning accountant right away, so they count even if
@@ -96,6 +108,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     await documentFiles.linkToDocument(match.file_id, clientId, match.document_id);
     logger.info('file linked to document', { clientId, fileId: match.file_id, documentId: match.document_id });
   }
+
+  // Act on the tax-authority 106-fetch step (offer / client agreed / start login /
+  // cancel). The accompanying message is scheduled by the normal follow-up path below.
+  await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now);
 
   // Completion is derived from the documents, not the LLM's decision field: complete iff
   // every required document is collected. Clients with no configured documents fall back

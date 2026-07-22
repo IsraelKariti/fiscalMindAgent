@@ -54,6 +54,7 @@ export function Timeline({
   onSendNow,
   onTogglePause,
   onRetryDraft,
+  onRetrySend,
   channels,
   hideStatusFooter = false,
 }: {
@@ -71,6 +72,8 @@ export function Timeline({
   onSendNow: () => Promise<void>;
   onTogglePause: (paused: boolean) => Promise<void>;
   onRetryDraft: () => Promise<void>;
+  /** Re-fires a scheduled send whose attempt failed (nextScheduled.sendFailedAt), keeping the same draft. */
+  onRetrySend: () => Promise<void>;
   /**
    * The channels the agent type speaks (AgentTypeUI.channels). Single-channel
    * agents get no channel filter and no per-message channel badges — there is
@@ -89,6 +92,8 @@ export function Timeline({
   const [retryError, setRetryError] = useState<string | null>(null);
   const [regenBusy, setRegenBusy] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
+  const [sendRetryBusy, setSendRetryBusy] = useState(false);
+  const [sendRetryError, setSendRetryError] = useState<string | null>(null);
   // A single-channel agent has nothing to filter or badge — the control and the
   // per-message channel badges only exist when the agent speaks several channels.
   const multiChannel = channels.length > 1;
@@ -111,6 +116,10 @@ export function Timeline({
   // Pausing preserves the draft and its time, so the bubble stays visible while
   // paused — just with a paused note and a Resume button instead of Send now.
   const showScheduled = nextScheduled !== null && (filter === 'all' || nextScheduled.channel === filter);
+  // The scheduled send's last attempt threw: the bubble stays (same draft) but
+  // flips to error styling with Retry instead of Send now. The paused treatment
+  // wins — a paused row's send isn't going anywhere regardless.
+  const sendFailed = !paused && nextScheduled?.sendFailedAt != null;
   const channelLabel = (channel: MessageChannel) => (channel === 'whatsapp' ? t.channelWhatsApp : t.channelEmail);
 
   const lastEmailId = visibleEmails[visibleEmails.length - 1]?.id ?? null;
@@ -143,6 +152,18 @@ export function Timeline({
       setRetryError(err instanceof ApiError ? err.message : t.retryDraftFailed);
     } finally {
       setRetryBusy(false);
+    }
+  };
+
+  const retrySend = async () => {
+    setSendRetryBusy(true);
+    setSendRetryError(null);
+    try {
+      await onRetrySend();
+    } catch (err) {
+      setSendRetryError(err instanceof ApiError ? err.message : t.retrySendFailed);
+    } finally {
+      setSendRetryBusy(false);
     }
   };
 
@@ -253,6 +274,7 @@ export function Timeline({
         {pauseError && <div className="error-banner">{pauseError}</div>}
         {retryError && <div className="error-banner">{retryError}</div>}
         {regenError && <div className="error-banner">{regenError}</div>}
+        {sendRetryError && <div className="error-banner">{sendRetryError}</div>}
         {visibleEmails.length === 0 && !showScheduled && goalStatus !== 'pending' && (
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
@@ -289,7 +311,7 @@ export function Timeline({
             </li>
           )}
           {showScheduled && nextScheduled && (
-            <li className={`timeline-item outbound scheduled ${paused ? 'paused' : ''}`}>
+            <li className={`timeline-item outbound scheduled ${paused ? 'paused' : ''} ${sendFailed ? 'send-failed' : ''}`}>
               <div className="timeline-meta">
                 {paused && (
                   <span className="timeline-author">
@@ -301,13 +323,21 @@ export function Timeline({
                     {channelLabel(nextScheduled.channel)}
                   </span>
                 )}
-                <span className="scheduled-note">
+                <span className={`scheduled-note ${sendFailed ? 'scheduled-note-failed' : ''}`}>
                   {paused ? (
                     overdueStopped ? (
                       t.overdueScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
                     ) : (
                       t.pausedScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
                     )
+                  ) : sendFailed ? (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+                        <path d="M12 9v4M12 17h.01" />
+                      </svg>
+                      {t.sendFailedNote}
+                    </>
                   ) : (
                     <>
                       <svg
@@ -333,6 +363,25 @@ export function Timeline({
                   >
                     {pauseBusy ? t.resuming : t.resumeSchedule}
                   </button>
+                ) : sendFailed ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small retry-send-btn"
+                      onClick={retrySend}
+                      disabled={sendRetryBusy || regenBusy}
+                    >
+                      {sendRetryBusy ? t.retryingSend : t.retrySend}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small regenerate-btn"
+                      onClick={regenerateDraft}
+                      disabled={regenBusy || sendRetryBusy}
+                    >
+                      {regenBusy ? t.regeneratingDraft : t.regenerateDraft}
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button

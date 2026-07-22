@@ -54,6 +54,10 @@ export const debtCollectorUI: AgentTypeUI = {
               await ctx.api.sendScheduledNow(ctx.client.id);
               await ctx.load();
             }}
+            onRetrySend={async () => {
+              await ctx.api.retrySend(ctx.client.id);
+              await ctx.load();
+            }}
             onTogglePause={async (paused) => {
               await ctx.api.setPaused(ctx.client.id, paused);
               await ctx.load();

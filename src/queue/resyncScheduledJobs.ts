@@ -27,6 +27,10 @@ export async function resyncScheduledJobs(): Promise<void> {
       const client = await clients.getById(row.client_id);
       if (client?.paused) return;
 
+      // Failed sends wait for a manual retry (retryFailedSend) — auto-refiring
+      // them at boot would retry into the same broken provider setup.
+      if (current.send_failed_at) return;
+
       if (await sendEmailQueue.getJob(current.bullmq_job_id)) return;
 
       const [, clientId, emailId] = current.bullmq_job_id.split(':');

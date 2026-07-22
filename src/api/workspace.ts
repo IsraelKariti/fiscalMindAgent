@@ -15,6 +15,7 @@ import { onClientUpdated, publishClientUpdated } from '../events/clientEvents.js
 import { pauseFutureEmail } from '../orchestration/pauseFutureEmail.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
+import { retryFailedSend } from '../orchestration/retryFailedSend.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
@@ -187,6 +188,7 @@ workspaceRouter.get(
       const draft = draftId ? await emails.getById(draftId) : null;
       nextScheduled = {
         scheduledFor: job.scheduled_for,
+        sendFailedAt: job.send_failed_at,
         channel: draft?.channel ?? 'email',
         subject: draft?.subject ?? null,
         body: draft?.body ?? null,
@@ -469,7 +471,31 @@ workspaceRouter.post(
       res.status(409).json({ error: 'There is no scheduled email to send.' });
       return;
     }
+    if (result === 'send_failed') {
+      res.status(409).json({ error: 'The last send attempt failed — retry it instead.' });
+      return;
+    }
     // 'already_sending' also counts as success — the email is going out now either way.
+    res.json({ ok: true });
+  }),
+);
+
+// Retry a scheduled send whose attempt failed (send_failed_at set): re-fires the
+// same draft immediately, unlike /redraft which discards it and re-plans.
+workspaceRouter.post(
+  '/clients/:id/retry-send',
+  wrap(async (req, res) => {
+    const id = uuidParam(req.params.id);
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+    const result = await withClientLock(client.id, () => retryFailedSend(client.id));
+    if (result === 'no_failed_send') {
+      res.status(409).json({ error: 'There is no failed send to retry.' });
+      return;
+    }
     res.json({ ok: true });
   }),
 );

@@ -109,6 +109,8 @@ export interface Email {
 
 export interface NextScheduled {
   scheduledFor: string;
+  /** Set when the send attempt threw — the timeline shows the draft as failed with a Retry. */
+  sendFailedAt: string | null;
   channel: MessageChannel;
   subject: string | null;
   body: string | null;
@@ -471,6 +473,8 @@ function makeWorkspaceApi(prefix: string) {
         body: JSON.stringify({ dueDate }),
       }),
     retryDraft: (clientId: string) => request<{ ok: true }>(`${prefix}/clients/${clientId}/redraft`, { method: 'POST' }),
+    /** Re-fires a scheduled send whose attempt failed, keeping the same draft. */
+    retrySend: (clientId: string) => request<{ ok: true }>(`${prefix}/clients/${clientId}/retry-send`, { method: 'POST' }),
     listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`${prefix}/clients/${clientId}/files`),
     /** Async because the monday transport appends a freshly fetched ?sessionToken=. */
     fileDownloadUrl: (clientId: string, fileId: string) =>

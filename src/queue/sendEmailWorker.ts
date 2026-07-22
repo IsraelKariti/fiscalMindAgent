@@ -4,12 +4,14 @@ import { SEND_EMAIL_QUEUE_NAME } from './sendEmailQueue.js';
 import { withClientLock } from '../db/withClientLock.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
+import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import * as agentInstances from '../db/queries/agentInstances.js';
 import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import { formatFrom, resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { sendEmail } from '../resend/send.js';
 import { sendWhatsAppTemplate, sendWhatsAppText } from '../twilio/send.js';
+import { publishClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { isWhatsAppWindowOpen } from '../orchestration/whatsappWindow.js';
@@ -43,7 +45,18 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       return;
     }
 
-    const sent = draft.channel === 'whatsapp' ? await sendWhatsAppDraft(client, draft) : await sendEmailDraft(client, draft);
+    let sent: SendOutcome;
+    try {
+      sent = draft.channel === 'whatsapp' ? await sendWhatsAppDraft(client, draft) : await sendEmailDraft(client, draft);
+    } catch (err) {
+      // The provider rejected the send. Keep the tracking row and the draft but
+      // stamp the failure, so the timeline shows the draft in a failed state
+      // with a manual Retry (retryFailedSend) instead of a phantom "scheduled"
+      // bubble that can never send.
+      await scheduledJobs.markSendFailed(clientId);
+      publishClientUpdated(clientId);
+      throw err;
+    }
     // Either way the pending action is settled — plan the next one. On the
     // not-sent path the abandoned draft simply stays in 'draft' status (the
     // established pattern) and the fresh decision sees the current state.

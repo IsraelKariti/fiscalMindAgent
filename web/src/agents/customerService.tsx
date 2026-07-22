@@ -47,6 +47,7 @@ export const customerServiceUI: AgentTypeUI = {
             draftStale={false}
             onRetryDraft={async () => {}}
             onSendNow={async () => {}}
+            onRetrySend={async () => {}}
             onTogglePause={async () => {}}
           />
         </div>

@@ -61,6 +61,10 @@ export const annualReportUI: AgentTypeUI = {
               // The SSE tick also fires, but refetch right away so the bubble reflects the send.
               await ctx.load();
             }}
+            onRetrySend={async () => {
+              await ctx.api.retrySend(ctx.client.id);
+              await ctx.load();
+            }}
             onTogglePause={async (paused) => {
               await ctx.api.setPaused(ctx.client.id, paused);
               // Pausing holds the schedule / resuming restores or redrafts it — refresh right away.

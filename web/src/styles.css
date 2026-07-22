@@ -1292,6 +1292,24 @@ textarea {
   flex-shrink: 0;
 }
 
+/* A scheduled send whose attempt failed: same ghost bubble, but the dashed
+   amber "pending" grammar flips to error color — this send is going nowhere
+   until it's retried. */
+.timeline-item.scheduled.send-failed .bubble,
+.timeline-item.scheduled.send-failed .bubble:hover {
+  border-color: rgba(248, 113, 113, 0.6);
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.scheduled-note-failed {
+  color: var(--error);
+}
+
+.retry-send-btn {
+  padding: 1px 10px;
+  font-size: 13px;
+}
+
 /* Temporal break between sent history and the scheduled future message */
 .timeline-divider {
   display: flex;

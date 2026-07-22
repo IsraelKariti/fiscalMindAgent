@@ -169,6 +169,8 @@ export interface ScheduledJobRow {
   client_id: string;
   bullmq_job_id: string;
   scheduled_for: Date;
+  /** The job ran and its send threw — the draft is kept for a manual retry. */
+  send_failed_at: Date | null;
   created_at: Date;
 }
 

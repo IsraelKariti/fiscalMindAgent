@@ -47,7 +47,11 @@ async function showPicker(config: PickerConfigMessage): Promise<void> {
     .setOAuthToken(config.accessToken)
     .setDeveloperKey(config.apiKey)
     .setLocale('iw')
-    .addView(new google.picker.DocsView(viewId))
+    .addView(
+      new google.picker.DocsView(viewId)
+        .setIncludeFolders(true)
+        .setMode(google.picker.DocsViewMode.LIST),
+    )
     .setCallback((data: any) => {
       if (data.action === google.picker.Action.PICKED) {
         const doc = data.docs?.[0];

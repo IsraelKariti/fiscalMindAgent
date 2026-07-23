@@ -360,8 +360,10 @@ export interface ClientSourcesConfig {
     boardId: string;
     emailColumnId: string;
     nameColumnId?: string;
+    phoneColumnId?: string;
     idNumberColumnId?: string;
     taxUserCodeColumnId?: string;
+    documentsColumnId?: string;
     boardName?: string;
   }[];
   sheets: {
@@ -370,8 +372,10 @@ export interface ClientSourcesConfig {
     sheetTitle: string;
     emailColumn: string;
     nameColumn?: string;
+    phoneColumn?: string;
     idNumberColumn?: string;
     taxUserCodeColumn?: string;
+    documentsColumn?: string;
   }[];
   /** Doc collector only: the required-documents checklist every imported client is created with. */
   documents?: { name: string; description?: string | null }[];

@@ -64,12 +64,16 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
   const [saved, setSaved] = useState(false);
   const [pickingBoards, setPickingBoards] = useState(false);
   /** Spreadsheet just picked in the Google Picker, awaiting its tab/column mapping. */
-  const [mapping, setMapping] = useState<{ spreadsheetId: string; name: string; meta: SpreadsheetMeta } | null>(null);
+  const [mapping, setMapping] = useState<{ spreadsheetId: string; name: string; meta: SpreadsheetMeta | null } | null>(
+    null,
+  );
   const [pickFailed, setPickFailed] = useState(false);
   const [docDraft, setDocDraft] = useState('');
   const [scanBusy, setScanBusy] = useState(false);
   const [scanResult, setScanResult] = useState<ClientImportScanResult | null>(null);
   const [scanFailed, setScanFailed] = useState(false);
+  /** Post-save "import now?" prompt, shown next to the source list that just changed. */
+  const [importPrompt, setImportPrompt] = useState<'boards' | 'sheets' | null>(null);
   const savedResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const connectPoll = useRef<ReturnType<typeof setInterval>>();
   // The Google Picker message listener outlives renders; read settings through
@@ -168,7 +172,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     await load();
   };
 
-  const save = async (next: ClientSourcesConfig) => {
+  const save = async (next: ClientSourcesConfig): Promise<boolean> => {
     setSettings(next);
     setSaving(true);
     setSaved(false);
@@ -178,16 +182,28 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
       setSaved(true);
       clearTimeout(savedResetTimer.current);
       savedResetTimer.current = setTimeout(() => setSaved(false), 1600);
+      return true;
     } catch {
       setLoadFailed(true);
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
+  /** A source was just added/remapped: offer to import from it right here. */
+  const offerImport = (kind: 'boards' | 'sheets') => {
+    if (!panelApi.scanNow) return;
+    setScanResult(null);
+    setScanFailed(false);
+    setImportPrompt(kind);
+  };
+
   const applyBoardSelection = (selection: PickerSelection[]) => {
     setPickingBoards(false);
     if (!settings || !boards) return;
+    const known = new Set(settings.boards.map((b) => b.boardId));
+    const addsBoard = selection.some(({ id, columnId }) => columnId && !known.has(id));
     save({
       ...settings,
       boards: selection.flatMap(({ id, columnId }) => {
@@ -200,13 +216,19 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
             boardId: id,
             emailColumnId: columnId,
             nameColumnId: existing?.nameColumnId,
+            phoneColumnId: existing?.phoneColumnId,
             idNumberColumnId: existing?.idNumberColumnId,
             taxUserCodeColumnId: existing?.taxUserCodeColumnId,
+            documentsColumnId: existing?.documentsColumnId,
             boardName: board.name,
           },
         ];
       }),
-    }).catch(console.error);
+    })
+      .then((ok) => {
+        if (ok && addsBoard) offerImport('boards');
+      })
+      .catch(console.error);
   };
 
   const removeBoard = (boardId: string) => {
@@ -231,7 +253,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     }).catch(console.error);
   };
 
-  const setBoardCredentialColumn = (boardId: string, key: 'idNumberColumnId' | 'taxUserCodeColumnId', columnId: string) => {
+  const setBoardOptionalColumn = (boardId: string, key: 'phoneColumnId' | 'idNumberColumnId' | 'taxUserCodeColumnId' | 'documentsColumnId', columnId: string) => {
     if (!settings) return;
     save({
       ...settings,
@@ -239,12 +261,19 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     }).catch(console.error);
   };
 
-  /** A sheet pick continues into the tab/email-column mapping modal. */
+  /**
+   * A sheet pick continues into the tab/email-column mapping modal. The modal
+   * opens right away in a loading state; the meta fetch fills it in (or closes
+   * it on failure). The functional updates keep a modal the user already
+   * dismissed closed.
+   */
   const handlePicked = async (id: string, name: string) => {
+    setMapping({ spreadsheetId: id, name, meta: null });
     try {
       const { meta } = await panelApi.spreadsheetMeta(id);
-      setMapping({ spreadsheetId: id, name, meta });
+      setMapping((m) => (m && m.spreadsheetId === id ? { ...m, meta } : m));
     } catch {
+      setMapping((m) => (m && m.spreadsheetId === id && !m.meta ? null : m));
       setPickFailed(true);
     }
   };
@@ -304,13 +333,19 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
           spreadsheetId: mapping.spreadsheetId,
           spreadsheetName: mapping.name,
           sheetTitle: chosen.sheetTitle,
-          emailColumn: chosen.phoneColumn,
+          emailColumn: chosen.keyColumn,
           nameColumn: chosen.nameColumn,
+          phoneColumn: chosen.phoneColumn,
           idNumberColumn: chosen.idNumberColumn,
           taxUserCodeColumn: chosen.taxUserCodeColumn,
+          documentsColumn: chosen.documentsColumn,
         },
       ],
-    }).catch(console.error);
+    })
+      .then((ok) => {
+        if (ok) offerImport('sheets');
+      })
+      .catch(console.error);
   };
 
   const removeSheet = (spreadsheetId: string, sheetTitle: string) => {
@@ -364,6 +399,45 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     return result.failedSources.length > 0
       ? `${summary} ${t.sourcesImportFailedSources(result.failedSources.join(', '))}`
       : summary;
+  };
+
+  /** Inline "import now?" callout under the source list that was just saved. */
+  const importPromptBanner = (kind: 'boards' | 'sheets') => {
+    if (importPrompt !== kind) return null;
+    if (scanBusy) {
+      return (
+        <div className="import-prompt">
+          <span>{t.sourcesImporting}</span>
+        </div>
+      );
+    }
+    if (scanResult || scanFailed) {
+      return (
+        <div className="import-prompt">
+          <span>{scanResult ? scanMessage(scanResult) : t.sourcesImportFailed}</span>
+          <button
+            type="button"
+            className="icon-btn"
+            title={t.sourcesImportPromptClose}
+            aria-label={t.sourcesImportPromptClose}
+            onClick={() => setImportPrompt(null)}
+          >
+            {removeIcon}
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="import-prompt">
+        <span>{kind === 'sheets' ? t.sourcesImportPromptSheet : t.sourcesImportPromptBoards}</span>
+        <button type="button" className="btn btn-primary btn-small" onClick={runScan}>
+          {t.sourcesImportNow}
+        </button>
+        <button type="button" className="btn btn-ghost btn-small" onClick={() => setImportPrompt(null)}>
+          {t.sourcesImportPromptLater}
+        </button>
+      </div>
+    );
   };
 
   if (!connection || !settings) {
@@ -446,19 +520,6 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                         {board && (
                           <>
                             <label className="settings-list-field">
-                              <span className="muted">{t.dcEmailColumn}</span>
-                              <select
-                                value={chosen.emailColumnId}
-                                onChange={(e) => setEmailColumn(chosen.boardId, e.target.value)}
-                              >
-                                {emailColumnCandidates(board).map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.title}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="settings-list-field">
                               <span className="muted">{t.csNameColumn}</span>
                               <select
                                 value={chosen.nameColumnId ?? ''}
@@ -473,36 +534,79 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                               </select>
                             </label>
                             {withPortalCredentials && (
-                              <>
-                                <label className="settings-list-field">
-                                  <span className="muted">{t.sourcesIdNumberColumn}</span>
-                                  <select
-                                    value={chosen.idNumberColumnId ?? ''}
-                                    onChange={(e) => setBoardCredentialColumn(chosen.boardId, 'idNumberColumnId', e.target.value)}
-                                  >
-                                    <option value="">{t.csSheetNameColumnNone}</option>
-                                    {nameColumnCandidates(board).map((c) => (
-                                      <option key={c.id} value={c.id}>
-                                        {c.title}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                                <label className="settings-list-field">
-                                  <span className="muted">{t.sourcesTaxCodeColumn}</span>
-                                  <select
-                                    value={chosen.taxUserCodeColumnId ?? ''}
-                                    onChange={(e) => setBoardCredentialColumn(chosen.boardId, 'taxUserCodeColumnId', e.target.value)}
-                                  >
-                                    <option value="">{t.csSheetNameColumnNone}</option>
-                                    {nameColumnCandidates(board).map((c) => (
-                                      <option key={c.id} value={c.id}>
-                                        {c.title}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                              </>
+                              <label className="settings-list-field">
+                                <span className="muted">{t.sourcesIdNumberColumn}</span>
+                                <select
+                                  value={chosen.idNumberColumnId ?? ''}
+                                  onChange={(e) => setBoardOptionalColumn(chosen.boardId, 'idNumberColumnId', e.target.value)}
+                                >
+                                  <option value="">{t.csSheetNameColumnNone}</option>
+                                  {nameColumnCandidates(board).map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.title}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
+                            <label className="settings-list-field">
+                              <span className="muted">{t.dcEmailColumn}</span>
+                              <select
+                                value={chosen.emailColumnId}
+                                onChange={(e) => setEmailColumn(chosen.boardId, e.target.value)}
+                              >
+                                {emailColumnCandidates(board).map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.title}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="settings-list-field">
+                              <span className="muted">{t.csPhoneColumn}</span>
+                              <select
+                                value={chosen.phoneColumnId ?? ''}
+                                onChange={(e) => setBoardOptionalColumn(chosen.boardId, 'phoneColumnId', e.target.value)}
+                              >
+                                <option value="">{t.csSheetNameColumnNone}</option>
+                                {nameColumnCandidates(board).map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.title}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            {withPortalCredentials && (
+                              <label className="settings-list-field">
+                                <span className="muted">{t.sourcesTaxCodeColumn}</span>
+                                <select
+                                  value={chosen.taxUserCodeColumnId ?? ''}
+                                  onChange={(e) => setBoardOptionalColumn(chosen.boardId, 'taxUserCodeColumnId', e.target.value)}
+                                >
+                                  <option value="">{t.csSheetNameColumnNone}</option>
+                                  {nameColumnCandidates(board).map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.title}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
+                            {withDocuments && (
+                              <label className="settings-list-field">
+                                <span className="muted">{t.sourcesDocumentsColumn}</span>
+                                <select
+                                  value={chosen.documentsColumnId ?? ''}
+                                  onChange={(e) => setBoardOptionalColumn(chosen.boardId, 'documentsColumnId', e.target.value)}
+                                >
+                                  <option value="">{t.csSheetNameColumnNone}</option>
+                                  {nameColumnCandidates(board).map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.title}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
                             )}
                           </>
                         )}
@@ -521,6 +625,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                 </ul>
               )
             )}
+            {importPromptBanner('boards')}
           </div>
         )}
       </SettingsGroup>
@@ -571,8 +676,10 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                       <span className="muted">
                         {t.csSheetTab}: {sheet.sheetTitle} · {t.dcEmailColumn}: {sheet.emailColumn}
                         {sheet.nameColumn ? ` · ${t.csNameColumn}: ${sheet.nameColumn}` : ''}
+                        {sheet.phoneColumn ? ` · ${t.csPhoneColumn}: ${sheet.phoneColumn}` : ''}
                         {sheet.idNumberColumn ? ` · ${t.sourcesIdNumberColumn}: ${sheet.idNumberColumn}` : ''}
                         {sheet.taxUserCodeColumn ? ` · ${t.sourcesTaxCodeColumn}: ${sheet.taxUserCodeColumn}` : ''}
+                        {sheet.documentsColumn ? ` · ${t.sourcesDocumentsColumn}: ${sheet.documentsColumn}` : ''}
                       </span>
                       <button
                         type="button"
@@ -587,6 +694,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                   ))}
                 </ul>
               )}
+              {importPromptBanner('sheets')}
             </div>
           )}
         </SettingsGroup>
@@ -659,7 +767,9 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
           meta={mapping.meta}
           columnLabel={t.dcEmailColumn}
           description={t[sheetMappingDescKey]}
+          withPhoneColumn
           withPortalCredentials={withPortalCredentials}
+          withDocumentsColumn={withDocuments}
           onConfirm={applySheetMapping}
           onClose={() => setMapping(null)}
         />

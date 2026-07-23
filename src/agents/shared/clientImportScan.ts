@@ -7,7 +7,16 @@ import { resolveSenderMailbox } from '../instanceEmail.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
 import { parseSettings as parseDocCollectorSettings } from '../docCollector/settings.js';
-import { collectCandidates, loadAllRows, parseClientSources, type ClientSources, type PortalCredentials } from './clientSources.js';
+import {
+  collectCandidates,
+  hasDocumentsColumn,
+  loadAllRows,
+  parseClientSources,
+  parseDocumentsCell,
+  type Candidate,
+  type ClientSources,
+  type PortalCredentials,
+} from './clientSources.js';
 
 /** Agent types whose clients are auto-enrolled from the configured sources (every row, no screening). */
 export const CLIENT_IMPORT_AGENT_TYPES = ['doc_collector', 'annual_report_assistant'] as const;
@@ -30,8 +39,10 @@ export interface SourceScanResult {
 
 interface InstanceImportConfig {
   sources: ClientSources;
-  /** Required-documents checklist each enrolled client is created with (doc collector only). */
+  /** Default required-documents checklist for enrolled clients (doc collector only). */
   documents: { name: string; description?: string | null }[];
+  /** Doc collector only: a mapped documents column overrides the checklist per client. */
+  perRowDocuments: boolean;
   /** Config gap that must block enrollment (beyond having no sources). */
   notReady: 'no_documents' | null;
 }
@@ -54,15 +65,34 @@ async function syncCredentials(clientId: string, credentials: PortalCredentials 
 function importConfig(instance: AgentInstanceRow): InstanceImportConfig {
   if (instance.agent_type === 'doc_collector') {
     const settings = parseDocCollectorSettings(instance.settings);
+    const perRowDocuments = hasDocumentsColumn(settings);
     return {
       sources: settings,
       documents: settings.documents,
+      perRowDocuments,
       // A doc-collector client without documents completes trivially and never
-      // gets emailed — refuse to mass-create useless clients.
-      notReady: settings.documents.length === 0 ? 'no_documents' : null,
+      // gets emailed — refuse to mass-create useless clients. A mapped
+      // documents column is an alternative supply, so it lifts the block.
+      notReady: settings.documents.length === 0 && !perRowDocuments ? 'no_documents' : null,
     };
   }
-  return { sources: parseClientSources(instance.settings), documents: [], notReady: null };
+  return { sources: parseClientSources(instance.settings), documents: [], perRowDocuments: false, notReady: null };
+}
+
+/**
+ * The checklist an enrolled client starts with: the row's documents cell when
+ * one is mapped and non-empty (doc collector), else the instance's default
+ * checklist. Cell names that match a checklist entry inherit its description.
+ */
+function resolveDocuments(
+  config: InstanceImportConfig,
+  candidate: Candidate,
+): { name: string; description?: string | null }[] {
+  if (!config.perRowDocuments || candidate.documentsCell === '') return config.documents;
+  return parseDocumentsCell(candidate.documentsCell).map((name) => ({
+    name,
+    description: config.documents.find((d) => d.name === name)?.description ?? null,
+  }));
 }
 
 /**
@@ -103,9 +133,14 @@ export async function scanClientImportInstance(instance: AgentInstanceRow): Prom
     const existing = await clients.getByEmailAddressForInstance(instance.id, candidate.email);
     if (existing) {
       result.skipped += 1;
-      // Credentials keep syncing for already-enrolled clients — this is how a
-      // later-filled tax-portal column reaches them without re-import.
+      // Credentials/phone keep syncing for already-enrolled clients — this is
+      // how a later-filled source column reaches them without re-import.
       await syncCredentials(existing.id, candidate.credentials);
+      if (!existing.phone && candidate.phone) {
+        await clients
+          .updateDetailsForInstance(existing.id, instance.id, { phone: candidate.phone })
+          .catch((err) => logger.error('client import: phone backfill failed', err, { clientId: existing.id }));
+      }
     } else {
       fresh.push(candidate);
     }
@@ -117,14 +152,23 @@ export async function scanClientImportInstance(instance: AgentInstanceRow): Prom
 
   for (const candidate of fresh) {
     const name = candidate.name || candidate.email.split('@')[0] || candidate.email;
+    const documents = resolveDocuments(config, candidate);
+    if (config.perRowDocuments && documents.length === 0) {
+      // Empty checklist + empty cell: this client would complete trivially.
+      // Leave the row for a later sweep, once its documents cell is filled.
+      logger.info('client import: row has no documents yet, skipping', { instanceId: instance.id, email: candidate.email });
+      result.skipped += 1;
+      continue;
+    }
     try {
       const client = await clients.insert({
         userId: instance.user_id,
         agentInstanceId: instance.id,
         name,
         emailAddress: candidate.email,
+        phone: candidate.phone || null,
       });
-      for (const doc of config.documents) {
+      for (const doc of documents) {
         await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
       }
       await syncCredentials(client.id, candidate.credentials);

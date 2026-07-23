@@ -18,10 +18,14 @@ export const BoardSourceSchema = z
     emailColumnId: z.string().min(1),
     /** Column holding the client's display name; unset = the monday item name. */
     nameColumnId: z.string().min(1).optional(),
+    /** Column holding the client's phone number — optional, free text. */
+    phoneColumnId: z.string().min(1).optional(),
     /** Column holding the client's national ID (ת"ז) — tax-portal login, optional. */
     idNumberColumnId: z.string().min(1).optional(),
     /** Column holding the client's tax-authority permanent user code — optional. */
     taxUserCodeColumnId: z.string().min(1).optional(),
+    /** Column listing the client's required documents (doc collector) — optional. */
+    documentsColumnId: z.string().min(1).optional(),
     /** Display cache for the settings UI; the live fetch re-reads the real name. */
     boardName: z.string().optional(),
   })
@@ -39,10 +43,14 @@ export const SheetSourceSchema = z
     emailColumn: z.string().min(1),
     /** Header text of the column holding the client's display name. */
     nameColumn: z.string().min(1).optional(),
+    /** Header text of the column holding the client's phone number — optional. */
+    phoneColumn: z.string().min(1).optional(),
     /** Header text of the column holding the client's national ID (ת"ז) — optional. */
     idNumberColumn: z.string().min(1).optional(),
     /** Header text of the column holding the tax-authority permanent user code — optional. */
     taxUserCodeColumn: z.string().min(1).optional(),
+    /** Header text of the column listing the client's required documents (doc collector) — optional. */
+    documentsColumn: z.string().min(1).optional(),
   })
   .strict();
 
@@ -70,7 +78,35 @@ export interface PortalCredentials {
 /** One source's rows as a sweep sees them: each row keyed by its email cell. */
 export interface ScanSourceRows {
   sourceName: string;
-  rows: { email: string; name: string; credentials: PortalCredentials | null; row: Record<string, string> }[];
+  rows: {
+    email: string;
+    name: string;
+    phone: string;
+    /** Raw text of the mapped documents column; '' when unmapped or empty. */
+    documentsCell: string;
+    credentials: PortalCredentials | null;
+    row: Record<string, string>;
+  }[];
+}
+
+/** Any configured source maps a per-row documents column. */
+export function hasDocumentsColumn(settings: ClientSources): boolean {
+  return settings.boards.some((b) => b.documentsColumnId) || settings.sheets.some((s) => s.documentsColumn);
+}
+
+/**
+ * Document names from a source row's documents cell: split on newlines, commas
+ * and semicolons, trimmed, deduped, clamped to the checklist limits (50 items,
+ * 200 chars each — the DocCollectorSettingsSchema bounds).
+ */
+export function parseDocumentsCell(cell: string): string[] {
+  const names: string[] = [];
+  for (const part of cell.split(/[\n,;]+/)) {
+    const name = part.trim().slice(0, 200);
+    if (name !== '' && !names.includes(name)) names.push(name);
+    if (names.length >= 50) break;
+  }
+  return names;
 }
 
 /** Both mapped cells non-empty, else no credentials for the row. */
@@ -113,6 +149,8 @@ export async function loadAllRows(
             .map((item) => ({
               email: (item.cells[board.emailColumnId] ?? '').trim().toLowerCase(),
               name: (board.nameColumnId ? (item.cells[board.nameColumnId] ?? '') : '').trim() || item.itemName.trim(),
+              phone: (board.phoneColumnId ? (item.cells[board.phoneColumnId] ?? '') : '').trim(),
+              documentsCell: (board.documentsColumnId ? (item.cells[board.documentsColumnId] ?? '') : '').trim(),
               credentials: extractCredentials(
                 board.idNumberColumnId ? item.cells[board.idNumberColumnId] : undefined,
                 board.taxUserCodeColumnId ? item.cells[board.taxUserCodeColumnId] : undefined,
@@ -156,6 +194,8 @@ export async function loadAllRows(
             .map((row) => ({
               email: (row[sheet.emailColumn] ?? '').trim().toLowerCase(),
               name: (sheet.nameColumn ? (row[sheet.nameColumn] ?? '') : '').trim(),
+              phone: (sheet.phoneColumn ? (row[sheet.phoneColumn] ?? '') : '').trim(),
+              documentsCell: (sheet.documentsColumn ? (row[sheet.documentsColumn] ?? '') : '').trim(),
               credentials: extractCredentials(
                 sheet.idNumberColumn ? row[sheet.idNumberColumn] : undefined,
                 sheet.taxUserCodeColumn ? row[sheet.taxUserCodeColumn] : undefined,
@@ -176,13 +216,17 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export interface Candidate {
   email: string;
   name: string;
+  /** Free-text phone number; '' when no source row carried one. */
+  phone: string;
+  /** Raw documents-column text; '' when no source row carried one. */
+  documentsCell: string;
   /** Tax-portal login pair; null when no source row carried both cells. */
   credentials: PortalCredentials | null;
   /** One "[source] header: value | …" line per row the email appeared in (LLM screening / logs). */
   lines: string[];
 }
 
-/** Rows keyed by (valid, lowercased) email, merged across sources; first non-empty name/credentials win. */
+/** Rows keyed by (valid, lowercased) email, merged across sources; first non-empty name/phone/credentials win. */
 export function collectCandidates(sources: ScanSourceRows[]): Map<string, Candidate> {
   const candidates = new Map<string, Candidate>();
   for (const source of sources) {
@@ -195,9 +239,18 @@ export function collectCandidates(sources: ScanSourceRows[]): Map<string, Candid
       if (existing) {
         existing.lines.push(line);
         if (!existing.name) existing.name = row.name;
+        if (!existing.phone) existing.phone = row.phone;
+        if (!existing.documentsCell) existing.documentsCell = row.documentsCell;
         if (!existing.credentials) existing.credentials = row.credentials;
       } else {
-        candidates.set(row.email, { email: row.email, name: row.name, credentials: row.credentials, lines: [line] });
+        candidates.set(row.email, {
+          email: row.email,
+          name: row.name,
+          phone: row.phone,
+          documentsCell: row.documentsCell,
+          credentials: row.credentials,
+          lines: [line],
+        });
       }
     }
   }

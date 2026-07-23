@@ -34,12 +34,13 @@ export async function insert(args: {
   agentInstanceId?: string;
   name: string;
   emailAddress: string;
+  phone?: string | null;
   /** Per-agent scalar fields (agent_fields JSONB), e.g. the doc collector's due_date. */
   agentFields?: Record<string, unknown>;
 }): Promise<ClientRow> {
   const { rows } = await pool.query<ClientRow>(
-    `INSERT INTO clients (user_id, agent_instance_id, name, email_address, goal_status, agent_fields)
-     VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, 'pending', COALESCE($5::jsonb, '{}'::jsonb))
+    `INSERT INTO clients (user_id, agent_instance_id, name, email_address, phone, goal_status, agent_fields)
+     VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, $5, 'pending', COALESCE($6::jsonb, '{}'::jsonb))
      RETURNING *`,
     // Stored lowercased — inbound routing and the import dedupe match on it.
     [
@@ -47,6 +48,7 @@ export async function insert(args: {
       args.agentInstanceId ?? null,
       args.name,
       args.emailAddress.trim().toLowerCase(),
+      args.phone ?? null,
       args.agentFields ? JSON.stringify(args.agentFields) : null,
     ],
   );

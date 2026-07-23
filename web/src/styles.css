@@ -818,6 +818,103 @@ textarea {
   resize: vertical;
 }
 
+/* Custom dropdown (styled <select> replacement) */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  padding: 9px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: rgba(9, 13, 26, 0.7);
+  transition:
+    border-color var(--speed) ease,
+    box-shadow var(--speed) ease;
+}
+
+.dropdown-trigger:hover {
+  border-color: rgba(148, 163, 216, 0.5);
+}
+
+.dropdown-trigger:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.25),
+    0 0 18px rgba(139, 92, 246, 0.18);
+}
+
+.dropdown-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-value.placeholder {
+  color: var(--text-muted);
+}
+
+.dropdown-caret {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transition: transform var(--speed) ease;
+}
+
+.dropdown-caret.open {
+  transform: rotate(180deg);
+}
+
+.dropdown-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow:
+    0 0 30px rgba(139, 92, 246, 0.14),
+    0 18px 40px rgba(4, 6, 14, 0.6);
+  animation: fade-up 0.12s ease both;
+}
+
+.dropdown-option {
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.dropdown-option:hover,
+.dropdown-option:focus {
+  outline: none;
+  background: rgba(139, 92, 246, 0.18);
+}
+
+.dropdown-option.selected {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 /* Buttons */
 .btn {
   position: relative;
@@ -949,8 +1046,9 @@ textarea {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(4, 6, 14, 0.65);
-  backdrop-filter: blur(6px);
+  /* No backdrop-filter here: full-viewport blur re-rasterizes every frame the
+     page behind animates, starving native <select> popup painting on Windows. */
+  background: rgba(4, 6, 14, 0.82);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2877,6 +2975,24 @@ button.meta-chip:hover {
   margin: 0;
   padding: 0 18px 14px;
   font-size: 13.5px;
+}
+
+.import-prompt {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 18px 14px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  background: var(--primary-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+}
+
+.import-prompt > span {
+  flex: 1;
+  min-width: 200px;
 }
 
 .settings-list-row {

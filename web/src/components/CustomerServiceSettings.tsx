@@ -42,7 +42,9 @@ export function CustomerServiceSettings() {
   const [saved, setSaved] = useState(false);
   const [picker, setPicker] = useState<'docs' | 'boards' | null>(null);
   /** Spreadsheet just picked in the Google Picker, awaiting its tab/column mapping. */
-  const [mapping, setMapping] = useState<{ spreadsheetId: string; name: string; meta: SpreadsheetMeta } | null>(null);
+  const [mapping, setMapping] = useState<{ spreadsheetId: string; name: string; meta: SpreadsheetMeta | null } | null>(
+    null,
+  );
   const [pickFailed, setPickFailed] = useState(false);
   const savedResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const connectPoll = useRef<ReturnType<typeof setInterval>>();
@@ -223,10 +225,15 @@ export function CustomerServiceSettings() {
       });
       return;
     }
+    // The mapping modal opens right away in a loading state; the meta fetch
+    // fills it in (or closes it on failure). The functional updates keep a
+    // modal the user already dismissed closed.
+    setMapping({ spreadsheetId: id, name, meta: null });
     try {
       const { meta } = await wsApi.csSpreadsheetMeta(id);
-      setMapping({ spreadsheetId: id, name, meta });
+      setMapping((m) => (m && m.spreadsheetId === id ? { ...m, meta } : m));
     } catch {
+      setMapping((m) => (m && m.spreadsheetId === id && !m.meta ? null : m));
       setPickFailed(true);
     }
   };
@@ -282,7 +289,13 @@ export function CustomerServiceSettings() {
         ...current.sheets.filter(
           (s) => !(s.spreadsheetId === mapping.spreadsheetId && s.sheetTitle === chosen.sheetTitle),
         ),
-        { spreadsheetId: mapping.spreadsheetId, spreadsheetName: mapping.name, ...chosen },
+        {
+          spreadsheetId: mapping.spreadsheetId,
+          spreadsheetName: mapping.name,
+          sheetTitle: chosen.sheetTitle,
+          phoneColumn: chosen.keyColumn,
+          nameColumn: chosen.nameColumn,
+        },
       ],
     }).catch(console.error);
   };

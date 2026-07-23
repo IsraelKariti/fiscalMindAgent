@@ -106,6 +106,7 @@ async function scanInstance(instance: AgentInstanceRow): Promise<number> {
         agentInstanceId: instance.id,
         name,
         emailAddress: candidate.email,
+        phone: candidate.phone || null,
       });
       // Same fire-and-forget first-draft path as manual client creation: the
       // per-client plan re-reads the row, verifies the debt, and either emails

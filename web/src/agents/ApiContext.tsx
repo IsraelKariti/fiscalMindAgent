@@ -13,3 +13,16 @@ export const WorkspaceApiProvider = WorkspaceApiContext.Provider;
 export function useWorkspaceApi(): WorkspaceApi {
   return useContext(WorkspaceApiContext);
 }
+
+/**
+ * Refreshes the surrounding workspace's client list (the sidebar). Settings
+ * panels that enroll clients (client-import "import now") call this so new
+ * clients appear without a page reload. No-op outside a provider.
+ */
+const ClientsRefreshContext = createContext<() => void>(() => {});
+
+export const ClientsRefreshProvider = ClientsRefreshContext.Provider;
+
+export function useClientsRefresh(): () => void {
+  return useContext(ClientsRefreshContext);
+}

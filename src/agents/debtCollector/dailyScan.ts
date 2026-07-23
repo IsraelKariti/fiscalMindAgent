@@ -4,6 +4,7 @@ import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as clients from '../../db/queries/clients.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { draftFirstEmail } from '../../api/draftFirstEmail.js';
+import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { resolveSenderMailbox } from '../instanceEmail.js';
 import { getGeminiModel } from '../../gemini/modelSettings.js';
 import { generateWithRetry, usageFromResponse } from '../../gemini/generate.js';
@@ -120,6 +121,8 @@ async function scanInstance(instance: AgentInstanceRow): Promise<number> {
       logger.error('debt scan: client insert failed', err, { instanceId: instance.id, email: candidate.email });
     }
   }
+  // Tells open workspace tabs (over SSE) to refetch the sidebar's client list.
+  if (enrolled > 0) publishInstanceClientsUpdated(instance.id);
   return enrolled;
 }
 

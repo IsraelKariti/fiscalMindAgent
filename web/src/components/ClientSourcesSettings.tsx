@@ -9,9 +9,8 @@ import {
   type MondayConnection,
   type SpreadsheetMeta,
 } from '../api';
-import { useWorkspaceApi } from '../agents/ApiContext';
+import { useClientsRefresh, useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
-import { DEFAULT_DOCUMENTS } from '../defaultDocuments';
 import { useT } from '../i18n';
 import { SettingsGroup, SettingsRow } from './SettingsUI';
 import { SheetMappingModal, type SheetMapping } from './SheetMappingModal';
@@ -38,7 +37,7 @@ interface Props {
   boardsDescKey: MessageStringKey;
   sheetsDescKey: MessageStringKey;
   sheetMappingDescKey: MessageStringKey;
-  /** Renders the default-documents checklist editor (doc collector: imported clients get this list). */
+  /** Maps a required-documents column on each source (doc collector: the cell is the imported client's checklist). */
   withDocuments?: boolean;
   /** Maps the tax-portal credential columns (ת"ז + permanent user code) — doc collector only. */
   withPortalCredentials?: boolean;
@@ -49,12 +48,12 @@ interface Props {
  * accountant's monday boards / Google Sheets: connect the account-level
  * monday/Google OAuth, pick boards and sheets (each mapped by its email
  * column, plus an optional name column), and — for client-import agents —
- * trigger an immediate import and edit the imported clients' documents
- * checklist. Rendered inside the workspace Settings view via
+ * trigger an immediate import. Rendered inside the workspace Settings view via
  * AgentTypeUI.settingsPanel; the debt collector wraps it too.
  */
 export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDescKey, sheetMappingDescKey, withDocuments = false, withPortalCredentials = false }: Props) {
   const { t } = useT();
+  const refreshClients = useClientsRefresh();
   const [connection, setConnection] = useState<MondayConnection | null>(null);
   const [gConnection, setGConnection] = useState<GoogleConnection | null>(null);
   const [settings, setSettings] = useState<ClientSourcesConfig | null>(null);
@@ -68,12 +67,11 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     null,
   );
   const [pickFailed, setPickFailed] = useState(false);
-  const [docDraft, setDocDraft] = useState('');
   const [scanBusy, setScanBusy] = useState(false);
   const [scanResult, setScanResult] = useState<ClientImportScanResult | null>(null);
   const [scanFailed, setScanFailed] = useState(false);
-  /** Post-save "import now?" prompt, shown next to the source list that just changed. */
-  const [importPrompt, setImportPrompt] = useState<'boards' | 'sheets' | null>(null);
+  /** Which "import now" prompt triggered the running/last scan: 'boards' or a sheet key. */
+  const [scanOrigin, setScanOrigin] = useState<string | null>(null);
   const savedResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const connectPoll = useRef<ReturnType<typeof setInterval>>();
   // The Google Picker message listener outlives renders; read settings through
@@ -191,19 +189,9 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     }
   };
 
-  /** A source was just added/remapped: offer to import from it right here. */
-  const offerImport = (kind: 'boards' | 'sheets') => {
-    if (!panelApi.scanNow) return;
-    setScanResult(null);
-    setScanFailed(false);
-    setImportPrompt(kind);
-  };
-
   const applyBoardSelection = (selection: PickerSelection[]) => {
     setPickingBoards(false);
     if (!settings || !boards) return;
-    const known = new Set(settings.boards.map((b) => b.boardId));
-    const addsBoard = selection.some(({ id, columnId }) => columnId && !known.has(id));
     save({
       ...settings,
       boards: selection.flatMap(({ id, columnId }) => {
@@ -221,14 +209,12 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
             taxUserCodeColumnId: existing?.taxUserCodeColumnId,
             documentsColumnId: existing?.documentsColumnId,
             boardName: board.name,
+            // New boards prompt "import now" until a scan runs (client-import agents only).
+            pendingImport: existing ? existing.pendingImport : panelApi.scanNow ? true : undefined,
           },
         ];
       }),
-    })
-      .then((ok) => {
-        if (ok && addsBoard) offerImport('boards');
-      })
-      .catch(console.error);
+    }).catch(console.error);
   };
 
   const removeBoard = (boardId: string) => {
@@ -339,13 +325,11 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
           idNumberColumn: chosen.idNumberColumn,
           taxUserCodeColumn: chosen.taxUserCodeColumn,
           documentsColumn: chosen.documentsColumn,
+          // The new sheet prompts "import now" until a scan runs (client-import agents only).
+          pendingImport: panelApi.scanNow ? true : undefined,
         },
       ],
-    })
-      .then((ok) => {
-        if (ok) offerImport('sheets');
-      })
-      .catch(console.error);
+    }).catch(console.error);
   };
 
   const removeSheet = (spreadsheetId: string, sheetTitle: string) => {
@@ -356,34 +340,22 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     }).catch(console.error);
   };
 
-  const documents = settings?.documents ?? [];
-
-  const addDocument = () => {
-    const trimmed = docDraft.trim();
-    if (!settings || !trimmed || documents.some((d) => d.name === trimmed)) return;
-    setDocDraft('');
-    save({ ...settings, documents: [...documents, { name: trimmed }] }).catch(console.error);
-  };
-
-  const addDefaultDocuments = () => {
-    if (!settings) return;
-    const existing = new Set(documents.map((d) => d.name));
-    const merged = [...documents, ...DEFAULT_DOCUMENTS.filter((d) => !existing.has(d.name))];
-    save({ ...settings, documents: merged }).catch(console.error);
-  };
-
-  const removeDocument = (name: string) => {
-    if (!settings) return;
-    save({ ...settings, documents: documents.filter((d) => d.name !== name) }).catch(console.error);
-  };
-
-  const runScan = async () => {
+  const runScan = async (origin: string) => {
     if (!panelApi.scanNow) return;
+    setScanOrigin(origin);
     setScanBusy(true);
     setScanFailed(false);
     setScanResult(null);
     try {
-      setScanResult(await panelApi.scanNow());
+      const result = await panelApi.scanNow();
+      setScanResult(result);
+      // Even 0-enrolled runs may have backfilled phones/credentials of existing clients.
+      refreshClients();
+      // A clean scan clears the sources' pendingImport flags server-side — pick that up.
+      panelApi
+        .getSettings()
+        .then(({ settings: current }) => setSettings(current))
+        .catch(() => {});
     } catch {
       setScanFailed(true);
     } finally {
@@ -401,42 +373,38 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
       : summary;
   };
 
-  /** Inline "import now?" callout under the source list that was just saved. */
-  const importPromptBanner = (kind: 'boards' | 'sheets') => {
-    if (importPrompt !== kind) return null;
-    if (scanBusy) {
+  /**
+   * A source's "import now" prompt content. The prompt shows as long as the
+   * source carries pendingImport (the server clears it once a scan reads every
+   * source) — there is no dismiss; importing is the only way to resolve it.
+   * While/after this prompt's own scan runs, it shows the progress/result.
+   */
+  const importPromptContent = (origin: string, promptText: string) => {
+    const active = scanOrigin === origin;
+    if (active && scanBusy) return <span>{t.sourcesImporting}</span>;
+    if (active && (scanResult || scanFailed)) {
       return (
-        <div className="import-prompt">
-          <span>{t.sourcesImporting}</span>
-        </div>
-      );
-    }
-    if (scanResult || scanFailed) {
-      return (
-        <div className="import-prompt">
+        <>
           <span>{scanResult ? scanMessage(scanResult) : t.sourcesImportFailed}</span>
           <button
             type="button"
             className="icon-btn"
             title={t.sourcesImportPromptClose}
             aria-label={t.sourcesImportPromptClose}
-            onClick={() => setImportPrompt(null)}
+            onClick={() => setScanOrigin(null)}
           >
             {removeIcon}
           </button>
-        </div>
+        </>
       );
     }
     return (
-      <div className="import-prompt">
-        <span>{kind === 'sheets' ? t.sourcesImportPromptSheet : t.sourcesImportPromptBoards}</span>
-        <button type="button" className="btn btn-primary btn-small" onClick={runScan}>
+      <>
+        <span>{promptText}</span>
+        <button type="button" className="btn btn-primary btn-small" onClick={() => runScan(origin)} disabled={scanBusy}>
           {t.sourcesImportNow}
         </button>
-        <button type="button" className="btn btn-ghost btn-small" onClick={() => setImportPrompt(null)}>
-          {t.sourcesImportPromptLater}
-        </button>
-      </div>
+      </>
     );
   };
 
@@ -625,7 +593,9 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                 </ul>
               )
             )}
-            {importPromptBanner('boards')}
+            {panelApi.scanNow && (settings.boards.some((b) => b.pendingImport) || scanOrigin === 'boards') && (
+              <div className="import-prompt">{importPromptContent('boards', t.sourcesImportPromptBoards)}</div>
+            )}
           </div>
         )}
       </SettingsGroup>
@@ -670,94 +640,40 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
               {pickFailed && <p className="settings-list-empty muted">{t.csPickerFailed}</p>}
               {settings.sheets.length > 0 && (
                 <ul className="settings-list">
-                  {settings.sheets.map((sheet) => (
-                    <li key={`${sheet.spreadsheetId}:${sheet.sheetTitle}`} className="settings-list-row">
-                      <span className="settings-list-name">{sheet.spreadsheetName ?? sheet.spreadsheetId}</span>
-                      <span className="muted">
-                        {t.csSheetTab}: {sheet.sheetTitle} · {t.dcEmailColumn}: {sheet.emailColumn}
-                        {sheet.nameColumn ? ` · ${t.csNameColumn}: ${sheet.nameColumn}` : ''}
-                        {sheet.phoneColumn ? ` · ${t.csPhoneColumn}: ${sheet.phoneColumn}` : ''}
-                        {sheet.idNumberColumn ? ` · ${t.sourcesIdNumberColumn}: ${sheet.idNumberColumn}` : ''}
-                        {sheet.taxUserCodeColumn ? ` · ${t.sourcesTaxCodeColumn}: ${sheet.taxUserCodeColumn}` : ''}
-                        {sheet.documentsColumn ? ` · ${t.sourcesDocumentsColumn}: ${sheet.documentsColumn}` : ''}
-                      </span>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        title={t.csRemove}
-                        aria-label={t.csRemove}
-                        onClick={() => removeSheet(sheet.spreadsheetId, sheet.sheetTitle)}
-                      >
-                        {removeIcon}
-                      </button>
-                    </li>
-                  ))}
+                  {settings.sheets.map((sheet) => {
+                    const sheetKey = `${sheet.spreadsheetId}:${sheet.sheetTitle}`;
+                    return (
+                      <li key={sheetKey} className="settings-source-card">
+                        <div className="settings-source-head">
+                          <span className="settings-list-name">{sheet.spreadsheetName ?? sheet.spreadsheetId}</span>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-small"
+                            onClick={() => removeSheet(sheet.spreadsheetId, sheet.sheetTitle)}
+                          >
+                            {t.csRemove}
+                          </button>
+                        </div>
+                        <span className="muted settings-source-meta">
+                          {t.csSheetTab}: {sheet.sheetTitle} · {t.dcEmailColumn}: {sheet.emailColumn}
+                          {sheet.nameColumn ? ` · ${t.csNameColumn}: ${sheet.nameColumn}` : ''}
+                          {sheet.phoneColumn ? ` · ${t.csPhoneColumn}: ${sheet.phoneColumn}` : ''}
+                          {sheet.idNumberColumn ? ` · ${t.sourcesIdNumberColumn}: ${sheet.idNumberColumn}` : ''}
+                          {sheet.taxUserCodeColumn ? ` · ${t.sourcesTaxCodeColumn}: ${sheet.taxUserCodeColumn}` : ''}
+                          {sheet.documentsColumn ? ` · ${t.sourcesDocumentsColumn}: ${sheet.documentsColumn}` : ''}
+                        </span>
+                        {panelApi.scanNow && (sheet.pendingImport || scanOrigin === sheetKey) && (
+                          <div className="settings-source-prompt">
+                            {importPromptContent(sheetKey, t.sourcesImportPromptSheet)}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
-              {importPromptBanner('sheets')}
             </div>
           )}
-        </SettingsGroup>
-      )}
-
-      {withDocuments && (
-        <SettingsGroup title={t.sourcesDocsTitle} aside={savedAside}>
-          <div className="settings-subsection">
-            <SettingsRow
-              title={t.sourcesDocsTitle}
-              description={t.sourcesDocsDesc}
-              control={
-                <button type="button" className="btn btn-ghost btn-small" onClick={addDefaultDocuments}>
-                  {t.sourcesDocsUseDefault}
-                </button>
-              }
-            />
-            {documents.length > 0 && (
-              <ul className="doc-chip-list">
-                {documents.map((doc) => (
-                  <li key={doc.name} className="doc-chip" title={doc.description ?? undefined}>
-                    {doc.name}
-                    <button type="button" className="chip-x" title={t.removeNamed(doc.name)} onClick={() => removeDocument(doc.name)}>
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="doc-add-form">
-              <input
-                value={docDraft}
-                onChange={(e) => setDocDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addDocument();
-                  }
-                }}
-                placeholder={t.egForm106}
-                aria-label={t.docNameAria}
-              />
-              <button type="button" className="btn btn-ghost" onClick={addDocument} disabled={!docDraft.trim()}>
-                {t.addDocument}
-              </button>
-            </div>
-          </div>
-        </SettingsGroup>
-      )}
-
-      {panelApi.scanNow && (
-        <SettingsGroup title={t.sourcesImportTitle}>
-          <SettingsRow
-            title={t.sourcesImportTitle}
-            description={t.sourcesImportDesc}
-            control={
-              <button type="button" className="btn btn-primary" onClick={runScan} disabled={scanBusy}>
-                {scanBusy ? t.sourcesImporting : t.sourcesImportNow}
-              </button>
-            }
-          />
-          {scanFailed && <p className="settings-list-empty muted">{t.sourcesImportFailed}</p>}
-          {scanResult && <p className="settings-list-empty muted">{scanMessage(scanResult)}</p>}
         </SettingsGroup>
       )}
 

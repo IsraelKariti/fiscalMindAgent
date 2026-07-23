@@ -28,6 +28,8 @@ export const BoardSourceSchema = z
     documentsColumnId: z.string().min(1).optional(),
     /** Display cache for the settings UI; the live fetch re-reads the real name. */
     boardName: z.string().optional(),
+    /** Set by the settings UI on add; the UI shows "import now" until a scan clears it. */
+    pendingImport: z.boolean().optional(),
   })
   .strict();
 
@@ -51,6 +53,8 @@ export const SheetSourceSchema = z
     taxUserCodeColumn: z.string().min(1).optional(),
     /** Header text of the column listing the client's required documents (doc collector) — optional. */
     documentsColumn: z.string().min(1).optional(),
+    /** Set by the settings UI on add; the UI shows "import now" until a scan clears it. */
+    pendingImport: z.boolean().optional(),
   })
   .strict();
 

@@ -20,6 +20,7 @@ export function AddClientModal({ onCreated, onClose, simple = false, leadKey }: 
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [documents, setDocuments] = useState<DocumentDraft[]>(simple ? [] : DEFAULT_DOCUMENTS);
   const [docDraft, setDocDraft] = useState('');
@@ -42,7 +43,7 @@ export function AddClientModal({ onCreated, onClose, simple = false, leadKey }: 
     setBusy(true);
     setError(null);
     try {
-      const { client } = await api.createClient({ name, email, documents, dueDate: dueDate || null });
+      const { client } = await api.createClient({ name, email, phone: phone.trim() || null, documents, dueDate: dueDate || null });
       onCreated(client);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t.createClientFailed);
@@ -64,6 +65,10 @@ export function AddClientModal({ onCreated, onClose, simple = false, leadKey }: 
         <label className="field">
           <span>{t.emailLabel}</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </label>
+        <label className="field">
+          <span>{t.phoneLabel}</span>
+          <input dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.waPhonePlaceholder} />
         </label>
         {!simple && (
         <>

@@ -875,15 +875,17 @@ textarea {
 }
 
 .dropdown-list {
-  position: absolute;
-  top: calc(100% + 4px);
-  inset-inline: 0;
-  z-index: 30;
+  /* Portaled to <body>; top/bottom/left/width are set inline from the
+     trigger's rect so the list overlays scrollable ancestors (modals)
+     instead of extending their scroll area. Above .modal-backdrop (100). */
+  position: fixed;
+  z-index: 120;
   display: flex;
   flex-direction: column;
   padding: 4px;
   max-height: 240px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--surface-solid);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
@@ -3028,6 +3030,46 @@ button.meta-chip:hover {
   padding: 4px 10px;
   font-size: 13.5px;
   border-radius: 8px;
+}
+
+/* Sheet source card: name + remove button up top, mapping summary below,
+   and the post-add "import now?" prompt as an embedded footer. */
+.settings-source-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(148, 163, 216, 0.05);
+  overflow: hidden;
+}
+
+.settings-source-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 0;
+  font-size: 14px;
+}
+
+.settings-source-meta {
+  display: block;
+  padding: 4px 12px 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.settings-source-prompt {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  background: var(--primary-soft);
+  border-top: 1px solid var(--border-strong);
+}
+
+.settings-source-prompt > span {
+  flex: 1;
+  min-width: 200px;
 }
 
 /* Source-picker modal: a searchable checklist of monday docs/boards */

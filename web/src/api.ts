@@ -365,6 +365,8 @@ export interface ClientSourcesConfig {
     taxUserCodeColumnId?: string;
     documentsColumnId?: string;
     boardName?: string;
+    /** Set when the source is added; the server clears it after a clean import scan. */
+    pendingImport?: boolean;
   }[];
   sheets: {
     spreadsheetId: string;
@@ -376,9 +378,9 @@ export interface ClientSourcesConfig {
     idNumberColumn?: string;
     taxUserCodeColumn?: string;
     documentsColumn?: string;
+    /** Set when the source is added; the server clears it after a clean import scan. */
+    pendingImport?: boolean;
   }[];
-  /** Doc collector only: the required-documents checklist every imported client is created with. */
-  documents?: { name: string; description?: string | null }[];
 }
 
 /** Outcome of one client-import run (POST /client-sources/scan). */
@@ -434,6 +436,8 @@ function makeWorkspaceApi(prefix: string) {
     createClient: (args: {
       name: string;
       email: string;
+      /** Optional; any usable number turns the WhatsApp channel on by default. */
+      phone?: string | null;
       documents: { name: string; description?: string | null }[];
       /** Optional collection deadline ("YYYY-MM-DD"); the agent paces follow-ups toward it. */
       dueDate?: string | null;
@@ -484,6 +488,8 @@ function makeWorkspaceApi(prefix: string) {
     fileDownloadUrl: (clientId: string, fileId: string) =>
       tokenizedUrl(`${prefix}/clients/${clientId}/files/${fileId}/download`),
     eventsUrl: (clientId: string) => tokenizedUrl(`${prefix}/clients/${clientId}/events`),
+    /** SSE ticks when this instance's client roster changes — the sidebar refetches the list. */
+    clientsEventsUrl: () => tokenizedUrl(`${prefix}/events`),
     // Customer-service agent (routes exist only on customer_service instances).
     csGetSettings: () =>
       request<{ settings: CustomerServiceSettings; mondayConnected: boolean; googleConnected: boolean }>(

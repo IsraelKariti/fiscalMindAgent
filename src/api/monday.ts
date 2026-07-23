@@ -9,6 +9,7 @@ import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
+import { publishInstanceClientsUpdated } from '../events/clientEvents.js';
 import { isAdminEmail, requireWhitelisted } from './auth.js';
 import { accountRouter } from './account.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
@@ -268,9 +269,9 @@ mondayRouter.post(
         userId: req.userId!,
         name: row.name.trim(),
         emailAddress: email,
+        phone: row.phone || null,
         agentFields: row.dueDate ? { due_date: row.dueDate } : undefined,
       });
-      if (row.phone) await clients.updateDetailsForUser(client.id, req.userId!, { phone: row.phone });
       // The documents to collect come from the board row; without any, the first
       // draft finds nothing pending and the goal completes with no outreach.
       for (const docName of new Set(row.documents.map((d) => d.trim()).filter((d) => d.length > 0))) {
@@ -283,6 +284,8 @@ mondayRouter.post(
       if (delay === 0) draftFirstEmail(client.id);
       else setTimeout(() => draftFirstEmail(client.id), delay);
     }
+    // Tells open workspace tabs (over SSE) to refetch the sidebar's client list.
+    if (created > 0 && docCollector) publishInstanceClientsUpdated(docCollector.id);
     res.status(201).json({ created, skipped });
   }),
 );

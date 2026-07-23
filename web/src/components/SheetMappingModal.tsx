@@ -87,6 +87,43 @@ export function SheetMappingModal({
   );
 }
 
+const HEADER_PATTERNS = {
+  email: /mail|אימייל|דוא/i,
+  phone: /phone|mobile|cell|טלפון|נייד/i,
+  name: /name|שם/i,
+  // ת"ז variants must be the whole header — a substring match would grab e.g. תזרים.
+  idNumber: /^ת\.?["”״׳']?ז\.?$|תעודת זהות|\bid\b/i,
+  taxUserCode: /קוד משתמש|user\s*code/i,
+  documents: /document|מסמכ/i,
+};
+
+/**
+ * Pre-select columns whose headers obviously match a field (EMAIL → email,
+ * טלפון → phone, …) so the common case is confirming a pre-filled mapping
+ * instead of picking every column by hand. Each header is used at most once,
+ * and only fields the modal actually shows get filled.
+ */
+function autoMapColumns(
+  headers: string[],
+  keyKind: 'email' | 'phone',
+  show: { phone: boolean; portalCredentials: boolean; documents: boolean },
+) {
+  const taken = new Set<string>();
+  const find = (re: RegExp) => {
+    const header = headers.find((h) => !taken.has(h) && re.test(h.trim()));
+    if (header) taken.add(header);
+    return header ?? '';
+  };
+  return {
+    keyColumn: find(HEADER_PATTERNS[keyKind]),
+    nameColumn: find(HEADER_PATTERNS.name),
+    idNumberColumn: show.portalCredentials ? find(HEADER_PATTERNS.idNumber) : '',
+    phoneColumn: show.phone ? find(HEADER_PATTERNS.phone) : '',
+    taxUserCodeColumn: show.portalCredentials ? find(HEADER_PATTERNS.taxUserCode) : '',
+    documentsColumn: show.documents ? find(HEADER_PATTERNS.documents) : '',
+  };
+}
+
 /** Split out so its useState initializers run when meta arrives, not before. */
 function SheetMappingForm({
   meta,
@@ -106,23 +143,30 @@ function SheetMappingForm({
   withDocumentsColumn: boolean;
 }) {
   const { t } = useT();
+  // Client-import agents key rows by email (and map phone separately); the
+  // customer-service agent keys by phone — see the withPhoneColumn prop doc.
+  const keyKind: 'email' | 'phone' = withPhoneColumn ? 'email' : 'phone';
+  const show = { phone: withPhoneColumn, portalCredentials: withPortalCredentials, documents: withDocumentsColumn };
   const [sheetTitle, setSheetTitle] = useState(meta.sheets[0]?.title ?? '');
   const headers = meta.sheets.find((s) => s.title === sheetTitle)?.headers ?? [];
-  const [keyColumn, setKeyColumn] = useState('');
-  const [nameColumn, setNameColumn] = useState('');
-  const [phoneColumn, setPhoneColumn] = useState('');
-  const [idNumberColumn, setIdNumberColumn] = useState('');
-  const [taxUserCodeColumn, setTaxUserCodeColumn] = useState('');
-  const [documentsColumn, setDocumentsColumn] = useState('');
+  const initial = autoMapColumns(meta.sheets[0]?.headers ?? [], keyKind, show);
+  const [keyColumn, setKeyColumn] = useState(initial.keyColumn);
+  const [nameColumn, setNameColumn] = useState(initial.nameColumn);
+  const [phoneColumn, setPhoneColumn] = useState(initial.phoneColumn);
+  const [idNumberColumn, setIdNumberColumn] = useState(initial.idNumberColumn);
+  const [taxUserCodeColumn, setTaxUserCodeColumn] = useState(initial.taxUserCodeColumn);
+  const [documentsColumn, setDocumentsColumn] = useState(initial.documentsColumn);
 
   const selectTab = (title: string) => {
     setSheetTitle(title);
-    setKeyColumn('');
-    setNameColumn('');
-    setPhoneColumn('');
-    setIdNumberColumn('');
-    setTaxUserCodeColumn('');
-    setDocumentsColumn('');
+    const tabHeaders = meta.sheets.find((s) => s.title === title)?.headers ?? [];
+    const mapped = autoMapColumns(tabHeaders, keyKind, show);
+    setKeyColumn(mapped.keyColumn);
+    setNameColumn(mapped.nameColumn);
+    setPhoneColumn(mapped.phoneColumn);
+    setIdNumberColumn(mapped.idNumberColumn);
+    setTaxUserCodeColumn(mapped.taxUserCodeColumn);
+    setDocumentsColumn(mapped.documentsColumn);
   };
 
   const confirm = () => {

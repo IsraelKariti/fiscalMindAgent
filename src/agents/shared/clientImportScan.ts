@@ -3,7 +3,9 @@ import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as clientPortalCredentials from '../../db/queries/clientPortalCredentials.js';
 import * as clients from '../../db/queries/clients.js';
 import { draftFirstEmail } from '../../api/draftFirstEmail.js';
+import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { resolveSenderMailbox } from '../instanceEmail.js';
+import { normalizeE164 } from '../../util/phone.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
 import { parseSettings as parseDocCollectorSettings } from '../docCollector/settings.js';
@@ -39,9 +41,7 @@ export interface SourceScanResult {
 
 interface InstanceImportConfig {
   sources: ClientSources;
-  /** Default required-documents checklist for enrolled clients (doc collector only). */
-  documents: { name: string; description?: string | null }[];
-  /** Doc collector only: a mapped documents column overrides the checklist per client. */
+  /** Doc collector only: a mapped documents column supplies each client's checklist. */
   perRowDocuments: boolean;
   /** Config gap that must block enrollment (beyond having no sources). */
   notReady: 'no_documents' | null;
@@ -62,37 +62,57 @@ async function syncCredentials(clientId: string, credentials: PortalCredentials 
   }
 }
 
+/**
+ * Each newly added source carries pendingImport=true, which keeps the settings
+ * panel's per-source "import now" prompt visible. Once a scan has read every
+ * source, the prompts have served their purpose — strip the flags from the
+ * stored settings (raw JSONB edit so agent-specific keys survive untouched).
+ */
+async function clearPendingImportFlags(instance: AgentInstanceRow): Promise<void> {
+  let changed = false;
+  const strip = (list: unknown): unknown =>
+    Array.isArray(list)
+      ? list.map((entry) => {
+          if (entry !== null && typeof entry === 'object' && 'pendingImport' in entry) {
+            changed = true;
+            const { pendingImport: _drop, ...rest } = entry as Record<string, unknown>;
+            return rest;
+          }
+          return entry;
+        })
+      : list;
+  const next = { ...instance.settings, boards: strip(instance.settings.boards), sheets: strip(instance.settings.sheets) };
+  if (!changed) return;
+  try {
+    await agentInstances.updateSettings(instance.id, next as Record<string, unknown>);
+  } catch (err) {
+    logger.error('client import: clearing pending-import flags failed', err, { instanceId: instance.id });
+  }
+}
+
 function importConfig(instance: AgentInstanceRow): InstanceImportConfig {
   if (instance.agent_type === 'doc_collector') {
     const settings = parseDocCollectorSettings(instance.settings);
     const perRowDocuments = hasDocumentsColumn(settings);
     return {
       sources: settings,
-      documents: settings.documents,
       perRowDocuments,
       // A doc-collector client without documents completes trivially and never
-      // gets emailed — refuse to mass-create useless clients. A mapped
-      // documents column is an alternative supply, so it lifts the block.
-      notReady: settings.documents.length === 0 && !perRowDocuments ? 'no_documents' : null,
+      // gets emailed — refuse to mass-create useless clients. The mapped
+      // documents column is the only supply of a client's checklist.
+      notReady: perRowDocuments ? null : 'no_documents',
     };
   }
-  return { sources: parseClientSources(instance.settings), documents: [], perRowDocuments: false, notReady: null };
+  return { sources: parseClientSources(instance.settings), perRowDocuments: false, notReady: null };
 }
 
 /**
- * The checklist an enrolled client starts with: the row's documents cell when
- * one is mapped and non-empty (doc collector), else the instance's default
- * checklist. Cell names that match a checklist entry inherit its description.
+ * The checklist an enrolled client starts with: the row's documents cell
+ * (doc collector only — other client-import agents track no documents).
  */
-function resolveDocuments(
-  config: InstanceImportConfig,
-  candidate: Candidate,
-): { name: string; description?: string | null }[] {
-  if (!config.perRowDocuments || candidate.documentsCell === '') return config.documents;
-  return parseDocumentsCell(candidate.documentsCell).map((name) => ({
-    name,
-    description: config.documents.find((d) => d.name === name)?.description ?? null,
-  }));
+function resolveDocuments(config: InstanceImportConfig, candidate: Candidate): { name: string }[] {
+  if (!config.perRowDocuments) return [];
+  return parseDocumentsCell(candidate.documentsCell).map((name) => ({ name }));
 }
 
 /**
@@ -141,6 +161,15 @@ export async function scanClientImportInstance(instance: AgentInstanceRow): Prom
           .updateDetailsForInstance(existing.id, instance.id, { phone: candidate.phone })
           .catch((err) => logger.error('client import: phone backfill failed', err, { clientId: existing.id }));
       }
+      // WhatsApp is on by default — open the channel for clients that predate
+      // that or whose phone column was filled in after enrollment. Opt-outs
+      // and already-stored numbers are left alone (autoEnableWhatsApp guards).
+      const waPhone = normalizeE164(candidate.phone || existing.phone || '');
+      if (waPhone && !existing.wa_phone) {
+        await clients
+          .autoEnableWhatsApp(existing.id, waPhone)
+          .catch((err) => logger.error('client import: whatsapp auto-enable failed', err, { clientId: existing.id }));
+      }
     } else {
       fresh.push(candidate);
     }
@@ -169,7 +198,7 @@ export async function scanClientImportInstance(instance: AgentInstanceRow): Prom
         phone: candidate.phone || null,
       });
       for (const doc of documents) {
-        await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
+        await clientDocuments.insert({ clientId: client.id, name: doc.name, description: null });
       }
       await syncCredentials(client.id, candidate.credentials);
       // Same fire-and-forget first-draft path as manual client creation,
@@ -186,6 +215,10 @@ export async function scanClientImportInstance(instance: AgentInstanceRow): Prom
       logger.error('client import: client insert failed', err, { instanceId: instance.id, email: candidate.email });
     }
   }
+  // Tells open workspace tabs (over SSE) to refetch the sidebar's client list.
+  if (result.enrolled > 0) publishInstanceClientsUpdated(instance.id);
+  // A failed source keeps its "import now" prompt — only a clean sweep clears them.
+  if (failedSources.length === 0) await clearPendingImportFlags(instance);
   return result;
 }
 

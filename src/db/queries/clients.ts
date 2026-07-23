@@ -1,5 +1,16 @@
 import { pool } from '../pool.js';
+import { normalizeE164 } from '../../util/phone.js';
 import type { ClientRow, GoalStatus } from '../types.js';
+
+/** Matches a pg unique_violation on one specific constraint/index. */
+function isUniqueViolationOn(err: unknown, constraint: string): boolean {
+  return (
+    err instanceof Error &&
+    'code' in err &&
+    (err as { code?: string }).code === '23505' &&
+    (err as { constraint?: string }).constraint === constraint
+  );
+}
 
 export async function getById(id: string): Promise<ClientRow | null> {
   const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE id = $1', [id]);
@@ -38,23 +49,40 @@ export async function insert(args: {
   /** Per-agent scalar fields (agent_fields JSONB), e.g. the doc collector's due_date. */
   agentFields?: Record<string, unknown>;
 }): Promise<ClientRow> {
-  const { rows } = await pool.query<ClientRow>(
-    `INSERT INTO clients (user_id, agent_instance_id, name, email_address, phone, goal_status, agent_fields)
-     VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, $5, 'pending', COALESCE($6::jsonb, '{}'::jsonb))
-     RETURNING *`,
-    // Stored lowercased — inbound routing and the import dedupe match on it.
-    [
-      args.userId,
-      args.agentInstanceId ?? null,
-      args.name,
-      args.emailAddress.trim().toLowerCase(),
-      args.phone ?? null,
-      args.agentFields ? JSON.stringify(args.agentFields) : null,
-    ],
-  );
-  const row = rows[0];
-  if (!row) throw new Error('insert client: no row returned');
-  return row;
+  const insertRow = async (waPhone: string | null): Promise<ClientRow> => {
+    const { rows } = await pool.query<ClientRow>(
+      `INSERT INTO clients (user_id, agent_instance_id, name, email_address, phone, goal_status, agent_fields,
+                            wa_phone, wa_enabled, wa_opted_in_at, wa_opted_in_by)
+       VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, $5, 'pending', COALESCE($6::jsonb, '{}'::jsonb),
+               $7::text, $7 IS NOT NULL, CASE WHEN $7 IS NOT NULL THEN now() END, CASE WHEN $7 IS NOT NULL THEN $1::uuid END)
+       RETURNING *`,
+      // Stored lowercased — inbound routing and the import dedupe match on it.
+      [
+        args.userId,
+        args.agentInstanceId ?? null,
+        args.name,
+        args.emailAddress.trim().toLowerCase(),
+        args.phone ?? null,
+        args.agentFields ? JSON.stringify(args.agentFields) : null,
+        waPhone,
+      ],
+    );
+    const row = rows[0];
+    if (!row) throw new Error('insert client: no row returned');
+    return row;
+  };
+
+  // WhatsApp is on by default: a client created with a usable phone number is
+  // immediately reachable on both channels, no per-client opt-in step.
+  const waPhone = args.phone ? normalizeE164(args.phone) : null;
+  try {
+    return await insertRow(waPhone);
+  } catch (err) {
+    // Another of the instance's clients already uses this number — enroll the
+    // client anyway, just without the WhatsApp channel.
+    if (waPhone && isUniqueViolationOn(err, 'clients_instance_wa_phone_key')) return insertRow(null);
+    throw err;
+  }
 }
 
 /**
@@ -196,6 +224,29 @@ export async function enableWhatsApp(id: string, args: { waPhone: string; optedI
     [id, args.waPhone, args.optedInBy],
   );
   return rows[0] ?? null;
+}
+
+/**
+ * Default-on WhatsApp for an existing client that gained a phone number (client
+ * details edit, source-column backfill): enables the channel unless the client
+ * already has a number stored or ever opted out — an explicit opt-out is never
+ * silently reversed. A collision with another client's number is swallowed
+ * (returns null; the channel just stays off).
+ */
+export async function autoEnableWhatsApp(id: string, waPhone: string): Promise<ClientRow | null> {
+  try {
+    const { rows } = await pool.query<ClientRow>(
+      `UPDATE clients
+       SET wa_phone = $2, wa_enabled = true, wa_opted_in_at = now(), updated_at = now()
+       WHERE id = $1 AND wa_phone IS NULL AND wa_opted_out_at IS NULL
+       RETURNING *`,
+      [id, waPhone],
+    );
+    return rows[0] ?? null;
+  } catch (err) {
+    if (isUniqueViolationOn(err, 'clients_instance_wa_phone_key')) return null;
+    throw err;
+  }
 }
 
 /** Disables the WhatsApp channel (accountant toggle or client opt-out); the number is kept. */

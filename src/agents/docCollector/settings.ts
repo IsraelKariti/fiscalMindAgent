@@ -4,11 +4,14 @@ import { ClientSourcesSchema } from '../shared/clientSources.js';
 /**
  * The doc collector's per-instance config, stored in agent_instances.settings
  * (JSONB): client-import sources (monday boards / Google Sheets mapped by
- * their email column) plus the required-documents checklist every imported
- * client is created with. Without documents an imported client would complete
- * trivially, so the scan refuses to enroll while the checklist is empty.
+ * their email column). Each imported client's checklist comes from the
+ * source's mapped documents column; without one an imported client would
+ * complete trivially, so the scan refuses to enroll until it is mapped.
  */
 export const DocCollectorSettingsSchema = ClientSourcesSchema.extend({
+  // Legacy default-documents checklist. No longer editable or applied (the
+  // documents column is the only supply), kept so stored settings that still
+  // carry it survive this strict schema.
   documents: z
     .array(
       z

@@ -3,7 +3,7 @@ import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import { withClientLock } from '../db/withClientLock.js';
-import { publishClientUpdated } from '../events/clientEvents.js';
+import { publishClientUpdated, publishInstanceClientsUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { loadAgentContext } from '../agents/resolve.js';
 import { ingestWaMedia, type WaMediaItem } from './ingestWaMedia.js';
@@ -90,6 +90,8 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
       return;
     }
     logger.info('customer service client auto-created from inbound whatsapp', { clientId: client.id });
+    // Tells open workspace tabs (over SSE) to refetch the sidebar's client list.
+    publishInstanceClientsUpdated(instance.id);
   }
 
   const body = params.Body ?? '';

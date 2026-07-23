@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { agentApi, api, type AccountTier, type AgentInstance, type Client, type MailboxStatus } from '../api';
-import { WorkspaceApiProvider } from '../agents/ApiContext';
+import { ClientsRefreshProvider, WorkspaceApiProvider } from '../agents/ApiContext';
 import { getAgentUI } from '../agents/registry';
 import { AgentsHome } from './AgentsHome';
 import { Sidebar } from './Sidebar';
@@ -136,6 +136,27 @@ export function Workspace({
   useEffect(() => {
     loadClients().catch(console.error);
   }, [loadClients]);
+  // Server-pushed roster refresh: the API streams a tick whenever this instance
+  // gains or loses clients (import scan, daily auto-enroll, another tab), so the
+  // sidebar fills the moment enrollment happens — no manual reload.
+  useEffect(() => {
+    if (!wsApi) return;
+    let events: EventSource | null = null;
+    let cancelled = false;
+    wsApi.clientsEventsUrl().then((url) => {
+      if (cancelled) return;
+      events = new EventSource(url);
+      events.onmessage = () => loadClients().catch(console.error);
+    });
+    return () => {
+      cancelled = true;
+      events?.close();
+    };
+  }, [wsApi, loadClients]);
+  // Fire-and-forget variant for deep components (settings panels' "import now").
+  const refreshClients = useCallback(() => {
+    loadClients().catch(console.error);
+  }, [loadClients]);
   useEffect(() => {
     api.mailboxStatus().then(setMailbox).catch(console.error);
   }, []);
@@ -185,6 +206,7 @@ export function Workspace({
 
   return (
     <WorkspaceApiProvider value={wsApi}>
+    <ClientsRefreshProvider value={refreshClients}>
     <div className="app">
       <div className="layout">
         <Sidebar
@@ -274,6 +296,7 @@ export function Workspace({
           document.body,
         )}
     </div>
+    </ClientsRefreshProvider>
     </WorkspaceApiProvider>
   );
 }

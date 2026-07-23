@@ -72,9 +72,6 @@ const he = {
   sourcesSheetsDesc:
     'הסוכן קורא מכל גיליון את שורות הלקוחות לפי עמודת האימייל, ורושם אוטומטית לקוח חדש לכל שורה שעדיין אינה לקוח — מיד בלחיצה על "ייבוא עכשיו" וכן בסריקה יומית.',
   sourcesSheetMappingDesc: 'בחרו את הלשונית שבה נמצאות שורות הלקוחות ואת עמודת האימייל שלהם.',
-  sourcesImportTitle: 'ייבוא לקוחות',
-  sourcesImportDesc:
-    'מוסיף עכשיו לקוח חדש לכל שורה במקורות שעדיין אינה לקוח, ומתחיל את הטיפול בו. שורות חדשות שיתווספו למקורות ייקלטו גם בסריקה היומית האוטומטית.',
   sourcesImportNow: 'ייבוא עכשיו',
   sourcesImporting: 'מייבא…',
   sourcesImportResult: (enrolled: number, skipped: number) =>
@@ -82,19 +79,14 @@ const he = {
   sourcesImportFailedSources: (list: string) => `מקורות שלא נקראו הפעם: ${list}.`,
   sourcesImportNoSources: 'הגדירו קודם לוח monday או גיליון Google.',
   sourcesImportNoMailbox: 'לסוכן אין עדיין כתובת אימייל לשלוח ממנה — פנו למנהל המערכת.',
-  sourcesImportNoDocuments: 'הגדירו קודם את רשימת המסמכים ללקוחות מיובאים, או מפו עמודת מסמכים באחד המקורות.',
+  sourcesImportNoDocuments: 'מפו קודם עמודת מסמכים נדרשים באחד המקורות — הלקוחות המיובאים מקבלים את רשימת המסמכים מהעמודה הזו.',
   sourcesImportFailed: 'הייבוא נכשל.',
-  sourcesImportPromptSheet: 'הגיליון נשמר — לייבא ממנו לקוחות עכשיו?',
-  sourcesImportPromptBoards: 'הלוחות נשמרו — לייבא מהם לקוחות עכשיו?',
-  sourcesImportPromptLater: 'לא עכשיו',
+  sourcesImportPromptSheet: 'הגיליון טרם יובא — לייבא ממנו לקוחות עכשיו?',
+  sourcesImportPromptBoards: 'הלוחות טרם יובאו — לייבא מהם לקוחות עכשיו?',
   sourcesImportPromptClose: 'סגירה',
   sourcesIdNumberColumn: 'עמודת ת"ז',
   sourcesTaxCodeColumn: 'עמודת קוד משתמש (רשות המסים)',
   sourcesDocumentsColumn: 'עמודת מסמכים נדרשים',
-  sourcesDocsTitle: 'מסמכים ללקוחות מיובאים',
-  sourcesDocsDesc:
-    'כל לקוח מיובא ייווצר עם רשימת המסמכים הזו. אם מופתה עמודת מסמכים במקור, התא של הלקוח (שמות מסמכים מופרדים בפסיק או בשורה) גובר על הרשימה, והרשימה משמשת רק כשהתא ריק.',
-  sourcesDocsUseDefault: 'הוספת רשימת ברירת המחדל',
   settingsTabGeneral: 'כללי',
   settingsTabConnections: 'אינטגרציות',
   agentCustomerServiceName: 'שירות לקוחות',
@@ -291,7 +283,7 @@ const he = {
 
   // WhatsApp card (details tab)
   waTitle: 'וואטסאפ',
-  waDesc: 'כשוואטסאפ מופעל, הסוכן יכול לבחור לשלוח ללקוח הודעות וואטסאפ ולקבל מהלקוח תשובות. הפעלת הערוץ מאשרת שהלקוח הסכים לקבל הודעות וואטסאפ.',
+  waDesc: 'כשוואטסאפ מופעל, הסוכן יכול לבחור לשלוח ללקוח הודעות וואטסאפ ולקבל מהלקוח תשובות. הערוץ מופעל אוטומטית לכל לקוח עם מספר טלפון תקין, וניתן לכבות אותו כאן.',
   waStatusOn: 'וואטסאפ פעיל',
   waStatusOff: 'וואטסאפ כבוי',
   waEnable: 'הפעלת וואטסאפ',

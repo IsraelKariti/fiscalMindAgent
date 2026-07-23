@@ -11,7 +11,12 @@ import * as waSenders from '../db/queries/waSenders.js';
 import { normalizeE164 } from '../util/phone.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { withClientLock } from '../db/withClientLock.js';
-import { onClientUpdated, publishClientUpdated } from '../events/clientEvents.js';
+import {
+  onClientUpdated,
+  onInstanceClientsUpdated,
+  publishClientUpdated,
+  publishInstanceClientsUpdated,
+} from '../events/clientEvents.js';
 import { pauseFutureEmail } from '../orchestration/pauseFutureEmail.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
@@ -60,6 +65,8 @@ const ClientCreateSchema = z
   .object({
     name: z.string().min(1),
     email: z.string().email(),
+    // Optional; any usable number turns the WhatsApp channel on by default.
+    phone: z.string().nullable().optional(),
     documents: z.array(DocumentCreateSchema).max(50).default([]),
     // Optional collection deadline; the agent paces its follow-ups toward it.
     dueDate: DueDateSchema.nullable().optional(),
@@ -105,6 +112,28 @@ workspaceRouter.get(
   }),
 );
 
+// SSE stream of "this instance's client roster changed" ticks (import scan, daily
+// auto-enroll, add/delete from another tab), relayed from Redis pub/sub so enrollments
+// made by the worker process arrive too. The events carry no data — the browser
+// refetches the list — so a dropped connection loses nothing.
+workspaceRouter.get(
+  '/events',
+  wrap(async (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const unsubscribe = onInstanceClientsUpdated(req.agentInstance!.id, () => res.write('data: updated\n\n'));
+    // Comment-only heartbeat so idle proxies (ngrok, Azure ingress) don't cut the stream.
+    const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 25_000);
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
+  }),
+);
+
 // This agent's dedicated sender address (read-only; admins assign it at
 // activation or on the agent page — null for agent types that don't email
 // clients or pre-mandatory-email instances that never got an address).
@@ -133,7 +162,7 @@ workspaceRouter.post(
       res.status(400).json({ error: 'Invalid client fields.', details: parsed.error.flatten() });
       return;
     }
-    const { name, email, documents, dueDate } = parsed.data;
+    const { name, email, phone, documents, dueDate } = parsed.data;
 
     // Email-capable agents can't take clients without a sender address —
     // the first email could never send. Admins assign the address.
@@ -154,6 +183,7 @@ workspaceRouter.post(
       agentInstanceId: req.agentInstance!.id,
       name,
       emailAddress: email,
+      phone: phone || null,
       agentFields: dueDate ? { due_date: dueDate } : undefined,
     });
     for (const doc of documents) {
@@ -166,6 +196,7 @@ workspaceRouter.post(
     if (getAgentType(req.agentInstance!.agent_type).conversationModel === 'scheduled_follow_up') {
       draftFirstEmail(client.id);
     }
+    publishInstanceClientsUpdated(req.agentInstance!.id);
     res.status(201).json({ client });
   }),
 );
@@ -238,10 +269,26 @@ workspaceRouter.patch(
       return;
     }
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.updateDetailsForInstance(id, req.agentInstance!.id, parsed.data) : null;
+    let client = id ? await clients.updateDetailsForInstance(id, req.agentInstance!.id, parsed.data) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
+    }
+    // WhatsApp is on by default: giving the client a phone number opens the
+    // channel right away (unless they opted out or already have one stored).
+    const waPhone = parsed.data.phone ? normalizeE164(parsed.data.phone) : null;
+    if (waPhone) {
+      const enabled = await clients.autoEnableWhatsApp(client.id, waPhone);
+      if (enabled) {
+        client = enabled;
+        // Channel availability changed — let the agent re-decide the pending message.
+        if (enabled.goal_status === 'pending') {
+          await withClientLock(enabled.id, async () => {
+            await removeFutureEmail(enabled.id);
+            await setFutureEmail(enabled.id);
+          });
+        }
+      }
     }
     res.json({ client });
   }),
@@ -322,6 +369,7 @@ workspaceRouter.delete(
     await withClientLock(client.id, () => removeFutureEmail(client.id));
     const files = await documentFiles.listForClient(client.id);
     await clients.removeForInstance(client.id, req.agentInstance!.id);
+    publishInstanceClientsUpdated(req.agentInstance!.id);
     // Best-effort blob cleanup after the rows are gone — a failure only orphans a blob.
     await Promise.all(
       files.map((file) =>

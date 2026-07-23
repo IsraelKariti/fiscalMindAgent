@@ -39,6 +39,8 @@ export interface TaxFetchSessionRow {
   document_file_id: string | null;
   otp_requested_at: Date | null;
   delivered_at: Date | null;
+  /** The drafted message carrying the offer; the offer only counts once it is sent. */
+  offer_email_id: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -71,11 +73,12 @@ export async function insert(args: {
   clientDocumentId: string | null;
   status: TaxFetchStatus;
   taxYear: number;
+  offerEmailId?: string | null;
 }): Promise<TaxFetchSessionRow> {
   const { rows } = await pool.query<TaxFetchSessionRow>(
-    `INSERT INTO tax_fetch_sessions (client_id, provider, client_document_id, status, tax_year)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [args.clientId, args.provider, args.clientDocumentId, args.status, args.taxYear],
+    `INSERT INTO tax_fetch_sessions (client_id, provider, client_document_id, status, tax_year, offer_email_id)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [args.clientId, args.provider, args.clientDocumentId, args.status, args.taxYear, args.offerEmailId ?? null],
   );
   return rows[0]!;
 }

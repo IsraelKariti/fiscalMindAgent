@@ -1,4 +1,5 @@
 import * as clientPortalCredentials from '../../../db/queries/clientPortalCredentials.js';
+import * as emails from '../../../db/queries/emails.js';
 import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
 import { publishClientUpdated } from '../../../events/clientEvents.js';
 import { enqueueTaxFetch } from '../../../queue/taxFetchQueue.js';
@@ -81,7 +82,22 @@ export async function loadTaxFetchContext(
   const pending106 = findPending106(documents);
   const available = Boolean(creds) && pending106 !== null && waState.allowed;
 
-  const active = await taxFetchSessions.getActiveForClient(client.id);
+  let active = await taxFetchSessions.getActiveForClient(client.id);
+  // An 'offered' session whose offer draft was superseded before sending
+  // (regenerate button, client reply triggering a re-plan): the client never
+  // saw the offer, so the session must not keep suppressing a fresh one.
+  // Pre-027 rows have no offer_email_id and keep the old always-offered read.
+  if (active && active.status === 'offered' && active.offer_email_id) {
+    const offerMessage = await emails.getById(active.offer_email_id);
+    if (!offerMessage || offerMessage.status !== 'sent') {
+      await taxFetchSessions.updateStatus(active.id, 'cancelled');
+      logger.info('tax fetch: unsent offer draft superseded, session cancelled', {
+        clientId: client.id,
+        sessionId: active.id,
+      });
+      active = null;
+    }
+  }
   let session = active;
   let state: TaxFetchPromptState = active ? promptStateFor(active.status) : 'none';
   if (!active) {
@@ -99,13 +115,16 @@ export async function loadTaxFetchContext(
  * Acts on the LLM's tax_fetch_action after the normal document handling. The
  * accompanying drafted message (offer, WhatsApp intro, "SMS incoming" heads-up)
  * is scheduled by the normal follow-up path; here we only move the fetch's
- * persisted state and enqueue the browser work.
+ * persisted state and enqueue the browser work. `offerEmailId` is that drafted
+ * message's row — an 'offered' session only sticks once it is actually sent
+ * (see loadTaxFetchContext), so a superseded draft re-enables the offer.
  */
 export async function applyTaxFetchAction(
   client: ClientRow,
   action: TaxFetchAction | null,
   ctx: TaxFetchContext,
   now: Date,
+  offerEmailId: string | null,
 ): Promise<void> {
   if (!action) return;
 
@@ -119,6 +138,7 @@ export async function applyTaxFetchAction(
         clientDocumentId: ctx.pending106DocId,
         status: 'offered',
         taxYear: taxYearFor(now),
+        offerEmailId,
       });
       logger.info('tax fetch: offered', { clientId: client.id });
       publishClientUpdated(client.id);

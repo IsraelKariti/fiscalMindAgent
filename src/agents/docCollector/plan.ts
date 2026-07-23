@@ -109,10 +109,6 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     logger.info('file linked to document', { clientId, fileId: match.file_id, documentId: match.document_id });
   }
 
-  // Act on the tax-authority 106-fetch step (offer / client agreed / start login /
-  // cancel). The accompanying message is scheduled by the normal follow-up path below.
-  await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now);
-
   // Completion is derived from the documents, not the LLM's decision field: complete iff
   // every required document is collected. Clients with no configured documents fall back
   // to trusting the decision field (legacy behavior).
@@ -120,6 +116,9 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const allCollected = documents.length > 0 ? stillPending === 0 : decision.decision === 'goal_complete';
 
   if (allCollected) {
+    // No message is drafted on this path; a fresh offer can't happen here (no
+    // pending 106 left), but cancel/agreed actions still need to land.
+    await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now, null);
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
@@ -146,7 +145,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: decision.send_at });
   }
   const message = decision.message;
-  await scheduleDraftMessage(clientId, {
+  const { emailId } = await scheduleDraftMessage(clientId, {
     channel: message.channel,
     subject: message.channel === 'email' ? message.subject : '',
     body: message.channel === 'email' || message.kind === 'freeform' ? message.body : message.renderedBody,
@@ -155,6 +154,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     delayMs: Math.max(0, delayMs),
     reasoning: decision.reasoning,
   });
+  // Act on the tax-authority 106-fetch step (offer / client agreed / start login /
+  // cancel) after the draft exists, so an 'offered' session records which message
+  // carries the offer — a superseded draft then re-enables offering.
+  await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now, emailId);
   logger.info('follow-up scheduled', {
     clientId,
     channel: message.channel,

@@ -6,7 +6,7 @@ Node agent that emails a client on an accountant's behalf to collect a form_106 
 
 - **Postgres** stores users, allocated agent mailboxes (`agent_mailboxes`), clients, the email thread, and one pending BullMQ job id per client (`scheduled_jobs`).
 - **BullMQ + Redis** schedule a one-shot delayed `send_email` job representing "the next send" for a client. There is never more than one pending job per client.
-- **Resend** handles all email on the agent domain (`AGENT_EMAIL_DOMAIN`, default `fiscalmind.app`). Each accountant claims a permanent agent name in the dashboard; the agent sends **from** and receives **at** `<name>@fiscalmind.app`. Inbound mail arrives as an `email.received` webhook (`/webhooks/resend`, Svix-signed); replies are threaded with standard `In-Reply-To`/`References` headers built from stored Message-IDs.
+- **Resend** handles all email on the agent domain (`AGENT_EMAIL_DOMAIN`, default `agents.fiscalmind.app` — a subdomain, because the root domain's MX belongs to Google Workspace for human mail like admin@). Each accountant claims a permanent agent name in the dashboard; the agent sends **from** and receives **at** `<name>@agents.fiscalmind.app`. Inbound mail arrives as an `email.received` webhook (`/webhooks/resend`, Svix-signed); replies are threaded with standard `In-Reply-To`/`References` headers built from stored Message-IDs.
 - **Two processes**, sharing the same modules:
   - `src/web.ts` — Express server receiving Resend inbound-email webhooks (`/webhooks/resend`) and serving the dashboard + API.
   - `src/worker.ts` — BullMQ `Worker` that actually sends emails when a `send_email` job fires.

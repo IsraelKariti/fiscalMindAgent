@@ -48,7 +48,10 @@ const EnvSchema = z.object({
   // worker/CLI can run without it; the webhook route returns 503 until set.
   RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
   // Domain agent mailboxes are allocated on: <local-part>@AGENT_EMAIL_DOMAIN.
-  AGENT_EMAIL_DOMAIN: z.string().min(1).default('fiscalmind.app'),
+  // A subdomain of the root domain: the root's MX records belong to Google
+  // Workspace (admin@ and other human mail), so Resend receiving must live on
+  // a subdomain with its own MX. Must match migration 029's stored addresses.
+  AGENT_EMAIL_DOMAIN: z.string().min(1).default('agents.fiscalmind.app'),
   // Twilio (twilio.com): sends/receives WhatsApp messages for the per-accountant
   // sender numbers (wa_senders). All optional — WhatsApp features return 503 /
   // stay disabled until set.

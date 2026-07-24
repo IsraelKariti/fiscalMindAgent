@@ -3,6 +3,7 @@ import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as emails from '../../db/queries/emails.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
+import { recordAudit } from '../../audit/audit.js';
 import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js';
 import { env } from '../../config/env.js';
 import { zonedTimeToUtc } from '../../util/time.js';
@@ -92,6 +93,15 @@ export async function planDebtCollection(ctx: AgentContext): Promise<void> {
       clientId,
       reasoning: decision.reasoning,
     });
+    recordAudit({
+      actorType: 'agent',
+      action: 'injection.cycle_suppressed',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      severity: 'critical',
+      suspectedInjection: true,
+      detail: { agent: 'debt_collector', clientName: client.name, reasoning: decision.reasoning },
+    });
   }
 
   if (decision.decision !== 'follow_up') {
@@ -108,6 +118,13 @@ export async function planDebtCollection(ctx: AgentContext): Promise<void> {
       // Silent completion by design: no client email, no accountant email — the
       // workspace shows the snapshot's reasoning.
       logger.info('debt collector: no open debt, completing silently', { clientId, reasoning: decision.reasoning });
+      recordAudit({
+        actorType: 'agent',
+        action: 'debt.no_debt',
+        agentInstanceId: client.agent_instance_id,
+        clientId,
+        detail: { clientName: client.name },
+      });
       return;
     }
 
@@ -133,6 +150,14 @@ export async function planDebtCollection(ctx: AgentContext): Promise<void> {
         clientId,
         reasoning: decision.reasoning,
       });
+      recordAudit({
+        actorType: 'agent',
+        action: 'debt.paid_claimed',
+        agentInstanceId: client.agent_instance_id,
+        clientId,
+        suspectedInjection: decision.suspected_injection,
+        detail: { clientName: client.name, amount: decision.extraction.debt_amount },
+      });
       return;
     }
 
@@ -143,6 +168,13 @@ export async function planDebtCollection(ctx: AgentContext): Promise<void> {
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('debt collector: payment confirmed, goal complete', { clientId, reasoning: decision.reasoning });
+    recordAudit({
+      actorType: 'agent',
+      action: 'debt.paid',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      detail: { clientName: client.name, amount: decision.extraction.debt_amount },
+    });
     if (!previous?.paid_confirmed_at) {
       // Fire-and-forget: a notification failure must never fail planning.
       sendDebtCollectedEmail(client, snapshot).catch((err) =>

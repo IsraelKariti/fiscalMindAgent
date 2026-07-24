@@ -4,6 +4,7 @@ import * as documentFiles from '../../../db/queries/documentFiles.js';
 import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
 import * as waSenders from '../../../db/queries/waSenders.js';
 import { withClientLock } from '../../../db/withClientLock.js';
+import { recordAudit } from '../../../audit/audit.js';
 import { publishClientUpdated } from '../../../events/clientEvents.js';
 import { removeFutureEmail } from '../../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../../orchestration/setFutureEmail.js';
@@ -39,6 +40,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     to: client.wa_phone,
     body: 'הצלחתי למשוך את טופס ה-106 שלך מרשות המסים 🎉 שולח לך אותו עכשיו.',
     reasoning: `tax fetch delivered (session ${session.id})`,
+    agentInstanceId: client.agent_instance_id,
   });
 
   const file = await documentFiles.insertIfNew({
@@ -65,12 +67,30 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     body: `טופס 106 לשנת ${session.tax_year}`,
     mediaUrl: buildSignedMediaUrl(file.id),
   });
+  recordAudit({
+    actorType: 'agent',
+    action: 'wa.media_sent',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'document_file',
+    targetId: file.id,
+    detail: { clientName: client.name, to: client.wa_phone, filename: doc.filename },
+  });
 
   await taxFetchSessions.updateStatus(session.id, 'delivered', {
     documentFileId: file.id,
     deliveredAt: new Date(),
   });
   logger.info('tax fetch: delivered', { sessionId: session.id, clientId: client.id, fileId: file.id });
+  recordAudit({
+    actorType: 'agent',
+    action: 'tax_fetch.document_delivered',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'tax_fetch_session',
+    targetId: session.id,
+    detail: { clientName: client.name, taxYear: session.tax_year, fileId: file.id, filename: doc.filename },
+  });
 
   // Let the collector re-plan: mark-collected may have completed the goal, or a
   // follow-up for the remaining documents should be (re)scheduled.

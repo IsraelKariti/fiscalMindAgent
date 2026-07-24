@@ -24,6 +24,8 @@ export interface AnswerResult {
   usage: GeminiUsage;
   /** The model that actually served this call, for per-model usage accounting. */
   model: string;
+  /** The LLM flagged injected content in its inputs — the caller records it to the audit trail. */
+  suspectedInjection: boolean;
 }
 
 export async function generateAnswer(systemInstruction: string, contents: string): Promise<AnswerResult> {
@@ -52,5 +54,5 @@ export async function generateAnswer(systemInstruction: string, contents: string
       reasoning: parsed.reasoning,
     });
   }
-  return { answer: parsed.answer, reasoning: parsed.reasoning, usage, model };
+  return { answer: parsed.answer, reasoning: parsed.reasoning, usage, model, suspectedInjection: parsed.suspected_injection };
 }

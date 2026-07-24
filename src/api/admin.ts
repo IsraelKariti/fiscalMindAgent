@@ -2,6 +2,8 @@ import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import * as agentInstances from '../db/queries/agentInstances.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
+import * as anomalyAlerts from '../db/queries/anomalyAlerts.js';
+import * as auditEvents from '../db/queries/auditEvents.js';
 import * as llmUsage from '../db/queries/llmUsage.js';
 import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
@@ -16,6 +18,7 @@ import {
   getGeminiModelState,
   saveGeminiModel,
 } from '../gemini/modelSettings.js';
+import { auditAdminMutation } from '../audit/adminAudit.js';
 import { logger } from '../util/logger.js';
 import { clearImpersonationCookie, isAdminEmail, setImpersonationCookie } from './auth.js';
 
@@ -36,6 +39,8 @@ const WhitelistAddSchema = z
 /**
  * Gates the admin endpoints on the REAL signed-in user (req.realUserId), so
  * they keep working — notably stop-impersonation — while impersonating.
+ * Every admin route passes through here, which makes it the single hook that
+ * writes mutating admin calls to the audit trail (auditAdminMutation).
  */
 export const requireAdmin: RequestHandler = async (req, res, next) => {
   try {
@@ -44,6 +49,7 @@ export const requireAdmin: RequestHandler = async (req, res, next) => {
       res.status(403).json({ error: 'Admin access required.' });
       return;
     }
+    auditAdminMutation(req, res);
     next();
   } catch (err) {
     next(err);
@@ -448,6 +454,78 @@ export const adminSetModel: RequestHandler = async (req, res) => {
   logger.info('gemini model changed', { adminUserId: req.realUserId, model: parsed.data.model });
   const state = await getGeminiModelState();
   res.json({ ...state, options: GEMINI_MODEL_OPTIONS });
+};
+
+const AuditQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(7),
+  limit: z.coerce.number().int().min(1).max(2000).default(500),
+});
+
+/**
+ * GET /api/admin/audit-events?days=N&limit=M — the newest audit rows of the
+ * last N days. Raw cube, one endpoint: the audit page filters/groups
+ * client-side, like the LLM-usage page.
+ */
+export const adminAuditEvents: RequestHandler = async (req, res) => {
+  const parsed = AuditQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid range.' });
+    return;
+  }
+  const since = new Date(Date.now() - parsed.data.days * 86_400_000);
+  const rows = await auditEvents.listSince(since, parsed.data.limit);
+  res.json({
+    events: rows.map((r) => ({
+      id: r.id,
+      occurredAt: r.occurred_at,
+      actorType: r.actor_type,
+      actorEmail: r.actor_email,
+      agentInstanceId: r.agent_instance_id,
+      agentType: r.agent_type,
+      instanceName: r.instance_name,
+      clientId: r.client_id,
+      clientName: r.client_name,
+      action: r.action,
+      targetType: r.target_type,
+      targetId: r.target_id,
+      severity: r.severity,
+      suspectedInjection: r.suspected_injection,
+      detail: r.detail,
+    })),
+  });
+};
+
+function alertJson(a: anomalyAlerts.AnomalyAlertRow) {
+  return {
+    id: a.id,
+    createdAt: a.created_at,
+    rule: a.rule,
+    scopeKey: a.scope_key,
+    severity: a.severity,
+    title: a.title,
+    detail: a.detail,
+    status: a.status,
+    notifiedAt: a.notified_at,
+    ackedAt: a.acked_at,
+  };
+}
+
+/** GET /api/admin/alerts — recent (30d) + all still-open anomaly alerts, and the open count for the dashboard badge. */
+export const adminListAlerts: RequestHandler = async (_req, res) => {
+  const since = new Date(Date.now() - 30 * 86_400_000);
+  const [alerts, openCount] = await Promise.all([anomalyAlerts.listSince(since), anomalyAlerts.countOpen()]);
+  res.json({ alerts: alerts.map(alertJson), openCount });
+};
+
+/** POST /api/admin/alerts/:id/ack — mark an open alert as seen/handled. */
+export const adminAckAlert: RequestHandler = async (req, res) => {
+  const id = z.string().uuid().safeParse(req.params.id);
+  const alert = id.success ? await anomalyAlerts.ack(id.data, req.realUserId!) : null;
+  if (!alert) {
+    res.status(404).json({ error: 'Alert not found or already acknowledged.' });
+    return;
+  }
+  res.json({ alert: alertJson(alert) });
 };
 
 /** GET /api/admin/whitelist — every whitelisted email, newest first. */

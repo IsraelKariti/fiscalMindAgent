@@ -16,6 +16,7 @@ import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { isWhatsAppWindowOpen } from '../orchestration/whatsappWindow.js';
 import { agentWorkBlocked } from '../agents/killSwitch.js';
+import { recordAudit } from '../audit/audit.js';
 import { logger } from '../util/logger.js';
 import type { ClientRow, EmailRow } from '../db/types.js';
 
@@ -110,6 +111,15 @@ async function sendEmailDraft(client: ClientRow, draft: EmailRow): Promise<SendO
   });
 
   await emails.markSent(draft.id, { messageId: result.messageId, resendId: result.resendId, sentAt: new Date() });
+  recordAudit({
+    actorType: 'agent',
+    action: 'email.client_sent',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'email',
+    targetId: draft.id,
+    detail: { clientName: client.name, to: client.email_address, subject: draft.subject },
+  });
   return 'sent';
 }
 
@@ -135,6 +145,15 @@ async function sendWhatsAppDraft(client: ClientRow, draft: EmailRow): Promise<Se
       variables: draft.wa_content_variables ?? [],
     });
     await emails.markSent(draft.id, { messageId: sid, sentAt: new Date() });
+    recordAudit({
+      actorType: 'agent',
+      action: 'wa.template_sent',
+      agentInstanceId: client.agent_instance_id,
+      clientId: client.id,
+      targetType: 'wa_message',
+      targetId: draft.id,
+      detail: { clientName: client.name, to: client.wa_phone, contentSid: draft.wa_content_sid },
+    });
     return 'sent';
   }
 
@@ -148,6 +167,15 @@ async function sendWhatsAppDraft(client: ClientRow, draft: EmailRow): Promise<Se
 
   const { sid } = await sendWhatsAppText({ from: sender.phone_number, to: client.wa_phone, body: draft.body });
   await emails.markSent(draft.id, { messageId: sid, sentAt: new Date() });
+  recordAudit({
+    actorType: 'agent',
+    action: 'wa.text_sent',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'wa_message',
+    targetId: draft.id,
+    detail: { clientName: client.name, to: client.wa_phone },
+  });
   return 'sent';
 }
 

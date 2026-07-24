@@ -1,4 +1,5 @@
 import * as users from '../../db/queries/users.js';
+import { recordAudit } from '../../audit/audit.js';
 import { sendEmail } from '../../resend/send.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../util/logger.js';
@@ -24,6 +25,14 @@ async function sendToAccountant(client: ClientRow, subject: string, body: string
   }
   await sendEmail({ from: `FiscalMind <no-reply@${env.AGENT_EMAIL_DOMAIN}>`, to: user.email, subject, body });
   logger.info('accountant notified', { clientId: client.id, to: user.email, subject });
+  recordAudit({
+    actorType: 'agent',
+    action: 'email.accountant_sent',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'email',
+    detail: { clientName: client.name, to: user.email, subject },
+  });
 }
 
 /** "The client claims they paid — please confirm" — sent once, when the unverified claim is first seen. */

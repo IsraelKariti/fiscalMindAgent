@@ -3,6 +3,7 @@ import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as clientPortalCredentials from '../../db/queries/clientPortalCredentials.js';
 import * as clients from '../../db/queries/clients.js';
 import { draftFirstEmail } from '../../api/draftFirstEmail.js';
+import { recordAudit } from '../../audit/audit.js';
 import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { resolveSenderMailbox } from '../instanceEmail.js';
 import { isKillSwitchOn } from '../killSwitch.js';
@@ -232,6 +233,13 @@ export async function scanClientImportInstance(
       setTimeout(() => draftFirstEmail(client.id), result.enrolled * DRAFT_STAGGER_MS);
       result.enrolled += 1;
       logger.info('client import: client enrolled', { instanceId: instance.id, clientId: client.id, email: candidate.email });
+      recordAudit({
+        actorType: 'system',
+        action: 'client.auto_enrolled',
+        agentInstanceId: instance.id,
+        clientId: client.id,
+        detail: { clientName: name, email: candidate.email, source: 'client_import_scan' },
+      });
     } catch (err) {
       // 23505 = unique_violation: enrolled concurrently (webhook, another run) — fine.
       if (err instanceof Error && 'code' in err && (err as { code?: string }).code === '23505') {

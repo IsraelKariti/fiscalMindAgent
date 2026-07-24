@@ -13,6 +13,7 @@ import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext } from './decisionSchema.js';
 import { applyTaxFetchAction, loadTaxFetchContext } from './taxFetch/flow.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
+import { recordAudit } from '../../audit/audit.js';
 import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js';
 import { windowCloseTime } from '../../orchestration/whatsappWindow.js';
 import { zonedTimeToUtc } from '../../util/time.js';
@@ -107,6 +108,15 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       clientId,
       reasoning: decision.reasoning,
     });
+    recordAudit({
+      actorType: 'agent',
+      action: 'injection.cycle_suppressed',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      severity: 'critical',
+      suspectedInjection: true,
+      detail: { agent: 'doc_collector', clientName: client.name, reasoning: decision.reasoning },
+    });
   }
 
   // Evidence-gated status updates: the planner proposes, the file evidence decides.
@@ -139,11 +149,27 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   if (newlyCollected.length > 0) {
     await clientDocuments.markCollected(clientId, newlyCollected);
     logger.info('documents marked collected', { clientId, documentIds: newlyCollected });
+    recordAudit({
+      actorType: 'agent',
+      action: 'document.collected',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      targetType: 'client_document',
+      detail: { clientName: client.name, documentIds: newlyCollected },
+    });
   }
   if (newlyClaimed.length > 0) {
     await clientDocuments.markClaimed(clientId, newlyClaimed);
     logger.info('documents marked claimed (await accountant confirmation)', { clientId, documentIds: newlyClaimed });
     const claimedNames = documents.filter((d) => newlyClaimed.includes(d.id)).map((d) => d.name);
+    recordAudit({
+      actorType: 'agent',
+      action: 'document.claimed',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      targetType: 'client_document',
+      detail: { clientName: client.name, documentIds: newlyClaimed, names: claimedNames },
+    });
     // Fire-and-forget like the other notifications; re-claims can't repeat (the rows left 'pending').
     sendClaimedDocumentsEmail(client, claimedNames).catch((err) =>
       logger.error('claimed-documents notification failed', err, { clientId }),
@@ -182,6 +208,13 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
+    recordAudit({
+      actorType: 'agent',
+      action: 'goal.completed',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      detail: { agent: 'doc_collector', clientName: client.name },
+    });
     // Fire-and-forget; skipped for document-less clients (trivially "complete"
     // on arrival, e.g. monday imports) where the email would be nonsense.
     if (documents.length > 0) {

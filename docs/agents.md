@@ -337,3 +337,33 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   returns the priced cube; the admin `#/usage` page (AdminUsage.tsx) charts it
   with client-side grouping (accountants / agent types) and filters. Every new
   Gemini call site must pass its agent instance id to `llmUsage.add`.
+- **Audit trail + anomaly detection** (migrations 031-032): `audit_events` is
+  the per-action forensic record — one row per outbound email/WhatsApp,
+  tax-authority login/OTP/delivery, LLM-driven status change
+  (collected/claimed/goal-complete/debt statuses), injection-suppressed
+  planning cycle, auto-enrollment, accountant override and mutating admin API
+  call. **Every new outward-facing or state-changing action site must call
+  `recordAudit`** (`src/audit/audit.ts`, fire-and-forget — it never fails or
+  slows the action), the same way every Gemini call site must call
+  `llmUsage.add`. Two deliberate deviations from house conventions, both
+  because audit history must outlive what it describes: the table's FKs are
+  `ON DELETE SET NULL` (labels live in `detail` JSONB), and it carries the
+  repo's only DB trigger, which makes it append-only at the database layer
+  (`auditEvents.ts` is insert+read only — never add update/delete functions).
+  Admin mutations are recorded centrally from `requireAdmin`
+  (`src/audit/adminAudit.ts`), attributed to `req.realUserId` so impersonation
+  attributes to the real admin; request bodies pass through `redactForAudit`
+  (`src/audit/redact.ts`, pure + tested). Detection is two-tier: `critical`
+  audit events (injection suppression, kill-switch flips, whitelist grants)
+  alert at event time from `recordAudit`, and the `anomaly_scan` queue
+  (every 15 min, `src/alerts/anomalyScan.ts` over pure rule evaluators in
+  `anomalyRules.ts`) sweeps for send-volume/enrollment/token spikes, repeated
+  tax-fetch failures and off-hours tax logins. Findings land in
+  `anomaly_alerts` (deduped per rule+scope by `insertIfNotRecent`) and email
+  `ADMIN_EMAILS` via `src/alerts/adminAlert.ts` — the platform's only
+  admin-facing email path. Alerts + the raw trail are on the admin `#/audit`
+  page (AdminAudit.tsx); the dashboard shows only the open-alert count badge.
+  Two intentional kill-switch exceptions, per the flag-and-notify doctrine
+  (detection never auto-acts): `recordAudit` and the anomaly scan are NOT
+  kill-switch-gated — they are the layer that must keep seeing during an
+  incident.

@@ -5,6 +5,7 @@ import * as llmUsage from '../../db/queries/llmUsage.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import * as waSenders from '../../db/queries/waSenders.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
+import { recordAudit } from '../../audit/audit.js';
 import { sendWhatsAppTextAndRecord } from '../../twilio/sendAndRecord.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
@@ -134,8 +135,15 @@ async function loadKnowledge(ctx: AgentContext, waPhone: string): Promise<Knowle
 }
 
 /** Persist + send in the worker's markSent order, so the reply shows in the timeline. */
-async function persistAndSend(clientId: string, from: string, to: string, body: string, reasoning: string | null): Promise<void> {
-  await sendWhatsAppTextAndRecord(clientId, { from, to, body, reasoning });
+async function persistAndSend(
+  clientId: string,
+  agentInstanceId: string | null,
+  from: string,
+  to: string,
+  body: string,
+  reasoning: string | null,
+): Promise<void> {
+  await sendWhatsAppTextAndRecord(clientId, { from, to, body, reasoning, agentInstanceId });
 }
 
 /**
@@ -177,12 +185,25 @@ export async function replyToInbound(ctx: AgentContext): Promise<void> {
     const prompt = buildPrompt(client, ctx.accountant, history, knowledge);
     const result = await generateAnswer(prompt.systemInstruction, prompt.contents);
     await llmUsage.add(ctx.accountant!.id, ctx.instance?.id ?? client.agent_instance_id, result.model, result.usage);
-    await persistAndSend(client.id, sender.phone_number, client.wa_phone, result.answer, result.reasoning);
+    if (result.suspectedInjection) {
+      // CS has no state changes to suppress — the reply still goes out — but the
+      // flag must land in the audit trail and alert like every other agent's.
+      recordAudit({
+        actorType: 'agent',
+        action: 'injection.cycle_suppressed',
+        agentInstanceId: ctx.instance?.id ?? client.agent_instance_id,
+        clientId: client.id,
+        severity: 'critical',
+        suspectedInjection: true,
+        detail: { agent: 'customer_service', clientName: client.name, reasoning: result.reasoning },
+      });
+    }
+    await persistAndSend(client.id, ctx.instance?.id ?? client.agent_instance_id, sender.phone_number, client.wa_phone, result.answer, result.reasoning);
   } catch (err) {
     // Generation failed after retries — a short static apology beats silence.
     logger.error('customer service: answer generation failed, sending fallback', err, { clientId: client.id });
     try {
-      await persistAndSend(client.id, sender.phone_number, client.wa_phone, FALLBACK_ANSWER, 'fallback: generation failed');
+      await persistAndSend(client.id, ctx.instance?.id ?? client.agent_instance_id, sender.phone_number, client.wa_phone, FALLBACK_ANSWER, 'fallback: generation failed');
     } catch (sendErr) {
       logger.error('customer service: fallback send failed', sendErr, { clientId: client.id });
     }

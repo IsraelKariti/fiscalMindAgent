@@ -11,6 +11,7 @@ import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { decide } from './decide.js';
 import type { DecisionContext } from './decisionSchema.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
+import { recordAudit } from '../../audit/audit.js';
 import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js';
 import { zonedTimeToUtc } from '../../util/time.js';
 import { env } from '../../config/env.js';
@@ -52,6 +53,15 @@ export async function planAnnualReport(ctx: AgentContext): Promise<void> {
     logger.warn('annual report: LLM flagged suspected prompt injection — suppressing state changes this cycle', {
       clientId,
       reasoning: decision.reasoning,
+    });
+    recordAudit({
+      actorType: 'agent',
+      action: 'injection.cycle_suppressed',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      severity: 'critical',
+      suspectedInjection: true,
+      detail: { agent: 'annual_report_assistant', clientName: client.name, reasoning: decision.reasoning },
     });
   }
 
@@ -120,11 +130,27 @@ export async function planAnnualReport(ctx: AgentContext): Promise<void> {
   if (newlyCollected.length > 0) {
     await clientDocuments.markCollected(clientId, newlyCollected);
     logger.info('documents marked collected', { clientId, documentIds: newlyCollected });
+    recordAudit({
+      actorType: 'agent',
+      action: 'document.collected',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      targetType: 'client_document',
+      detail: { clientName: client.name, documentIds: newlyCollected },
+    });
   }
   if (newlyClaimed.length > 0) {
     await clientDocuments.markClaimed(clientId, newlyClaimed);
     logger.info('documents marked claimed (await accountant confirmation)', { clientId, documentIds: newlyClaimed });
     const claimedNames = documents.filter((d) => newlyClaimed.includes(d.id)).map((d) => d.name);
+    recordAudit({
+      actorType: 'agent',
+      action: 'document.claimed',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      targetType: 'client_document',
+      detail: { clientName: client.name, documentIds: newlyClaimed, names: claimedNames },
+    });
     sendClaimedDocumentsEmail(client, claimedNames).catch((err) =>
       logger.error('claimed-documents notification failed', err, { clientId }),
     );
@@ -166,6 +192,13 @@ export async function planAnnualReport(ctx: AgentContext): Promise<void> {
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
+    recordAudit({
+      actorType: 'agent',
+      action: 'goal.completed',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      detail: { agent: 'annual_report_assistant', clientName: client.name },
+    });
     const allDocuments = await clientDocuments.listForClient(clientId);
     sendGoalCompleteEmail(client, allDocuments).catch((err) =>
       logger.error('goal-complete notification failed', err, { clientId }),

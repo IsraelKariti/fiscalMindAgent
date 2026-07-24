@@ -7,6 +7,7 @@ import { publishClientUpdated, publishInstanceClientsUpdated } from '../events/c
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { loadAgentContext } from '../agents/resolve.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
+import { recordAudit } from '../audit/audit.js';
 import { detectInjectionHeuristics } from '../agents/shared/promptSafety.js';
 import { ingestWaMedia, type WaMediaItem } from './ingestWaMedia.js';
 import { logger } from '../util/logger.js';
@@ -96,6 +97,13 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
       return;
     }
     logger.info('customer service client auto-created from inbound whatsapp', { clientId: client.id });
+    recordAudit({
+      actorType: 'system',
+      action: 'client.auto_enrolled',
+      agentInstanceId: instance.id,
+      clientId: client.id,
+      detail: { waPhone: clientNumber, source: 'inbound_whatsapp' },
+    });
     // Tells open workspace tabs (over SSE) to refetch the sidebar's client list.
     publishInstanceClientsUpdated(instance.id);
   }

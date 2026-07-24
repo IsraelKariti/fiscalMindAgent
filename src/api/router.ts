@@ -11,13 +11,16 @@ import { listAgents, resolveAgentInstance } from './agents.js';
 import { mondayRouter } from './monday.js';
 import { workspaceRouter } from './workspace.js';
 import {
+  adminAckAlert,
   adminAddToWhitelist,
+  adminAuditEvents,
   adminDisableAgent,
   adminEnableAgent,
   adminGetKillSwitch,
   adminGetModel,
   adminListAccountantAgents,
   adminListAccountants,
+  adminListAlerts,
   adminListWhitelist,
   adminLlmUsageDaily,
   adminRemoveFromWhitelist,
@@ -81,6 +84,9 @@ apiRouter.delete('/admin/accountants/:userId/agents/:agentType', wrap(requireAdm
 apiRouter.post('/admin/impersonate', wrap(requireAdmin), wrap(startImpersonation));
 apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersonation));
 apiRouter.get('/admin/llm-usage/daily', wrap(requireAdmin), wrap(adminLlmUsageDaily));
+apiRouter.get('/admin/audit-events', wrap(requireAdmin), wrap(adminAuditEvents));
+apiRouter.get('/admin/alerts', wrap(requireAdmin), wrap(adminListAlerts));
+apiRouter.post('/admin/alerts/:id/ack', wrap(requireAdmin), wrap(adminAckAlert));
 apiRouter.get('/admin/model', wrap(requireAdmin), wrap(adminGetModel));
 apiRouter.put('/admin/model', wrap(requireAdmin), wrap(adminSetModel));
 apiRouter.get('/admin/kill-switch', wrap(requireAdmin), wrap(adminGetKillSwitch));

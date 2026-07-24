@@ -4,6 +4,7 @@ import { useT } from '../i18n';
 import { AccountantPage } from './admin/AccountantPage';
 import { AccountantsTable } from './admin/AccountantsTable';
 import { AdminAgents } from './admin/AdminAgents';
+import { AdminAudit } from './admin/AdminAudit';
 import { AdminOverview } from './admin/AdminOverview';
 import { AdminSettings } from './admin/AdminSettings';
 import { AdminUsage } from './admin/AdminUsage';
@@ -28,6 +29,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   const [route, navigate] = useAdminRoute();
   const [accountants, setAccountants] = useState<Accountant[] | null>(null);
   const [whitelist, setWhitelist] = useState<WhitelistEntry[] | null>(null);
+  const [openAlerts, setOpenAlerts] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -37,6 +39,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     ]);
     setAccountants(users);
     setWhitelist(entries);
+    // Aggregate only, per the dashboard convention — the alert list lives on #/audit.
+    api.adminListAlerts().then(({ openCount }) => setOpenAlerts(openCount)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -54,7 +58,11 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   // The routed screen highlights its top-level tab; accountant/agent pages
   // belong under the Accountants tab.
   const activeTab =
-    route.screen === 'settings' || route.screen === 'usage' || route.screen === 'overview' || route.screen === 'agents'
+    route.screen === 'settings' ||
+    route.screen === 'usage' ||
+    route.screen === 'audit' ||
+    route.screen === 'overview' ||
+    route.screen === 'agents'
       ? route.screen
       : 'accountants';
 
@@ -109,6 +117,15 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             {t.adminUsageTab}
           </button>
           <button
+            className={`client-tab ${activeTab === 'audit' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === 'audit'}
+            onClick={() => navigate({ screen: 'audit' })}
+          >
+            {t.adminAuditTab}
+            {openAlerts > 0 && <span className="badge badge-danger">{openAlerts}</span>}
+          </button>
+          <button
             className={`client-tab ${activeTab === 'settings' ? 'active' : ''}`}
             role="tab"
             aria-selected={activeTab === 'settings'}
@@ -152,6 +169,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
         {route.screen === 'agents' && accountants && <AdminAgents accountants={accountants} />}
 
         {route.screen === 'usage' && accountants && <AdminUsage accountants={accountants} />}
+
+        {route.screen === 'audit' && <AdminAudit />}
 
         {route.screen === 'settings' && <AdminSettings />}
       </main>

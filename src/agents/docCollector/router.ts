@@ -3,6 +3,7 @@ import { z } from 'zod';
 import * as clients from '../../db/queries/clients.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import { withClientLock } from '../../db/withClientLock.js';
+import { recordAudit } from '../../audit/audit.js';
 import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
@@ -167,6 +168,21 @@ export function buildRouter(): Router {
       if (!document) {
         res.status(404).json({ error: 'Document not found.' });
         return;
+      }
+      if (parsed.data.status) {
+        // The human half of the claimed→collected flow (or a manual reopen) —
+        // audited so a compromised session flipping statuses leaves a trail.
+        // realUserId over userId: while impersonating, the actor is the admin.
+        recordAudit({
+          actorType: 'accountant',
+          action: 'document.status_changed',
+          actorUserId: req.realUserId ?? req.userId ?? null,
+          agentInstanceId: req.agentInstance!.id,
+          clientId: client!.id,
+          targetType: 'client_document',
+          targetId: document.id,
+          detail: { clientName: client!.name, name: document.name, status: parsed.data.status },
+        });
       }
       await onDocumentsChanged(client!.id);
       res.json({ document });

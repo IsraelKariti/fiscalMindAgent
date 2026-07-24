@@ -270,6 +270,42 @@ export interface LlmDailyUsage {
   cost: number | null;
 }
 
+/**
+ * One row of the per-action audit trail (GET /admin/audit-events). The
+ * endpoint returns the newest raw rows; the audit page filters client-side.
+ */
+export interface AuditEvent {
+  id: string;
+  occurredAt: string;
+  actorType: 'agent' | 'admin' | 'accountant' | 'system';
+  actorEmail: string | null;
+  agentInstanceId: string | null;
+  agentType: string | null;
+  instanceName: string | null;
+  clientId: string | null;
+  clientName: string | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  severity: 'info' | 'warning' | 'critical';
+  suspectedInjection: boolean;
+  detail: Record<string, unknown>;
+}
+
+/** One anomaly-detection finding (GET /admin/alerts). */
+export interface AnomalyAlert {
+  id: string;
+  createdAt: string;
+  rule: string;
+  scopeKey: string;
+  severity: 'warning' | 'critical';
+  title: string;
+  detail: Record<string, unknown>;
+  status: 'open' | 'acked';
+  notifiedAt: string | null;
+  ackedAt: string | null;
+}
+
 /** The platform-wide emergency stop: on = every agent is silenced at once. */
 export interface KillSwitchState {
   on: boolean;
@@ -582,6 +618,9 @@ export const api = {
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/admin/accountants'),
   adminLlmUsageDaily: (days: number) =>
     request<{ since: string; rows: LlmDailyUsage[] }>(`/admin/llm-usage/daily?days=${days}`),
+  adminAuditEvents: (days: number) => request<{ events: AuditEvent[] }>(`/admin/audit-events?days=${days}`),
+  adminListAlerts: () => request<{ alerts: AnomalyAlert[]; openCount: number }>('/admin/alerts'),
+  adminAckAlert: (id: string) => request<{ alert: AnomalyAlert }>(`/admin/alerts/${id}/ack`, { method: 'POST' }),
   adminListAccountantAgents: (userId: string) =>
     request<{
       agents: AgentInstance[];

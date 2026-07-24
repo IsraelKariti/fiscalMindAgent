@@ -6,6 +6,7 @@ import * as clients from '../../db/queries/clients.js';
 import * as googleOauthTokens from '../../db/queries/googleOauthTokens.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { withClientLock } from '../../db/withClientLock.js';
+import { recordAudit } from '../../audit/audit.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { getSpreadsheetMeta } from '../customerService/googleData.js';
@@ -99,6 +100,15 @@ export function buildRouter(): Router {
       await clients.updateGoalStatus(client.id, 'complete');
       await withClientLock(client.id, () => removeFutureEmail(client.id));
       publishClientUpdated(client.id);
+      // realUserId over userId: while impersonating, the confirming human is the admin.
+      recordAudit({
+        actorType: 'accountant',
+        action: 'debt.confirmed_paid',
+        actorUserId: req.realUserId ?? req.userId ?? null,
+        agentInstanceId: req.agentInstance!.id,
+        clientId: client.id,
+        detail: { clientName: client.name, amount: confirmed.amount },
+      });
       res.json({ client: await clients.getById(client.id) });
     }),
   );

@@ -1,4 +1,5 @@
 import * as emails from '../db/queries/emails.js';
+import { recordAudit } from '../audit/audit.js';
 import { sendWhatsAppText } from './send.js';
 import type { EmailRow } from '../db/types.js';
 
@@ -10,7 +11,14 @@ import type { EmailRow } from '../db/types.js';
  */
 export async function sendWhatsAppTextAndRecord(
   clientId: string,
-  args: { from: string; to: string; body: string; reasoning?: string | null },
+  args: {
+    from: string;
+    to: string;
+    body: string;
+    reasoning?: string | null;
+    /** Owning instance, for the audit trail (callers always know it). */
+    agentInstanceId?: string | null;
+  },
 ): Promise<EmailRow> {
   const draft = await emails.insertDraft(clientId, {
     channel: 'whatsapp',
@@ -20,5 +28,14 @@ export async function sendWhatsAppTextAndRecord(
   });
   const { sid } = await sendWhatsAppText({ from: args.from, to: args.to, body: args.body });
   await emails.markSent(draft.id, { messageId: sid, sentAt: new Date() });
+  recordAudit({
+    actorType: 'agent',
+    action: 'wa.text_sent',
+    agentInstanceId: args.agentInstanceId ?? null,
+    clientId,
+    targetType: 'wa_message',
+    targetId: draft.id,
+    detail: { to: args.to },
+  });
   return draft;
 }

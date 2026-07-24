@@ -8,6 +8,7 @@ import { getFetchClient } from './fetchClient.js';
 import { FetchAtCapacityError, OtpRejectedError, SessionGoneError } from './types.js';
 import { sessionTracker } from './sessionTracker.js';
 import { agentWorkBlocked } from '../../killSwitch.js';
+import { recordAudit } from '../../../audit/audit.js';
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientRow } from '../../../db/types.js';
@@ -46,6 +47,7 @@ async function sendCanned(client: ClientRow, body: string): Promise<void> {
       to: client.wa_phone,
       body,
       reasoning: 'tax fetch progress',
+      agentInstanceId: client.agent_instance_id,
     });
   } catch (err) {
     logger.error('tax fetch: progress message send failed', err, { clientId: client.id });
@@ -135,6 +137,18 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
     // No canned "code incoming" line here: the LLM's heads-up message (verified
     // sent above) already told the client an SMS is coming and where to send it.
     await taxFetchSessions.updateStatus(sessionId, 'awaiting_otp', { otpRequestedAt: new Date() });
+    // 'warning' severity: this just fired a real OTP SMS at a real citizen —
+    // the single most sensitive action the platform takes.
+    recordAudit({
+      actorType: 'agent',
+      action: 'tax_fetch.login_started',
+      agentInstanceId: client.agent_instance_id,
+      clientId: client.id,
+      targetType: 'tax_fetch_session',
+      targetId: sessionId,
+      severity: 'warning',
+      detail: { clientName: client.name, provider: PROVIDER_ID, taxYear: session.tax_year },
+    });
     publishClientUpdated(client.id);
   } catch (err) {
     if (err instanceof FetchAtCapacityError) {
@@ -148,6 +162,7 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
     sessionTracker.discard(sessionId);
     await fetchClient.close(sessionId);
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
+    recordTaxFetchFailure(client, sessionId, 'login', errText(err));
     await sendCanned(client, MSG.loginFailed);
     publishClientUpdated(client.id);
   }
@@ -205,6 +220,7 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
       }
       await fetchClient.close(sessionId);
       await taxFetchSessions.updateStatus(sessionId, 'failed', { error: 'otp rejected too many times' });
+      recordTaxFetchFailure(client, sessionId, 'otp', 'otp rejected too many times');
       await sendCanned(client, MSG.otpGaveUp);
       publishClientUpdated(client.id);
       return;
@@ -218,10 +234,21 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
     logger.error('tax fetch: otp verification failed', err, { sessionId, clientId: client.id });
     await fetchClient.close(sessionId);
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
+    recordTaxFetchFailure(client, sessionId, 'otp', errText(err));
     await sendCanned(client, MSG.loginFailed);
     publishClientUpdated(client.id);
     return;
   }
+
+  recordAudit({
+    actorType: 'agent',
+    action: 'tax_fetch.otp_submitted',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'tax_fetch_session',
+    targetId: sessionId,
+    detail: { clientName: client.name },
+  });
 
   // Verified — download and deliver.
   try {
@@ -233,6 +260,7 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
   } catch (err) {
     logger.error('tax fetch: download/deliver failed', err, { sessionId, clientId: client.id });
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
+    recordTaxFetchFailure(client, sessionId, 'download', errText(err));
     await sendCanned(client, MSG.downloadFailed);
     publishClientUpdated(client.id);
   } finally {
@@ -288,4 +316,18 @@ export async function expireOrphanedTaxFetchSessions(): Promise<void> {
 
 function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** One audit row per failed fetch — the anomaly scanner counts these ('tax_fetch.failed' spikes). */
+function recordTaxFetchFailure(client: ClientRow, sessionId: string, stage: string, error: string): void {
+  recordAudit({
+    actorType: 'agent',
+    action: 'tax_fetch.failed',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'tax_fetch_session',
+    targetId: sessionId,
+    severity: 'warning',
+    detail: { clientName: client.name, stage, error },
+  });
 }

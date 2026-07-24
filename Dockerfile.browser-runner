@@ -35,4 +35,8 @@ COPY --from=build /app/dist dist/
 USER pwuser
 EXPOSE 4100
 # Headful under a virtual display: the login also trips headless detection.
-CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1280x960x24", "node", "dist/src/browserRunner.js"]
+# NOT xvfb-run: as container PID 1 its SIGUSR1 "server ready" wait never wakes
+# (PID-1 signal semantics), so it hangs before ever starting node. Start Xvfb
+# directly and exec node so node is PID 1 and handles SIGTERM itself; Chrome
+# only connects to the display on the first fetch, long after Xvfb is up.
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x960x24 -nolisten tcp & export DISPLAY=:99; exec node dist/src/browserRunner.js"]

@@ -81,6 +81,15 @@ export async function insertInboundIfNew(
   return rows[0] ?? null;
 }
 
+/**
+ * Overwrites a stored message body in place. Only used to redact one-time
+ * secrets (tax-portal OTPs) after they have been consumed — the code has no
+ * reason to live in the DB, and the conversation UI shows the masked body.
+ */
+export async function overwriteBody(id: string, body: string): Promise<void> {
+  await pool.query('UPDATE emails SET body = $2 WHERE id = $1', [id, body]);
+}
+
 /** Dedupe is per conversation (019): the same provider message may exist in several clients' threads. */
 export async function getByMessageIdForClient(clientId: string, messageId: string): Promise<EmailRow | null> {
   const { rows } = await pool.query<EmailRow>('SELECT * FROM emails WHERE client_id = $1 AND message_id = $2', [

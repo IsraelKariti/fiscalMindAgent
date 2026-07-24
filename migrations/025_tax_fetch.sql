@@ -1,8 +1,9 @@
 -- Tax-portal login credentials per client, imported from the accountant's
 -- monday boards / Google Sheets alongside the rest of the client row (never
 -- typed in by the accountant). provider is validated in code, like
--- agent_instances.agent_type. Stored plaintext — the app has no
--- secret-encryption layer yet (known limitation, same as other stored secrets).
+-- agent_instances.agent_type. id_number/user_code are encrypted at rest by
+-- the app (AES-256-GCM, src/crypto/secretBox.ts); rows written before that
+-- layer existed are backfilled by scripts/encryptSecrets.ts.
 CREATE TABLE client_portal_credentials (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id   UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,

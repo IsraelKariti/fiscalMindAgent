@@ -33,6 +33,15 @@ export async function maybeHandleOtpInbound(ctx: AgentContext, evt: InboundEvent
   if (!otp) return false; // let the LLM converse; the prompt explains we're waiting
 
   await enqueueTaxFetch({ kind: 'submit_otp', sessionId: session.id, otp });
+
+  // The code is single-use and now consumed — don't keep it at rest. Redaction
+  // failing must not lose the fetch, so it only logs.
+  try {
+    await emails.overwriteBody(message.id, message.body.replace(OTP_PATTERN, '••••••'));
+  } catch (err) {
+    logger.error('tax fetch: failed to redact otp from stored message', err, { messageRowId: message.id });
+  }
+
   logger.info('tax fetch: otp captured from whatsapp reply', { clientId: ctx.client.id, sessionId: session.id });
   return true;
 }

@@ -31,6 +31,12 @@ const EnvSchema = z.object({
   // Signs the dashboard session cookie. If unset, a random per-process secret
   // is used (sessions are invalidated whenever the web process restarts).
   DASHBOARD_SESSION_SECRET: z.string().min(16).optional(),
+  // Encrypts secrets at rest in Postgres (client tax-portal credentials,
+  // Google/monday OAuth tokens) — AES-256-GCM via src/crypto/secretBox.ts.
+  // 32 bytes base64 (`openssl rand -base64 32`). Required: without it the app
+  // would silently write plaintext secrets again. Losing it makes the stored
+  // credentials unrecoverable (clients/accountants must re-connect).
+  SECRET_ENC_KEY: z.string().min(40),
   // Comma-separated emails granted the admin panel + user impersonation.
   ADMIN_EMAILS: z
     .string()

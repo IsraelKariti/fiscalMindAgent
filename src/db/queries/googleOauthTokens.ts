@@ -1,6 +1,11 @@
+import { decryptSecret, encryptSecret } from '../../crypto/secretBox.js';
 import { pool } from '../pool.js';
 
-/** Per-accountant Google OAuth tokens (drive.file — server-side Sheets/Docs reads). */
+/**
+ * Per-accountant Google OAuth tokens (drive.file — server-side Sheets/Docs
+ * reads). Both tokens are encrypted at rest (secretBox); rows returned from
+ * this module always carry the plaintext values.
+ */
 export interface GoogleOauthTokenRow {
   user_id: string;
   access_token: string;
@@ -15,7 +20,9 @@ export async function getByUserId(userId: string): Promise<GoogleOauthTokenRow |
   const { rows } = await pool.query<GoogleOauthTokenRow>('SELECT * FROM google_oauth_tokens WHERE user_id = $1', [
     userId,
   ]);
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  return { ...row, access_token: decryptSecret(row.access_token), refresh_token: decryptSecret(row.refresh_token) };
 }
 
 /** Re-connecting replaces the whole grant (Google issues a fresh refresh token on prompt=consent). */
@@ -32,7 +39,7 @@ export async function upsert(args: {
      ON CONFLICT (user_id) DO UPDATE
        SET access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token,
            expires_at = EXCLUDED.expires_at, scopes = EXCLUDED.scopes, updated_at = now()`,
-    [args.userId, args.accessToken, args.refreshToken, args.expiresAt, args.scopes],
+    [args.userId, encryptSecret(args.accessToken), encryptSecret(args.refreshToken), args.expiresAt, args.scopes],
   );
 }
 
@@ -40,7 +47,7 @@ export async function upsert(args: {
 export async function updateAccessToken(userId: string, accessToken: string, expiresAt: Date): Promise<void> {
   await pool.query(
     'UPDATE google_oauth_tokens SET access_token = $2, expires_at = $3, updated_at = now() WHERE user_id = $1',
-    [userId, accessToken, expiresAt],
+    [userId, encryptSecret(accessToken), expiresAt],
   );
 }
 

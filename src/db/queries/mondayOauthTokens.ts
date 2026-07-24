@@ -1,6 +1,11 @@
+import { decryptSecret, encryptSecret } from '../../crypto/secretBox.js';
 import { pool } from '../pool.js';
 
-/** Per-accountant monday OAuth access token (server-side API reads). */
+/**
+ * Per-accountant monday OAuth access token (server-side API reads). The token
+ * is encrypted at rest (secretBox); rows returned from this module always
+ * carry the plaintext value.
+ */
 export interface MondayOauthTokenRow {
   user_id: string;
   access_token: string;
@@ -14,7 +19,9 @@ export async function getByUserId(userId: string): Promise<MondayOauthTokenRow |
   const { rows } = await pool.query<MondayOauthTokenRow>('SELECT * FROM monday_oauth_tokens WHERE user_id = $1', [
     userId,
   ]);
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  return { ...row, access_token: decryptSecret(row.access_token) };
 }
 
 /** Re-connecting replaces the stored token (monday tokens don't expire, but the user may re-grant). */
@@ -30,7 +37,7 @@ export async function upsert(args: {
      ON CONFLICT (user_id) DO UPDATE
        SET access_token = EXCLUDED.access_token, scopes = EXCLUDED.scopes,
            monday_account_id = EXCLUDED.monday_account_id, updated_at = now()`,
-    [args.userId, args.accessToken, args.scopes, args.mondayAccountId],
+    [args.userId, encryptSecret(args.accessToken), args.scopes, args.mondayAccountId],
   );
 }
 

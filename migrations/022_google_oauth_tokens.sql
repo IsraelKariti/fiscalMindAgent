@@ -2,8 +2,9 @@
 -- reads of the specific Google Sheets / Docs the accountant picked as
 -- customer_service knowledge sources. Unlike monday tokens, Google access
 -- tokens expire (~1h) — the refresh token is the durable credential and the
--- access token is refreshed on demand. Stored plaintext — the app has no
--- secret-encryption layer yet (known limitation, same as other stored secrets).
+-- access token is refreshed on demand. Both tokens are encrypted at rest by
+-- the app (AES-256-GCM, src/crypto/secretBox.ts); pre-existing rows are
+-- backfilled by scripts/encryptSecrets.ts.
 CREATE TABLE google_oauth_tokens (
   user_id       UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   access_token  TEXT NOT NULL,

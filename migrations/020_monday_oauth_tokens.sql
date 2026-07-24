@@ -1,8 +1,9 @@
 -- Per-accountant monday.com OAuth access token, used for server-side monday
 -- API reads (customer_service agent: workdocs + board rows). monday access
 -- tokens do not expire, so there is no refresh flow; disconnecting deletes
--- the row. Stored plaintext — the app has no secret-encryption layer yet
--- (known limitation, same as other stored secrets).
+-- the row. access_token is encrypted at rest by the app (AES-256-GCM,
+-- src/crypto/secretBox.ts); pre-existing rows are backfilled by
+-- scripts/encryptSecrets.ts.
 CREATE TABLE monday_oauth_tokens (
   user_id           UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   access_token      TEXT NOT NULL,

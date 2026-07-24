@@ -18,6 +18,7 @@
     "start:web": "node dist/src/web.js",
     "start:worker": "node dist/src/worker.js",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:encrypt-secrets": "tsx scripts/encryptSecrets.ts",
     "cli:bootstrap": "tsx src/cli/bootstrapClient.ts",
     "ship": "node scripts/ship.mjs",
     "sync": "node scripts/sync.mjs",

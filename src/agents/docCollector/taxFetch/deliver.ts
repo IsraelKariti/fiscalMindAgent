@@ -13,7 +13,7 @@ import { sendWhatsAppMedia } from '../../../twilio/send.js';
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientRow } from '../../../db/types.js';
-import type { FetchedDocument } from '../../../browser/providers/types.js';
+import { sanitizeFilename, type FetchedDocument } from './types.js';
 import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js';
 
 /**
@@ -28,7 +28,8 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     throw new Error('cannot deliver tax document: client is not WhatsApp-reachable');
   }
 
-  const blobKey = `clients/${client.id}/taxfetch-${session.id}/${doc.filename}`;
+  // The filename originates on the external site — never let it shape the key path.
+  const blobKey = `clients/${client.id}/taxfetch-${session.id}/${sanitizeFilename(doc.filename)}`;
   await uploadBlob(blobKey, doc.buffer, doc.contentType);
 
   // Confirmation text first, so a timeline row exists to hang the file off of

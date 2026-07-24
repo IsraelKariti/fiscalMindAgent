@@ -1,5 +1,5 @@
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
-import { env } from '../config/env.js';
+import { runnerEnv } from './env.js';
 
 export interface LaunchedSession {
   browser: Browser;
@@ -11,8 +11,8 @@ export interface LaunchedSession {
  * Opens a real Chrome (system-installed, via channel:'chrome') on a fresh
  * context configured to look like an ordinary Israeli user. Headful because the
  * tax authority's login trips headless bot-detection; in production this runs
- * under Xvfb (see the deferred worker Docker phase). No persistent profile — a
- * fetch is always a fresh login.
+ * under Xvfb (Dockerfile.browser-runner). No persistent profile — a fetch is
+ * always a fresh login.
  */
 export async function launchInteractivePage(): Promise<LaunchedSession> {
   const browser = await chromium.launch({ channel: 'chrome', headless: false });
@@ -42,9 +42,9 @@ export async function typeHuman(page: Page, locator: Locator, text: string): Pro
 
 /** Best-effort step screenshot when TAX_FETCH_DEBUG_DIR is set; never throws. */
 export async function debugShot(page: Page, name: string): Promise<void> {
-  if (!env.TAX_FETCH_DEBUG_DIR) return;
+  if (!runnerEnv.TAX_FETCH_DEBUG_DIR) return;
   try {
-    await page.screenshot({ path: `${env.TAX_FETCH_DEBUG_DIR}/${name}.png`, fullPage: true });
+    await page.screenshot({ path: `${runnerEnv.TAX_FETCH_DEBUG_DIR}/${name}.png`, fullPage: true });
   } catch {
     /* debugging aid only */
   }

@@ -162,18 +162,29 @@ capability** — there is no accountant button.
   (`allowedTaxFetchActions` in `decisionSchema.ts`, gated in the prompt's
   `buildTaxFetchSection` and re-validated in `normalizeDecision` via the new
   `tax_fetch_action` decision field). `taxFetch/flow.ts` loads state + acts.
-- **Where the browser lives**: the worker, in an in-memory session manager
-  (`src/browser/sessionManager.ts`) keyed by session id, driven by the
-  `tax_fetch` BullMQ queue (`start_login` / `submit_otp` / `cancel`). The live
-  Playwright page is held between the login and OTP jobs; a TTL
-  (`TAX_FETCH_SESSION_TTL_MS`) closes it if the OTP never arrives, and a
-  worker-boot sweep marks orphaned sessions `expired`. The web process never
-  touches Playwright.
-- **Providers**: `src/browser/providers/` is provider-structured
-  (`DocumentFetchProvider`) so other sites can be added; today only
-  `israel_tax_authority`. `TAX_FETCH_MOCK=true` swaps in a no-browser mock (every
-  real login SMSes a real citizen — iterate on the mock). `scripts/taxFetchSmoke.ts`
-  validates the real-site port once, interactively.
+- **Where the browser lives — secret isolation**: NOT in the worker. Real
+  fetches run in the browser-runner sidecar (`src/browserRunner.ts`, own
+  process/container), which holds no platform secrets — its env
+  (`src/browserRunner/env.ts`, never `src/config/env.ts`) is only its port,
+  the shared bearer token and the TTL, so a compromised page (Chrome exploit
+  on the external site) can't reach `DATABASE_URL`, `SECRET_ENC_KEY` or any
+  API key. The worker drives it over HTTP (`taxFetch/fetchClient.ts` →
+  `BROWSER_RUNNER_URL` + `BROWSER_RUNNER_TOKEN`), keeps only bookkeeping in
+  memory (`taxFetch/sessionTracker.ts`), and treats responses as untrusted
+  (size cap, content-type allowlist, filename sanitization). Jobs still flow
+  through the `tax_fetch` BullMQ queue (`start_login` / `submit_otp` /
+  `cancel`); the live page is held in the runner between the login and OTP
+  jobs. TTLs: the worker's timer (`TAX_FETCH_SESSION_TTL_MS`) expires the
+  session and messages the client; the runner reaps orphaned browsers a grace
+  period later; a worker-boot sweep marks orphaned DB rows `expired`. Keep
+  `src/browserRunner/` free of imports from worker/web code — pulling in
+  `config/env.ts` would defeat the isolation.
+- **Providers**: `src/browserRunner/` is provider-structured
+  (`DocumentFetchProvider` in `providerTypes.ts`) so other sites can be added;
+  today only `israel_tax_authority`. `TAX_FETCH_MOCK=true` swaps in an
+  in-worker no-runner mock (`fetchClient.ts` — every real login SMSes a real
+  citizen, so iterate on the mock). `scripts/taxFetchSmoke.ts` validates the
+  real-site port once, interactively (no token/runner needed).
 - **Credentials**: `client_portal_credentials` (migration 025, plaintext, same
   precedent as the OAuth token tables), imported from the accountant's
   boards/sheets via the shared client-import mapping (two optional columns:
@@ -181,9 +192,11 @@ capability** — there is no accountant button.
 - **WhatsApp media**: `sendWhatsAppMedia` + a signed, expiring public link
   (`src/storage/mediaUrl.ts` + `GET /media/:token`, `MEDIA_SIGNING_SECRET`),
   since Twilio fetches media server-side and blobs are otherwise private.
-- **Deferred (prod)**: the worker Docker image is still Alpine; running the
-  headful browser in prod needs a Playwright/Debian base + Xvfb (worker image
-  only — keep Chromium out of the web image).
+- **Prod**: `Dockerfile.browser-runner` (Playwright/noble base, Chrome
+  channel, Xvfb, non-root) is the only image with a browser — web/worker stay
+  Alpine. Deploy it as its own container app (internal ingress only) with
+  ONLY `BROWSER_RUNNER_PORT`/`BROWSER_RUNNER_TOKEN`/`TAX_FETCH_SESSION_TTL_MS`
+  in its env, and point the worker's `BROWSER_RUNNER_URL` at it.
 
 ## Current state & deferred work
 

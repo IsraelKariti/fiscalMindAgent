@@ -11,8 +11,8 @@
  */
 import { writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
-import { launchInteractivePage } from '../src/browser/launch.js';
-import { israelTaxAuthorityProvider } from '../src/browser/providers/israelTaxAuthority.js';
+import { launchInteractivePage } from '../src/browserRunner/launch.js';
+import { israelTaxAuthorityProvider } from '../src/browserRunner/israelTaxAuthority.js';
 
 async function main(): Promise<void> {
   const [idNumber, userCode, taxYearArg] = process.argv.slice(2);

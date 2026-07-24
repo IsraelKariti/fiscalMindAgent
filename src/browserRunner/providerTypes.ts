@@ -12,9 +12,9 @@ export interface PortalLoginCredentials {
 }
 
 /**
- * A website the agent can log into and download a document from, on a client's
+ * A website the runner can log into and download a document from, on a client's
  * behalf. Each method drives one live Playwright page. Implementations are
- * stateless — the caller (the session manager) owns the browser/page lifecycle.
+ * stateless — the server owns the browser/page lifecycle.
  */
 export interface DocumentFetchProvider {
   /** Registry id; matches client_portal_credentials.provider and tax_fetch_sessions.provider. */

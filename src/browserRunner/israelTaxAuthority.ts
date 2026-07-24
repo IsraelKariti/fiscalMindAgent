@@ -1,7 +1,7 @@
 import type { Page } from 'playwright';
-import { debugShot, typeHuman } from '../launch.js';
-import { logger } from '../../util/logger.js';
-import { OtpRejectedError, type DocumentFetchProvider, type FetchedDocument, type PortalLoginCredentials } from './types.js';
+import { debugShot, typeHuman } from './launch.js';
+import { logger } from '../util/logger.js';
+import { OtpRejectedError, type DocumentFetchProvider, type FetchedDocument, type PortalLoginCredentials } from './providerTypes.js';
 
 const LOGIN_URL = 'https://secapp.taxes.gov.il/taxes-login/login/general';
 const PERSONAL_AREA_URL = 'https://secapp.taxes.gov.il/sr-ezor-ishi/main/main-page';

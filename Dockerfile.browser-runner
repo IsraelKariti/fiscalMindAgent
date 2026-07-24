@@ -1,0 +1,38 @@
+# Browser-runner sidecar (src/browserRunner.ts): the only image that ships a
+# browser. Runs headful Chrome under Xvfb, driven over HTTP by the worker.
+# SECURITY: deploy this with ONLY these env vars — BROWSER_RUNNER_PORT,
+# BROWSER_RUNNER_TOKEN, TAX_FETCH_SESSION_TTL_MS. Never give it DATABASE_URL,
+# REDIS_URL, SECRET_ENC_KEY or any API key: the whole point of the sidecar is
+# that the process rendering hostile web content has nothing worth stealing.
+#
+#   docker build -f Dockerfile.browser-runner -t fiscalmind-browser .
+
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+# Build stage never launches a browser; skip the ~150MB browser download.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+RUN npm ci
+COPY tsconfig.json ./
+COPY src/ src/
+COPY scripts/ scripts/
+RUN npm run build
+
+# Runtime: the Playwright image matching package.json's playwright version
+# (keep the tag in sync when bumping the dependency). Ships all browser OS
+# deps + Xvfb and the non-root pwuser.
+FROM mcr.microsoft.com/playwright:v1.61.1-noble
+ENV NODE_ENV=production
+WORKDIR /app
+COPY package*.json ./
+# The image pre-installs the bundled browsers; don't re-download on npm ci.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+RUN npm ci --omit=dev
+# launch.ts uses channel:'chrome' (real Google Chrome — the tax authority's
+# bot detection trips on plain Chromium). Installs system-wide, needs root.
+RUN npx playwright install chrome
+COPY --from=build /app/dist dist/
+USER pwuser
+EXPOSE 4100
+# Headful under a virtual display: the login also trips headless detection.
+CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1280x960x24", "node", "dist/src/browserRunner.js"]

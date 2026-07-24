@@ -100,8 +100,18 @@ const EnvSchema = z.object({
   // How long a live browser session waits for the client's OTP before it is
   // closed and the fetch is marked expired (ms). Default 10 minutes.
   TAX_FETCH_SESSION_TTL_MS: z.coerce.number().int().positive().default(600_000),
-  // When set, the tax-authority provider saves step screenshots here (dev only).
-  TAX_FETCH_DEBUG_DIR: z.string().min(1).optional(),
+  // Browser-runner sidecar (src/browserRunner.ts): the worker never drives
+  // Chrome itself — real fetches go over HTTP to this separate process, which
+  // holds no platform secrets, so a browser compromise can't reach them.
+  // (TAX_FETCH_DEBUG_DIR is read by the runner, not here.)
+  BROWSER_RUNNER_URL: z
+    .string()
+    .url()
+    .transform((u) => u.replace(/\/$/, ''))
+    .default('http://localhost:4100'),
+  // Shared bearer token for the runner's API. Optional — real (non-mock)
+  // fetches fail with a clear error until it is set; the mock needs neither.
+  BROWSER_RUNNER_TOKEN: z.string().min(16).optional(),
 });
 
 export const env = EnvSchema.parse(process.env);

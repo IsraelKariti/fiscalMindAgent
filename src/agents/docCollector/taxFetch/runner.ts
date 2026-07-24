@@ -4,10 +4,9 @@ import * as emails from '../../../db/queries/emails.js';
 import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
 import * as waSenders from '../../../db/queries/waSenders.js';
 import { publishClientUpdated } from '../../../events/clientEvents.js';
-import { launchForProvider } from '../../../browser/providers/index.js';
-import { getProvider } from '../../../browser/providers/index.js';
-import { OtpRejectedError } from '../../../browser/providers/types.js';
-import { sessionManager, type LiveSession } from '../../../browser/sessionManager.js';
+import { getFetchClient } from './fetchClient.js';
+import { FetchAtCapacityError, OtpRejectedError, SessionGoneError } from './types.js';
+import { sessionTracker } from './sessionTracker.js';
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientRow } from '../../../db/types.js';
@@ -109,28 +108,33 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
     return;
   }
 
-  // Each live session is a real browser; refuse rather than exhaust the worker.
-  if (sessionManager.atCapacity()) {
+  // Each live session is a real browser on the runner; refuse rather than pile up.
+  if (sessionTracker.atCapacity()) {
     await sendCanned(client, MSG.busy);
     logger.warn('tax fetch: at session capacity, deferring', { sessionId });
     return; // stays 'agreed'/'wa_intro_sent'; the client can trigger again
   }
 
   await taxFetchSessions.updateStatus(sessionId, 'logging_in');
-  let browser = null;
+  const fetchClient = getFetchClient();
   try {
-    const launched = await launchForProvider();
-    browser = launched.browser;
-    await getProvider(PROVIDER_ID).startLogin(launched.page, { idNumber: creds.id_number, userCode: creds.user_code });
-    sessionManager.put({ sessionId, clientId: client.id, provider: PROVIDER_ID, browser, page: launched.page });
+    await fetchClient.startLogin(sessionId, PROVIDER_ID, { idNumber: creds.id_number, userCode: creds.user_code });
+    sessionTracker.put({ sessionId, clientId: client.id, provider: PROVIDER_ID });
     // No canned "code incoming" line here: the LLM's heads-up message (verified
     // sent above) already told the client an SMS is coming and where to send it.
     await taxFetchSessions.updateStatus(sessionId, 'awaiting_otp', { otpRequestedAt: new Date() });
     publishClientUpdated(client.id);
   } catch (err) {
+    if (err instanceof FetchAtCapacityError) {
+      // The runner is serving other fetches; same deferral as the local check.
+      await taxFetchSessions.updateStatus(sessionId, session.status);
+      await sendCanned(client, MSG.busy);
+      logger.warn('tax fetch: runner at capacity, deferring', { sessionId });
+      return;
+    }
     logger.error('tax fetch: login failed', err, { sessionId, clientId: client.id });
-    sessionManager.discard(sessionId);
-    if (browser) await browser.close().catch(() => undefined);
+    sessionTracker.discard(sessionId);
+    await fetchClient.close(sessionId);
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
     await sendCanned(client, MSG.loginFailed);
     publishClientUpdated(client.id);
@@ -138,9 +142,12 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
 }
 
 async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
-  const live = sessionManager.take(sessionId);
+  const fetchClient = getFetchClient();
+  const live = sessionTracker.take(sessionId);
   if (!live) {
-    // The page is gone (TTL expired or worker restarted). Move the row on and tell the client.
+    // The session is gone (TTL expired or worker restarted). Reap any remote
+    // browser, move the row on and tell the client.
+    await fetchClient.close(sessionId);
     const session = await taxFetchSessions.getById(sessionId);
     if (session && session.status === 'awaiting_otp') {
       await taxFetchSessions.updateStatus(sessionId, 'expired', { error: 'otp submitted after session was lost' });
@@ -155,32 +162,38 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
 
   const client = await clients.getById(live.clientId);
   if (!client) {
-    await closeLive(live);
+    await fetchClient.close(sessionId);
     return;
   }
 
   try {
     await taxFetchSessions.updateStatus(sessionId, 'verifying');
-    await getProvider(PROVIDER_ID).submitOtp(live.page, otp);
+    await fetchClient.submitOtp(sessionId, otp);
   } catch (err) {
     if (err instanceof OtpRejectedError) {
       const attempts = await taxFetchSessions.incrementOtpAttempts(sessionId);
       if (attempts < MAX_OTP_ATTEMPTS) {
-        // Keep the browser on the OTP screen; re-arm the wait for another code.
-        sessionManager.put({ sessionId, clientId: client.id, provider: PROVIDER_ID, browser: live.browser, page: live.page });
+        // The runner kept the page on the OTP screen; re-arm the wait for another code.
+        sessionTracker.put({ sessionId, clientId: client.id, provider: PROVIDER_ID });
         await taxFetchSessions.updateStatus(sessionId, 'awaiting_otp');
         await sendCanned(client, MSG.otpRejected);
         publishClientUpdated(client.id);
         return;
       }
-      await closeLive(live);
+      await fetchClient.close(sessionId);
       await taxFetchSessions.updateStatus(sessionId, 'failed', { error: 'otp rejected too many times' });
       await sendCanned(client, MSG.otpGaveUp);
       publishClientUpdated(client.id);
       return;
     }
+    if (err instanceof SessionGoneError) {
+      await taxFetchSessions.updateStatus(sessionId, 'expired', { error: 'browser session was lost' });
+      await sendCanned(client, MSG.otpExpired);
+      publishClientUpdated(client.id);
+      return;
+    }
     logger.error('tax fetch: otp verification failed', err, { sessionId, clientId: client.id });
-    await closeLive(live);
+    await fetchClient.close(sessionId);
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
     await sendCanned(client, MSG.loginFailed);
     publishClientUpdated(client.id);
@@ -190,12 +203,9 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
   // Verified — download and deliver.
   try {
     const session = await taxFetchSessions.getById(sessionId);
-    if (!session) {
-      await closeLive(live);
-      return;
-    }
+    if (!session) return;
     await taxFetchSessions.updateStatus(sessionId, 'downloading');
-    const doc = await getProvider(PROVIDER_ID).downloadDocument(live.page, { taxYear: session.tax_year });
+    const doc = await fetchClient.downloadDocument(sessionId, { taxYear: session.tax_year });
     await deliver(session, client, doc);
   } catch (err) {
     logger.error('tax fetch: download/deliver failed', err, { sessionId, clientId: client.id });
@@ -203,12 +213,15 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
     await sendCanned(client, MSG.downloadFailed);
     publishClientUpdated(client.id);
   } finally {
-    await closeLive(live);
+    // The runner closes after a download attempt on its own; this covers the
+    // mock's bookkeeping and any path that bailed before downloading.
+    await fetchClient.close(sessionId);
   }
 }
 
 async function runCancel(sessionId: string): Promise<void> {
-  sessionManager.discard(sessionId);
+  sessionTracker.discard(sessionId);
+  await getFetchClient().close(sessionId);
   const session = await taxFetchSessions.getById(sessionId);
   if (session && taxFetchSessions.ACTIVE_TAX_FETCH_STATUSES.includes(session.status)) {
     await taxFetchSessions.updateStatus(sessionId, 'cancelled');
@@ -216,11 +229,13 @@ async function runCancel(sessionId: string): Promise<void> {
   }
 }
 
-/** Registers the session-manager TTL-expiry callback: mark expired + tell the client. */
+/** Registers the tracker's TTL-expiry callback: close the remote browser, mark expired + tell the client. */
 export function wireSessionExpiry(): void {
-  sessionManager.setExpiryHandler((session) => {
+  sessionTracker.setExpiryHandler((session) => {
     void (async () => {
       try {
+        await getFetchClient().close(session.sessionId);
+        logger.info('tax fetch: session expired waiting for OTP', { sessionId: session.sessionId, clientId: session.clientId });
         const row = await taxFetchSessions.getById(session.sessionId);
         if (row && row.status === 'awaiting_otp') {
           await taxFetchSessions.updateStatus(session.sessionId, 'expired', { error: 'otp not received in time' });
@@ -237,18 +252,15 @@ export function wireSessionExpiry(): void {
   });
 }
 
-/** Boot sweep: sessions still in a live-browser status had their page dropped by a restart. */
+/** Boot sweep: sessions still in a live-browser status had their tracking dropped by a restart. */
 export async function expireOrphanedTaxFetchSessions(): Promise<void> {
   const stale = await taxFetchSessions.listStaleLive();
   for (const row of stale) {
+    await getFetchClient().close(row.id); // reap any browser the runner still holds
     await taxFetchSessions.updateStatus(row.id, 'expired', { error: 'worker restarted; browser session lost' });
     publishClientUpdated(row.client_id);
   }
   if (stale.length > 0) logger.info('tax fetch: expired orphaned sessions on boot', { count: stale.length });
-}
-
-async function closeLive(live: LiveSession): Promise<void> {
-  if (live.browser) await live.browser.close().catch(() => undefined);
 }
 
 function errText(err: unknown): string {

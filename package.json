@@ -8,15 +8,17 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "docker compose up -d --wait && npm run db:migrate && concurrently -n web,worker,gui,landing,ngrok -c blue,yellow,green,magenta,gray npm:dev:web npm:dev:worker npm:dev:gui npm:dev:landing \"node scripts/devNgrok.mjs\"",
+    "dev": "docker compose up -d --wait && npm run db:migrate && concurrently -n web,worker,gui,landing,browser,ngrok -c blue,yellow,green,magenta,cyan,gray npm:dev:web npm:dev:worker npm:dev:gui npm:dev:landing npm:dev:browser-runner \"node scripts/devNgrok.mjs\"",
     "dev:web": "node --watch-path=./src --import tsx src/web.ts",
     "dev:worker": "node --watch-path=./src --import tsx src/worker.ts",
+    "dev:browser-runner": "node scripts/devBrowserRunner.mjs",
     "dev:gui": "npm run dev --prefix web",
     "dev:landing": "node scripts/devLanding.mjs",
     "build": "tsc -p .",
     "build:gui": "npm run build --prefix web",
     "start:web": "node dist/src/web.js",
     "start:worker": "node dist/src/worker.js",
+    "start:browser-runner": "node dist/src/browserRunner.js",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:encrypt-secrets": "tsx scripts/encryptSecrets.ts",
     "cli:bootstrap": "tsx src/cli/bootstrapClient.ts",

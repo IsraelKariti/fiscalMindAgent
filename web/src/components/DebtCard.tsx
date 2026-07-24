@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Client, DebtSnapshot } from '../api';
 import { LOCALE } from '../format';
 import { useT, type Messages } from '../i18n';
@@ -6,17 +7,34 @@ const STATUS_META: Record<DebtSnapshot['status'], { labelKey: keyof Messages; ba
   in_debt: { labelKey: 'dcStatusInDebt', badge: 'badge-pending' },
   no_debt: { labelKey: 'dcStatusNoDebt', badge: 'badge-success' },
   paid: { labelKey: 'dcStatusPaid', badge: 'badge-success' },
+  paid_claimed: { labelKey: 'dcStatusPaidClaimed', badge: 'badge-warning' },
   no_data: { labelKey: 'dcStatusNoData', badge: 'badge-pending' },
 };
 
 /**
  * The debt collector's per-client analysis snapshot (agent_fields.debt),
- * written by the agent on every planning cycle. Read-only: the source of
- * truth is the accountant's sheet/board, not this card.
+ * written by the agent on every planning cycle. Mostly read-only — the source
+ * of truth is the accountant's sheet/board — except the 'paid_claimed' state,
+ * where the accountant confirms the client's payment claim.
  */
-export function DebtCard({ client }: { client: Client }) {
+export function DebtCard({ client, onConfirmPaid }: { client: Client; onConfirmPaid?: () => Promise<void> }) {
   const { t } = useT();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const debt = client.agent_fields.debt;
+
+  const confirmPaid = async () => {
+    if (!onConfirmPaid) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onConfirmPaid();
+    } catch {
+      setError(t.dcConfirmPaidFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (!debt) {
     return (
@@ -58,6 +76,15 @@ export function DebtCard({ client }: { client: Client }) {
         </div>
         <span className={`badge ${status.badge}`}>{t[status.labelKey] as string}</span>
       </div>
+      {debt.status === 'paid_claimed' && onConfirmPaid && (
+        <div className="debt-confirm">
+          <p className="muted">{t.dcConfirmPaidNote}</p>
+          {error && <div className="error-banner">{error}</div>}
+          <button className="btn btn-primary" disabled={busy} onClick={confirmPaid}>
+            {t.dcConfirmPaid}
+          </button>
+        </div>
+      )}
       <dl className="debt-details">
         {rows
           .filter((row): row is { label: string; value: string } => row.value !== null && row.value !== '')

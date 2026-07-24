@@ -1,15 +1,26 @@
 import { Router, type RequestHandler } from 'express';
+import { z } from 'zod';
 import { requireGoogleToken, requireMondayToken } from '../../api/integrationGuards.js';
 import * as agentInstances from '../../db/queries/agentInstances.js';
+import * as clients from '../../db/queries/clients.js';
 import * as googleOauthTokens from '../../db/queries/googleOauthTokens.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
+import { withClientLock } from '../../db/withClientLock.js';
+import { publishClientUpdated } from '../../events/clientEvents.js';
+import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { getSpreadsheetMeta } from '../customerService/googleData.js';
 import { EMAIL_CAPABLE, listBoards } from '../customerService/mondayData.js';
+import { readDebtSnapshot, type DebtSnapshot } from './decisionSchema.js';
 import { DebtCollectorSettingsSchema, parseSettings } from './settings.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+}
+
+/** Postgres rejects non-UUID ids with an error (→ 500); pre-validate so they 404 like other misses. */
+function uuidParam(value: string | undefined): string | null {
+  return value && z.string().uuid().safeParse(value).success ? value : null;
 }
 
 /**
@@ -58,6 +69,37 @@ export function buildRouter(): Router {
         return;
       }
       res.json({ settings: parseSettings(updated.settings) });
+    }),
+  );
+
+  // The accountant confirms the client's unconfirmed payment claim (snapshot
+  // status 'paid_claimed', set when the LLM saw payment evidence but the
+  // financial rows still showed debt). Confirmation is the human half of the
+  // two-step 'paid' flow: it completes the goal and cancels any pending send.
+  router.post(
+    '/debt-collector/clients/:id/confirm-paid',
+    wrap(async (req, res) => {
+      const id = uuidParam(req.params.id);
+      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+      if (!client) {
+        res.status(404).json({ error: 'Client not found.' });
+        return;
+      }
+      const snapshot = readDebtSnapshot(client.agent_fields);
+      if (!snapshot || snapshot.status !== 'paid_claimed') {
+        res.status(409).json({ error: 'No unconfirmed payment claim for this client.' });
+        return;
+      }
+      const confirmed: DebtSnapshot = {
+        ...snapshot,
+        status: 'paid',
+        paid_confirmed_at: snapshot.paid_confirmed_at ?? new Date().toISOString(),
+      };
+      await clients.setDebtSnapshot(client.id, confirmed);
+      await clients.updateGoalStatus(client.id, 'complete');
+      await withClientLock(client.id, () => removeFutureEmail(client.id));
+      publishClientUpdated(client.id);
+      res.json({ client: await clients.getById(client.id) });
     }),
   );
 

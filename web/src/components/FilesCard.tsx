@@ -35,6 +35,12 @@ function AnalysisLine({ file }: { file: DocumentFile }) {
     <span className="doc-desc muted" title={a.summary}>
       {t.analysisIdentified(a.document_kind)}
       {details ? ` · ${details}` : ''}
+      {a.injection_suspected && (
+        <span className="badge badge-danger" title={t.analysisSuspiciousTitle}>
+          {' '}
+          {t.analysisSuspicious}
+        </span>
+      )}
       {!a.legible && <span className="badge badge-pending"> {t.analysisNotLegible}</span>}
     </span>
   );

@@ -26,6 +26,28 @@ async function sendToAccountant(client: ClientRow, subject: string, body: string
   logger.info('accountant notified', { clientId: client.id, to: user.email, subject });
 }
 
+/** "The client claims they paid — please confirm" — sent once, when the unverified claim is first seen. */
+export async function sendDebtClaimEmail(client: ClientRow, snapshot: DebtSnapshot): Promise<void> {
+  const subject = `הלקוח ${client.name} דיווח ששילם — נדרש אישורך`;
+  const details = [
+    snapshot.amount ? `סכום החוב לפי הנתונים: ${snapshot.amount}` : null,
+    snapshot.reason ? `סיבת החוב: ${snapshot.reason}` : null,
+  ].filter((line): line is string => line !== null);
+  const body = [
+    'שלום,',
+    '',
+    `הלקוח ${client.name} דיווח בהתכתבות ששילם את החוב, אך הנתונים הפיננסיים (הגיליון/הלוח) עדיין מציגים חוב פתוח.`,
+    ...details,
+    '',
+    'הסוכן הפסיק לשלוח תזכורות וממתין לאישורך:',
+    '• אם התשלום התקבל — אשרו את קבלתו בתיק הלקוח (לשונית "חוב"), או עדכנו את הגיליון/הלוח והסוכן יזהה זאת בעצמו.',
+    '• אם התשלום לא התקבל — אפשר להפעיל את הסוכן מחדש מתוך תיק הלקוח.',
+    '',
+    `לצפייה בתיק הלקוח: ${env.APP_BASE_URL}`,
+  ].join('\n');
+  await sendToAccountant(client, subject, body);
+}
+
 /** "The debt was collected" — sent once, when the client's payment is first confirmed. */
 export async function sendDebtCollectedEmail(client: ClientRow, snapshot: DebtSnapshot): Promise<void> {
   const subject = `החוב של ${client.name} נגבה`;

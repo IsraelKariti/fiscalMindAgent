@@ -30,7 +30,7 @@ export interface TaxFetchContext {
   session: TaxFetchSessionRow | null;
   /** The pending required-document row a fetched 106 would satisfy. */
   pending106DocId: string | null;
-  /** The client has written (any channel) since the session entered agreed/wa_intro_sent — gates start_login. */
+  /** The client has written on WhatsApp since the session entered agreed/wa_intro_sent — gates start_login. */
   clientRepliedSinceIntro: boolean;
 }
 
@@ -80,7 +80,7 @@ export async function loadTaxFetchContext(
   client: ClientRow,
   documents: ClientDocumentRow[],
   waState: WaChannelState,
-  /** When the client last wrote (any channel) — the readiness signal for start_login. */
+  /** When the client last wrote on WhatsApp (phone-verified; email is spoof-adjacent) — the readiness signal for start_login. */
   lastInboundAt: Date | null,
 ): Promise<TaxFetchContext> {
   const creds = await clientPortalCredentials.getForClient(client.id, PROVIDER_ID);

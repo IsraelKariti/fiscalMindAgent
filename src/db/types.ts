@@ -95,7 +95,8 @@ export interface ClientRow {
   updated_at: Date;
 }
 
-export type DocumentStatus = 'pending' | 'collected';
+/** 'claimed' = the client says they delivered it outside email (fax/in person); awaits the accountant's confirmation. */
+export type DocumentStatus = 'pending' | 'claimed' | 'collected';
 
 export interface ClientDocumentRow {
   id: string;
@@ -118,6 +119,8 @@ export interface FileAnalysis {
   matched_document_id: string | null;
   legible: boolean;
   confidence: 'high' | 'medium' | 'low';
+  /** The analyzer saw instruction-like text addressed at an AI inside the file; absent on rows analyzed before this field existed. */
+  injection_suspected?: boolean;
 }
 
 /** A file received from the client; bytes live in Azure Blob Storage under blob_key. */

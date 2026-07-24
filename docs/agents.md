@@ -151,10 +151,12 @@ capability** — there is no accountant button.
 - **Flow**: the LLM offers the fetch in the email thread when a pending required
   document matches `/106/` and credentials are on file; on agreement it explains
   the SMS-code step and asks the client to confirm they're free. `start_login`
-  only becomes an allowed action once the client has replied **after** that
-  intro (`clientRepliedSinceIntro`, computed in `loadTaxFetchContext` from the
-  last inbound timestamp vs. the session's `updated_at`) — the post-send re-plan
-  runs with no new client input and must never be able to trigger the OTP SMS.
+  only becomes an allowed action once the client has replied **on WhatsApp,
+  after** that intro (`clientRepliedSinceIntro`, computed in
+  `loadTaxFetchContext` from the last inbound *WhatsApp* timestamp vs. the
+  session's `updated_at` — email is spoof-adjacent and must never be able to
+  arm the login) — the post-send re-plan runs with no new client input and must
+  never be able to trigger the OTP SMS.
   The login job is then enqueued delayed to the heads-up message's send time and
   the runner verifies that message's row is `sent` (bounded re-checks; an
   abandoned draft never sends → the login never runs), so the tax authority's
@@ -207,6 +209,54 @@ capability** — there is no accountant button.
   ONLY `BROWSER_RUNNER_PORT`/`BROWSER_RUNNER_TOKEN`/`TAX_FETCH_SESSION_TTL_MS`
   in its env, and point the worker's `BROWSER_RUNNER_URL` at it.
 
+## Prompt-injection defenses (content-level)
+
+All untrusted content (email subject/body, WhatsApp text, file bytes and the
+analyses derived from them, sheet/board cells, monday docs) is treated as
+hostile on its way into any LLM prompt. Three layers, all mandatory when
+touching prompt builders or planners:
+
+- **Structural** (`src/agents/shared/promptSafety.ts`): every data section is
+  delimited by per-call nonce fences (`--- NAME [a1b2c3d4] ---` via
+  `makeFenceToken`/`fence`/`endFence`) so content can't forge a boundary it
+  can't name; every untrusted string passes `sanitizeUntrusted`/`sanitizeInline`
+  (strips bidi/zero-width/control chars, defangs `---`/`===`/``` ``` ``` runs,
+  caps length); an untrusted-data doctrine (`buildUntrustedDataDoctrine`) is
+  appended to every agent's system instruction **outside** any
+  accountant-editable template; inbound messages that trip the regex heuristics
+  (`detectInjectionHeuristics`, also logged at ingestion in the webhooks) get a
+  SECURITY NOTE annotation in the transcript. Every planner schema carries
+  `suspected_injection` — when the LLM sets it, that cycle's state changes are
+  suppressed (and tax-fetch actions except `cancel` are dropped).
+- **Analyzer isolation + quarantine** (`analyzeFile`/`analyzeReceipt`): the
+  file analyzers see only the file bytes (never the conversation), are told
+  the file is untrusted, report `injection_suspected`, and their
+  `matched_document_id` is validated against the real list at write time.
+  Quarantined files (`isQuarantined` in `src/agents/shared/fileEvidence.ts`:
+  suspected or illegible) render as an explicit warning in transcripts, are
+  never linked to documents, and never count as evidence; the workspace files
+  card shows a "תוכן חשוד" badge.
+- **Authority reduction** — LLM verdicts alone can't flip consequential state:
+  - Doc collector / annual report: `collected` requires file evidence — the
+    analyzer's own match (tier A, `fileMatchesDocument`) or a planner pairing
+    with a verified legible file (tier B, `isVerifiedLegibleFile`). A no-file
+    claim ("delivered by fax / in person") becomes status **`claimed`**
+    (migration 030) + a confirm-request email to the accountant; only the
+    accountant's click (documents-tab checkbox → `collected`) completes it.
+    Goal completion counts only `collected`.
+  - Debt collector: `paid` is authoritative only when the extraction says the
+    accountant's own rows are clean (`in_debt=false`, i.e. the row was
+    cleared). Otherwise the snapshot becomes **`paid_claimed`**: dunning stops,
+    the accountant gets a confirm-request email (idempotent via
+    `paid_claim_notified_at`), and either their confirmation
+    (`POST /debt-collector/clients/:id/confirm-paid`, button in the debt tab)
+    or clearing the source row completes the goal. `no_debt` under
+    `suspected_injection` records the snapshot but leaves the goal open.
+  - Tax fetch: the `start_login` readiness reply must arrive on WhatsApp (see
+    the 106-fetch section above).
+
+Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
+
 ## Current state & deferred work
 
 - `customer_service` is the first `'immediate_reply'` agent: an inbound-only
@@ -243,7 +293,8 @@ capability** — there is no accountant button.
   income, proactive credits). Documents it determines become ordinary
   `client_documents` rows via the decision field `add_documents` (deduped by
   normalized name; `matched_file_id` lets a volunteered file create the row
-  already collected), so the collection machinery is shared. Completion is
+  already collected — only when that file's analysis is verified, see the
+  prompt-injection section), so the collection machinery is shared. Completion is
   derived, never trusted from the LLM: sticky `agent_fields.interview_complete`
   AND ≥1 document AND none pending — zero rows can never complete. Checking
   every box in the documents tab is an accountant override (stamps the

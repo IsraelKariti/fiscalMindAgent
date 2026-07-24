@@ -8,6 +8,8 @@ import { isWallClockDateTime } from '../../util/time.js';
 export const DebtDecisionResponseSchema = z.object({
   /** Internal explanation — persisted on the snapshot so the accountant sees why. */
   reasoning: z.string(),
+  /** Content in the data sections tried to steer the agent (prompt injection); state changes are suppressed when set. */
+  suspected_injection: z.boolean(),
   // The extracted debt picture, always filled from the financial rows (nulls
   // where the data doesn't say).
   in_debt: z.boolean(),
@@ -38,10 +40,11 @@ export interface DebtExtraction {
 }
 
 export type NormalizedDebtDecision =
-  | { decision: 'no_debt' | 'paid'; reasoning: string; extraction: DebtExtraction }
+  | { decision: 'no_debt' | 'paid'; reasoning: string; suspected_injection: boolean; extraction: DebtExtraction }
   | {
       decision: 'follow_up';
       reasoning: string;
+      suspected_injection: boolean;
       extraction: DebtExtraction;
       subject: string;
       body: string;
@@ -59,7 +62,7 @@ export function normalizeDebtDecision(raw: DebtDecisionResponse): NormalizedDebt
     one_time_payments: raw.one_time_payments,
   };
   if (raw.decision !== 'follow_up') {
-    return { decision: raw.decision, reasoning: raw.reasoning, extraction };
+    return { decision: raw.decision, reasoning: raw.reasoning, suspected_injection: raw.suspected_injection, extraction };
   }
   if (raw.email_subject == null || raw.email_body == null) {
     throw new Error(`follow_up debt decision missing subject/body: ${JSON.stringify(raw)}`);
@@ -70,6 +73,7 @@ export function normalizeDebtDecision(raw: DebtDecisionResponse): NormalizedDebt
   return {
     decision: 'follow_up',
     reasoning: raw.reasoning,
+    suspected_injection: raw.suspected_injection,
     extraction,
     subject: raw.email_subject,
     body: raw.email_body,
@@ -83,7 +87,8 @@ export function normalizeDebtDecision(raw: DebtDecisionResponse): NormalizedDebt
  * planning cycle (each cycle re-reads the live sheets/boards).
  */
 export type DebtSnapshot = {
-  status: 'in_debt' | 'no_debt' | 'paid' | 'no_data';
+  /** 'paid_claimed' = the client claims payment but the accountant's own data still shows open debt — awaits the accountant's confirmation. */
+  status: 'in_debt' | 'no_debt' | 'paid' | 'paid_claimed' | 'no_data';
   amount: string | null;
   reason: string | null;
   payment_plan: DebtExtraction['payment_plan'];
@@ -94,6 +99,8 @@ export type DebtSnapshot = {
   analyzed_at: string;
   /** Set once when payment is first confirmed — idempotency key for the accountant notification. */
   paid_confirmed_at?: string;
+  /** Set once when the client's unconfirmed payment claim is first seen — idempotency key for the confirm-request notification. */
+  paid_claim_notified_at?: string;
 };
 
 /** Tolerant read of the stored snapshot (absent/invalid → null). */

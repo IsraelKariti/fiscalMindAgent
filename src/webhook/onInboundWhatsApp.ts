@@ -7,6 +7,7 @@ import { publishClientUpdated, publishInstanceClientsUpdated } from '../events/c
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { loadAgentContext } from '../agents/resolve.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
+import { detectInjectionHeuristics } from '../agents/shared/promptSafety.js';
 import { ingestWaMedia, type WaMediaItem } from './ingestWaMedia.js';
 import { logger } from '../util/logger.js';
 
@@ -100,6 +101,16 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
   }
 
   const body = params.Body ?? '';
+  // Injection tripwires (telemetry only — the structural defenses live in the
+  // prompt builders): flag inbound content that looks like it addresses the LLM.
+  const tripwires = detectInjectionHeuristics(body);
+  if (tripwires.length > 0) {
+    logger.warn('inbound whatsapp contains instruction-like text (possible prompt injection)', {
+      clientId: client.id,
+      from: clientNumber,
+      tripwires,
+    });
+  }
   const inserted = await emails.insertInboundIfNew(client.id, {
     channel: 'whatsapp',
     messageId: params.MessageSid,

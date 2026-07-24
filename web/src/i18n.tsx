@@ -52,7 +52,12 @@ const he = {
   dcStatusInDebt: 'חוב פתוח',
   dcStatusNoDebt: 'אין חוב',
   dcStatusPaid: 'החוב נגבה',
+  dcStatusPaidClaimed: 'הלקוח דיווח ששילם — ממתין לאישורך',
   dcStatusNoData: 'לא נמצאו נתונים',
+  dcConfirmPaid: 'אישור קבלת התשלום',
+  dcConfirmPaidNote:
+    'הלקוח דיווח ששילם, אך הנתונים הפיננסיים עדיין מציגים חוב פתוח. בדקו שהתשלום אכן התקבל ואשרו — או עדכנו את הגיליון/הלוח והסוכן יזהה זאת בעצמו.',
+  dcConfirmPaidFailed: 'אישור התשלום נכשל.',
   dcAmount: 'סכום החוב',
   dcReason: 'סיבת החוב',
   dcPlan: 'מסלול תשלום',
@@ -409,6 +414,8 @@ const he = {
   markCollected: 'סימון כנאסף',
   collectedStatus: 'נאסף',
   pendingStatus: 'ממתין',
+  claimedStatus: 'ממתין לאישורך',
+  confirmClaimedTitle: 'הלקוח מסר שסיפק את המסמך שלא במייל — סמנו כנאסף רק לאחר שוידאתם שהתקבל',
   removeDocument: 'הסרת המסמך',
   docNamePlaceholder: 'שם המסמך, למשל טופס 106',
   docNameAria: 'שם המסמך',
@@ -424,6 +431,8 @@ const he = {
   analysisIdentified: (kind: string) => `זוהה בתוכן: ${kind}`,
   analysisTaxYear: (year: string) => `שנת מס ${year}`,
   analysisNotLegible: 'לא קריא',
+  analysisSuspicious: 'תוכן חשוד',
+  analysisSuspiciousTitle: 'הקובץ מכיל טקסט שמנסה להנחות את סוכן ה-AI (חשד להזרקת הוראות). הקובץ לא ייחשב כהוכחה לקבלת מסמך או תשלום.',
 
   // AddClientModal
   addClientTitle: 'הוספת לקוח',

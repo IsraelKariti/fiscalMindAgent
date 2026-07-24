@@ -2,7 +2,8 @@ export type GoalStatus = 'pending' | 'complete';
 
 /** The debt collector's latest per-client analysis (clients.agent_fields.debt). */
 export interface DebtSnapshot {
-  status: 'in_debt' | 'no_debt' | 'paid' | 'no_data';
+  /** 'paid_claimed' = the client claims payment but the data still shows debt — awaiting the accountant's confirmation. */
+  status: 'in_debt' | 'no_debt' | 'paid' | 'paid_claimed' | 'no_data';
   amount: string | null;
   reason: string | null;
   payment_plan: 'monthly' | 'bi_monthly' | 'other' | 'unknown';
@@ -51,7 +52,8 @@ export interface Client {
   updated_at: string;
 }
 
-export type DocumentStatus = 'pending' | 'collected';
+/** 'claimed' = the client says they delivered it outside email; awaits the accountant's confirmation. */
+export type DocumentStatus = 'pending' | 'claimed' | 'collected';
 
 export interface ClientDocument {
   id: string;
@@ -74,6 +76,8 @@ export interface FileAnalysis {
   matched_document_id: string | null;
   legible: boolean;
   confidence: 'high' | 'medium' | 'low';
+  /** The analyzer saw instruction-like text addressed at an AI inside the file; absent on older rows. */
+  injection_suspected?: boolean;
 }
 
 export interface DocumentFile {
@@ -525,6 +529,8 @@ function makeWorkspaceApi(prefix: string) {
         method: 'PUT',
         body: JSON.stringify(settings),
       }),
+    dcConfirmPaid: (clientId: string) =>
+      request<{ client: Client }>(`${prefix}/debt-collector/clients/${clientId}/confirm-paid`, { method: 'POST' }),
     dcListMondayBoards: () => request<{ boards: MondayBoardMeta[] }>(`${prefix}/debt-collector/monday/boards`),
     dcSpreadsheetMeta: (spreadsheetId: string) =>
       request<{ meta: SpreadsheetMeta }>(

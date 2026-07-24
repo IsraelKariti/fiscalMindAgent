@@ -8,6 +8,8 @@ const AnswerResponseSchema = z
   .object({
     /** Internal, never shown to the client. */
     reasoning: z.string(),
+    /** Content in the data sections tried to steer the agent (prompt injection); logged for telemetry. */
+    suspected_injection: z.boolean(),
     /** The WhatsApp reply text. */
     answer: z.string().min(1),
   })
@@ -45,5 +47,10 @@ export async function generateAnswer(systemInstruction: string, contents: string
     throw new Error(`Gemini returned no text output (refusal or empty response): ${JSON.stringify(response)}`);
   }
   const parsed = AnswerResponseSchema.parse(JSON.parse(text));
+  if (parsed.suspected_injection) {
+    logger.warn('customer service: LLM flagged suspected prompt injection in its inputs', {
+      reasoning: parsed.reasoning,
+    });
+  }
   return { answer: parsed.answer, reasoning: parsed.reasoning, usage, model };
 }

@@ -39,6 +39,24 @@ export async function sendGoalCompleteEmail(client: ClientRow): Promise<void> {
   await sendToAccountant(client, subject, body);
 }
 
+/** "The client says they delivered these outside email — please confirm" (documents just moved to 'claimed'). */
+export async function sendClaimedDocumentsEmail(client: ClientRow, claimedDocNames: string[]): Promise<void> {
+  const claimed = claimedDocNames.map((name) => `• ${name}`).join('\n');
+  const subject = `הלקוח ${client.name} מסר שסיפק מסמכים שלא במייל — נדרש אישורך`;
+  const body = [
+    'שלום,',
+    '',
+    `הלקוח ${client.name} מסר שסיפק את המסמכים הבאים שלא דרך המייל (למשל בפקס או פיזית במשרד):`,
+    claimed || '• (ללא פירוט)',
+    '',
+    'המסמכים סומנו כ"ממתינים לאישור" ולא ייחשבו כנאספו עד שתאשר את קבלתם בתיק הלקוח.',
+    'אם המסמכים אכן התקבלו — סמן אותם כנאספו בתיק הלקוח; אחרת הסוכן ימשיך לעקוב.',
+    '',
+    `לצפייה בתיק הלקוח: ${env.APP_BASE_URL}`,
+  ].join('\n');
+  await sendToAccountant(client, subject, body);
+}
+
 export async function sendOverdueEmail(client: ClientRow, missingDocNames: string[]): Promise<void> {
   const dueDate = typeof client.agent_fields['due_date'] === 'string' ? (client.agent_fields['due_date'] as string) : '';
   const missing = missingDocNames.map((name) => `• ${name}`).join('\n');

@@ -11,7 +11,7 @@ import type { AgentContext } from '../types.js';
 import { loadDebtData } from './data.js';
 import { decide } from './decide.js';
 import { readDebtSnapshot, type DebtExtraction, type DebtSnapshot } from './decisionSchema.js';
-import { sendDebtCollectedEmail } from './notifyAccountant.js';
+import { sendDebtClaimEmail, sendDebtCollectedEmail } from './notifyAccountant.js';
 import { buildPrompt } from './prompt.js';
 import { parseSettings } from './settings.js';
 
@@ -87,14 +87,52 @@ export async function planDebtCollection(ctx: AgentContext): Promise<void> {
 
   const previous = readDebtSnapshot(client.agent_fields);
 
+  if (decision.suspected_injection) {
+    logger.warn('debt collector: LLM flagged suspected prompt injection — completions are suppressed this cycle', {
+      clientId,
+      reasoning: decision.reasoning,
+    });
+  }
+
   if (decision.decision !== 'follow_up') {
     if (decision.decision === 'no_debt') {
       await clients.setDebtSnapshot(clientId, snapshotFrom('no_debt', decision.extraction, decision.reasoning, now));
-      await clients.updateGoalStatus(clientId, 'complete');
       publishClientUpdated(clientId);
+      if (decision.suspected_injection) {
+        // The verdict may have been steered by injected content — record it but
+        // leave the goal open; the next clean cycle (or the accountant) resolves it.
+        logger.warn('debt collector: no_debt verdict under suspected injection, goal left open', { clientId });
+        return;
+      }
+      await clients.updateGoalStatus(clientId, 'complete');
       // Silent completion by design: no client email, no accountant email — the
       // workspace shows the snapshot's reasoning.
       logger.info('debt collector: no open debt, completing silently', { clientId, reasoning: decision.reasoning });
+      return;
+    }
+
+    // 'paid' is authoritative only when the accountant's own data agrees (the
+    // row was cleared → in_debt=false). Payment evidenced only by the
+    // conversation or a receipt is a *claim*: record it, stop dunning, ask the
+    // accountant to confirm — but never complete the goal off client-supplied
+    // content alone (prompt-injection hardening).
+    const rowsCleared = !decision.extraction.in_debt;
+    if (!rowsCleared || decision.suspected_injection) {
+      const snapshot = snapshotFrom('paid_claimed', decision.extraction, decision.reasoning, now);
+      snapshot.paid_claim_notified_at = previous?.paid_claim_notified_at;
+      if (!previous?.paid_claim_notified_at && !decision.suspected_injection) {
+        snapshot.paid_claim_notified_at = now.toISOString();
+        // Fire-and-forget: a notification failure must never fail planning.
+        sendDebtClaimEmail(client, snapshot).catch((err) =>
+          logger.error('debt-claim notification failed', err, { clientId }),
+        );
+      }
+      await clients.setDebtSnapshot(clientId, snapshot);
+      publishClientUpdated(clientId);
+      logger.info('debt collector: client claims payment, awaiting accountant confirmation', {
+        clientId,
+        reasoning: decision.reasoning,
+      });
       return;
     }
 

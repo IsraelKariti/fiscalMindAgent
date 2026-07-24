@@ -6,7 +6,8 @@ import * as emails from '../../db/queries/emails.js';
 import * as waSenders from '../../db/queries/waSenders.js';
 import * as waTemplates from '../../db/queries/waTemplates.js';
 import { buildPrompt, type WaChannelState } from './prompt.js';
-import { sendGoalCompleteEmail } from './notifyAccountant.js';
+import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccountant.js';
+import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext } from './decisionSchema.js';
@@ -70,9 +71,12 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
   const waState = await getWaChannelState(client, now);
-  const lastInbound = [...history].reverse().find((m) => m.direction === 'inbound');
-  const lastInboundAt = lastInbound ? (lastInbound.sent_at ?? lastInbound.created_at) : null;
-  const taxFetch = await loadTaxFetchContext(client, documents, waState, lastInboundAt);
+  // The start_login readiness signal must come from the phone-verified WhatsApp
+  // channel: email is spoof-adjacent, and a forged "I'm ready" email must never
+  // be able to trigger the real OTP SMS. (The OTP relay is WhatsApp-only anyway.)
+  const lastInboundWa = [...history].reverse().find((m) => m.direction === 'inbound' && m.channel === 'whatsapp');
+  const lastInboundWaAt = lastInboundWa ? (lastInboundWa.sent_at ?? lastInboundWa.created_at) : null;
+  const taxFetch = await loadTaxFetchContext(client, documents, waState, lastInboundWaAt);
   const taxFetchAllowed = allowedTaxFetchActions(taxFetch.state, taxFetch.available, taxFetch.clientRepliedSinceIntro);
   const { template } = await getPromptTemplate(client.user_id);
   const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, template, waState, {
@@ -98,33 +102,83 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
   }
 
-  // Record which pending documents the LLM saw the client provide (unknown ids are ignored).
+  if (decision.suspected_injection) {
+    logger.warn('doc collector: LLM flagged suspected prompt injection — suppressing state changes this cycle', {
+      clientId,
+      reasoning: decision.reasoning,
+    });
+  }
+
+  // Evidence-gated status updates: the planner proposes, the file evidence decides.
+  // 'collected' requires a real file — either the isolated analyzer matched it to the
+  // document (tier A), or the planner explicitly paired it with a verified legible
+  // non-quarantined file (tier B). A no-file claim ("delivered by fax / in person")
+  // lands as 'claimed' and waits for the accountant's confirmation, so conversation
+  // text alone can never complete the goal. Unknown ids are ignored throughout.
   const pendingIds = new Set(documents.filter((d) => d.status === 'pending').map((d) => d.id));
-  const newlyCollected = decision.collected_document_ids.filter((id) => pendingIds.has(id));
+  const fileById = new Map(files.map((f) => [f.id, f]));
+  const documentIds = new Set(documents.map((d) => d.id));
+  const proposedPairs = decision.suspected_injection
+    ? []
+    : decision.matched_files.filter((m) => fileById.has(m.file_id) && documentIds.has(m.document_id));
+  const newlyCollected: string[] = [];
+  const newlyClaimed: string[] = [];
+  if (!decision.suspected_injection) {
+    for (const id of decision.collected_document_ids) {
+      if (!pendingIds.has(id)) continue;
+      const strongMatch = files.some((f) => fileMatchesDocument(f, id));
+      const paired = proposedPairs.find((m) => m.document_id === id);
+      const pairedFile = paired ? fileById.get(paired.file_id) : undefined;
+      if (strongMatch || (pairedFile && isVerifiedLegibleFile(pairedFile))) {
+        newlyCollected.push(id);
+      } else {
+        newlyClaimed.push(id);
+      }
+    }
+  }
   if (newlyCollected.length > 0) {
     await clientDocuments.markCollected(clientId, newlyCollected);
     logger.info('documents marked collected', { clientId, documentIds: newlyCollected });
   }
+  if (newlyClaimed.length > 0) {
+    await clientDocuments.markClaimed(clientId, newlyClaimed);
+    logger.info('documents marked claimed (await accountant confirmation)', { clientId, documentIds: newlyClaimed });
+    const claimedNames = documents.filter((d) => newlyClaimed.includes(d.id)).map((d) => d.name);
+    // Fire-and-forget like the other notifications; re-claims can't repeat (the rows left 'pending').
+    sendClaimedDocumentsEmail(client, claimedNames).catch((err) =>
+      logger.error('claimed-documents notification failed', err, { clientId }),
+    );
+  }
 
-  // File a received file under the required document it satisfies (unknown ids are ignored).
-  const fileIds = new Set(files.map((f) => f.id));
-  const documentIds = new Set(documents.map((d) => d.id));
-  for (const match of decision.matched_files) {
-    if (!fileIds.has(match.file_id) || !documentIds.has(match.document_id)) continue;
+  // File a received file under the required document it satisfies. Quarantined
+  // files (suspected injection / illegible) are never filed anywhere.
+  for (const match of proposedPairs) {
+    const file = fileById.get(match.file_id);
+    if (!file || isQuarantined(file)) continue;
     await documentFiles.linkToDocument(match.file_id, clientId, match.document_id);
     logger.info('file linked to document', { clientId, fileId: match.file_id, documentId: match.document_id });
   }
 
   // Completion is derived from the documents, not the LLM's decision field: complete iff
-  // every required document is collected. Clients with no configured documents fall back
-  // to trusting the decision field (legacy behavior).
-  const stillPending = pendingIds.size - newlyCollected.length;
-  const allCollected = documents.length > 0 ? stillPending === 0 : decision.decision === 'goal_complete';
+  // every required document is collected — 'claimed' rows still need the accountant's
+  // confirmation. Clients with no configured documents fall back to trusting the
+  // decision field (legacy behavior).
+  const collectedCount = documents.filter((d) => d.status === 'collected').length + newlyCollected.length;
+  const stillPending = documents.length - collectedCount;
+  const allCollected =
+    documents.length > 0
+      ? stillPending === 0
+      : decision.decision === 'goal_complete' && !decision.suspected_injection;
+
+  // Under suspected injection the fetch may only be cancelled — an injected
+  // message must not be able to offer/agree/start a login (it triggers a real OTP SMS).
+  const taxFetchAction =
+    decision.suspected_injection && decision.tax_fetch_action !== 'cancel' ? null : decision.tax_fetch_action;
 
   if (allCollected) {
     // No message is drafted on this path; a fresh offer can't happen here (no
     // pending 106 left), but cancel/agreed actions still need to land.
-    await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now, { emailId: null, delayMs: 0 });
+    await applyTaxFetchAction(client, taxFetchAction, taxFetch, now, { emailId: null, delayMs: 0 });
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
@@ -165,7 +219,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // carries the offer (a superseded draft re-enables offering), and start_login
   // is enqueued against the heads-up draft so the browser login — and the OTP
   // SMS it triggers — can only run after that message actually goes out.
-  await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now, {
+  await applyTaxFetchAction(client, taxFetchAction, taxFetch, now, {
     emailId,
     delayMs: Math.max(0, delayMs),
   });

@@ -10,6 +10,8 @@ import type { WaTemplateRow } from '../../db/types.js';
 export const DecisionResponseSchema = z.object({
   decision: z.enum(['goal_complete', 'follow_up']),
   reasoning: z.string(),
+  /** Content in the data sections tried to steer the agent (prompt injection); state changes are suppressed when set. */
+  suspected_injection: z.boolean(),
   /** Ids from the REQUIRED DOCUMENTS list the thread shows the client has now provided. */
   collected_document_ids: z.array(z.string()),
   /** Which received file satisfies which required document (both by id); empty when nothing new matches. */
@@ -50,6 +52,7 @@ export type NormalizedDecision =
   | {
       decision: 'goal_complete';
       reasoning: string;
+      suspected_injection: boolean;
       collected_document_ids: string[];
       matched_files: MatchedFile[];
       tax_fetch_action: TaxFetchAction | null;
@@ -57,6 +60,7 @@ export type NormalizedDecision =
   | {
       decision: 'follow_up';
       reasoning: string;
+      suspected_injection: boolean;
       collected_document_ids: string[];
       matched_files: MatchedFile[];
       message: FollowUpMessage;
@@ -181,6 +185,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
     return {
       decision: 'goal_complete',
       reasoning: raw.reasoning,
+      suspected_injection: raw.suspected_injection,
       collected_document_ids: raw.collected_document_ids,
       matched_files: raw.matched_files,
       tax_fetch_action: taxFetchAction,
@@ -192,6 +197,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
   return {
     decision: 'follow_up',
     reasoning: raw.reasoning,
+    suspected_injection: raw.suspected_injection,
     collected_document_ids: raw.collected_document_ids,
     matched_files: raw.matched_files,
     message: normalizeFollowUpMessage(raw, ctx),

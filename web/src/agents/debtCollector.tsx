@@ -71,7 +71,13 @@ export const debtCollectorUI: AgentTypeUI = {
       labelKey: 'tabDebt',
       render: (ctx) => (
         <div className="tab-pane panel-stack" role="tabpanel">
-          <DebtCard client={ctx.client} />
+          <DebtCard
+            client={ctx.client}
+            onConfirmPaid={async () => {
+              await ctx.api.dcConfirmPaid(ctx.client.id);
+              await ctx.load();
+            }}
+          />
         </div>
       ),
     },

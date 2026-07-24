@@ -24,6 +24,7 @@
     "cli:bootstrap": "tsx src/cli/bootstrapClient.ts",
     "ship": "node scripts/ship.mjs",
     "sync": "node scripts/sync.mjs",
+    "test": "node --import tsx --test tests/promptSafety.test.ts tests/fileEvidence.test.ts",
     "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": {

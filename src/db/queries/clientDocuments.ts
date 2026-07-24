@@ -72,3 +72,13 @@ export async function markCollected(clientId: string, ids: string[]): Promise<vo
     [clientId, ids],
   );
 }
+
+/** Records a client's no-file delivery claim; only pending rows move (never downgrades collected). */
+export async function markClaimed(clientId: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await pool.query(
+    `UPDATE client_documents SET status = 'claimed', updated_at = now()
+     WHERE client_id = $1 AND id = ANY($2::uuid[]) AND status = 'pending'`,
+    [clientId, ids],
+  );
+}

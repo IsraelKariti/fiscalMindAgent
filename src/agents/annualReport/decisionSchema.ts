@@ -12,6 +12,8 @@ export type { DecisionContext, FollowUpMessage, MatchedFile };
 export const DecisionResponseSchema = z.object({
   decision: z.enum(['goal_complete', 'follow_up']),
   reasoning: z.string(),
+  /** Content in the data sections tried to steer the agent (prompt injection); state changes are suppressed when set. */
+  suspected_injection: z.boolean(),
   /** Sticky once true: the interview covered every topic applicable to this client. */
   interview_complete: z.boolean(),
   /** Documents the interview just determined are required; each becomes a client_documents row (deduped by name). */
@@ -49,6 +51,7 @@ export interface AddDocument {
 
 interface DecisionCommon {
   reasoning: string;
+  suspected_injection: boolean;
   interview_complete: boolean;
   add_documents: AddDocument[];
   collected_document_ids: string[];
@@ -67,6 +70,7 @@ export type NormalizedDecision =
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {
   const common: DecisionCommon = {
     reasoning: raw.reasoning,
+    suspected_injection: raw.suspected_injection,
     interview_complete: raw.interview_complete,
     add_documents: raw.add_documents,
     collected_document_ids: raw.collected_document_ids,

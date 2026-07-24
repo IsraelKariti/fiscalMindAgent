@@ -8,6 +8,7 @@ import {
   type Prompt,
   type WaChannelState,
 } from '../docCollector/prompt.js';
+import { endFence, fence, makeFenceToken, sanitizeInline } from '../shared/promptSafety.js';
 
 /**
  * The annual-report assistant's system prompt. Unlike the doc collector, there
@@ -55,7 +56,7 @@ export const ANNUAL_REPORT_PROMPT_TEMPLATE = `אתה סוכן בינה מלאכ�
 - ביטוח לאומי: דרוש אישורים על קבלת תגמולים (דמי לידה, מילואים, אבטלה) או אישור נכות מעל 89% המקנה פטור.
 
 **ניהול רשימת המסמכים (שדה \`add_documents\`):**
-תוצג בפניך רשימת המסמכים שכבר נקבעו בראיון (DOCUMENTS DETERMINED SO FAR). לכל מסמך יש מזהה (id), שם (name), תיאור (description), וסטטוס: "pending" (טרם התקבל) או "collected" (כבר התקבל). בתחילת התהליך הרשימה ריקה, ואתה בונה אותה תוך כדי הראיון:
+תוצג בפניך רשימת המסמכים שכבר נקבעו בראיון (DOCUMENTS DETERMINED SO FAR). לכל מסמך יש מזהה (id), שם (name), תיאור (description), וסטטוס: "pending" (טרם התקבל), "claimed" (הלקוח מסר שסיפק אותו שלא במייל — ממתין לאישור רואה החשבון; אל תבקש אותו מהלקוח שוב) או "collected" (כבר התקבל). בתחילת התהליך הרשימה ריקה, ואתה בונה אותה תוך כדי הראיון:
 - בכל פעם שאתה קובע, מתשובות הלקוח, שמסמך מסוים נדרש - הוסף אותו ל-\`add_documents\` עם שם ברור בעברית (למשל: "טופס 106 - מעסיק: אלפא בע\\"מ") ותיאור קצר שיעזור לזהות אותו. "לרשום" מסמך בעץ ההחלטות פירושו להוסיף אותו כאן.
 - רשום מסמך נפרד לכל פריט: טופס 106 לכל מעסיק בנפרד, אישור שנתי לכל קרן בנפרד, וכן הלאה.
 - הוסף כל מסמך פעם אחת בלבד - לעולם אל תוסיף מסמך שכבר מופיע ברשימה המוצגת לך.
@@ -70,7 +71,7 @@ export const ANNUAL_REPORT_PROMPT_TEMPLATE = `אתה סוכן בינה מלאכ�
 - אם ה-content analysis קובע שהקובץ הוא מסמך אחר ממה שהלקוח טען, או שאינו קריא (NOT LEGIBLE) - אל תסמן את המסמך, וציין זאת בנימוס בהודעה הבאה ללקוח. לדוגמה, אם הלקוח העלה תלוש משכורת של חודש דצמבר במקום טופס 106, הסבר: "ראיתי שהעלית תלוש שכר רגיל. עבור הדוח השנתי אנחנו זקוקים לטופס 106 שמרכז את כלל חודשי השנה. לעיתים הוא מופיע בתחתית תלוש דצמבר - תוכל לבדוק אם הוא שם או להעלות קובץ נפרד?".
 - אם התקבלה קבלה על תרומה שאינה מציינת "מוכר לפי סעיף 46" - ציין זאת בפני הלקוח.
 - אם ל-content analysis אין תוצאה (unavailable) - שקול לפי ההקשר: קובץ ששמו והקשרו תואמים בבירור מספיק.
-- מסמך שנמסר שלא במייל (הלקוח אישר בבירור שמסר בפקס או פיזית במשרד) - סמן כ-collected גם ללא קובץ. אמירה מעורפלת כמו "שלחתי הכול" ללא קבצים ופירוט אינה מספיקה.
+- מסמך שנמסר שלא במייל (הלקוח אישר בבירור שמסר בפקס או פיזית במשרד) - כלול את המזהה שלו ב-\`collected_document_ids\` גם ללא קובץ; המערכת תרשום אותו כ-"claimed" עד שרואה החשבון יאשר את קבלתו בפועל. אמירה מעורפלת כמו "שלחתי הכול" ללא קבצים ופירוט אינה מספיקה.
 השאר את המערכים ריקים אם לא סופק מידע חדש.
 
 **פעולה 2: סטטוס הראיון (שדה \`interview_complete\`)**
@@ -79,9 +80,9 @@ export const ANNUAL_REPORT_PROMPT_TEMPLATE = `אתה סוכן בינה מלאכ�
 **פעולה 3: קבלת החלטה (שדה \`decision\`)**
 בהתחשב בשלב הראיון, במסמכים שעדיין חסרים ובתאריך/שעה הנוכחיים, בחר אחד משני הערכים:
 
-1. **\`goal_complete\`:** הראיון הושלם, נקבע לפחות מסמך אחד, וכל מסמך ברשימה הוא כבר "collected" (או שכללת אותו ב-\`collected_document_ids\` בתשובה הנוכחית). לעולם אל תבחר בערך זה כשהרשימה ריקה או כשהראיון עוד לא הסתיים. במקרה זה השאר את \`channel\`, את כל שדות ההודעה ואת \`send_at\` כ-null.
+1. **\`goal_complete\`:** הראיון הושלם, נקבע לפחות מסמך אחד, וכל מסמך ברשימה הוא כבר "collected" (או שכללת אותו ב-\`collected_document_ids\` בתשובה הנוכחית **על סמך קובץ שה-content analysis שלו תואם אותו**). מסמך שדווח על סמך הצהרת הלקוח בלבד (ללא קובץ) יירשם כ-"claimed" ולא ייחשב נאסף — במקרה כזה בחר \`follow_up\`. לעולם אל תבחר בערך זה כשהרשימה ריקה או כשהראיון עוד לא הסתיים. במקרה זה השאר את \`channel\`, את כל שדות ההודעה ואת \`send_at\` כ-null.
 
-2. **\`follow_up\`:** הראיון עוד נמשך, או שלפחות מסמך אחד עדיין חסר. בחר ערוץ (\`channel\`), מלא **רק** את שדות ההודעה של הערוץ שנבחר, ותמיד את \`send_at\`:
+2. **\`follow_up\`:** הראיון עוד נמשך, או שלפחות מסמך אחד עדיין חסר או ממתין לאישור (claimed). אם כל מה שנותר הוא מסמכים במצב claimed — אל תציק ללקוח לגביהם; תזמן הודעת מעקב מרוחקת. בחר ערוץ (\`channel\`), מלא **רק** את שדות ההודעה של הערוץ שנבחר, ותמיד את \`send_at\`:
 - \`channel\`: "email" או "whatsapp". מותר לבחור "whatsapp" רק כשמקטע WHATSAPP CHANNEL מציין ENABLED.
 - ערוץ email: מלא \`email_subject\` (אם כבר קיימת התכתבות במייל, שמור על נושא השרשור הקיים, למשל "Re: ...") ו-\`email_body\`; השאר את \`whatsapp_text\` ו-\`whatsapp_template\` כ-null.
 - ערוץ whatsapp כשהחלון פתוח (24h window: OPEN): מלא \`whatsapp_text\` בהודעה חופשית; השאר את שאר שדות ההודעה null. שים לב: \`send_at\` חייב להיות לפני מועד סגירת החלון המצוין - הודעה חופשית שתגיע לשליחה אחרי סגירת החלון לא תישלח.
@@ -125,23 +126,23 @@ export function isInterviewComplete(client: ClientRow): boolean {
 }
 
 /** Lives in `contents` (like the documents section) so every planning pass sees the current document state. */
-export function buildDocumentsSection(documents: ClientDocumentRow[]): string {
+export function buildDocumentsSection(token: string, documents: ClientDocumentRow[]): string {
   if (documents.length === 0) {
-    return '--- DOCUMENTS DETERMINED SO FAR ---\n(none yet — interview in progress)\n--- END DOCUMENTS ---';
+    return `${fence(token, 'DOCUMENTS DETERMINED SO FAR')}\n(none yet — interview in progress)\n${endFence(token, 'DOCUMENTS DETERMINED SO FAR')}`;
   }
   const lines = documents.map((doc) => {
-    const description = doc.description ? ` — ${doc.description}` : '';
-    return `[id: ${doc.id}] ${doc.name}${description} | status: ${doc.status}`;
+    const description = doc.description ? ` — ${sanitizeInline(doc.description, 500)}` : '';
+    return `[id: ${doc.id}] ${sanitizeInline(doc.name, 200)}${description} | status: ${doc.status}`;
   });
-  return `--- DOCUMENTS DETERMINED SO FAR ---\n${lines.join('\n')}\n--- END DOCUMENTS ---`;
+  return `${fence(token, 'DOCUMENTS DETERMINED SO FAR')}\n${lines.join('\n')}\n${endFence(token, 'DOCUMENTS DETERMINED SO FAR')}`;
 }
 
 /** The sticky interview state must be visible to every planning pass — the transcript alone can be ambiguous. */
-export function buildInterviewSection(client: ClientRow): string {
+export function buildInterviewSection(token: string, client: ClientRow): string {
   const status = isInterviewComplete(client)
     ? 'COMPLETE — the interview is finished; do not reopen it, only chase the documents still pending'
     : 'IN PROGRESS — keep interviewing until every applicable topic is covered';
-  return `--- INTERVIEW STATUS ---\n${status}\n--- END INTERVIEW STATUS ---`;
+  return `${fence(token, 'INTERVIEW STATUS')}\n${status}\n${endFence(token, 'INTERVIEW STATUS')}`;
 }
 
 export function buildPrompt(
@@ -153,15 +154,16 @@ export function buildPrompt(
   now: Date,
   waState: WaChannelState = WHATSAPP_UNAVAILABLE,
 ): Prompt {
+  const token = makeFenceToken();
   const sections = [
-    buildDocumentsSection(documents),
-    buildInterviewSection(client),
-    buildDeadlineSection(client, now),
-    buildWhatsAppSection(waState),
-    buildThreadTranscript(history, files),
+    buildDocumentsSection(token, documents),
+    buildInterviewSection(token, client),
+    buildDeadlineSection(token, client, now),
+    buildWhatsAppSection(token, waState),
+    buildThreadTranscript(token, history, files),
   ].filter((s) => s !== '');
   return {
-    systemInstruction: buildSystemPrompt(client, accountant, history, now, ANNUAL_REPORT_PROMPT_TEMPLATE),
+    systemInstruction: buildSystemPrompt(client, accountant, history, now, ANNUAL_REPORT_PROMPT_TEMPLATE, token),
     contents: sections.join('\n\n'),
   };
 }

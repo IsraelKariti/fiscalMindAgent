@@ -582,6 +582,13 @@ code {
   border-color: var(--border);
 }
 
+/* Awaiting the accountant's confirmation (claimed documents, claimed payments). */
+.badge-warning {
+  background: rgba(251, 146, 60, 0.14);
+  color: #fb923c;
+  border-color: rgba(251, 146, 60, 0.35);
+}
+
 /* Attention states, e.g. the collection due date passed. */
 .badge-danger {
   background: var(--error-bg);
@@ -3522,6 +3529,24 @@ button.meta-chip:hover {
 }
 
 /* ---------- Debt collector: per-client debt snapshot card ---------- */
+
+/* The 'client claims paid' confirmation block above the snapshot details. */
+.debt-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  border-radius: 10px;
+  background: rgba(251, 146, 60, 0.08);
+}
+
+.debt-confirm p {
+  margin: 0;
+  font-size: 13px;
+}
 
 .debt-details {
   margin: 0;

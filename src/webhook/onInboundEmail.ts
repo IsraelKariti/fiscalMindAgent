@@ -10,6 +10,7 @@ import { publishClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { loadAgentContext } from '../agents/resolve.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
+import { detectInjectionHeuristics } from '../agents/shared/promptSafety.js';
 import { ingestAttachments } from './ingestAttachments.js';
 import { logger } from '../util/logger.js';
 
@@ -94,6 +95,17 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
   // Keep only what the client typed — the quoted copy of the thread below the
   // attribution line would otherwise re-embed every earlier email in each reply.
   const body = stripQuotedReply(full.text ?? (full.html ? stripHtml(full.html) : ''));
+
+  // Injection tripwires (telemetry only — the structural defenses live in the
+  // prompt builders): flag inbound content that looks like it addresses the LLM.
+  const tripwires = detectInjectionHeuristics(`${data.subject}\n${body}`);
+  if (tripwires.length > 0) {
+    logger.warn('inbound email contains instruction-like text (possible prompt injection)', {
+      clientId: client.id,
+      fromAddress,
+      tripwires,
+    });
+  }
 
   const messageId = data.message_id ?? full.message_id ?? `<resend-${resendId}@inbound>`;
   const inserted = await emails.insertInboundIfNew(client.id, {

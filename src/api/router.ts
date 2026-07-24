@@ -14,6 +14,7 @@ import {
   adminAddToWhitelist,
   adminDisableAgent,
   adminEnableAgent,
+  adminGetKillSwitch,
   adminGetModel,
   adminListAccountantAgents,
   adminListAccountants,
@@ -21,6 +22,7 @@ import {
   adminLlmUsageDaily,
   adminRemoveFromWhitelist,
   adminSetAgentEmail,
+  adminSetKillSwitch,
   adminSetModel,
   adminSetTier,
   requireAdmin,
@@ -81,6 +83,8 @@ apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersona
 apiRouter.get('/admin/llm-usage/daily', wrap(requireAdmin), wrap(adminLlmUsageDaily));
 apiRouter.get('/admin/model', wrap(requireAdmin), wrap(adminGetModel));
 apiRouter.put('/admin/model', wrap(requireAdmin), wrap(adminSetModel));
+apiRouter.get('/admin/kill-switch', wrap(requireAdmin), wrap(adminGetKillSwitch));
+apiRouter.put('/admin/kill-switch', wrap(requireAdmin), wrap(adminSetKillSwitch));
 apiRouter.get('/admin/whitelist', wrap(requireAdmin), wrap(adminListWhitelist));
 apiRouter.post('/admin/whitelist', wrap(requireAdmin), wrap(adminAddToWhitelist));
 apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemoveFromWhitelist));

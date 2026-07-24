@@ -7,6 +7,7 @@ import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
+import { getKillSwitchState, setKillSwitch } from '../agents/killSwitch.js';
 import { RESERVED } from './mailbox.js';
 import { env } from '../config/env.js';
 import { getPricingForModel } from '../gemini/pricing.js';
@@ -21,6 +22,8 @@ import { clearImpersonationCookie, isAdminEmail, setImpersonationCookie } from '
 const ImpersonateSchema = z.object({ userId: z.string().uuid() }).strict();
 
 const ModelSchema = z.object({ model: z.enum(GEMINI_MODEL_OPTIONS) }).strict();
+
+const KillSwitchSchema = z.object({ on: z.boolean() }).strict();
 
 const WhitelistAddSchema = z
   .object({
@@ -409,6 +412,23 @@ export const stopImpersonation: RequestHandler = async (req, res) => {
   clearImpersonationCookie(res);
   logger.info('impersonation stopped', { adminUserId: req.realUserId, targetUserId: req.userId });
   res.json({ ok: true });
+};
+
+/** GET /api/admin/kill-switch — is the platform-wide emergency stop on. */
+export const adminGetKillSwitch: RequestHandler = async (_req, res) => {
+  res.json(await getKillSwitchState());
+};
+
+/** PUT /api/admin/kill-switch — flip the org-wide off switch for every agent at once. */
+export const adminSetKillSwitch: RequestHandler = async (req, res) => {
+  const parsed = KillSwitchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Expected { on: boolean }.' });
+    return;
+  }
+  await setKillSwitch(parsed.data.on);
+  logger.warn('platform kill switch changed', { adminUserId: req.realUserId, on: parsed.data.on });
+  res.json(await getKillSwitchState());
 };
 
 /** GET /api/admin/model — the model every LLM call runs on, plus the pickable options. */

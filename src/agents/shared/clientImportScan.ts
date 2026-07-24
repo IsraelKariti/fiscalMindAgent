@@ -5,6 +5,7 @@ import * as clients from '../../db/queries/clients.js';
 import { draftFirstEmail } from '../../api/draftFirstEmail.js';
 import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { resolveSenderMailbox } from '../instanceEmail.js';
+import { isKillSwitchOn } from '../killSwitch.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
@@ -254,6 +255,10 @@ export async function scanClientImportInstance(
  * overlapping runs are harmless.
  */
 export async function runClientImportScan(): Promise<void> {
+  if (await isKillSwitchOn()) {
+    logger.warn('platform kill switch on, skipping client import scan');
+    return;
+  }
   let instanceCount = 0;
   let enrolled = 0;
   for (const agentType of CLIENT_IMPORT_AGENT_TYPES) {

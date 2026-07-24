@@ -266,6 +266,12 @@ export interface LlmDailyUsage {
   cost: number | null;
 }
 
+/** The platform-wide emergency stop: on = every agent is silenced at once. */
+export interface KillSwitchState {
+  on: boolean;
+  updatedAt: string | null;
+}
+
 /** The Gemini model every LLM call runs on, for every accountant and client. */
 export interface GeminiModelState {
   model: string;
@@ -611,6 +617,9 @@ export const api = {
   adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),
+  adminGetKillSwitch: () => request<KillSwitchState>('/admin/kill-switch'),
+  adminSetKillSwitch: (on: boolean) =>
+    request<KillSwitchState>('/admin/kill-switch', { method: 'PUT', body: JSON.stringify({ on }) }),
   adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/admin/whitelist'),
   adminAddToWhitelist: (email: string, name?: string, tier?: AccountTier) =>
     request<{ entry: WhitelistEntry }>('/admin/whitelist', {

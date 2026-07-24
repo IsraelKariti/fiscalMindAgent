@@ -6,6 +6,7 @@ import { withClientLock } from '../db/withClientLock.js';
 import { publishClientUpdated, publishInstanceClientsUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { loadAgentContext } from '../agents/resolve.js';
+import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { ingestWaMedia, type WaMediaItem } from './ingestWaMedia.js';
 import { logger } from '../util/logger.js';
 
@@ -48,6 +49,10 @@ function stripWhatsAppPrefix(value: string): string {
 }
 
 export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<void> {
+  if (await isKillSwitchOn()) {
+    logger.warn('platform kill switch on, ignoring inbound whatsapp', { messageSid: params.MessageSid });
+    return;
+  }
   const senderNumber = stripWhatsAppPrefix(params.To);
   const clientNumber = stripWhatsAppPrefix(params.From);
 

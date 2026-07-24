@@ -1,13 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, ApiError, type GeminiModelState, type OrphanedWaNumber } from '../../api';
+import { api, ApiError, type GeminiModelState, type KillSwitchState, type OrphanedWaNumber } from '../../api';
 import { formatTimestamp } from '../../format';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
 import { MODEL_LABELS } from './shared';
 
-/** Platform settings: the global Gemini model and the orphaned Twilio number pool. */
+/** Platform settings: the emergency kill switch, the global Gemini model and the orphaned Twilio number pool. */
 export function AdminSettings() {
   const { t } = useT();
+
+  // Org-wide emergency stop: silences every agent at once (inbound, queued
+  // sends, tax fetches, daily scans) until switched back on.
+  const [killSwitch, setKillSwitch] = useState<KillSwitchState | null>(null);
+  const [killNotice, setKillNotice] = useState<'load_failed' | 'save_failed' | null>(null);
+  const [killSaving, setKillSaving] = useState(false);
+  const [killConfirmOpen, setKillConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    api.adminGetKillSwitch().then(setKillSwitch).catch(() => setKillNotice('load_failed'));
+  }, []);
+
+  const changeKillSwitch = async (on: boolean) => {
+    setKillSaving(true);
+    setKillNotice(null);
+    try {
+      setKillSwitch(await api.adminSetKillSwitch(on));
+    } catch {
+      setKillNotice('save_failed');
+    } finally {
+      setKillSaving(false);
+    }
+  };
 
   const [modelState, setModelState] = useState<GeminiModelState | null>(null);
   const [modelNotice, setModelNotice] = useState<'saved' | 'load_failed' | 'save_failed' | null>(null);
@@ -71,6 +94,32 @@ export function AdminSettings() {
 
   return (
     <section className="card">
+      <div className="settings-section">
+        <h3>{t.killSwitchTitle}</h3>
+        <p className="muted">{t.killSwitchDesc}</p>
+        {killNotice === 'load_failed' && <div className="error-banner">{t.killSwitchLoadFailed}</div>}
+        {killSwitch && (
+          <>
+            {killSwitch.on ? (
+              <div className="error-banner">
+                {t.killSwitchOnBanner}
+                {killSwitch.updatedAt && <> ({formatTimestamp(killSwitch.updatedAt)})</>}
+              </div>
+            ) : (
+              <p className="muted">{t.killSwitchOffStatus}</p>
+            )}
+            <button
+              className={`btn ${killSwitch.on ? 'btn-primary' : 'btn-danger'}`}
+              disabled={killSaving}
+              onClick={() => (killSwitch.on ? changeKillSwitch(false) : setKillConfirmOpen(true))}
+            >
+              {killSaving ? t.saving : killSwitch.on ? t.killSwitchTurnOff : t.killSwitchTurnOn}
+            </button>
+            {killNotice === 'save_failed' && <div className="error-banner">{t.killSwitchSaveFailed}</div>}
+          </>
+        )}
+      </div>
+
       <div className="settings-section">
         <h3>{t.llmModelTitle}</h3>
         <p className="muted">{t.llmModelDesc}</p>
@@ -146,6 +195,17 @@ export function AdminSettings() {
           </ul>
         )}
       </div>
+
+      {killConfirmOpen && (
+        <ConfirmModal
+          title={t.killSwitchTurnOn}
+          note={t.killSwitchConfirmOn}
+          confirmLabel={t.killSwitchTurnOn}
+          danger
+          onConfirm={() => changeKillSwitch(true)}
+          onClose={() => setKillConfirmOpen(false)}
+        />
+      )}
 
       {orphanReleaseConfirm && (
         <ConfirmModal

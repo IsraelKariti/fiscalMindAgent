@@ -4,6 +4,7 @@ import { withClientLock } from '../../db/withClientLock.js';
 import { pauseFutureEmail } from '../../orchestration/pauseFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { sendOverdueEmail } from './notifyAccountant.js';
+import { isKillSwitchOn } from '../killSwitch.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../util/logger.js';
 
@@ -21,6 +22,10 @@ function todayLocal(): string {
  * claim each client exactly once.
  */
 export async function runOverdueScan(): Promise<void> {
+  if (await isKillSwitchOn()) {
+    logger.warn('platform kill switch on, skipping overdue scan');
+    return;
+  }
   const candidates = await clients.listOverdueForAgentTypes(todayLocal(), ['doc_collector', 'annual_report_assistant']);
   let stopped = 0;
   for (const candidate of candidates) {

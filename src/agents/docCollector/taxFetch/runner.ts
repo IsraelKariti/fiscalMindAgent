@@ -7,6 +7,7 @@ import { publishClientUpdated } from '../../../events/clientEvents.js';
 import { getFetchClient } from './fetchClient.js';
 import { FetchAtCapacityError, OtpRejectedError, SessionGoneError } from './types.js';
 import { sessionTracker } from './sessionTracker.js';
+import { agentWorkBlocked } from '../../killSwitch.js';
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientRow } from '../../../db/types.js';
@@ -74,6 +75,17 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
   }
   const client = await clients.getById(session.client_id);
   if (!client) return;
+
+  // Re-check at act time: the agent (or the whole platform) may have been
+  // disabled while this job sat delayed — the login must then never fire the
+  // real OTP SMS. No client message: the instance was shut off deliberately.
+  const blocked = await agentWorkBlocked(client);
+  if (blocked) {
+    await taxFetchSessions.updateStatus(sessionId, 'cancelled');
+    logger.warn('tax fetch: agent disabled, cancelling before login', { sessionId, reason: blocked });
+    publishClientUpdated(client.id);
+    return;
+  }
 
   // The login triggers the real OTP SMS — it may only run after the message
   // telling the client to expect the code has actually been sent.
@@ -163,6 +175,17 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
   const client = await clients.getById(live.clientId);
   if (!client) {
     await fetchClient.close(sessionId);
+    return;
+  }
+
+  // A running fetch holds a live browser on the runner; disabling the agent
+  // (or the kill switch) must tear it down, not let the fetch complete.
+  const blocked = await agentWorkBlocked(client);
+  if (blocked) {
+    await fetchClient.close(sessionId);
+    await taxFetchSessions.updateStatus(sessionId, 'cancelled');
+    logger.warn('tax fetch: agent disabled, dropping otp and closing browser', { sessionId, reason: blocked });
+    publishClientUpdated(client.id);
     return;
   }
 

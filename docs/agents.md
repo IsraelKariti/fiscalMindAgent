@@ -17,6 +17,15 @@ are live too. Industry pattern followed: one app with an agent registry
   accounts start with zero agents. `enabled=false`
   hides an instance; **never DELETE an instance row — clients cascade off it
   and the agent's data would be destroyed.**
+- **Kill switches** — `agent_instances.enabled` is re-checked at act time
+  wherever work runs deferred (queued sends in `sendEmailWorker`, tax-fetch
+  jobs in the runner), not only on inbound webhooks and daily scans, so
+  disabling an agent also drains its in-flight work. The org-wide emergency
+  stop is the `platform_kill_switch` app-setting (`src/agents/killSwitch.ts`,
+  admin Settings page, `GET/PUT /api/admin/kill-switch`): when on, inbound
+  webhooks, queued sends, tax fetches and the daily scans all stop, with no
+  deploy or restart. New deferred/scheduled execution paths must call
+  `agentWorkBlocked` (or at least `isKillSwitchOn`) before acting.
 - **Clients belong to an instance** — `clients.agent_instance_id` (NULL only
   on legacy CLI-era rows, treated as doc_collector). Per-agent scalar fields
   go in `clients.agent_fields` JSONB; relational per-agent data gets its own

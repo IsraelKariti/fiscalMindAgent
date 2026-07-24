@@ -6,6 +6,7 @@ import * as llmUsage from '../../db/queries/llmUsage.js';
 import { draftFirstEmail } from '../../api/draftFirstEmail.js';
 import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { resolveSenderMailbox } from '../instanceEmail.js';
+import { isKillSwitchOn } from '../killSwitch.js';
 import { getGeminiModel } from '../../gemini/modelSettings.js';
 import { generateWithRetry, usageFromResponse } from '../../gemini/generate.js';
 import { logger } from '../../util/logger.js';
@@ -134,6 +135,10 @@ async function scanInstance(instance: AgentInstanceRow): Promise<number> {
  * are skipped, so overlapping runs are harmless.
  */
 export async function runDebtScan(): Promise<void> {
+  if (await isKillSwitchOn()) {
+    logger.warn('platform kill switch on, skipping debt scan');
+    return;
+  }
   const instances = await agentInstances.listEnabledByType('debt_collector');
   let enrolled = 0;
   for (const instance of instances) {

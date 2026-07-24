@@ -562,6 +562,17 @@ const he = {
   llmModelLoadFailed: 'טעינת הגדרת המודל נכשלה.',
   llmModelSaveFailed: 'שמירת המודל נכשלה.',
   llmModelEnvDefault: 'ברירת המחדל של השרת',
+  killSwitchTitle: 'מתג חירום כללי',
+  killSwitchDesc:
+    'עצירת חירום של כל הסוכנים בבת אחת: הודעות נכנסות לא מטופלות, שליחות שממתינות בתור נעצרות לפני היציאה, משיכות מרשות המסים מבוטלות והסריקות היומיות מדולגות. נכנס לתוקף מייד, ללא פריסה מחדש.',
+  killSwitchOnBanner: 'מתג החירום פעיל — כל הסוכנים מושבתים.',
+  killSwitchOffStatus: 'המערכת פעילה.',
+  killSwitchTurnOn: 'השבתת כל הסוכנים',
+  killSwitchTurnOff: 'הפעלת הסוכנים מחדש',
+  killSwitchConfirmOn:
+    'כל הסוכנים, אצל כל רואי החשבון, יפסיקו לפעול מייד. שליחות שכבר ממתינות בתור יבוטלו ולא יישלחו גם לאחר ההפעלה מחדש.',
+  killSwitchLoadFailed: 'טעינת מצב מתג החירום נכשלה.',
+  killSwitchSaveFailed: 'עדכון מתג החירום נכשל.',
 
   // AddAccountantModal
   addAccountantTitle: 'הוספת רואה חשבון',

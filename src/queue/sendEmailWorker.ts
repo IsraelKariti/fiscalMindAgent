@@ -15,6 +15,7 @@ import { publishClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { isWhatsAppWindowOpen } from '../orchestration/whatsappWindow.js';
+import { agentWorkBlocked } from '../agents/killSwitch.js';
 import { logger } from '../util/logger.js';
 import type { ClientRow, EmailRow } from '../db/types.js';
 
@@ -35,6 +36,14 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       // Pausing removes the pending job, so this only catches races (a job that
       // went active as the pause landed) and boot-time resyncs of stale rows.
       logger.info('client paused, skipping send', { clientId });
+      return;
+    }
+    // Disabling an agent (or the platform kill switch) must also drain sends
+    // that were queued while it was still enabled — the flag flip alone doesn't
+    // touch BullMQ, so the check has to happen here at send time.
+    const blocked = await agentWorkBlocked(client);
+    if (blocked) {
+      logger.warn('agent disabled, dropping queued send', { clientId, emailId, reason: blocked });
       return;
     }
 

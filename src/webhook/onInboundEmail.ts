@@ -9,6 +9,7 @@ import { parseEmailAddress, stripQuotedReply } from '../util/email.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { loadAgentContext } from '../agents/resolve.js';
+import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { ingestAttachments } from './ingestAttachments.js';
 import { logger } from '../util/logger.js';
 
@@ -35,6 +36,10 @@ function stripHtml(html: string): string {
 }
 
 export async function onInboundEmail(data: ResendInboundData): Promise<void> {
+  if (await isKillSwitchOn()) {
+    logger.warn('platform kill switch on, ignoring inbound email', { from: data.from });
+    return;
+  }
   const resendId = data.email_id ?? data.id;
   if (!resendId) {
     logger.warn('inbound event missing email id, ignoring');

@@ -20,7 +20,7 @@ import {
 } from '../gemini/modelSettings.js';
 import { auditAdminMutation } from '../audit/adminAudit.js';
 import { logger } from '../util/logger.js';
-import { clearImpersonationCookie, isAdminEmail, setImpersonationCookie } from './auth.js';
+import { clearImpersonationCookie, setImpersonationCookie } from './auth.js';
 
 const ImpersonateSchema = z.object({ userId: z.string().uuid() }).strict();
 
@@ -45,7 +45,7 @@ const WhitelistAddSchema = z
 export const requireAdmin: RequestHandler = async (req, res, next) => {
   try {
     const user = await users.getById(req.realUserId!);
-    if (!user || !isAdminEmail(user.email)) {
+    if (!user || !user.is_admin) {
       res.status(403).json({ error: 'Admin access required.' });
       return;
     }
@@ -61,7 +61,7 @@ export const requireAdmin: RequestHandler = async (req, res, next) => {
  * (type, enabled, client count) and per-model Gemini usage, each model's
  * tokens priced at its own rates (cost null while the pricing registry has no
  * entry for it). Agent-specific progress lives on the per-agent admin pages,
- * not here. Admin accounts (ADMIN_EMAILS) are not accountants and are
+ * not here. Admin accounts (users.is_admin) are not accountants and are
  * excluded.
  */
 export const adminListAccountants: RequestHandler = async (_req, res) => {
@@ -109,7 +109,7 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
 
   res.json({
     accountants: list
-      .filter((u) => !isAdminEmail(u.email))
+      .filter((u) => !u.is_admin)
       .map((u) => ({
         id: u.id,
         email: u.email,
@@ -404,7 +404,7 @@ export const startImpersonation: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'User not found.' });
     return;
   }
-  if (isAdminEmail(target.email)) {
+  if (target.is_admin) {
     res.status(403).json({ error: 'Admin accounts cannot be impersonated.' });
     return;
   }
@@ -550,7 +550,7 @@ export const adminAddToWhitelist: RequestHandler = async (req, res) => {
     return;
   }
   const email = parsed.data.email.toLowerCase();
-  if (isAdminEmail(email)) {
+  if (await users.isAdminEmailInDb(email)) {
     res.status(400).json({ error: 'Admin accounts already have access.' });
     return;
   }
@@ -582,6 +582,67 @@ export const adminSetTier: RequestHandler = async (req, res) => {
     email: email.data.toLowerCase(),
     tier: parsed.data.tier,
   });
+  res.json({ ok: true });
+};
+
+const AdminGrantSchema = z.object({ email: z.string().email().max(320) }).strict();
+
+/** GET /api/admin/admins — everyone with admin access, oldest first. */
+export const adminListAdmins: RequestHandler = async (_req, res) => {
+  const admins = await users.listAdmins();
+  res.json({
+    admins: admins.map((a) => ({ id: a.id, email: a.email, name: a.name, createdAt: a.created_at })),
+  });
+};
+
+/**
+ * POST /api/admin/admins — grant admin access to an existing account by email.
+ * The account must have signed in at least once (there is no invite flow);
+ * granting an unknown email would otherwise hand admin power to whoever
+ * registers it later.
+ */
+export const adminGrantAdmin: RequestHandler = async (req, res) => {
+  const parsed = AdminGrantSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Enter a valid email address.' });
+    return;
+  }
+  const email = parsed.data.email.toLowerCase();
+  if (await users.isAdminEmailInDb(email)) {
+    res.status(409).json({ error: 'This account is already an admin.' });
+    return;
+  }
+  const user = await users.setAdminByEmail(email, true);
+  if (!user) {
+    res.status(404).json({ error: 'No account with this email — they must sign in once first.' });
+    return;
+  }
+  logger.warn('admin access granted', { adminUserId: req.realUserId, targetUserId: user.id, targetEmail: user.email });
+  res.status(201).json({ admin: { id: user.id, email: user.email, name: user.name, createdAt: user.created_at } });
+};
+
+/** DELETE /api/admin/admins/:userId — revoke admin access; never your own, never the last admin's. */
+export const adminRevokeAdmin: RequestHandler = async (req, res) => {
+  const userId = z.string().uuid().safeParse(req.params.userId);
+  if (!userId.success) {
+    res.status(404).json({ error: 'Admin not found.' });
+    return;
+  }
+  if (userId.data === req.realUserId) {
+    res.status(400).json({ error: 'You cannot revoke your own admin access.' });
+    return;
+  }
+  const target = await users.getById(userId.data);
+  if (!target || !target.is_admin) {
+    res.status(404).json({ error: 'Admin not found.' });
+    return;
+  }
+  if ((await users.countAdmins()) <= 1) {
+    res.status(409).json({ error: 'Cannot remove the last admin.' });
+    return;
+  }
+  await users.setAdminById(userId.data, false);
+  logger.warn('admin access revoked', { adminUserId: req.realUserId, targetUserId: target.id, targetEmail: target.email });
   res.json({ ok: true });
 };
 

@@ -360,8 +360,9 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   `anomalyRules.ts`) sweeps for send-volume/enrollment/token spikes, repeated
   tax-fetch failures and off-hours tax logins. Findings land in
   `anomaly_alerts` (deduped per rule+scope by `insertIfNotRecent`) and email
-  `ADMIN_EMAILS` via `src/alerts/adminAlert.ts` — the platform's only
-  admin-facing email path. Alerts + the raw trail are on the admin `#/audit`
+  the DB-managed admins (`users.is_admin`, falling back to `ADMIN_EMAILS`
+  before the one-time bootstrap has seeded any) via
+  `src/alerts/adminAlert.ts` — the platform's only admin-facing email path. Alerts + the raw trail are on the admin `#/audit`
   page (AdminAudit.tsx); the dashboard shows only the open-alert count badge.
   Two intentional kill-switch exceptions, per the flag-and-notify doctrine
   (detection never auto-acts): `recordAudit` and the anomaly scan are NOT

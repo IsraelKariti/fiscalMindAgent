@@ -10,7 +10,7 @@ import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { publishInstanceClientsUpdated } from '../events/clientEvents.js';
-import { isAdminEmail, requireWhitelisted } from './auth.js';
+import { requireWhitelisted } from './auth.js';
 import { accountRouter } from './account.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
@@ -72,7 +72,7 @@ async function sessionStatus(userId: string) {
     // they link a real Google sign-in.
     linked: !user.google_sub.startsWith('monday:'),
     email: user.email,
-    whitelisted: isAdminEmail(user.email) || whitelisted,
+    whitelisted: user.is_admin || whitelisted,
     tier,
     senderAssigned: sender !== null,
     appUrl: env.APP_BASE_URL,
@@ -188,7 +188,7 @@ mondayRouter.get(
       res.json({ authenticated: false });
       return;
     }
-    const isAdmin = isAdminEmail(user.email);
+    const isAdmin = user.is_admin;
     res.json({
       authenticated: true,
       user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },

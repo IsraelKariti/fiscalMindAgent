@@ -219,6 +219,17 @@ const he = {
     'מספרים שבבעלות חשבון ה-Twilio (ומחויבים חודשית) אך אינם משויכים לאף סוכן. אפשר לשייך מספר מחדש דרך כרטיס הסוכן, או לשחרר אותו כאן כדי להפסיק את החיוב.',
   adminOrphanNumbersEmpty: 'כל המספרים בחשבון משויכים לסוכנים.',
   adminOrphanNumbersLoadFailed: 'טעינת המספרים הלא משויכים נכשלה.',
+  adminAdminsTitle: 'מנהלי מערכת',
+  adminAdminsDesc:
+    'החשבונות עם גישת ניהול מלאה (פאנל הניהול, התחזות, מתג החירום). הוספה והסרה נרשמות ביומן הביקורת. אי אפשר להסיר את עצמכם או את המנהל האחרון.',
+  adminAdminsLoadFailed: 'טעינת רשימת המנהלים נכשלה.',
+  adminAdminsEmailPlaceholder: 'אימייל של חשבון קיים',
+  adminAdminsAdd: 'הוספת מנהל',
+  adminAdminsAddFailed: 'הוספת המנהל נכשלה.',
+  adminAdminsRemove: 'הסרה',
+  adminAdminsRemoveConfirm: (email: string) => `להסיר את גישת הניהול של ‎${email}?`,
+  adminAdminsRemoveFailed: 'הסרת המנהל נכשלה.',
+  adminAdminsYou: 'אתם',
 
   // Sidebar
   navDashboard: 'דשבורד',

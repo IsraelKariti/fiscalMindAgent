@@ -25,9 +25,21 @@ const STATE_COOKIE = 'fm_oauth_state';
 const IMPERSONATION_COOKIE = 'fm_impersonate';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const STATE_TTL_MS = 10 * 60 * 1000;
-const IMPERSONATION_TTL_MS = 4 * 60 * 60 * 1000;
+// Deliberately short: a stolen admin cookie should not buy hours of acting as
+// an accountant. Admins re-enter impersonation from the admin panel when it lapses.
+const IMPERSONATION_TTL_MS = 30 * 60 * 1000;
 
-const sessionSecret = env.DASHBOARD_SESSION_SECRET ?? crypto.randomBytes(32).toString('hex');
+// Signs every auth cookie. Production must set it explicitly — a random
+// per-process fallback would silently log everyone out on each restart and
+// break the moment a second replica runs — so fail startup instead.
+const sessionSecret = ((): string => {
+  if (env.DASHBOARD_SESSION_SECRET) return env.DASHBOARD_SESSION_SECRET;
+  if (env.NODE_ENV === 'production') {
+    throw new Error('DASHBOARD_SESSION_SECRET must be set in production (random string, min 16 chars).');
+  }
+  logger.warn('DASHBOARD_SESSION_SECRET is not set — using a random per-process secret; sessions reset on every restart');
+  return crypto.randomBytes(32).toString('hex');
+})();
 
 const IDENTITY_SCOPES = ['openid', 'email', 'profile'];
 
@@ -151,10 +163,6 @@ function setSessionCookie(res: Response, userId: string): void {
   });
 }
 
-export function isAdminEmail(email: string): boolean {
-  return env.ADMIN_EMAILS.includes(email.toLowerCase());
-}
-
 /**
  * Impersonation cookie format: <adminUserId>.<targetUserId>.<expiresAtMs>.<hmac of the first three>.
  * Admin status is checked when the cookie is issued (POST /api/admin/impersonate); at request time
@@ -249,6 +257,13 @@ export const googleLoginCallback: RequestHandler = async (req, res) => {
     name: payload.name ?? null,
     pictureUrl: payload.picture ?? null,
   });
+  // One-time admin bootstrap, Google-verified logins only (monday-reported
+  // emails are unverified): while the DB has zero admins, an ADMIN_EMAILS
+  // sign-in seeds the admin set. Afterwards admin access is DB-managed only.
+  if (env.ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    const granted = await users.bootstrapAdminsIfNone(env.ADMIN_EMAILS);
+    if (granted.length > 0) logger.info('bootstrapped admins from ADMIN_EMAILS', { emails: granted });
+  }
   setSessionCookie(res, user.id);
 
   // Login opened from the monday widget's "link existing account" popup:
@@ -326,7 +341,7 @@ export const me: RequestHandler = async (req, res) => {
     }
   }
 
-  const isAdmin = isAdminEmail(user.email);
+  const isAdmin = user.is_admin;
   // Tier of the workspace being viewed — the impersonated accountant's while
   // impersonating, null for admins (they are not accountants).
   const tier = await whitelist.getTier(impersonating?.email ?? user.email);
@@ -361,7 +376,7 @@ export const requireAuth: RequestHandler = (req, res, next) => {
 export const requireWhitelisted: RequestHandler = async (req, res, next) => {
   try {
     const user = await users.getById(req.realUserId!);
-    if (user && (isAdminEmail(user.email) || (await whitelist.isWhitelisted(user.email)))) {
+    if (user && (user.is_admin || (await whitelist.isWhitelisted(user.email)))) {
       next();
       return;
     }

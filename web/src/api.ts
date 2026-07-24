@@ -328,6 +328,14 @@ export interface OrphanedWaNumber {
   dateCreated: string;
 }
 
+/** An account with admin access (users.is_admin — DB-managed, not the env allowlist). */
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string | null;
+  createdAt: string;
+}
+
 export type AccountTier = 'normal' | 'premium';
 
 export interface WhitelistEntry {
@@ -665,6 +673,11 @@ export const api = {
   adminGetKillSwitch: () => request<KillSwitchState>('/admin/kill-switch'),
   adminSetKillSwitch: (on: boolean) =>
     request<KillSwitchState>('/admin/kill-switch', { method: 'PUT', body: JSON.stringify({ on }) }),
+  adminListAdmins: () => request<{ admins: AdminUser[] }>('/admin/admins'),
+  adminGrantAdmin: (email: string) =>
+    request<{ admin: AdminUser }>('/admin/admins', { method: 'POST', body: JSON.stringify({ email }) }),
+  adminRevokeAdmin: (userId: string) =>
+    request<{ ok: true }>(`/admin/admins/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
   adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/admin/whitelist'),
   adminAddToWhitelist: (email: string, name?: string, tier?: AccountTier) =>
     request<{ entry: WhitelistEntry }>('/admin/whitelist', {

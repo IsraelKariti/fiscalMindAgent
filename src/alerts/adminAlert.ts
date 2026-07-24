@@ -1,4 +1,5 @@
 import type { AnomalyAlertRow } from '../db/queries/anomalyAlerts.js';
+import * as users from '../db/queries/users.js';
 import { sendEmail } from '../resend/send.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
@@ -6,12 +7,19 @@ import { logger } from '../util/logger.js';
 /**
  * The platform's only path that emails the ADMINS (not an accountant): anomaly
  * and critical-event alerts, from the same no-reply domain address the
- * accountant notifications use. Throws on total failure so raiseAlert can
- * leave notified_at null (= "email never went out") on the alert row.
+ * accountant notifications use. Recipients are the DB-managed admins
+ * (users.is_admin), falling back to ADMIN_EMAILS during the pre-bootstrap
+ * window when the DB has no admins yet. Throws on total failure so raiseAlert
+ * can leave notified_at null (= "email never went out") on the alert row.
  */
 export async function sendAdminAlertEmail(alert: AnomalyAlertRow): Promise<void> {
-  if (env.ADMIN_EMAILS.length === 0) {
-    logger.warn('admin alert email skipped: ADMIN_EMAILS is empty', { alertId: alert.id, rule: alert.rule });
+  const dbAdmins = await users.listAdminEmails();
+  const recipients = dbAdmins.length > 0 ? dbAdmins : env.ADMIN_EMAILS;
+  if (recipients.length === 0) {
+    logger.warn('admin alert email skipped: no admins in DB and ADMIN_EMAILS is empty', {
+      alertId: alert.id,
+      rule: alert.rule,
+    });
     return;
   }
   const prefix = alert.severity === 'critical' ? 'התראה קריטית' : 'אזהרה';
@@ -32,7 +40,7 @@ export async function sendAdminAlertEmail(alert: AnomalyAlertRow): Promise<void>
     .join('\n');
 
   const results = await Promise.allSettled(
-    env.ADMIN_EMAILS.map((to) =>
+    recipients.map((to) =>
       sendEmail({ from: `FiscalMind <no-reply@${env.AGENT_EMAIL_DOMAIN}>`, to, subject, body }),
     ),
   );

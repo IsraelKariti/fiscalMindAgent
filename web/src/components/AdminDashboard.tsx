@@ -172,7 +172,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
 
         {route.screen === 'audit' && <AdminAudit />}
 
-        {route.screen === 'settings' && <AdminSettings />}
+        {route.screen === 'settings' && <AdminSettings userEmail={userEmail} />}
       </main>
     </div>
   );

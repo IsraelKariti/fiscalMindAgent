@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, ApiError, type GeminiModelState, type KillSwitchState, type OrphanedWaNumber } from '../../api';
+import { api, ApiError, type AdminUser, type GeminiModelState, type KillSwitchState, type OrphanedWaNumber } from '../../api';
 import { formatTimestamp } from '../../format';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
 import { MODEL_LABELS } from './shared';
 
-/** Platform settings: the emergency kill switch, the global Gemini model and the orphaned Twilio number pool. */
-export function AdminSettings() {
+interface Props {
+  /** The signed-in admin's email — their own row hides its remove button. */
+  userEmail: string | null;
+}
+
+/** Platform settings: admin access, the emergency kill switch, the global Gemini model and the orphaned Twilio number pool. */
+export function AdminSettings({ userEmail }: Props) {
   const { t } = useT();
 
   // Org-wide emergency stop: silences every agent at once (inbound, queued
@@ -92,8 +97,114 @@ export function AdminSettings() {
     }
   };
 
+  // Admin access is DB-managed (users.is_admin) and edited only here; every
+  // grant/revoke goes through the audited admin API.
+  const [admins, setAdmins] = useState<AdminUser[] | null>(null);
+  const [adminsError, setAdminsError] = useState<string | null>(null);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminSaving, setAdminSaving] = useState(false);
+  const [adminRemoveConfirm, setAdminRemoveConfirm] = useState<AdminUser | null>(null);
+
+  const loadAdmins = useCallback(async () => {
+    setAdmins(null);
+    setAdminsError(null);
+    try {
+      setAdmins((await api.adminListAdmins()).admins);
+    } catch (err) {
+      setAdmins([]);
+      setAdminsError(err instanceof ApiError ? err.message : t.adminAdminsLoadFailed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    void loadAdmins();
+  }, [loadAdmins]);
+
+  const grantAdmin = async () => {
+    const email = adminEmail.trim();
+    if (!email) return;
+    setAdminSaving(true);
+    setAdminsError(null);
+    try {
+      await api.adminGrantAdmin(email);
+      setAdminEmail('');
+      setAdmins((await api.adminListAdmins()).admins);
+    } catch (err) {
+      setAdminsError(err instanceof ApiError ? err.message : t.adminAdminsAddFailed);
+    } finally {
+      setAdminSaving(false);
+    }
+  };
+
+  const revokeAdmin = async (admin: AdminUser) => {
+    setAdminSaving(true);
+    setAdminsError(null);
+    try {
+      await api.adminRevokeAdmin(admin.id);
+      setAdmins((await api.adminListAdmins()).admins);
+    } catch (err) {
+      setAdminsError(err instanceof ApiError ? err.message : t.adminAdminsRemoveFailed);
+    } finally {
+      setAdminSaving(false);
+    }
+  };
+
   return (
     <section className="card">
+      <div className="settings-section">
+        <h3>{t.adminAdminsTitle}</h3>
+        <p className="muted">{t.adminAdminsDesc}</p>
+        {adminsError && <div className="error-banner">{adminsError}</div>}
+        {admins === null ? (
+          <p className="muted">{t.loading}</p>
+        ) : (
+          <ul className="doc-list">
+            {admins.map((a) => {
+              const isSelf = userEmail !== null && a.email.toLowerCase() === userEmail.toLowerCase();
+              return (
+                <li key={a.id} className="doc-row">
+                  <span className="doc-text">
+                    <span className="doc-name" dir="ltr">
+                      {a.email}
+                    </span>
+                    <span className="doc-desc muted">
+                      {isSelf ? `${t.adminAdminsYou} · ` : a.name ? `${a.name} · ` : ''}
+                      {formatTimestamp(a.createdAt)}
+                    </span>
+                  </span>
+                  {!isSelf && (
+                    <button
+                      className="btn btn-ghost btn-small"
+                      disabled={adminSaving}
+                      onClick={() => setAdminRemoveConfirm(a)}
+                    >
+                      {t.adminAdminsRemove}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className="model-picker" dir="ltr">
+          <input
+            type="email"
+            value={adminEmail}
+            placeholder={t.adminAdminsEmailPlaceholder}
+            disabled={adminSaving}
+            aria-label={t.adminAdminsEmailPlaceholder}
+            onChange={(e) => setAdminEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void grantAdmin();
+            }}
+          />
+          <button className="btn btn-small" disabled={adminSaving || !adminEmail.trim()} onClick={() => void grantAdmin()}>
+            {adminSaving ? t.saving : t.adminAdminsAdd}
+          </button>
+        </div>
+      </div>
+
       <div className="settings-section">
         <h3>{t.killSwitchTitle}</h3>
         <p className="muted">{t.killSwitchDesc}</p>
@@ -195,6 +306,17 @@ export function AdminSettings() {
           </ul>
         )}
       </div>
+
+      {adminRemoveConfirm && (
+        <ConfirmModal
+          title={t.adminAdminsRemove}
+          note={t.adminAdminsRemoveConfirm(adminRemoveConfirm.email)}
+          confirmLabel={t.adminAdminsRemove}
+          danger
+          onConfirm={() => revokeAdmin(adminRemoveConfirm)}
+          onClose={() => setAdminRemoveConfirm(null)}
+        />
+      )}
 
       {killConfirmOpen && (
         <ConfirmModal

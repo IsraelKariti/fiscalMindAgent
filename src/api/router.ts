@@ -18,12 +18,15 @@ import {
   adminEnableAgent,
   adminGetKillSwitch,
   adminGetModel,
+  adminGrantAdmin,
   adminListAccountantAgents,
   adminListAccountants,
+  adminListAdmins,
   adminListAlerts,
   adminListWhitelist,
   adminLlmUsageDaily,
   adminRemoveFromWhitelist,
+  adminRevokeAdmin,
   adminSetAgentEmail,
   adminSetKillSwitch,
   adminSetModel,
@@ -91,6 +94,9 @@ apiRouter.get('/admin/model', wrap(requireAdmin), wrap(adminGetModel));
 apiRouter.put('/admin/model', wrap(requireAdmin), wrap(adminSetModel));
 apiRouter.get('/admin/kill-switch', wrap(requireAdmin), wrap(adminGetKillSwitch));
 apiRouter.put('/admin/kill-switch', wrap(requireAdmin), wrap(adminSetKillSwitch));
+apiRouter.get('/admin/admins', wrap(requireAdmin), wrap(adminListAdmins));
+apiRouter.post('/admin/admins', wrap(requireAdmin), wrap(adminGrantAdmin));
+apiRouter.delete('/admin/admins/:userId', wrap(requireAdmin), wrap(adminRevokeAdmin));
 apiRouter.get('/admin/whitelist', wrap(requireAdmin), wrap(adminListWhitelist));
 apiRouter.post('/admin/whitelist', wrap(requireAdmin), wrap(adminAddToWhitelist));
 apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemoveFromWhitelist));

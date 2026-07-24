@@ -23,6 +23,8 @@ export interface UserRow {
   email: string;
   name: string | null;
   picture_url: string | null;
+  /** DB-managed admin flag (migration 033) — the only thing that grants admin access. */
+  is_admin: boolean;
   created_at: Date;
   updated_at: Date;
 }

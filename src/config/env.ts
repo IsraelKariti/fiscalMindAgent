@@ -2,6 +2,9 @@ import 'dotenv/config';
 import { z } from 'zod';
 
 const EnvSchema = z.object({
+  // 'production' in the deployed containers (set in the Dockerfiles) — gates
+  // prod-only hard requirements like DASHBOARD_SESSION_SECRET.
+  NODE_ENV: z.string().optional(),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),
@@ -28,8 +31,9 @@ const EnvSchema = z.object({
   // The Google Cloud project *number* — ties the Picker to the OAuth client so
   // drive.file grants cover picked files. Optional but recommended.
   GOOGLE_APP_ID: z.string().min(1).optional(),
-  // Signs the dashboard session cookie. If unset, a random per-process secret
-  // is used (sessions are invalidated whenever the web process restarts).
+  // Signs the dashboard session cookie. REQUIRED in production (the web
+  // process refuses to start without it — see src/api/auth.ts); in dev a
+  // random per-process secret is used and sessions reset on every restart.
   DASHBOARD_SESSION_SECRET: z.string().min(16).optional(),
   // Encrypts secrets at rest in Postgres (client tax-portal credentials,
   // Google/monday OAuth tokens) — AES-256-GCM via src/crypto/secretBox.ts.
@@ -37,7 +41,11 @@ const EnvSchema = z.object({
   // would silently write plaintext secrets again. Losing it makes the stored
   // credentials unrecoverable (clients/accountants must re-connect).
   SECRET_ENC_KEY: z.string().min(40),
-  // Comma-separated emails granted the admin panel + user impersonation.
+  // Comma-separated emails. NOT an authorization list: admin access lives in
+  // users.is_admin (migration 033) and is managed from the admin panel. This
+  // var only (a) seeds the first admins while the DB has none, (b) is the
+  // alert-recipient fallback before that seed runs, (c) supplies the public
+  // contact address shown to accountants.
   ADMIN_EMAILS: z
     .string()
     .default('')

@@ -39,6 +39,22 @@ export interface SourceScanResult {
   notReady: 'no_sources' | 'no_mailbox' | 'no_documents' | null;
 }
 
+/** Narrows a scan to one configured source — the settings panel's per-source "import now". */
+export type ScanSourceFilter = { boardId: string } | { spreadsheetId: string; sheetTitle: string };
+
+function matchesFilter(entry: Record<string, unknown>, filter: ScanSourceFilter): boolean {
+  return 'boardId' in filter
+    ? entry.boardId === filter.boardId
+    : entry.spreadsheetId === filter.spreadsheetId && entry.sheetTitle === filter.sheetTitle;
+}
+
+function filterSources(sources: ClientSources, filter: ScanSourceFilter): ClientSources {
+  return {
+    boards: sources.boards.filter((b) => matchesFilter(b, filter)),
+    sheets: sources.sheets.filter((s) => matchesFilter(s, filter)),
+  };
+}
+
 interface InstanceImportConfig {
   sources: ClientSources;
   /** Doc collector only: a mapped documents column supplies each client's checklist. */
@@ -64,16 +80,22 @@ async function syncCredentials(clientId: string, credentials: PortalCredentials 
 
 /**
  * Each newly added source carries pendingImport=true, which keeps the settings
- * panel's per-source "import now" prompt visible. Once a scan has read every
- * source, the prompts have served their purpose — strip the flags from the
- * stored settings (raw JSONB edit so agent-specific keys survive untouched).
+ * panel's per-source "import now" prompt visible. Once a scan has read a
+ * source, its prompt has served its purpose — strip the flag from the stored
+ * settings (raw JSONB edit so agent-specific keys survive untouched). A
+ * filtered scan only vouches for the source it read, so it only clears that one.
  */
-async function clearPendingImportFlags(instance: AgentInstanceRow): Promise<void> {
+async function clearPendingImportFlags(instance: AgentInstanceRow, filter?: ScanSourceFilter): Promise<void> {
   let changed = false;
   const strip = (list: unknown): unknown =>
     Array.isArray(list)
       ? list.map((entry) => {
-          if (entry !== null && typeof entry === 'object' && 'pendingImport' in entry) {
+          if (
+            entry !== null &&
+            typeof entry === 'object' &&
+            'pendingImport' in entry &&
+            (!filter || matchesFilter(entry as Record<string, unknown>, filter))
+          ) {
             changed = true;
             const { pendingImport: _drop, ...rest } = entry as Record<string, unknown>;
             return rest;
@@ -90,20 +112,19 @@ async function clearPendingImportFlags(instance: AgentInstanceRow): Promise<void
   }
 }
 
-function importConfig(instance: AgentInstanceRow): InstanceImportConfig {
+function importConfig(instance: AgentInstanceRow, filter?: ScanSourceFilter): InstanceImportConfig {
   if (instance.agent_type === 'doc_collector') {
     const settings = parseDocCollectorSettings(instance.settings);
-    const perRowDocuments = hasDocumentsColumn(settings);
-    return {
-      sources: settings,
-      perRowDocuments,
-      // A doc-collector client without documents completes trivially and never
-      // gets emailed — refuse to mass-create useless clients. The mapped
-      // documents column is the only supply of a client's checklist.
-      notReady: perRowDocuments ? null : 'no_documents',
-    };
+    const sources = filter ? filterSources(settings, filter) : settings;
+    // A doc-collector client without documents completes trivially and never
+    // gets emailed — refuse to mass-create useless clients. The mapped
+    // documents column (of the scanned sources) is the only supply of a
+    // client's checklist.
+    const perRowDocuments = hasDocumentsColumn(sources);
+    return { sources, perRowDocuments, notReady: perRowDocuments ? null : 'no_documents' };
   }
-  return { sources: parseClientSources(instance.settings), perRowDocuments: false, notReady: null };
+  const sources = parseClientSources(instance.settings);
+  return { sources: filter ? filterSources(sources, filter) : sources, perRowDocuments: false, notReady: null };
 }
 
 /**
@@ -119,10 +140,14 @@ function resolveDocuments(config: InstanceImportConfig, candidate: Candidate): {
  * Enrolls every not-yet-known row of the instance's configured boards/sheets
  * as a client (name+email; doc collector adds its checklist) and kicks the
  * staggered first drafts. Existing clients are skipped, so re-runs and the
- * daily sweep are idempotent. Also serves the settings panel's "import now".
+ * daily sweep are idempotent. Also serves the settings panel's per-source
+ * "import now" — `filter` narrows the sweep to that one board/sheet.
  */
-export async function scanClientImportInstance(instance: AgentInstanceRow): Promise<SourceScanResult> {
-  const config = importConfig(instance);
+export async function scanClientImportInstance(
+  instance: AgentInstanceRow,
+  filter?: ScanSourceFilter,
+): Promise<SourceScanResult> {
+  const config = importConfig(instance, filter);
   const result: SourceScanResult = { enrolled: 0, skipped: 0, failedSources: [], notReady: null };
 
   if (config.sources.boards.length === 0 && config.sources.sheets.length === 0) {
@@ -218,7 +243,7 @@ export async function scanClientImportInstance(instance: AgentInstanceRow): Prom
   // Tells open workspace tabs (over SSE) to refetch the sidebar's client list.
   if (result.enrolled > 0) publishInstanceClientsUpdated(instance.id);
   // A failed source keeps its "import now" prompt — only a clean sweep clears them.
-  if (failedSources.length === 0) await clearPendingImportFlags(instance);
+  if (failedSources.length === 0) await clearPendingImportFlags(instance, filter);
   return result;
 }
 

@@ -82,7 +82,7 @@ const he = {
   sourcesImportNoDocuments: 'מפו קודם עמודת מסמכים נדרשים באחד המקורות — הלקוחות המיובאים מקבלים את רשימת המסמכים מהעמודה הזו.',
   sourcesImportFailed: 'הייבוא נכשל.',
   sourcesImportPromptSheet: 'הגיליון טרם יובא — לייבא ממנו לקוחות עכשיו?',
-  sourcesImportPromptBoards: 'הלוחות טרם יובאו — לייבא מהם לקוחות עכשיו?',
+  sourcesImportPromptBoard: 'הלוח טרם יובא — לייבא ממנו לקוחות עכשיו?',
   sourcesImportPromptClose: 'סגירה',
   sourcesIdNumberColumn: 'עמודת ת"ז',
   sourcesTaxCodeColumn: 'עמודת קוד משתמש (רשות המסים)',

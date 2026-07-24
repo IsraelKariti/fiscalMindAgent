@@ -233,8 +233,9 @@ capability** — there is no accountant button.
 - **Client-import sources** (doc collector + annual-report assistant): the
   accountant links monday boards / Google Sheets (email + optional name
   column, per-instance in `agent_instances.settings`) and every row that isn't
-  a client yet is enrolled — immediately via the settings panel's "import now"
-  (`POST /client-sources/scan`) and by a daily sweep (queue
+  a client yet is enrolled — immediately via the settings panel's per-source
+  "import now" (`POST /client-sources/scan`, optional `source` body narrows
+  the sweep to one board/sheet) and by a daily sweep (queue
   `client_import_scan`, 00:50 local + boot catch-up). Shared machinery lives
   in `src/agents/shared/`: `clientSources.ts` (source schemas + whole-source
   sweep + candidate collection — the debt collector's settings/scan now build

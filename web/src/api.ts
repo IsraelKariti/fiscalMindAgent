@@ -391,6 +391,9 @@ export interface ClientImportScanResult {
   notReady: 'no_sources' | 'no_mailbox' | 'no_documents' | null;
 }
 
+/** Narrows an "import now" scan to one configured source; omit to scan everything. */
+export type ClientImportSourceRef = { boardId: string } | { spreadsheetId: string; sheetTitle: string };
+
 export interface MondayDocMeta {
   id: string;
   name: string;
@@ -536,7 +539,11 @@ function makeWorkspaceApi(prefix: string) {
       request<{ meta: SpreadsheetMeta }>(
         `${prefix}/client-sources/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/meta`,
       ),
-    sourcesScanNow: () => request<ClientImportScanResult>(`${prefix}/client-sources/scan`, { method: 'POST' }),
+    sourcesScanNow: (source?: ClientImportSourceRef) =>
+      request<ClientImportScanResult>(`${prefix}/client-sources/scan`, {
+        method: 'POST',
+        body: JSON.stringify(source ? { source } : {}),
+      }),
   };
 }
 

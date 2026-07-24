@@ -2979,20 +2979,21 @@ button.meta-chip:hover {
   font-size: 13.5px;
 }
 
-.import-prompt {
+/* Per-board "import now" prompt/progress bar, wrapped to its own line inside the board row */
+.settings-row-prompt {
+  flex-basis: 100%;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 0 18px 14px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   font-size: 13.5px;
   background: var(--primary-soft);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
-.import-prompt > span {
+.settings-row-prompt > span {
   flex: 1;
   min-width: 200px;
 }

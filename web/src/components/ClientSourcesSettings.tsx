@@ -3,6 +3,7 @@ import {
   api,
   ApiError,
   type ClientImportScanResult,
+  type ClientImportSourceRef,
   type ClientSourcesConfig,
   type GoogleConnection,
   type MondayBoardMeta,
@@ -28,8 +29,8 @@ export interface ClientSourcesPanelApi {
   saveSettings: (settings: ClientSourcesConfig) => Promise<{ settings: ClientSourcesConfig }>;
   listBoards: () => Promise<{ boards: MondayBoardMeta[] }>;
   spreadsheetMeta: (spreadsheetId: string) => Promise<{ meta: SpreadsheetMeta }>;
-  /** When provided, renders the "import now" row (client-import agents only). */
-  scanNow?: () => Promise<ClientImportScanResult>;
+  /** When provided, renders the per-source "import now" buttons (client-import agents only). */
+  scanNow?: (source?: ClientImportSourceRef) => Promise<ClientImportScanResult>;
 }
 
 interface Props {
@@ -70,7 +71,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
   const [scanBusy, setScanBusy] = useState(false);
   const [scanResult, setScanResult] = useState<ClientImportScanResult | null>(null);
   const [scanFailed, setScanFailed] = useState(false);
-  /** Which "import now" prompt triggered the running/last scan: 'boards' or a sheet key. */
+  /** Which source's "import now" triggered the running/last scan: a board key or a sheet key. */
   const [scanOrigin, setScanOrigin] = useState<string | null>(null);
   const savedResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const connectPoll = useRef<ReturnType<typeof setInterval>>();
@@ -340,18 +341,18 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     }).catch(console.error);
   };
 
-  const runScan = async (origin: string) => {
+  const runScan = async (origin: string, source: ClientImportSourceRef) => {
     if (!panelApi.scanNow) return;
     setScanOrigin(origin);
     setScanBusy(true);
     setScanFailed(false);
     setScanResult(null);
     try {
-      const result = await panelApi.scanNow();
+      const result = await panelApi.scanNow(source);
       setScanResult(result);
       // Even 0-enrolled runs may have backfilled phones/credentials of existing clients.
       refreshClients();
-      // A clean scan clears the sources' pendingImport flags server-side — pick that up.
+      // A clean scan clears the scanned source's pendingImport flag server-side — pick that up.
       panelApi
         .getSettings()
         .then(({ settings: current }) => setSettings(current))
@@ -375,11 +376,11 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
 
   /**
    * A source's "import now" prompt content. The prompt shows as long as the
-   * source carries pendingImport (the server clears it once a scan reads every
+   * source carries pendingImport (the server clears it once a scan reads the
    * source) — there is no dismiss; importing is the only way to resolve it.
    * While/after this prompt's own scan runs, it shows the progress/result.
    */
-  const importPromptContent = (origin: string, promptText: string) => {
+  const importPromptContent = (origin: string, source: ClientImportSourceRef, promptText: string) => {
     const active = scanOrigin === origin;
     if (active && scanBusy) return <span>{t.sourcesImporting}</span>;
     if (active && (scanResult || scanFailed)) {
@@ -401,12 +402,33 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     return (
       <>
         <span>{promptText}</span>
-        <button type="button" className="btn btn-primary btn-small" onClick={() => runScan(origin)} disabled={scanBusy}>
+        <button
+          type="button"
+          className="btn btn-primary btn-small"
+          onClick={() => runScan(origin, source)}
+          disabled={scanBusy}
+        >
           {t.sourcesImportNow}
         </button>
       </>
     );
   };
+
+  /**
+   * The always-available per-source "import now" button, shown while the
+   * source's prompt/progress bar is not — so each source carries exactly one
+   * import affordance at any time.
+   */
+  const importNowButton = (origin: string, source: ClientImportSourceRef) => (
+    <button
+      type="button"
+      className="btn btn-ghost btn-small"
+      onClick={() => runScan(origin, source)}
+      disabled={scanBusy}
+    >
+      {t.sourcesImportNow}
+    </button>
+  );
 
   if (!connection || !settings) {
     return (
@@ -482,6 +504,12 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                 <ul className="settings-list">
                   {settings.boards.map((chosen) => {
                     const board = boards?.find((b) => b.id === chosen.boardId);
+                    const boardOrigin = `board:${chosen.boardId}`;
+                    const boardSource = { boardId: chosen.boardId };
+                    const promptShown = Boolean(chosen.pendingImport) || scanOrigin === boardOrigin;
+                    // The pending prompt carries its own button; otherwise the row button
+                    // stays (it returns right after a scan, next to the result bar).
+                    const buttonShown = !chosen.pendingImport && !(scanOrigin === boardOrigin && scanBusy);
                     return (
                       <li key={chosen.boardId} className="settings-list-row">
                         <span className="settings-list-name">{board?.name ?? chosen.boardName ?? chosen.boardId}</span>
@@ -578,6 +606,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                             )}
                           </>
                         )}
+                        {panelApi.scanNow && buttonShown && importNowButton(boardOrigin, boardSource)}
                         <button
                           type="button"
                           className="icon-btn"
@@ -587,14 +616,16 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                         >
                           {removeIcon}
                         </button>
+                        {panelApi.scanNow && promptShown && (
+                          <div className="settings-row-prompt">
+                            {importPromptContent(boardOrigin, boardSource, t.sourcesImportPromptBoard)}
+                          </div>
+                        )}
                       </li>
                     );
                   })}
                 </ul>
               )
-            )}
-            {panelApi.scanNow && (settings.boards.some((b) => b.pendingImport) || scanOrigin === 'boards') && (
-              <div className="import-prompt">{importPromptContent('boards', t.sourcesImportPromptBoards)}</div>
             )}
           </div>
         )}
@@ -642,10 +673,16 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                 <ul className="settings-list">
                   {settings.sheets.map((sheet) => {
                     const sheetKey = `${sheet.spreadsheetId}:${sheet.sheetTitle}`;
+                    const sheetSource = { spreadsheetId: sheet.spreadsheetId, sheetTitle: sheet.sheetTitle };
+                    const promptShown = Boolean(sheet.pendingImport) || scanOrigin === sheetKey;
+                    // The pending prompt carries its own button; otherwise the head button
+                    // stays (it returns right after a scan, next to the result bar).
+                    const buttonShown = !sheet.pendingImport && !(scanOrigin === sheetKey && scanBusy);
                     return (
                       <li key={sheetKey} className="settings-source-card">
                         <div className="settings-source-head">
                           <span className="settings-list-name">{sheet.spreadsheetName ?? sheet.spreadsheetId}</span>
+                          {panelApi.scanNow && buttonShown && importNowButton(sheetKey, sheetSource)}
                           <button
                             type="button"
                             className="btn btn-ghost btn-small"
@@ -662,9 +699,9 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                           {sheet.taxUserCodeColumn ? ` · ${t.sourcesTaxCodeColumn}: ${sheet.taxUserCodeColumn}` : ''}
                           {sheet.documentsColumn ? ` · ${t.sourcesDocumentsColumn}: ${sheet.documentsColumn}` : ''}
                         </span>
-                        {panelApi.scanNow && (sheet.pendingImport || scanOrigin === sheetKey) && (
+                        {panelApi.scanNow && promptShown && (
                           <div className="settings-source-prompt">
-                            {importPromptContent(sheetKey, t.sourcesImportPromptSheet)}
+                            {importPromptContent(sheetKey, sheetSource, t.sourcesImportPromptSheet)}
                           </div>
                         )}
                       </li>

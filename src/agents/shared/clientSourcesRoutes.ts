@@ -1,5 +1,5 @@
 import type { Router, RequestHandler } from 'express';
-import type { ZodTypeAny } from 'zod';
+import { z, type ZodTypeAny } from 'zod';
 import { requireGoogleToken, requireMondayToken } from '../../api/integrationGuards.js';
 import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as googleOauthTokens from '../../db/queries/googleOauthTokens.js';
@@ -12,6 +12,18 @@ import { scanClientImportInstance } from './clientImportScan.js';
 function wrap(handler: RequestHandler): RequestHandler {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 }
+
+/** "Import now" body: no source = scan everything, else just the one board/sheet. */
+const ScanRequestSchema = z
+  .object({
+    source: z
+      .union([
+        z.object({ boardId: z.string().min(1) }).strict(),
+        z.object({ spreadsheetId: z.string().min(1), sheetTitle: z.string().min(1) }).strict(),
+      ])
+      .optional(),
+  })
+  .strict();
 
 /**
  * The client-import source routes shared by the doc collector and the
@@ -75,11 +87,16 @@ export function registerClientSourceRoutes(
     }),
   );
 
-  /** "Import now": the daily sweep for this one instance, on demand. */
+  /** "Import now": the daily sweep for this one instance, on demand — optionally narrowed to one source. */
   router.post(
     '/client-sources/scan',
     wrap(async (req, res) => {
-      res.json(await scanClientImportInstance(req.agentInstance!));
+      const parsed = ScanRequestSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid scan request.', details: parsed.error.flatten() });
+        return;
+      }
+      res.json(await scanClientImportInstance(req.agentInstance!, parsed.data.source));
     }),
   );
 }

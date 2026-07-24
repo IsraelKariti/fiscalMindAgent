@@ -3,6 +3,7 @@ import * as documentFiles from '../db/queries/documentFiles.js';
 import { uploadBlob } from '../storage/blob.js';
 import { env } from '../config/env.js';
 import { analyzeStoredFile } from './analyzeStoredFile.js';
+import { isAllowedTwilioMediaUrl } from './twilioMediaUrl.js';
 import { logger } from '../util/logger.js';
 
 export interface WaMediaItem {
@@ -39,6 +40,12 @@ export async function ingestWaMedia(
   let stored = 0;
   for (const [index, item] of media.entries()) {
     try {
+      // The URL came from the webhook body — only ever fetch Twilio's own
+      // hosts, since the request below carries the account credentials.
+      if (!isAllowedTwilioMediaUrl(item.url)) {
+        logger.warn('skipped whatsapp media with non-Twilio url', { clientId, messageSid, index });
+        continue;
+      }
       // Twilio media URLs require Basic auth (the API credentials), then
       // redirect to storage; undici drops the header on the cross-origin hop.
       const auth = Buffer.from(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`).toString('base64');

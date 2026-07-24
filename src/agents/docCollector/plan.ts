@@ -70,8 +70,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
   const waState = await getWaChannelState(client, now);
-  const taxFetch = await loadTaxFetchContext(client, documents, waState);
-  const taxFetchAllowed = allowedTaxFetchActions(taxFetch.state, taxFetch.available);
+  const lastInbound = [...history].reverse().find((m) => m.direction === 'inbound');
+  const lastInboundAt = lastInbound ? (lastInbound.sent_at ?? lastInbound.created_at) : null;
+  const taxFetch = await loadTaxFetchContext(client, documents, waState, lastInboundAt);
+  const taxFetchAllowed = allowedTaxFetchActions(taxFetch.state, taxFetch.available, taxFetch.clientRepliedSinceIntro);
   const { template } = await getPromptTemplate(client.user_id);
   const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, template, waState, {
     state: taxFetch.state,
@@ -82,7 +84,11 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     whatsappAllowed: waState.allowed,
     windowOpen: waState.windowOpen,
     templates: waState.templates,
-    taxFetch: { state: taxFetch.state, available: taxFetch.available },
+    taxFetch: {
+      state: taxFetch.state,
+      available: taxFetch.available,
+      clientRepliedSinceIntro: taxFetch.clientRepliedSinceIntro,
+    },
   };
   const { decision, usage, model } = await decide(systemInstruction, contents, decisionCtx);
 
@@ -118,7 +124,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   if (allCollected) {
     // No message is drafted on this path; a fresh offer can't happen here (no
     // pending 106 left), but cancel/agreed actions still need to land.
-    await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now, null);
+    await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now, { emailId: null, delayMs: 0 });
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
@@ -155,9 +161,14 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     reasoning: decision.reasoning,
   });
   // Act on the tax-authority 106-fetch step (offer / client agreed / start login /
-  // cancel) after the draft exists, so an 'offered' session records which message
-  // carries the offer — a superseded draft then re-enables offering.
-  await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now, emailId);
+  // cancel) after the draft exists: an 'offered' session records which message
+  // carries the offer (a superseded draft re-enables offering), and start_login
+  // is enqueued against the heads-up draft so the browser login — and the OTP
+  // SMS it triggers — can only run after that message actually goes out.
+  await applyTaxFetchAction(client, decision.tax_fetch_action, taxFetch, now, {
+    emailId,
+    delayMs: Math.max(0, delayMs),
+  });
   logger.info('follow-up scheduled', {
     clientId,
     channel: message.channel,

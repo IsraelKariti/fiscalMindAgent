@@ -1,5 +1,6 @@
 import * as clientPortalCredentials from '../../../db/queries/clientPortalCredentials.js';
 import * as clients from '../../../db/queries/clients.js';
+import * as emails from '../../../db/queries/emails.js';
 import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
 import * as waSenders from '../../../db/queries/waSenders.js';
 import { publishClientUpdated } from '../../../events/clientEvents.js';
@@ -10,16 +11,20 @@ import { sessionManager, type LiveSession } from '../../../browser/sessionManage
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientRow } from '../../../db/types.js';
-import type { TaxFetchJob } from '../../../queue/taxFetchQueue.js';
+import { enqueueTaxFetch, type TaxFetchJob } from '../../../queue/taxFetchQueue.js';
 import { deliver } from './deliver.js';
 
 const MAX_OTP_ATTEMPTS = 3;
 const PROVIDER_ID = 'israel_tax_authority';
 
+// The heads-up message may still be a queued draft when the delayed start_login
+// job fires; re-check on this cadence before giving up (an abandoned draft —
+// superseded by a client reply — never sends, so the login must never run).
+const START_WAIT_RETRY_MS = 10_000;
+const MAX_START_WAIT_ATTEMPTS = 6;
+
 // Canned Hebrew progress lines the system sends directly (no LLM) as the fetch moves.
 const MSG = {
-  awaitingOtp:
-    'התחלתי בתהליך ההזדהות מול רשות המסים. עוד רגע יישלח אליך קוד חד-פעמי ב-SMS — שלח/י לי אותו כאן ואמשיך.',
   loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר רשות המסים כרגע. נוכל לנסות שוב מאוחר יותר.',
   busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
   otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
@@ -50,7 +55,7 @@ async function sendCanned(client: ClientRow, body: string): Promise<void> {
 export async function runTaxFetchJob(job: TaxFetchJob): Promise<void> {
   switch (job.kind) {
     case 'start_login':
-      return runStartLogin(job.sessionId);
+      return runStartLogin(job);
     case 'submit_otp':
       return runSubmitOtp(job.sessionId, job.otp);
     case 'cancel':
@@ -58,11 +63,43 @@ export async function runTaxFetchJob(job: TaxFetchJob): Promise<void> {
   }
 }
 
-async function runStartLogin(sessionId: string): Promise<void> {
+async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>): Promise<void> {
+  const { sessionId } = job;
   const session = await taxFetchSessions.getById(sessionId);
   if (!session) return;
+  // The job runs delayed; the session may have been cancelled (or already
+  // started) while it waited — only the pre-login statuses may proceed.
+  if (session.status !== 'agreed' && session.status !== 'wa_intro_sent') {
+    logger.info('tax fetch: start_login skipped, session no longer pre-login', { sessionId, status: session.status });
+    return;
+  }
   const client = await clients.getById(session.client_id);
   if (!client) return;
+
+  // The login triggers the real OTP SMS — it may only run after the message
+  // telling the client to expect the code has actually been sent.
+  if (job.awaitEmailId) {
+    const headsUp = await emails.getById(job.awaitEmailId);
+    if (!headsUp) {
+      logger.warn('tax fetch: heads-up message row missing, not starting login', { sessionId, emailId: job.awaitEmailId });
+      return; // session stays pre-login; a later re-plan can start again
+    }
+    if (headsUp.status !== 'sent') {
+      const attempt = job.awaitAttempt ?? 0;
+      if (attempt >= MAX_START_WAIT_ATTEMPTS) {
+        // Superseded or failed draft — it will never send. Leave the session
+        // pre-login; the next client reply re-plans and can start afresh.
+        logger.warn('tax fetch: heads-up message never sent, giving up on this start_login', {
+          sessionId,
+          emailId: job.awaitEmailId,
+          status: headsUp.status,
+        });
+        return;
+      }
+      await enqueueTaxFetch({ ...job, awaitAttempt: attempt + 1 }, { delayMs: START_WAIT_RETRY_MS });
+      return;
+    }
+  }
 
   const creds = await clientPortalCredentials.getForClient(session.client_id, PROVIDER_ID);
   if (!creds) {
@@ -86,8 +123,9 @@ async function runStartLogin(sessionId: string): Promise<void> {
     browser = launched.browser;
     await getProvider(PROVIDER_ID).startLogin(launched.page, { idNumber: creds.id_number, userCode: creds.user_code });
     sessionManager.put({ sessionId, clientId: client.id, provider: PROVIDER_ID, browser, page: launched.page });
+    // No canned "code incoming" line here: the LLM's heads-up message (verified
+    // sent above) already told the client an SMS is coming and where to send it.
     await taxFetchSessions.updateStatus(sessionId, 'awaiting_otp', { otpRequestedAt: new Date() });
-    await sendCanned(client, MSG.awaitingOtp);
     publishClientUpdated(client.id);
   } catch (err) {
     logger.error('tax fetch: login failed', err, { sessionId, clientId: client.id });

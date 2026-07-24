@@ -140,13 +140,23 @@ Israeli tax authority by driving a real browser, entirely as a **conversational
 capability** — there is no accountant button.
 
 - **Flow**: the LLM offers the fetch in the email thread when a pending required
-  document matches `/106/` and credentials are on file; on agreement it moves to
-  WhatsApp, warns an SMS is coming, and starts the login (which triggers the
-  tax authority's OTP SMS to the client). The client's WhatsApp reply with the
-  code is intercepted (`taxFetch/inboundOtp.ts`, before the LLM re-plan — OTPs
-  expire in minutes), the worker submits it, downloads the PDF, sends it to the
-  client over WhatsApp and stores it as a `document_files` row with the matching
-  `client_documents` row marked collected.
+  document matches `/106/` and credentials are on file; on agreement it explains
+  the SMS-code step and asks the client to confirm they're free. `start_login`
+  only becomes an allowed action once the client has replied **after** that
+  intro (`clientRepliedSinceIntro`, computed in `loadTaxFetchContext` from the
+  last inbound timestamp vs. the session's `updated_at`) — the post-send re-plan
+  runs with no new client input and must never be able to trigger the OTP SMS.
+  The login job is then enqueued delayed to the heads-up message's send time and
+  the runner verifies that message's row is `sent` (bounded re-checks; an
+  abandoned draft never sends → the login never runs), so the tax authority's
+  OTP SMS can't precede the WhatsApp message warning about it. The first
+  WhatsApp message is prompted to read as a continuation of the email thread
+  (prefer a dedicated 106 template when the 24h window is closed). The client's
+  WhatsApp reply with the code is intercepted (`taxFetch/inboundOtp.ts`, before
+  the LLM re-plan — OTPs expire in minutes), the worker submits it, downloads
+  the PDF, sends it to the client over WhatsApp and stores it as a
+  `document_files` row with the matching `client_documents` row marked
+  collected.
 - **State machine**: `tax_fetch_sessions` (migration 025) tracks one attempt
   offer→delivery; the LLM only ever sees the actions valid in the current state
   (`allowedTaxFetchActions` in `decisionSchema.ts`, gated in the prompt's

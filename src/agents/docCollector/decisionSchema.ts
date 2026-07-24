@@ -69,6 +69,8 @@ export type NormalizedDecision =
 export interface TaxFetchDecisionState {
   state: string;
   available: boolean;
+  /** The client has written (any channel) since the code-step intro went out — the readiness gate for start_login. */
+  clientRepliedSinceIntro: boolean;
 }
 
 /** What the surrounding code knows about the WhatsApp channel when validating the LLM's choice. */
@@ -89,8 +91,11 @@ export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, win
  * The tax_fetch_action values valid in a given state — the single source of
  * truth shared by the prompt (what to tell the LLM it may do) and the validator
  * (what to reject). Offering requires the fetch to be currently available.
+ * start_login additionally requires the client to have replied since the intro:
+ * the post-send re-plan runs with no new client input, and must never be able
+ * to start the login (it triggers a real OTP SMS) off the pre-intro agreement.
  */
-export function allowedTaxFetchActions(state: string, available: boolean): string[] {
+export function allowedTaxFetchActions(state: string, available: boolean, clientRepliedSinceIntro: boolean): string[] {
   switch (state) {
     case 'none':
       return available ? ['offer'] : [];
@@ -98,7 +103,7 @@ export function allowedTaxFetchActions(state: string, available: boolean): strin
       return available ? ['offer', 'client_agreed'] : ['client_agreed'];
     case 'agreed':
     case 'wa_intro_sent':
-      return ['start_login', 'cancel'];
+      return clientRepliedSinceIntro ? ['start_login', 'cancel'] : ['cancel'];
     case 'awaiting_otp':
     case 'in_progress':
       return ['cancel'];
@@ -159,7 +164,9 @@ export function normalizeFollowUpMessage(raw: FollowUpMessageInput, ctx: Decisio
 function validateTaxFetchAction(raw: DecisionResponse, ctx: DecisionContext): TaxFetchAction | null {
   const action = raw.tax_fetch_action;
   if (!action) return null;
-  const allowed = ctx.taxFetch ? allowedTaxFetchActions(ctx.taxFetch.state, ctx.taxFetch.available) : [];
+  const allowed = ctx.taxFetch
+    ? allowedTaxFetchActions(ctx.taxFetch.state, ctx.taxFetch.available, ctx.taxFetch.clientRepliedSinceIntro)
+    : [];
   if (!allowed.includes(action)) {
     throw new Error(
       `tax_fetch_action "${action}" not allowed in state "${ctx.taxFetch?.state ?? 'none'}" (allowed: ${allowed.join(', ') || 'none'})`,

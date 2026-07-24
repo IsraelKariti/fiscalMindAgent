@@ -177,14 +177,20 @@ export function buildWhatsAppSection(wa: WaChannelState): string {
 export function buildTaxFetchSection(state: string, available: boolean, allowedActions: string[]): string {
   if (!available && state === 'none') return '';
 
+  // The client must answer the intro's "confirm you're free" before the login
+  // (and its OTP SMS) may start; until then start_login is simply not offered.
+  const canStart = allowedActions.includes('start_login');
+  const startNowGuidance =
+    'הלקוח אישר שהוא זמין. שלח `tax_fetch_action: "start_login"` יחד עם הודעת WhatsApp קצרה שמודיעה שאתה מתחיל עכשיו ושתכף יגיע קוד ב-SMS שיש לשלוח אליך שם. המערכת תטפל בהזדהות ובקוד. אם הלקוח מסרב להשתמש ב-WhatsApp לשלב הזה — הסבר שבלי ערוץ מיידי אי אפשר להעביר את הקוד בזמן, הצע שישיג את הטופס בעצמו, ושלח `tax_fetch_action: "cancel"`. אם הוא מבקש לא להמשיך — `tax_fetch_action: "cancel"`.';
+  const waitForClientGuidance =
+    'הסברת ללקוח על שלב הקוד וביקשת שיאשר שהוא פנוי. מאז הוא עדיין לא ענה — המתן לתשובתו ואל תתחיל שום דבר בעצמך; ההזדהות (וה-SMS) תתחיל רק אחרי אישור מפורש שלו, ואז תוכל לשלוח `start_login`. בינתיים המשך לשוחח רגיל (תזכורות על מסמכים אחרים וכו\'). אם הלקוח מבקש להפסיק — `tax_fetch_action: "cancel"`.';
+
   const stateGuidance: Record<string, string> = {
     none: 'ניתן להציע ללקוח למשוך עבורו את טופס ה-106 ישירות מאתר רשות המסים (יש לנו את פרטי ההזדהות שלו). כשמתאים בשיחה, הצע זאת ושלח `tax_fetch_action: "offer"` יחד עם ההודעה שבה אתה מציע. אפשר לציין כבר בהצעה שהתהליך כולל אימות קצר בקוד SMS, שנוח לתאם ב-WhatsApp.',
     offered:
       'הצעת ללקוח למשוך את הטופס. אם הלקוח הסכים — שלח `tax_fetch_action: "client_agreed"` יחד עם הודעה שמסבירה את הצעד הבא: יישלח אליו קוד חד-פעמי ב-SMS, ואת הקוד מעבירים לך ב-WhatsApp. אם השיחה מתנהלת כרגע באימייל, ההודעה הזו צריכה להציע לו לעבור ל-WhatsApp לשלב הזה, להסביר בקצרה למה (ראה עיקרון הערוץ למעלה) ולבקש את אישורו. אם הוא כבר מתכתב איתך ב-WhatsApp — פשוט שלח שם את ההסבר. אל תציג את התהליך כאילו כבר התחיל — ההזדהות מתחילה רק בצעד הבא. אם עדיין לא ברור אם הסכים — המשך לשוחח רגיל.',
-    agreed:
-      'הלקוח הסכים. כשהוא מאשר שהוא זמין ומוכן, שלח `tax_fetch_action: "start_login"` יחד עם הודעת WhatsApp קצרה שמודיעה שאתה מתחיל ושתכף יגיע קוד ב-SMS שיש לשלוח אליך שם. המערכת תטפל בהזדהות ובקוד.',
-    wa_intro_sent:
-      'הסברת ללקוח על שלב הקוד והצעת לנהל אותו ב-WhatsApp. כשהלקוח מאשר שהוא מוכן (בכל ערוץ), שלח `tax_fetch_action: "start_login"` יחד עם הודעת WhatsApp קצרה שמודיעה שאתה מתחיל ושתכף יגיע קוד ב-SMS. אם הלקוח מסרב להשתמש ב-WhatsApp לשלב הזה — הסבר שבלי ערוץ מיידי אי אפשר להעביר את הקוד בזמן, הצע שישיג את הטופס בעצמו, ושלח `tax_fetch_action: "cancel"`. אם הוא מבקש לא להמשיך — `tax_fetch_action: "cancel"`.',
+    agreed: canStart ? startNowGuidance : waitForClientGuidance,
+    wa_intro_sent: canStart ? startNowGuidance : waitForClientGuidance,
     awaiting_otp:
       'המערכת ממתינה לקוד ה-SMS מהלקוח ב-WhatsApp ותטפל בו אוטומטית — פשוט המשך לשוחח רגיל. אל תבקש את הקוד שוב בעצמך. אם הלקוח שלח את הקוד באימייל — הסבר בעדינות שהקוד נקלט רק ב-WhatsApp ובקש שישלח אותו שם. אם הלקוח מבקש להפסיק — `tax_fetch_action: "cancel"`.',
     in_progress: 'תהליך המשיכה מרשות המסים מתבצע כעת אוטומטית. המשך לשוחח רגיל; שלח `tax_fetch_action: "cancel"` רק אם הלקוח מבקש להפסיק.',
@@ -197,6 +203,7 @@ export function buildTaxFetchSection(state: string, available: boolean, allowedA
     '--- TAX AUTHORITY 106 FETCH ---',
     `status: ${state}`,
     'עיקרון הערוץ לשלב הקוד: הקוד החד-פעמי שמגיע ב-SMS תקף דקות ספורות, ולכן העברתו היא חילופי הודעות מהירים. אימייל מתאים להתכתבות איטית עם הפסקות ארוכות; WhatsApp מתאים לתקשורת מיידית — והמערכת קולטת את הקוד מהלקוח ב-WhatsApp בלבד. לעולם אל תבקש מהלקוח לשלוח את הקוד באימייל. המעבר ל-WhatsApp לשלב הזה הוא החלטה משותפת: הצע אותו, הסבר בקצרה למה, ואם הלקוח רוצה לעבור ל-WhatsApp — עבור לשם מיד.',
+    'המשכיות בין הערוצים: אם עד עכשיו ההתכתבות התנהלה באימייל, ההודעה הראשונה ב-WhatsApp היא המשך ישיר של אותה שיחה — נסח אותה כך (למשל "בהמשך למייל שלנו..."), בלי להציג את עצמך מחדש ובלי לפתוח כאילו זו פנייה חדשה. אם החלון סגור וחובה להשתמש בתבנית, בחר את התבנית שמתאימה ביותר להמשך השיחה — אם קיימת ברשימה תבנית ייעודית למעבר השיחה מהמייל לוואטסאפ, העדף אותה. ברגע שהלקוח יענה בוואטסאפ ייפתח החלון ותוכל להמשיך שם בהודעות חופשיות.',
     stateGuidance[state] ?? '',
     `tax_fetch_action מותר כעת: ${actions}. בכל מצב אחר השאר את השדה null.`,
     '--- END 106 FETCH ---',

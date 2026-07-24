@@ -30,6 +30,8 @@ export interface TaxFetchContext {
   session: TaxFetchSessionRow | null;
   /** The pending required-document row a fetched 106 would satisfy. */
   pending106DocId: string | null;
+  /** The client has written (any channel) since the session entered agreed/wa_intro_sent — gates start_login. */
+  clientRepliedSinceIntro: boolean;
 }
 
 export const TAX_FETCH_UNAVAILABLE: TaxFetchContext = {
@@ -37,6 +39,7 @@ export const TAX_FETCH_UNAVAILABLE: TaxFetchContext = {
   state: 'none',
   session: null,
   pending106DocId: null,
+  clientRepliedSinceIntro: false,
 };
 
 function taxYearFor(now: Date): number {
@@ -77,6 +80,8 @@ export async function loadTaxFetchContext(
   client: ClientRow,
   documents: ClientDocumentRow[],
   waState: WaChannelState,
+  /** When the client last wrote (any channel) — the readiness signal for start_login. */
+  lastInboundAt: Date | null,
 ): Promise<TaxFetchContext> {
   const creds = await clientPortalCredentials.getForClient(client.id, PROVIDER_ID);
   const pending106 = findPending106(documents);
@@ -108,23 +113,37 @@ export async function loadTaxFetchContext(
     }
   }
 
-  return { available, state, session, pending106DocId: pending106?.id ?? null };
+  // start_login readiness: the intro asked the client to confirm they're free —
+  // only a message of theirs arriving AFTER that transition counts as an answer.
+  // (updated_at is stamped when client_agreed moved the session to wa_intro_sent.)
+  const clientRepliedSinceIntro =
+    active !== null &&
+    (active.status === 'agreed' || active.status === 'wa_intro_sent') &&
+    lastInboundAt !== null &&
+    lastInboundAt.getTime() > active.updated_at.getTime();
+
+  return { available, state, session, pending106DocId: pending106?.id ?? null, clientRepliedSinceIntro };
 }
+
+/** Enqueue the login this long after the heads-up message's send time, so the send has settled. */
+const START_LOGIN_SEND_GRACE_MS = 5_000;
 
 /**
  * Acts on the LLM's tax_fetch_action after the normal document handling. The
  * accompanying drafted message (offer, WhatsApp intro, "SMS incoming" heads-up)
  * is scheduled by the normal follow-up path; here we only move the fetch's
- * persisted state and enqueue the browser work. `offerEmailId` is that drafted
- * message's row — an 'offered' session only sticks once it is actually sent
- * (see loadTaxFetchContext), so a superseded draft re-enables the offer.
+ * persisted state and enqueue the browser work. `message` is that drafted
+ * row + its send delay: an 'offered' session only sticks once the draft is
+ * actually sent (see loadTaxFetchContext), and start_login is enqueued to run
+ * only after the heads-up message goes out — the login triggers the real OTP
+ * SMS, which must never reach the client before the message warning about it.
  */
 export async function applyTaxFetchAction(
   client: ClientRow,
   action: TaxFetchAction | null,
   ctx: TaxFetchContext,
   now: Date,
-  offerEmailId: string | null,
+  message: { emailId: string | null; delayMs: number },
 ): Promise<void> {
   if (!action) return;
 
@@ -138,7 +157,7 @@ export async function applyTaxFetchAction(
         clientDocumentId: ctx.pending106DocId,
         status: 'offered',
         taxYear: taxYearFor(now),
-        offerEmailId,
+        offerEmailId: message.emailId,
       });
       logger.info('tax fetch: offered', { clientId: client.id });
       publishClientUpdated(client.id);
@@ -154,8 +173,18 @@ export async function applyTaxFetchAction(
     }
     case 'start_login': {
       if (!ctx.session) return;
-      await enqueueTaxFetch({ kind: 'start_login', sessionId: ctx.session.id });
-      logger.info('tax fetch: start_login enqueued', { clientId: client.id, sessionId: ctx.session.id });
+      // Delayed to just after the heads-up message's send time; the runner then
+      // verifies that message actually went out before driving the browser.
+      await enqueueTaxFetch(
+        { kind: 'start_login', sessionId: ctx.session.id, awaitEmailId: message.emailId ?? undefined },
+        { delayMs: message.emailId ? message.delayMs + START_LOGIN_SEND_GRACE_MS : 0 },
+      );
+      logger.info('tax fetch: start_login enqueued', {
+        clientId: client.id,
+        sessionId: ctx.session.id,
+        awaitEmailId: message.emailId,
+        delayMs: message.delayMs,
+      });
       return;
     }
     case 'cancel': {

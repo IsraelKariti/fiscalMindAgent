@@ -165,9 +165,12 @@ capability** — there is no accountant button.
   (prefer a dedicated 106 template when the 24h window is closed). The client's
   WhatsApp reply with the code is intercepted (`taxFetch/inboundOtp.ts`, before
   the LLM re-plan — OTPs expire in minutes), the worker submits it, downloads
-  the PDF, sends it to the client over WhatsApp and stores it as a
-  `document_files` row with the matching `client_documents` row marked
-  collected.
+  the PDF and stores it as a `document_files` row with the matching
+  `client_documents` row marked collected. The client's copy goes by **email
+  attachment** (never WhatsApp media — possession of the phone number must not
+  be enough to receive the document); the WhatsApp conversation only gets a
+  confirmation text. A client with no email address / sender mailbox gets the
+  platform copy only.
 - **State machine**: `tax_fetch_sessions` (migration 025) tracks one attempt
   offer→delivery; the LLM only ever sees the actions valid in the current state
   (`allowedTaxFetchActions` in `decisionSchema.ts`, gated in the prompt's
@@ -200,9 +203,11 @@ capability** — there is no accountant button.
   precedent as the OAuth token tables), imported from the accountant's
   boards/sheets via the shared client-import mapping (two optional columns:
   national ID + permanent user code), synced for new *and* existing clients.
-- **WhatsApp media**: `sendWhatsAppMedia` + a signed, expiring public link
-  (`src/storage/mediaUrl.ts` + `GET /media/:token`, `MEDIA_SIGNING_SECRET`),
-  since Twilio fetches media server-side and blobs are otherwise private.
+- **WhatsApp media (outbound infra, currently unused)**: `sendWhatsAppMedia` +
+  a signed, expiring public link (`src/storage/mediaUrl.ts` +
+  `GET /media/:token`, `MEDIA_SIGNING_SECRET`), since Twilio fetches media
+  server-side and blobs are otherwise private. The 106 flow stopped using it —
+  documents go to clients by email attachment only (see above).
 - **Prod**: `Dockerfile.browser-runner` (Playwright/noble base, Chrome
   channel, Xvfb, non-root) is the only image with a browser — web/worker stay
   Alpine. Deploy it as its own container app (internal ingress only) with
@@ -281,8 +286,12 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   `phonesMatch`, shared by `googleData.ts`) before entering the prompt — the
   privacy boundary. The CS instance has its own dedicated WhatsApp number
   (`wa_senders`); unknown senders who message that number are auto-enrolled
-  into the CS instance by the webhook (`onInboundWhatsApp.ts`) when it is
-  enabled — messages to other agents' numbers never reach CS.
+  by the webhook (`onInboundWhatsApp.ts`) **only if their number matches a
+  row in the connected client records** (`enrollGate.ts`
+  `isListedClientPhone`, same phonesMatch check; fail-closed — no sources
+  configured or a lookup error means no enrollment). Unlisted strangers get
+  silence: no client row, no LLM call. Messages to other agents' numbers
+  never reach CS.
   Config lives in `agent_instances.settings`
   (`customerService/settings.ts`); the settings UI is the `settingsPanel`
   slot on `AgentTypeUI`, rendered in the workspace Settings view.

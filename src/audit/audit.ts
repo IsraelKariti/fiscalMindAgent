@@ -10,6 +10,7 @@ import { logger } from '../util/logger.js';
  */
 export type AuditAction =
   | 'email.client_sent'
+  | 'email.document_sent'
   | 'email.accountant_sent'
   | 'wa.text_sent'
   | 'wa.template_sent'

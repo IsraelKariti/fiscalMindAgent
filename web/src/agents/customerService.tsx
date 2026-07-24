@@ -11,8 +11,9 @@ const CHANNELS: readonly MessageChannel[] = ['whatsapp'];
  * Q&A agent, so the conversation tab mutes all scheduling UI (goal-less,
  * nothing is ever scheduled) and the agent-level settings section configures
  * the monday knowledge sources. Clients self-enroll from their first WhatsApp
- * message, so the details tab carries no edit/opt-in forms — only the mute
- * switch that silences the agent for one sender.
+ * message (only numbers listed in the connected client records pass the
+ * enrollment gate), so the details tab carries no edit/opt-in forms — only
+ * the mute switch that silences the agent for one sender.
  */
 export const customerServiceUI: AgentTypeUI = {
   agentType: 'customer_service',

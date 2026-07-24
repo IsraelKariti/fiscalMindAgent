@@ -1,6 +1,11 @@
 import { resend } from './client.js';
 import { logger } from '../util/logger.js';
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 export interface SendEmailArgs {
   from: string;
   to: string;
@@ -10,6 +15,7 @@ export interface SendEmailArgs {
   inReplyTo?: string;
   /** Message-ID chain of the conversation so far, oldest first. */
   references?: string[];
+  attachments?: EmailAttachment[];
 }
 
 /**
@@ -30,6 +36,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ resendId: string
     subject: args.subject,
     text: args.body,
     headers: Object.keys(headers).length > 0 ? headers : undefined,
+    attachments: args.attachments?.map((a) => ({ filename: a.filename, content: a.content })),
   });
   if (error || !data) throw new Error(`Resend send failed: ${error?.name ?? 'unknown'} ${error?.message ?? ''}`);
 

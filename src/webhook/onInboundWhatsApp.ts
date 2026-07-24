@@ -9,6 +9,7 @@ import { loadAgentContext } from '../agents/resolve.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { recordAudit } from '../audit/audit.js';
 import { detectInjectionHeuristics } from '../agents/shared/promptSafety.js';
+import { isListedClientPhone } from '../agents/customerService/enrollGate.js';
 import { ingestWaMedia, type WaMediaItem } from './ingestWaMedia.js';
 import { logger } from '../util/logger.js';
 
@@ -77,11 +78,20 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
 
   let client = await clients.getByWaPhoneForInstance(instance.id, clientNumber);
   if (!client) {
-    // Unknown number: only the customer_service agent auto-enrolls — it
-    // answers anyone who messages its number, authenticated by their phone
-    // alone. Other agents' clients are pre-created, so strangers are ignored.
+    // Unknown number: only the customer_service agent auto-enrolls, and only
+    // senders listed in the accountant's connected client records (monday
+    // boards / Google Sheets, verified by phonesMatch). Other agents' clients
+    // are pre-created, so strangers are ignored everywhere.
     if (instance.agent_type !== 'customer_service') {
       logger.warn('inbound whatsapp from unknown number, ignoring', { from: clientNumber, to: senderNumber });
+      return;
+    }
+    if (!(await isListedClientPhone(instance, clientNumber))) {
+      logger.warn('inbound whatsapp from number not in client records, ignoring', {
+        from: clientNumber,
+        to: senderNumber,
+        instanceId: instance.id,
+      });
       return;
     }
     client =

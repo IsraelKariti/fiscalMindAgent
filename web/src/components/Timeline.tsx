@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { ApiError, type Email, type GoalStatus, type MessageChannel, type NextScheduled } from '../api';
-import { formatTimestamp } from '../format';
+import { ApiError, type DocumentFile, type Email, type GoalStatus, type MessageChannel, type NextScheduled } from '../api';
+import { formatFileSize, formatTimestamp } from '../format';
 import { useT } from '../i18n';
+import { FileViewModal } from './FileViewModal';
 import { SendNowModal } from './SendNowModal';
 
 type ChannelFilter = 'all' | MessageChannel;
@@ -11,6 +12,24 @@ type ChannelFilter = 'all' | MessageChannel;
 // deciding whether a message actually renamed the thread.
 function subjectKey(subject: string): string {
   return subject.replace(/^(\s*(re|fwd?)\s*:\s*)+/i, '').trim().toLowerCase();
+}
+
+// Tiny unlinked images are almost always signature logos / social icons that
+// arrived with an explicit `attachment` disposition (ingestion already drops
+// the inline-referenced ones). Hide them from the conversation only — they
+// stay listed in the Documents tab's files card.
+const SIGNATURE_IMAGE_MAX_BYTES = 20 * 1024;
+
+function isTimelineAttachment(file: DocumentFile): boolean {
+  if (!file.content_type.startsWith('image/')) return true;
+  if (file.client_document_id) return true;
+  return Number(file.size_bytes) >= SIGNATURE_IMAGE_MAX_BYTES;
+}
+
+// WhatsApp media carries no real filename — ingestion synthesizes
+// "whatsapp-media-N.ext", which means nothing to the accountant.
+function hasSyntheticName(file: DocumentFile): boolean {
+  return /^whatsapp-media-\d+\./.test(file.filename);
 }
 
 const icon = {
@@ -36,6 +55,19 @@ const icon = {
       <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
     </svg>
   ),
+  image: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+    </svg>
+  ),
+  file: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  ),
   whatsapp: (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
@@ -45,6 +77,7 @@ const icon = {
 
 export function Timeline({
   emails,
+  files = [],
   nextScheduled,
   goalStatus,
   paused,
@@ -59,6 +92,8 @@ export function Timeline({
   hideStatusFooter = false,
 }: {
   emails: Email[];
+  /** The client's stored files; each carries email_id, linking it to the message it arrived (or was sent) on. */
+  files?: DocumentFile[];
   nextScheduled: NextScheduled | null;
   goalStatus: GoalStatus;
   /** True while the agent's outreach to this client is paused. */
@@ -86,6 +121,7 @@ export function Timeline({
   const { t } = useT();
   const [copied, setCopied] = useState(false);
   const [confirmingSendNow, setConfirmingSendNow] = useState(false);
+  const [viewingFile, setViewingFile] = useState<DocumentFile | null>(null);
   const [pauseBusy, setPauseBusy] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState(false);
@@ -121,6 +157,26 @@ export function Timeline({
   // wins — a paused row's send isn't going anywhere regardless.
   const sendFailed = !paused && nextScheduled?.sendFailedAt != null;
   const channelLabel = (channel: MessageChannel) => (channel === 'whatsapp' ? t.channelWhatsApp : t.channelEmail);
+
+  // Files grouped under the message they arrived on. Chronological, so chip
+  // order inside a bubble matches the order the attachments were sent in.
+  const filesByEmail = useMemo(() => {
+    const map = new Map<string, DocumentFile[]>();
+    for (const file of files) {
+      if (!file.email_id || !isTimelineAttachment(file)) continue;
+      const group = map.get(file.email_id);
+      if (group) group.push(file);
+      else map.set(file.email_id, [file]);
+    }
+    return map;
+  }, [files]);
+
+  const attachmentLabel = (file: DocumentFile) => {
+    if (!hasSyntheticName(file)) return file.filename;
+    if (file.content_type.startsWith('image/')) return t.attachmentImage;
+    if (file.content_type === 'application/pdf') return t.attachmentPdf;
+    return t.attachmentFile;
+  };
 
   const lastEmailId = visibleEmails[visibleEmails.length - 1]?.id ?? null;
 
@@ -196,16 +252,20 @@ export function Timeline({
   const copyConversation = async () => {
     // agent_reasoning is the LLM's internal explanation for the follow-up decision
     // (mainly the chosen send time); absent on client messages and pre-feature emails.
-    const messages: { time: string; sender: string; channel: string; status: string; subject: string; body: string; agent_reasoning?: string }[] =
-      emails.map((email) => ({
-        time: email.sent_at ?? email.created_at,
-        sender: email.direction === 'outbound' ? 'agent' : 'client',
-        channel: email.channel,
-        status: email.status,
-        subject: email.subject,
-        body: email.body,
-        ...(email.reasoning ? { agent_reasoning: email.reasoning } : {}),
-      }));
+    const messages: { time: string; sender: string; channel: string; status: string; subject: string; body: string; agent_reasoning?: string; attachments?: string[] }[] =
+      emails.map((email) => {
+        const attachments = filesByEmail.get(email.id);
+        return {
+          time: email.sent_at ?? email.created_at,
+          sender: email.direction === 'outbound' ? 'agent' : 'client',
+          channel: email.channel,
+          status: email.status,
+          subject: email.subject,
+          body: email.body,
+          ...(email.reasoning ? { agent_reasoning: email.reasoning } : {}),
+          ...(attachments ? { attachments: attachments.map((f) => f.filename) } : {}),
+        };
+      });
     if (nextScheduled) {
       messages.push({
         time: nextScheduled.scheduledFor,
@@ -287,6 +347,7 @@ export function Timeline({
               email.channel === 'email' &&
               email.subject !== '' &&
               (!prev || subjectKey(email.subject) !== subjectKey(prev.subject));
+            const attachments = filesByEmail.get(email.id) ?? [];
             return (
               <li key={email.id} className={`timeline-item ${outbound ? 'outbound' : 'inbound'}`}>
                 <div className="timeline-meta">
@@ -297,7 +358,29 @@ export function Timeline({
                 </div>
                 <div className="bubble">
                   {newSubject && <div className="bubble-subject" dir="auto">{email.subject}</div>}
-                  <div className="bubble-body" dir="auto">{email.body}</div>
+                  {/* WhatsApp media can arrive with no text at all — a chip-only bubble. */}
+                  {(email.body !== '' || attachments.length === 0) && (
+                    <div className="bubble-body" dir="auto">{email.body}</div>
+                  )}
+                  {attachments.length > 0 && (
+                    <div className="bubble-attachments">
+                      {attachments.map((file) => (
+                        <button
+                          key={file.id}
+                          type="button"
+                          className={`attachment-chip ${file.analysis?.injection_suspected ? 'attachment-chip-danger' : ''}`}
+                          title={file.analysis?.injection_suspected ? t.analysisSuspiciousTitle : file.filename}
+                          onClick={() => setViewingFile(file)}
+                        >
+                          <span className="attachment-chip-icon">
+                            {file.content_type.startsWith('image/') ? icon.image : icon.file}
+                          </span>
+                          <span className="attachment-chip-name">{attachmentLabel(file)}</span>
+                          <span className="attachment-chip-size">{formatFileSize(file.size_bytes)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </li>
             );
@@ -497,6 +580,9 @@ export function Timeline({
           onSendNow={onSendNow}
           onClose={() => setConfirmingSendNow(false)}
         />
+      )}
+      {viewingFile && (
+        <FileViewModal clientId={viewingFile.client_id} file={viewingFile} onClose={() => setViewingFile(null)} />
       )}
     </section>
   );

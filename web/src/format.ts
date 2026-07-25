@@ -57,6 +57,15 @@ export function formatDateOnly(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString(LOCALE, { dateStyle: 'medium' });
 }
 
+/** Human file size for attachment rows/chips; size_bytes arrives as a string from pg. */
+export function formatFileSize(bytes: string): string {
+  const n = Number(bytes);
+  if (!Number.isFinite(n)) return '';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /** Compact USD amount for LLM costs, which range from fractions of a cent upward. */
 export function formatUsd(value: number): string {
   if (value > 0 && value < 0.0001) return '<$0.0001';

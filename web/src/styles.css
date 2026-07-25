@@ -1497,6 +1497,78 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+/* Attachment chips inside a message bubble — the files that message carried. */
+.bubble-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Media-only message (no body text): the chips are the whole bubble. */
+.bubble-attachments:first-child {
+  margin-top: 0;
+}
+
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 5px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  /* Dark translucent, so it reads on both the flat inbound bubble and the outbound gradient. */
+  background: rgba(7, 10, 20, 0.35);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background var(--speed) ease,
+    border-color var(--speed) ease,
+    transform var(--speed) ease;
+}
+
+.attachment-chip:hover {
+  background: rgba(7, 10, 20, 0.55);
+  border-color: var(--primary-2);
+  transform: translateY(-1px);
+}
+
+.attachment-chip-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--primary-2);
+}
+
+.attachment-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Filenames are usually Latin — let each pick its own direction inside the RTL page. */
+  unicode-bidi: plaintext;
+}
+
+.attachment-chip-size {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* --text-muted is too dim against the outbound gradient. */
+.timeline-item.outbound .attachment-chip-size {
+  color: rgba(233, 237, 251, 0.75);
+}
+
+.attachment-chip-danger {
+  border-color: var(--error);
+}
+
+.attachment-chip-danger .attachment-chip-icon {
+  color: var(--error);
+}
+
 .timeline-footer {
   margin: 12px 0 0;
 }
@@ -1687,6 +1759,59 @@ textarea {
 .doc-row.collected .doc-name {
   color: var(--text-muted);
   text-decoration: line-through;
+}
+
+.doc-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* File viewer modal: sized to the viewport so PDFs get real reading room */
+.modal-viewer {
+  width: min(920px, calc(100vw - 32px));
+  height: 86vh;
+  overflow: hidden;
+  gap: 10px;
+}
+
+.modal-viewer-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-viewer-header h2 {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-viewer-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 6, 14, 0.4);
+  border-radius: 10px;
+  overflow: auto;
+}
+
+.modal-viewer-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.modal-viewer-body img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .doc-desc {

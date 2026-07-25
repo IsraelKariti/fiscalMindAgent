@@ -22,6 +22,14 @@ function sanitizeFilename(filename: string | null): string {
 }
 
 /**
+ * Inline-referenced parts (content_id, no explicit `attachment` disposition)
+ * this small are signature logos, social icons and spacers. Larger inline
+ * parts are kept: Apple Mail sends real photo attachments as inline parts
+ * with a content_id, and dropping on disposition alone loses those.
+ */
+const INLINE_JUNK_MAX_BYTES = 50 * 1024;
+
+/**
  * Downloads each real attachment from Resend and persists it: bytes to Blob
  * Storage (deterministic key, so re-runs overwrite in place), metadata to
  * document_files (unique on the Resend attachment id, so duplicate webhook
@@ -38,12 +46,15 @@ export async function ingestAttachments(
 ): Promise<number> {
   let stored = 0;
   for (const att of attachments) {
-    // Skip parts embedded inline in the HTML body (signature logos, embedded
-    // images). A content_id alone is not enough to tell: Gmail stamps one on
-    // real photo attachments too, so an explicit `attachment` disposition
-    // always wins.
+    // Skip small parts embedded inline in the HTML body (signature logos,
+    // embedded images). A content_id alone is not enough to tell: Gmail stamps
+    // one on real photo attachments too, so an explicit `attachment`
+    // disposition always wins; and Apple Mail marks real photos inline, so
+    // only inline parts small enough to be decorative are dropped.
     const disposition = (att.content_disposition ?? '').trim().toLowerCase();
-    if (att.content_id && !disposition.startsWith('attachment')) continue;
+    const inline = Boolean(att.content_id) && !disposition.startsWith('attachment');
+    // A missing/zero size drops too — real photos always report one.
+    if (inline && !(att.size > INLINE_JUNK_MAX_BYTES)) continue;
 
     try {
       const { data, error } = await resend.emails.receiving.attachments.get({ emailId: resendEmailId, id: att.id });

@@ -43,6 +43,7 @@ export const annualReportUI: AgentTypeUI = {
         <div className="tab-pane tab-pane-fill" role="tabpanel">
           <Timeline
             emails={ctx.emails}
+            files={ctx.files}
             channels={CHANNELS}
             nextScheduled={ctx.nextScheduled}
             goalStatus={ctx.client.goal_status}
@@ -104,6 +105,7 @@ export const annualReportUI: AgentTypeUI = {
           <DocumentsCard
             clientId={ctx.client.id}
             documents={ctx.documents}
+            files={ctx.files}
             titleKey="annualDocsTitle"
             emptyTextKey="annualDocsEmpty"
             onChanged={async () => {

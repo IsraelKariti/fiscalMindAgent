@@ -361,6 +361,10 @@ const he = {
   regeneratingDraft: 'מנסח מחדש…',
   regenerateFailed: 'הניסוח מחדש נכשל.',
   goalCompleteFooter: 'היעד הושלם — לא מתוכננים מעקבים נוספים.',
+  // Attachment chips: WhatsApp media has no real filename, so chips fall back to a type label.
+  attachmentImage: 'תמונה',
+  attachmentPdf: 'מסמך PDF',
+  attachmentFile: 'קובץ מצורף',
 
   // StatTiles / shared stats
   docsCollectedLabel: 'מסמכים שנאספו',
@@ -429,6 +433,10 @@ const he = {
   claimedStatus: 'ממתין לאישורך',
   confirmClaimedTitle: 'הלקוח מסר שסיפק את המסמך שלא במייל — סמנו כנאסף רק לאחר שוידאתם שהתקבל',
   removeDocument: 'הסרת המסמך',
+  viewFile: 'צפייה בקובץ',
+  downloadFile: 'הורדת הקובץ',
+  previewUnavailable: 'לא ניתן להציג קובץ מסוג זה כאן — השתמשו בכפתור ההורדה.',
+  closeViewer: 'סגירה',
   docNamePlaceholder: 'שם המסמך, למשל טופס 106',
   docNameAria: 'שם המסמך',
   docDescPlaceholder: 'תיאור (אופציונלי, עוזר לסוכן להסביר את המסמך)',

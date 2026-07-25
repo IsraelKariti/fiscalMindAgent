@@ -395,11 +395,15 @@ workspaceRouter.get(
   }),
 );
 
+// Only these render inline in the viewer modal. Everything else (notably
+// text/html and image/svg+xml, which can carry script) downloads as an
+// attachment — an inline response executes on the API origin, cookie and all.
+const INLINE_VIEW_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
 // Streams the blob through the API so the container stays private and access
 // rides the dashboard session (no SAS URLs to leak).
-workspaceRouter.get(
-  '/clients/:id/files/:fileId/download',
-  wrap(async (req, res) => {
+function serveFile(disposition: 'attachment' | 'inline'): RequestHandler {
+  return wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
     const fileId = uuidParam(req.params.fileId);
     const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
@@ -408,14 +412,22 @@ workspaceRouter.get(
       res.status(404).json({ error: 'File not found.' });
       return;
     }
+    const inline = disposition === 'inline' && INLINE_VIEW_TYPES.has(file.content_type);
     const blob = await downloadBlob(file.blob_key);
     res.setHeader('Content-Type', file.content_type);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     if (blob.contentLength) res.setHeader('Content-Length', blob.contentLength);
     // RFC 5987 encoding: filenames are sanitized ASCII at ingest, but stay defensive.
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`);
+    res.setHeader(
+      'Content-Disposition',
+      `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+    );
     blob.stream.pipe(res);
-  }),
-);
+  });
+}
+
+workspaceRouter.get('/clients/:id/files/:fileId/download', serveFile('attachment'));
+workspaceRouter.get('/clients/:id/files/:fileId/view', serveFile('inline'));
 
 workspaceRouter.get(
   '/clients/:id/emails',

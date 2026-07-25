@@ -1,20 +1,12 @@
 import { type ClientDocument, type DocumentFile } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
-import { LOCALE } from '../format';
+import { LOCALE, formatFileSize } from '../format';
 import { useT } from '../i18n';
 
 interface Props {
   clientId: string;
   files: DocumentFile[];
   documents: ClientDocument[];
-}
-
-function formatSize(bytes: string): string {
-  const n = Number(bytes);
-  if (!Number.isFinite(n)) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /** The content-analysis verdict line under a file, or a status badge when there is none. */
@@ -78,7 +70,7 @@ export function FilesCard({ clientId, files, documents }: Props) {
                   {file.filename}
                 </a>
                 <span className="doc-desc muted">
-                  {formatSize(file.size_bytes)} · {new Date(file.created_at).toLocaleDateString(LOCALE)}
+                  {formatFileSize(file.size_bytes)} · {new Date(file.created_at).toLocaleDateString(LOCALE)}
                   {linked ? ` · ${linked}` : ''}
                 </span>
                 <AnalysisLine file={file} />

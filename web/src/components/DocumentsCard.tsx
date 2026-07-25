@@ -1,12 +1,15 @@
 import { useState, type FormEvent } from 'react';
-import { ApiError, type ClientDocument } from '../api';
+import { ApiError, type ClientDocument, type DocumentFile } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
+import { FileViewModal } from './FileViewModal';
 import { useT } from '../i18n';
 
 interface Props {
   clientId: string;
   documents: ClientDocument[];
+  /** Received files — a row whose checklist item has a linked file gets view/download buttons. */
+  files: DocumentFile[];
   onChanged: () => Promise<void>;
   /** Panel title override — agents where the list isn't accountant-defined rename it. */
   titleKey?: MessageStringKey;
@@ -14,13 +17,23 @@ interface Props {
   emptyTextKey?: MessageStringKey;
 }
 
-export function DocumentsCard({ clientId, documents, onChanged, titleKey, emptyTextKey }: Props) {
+export function DocumentsCard({ clientId, documents, files, onChanged, titleKey, emptyTextKey }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<DocumentFile | null>(null);
+
+  // Newest linked file wins (the list arrives created_at ascending).
+  const latestFileFor = (docId: string): DocumentFile | null => {
+    for (let i = files.length - 1; i >= 0; i--) {
+      const file = files[i];
+      if (file && file.client_document_id === docId) return file;
+    }
+    return null;
+  };
 
   const collected = documents.filter((d) => d.status === 'collected').length;
 
@@ -66,7 +79,9 @@ export function DocumentsCard({ clientId, documents, onChanged, titleKey, emptyT
           <p className="muted">{t[emptyTextKey ?? 'noDocsNothingToCollect']}</p>
         ) : (
           <ul className="doc-list">
-            {documents.map((doc) => (
+            {documents.map((doc) => {
+              const file = latestFileFor(doc.id);
+              return (
               <li key={doc.id} className={`doc-row ${doc.status}`}>
                 <label
                   className="doc-check"
@@ -95,6 +110,28 @@ export function DocumentsCard({ clientId, documents, onChanged, titleKey, emptyT
                     {doc.description && <span className="doc-desc muted">{doc.description}</span>}
                   </span>
                 </label>
+                {file && (
+                  <span className="doc-actions">
+                    <button className="icon-btn" type="button" title={t.viewFile} onClick={() => setViewing(file)}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                    <button
+                      className="icon-btn"
+                      type="button"
+                      title={t.downloadFile}
+                      onClick={async () => window.location.assign(await api.fileDownloadUrl(clientId, file.id))}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                    </button>
+                  </span>
+                )}
                 <span
                   className={`badge ${
                     doc.status === 'collected' ? 'badge-success' : doc.status === 'claimed' ? 'badge-warning' : 'badge-pending'
@@ -111,9 +148,11 @@ export function DocumentsCard({ clientId, documents, onChanged, titleKey, emptyT
                   ×
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
+        {viewing && <FileViewModal clientId={clientId} file={viewing} onClose={() => setViewing(null)} />}
       </div>
 
       <form className="doc-add-form panel-footer" onSubmit={add}>

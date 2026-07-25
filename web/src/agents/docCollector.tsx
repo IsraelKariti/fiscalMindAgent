@@ -36,6 +36,7 @@ export const docCollectorUI: AgentTypeUI = {
         <div className="tab-pane tab-pane-fill" role="tabpanel">
           <Timeline
             emails={ctx.emails}
+            files={ctx.files}
             channels={CHANNELS}
             nextScheduled={ctx.nextScheduled}
             goalStatus={ctx.client.goal_status}
@@ -97,6 +98,7 @@ export const docCollectorUI: AgentTypeUI = {
           <DocumentsCard
             clientId={ctx.client.id}
             documents={ctx.documents}
+            files={ctx.files}
             onChanged={async () => {
               // A document change can flip goal_status and (re)schedule emails — refresh everything.
               await ctx.load();

@@ -546,6 +546,9 @@ function makeWorkspaceApi(prefix: string) {
     /** Async because the monday transport appends a freshly fetched ?sessionToken=. */
     fileDownloadUrl: (clientId: string, fileId: string) =>
       tokenizedUrl(`${prefix}/clients/${clientId}/files/${fileId}/download`),
+    /** Inline-disposition variant for the in-app viewer modal (iframe/img src). */
+    fileViewUrl: (clientId: string, fileId: string) =>
+      tokenizedUrl(`${prefix}/clients/${clientId}/files/${fileId}/view`),
     eventsUrl: (clientId: string) => tokenizedUrl(`${prefix}/clients/${clientId}/events`),
     /** SSE ticks when this instance's client roster changes — the sidebar refetches the list. */
     clientsEventsUrl: () => tokenizedUrl(`${prefix}/events`),

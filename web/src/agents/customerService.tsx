@@ -37,6 +37,7 @@ export const customerServiceUI: AgentTypeUI = {
         <div className="tab-pane tab-pane-fill" role="tabpanel">
           <Timeline
             emails={ctx.emails}
+            files={ctx.files}
             channels={CHANNELS}
             nextScheduled={null}
             // Goal-less agent: "complete" + hidden footer mutes every

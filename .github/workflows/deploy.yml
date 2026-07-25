@@ -1,0 +1,55 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RG: fiscalmind-resourcegroup
+  ACR: fiscalmindacr
+  IMAGE: fiscalmindacr.azurecr.io/fiscalmind-agent
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build image in ACR (cloud build)
+        run: az acr build --registry $ACR --image fiscalmind-agent:${{ github.sha }} .
+
+      - name: Update worker
+        run: |
+          az containerapp update -n fiscalmind-worker -g $RG \
+            --image $IMAGE:${{ github.sha }}
+
+      - name: Run DB migrations (from worker, inside vnet)
+        run: |
+          az containerapp exec -n fiscalmind-worker -g $RG \
+            --command "node dist/scripts/migrate.js"
+
+      - name: Update web
+        run: |
+          az containerapp update -n fiscalmind-web -g $RG \
+            --image $IMAGE:${{ github.sha }}
+
+      - name: Health check
+        run: |
+          sleep 30
+          curl -fsS https://agent.fiscalmind.app/healthz

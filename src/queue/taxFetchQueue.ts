@@ -8,7 +8,7 @@ export type TaxFetchJob =
   | {
       kind: 'start_login';
       sessionId: string;
-      /** The heads-up message that must have been SENT before the login may run (it triggers the OTP SMS). */
+      /** The heads-up message that must have been SENT before the login may run (it triggers the OTP email). */
       awaitEmailId?: string;
       /** How many times the runner has already re-checked an unsent heads-up message. */
       awaitAttempt?: number;

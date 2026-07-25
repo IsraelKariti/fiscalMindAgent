@@ -165,7 +165,7 @@ const MOCK_PDF = Buffer.from(
 
 /**
  * No-browser, no-runner stand-in for iterating on the whole flow without
- * SMSing a real citizen. Enabled by TAX_FETCH_MOCK=true. Accepts any 6-digit
+ * emailing a real citizen an OTP. Enabled by TAX_FETCH_MOCK=true. Accepts any 6-digit
  * OTP; anything else is rejected like a wrong code so the retry path can be
  * tested.
  */

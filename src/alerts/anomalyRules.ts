@@ -56,7 +56,7 @@ export function hourInTimeZone(at: Date, timeZone: string): number {
 
 /**
  * Flags occurrences outside [startHour, endHour) local time — e.g. a
- * tax-authority login (a real OTP SMS to a real citizen) at 3am is not a thing
+ * tax-authority login (a real OTP email to a real citizen) at 3am is not a thing
  * the normal flow produces.
  */
 export function evaluateOffHours(

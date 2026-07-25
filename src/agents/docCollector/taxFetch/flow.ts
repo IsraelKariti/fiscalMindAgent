@@ -130,13 +130,13 @@ const START_LOGIN_SEND_GRACE_MS = 5_000;
 
 /**
  * Acts on the LLM's tax_fetch_action after the normal document handling. The
- * accompanying drafted message (offer, WhatsApp intro, "SMS incoming" heads-up)
+ * accompanying drafted message (offer, WhatsApp intro, "code incoming" heads-up)
  * is scheduled by the normal follow-up path; here we only move the fetch's
  * persisted state and enqueue the browser work. `message` is that drafted
  * row + its send delay: an 'offered' session only sticks once the draft is
  * actually sent (see loadTaxFetchContext), and start_login is enqueued to run
  * only after the heads-up message goes out — the login triggers the real OTP
- * SMS, which must never reach the client before the message warning about it.
+ * email, which must never reach the client before the message warning about it.
  */
 export async function applyTaxFetchAction(
   client: ClientRow,

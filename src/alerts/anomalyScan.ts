@@ -83,7 +83,7 @@ export async function runAnomalyScan(): Promise<void> {
     });
   }
 
-  // 4. Tax-authority logins at odd local hours — each one fires a real OTP SMS,
+  // 4. Tax-authority logins at odd local hours — each one fires a real OTP email,
   //    and the normal conversational flow doesn't produce 3am logins.
   const logins = await auditEvents.listActionSince('tax_fetch.login_started', hourAgo);
   const offHours = evaluateOffHours(

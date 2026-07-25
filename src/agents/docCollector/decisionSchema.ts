@@ -97,7 +97,7 @@ export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, win
  * (what to reject). Offering requires the fetch to be currently available.
  * start_login additionally requires the client to have replied since the intro:
  * the post-send re-plan runs with no new client input, and must never be able
- * to start the login (it triggers a real OTP SMS) off the pre-intro agreement.
+ * to start the login (it triggers a real OTP email) off the pre-intro agreement.
  */
 export function allowedTaxFetchActions(state: string, available: boolean, clientRepliedSinceIntro: boolean): string[] {
   switch (state) {

@@ -29,7 +29,7 @@ const MSG = {
   loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר רשות המסים כרגע. נוכל לנסות שוב מאוחר יותר.',
   busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
   otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
-  otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS.',
+  otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת באימייל מרשות המסים.',
   otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
   downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הטופס כרגע. נוכל לנסות שוב מאוחר יותר.',
 };
@@ -80,7 +80,7 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
 
   // Re-check at act time: the agent (or the whole platform) may have been
   // disabled while this job sat delayed — the login must then never fire the
-  // real OTP SMS. No client message: the instance was shut off deliberately.
+  // real OTP email. No client message: the instance was shut off deliberately.
   const blocked = await agentWorkBlocked(client);
   if (blocked) {
     await taxFetchSessions.updateStatus(sessionId, 'cancelled');
@@ -89,7 +89,7 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
     return;
   }
 
-  // The login triggers the real OTP SMS — it may only run after the message
+  // The login triggers the real OTP email — it may only run after the message
   // telling the client to expect the code has actually been sent.
   if (job.awaitEmailId) {
     const headsUp = await emails.getById(job.awaitEmailId);
@@ -135,9 +135,9 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
     await fetchClient.startLogin(sessionId, PROVIDER_ID, { idNumber: creds.id_number, userCode: creds.user_code });
     sessionTracker.put({ sessionId, clientId: client.id, provider: PROVIDER_ID });
     // No canned "code incoming" line here: the LLM's heads-up message (verified
-    // sent above) already told the client an SMS is coming and where to send it.
+    // sent above) already told the client an email is coming and where to send the code.
     await taxFetchSessions.updateStatus(sessionId, 'awaiting_otp', { otpRequestedAt: new Date() });
-    // 'warning' severity: this just fired a real OTP SMS at a real citizen —
+    // 'warning' severity: this just fired a real OTP email at a real citizen —
     // the single most sensitive action the platform takes.
     recordAudit({
       actorType: 'agent',

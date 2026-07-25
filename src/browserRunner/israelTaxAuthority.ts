@@ -9,7 +9,7 @@ const PERSONAL_AREA_URL = 'https://secapp.taxes.gov.il/sr-ezor-ishi/main/main-pa
 /**
  * Israeli Tax Authority (רשות המסים) portal. Ported from the standalone
  * meitav-vm-browser-login server: logs in with national ID + permanent user
- * code, verifies the SMS OTP, and downloads a year's Form 106 (טופס 106).
+ * code, verifies the emailed OTP, and downloads a year's Form 106 (טופס 106).
  * Selectors track the site's Hebrew Angular UI and are the brittle part.
  */
 export const israelTaxAuthorityProvider: DocumentFetchProvider = {

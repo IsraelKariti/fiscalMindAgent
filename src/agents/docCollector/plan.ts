@@ -74,7 +74,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const waState = await getWaChannelState(client, now);
   // The start_login readiness signal must come from the phone-verified WhatsApp
   // channel: email is spoof-adjacent, and a forged "I'm ready" email must never
-  // be able to trigger the real OTP SMS. (The OTP relay is WhatsApp-only anyway.)
+  // be able to trigger the real OTP email. (The OTP relay is WhatsApp-only anyway.)
   const lastInboundWa = [...history].reverse().find((m) => m.direction === 'inbound' && m.channel === 'whatsapp');
   const lastInboundWaAt = lastInboundWa ? (lastInboundWa.sent_at ?? lastInboundWa.created_at) : null;
   const taxFetch = await loadTaxFetchContext(client, documents, waState, lastInboundWaAt);
@@ -197,7 +197,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       : decision.decision === 'goal_complete' && !decision.suspected_injection;
 
   // Under suspected injection the fetch may only be cancelled — an injected
-  // message must not be able to offer/agree/start a login (it triggers a real OTP SMS).
+  // message must not be able to offer/agree/start a login (it triggers a real OTP email).
   const taxFetchAction =
     decision.suspected_injection && decision.tax_fetch_action !== 'cancel' ? null : decision.tax_fetch_action;
 
@@ -251,7 +251,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // cancel) after the draft exists: an 'offered' session records which message
   // carries the offer (a superseded draft re-enables offering), and start_login
   // is enqueued against the heads-up draft so the browser login — and the OTP
-  // SMS it triggers — can only run after that message actually goes out.
+  // email it triggers — can only run after that message actually goes out.
   await applyTaxFetchAction(client, taxFetchAction, taxFetch, now, {
     emailId,
     delayMs: Math.max(0, delayMs),

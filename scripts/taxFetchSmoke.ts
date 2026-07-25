@@ -1,12 +1,12 @@
 /**
  * Manual, one-off validation of the tax-authority browser port against the REAL
- * site. Every run sends a real SMS to the citizen whose ID you pass, so use it
+ * site. Every run sends a real OTP email to the citizen whose ID you pass, so use it
  * sparingly and only with consent — iterate on the mock (TAX_FETCH_MOCK=true)
  * for everything else.
  *
  *   npx tsx scripts/taxFetchSmoke.ts <idNumber> <userCode> [taxYear]
  *
- * It opens Chrome, logs in, waits for you to type the OTP you receive by SMS,
+ * It opens Chrome, logs in, waits for you to type the OTP you receive by email,
  * downloads the Form 106, and writes the PDF next to this script.
  */
 import { writeFile } from 'node:fs/promises';
@@ -24,11 +24,11 @@ async function main(): Promise<void> {
 
   const { browser, page } = await launchInteractivePage();
   try {
-    console.log('logging in — an SMS OTP should arrive shortly…');
+    console.log('logging in — an OTP email should arrive shortly…');
     await israelTaxAuthorityProvider.startLogin(page, { idNumber, userCode });
 
     const rl = createInterface({ input: process.stdin, output: process.stdout });
-    const otp = (await rl.question('enter the OTP from SMS: ')).trim();
+    const otp = (await rl.question('enter the OTP from the email: ')).trim();
     rl.close();
 
     await israelTaxAuthorityProvider.submitOtp(page, otp);

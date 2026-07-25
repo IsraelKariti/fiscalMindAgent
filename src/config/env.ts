@@ -121,8 +121,8 @@ const EnvSchema = z.object({
   // sending throws a clear error until it is set.
   MEDIA_SIGNING_SECRET: z.string().min(16).optional(),
   // Tax-authority document fetch (browser automation). When true, the mock
-  // provider is used instead of driving a real browser — every real login SMSes
-  // a real citizen, so iterate on the mock. Default false.
+  // provider is used instead of driving a real browser — every real login sends
+  // an OTP email to a real citizen, so iterate on the mock. Default false.
   TAX_FETCH_MOCK: z.coerce.boolean().default(false),
   // How long a live browser session waits for the client's OTP before it is
   // closed and the fetch is marked expired (ms). Default 10 minutes.

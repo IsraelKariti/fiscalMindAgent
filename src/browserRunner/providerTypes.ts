@@ -21,7 +21,7 @@ export interface DocumentFetchProvider {
   id: string;
   /**
    * Fills the login form and submits, leaving the page on the OTP screen. This
-   * is what makes the site send the SMS one-time code to the client's phone.
+   * is what makes the site send the one-time code to the client's email.
    */
   startLogin(page: Page, creds: PortalLoginCredentials): Promise<void>;
   /**

@@ -150,17 +150,19 @@ capability** — there is no accountant button.
 
 - **Flow**: the LLM offers the fetch in the email thread when a pending required
   document matches `/106/` and credentials are on file; on agreement it explains
-  the SMS-code step and asks the client to confirm they're free. `start_login`
+  the code step (the tax authority emails the client a one-time code, which the
+  client relays back on WhatsApp) and asks the client to confirm they're free.
+  `start_login`
   only becomes an allowed action once the client has replied **on WhatsApp,
   after** that intro (`clientRepliedSinceIntro`, computed in
   `loadTaxFetchContext` from the last inbound *WhatsApp* timestamp vs. the
   session's `updated_at` — email is spoof-adjacent and must never be able to
   arm the login) — the post-send re-plan runs with no new client input and must
-  never be able to trigger the OTP SMS.
+  never be able to trigger the OTP email.
   The login job is then enqueued delayed to the heads-up message's send time and
   the runner verifies that message's row is `sent` (bounded re-checks; an
   abandoned draft never sends → the login never runs), so the tax authority's
-  OTP SMS can't precede the WhatsApp message warning about it. The first
+  OTP email can't precede the WhatsApp message warning about it. The first
   WhatsApp message is prompted to read as a continuation of the email thread
   (prefer a dedicated 106 template when the 24h window is closed). The client's
   WhatsApp reply with the code is intercepted (`taxFetch/inboundOtp.ts`, before
@@ -196,8 +198,8 @@ capability** — there is no accountant button.
 - **Providers**: `src/browserRunner/` is provider-structured
   (`DocumentFetchProvider` in `providerTypes.ts`) so other sites can be added;
   today only `israel_tax_authority`. `TAX_FETCH_MOCK=true` swaps in an
-  in-worker no-runner mock (`fetchClient.ts` — every real login SMSes a real
-  citizen, so iterate on the mock). `scripts/taxFetchSmoke.ts` validates the
+  in-worker no-runner mock (`fetchClient.ts` — every real login emails a real
+  citizen an OTP, so iterate on the mock). `scripts/taxFetchSmoke.ts` validates the
   real-site port once, interactively (no token/runner needed).
 - **Credentials**: `client_portal_credentials` (migration 025, plaintext, same
   precedent as the OAuth token tables), imported from the accountant's

@@ -88,7 +88,7 @@ export function createRunnerApp(): Express {
   app.use(buildAuthMiddleware());
 
   // Launches Chrome and submits the login form, leaving the page on the OTP
-  // screen (this is what triggers the site's OTP SMS to the client).
+  // screen (this is what triggers the site's OTP email to the client).
   app.post('/sessions', async (req, res) => {
     const parsed = StartLoginBody.safeParse(req.body);
     if (!parsed.success) {

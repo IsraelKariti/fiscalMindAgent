@@ -13,8 +13,9 @@ const PDF_CAPTURE_TIMEOUT_MS = 30_000;
  * Israeli Tax Authority (רשות המסים) portal. Ported from the standalone
  * meitav-vm-browser-login server: logs in with national ID + permanent user
  * code, verifies the emailed OTP, and downloads a year's Form 106 (טופס 106)
- * for EVERY employer listed under that year. Selectors track the site's Hebrew
- * Angular UI and are the brittle part.
+ * for EVERY employer listed under that year, plus the year's all-employers
+ * salary summary (ריכוז נתוני שכר) when the site offers one. Selectors track
+ * the site's Hebrew Angular UI and are the brittle part.
  *
  * Delivery mechanics (verified live 2026-07-25): clicking להצגת טופס 106 does
  * not navigate or download — the page JS fetches the PDF bytes, wraps them in
@@ -87,35 +88,61 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
     }
     await debugShot(page, 'taxes-08-accordion-open');
 
-    // Step 4: locate the employer rows. Every employer under the year is a
-    // div.row holding <strong>employer name</strong>, <strong>deduction-file
-    // number</strong> and its own להצגת טופס 106 link. The links' aria-labels
-    // are identical across employers ("להצגת טופס 106 שנת YYYY") — row scoping
-    // is the only thing that ties a link to its employer.
-    const rows = page.locator('div.row', { has: page.locator(`a[role="button"][aria-label*="${year}"]`) });
-    const rowCount = await rows.count();
-    if (rowCount === 0) throw new Error(`no Form 106 links found for year ${year}`);
-    logger.info('tax fetch: form-106 employer rows found', { year, rowCount });
+    // Step 4: find every download link under the year and classify each one.
+    // The links' aria-labels all contain the year, so row scoping is what tells
+    // them apart: each employer's להצגת טופס 106 link sits in its own div.row
+    // together with <strong>employer name</strong> and <strong>deduction-file
+    // number</strong> (exactly one link per row), while the year-wide ריכוז
+    // נתוני שכר (all-employers salary summary) link hangs off the container row
+    // that wraps the whole employer table. Matching div.row by "has a link"
+    // alone would sweep that container in as a phantom employer — verified live
+    // 2026-07-25 (2 employers came back as 3 files, the summary mislabeled with
+    // the first employer's name).
+    const linkCss = `a[role="button"][aria-label*="${year}"]`;
+    type LinkInfo = { kind: 'form106' | 'salary_summary'; employerName: string | null; deductionFile: string };
+    // (tsconfig has no `dom` lib — the callback runs in the browser, so DOM
+    // globals are reached through an untyped handle.)
+    const links = (await page.evaluate((sel) => {
+      const doc = (globalThis as { document?: any }).document;
+      return Array.from(doc.querySelectorAll(sel) as ArrayLike<any>).map((a: any) => {
+        const row = a.closest('div.row');
+        // An employer row holds exactly its own link; the summary link's nearest
+        // div.row is the container, which holds every link under the year.
+        if (!row || row.querySelectorAll(sel).length !== 1) {
+          return { kind: 'salary_summary', employerName: null, deductionFile: '' };
+        }
+        const strongs = row.querySelectorAll('strong');
+        const text = (el: any) => (el && el.textContent ? String(el.textContent).trim() : '');
+        // strong order within the row: employer name, deduction-file number,
+        // then the one wrapping the link itself.
+        return { kind: 'form106', employerName: text(strongs[0]) || null, deductionFile: text(strongs[1]) };
+      });
+    }, linkCss)) as LinkInfo[];
+    if (links.length === 0) throw new Error(`no Form 106 links found for year ${year}`);
+    logger.info('tax fetch: form-106 links found', {
+      year,
+      employers: links.filter((l) => l.kind === 'form106').length,
+      summaries: links.filter((l) => l.kind === 'salary_summary').length,
+    });
 
     const docs: FetchedDocument[] = [];
     const usedFilenames = new Set<string>();
-    for (let i = 0; i < rowCount; i++) {
-      const row = rows.nth(i);
-      // strong order within the row: employer name, deduction-file number,
-      // then the one wrapping the link itself.
-      const employerName = ((await row.locator('strong').nth(0).innerText().catch(() => '')) || '').trim() || null;
-      const deductionFile = ((await row.locator('strong').nth(1).innerText().catch(() => '')) || '').trim();
-      const link = row.locator(`a[role="button"][aria-label*="${year}"]`).first();
-
-      const fallbackBase = deductionFile ? `form_106_${year}_${deductionFile}` : `form_106_${year}_${i + 1}`;
+    for (const [i, info] of links.entries()) {
+      const link = page.locator(linkCss).nth(i);
+      const fallbackBase =
+        info.kind === 'salary_summary'
+          ? `salary_summary_${year}`
+          : info.deductionFile
+            ? `form_106_${year}_${info.deductionFile}`
+            : `form_106_${year}_${i + 1}`;
       const captured = await captureNextPdf(page, () => link.click(), `${fallbackBase}.pdf`);
 
       let filename = captured.filename;
       if (usedFilenames.has(filename)) filename = `${fallbackBase}_${i + 1}.pdf`;
       usedFilenames.add(filename);
 
-      docs.push({ buffer: captured.buffer, filename, contentType: 'application/pdf', employerName });
-      logger.info('tax fetch: form-106 captured', { year, employerName, bytes: captured.buffer.length });
+      docs.push({ buffer: captured.buffer, filename, contentType: 'application/pdf', employerName: info.employerName, kind: info.kind });
+      logger.info('tax fetch: document captured', { year, kind: info.kind, employerName: info.employerName, bytes: captured.buffer.length });
       await debugShot(page, `taxes-09-after-download-${i + 1}`);
     }
     return docs;

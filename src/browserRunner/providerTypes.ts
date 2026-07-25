@@ -6,6 +6,12 @@ export interface FetchedDocument {
   contentType: string;
   /** Employer name exactly as the source site spells it (multi-employer Form 106), when the site provides one. */
   employerName?: string | null;
+  /**
+   * What the document is: a per-employer Form 106 (the default when absent) or
+   * the year's all-employers salary summary (ריכוז נתוני שכר) the tax site
+   * offers alongside them.
+   */
+  kind?: 'form106' | 'salary_summary';
 }
 
 export interface PortalLoginCredentials {

@@ -171,8 +171,12 @@ capability** — there is no accountant button.
   the year's 106 for **every employer** (the site lists one להצגת טופס 106 link
   per employer; the provider scrapes each row's employer name — exactly as the
   site spells it — and captures each PDF from the blob: viewer popup the click
-  opens) and stores each as its own `document_files` row, labeled
-  `טופס 106 — <employer>` (`label` column, migration 035), all linked to the one
+  opens), plus the year's all-employers **salary summary** (ריכוז נתוני שכר)
+  when the site offers one (`kind: 'salary_summary'` — an employer link sits
+  alone in its own `div.row`, the summary link's nearest row is the container
+  holding the whole employer table), and stores each as its own
+  `document_files` row, labeled `טופס 106 — <employer>` /
+  `ריכוז נתוני שכר מכלל המעסיקים <year>` (`label` column, migration 035), all linked to the one
   matching `client_documents` row, which is marked collected. The workspace
   documents card lists every labeled file under the checklist item with its own
   view/download buttons. The client's copies go by **email attachment** (never

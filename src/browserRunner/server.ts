@@ -175,6 +175,7 @@ export function createRunnerApp(): Express {
           contentType: doc.contentType,
           dataBase64: doc.buffer.toString('base64'),
           employerName: doc.employerName ?? null,
+          kind: doc.kind ?? 'form106',
         })),
       });
     } catch (err) {

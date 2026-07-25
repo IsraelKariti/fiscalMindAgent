@@ -27,7 +27,8 @@ import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js
  * derives goal-complete if this was the last document). A multi-employer year
  * yields several 106s in one fetch — all of them satisfy the single checklist
  * item, each stored as its own file labeled with the employer name exactly as
- * the tax site spells it.
+ * the tax site spells it. The site's all-employers salary summary (ריכוז נתוני
+ * שכר) rides along when offered, labeled as what it is.
  *
  * The copies deliberately go by EMAIL, not WhatsApp media: WhatsApp identity
  * is possession of a phone number (recyclable, stealable), so the documents
@@ -52,19 +53,26 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   }
 
   const single = docs.length === 1;
+  const forms = docs.filter((d) => d.kind !== 'salary_summary');
+  const summaryDoc = docs.find((d) => d.kind === 'salary_summary');
+
+  // What the client is told was fetched: the 106 count reflects only the real
+  // per-employer forms — the salary summary is named separately, never counted
+  // as if it were another employer's 106.
+  const fetchedWhat =
+    forms.length === 0
+      ? 'את ריכוז נתוני השכר השנתי שלך'
+      : (forms.length === 1 ? 'את טופס ה-106 שלך' : `${forms.length} טפסי 106 שלך (אחד מכל מעסיק)`) +
+        (summaryDoc ? ' יחד עם ריכוז נתוני השכר השנתי' : '');
 
   // Confirmation text first, so a timeline row exists to hang the files off of
   // (the prompt transcript groups files by their email_id).
   const message = await sendWhatsAppTextAndRecord(client.id, {
     from: sender.phone_number,
     to: client.wa_phone,
-    body: single
-      ? canEmail
-        ? 'הצלחתי למשוך את טופס ה-106 שלך מרשות המסים 🎉 שלחתי לך עותק למייל.'
-        : 'הצלחתי למשוך את טופס ה-106 שלך מרשות המסים 🎉 המסמך נשמר והועבר לרואה החשבון.'
-      : canEmail
-        ? `הצלחתי למשוך ${docs.length} טפסי 106 שלך מרשות המסים (אחד מכל מעסיק) 🎉 שלחתי לך עותקים למייל.`
-        : `הצלחתי למשוך ${docs.length} טפסי 106 שלך מרשות המסים (אחד מכל מעסיק) 🎉 המסמכים נשמרו והועברו לרואה החשבון.`,
+    body: canEmail
+      ? `הצלחתי למשוך ${fetchedWhat} מרשות המסים 🎉 ${single ? 'שלחתי לך עותק למייל.' : 'שלחתי לך עותקים למייל.'}`
+      : `הצלחתי למשוך ${fetchedWhat} מרשות המסים 🎉 ${single ? 'המסמך נשמר והועבר לרואה החשבון.' : 'המסמכים נשמרו והועברו לרואה החשבון.'}`,
     reasoning: `tax fetch delivered (session ${session.id}, ${docs.length} document${single ? '' : 's'})`,
     agentInstanceId: client.agent_instance_id,
   });
@@ -88,7 +96,12 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
       providerAttachmentId: single ? `taxfetch-${session.id}` : `taxfetch-${session.id}-${i + 1}`,
       blobKey,
       filename: doc.filename,
-      label: doc.employerName ? `טופס 106 — ${doc.employerName}` : null,
+      label:
+        doc.kind === 'salary_summary'
+          ? `ריכוז נתוני שכר מכלל המעסיקים ${session.tax_year}`
+          : doc.employerName
+            ? `טופס 106 — ${doc.employerName}`
+            : null,
       contentType: doc.contentType,
       sizeBytes: doc.buffer.length,
       sha256: createHash('sha256').update(doc.buffer).digest('hex'),
@@ -113,20 +126,25 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     const accountant = client.user_id ? await users.getById(client.user_id) : null;
     const displayName = [accountant?.name, instance?.name].filter(Boolean).join(' – ') || null;
     const messageIds = await emails.listMessageIdsForClient(client.id);
-    const employerLines = docs
+    const employerLines = forms
       .filter((d) => d.employerName)
       .map((d) => `• ${d.employerName}`);
     await sendEmail({
       from: formatFrom(displayName, mailbox!.email_address),
       to: client.email_address,
-      subject: single ? `טופס 106 לשנת ${session.tax_year}` : `טפסי 106 לשנת ${session.tax_year}`,
+      subject: forms.length > 1 ? `טפסי 106 לשנת ${session.tax_year}` : `טופס 106 לשנת ${session.tax_year}`,
       body: [
         'שלום,',
         '',
-        single
-          ? `מצורף טופס ה-106 שלך לשנת ${session.tax_year}, שנמשך עבורך מרשות המסים.`
-          : `מצורפים ${docs.length} טפסי ה-106 שלך לשנת ${session.tax_year}, שנמשכו עבורך מרשות המסים — טופס אחד מכל מעסיק:`,
-        ...(single ? [] : employerLines.length > 0 ? ['', ...employerLines] : []),
+        forms.length === 0
+          ? `מצורף ריכוז נתוני השכר שלך לשנת ${session.tax_year}, שנמשך עבורך מרשות המסים.`
+          : forms.length === 1
+            ? `מצורף טופס ה-106 שלך לשנת ${session.tax_year}, שנמשך עבורך מרשות המסים.`
+            : `מצורפים ${forms.length} טפסי ה-106 שלך לשנת ${session.tax_year}, שנמשכו עבורך מרשות המסים — טופס אחד מכל מעסיק:`,
+        ...(forms.length > 1 && employerLines.length > 0 ? ['', ...employerLines] : []),
+        ...(summaryDoc && forms.length > 0
+          ? ['', `מצורף גם ריכוז נתוני השכר מכלל המעסיקים לשנת ${session.tax_year} — סיכום עזר שמופק באזור האישי של רשות המסים.`]
+          : []),
       ].join('\n'),
       inReplyTo: messageIds.at(-1),
       references: messageIds.slice(-20),
@@ -140,7 +158,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
         clientId: client.id,
         targetType: 'document_file',
         targetId: file.id,
-        detail: { clientName: client.name, to: client.email_address, filename: file.filename, label: docs[i]?.employerName ?? null },
+        detail: { clientName: client.name, to: client.email_address, filename: file.filename, label: file.label },
       });
     }
   }

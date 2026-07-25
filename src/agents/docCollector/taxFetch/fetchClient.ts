@@ -43,6 +43,7 @@ const DownloadResponse = z.object({
         contentType: z.string().min(1),
         dataBase64: z.string().min(1),
         employerName: z.string().max(MAX_EMPLOYER_NAME_CHARS).nullish(),
+        kind: z.enum(['form106', 'salary_summary']).nullish(),
       }),
     )
     .min(1)
@@ -100,7 +101,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
 
     const parsed = DownloadResponse.safeParse(await res.json().catch(() => null));
     if (!parsed.success) throw new Error('browser runner returned a malformed download response');
-    return parsed.data.documents.map(({ filename, contentType, dataBase64, employerName }) => {
+    return parsed.data.documents.map(({ filename, contentType, dataBase64, employerName, kind }) => {
       if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
         throw new Error(`browser runner returned a disallowed content type: ${contentType}`);
       }
@@ -114,7 +115,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
       }
       // The name originates on the external site: keep it plain text, one line.
       const cleanedEmployer = employerName?.replace(/[\p{Cc}\p{Cf}]+/gu, ' ').replace(/\s+/g, ' ').trim() || null;
-      return { buffer, filename: sanitizeFilename(filename), contentType, employerName: cleanedEmployer };
+      return { buffer, filename: sanitizeFilename(filename), contentType, employerName: cleanedEmployer, kind: kind ?? 'form106' };
     });
   }
 
@@ -200,20 +201,31 @@ class MockTaxFetchClient implements TaxFetchClient {
     if (!this.live.has(sessionId)) throw new SessionGoneError();
     await sleep(500);
     this.live.delete(sessionId);
-    // Two employers, like a real multi-employer year, so the whole delivery
-    // path (multiple blobs, labels, plural texts) is exercised without the site.
+    // Two employers plus the all-employers salary summary, like a real
+    // multi-employer year (the live site lists the summary link first), so the
+    // whole delivery path (multiple blobs, labels, plural texts) is exercised
+    // without the site.
     return [
+      {
+        buffer: MOCK_PDF,
+        filename: `salary_summary_${opts.taxYear}.pdf`,
+        contentType: 'application/pdf',
+        employerName: null,
+        kind: 'salary_summary',
+      },
       {
         buffer: MOCK_PDF,
         filename: `form_106_${opts.taxYear}_936440585.pdf`,
         contentType: 'application/pdf',
         employerName: 'מעסיק לדוגמה בע"מ',
+        kind: 'form106',
       },
       {
         buffer: MOCK_PDF,
         filename: `form_106_${opts.taxYear}_936480938.pdf`,
         contentType: 'application/pdf',
         employerName: 'חברת דמו בע"מ',
+        kind: 'form106',
       },
     ];
   }

@@ -377,10 +377,12 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   `recordAudit`** (`src/audit/audit.ts`, fire-and-forget — it never fails or
   slows the action), the same way every Gemini call site must call
   `llmUsage.add`. Two deliberate deviations from house conventions, both
-  because audit history must outlive what it describes: the table's FKs are
-  `ON DELETE SET NULL` (labels live in `detail` JSONB), and it carries the
-  repo's only DB trigger, which makes it append-only at the database layer
-  (`auditEvents.ts` is insert+read only — never add update/delete functions).
+  because audit history must outlive what it describes: the user/instance/client
+  id columns have NO foreign keys (migration 036 — FK cascades would trip the
+  append-only trigger, and keeping the historical id beats nulling it; labels
+  live in `detail` JSONB), and it carries the repo's only DB trigger, which
+  makes it append-only at the database layer (`auditEvents.ts` is insert+read
+  only — never add update/delete functions).
   Admin mutations are recorded centrally from `requireAdmin`
   (`src/audit/adminAudit.ts`), attributed to `req.realUserId` so impersonation
   attributes to the real admin; request bodies pass through `redactForAudit`

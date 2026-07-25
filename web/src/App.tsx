@@ -16,6 +16,7 @@ export function App() {
   const [tier, setTier] = useState<AccountTier | null>(null);
   const [contactEmail, setContactEmail] = useState<string | null>(null);
   const [impersonating, setImpersonating] = useState<Me['impersonating'] | null>(null);
+  const [envName, setEnvName] = useState<string | null>(null);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   // Admins have no agent, clients, or mailbox of their own — they get the platform
@@ -25,8 +26,9 @@ export function App() {
   useEffect(() => {
     api
       .me()
-      .then(({ authenticated, user: me, isAdmin: admin, whitelisted: allowed, tier: planTier, contactEmail: contact, impersonating: viewing }) => {
+      .then(({ authenticated, user: me, isAdmin: admin, whitelisted: allowed, tier: planTier, contactEmail: contact, impersonating: viewing, envName: env }) => {
         setAuthed(authenticated);
+        setEnvName(env ?? null);
         setUser(me ?? null);
         setIsAdmin(admin ?? false);
         setWhitelisted(allowed ?? false);
@@ -39,8 +41,22 @@ export function App() {
       .catch(() => setAuthed(false));
   }, []);
 
+  // Persistent strip on non-production stacks so a sandbox tab can never be
+  // mistaken for the real dashboard.
+  const envBanner = envName && (
+    <div className="env-banner" role="status">
+      {envName.toUpperCase()} — {t.envBannerNotProduction}
+    </div>
+  );
+
   if (authed === null) return <div className="screen-center muted">{t.loading}</div>;
-  if (!authed) return <Login />;
+  if (!authed)
+    return (
+      <>
+        {envBanner}
+        <Login />
+      </>
+    );
 
   const logout = async () => {
     await api.logout();
@@ -58,11 +74,18 @@ export function App() {
     <LogoutConfirmModal onConfirm={logout} onClose={() => setConfirmingLogout(false)} />
   );
 
-  if (!whitelisted) return <AccessPending userEmail={user?.email ?? null} onLogout={logout} />;
+  if (!whitelisted)
+    return (
+      <>
+        {envBanner}
+        <AccessPending userEmail={user?.email ?? null} onLogout={logout} />
+      </>
+    );
 
   if (adminMode)
     return (
       <>
+        {envBanner}
         <AdminDashboard userEmail={user?.email ?? null} onLogout={requestLogout} />
         {logoutModal}
       </>
@@ -76,6 +99,7 @@ export function App() {
 
   return (
     <>
+      {envBanner}
       <Workspace
         userEmail={user?.email ?? null}
         tier={tier}

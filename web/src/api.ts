@@ -214,6 +214,8 @@ export interface Me {
   /** Where "Upgrade to Premium" points until self-serve billing exists. */
   contactEmail?: string | null;
   impersonating?: { id: string; email: string; name: string | null };
+  /** Non-null on non-production stacks (e.g. 'sandbox') — shows the env banner. */
+  envName?: string | null;
 }
 
 /** Lifetime tokens one accountant used on one model, priced at that model's own rates. */

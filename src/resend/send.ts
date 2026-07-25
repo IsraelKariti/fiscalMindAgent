@@ -1,5 +1,6 @@
 import { resend } from './client.js';
 import { logger } from '../util/logger.js';
+import { outboundBlocked, blockedId } from '../util/outboundGuard.js';
 
 export interface EmailAttachment {
   filename: string;
@@ -26,6 +27,8 @@ export interface SendEmailArgs {
  * next reply simply skips that hop in the References chain).
  */
 export async function sendEmail(args: SendEmailArgs): Promise<{ resendId: string; messageId: string | null }> {
+  if (outboundBlocked('email', args.to)) return { resendId: blockedId(), messageId: null };
+
   const headers: Record<string, string> = {};
   if (args.inReplyTo) headers['In-Reply-To'] = args.inReplyTo;
   if (args.references && args.references.length > 0) headers['References'] = args.references.join(' ');

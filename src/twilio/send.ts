@@ -1,10 +1,12 @@
 import { twilioClient } from './client.js';
+import { outboundBlocked, blockedId } from '../util/outboundGuard.js';
 
 /**
  * Free-form WhatsApp message — only deliverable while the client's 24h
  * customer-service window is open (the worker re-checks before calling this).
  */
 export async function sendWhatsAppText(args: { from: string; to: string; body: string }): Promise<{ sid: string }> {
+  if (outboundBlocked('whatsapp', args.to)) return { sid: blockedId() };
   const message = await twilioClient().messages.create({
     from: `whatsapp:${args.from}`,
     to: `whatsapp:${args.to}`,
@@ -24,6 +26,7 @@ export async function sendWhatsAppMedia(args: {
   body: string;
   mediaUrl: string;
 }): Promise<{ sid: string }> {
+  if (outboundBlocked('whatsapp', args.to)) return { sid: blockedId() };
   const message = await twilioClient().messages.create({
     from: `whatsapp:${args.from}`,
     to: `whatsapp:${args.to}`,
@@ -43,6 +46,7 @@ export async function sendWhatsAppTemplate(args: {
   contentSid: string;
   variables: string[];
 }): Promise<{ sid: string }> {
+  if (outboundBlocked('whatsapp', args.to)) return { sid: blockedId() };
   const message = await twilioClient().messages.create({
     from: `whatsapp:${args.from}`,
     to: `whatsapp:${args.to}`,

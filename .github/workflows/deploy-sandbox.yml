@@ -1,0 +1,82 @@
+name: Deploy to Azure sandbox
+
+# Manual-only: prod deploys on every push to master (deploy.yml); the sandbox
+# is updated on demand, for whatever ref you want to rehearse — a risky
+# migration batch, a Twilio/webhook flow, a deploy-mechanics change.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or SHA to deploy
+        default: master
+        required: true
+
+concurrency:
+  group: deploy-sandbox
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RG: fiscalmind-sandbox
+  ACR: fiscalmindacr
+  IMAGE: fiscalmindacr.azurecr.io/fiscalmind-agent
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image (reused when the prod deploy already built this SHA)
+        run: |
+          az acr login --name $ACR
+          if az acr repository show --name $ACR --image fiscalmind-agent:${{ steps.sha.outputs.sha }} > /dev/null 2>&1; then
+            echo "tag already in ACR — skipping build"
+          else
+            docker build -t $IMAGE:${{ steps.sha.outputs.sha }} .
+            docker push $IMAGE:${{ steps.sha.outputs.sha }}
+          fi
+
+      - name: Update worker
+        run: |
+          az containerapp update -n sandbox-worker -g $RG \
+            --image $IMAGE:${{ steps.sha.outputs.sha }}
+
+      - name: Run DB migrations (from worker)
+        # Same TTY workaround as deploy.yml: `az containerapp exec` needs one
+        # and doesn't propagate exit codes, so grep the migrator's success line.
+        run: |
+          script -q -e -c "az containerapp exec -n sandbox-worker -g $RG --command 'node dist/scripts/migrate.js'" /dev/null | tee migrate.log
+          grep -q "migrations complete" migrate.log
+
+      - name: Seed demo data (idempotent)
+        run: |
+          script -q -e -c "az containerapp exec -n sandbox-worker -g $RG --command 'node dist/scripts/seedSandbox.js'" /dev/null | tee seed.log
+          grep -q "sandbox seed complete" seed.log
+
+      - name: Update web
+        run: |
+          az containerapp update -n sandbox-web -g $RG \
+            --image $IMAGE:${{ steps.sha.outputs.sha }}
+
+      - name: Health check
+        run: |
+          FQDN=$(az containerapp show -n sandbox-web -g $RG --query properties.configuration.ingress.fqdn -o tsv)
+          sleep 30
+          curl -fsS "https://$FQDN/healthz"

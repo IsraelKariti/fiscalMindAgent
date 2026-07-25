@@ -6,6 +6,7 @@ const he = {
   loading: 'טוען…',
   cancel: 'ביטול',
   logoAlt: 'הלוגו של FiscalMind',
+  envBannerNotProduction: 'סביבת ניסוי — לא סביבת הייצור',
 
   // App shell
   noClientsUseAdd: 'אין עדיין לקוחות — השתמשו בכפתור ה־+ שליד "לקוחות" בסרגל הצד.',

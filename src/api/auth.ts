@@ -318,7 +318,7 @@ export const logout: RequestHandler = (_req, res) => {
 export const me: RequestHandler = async (req, res) => {
   const identity = resolveIdentity(req);
   if (!identity) {
-    res.json({ authenticated: false });
+    res.json({ authenticated: false, envName: env.ENV_NAME ?? null });
     return;
   }
   const user = await users.getById(identity.realUserId);
@@ -326,7 +326,7 @@ export const me: RequestHandler = async (req, res) => {
     // Signed cookie for a deleted user — treat as signed out.
     res.clearCookie(SESSION_COOKIE, { path: '/' });
     clearImpersonationCookie(res);
-    res.json({ authenticated: false });
+    res.json({ authenticated: false, envName: env.ENV_NAME ?? null });
     return;
   }
 
@@ -353,6 +353,8 @@ export const me: RequestHandler = async (req, res) => {
     tier,
     // Where "Upgrade to Premium" points until self-serve billing exists.
     contactEmail: env.ADMIN_EMAILS[0] ?? null,
+    // Non-null on non-production stacks — the GUI shows an environment banner.
+    envName: env.ENV_NAME ?? null,
     ...(impersonating ? { impersonating } : {}),
   });
 };

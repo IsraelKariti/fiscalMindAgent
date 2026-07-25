@@ -93,6 +93,23 @@ code {
   color: var(--text-muted);
 }
 
+/* Non-production environment strip (App.tsx renders it when /api/me returns
+   an envName). Pinned to the bottom edge so it never hides the top bar. */
+.env-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  padding: 4px 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #1a1203;
+  background: repeating-linear-gradient(135deg, #fbbf24 0 18px, #f59e0b 18px 36px);
+}
+
 .app {
   display: flex;
   flex-direction: column;

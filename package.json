@@ -21,6 +21,7 @@
     "start:browser-runner": "node dist/src/browserRunner.js",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:encrypt-secrets": "tsx scripts/encryptSecrets.ts",
+    "db:seed-sandbox": "tsx scripts/seedSandbox.ts",
     "cli:bootstrap": "tsx src/cli/bootstrapClient.ts",
     "ship": "node scripts/ship.mjs",
     "sync": "node scripts/sync.mjs",

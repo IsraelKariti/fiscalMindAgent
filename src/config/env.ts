@@ -5,6 +5,25 @@ const EnvSchema = z.object({
   // 'production' in the deployed containers (set in the Dockerfiles) — gates
   // prod-only hard requirements like DASHBOARD_SESSION_SECRET.
   NODE_ENV: z.string().optional(),
+  // Deployment name ('sandbox' on the sandbox stack, unset locally and in
+  // prod). Surfaced via /api/me so the GUI can show a not-production banner;
+  // scripts/seedSandbox.ts also requires it as a refuse-to-run-in-prod latch.
+  ENV_NAME: z.string().min(1).optional(),
+  // Sandbox fence for outbound messages. Empty (the default everywhere except
+  // sandbox) = unrestricted. When set — comma-separated email addresses and
+  // phone numbers — any email/WhatsApp send to a recipient NOT on the list is
+  // dropped and logged, and the calling flow proceeds as if the message went
+  // out, so whole pipelines stay testable against synthetic clients (see
+  // src/util/outboundGuard.ts).
+  OUTBOUND_ALLOWLIST: z
+    .string()
+    .default('')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),

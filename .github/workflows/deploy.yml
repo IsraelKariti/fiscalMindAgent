@@ -1,8 +1,9 @@
 name: Deploy to Azure
 
+# Manual-only: pushes to master auto-deploy the sandbox (deploy-sandbox.yml);
+# promote to production by running this workflow from the Actions tab (or
+# `gh workflow run deploy.yml`).
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 concurrency:
@@ -31,11 +32,15 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build and push image
+      - name: Build and push image (reused when the sandbox deploy already built this SHA)
         run: |
           az acr login --name $ACR
-          docker build -t $IMAGE:${{ github.sha }} .
-          docker push $IMAGE:${{ github.sha }}
+          if az acr repository show --name $ACR --image fiscalmind-agent:${{ github.sha }} > /dev/null 2>&1; then
+            echo "tag already in ACR — skipping build"
+          else
+            docker build -t $IMAGE:${{ github.sha }} .
+            docker push $IMAGE:${{ github.sha }}
+          fi
 
       - name: Update worker
         run: |

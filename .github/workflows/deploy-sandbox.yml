@@ -1,9 +1,12 @@
 name: Deploy to Azure sandbox
 
-# Manual-only: prod deploys on every push to master (deploy.yml); the sandbox
-# is updated on demand, for whatever ref you want to rehearse — a risky
-# migration batch, a Twilio/webhook flow, a deploy-mechanics change.
+# Every push to master lands here automatically; production (deploy.yml) is
+# promoted manually afterwards. The dispatch trigger remains for rehearsing an
+# arbitrary ref — a risky migration batch, a Twilio/webhook flow, a
+# deploy-mechanics change.
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
     inputs:
       ref:
@@ -34,7 +37,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          # push events have no inputs — fall back to the pushed commit
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Azure login (OIDC)
         uses: azure/login@v2

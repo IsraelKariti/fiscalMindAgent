@@ -21,25 +21,29 @@ import { sanitizeFilename, type FetchedDocument } from './types.js';
 import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js';
 
 /**
- * A successfully downloaded document lands here: store it on the platform
- * (blob + document_files + mark the checklist item collected) and email the
+ * The successfully downloaded documents land here: store them on the platform
+ * (blobs + document_files + mark the checklist item collected) and email the
  * client a copy, then re-plan so the normal collection loop continues (and
- * derives goal-complete if this was the last document).
+ * derives goal-complete if this was the last document). A multi-employer year
+ * yields several 106s in one fetch — all of them satisfy the single checklist
+ * item, each stored as its own file labeled with the employer name exactly as
+ * the tax site spells it.
  *
- * The copy deliberately goes by EMAIL, not WhatsApp media: WhatsApp identity
- * is possession of a phone number (recyclable, stealable), so the document
- * rides the independent email channel while only the confirmation text goes
+ * The copies deliberately go by EMAIL, not WhatsApp media: WhatsApp identity
+ * is possession of a phone number (recyclable, stealable), so the documents
+ * ride the independent email channel while only the confirmation text goes
  * to the WhatsApp conversation the fetch ran in.
  */
-export async function deliver(session: TaxFetchSessionRow, client: ClientRow, doc: FetchedDocument): Promise<void> {
+export async function deliver(session: TaxFetchSessionRow, client: ClientRow, docs: FetchedDocument[]): Promise<void> {
+  if (docs.length === 0) throw new Error(`tax fetch: nothing to deliver for session ${session.id}`);
   const sender = client.agent_instance_id ? await waSenders.getByInstanceId(client.agent_instance_id) : null;
   if (!sender || !client.wa_phone) {
-    throw new Error('cannot deliver tax document: client is not WhatsApp-reachable');
+    throw new Error('cannot deliver tax documents: client is not WhatsApp-reachable');
   }
   const mailbox = await resolveSenderMailbox(client.agent_instance_id, client.user_id);
   const canEmail = Boolean(mailbox && client.email_address);
   if (!canEmail) {
-    logger.warn('tax fetch: client not emailable, document stored on platform only', {
+    logger.warn('tax fetch: client not emailable, documents stored on platform only', {
       clientId: client.id,
       sessionId: session.id,
       hasMailbox: Boolean(mailbox),
@@ -47,73 +51,111 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     });
   }
 
-  // The filename originates on the external site — never let it shape the key path.
-  const blobKey = `clients/${client.id}/taxfetch-${session.id}/${sanitizeFilename(doc.filename)}`;
-  await uploadBlob(blobKey, doc.buffer, doc.contentType);
+  const single = docs.length === 1;
 
-  // Confirmation text first, so a timeline row exists to hang the file off of
+  // Confirmation text first, so a timeline row exists to hang the files off of
   // (the prompt transcript groups files by their email_id).
   const message = await sendWhatsAppTextAndRecord(client.id, {
     from: sender.phone_number,
     to: client.wa_phone,
-    body: canEmail
-      ? 'הצלחתי למשוך את טופס ה-106 שלך מרשות המסים 🎉 שלחתי לך עותק למייל.'
-      : 'הצלחתי למשוך את טופס ה-106 שלך מרשות המסים 🎉 המסמך נשמר והועבר לרואה החשבון.',
-    reasoning: `tax fetch delivered (session ${session.id})`,
+    body: single
+      ? canEmail
+        ? 'הצלחתי למשוך את טופס ה-106 שלך מרשות המסים 🎉 שלחתי לך עותק למייל.'
+        : 'הצלחתי למשוך את טופס ה-106 שלך מרשות המסים 🎉 המסמך נשמר והועבר לרואה החשבון.'
+      : canEmail
+        ? `הצלחתי למשוך ${docs.length} טפסי 106 שלך מרשות המסים (אחד מכל מעסיק) 🎉 שלחתי לך עותקים למייל.`
+        : `הצלחתי למשוך ${docs.length} טפסי 106 שלך מרשות המסים (אחד מכל מעסיק) 🎉 המסמכים נשמרו והועברו לרואה החשבון.`,
+    reasoning: `tax fetch delivered (session ${session.id}, ${docs.length} document${single ? '' : 's'})`,
     agentInstanceId: client.agent_instance_id,
   });
 
-  const file = await documentFiles.insertIfNew({
-    clientId: client.id,
-    emailId: message.id,
-    providerAttachmentId: `taxfetch-${session.id}`,
-    blobKey,
-    filename: doc.filename,
-    contentType: doc.contentType,
-    sizeBytes: doc.buffer.length,
-    sha256: createHash('sha256').update(doc.buffer).digest('hex'),
-  });
-  if (!file) throw new Error(`tax fetch: document_files insert returned no row for session ${session.id}`);
+  const files = [];
+  const usedNames = new Set<string>();
+  for (const [i, doc] of docs.entries()) {
+    // The filename originates on the external site — never let it shape the key
+    // path, and keep names unique within the session's blob directory.
+    let safeName = sanitizeFilename(doc.filename);
+    if (usedNames.has(safeName)) safeName = `${i + 1}_${safeName}`;
+    usedNames.add(safeName);
+    const blobKey = `clients/${client.id}/taxfetch-${session.id}/${safeName}`;
+    await uploadBlob(blobKey, doc.buffer, doc.contentType);
 
+    const file = await documentFiles.insertIfNew({
+      clientId: client.id,
+      emailId: message.id,
+      // Pre-multi-download sessions used the bare `taxfetch-<session>` id; the
+      // `-<n>` suffix keeps each employer's form its own idempotency key.
+      providerAttachmentId: single ? `taxfetch-${session.id}` : `taxfetch-${session.id}-${i + 1}`,
+      blobKey,
+      filename: doc.filename,
+      label: doc.employerName ? `טופס 106 — ${doc.employerName}` : null,
+      contentType: doc.contentType,
+      sizeBytes: doc.buffer.length,
+      sha256: createHash('sha256').update(doc.buffer).digest('hex'),
+    });
+    if (!file) throw new Error(`tax fetch: document_files insert returned no row for session ${session.id}`);
+    files.push(file);
+
+    if (session.client_document_id) {
+      await documentFiles.linkToDocument(file.id, client.id, session.client_document_id);
+    }
+  }
   if (session.client_document_id) {
-    await documentFiles.linkToDocument(file.id, client.id, session.client_document_id);
     await clientDocuments.markCollected(client.id, [session.client_document_id]);
   }
 
-  // The file itself, as an email attachment on the client's collection thread.
-  // Not recorded in the emails table (that table is the conversation the LLM
-  // replays) — the WhatsApp confirmation above already tells the transcript a
-  // copy went to the client's email.
+  // The files themselves, as email attachments on the client's collection
+  // thread. Not recorded in the emails table (that table is the conversation
+  // the LLM replays) — the WhatsApp confirmation above already tells the
+  // transcript copies went to the client's email.
   if (canEmail) {
     const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
     const accountant = client.user_id ? await users.getById(client.user_id) : null;
     const displayName = [accountant?.name, instance?.name].filter(Boolean).join(' – ') || null;
     const messageIds = await emails.listMessageIdsForClient(client.id);
+    const employerLines = docs
+      .filter((d) => d.employerName)
+      .map((d) => `• ${d.employerName}`);
     await sendEmail({
       from: formatFrom(displayName, mailbox!.email_address),
       to: client.email_address,
-      subject: `טופס 106 לשנת ${session.tax_year}`,
-      body: ['שלום,', '', `מצורף טופס ה-106 שלך לשנת ${session.tax_year}, שנמשך עבורך מרשות המסים.`].join('\n'),
+      subject: single ? `טופס 106 לשנת ${session.tax_year}` : `טפסי 106 לשנת ${session.tax_year}`,
+      body: [
+        'שלום,',
+        '',
+        single
+          ? `מצורף טופס ה-106 שלך לשנת ${session.tax_year}, שנמשך עבורך מרשות המסים.`
+          : `מצורפים ${docs.length} טפסי ה-106 שלך לשנת ${session.tax_year}, שנמשכו עבורך מרשות המסים — טופס אחד מכל מעסיק:`,
+        ...(single ? [] : employerLines.length > 0 ? ['', ...employerLines] : []),
+      ].join('\n'),
       inReplyTo: messageIds.at(-1),
       references: messageIds.slice(-20),
-      attachments: [{ filename: doc.filename, content: doc.buffer }],
+      attachments: docs.map((doc) => ({ filename: doc.filename, content: doc.buffer })),
     });
-    recordAudit({
-      actorType: 'agent',
-      action: 'email.document_sent',
-      agentInstanceId: client.agent_instance_id,
-      clientId: client.id,
-      targetType: 'document_file',
-      targetId: file.id,
-      detail: { clientName: client.name, to: client.email_address, filename: doc.filename },
-    });
+    for (const [i, file] of files.entries()) {
+      recordAudit({
+        actorType: 'agent',
+        action: 'email.document_sent',
+        agentInstanceId: client.agent_instance_id,
+        clientId: client.id,
+        targetType: 'document_file',
+        targetId: file.id,
+        detail: { clientName: client.name, to: client.email_address, filename: file.filename, label: docs[i]?.employerName ?? null },
+      });
+    }
   }
 
+  const firstFile = files[0]!;
   await taxFetchSessions.updateStatus(session.id, 'delivered', {
-    documentFileId: file.id,
+    documentFileId: firstFile.id,
     deliveredAt: new Date(),
   });
-  logger.info('tax fetch: delivered', { sessionId: session.id, clientId: client.id, fileId: file.id });
+  logger.info('tax fetch: delivered', {
+    sessionId: session.id,
+    clientId: client.id,
+    fileIds: files.map((f) => f.id),
+    count: files.length,
+  });
   recordAudit({
     actorType: 'agent',
     action: 'tax_fetch.document_delivered',
@@ -121,7 +163,13 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     clientId: client.id,
     targetType: 'tax_fetch_session',
     targetId: session.id,
-    detail: { clientName: client.name, taxYear: session.tax_year, fileId: file.id, filename: doc.filename },
+    detail: {
+      clientName: client.name,
+      taxYear: session.tax_year,
+      fileIds: files.map((f) => f.id),
+      filenames: files.map((f) => f.filename),
+      employers: docs.map((d) => d.employerName).filter(Boolean),
+    },
   });
 
   // Let the collector re-plan: mark-collected may have completed the goal, or a

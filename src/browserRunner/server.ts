@@ -152,8 +152,9 @@ export function createRunnerApp(): Express {
     }
   });
 
-  // Downloads the document. The session is closed afterwards either way — a
-  // fetch is single-use and no browser may linger.
+  // Downloads all matching documents (one per employer for Form 106). The
+  // session is closed afterwards either way — a fetch is single-use and no
+  // browser may linger.
   app.post('/sessions/:id/download', async (req, res) => {
     const parsed = DownloadBody.safeParse(req.body);
     if (!parsed.success) {
@@ -167,8 +168,15 @@ export function createRunnerApp(): Express {
       return;
     }
     try {
-      const doc = await PROVIDERS[session.providerId]!.downloadDocument(session.page, { taxYear: parsed.data.taxYear });
-      res.json({ filename: doc.filename, contentType: doc.contentType, dataBase64: doc.buffer.toString('base64') });
+      const docs = await PROVIDERS[session.providerId]!.downloadDocuments(session.page, { taxYear: parsed.data.taxYear });
+      res.json({
+        documents: docs.map((doc) => ({
+          filename: doc.filename,
+          contentType: doc.contentType,
+          dataBase64: doc.buffer.toString('base64'),
+          employerName: doc.employerName ?? null,
+        })),
+      });
     } catch (err) {
       logger.error('browser runner: download failed', err, { sessionId });
       res.status(502).json({ error: errText(err) });

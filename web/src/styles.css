@@ -1720,12 +1720,44 @@ textarea {
 
 .doc-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: rgba(9, 13, 26, 0.4);
+}
+
+.doc-row-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* One line per received file when a checklist item has several (or labeled)
+   files — e.g. a tax-fetched multi-employer year's 106s. */
+.doc-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 26px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.doc-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.doc-file-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .doc-check {

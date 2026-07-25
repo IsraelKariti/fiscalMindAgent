@@ -86,6 +86,8 @@ export interface DocumentFile {
   email_id: string | null;
   client_document_id: string | null;
   filename: string;
+  /** Display label when the filename isn't descriptive (e.g. employer name on a tax-fetched 106). */
+  label: string | null;
   content_type: string;
   size_bytes: string;
   analysis_status: FileAnalysisStatus;

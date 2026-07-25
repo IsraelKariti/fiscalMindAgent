@@ -255,8 +255,8 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
     const session = await taxFetchSessions.getById(sessionId);
     if (!session) return;
     await taxFetchSessions.updateStatus(sessionId, 'downloading');
-    const doc = await fetchClient.downloadDocument(sessionId, { taxYear: session.tax_year });
-    await deliver(session, client, doc);
+    const docs = await fetchClient.downloadDocuments(sessionId, { taxYear: session.tax_year });
+    await deliver(session, client, docs);
   } catch (err) {
     logger.error('tax fetch: download/deliver failed', err, { sessionId, clientId: client.id });
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });

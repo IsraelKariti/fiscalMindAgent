@@ -30,13 +30,15 @@ export async function insertIfNew(args: {
   providerAttachmentId: string;
   blobKey: string;
   filename: string;
+  /** Display label when the filename isn't descriptive (multi-employer 106s carry the employer name). */
+  label?: string | null;
   contentType: string;
   sizeBytes: number;
   sha256: string;
 }): Promise<DocumentFileRow | null> {
   const { rows } = await pool.query<DocumentFileRow>(
-    `INSERT INTO document_files (client_id, email_id, provider_attachment_id, blob_key, filename, content_type, size_bytes, sha256)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO document_files (client_id, email_id, provider_attachment_id, blob_key, filename, label, content_type, size_bytes, sha256)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (provider_attachment_id) DO NOTHING
      RETURNING *`,
     [
@@ -45,6 +47,7 @@ export async function insertIfNew(args: {
       args.providerAttachmentId,
       args.blobKey,
       args.filename,
+      args.label ?? null,
       args.contentType,
       args.sizeBytes,
       args.sha256,

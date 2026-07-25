@@ -7,7 +7,8 @@
  *   npx tsx scripts/taxFetchSmoke.ts <idNumber> <userCode> [taxYear]
  *
  * It opens Chrome, logs in, waits for you to type the OTP you receive by email,
- * downloads the Form 106, and writes the PDF next to this script.
+ * downloads the year's Form 106 for every employer, and writes the PDFs next to
+ * this script.
  */
 import { writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
@@ -32,12 +33,14 @@ async function main(): Promise<void> {
     rl.close();
 
     await israelTaxAuthorityProvider.submitOtp(page, otp);
-    console.log('authenticated — downloading Form 106…');
-    const doc = await israelTaxAuthorityProvider.downloadDocument(page, { taxYear });
+    console.log('authenticated — downloading Form 106s…');
+    const docs = await israelTaxAuthorityProvider.downloadDocuments(page, { taxYear });
 
-    const outPath = new URL(`./${doc.filename}`, import.meta.url).pathname;
-    await writeFile(outPath, doc.buffer);
-    console.log(`saved ${doc.buffer.length} bytes to ${outPath}`);
+    for (const doc of docs) {
+      const outPath = new URL(`./${doc.filename}`, import.meta.url).pathname;
+      await writeFile(outPath, doc.buffer);
+      console.log(`saved ${doc.buffer.length} bytes to ${outPath} (employer: ${doc.employerName ?? 'unknown'})`);
+    }
   } finally {
     await browser?.close().catch(() => undefined);
   }

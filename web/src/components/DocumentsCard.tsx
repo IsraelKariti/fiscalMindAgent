@@ -17,6 +17,34 @@ interface Props {
   emptyTextKey?: MessageStringKey;
 }
 
+/** The view/download icon pair for one received file. */
+function FileActions({ clientId, file, onView }: { clientId: string; file: DocumentFile; onView: (file: DocumentFile) => void }) {
+  const { t } = useT();
+  const api = useWorkspaceApi();
+  return (
+    <span className="doc-actions">
+      <button className="icon-btn" type="button" title={t.viewFile} onClick={() => onView(file)}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
+      <button
+        className="icon-btn"
+        type="button"
+        title={t.downloadFile}
+        onClick={async () => window.location.assign(await api.fileDownloadUrl(clientId, file.id))}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+      </button>
+    </span>
+  );
+}
+
 export function DocumentsCard({ clientId, documents, files, onChanged, titleKey, emptyTextKey }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
@@ -26,14 +54,10 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
   const [error, setError] = useState<string | null>(null);
   const [viewing, setViewing] = useState<DocumentFile | null>(null);
 
-  // Newest linked file wins (the list arrives created_at ascending).
-  const latestFileFor = (docId: string): DocumentFile | null => {
-    for (let i = files.length - 1; i >= 0; i--) {
-      const file = files[i];
-      if (file && file.client_document_id === docId) return file;
-    }
-    return null;
-  };
+  // All files linked to a checklist item, oldest first (the list arrives
+  // created_at ascending). A tax-fetched multi-employer year links several
+  // 106s to the one item — every one of them must stay visible.
+  const filesFor = (docId: string): DocumentFile[] => files.filter((f) => f.client_document_id === docId);
 
   const collected = documents.filter((d) => d.status === 'collected').length;
 
@@ -80,9 +104,15 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         ) : (
           <ul className="doc-list">
             {documents.map((doc) => {
-              const file = latestFileFor(doc.id);
+              const linked = filesFor(doc.id);
+              // A lone unlabeled file keeps the compact inline icons; labeled
+              // files (tax-fetched 106s carry the employer name) or several
+              // files get one line each so all of them stay visible.
+              const showFileList = linked.length > 1 || Boolean(linked[0]?.label);
+              const inlineFile = showFileList ? null : (linked[0] ?? null);
               return (
               <li key={doc.id} className={`doc-row ${doc.status}`}>
+                <div className="doc-row-main">
                 <label
                   className="doc-check"
                   title={
@@ -110,28 +140,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
                     {doc.description && <span className="doc-desc muted">{doc.description}</span>}
                   </span>
                 </label>
-                {file && (
-                  <span className="doc-actions">
-                    <button className="icon-btn" type="button" title={t.viewFile} onClick={() => setViewing(file)}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    </button>
-                    <button
-                      className="icon-btn"
-                      type="button"
-                      title={t.downloadFile}
-                      onClick={async () => window.location.assign(await api.fileDownloadUrl(clientId, file.id))}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                    </button>
-                  </span>
-                )}
+                {inlineFile && <FileActions clientId={clientId} file={inlineFile} onView={setViewing} />}
                 <span
                   className={`badge ${
                     doc.status === 'collected' ? 'badge-success' : doc.status === 'claimed' ? 'badge-warning' : 'badge-pending'
@@ -147,6 +156,19 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
                 >
                   ×
                 </button>
+                </div>
+                {showFileList && (
+                  <ul className="doc-file-list">
+                    {linked.map((file) => (
+                      <li key={file.id} className="doc-file-item">
+                        <span className="doc-file-label" title={file.filename}>
+                          {file.label ?? file.filename}
+                        </span>
+                        <FileActions clientId={clientId} file={file} onView={setViewing} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
               );
             })}

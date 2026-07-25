@@ -167,12 +167,17 @@ capability** — there is no accountant button.
   (prefer a dedicated 106 template when the 24h window is closed). The client's
   WhatsApp reply with the code is intercepted (`taxFetch/inboundOtp.ts`, before
   the LLM re-plan — OTPs expire in minutes), the worker submits it, downloads
-  the PDF and stores it as a `document_files` row with the matching
-  `client_documents` row marked collected. The client's copy goes by **email
-  attachment** (never WhatsApp media — possession of the phone number must not
-  be enough to receive the document); the WhatsApp conversation only gets a
-  confirmation text. A client with no email address / sender mailbox gets the
-  platform copy only.
+  the year's 106 for **every employer** (the site lists one להצגת טופס 106 link
+  per employer; the provider scrapes each row's employer name — exactly as the
+  site spells it — and captures each PDF from the blob: viewer popup the click
+  opens) and stores each as its own `document_files` row, labeled
+  `טופס 106 — <employer>` (`label` column, migration 035), all linked to the one
+  matching `client_documents` row, which is marked collected. The workspace
+  documents card lists every labeled file under the checklist item with its own
+  view/download buttons. The client's copies go by **email attachment** (never
+  WhatsApp media — possession of the phone number must not be enough to receive
+  the document); the WhatsApp conversation only gets a confirmation text. A
+  client with no email address / sender mailbox gets the platform copy only.
 - **State machine**: `tax_fetch_sessions` (migration 025) tracks one attempt
   offer→delivery; the LLM only ever sees the actions valid in the current state
   (`allowedTaxFetchActions` in `decisionSchema.ts`, gated in the prompt's

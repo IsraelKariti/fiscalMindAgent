@@ -4,6 +4,8 @@ export interface FetchedDocument {
   buffer: Buffer;
   filename: string;
   contentType: string;
+  /** Employer name exactly as the source site spells it (multi-employer Form 106), when the site provides one. */
+  employerName?: string | null;
 }
 
 export interface PortalLoginCredentials {
@@ -29,8 +31,8 @@ export interface DocumentFetchProvider {
    * rejects the code and the OTP screen is still up (so the caller can re-ask).
    */
   submitOtp(page: Page, otp: string): Promise<void>;
-  /** Navigates to and downloads the requested document. */
-  downloadDocument(page: Page, opts: { taxYear: number }): Promise<FetchedDocument>;
+  /** Navigates to and downloads every matching document (one per employer for Form 106). */
+  downloadDocuments(page: Page, opts: { taxYear: number }): Promise<FetchedDocument[]>;
 }
 
 /** The site said the OTP was wrong; the login can be retried with a new code. */

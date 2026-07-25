@@ -50,7 +50,7 @@ export function FileViewModal({ clientId, file, onClose }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="card modal modal-viewer" onClick={(e) => e.stopPropagation()}>
         <div className="modal-viewer-header">
-          <h2 title={file.filename}>{file.filename}</h2>
+          <h2 title={file.filename}>{file.label ?? file.filename}</h2>
           <button
             className="btn btn-ghost"
             type="button"

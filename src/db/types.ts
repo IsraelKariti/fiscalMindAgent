@@ -134,6 +134,8 @@ export interface DocumentFileRow {
   provider_attachment_id: string;
   blob_key: string;
   filename: string;
+  /** Display label when the filename isn't descriptive (e.g. "טופס 106 — <employer>" for tax-fetched forms). */
+  label: string | null;
   content_type: string;
   size_bytes: string; // BIGINT comes back from pg as a string
   sha256: string;

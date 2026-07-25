@@ -12,6 +12,7 @@ function fileWith(analysis: Partial<FileAnalysis> | null, status: DocumentFileRo
     provider_attachment_id: 'att-1',
     blob_key: 'blob',
     filename: 'doc.pdf',
+    label: null,
     content_type: 'application/pdf',
     size_bytes: '1000',
     sha256: 'x',

@@ -22,8 +22,8 @@ export interface TaxFetchClient {
   startLogin(sessionId: string, provider: string, creds: PortalLoginCredentials): Promise<void>;
   /** Submits the OTP. Throws OtpRejectedError (retryable) or SessionGoneError. */
   submitOtp(sessionId: string, otp: string): Promise<void>;
-  /** Downloads the document; the remote session is closed afterwards either way. */
-  downloadDocument(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument>;
+  /** Downloads all matching documents (one per employer for Form 106); the remote session is closed afterwards either way. */
+  downloadDocuments(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument[]>;
   /** Closes the remote session. Idempotent, never throws. */
   close(sessionId: string): Promise<void>;
 }
@@ -31,12 +31,22 @@ export interface TaxFetchClient {
 // The runner's response crosses a trust boundary (its content originates on the
 // external site) — cap and allowlist before the bytes reach blob storage.
 const MAX_DOWNLOAD_BYTES = 15 * 1024 * 1024;
+const MAX_DOCUMENTS_PER_FETCH = 20;
+const MAX_EMPLOYER_NAME_CHARS = 200;
 const ALLOWED_CONTENT_TYPES = new Set(['application/pdf']);
 
 const DownloadResponse = z.object({
-  filename: z.string().min(1),
-  contentType: z.string().min(1),
-  dataBase64: z.string().min(1),
+  documents: z
+    .array(
+      z.object({
+        filename: z.string().min(1),
+        contentType: z.string().min(1),
+        dataBase64: z.string().min(1),
+        employerName: z.string().max(MAX_EMPLOYER_NAME_CHARS).nullish(),
+      }),
+    )
+    .min(1)
+    .max(MAX_DOCUMENTS_PER_FETCH),
 });
 
 class HttpTaxFetchClient implements TaxFetchClient {
@@ -80,7 +90,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
     throw await this.errorFrom(res);
   }
 
-  async downloadDocument(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument> {
+  async downloadDocuments(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument[]> {
     const res = await this.request(sessionId, `/sessions/${encodeURIComponent(sessionId)}/download`, {
       method: 'POST',
       body: { taxYear: opts.taxYear },
@@ -90,19 +100,22 @@ class HttpTaxFetchClient implements TaxFetchClient {
 
     const parsed = DownloadResponse.safeParse(await res.json().catch(() => null));
     if (!parsed.success) throw new Error('browser runner returned a malformed download response');
-    const { filename, contentType, dataBase64 } = parsed.data;
-    if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
-      throw new Error(`browser runner returned a disallowed content type: ${contentType}`);
-    }
-    // Base64 length bound first so a huge payload is rejected before decoding.
-    if (dataBase64.length > (MAX_DOWNLOAD_BYTES * 4) / 3 + 4) {
-      throw new Error('browser runner returned a document larger than the allowed maximum');
-    }
-    const buffer = Buffer.from(dataBase64, 'base64');
-    if (buffer.length === 0 || buffer.length > MAX_DOWNLOAD_BYTES) {
-      throw new Error('browser runner returned an empty or oversized document');
-    }
-    return { buffer, filename: sanitizeFilename(filename), contentType };
+    return parsed.data.documents.map(({ filename, contentType, dataBase64, employerName }) => {
+      if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
+        throw new Error(`browser runner returned a disallowed content type: ${contentType}`);
+      }
+      // Base64 length bound first so a huge payload is rejected before decoding.
+      if (dataBase64.length > (MAX_DOWNLOAD_BYTES * 4) / 3 + 4) {
+        throw new Error('browser runner returned a document larger than the allowed maximum');
+      }
+      const buffer = Buffer.from(dataBase64, 'base64');
+      if (buffer.length === 0 || buffer.length > MAX_DOWNLOAD_BYTES) {
+        throw new Error('browser runner returned an empty or oversized document');
+      }
+      // The name originates on the external site: keep it plain text, one line.
+      const cleanedEmployer = employerName?.replace(/[\p{Cc}\p{Cf}]+/gu, ' ').replace(/\s+/g, ' ').trim() || null;
+      return { buffer, filename: sanitizeFilename(filename), contentType, employerName: cleanedEmployer };
+    });
   }
 
   async close(sessionId: string): Promise<void> {
@@ -142,9 +155,9 @@ class AciTaxFetchClient implements TaxFetchClient {
     await this.http.submitOtp(sessionId, otp);
   }
 
-  async downloadDocument(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument> {
+  async downloadDocuments(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument[]> {
     try {
-      return await this.http.downloadDocument(sessionId, opts);
+      return await this.http.downloadDocuments(sessionId, opts);
     } finally {
       await teardownSessionContainer(sessionId);
     }
@@ -183,11 +196,26 @@ class MockTaxFetchClient implements TaxFetchClient {
     if (!/^\d{6}$/.test(otp.trim())) throw new OtpRejectedError();
   }
 
-  async downloadDocument(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument> {
+  async downloadDocuments(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument[]> {
     if (!this.live.has(sessionId)) throw new SessionGoneError();
     await sleep(500);
     this.live.delete(sessionId);
-    return { buffer: MOCK_PDF, filename: `form_106_${opts.taxYear}.pdf`, contentType: 'application/pdf' };
+    // Two employers, like a real multi-employer year, so the whole delivery
+    // path (multiple blobs, labels, plural texts) is exercised without the site.
+    return [
+      {
+        buffer: MOCK_PDF,
+        filename: `form_106_${opts.taxYear}_936440585.pdf`,
+        contentType: 'application/pdf',
+        employerName: 'מעסיק לדוגמה בע"מ',
+      },
+      {
+        buffer: MOCK_PDF,
+        filename: `form_106_${opts.taxYear}_936480938.pdf`,
+        contentType: 'application/pdf',
+        employerName: 'חברת דמו בע"מ',
+      },
+    ];
   }
 
   async close(sessionId: string): Promise<void> {

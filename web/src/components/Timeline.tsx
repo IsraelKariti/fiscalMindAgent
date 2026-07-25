@@ -172,6 +172,7 @@ export function Timeline({
   }, [files]);
 
   const attachmentLabel = (file: DocumentFile) => {
+    if (file.label) return file.label;
     if (!hasSyntheticName(file)) return file.filename;
     if (file.content_type.startsWith('image/')) return t.attachmentImage;
     if (file.content_type === 'application/pdf') return t.attachmentPdf;

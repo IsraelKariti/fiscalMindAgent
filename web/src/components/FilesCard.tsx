@@ -67,7 +67,7 @@ export function FilesCard({ clientId, files, documents }: Props) {
                     window.location.assign(await api.fileDownloadUrl(clientId, file.id));
                   }}
                 >
-                  {file.filename}
+                  {file.label ?? file.filename}
                 </a>
                 <span className="doc-desc muted">
                   {formatFileSize(file.size_bytes)} · {new Date(file.created_at).toLocaleDateString(LOCALE)}

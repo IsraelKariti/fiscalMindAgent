@@ -9,6 +9,8 @@ export interface FetchedDocument {
   buffer: Buffer;
   filename: string;
   contentType: string;
+  /** Employer name exactly as the source site spells it (multi-employer Form 106), when the site provides one. */
+  employerName?: string | null;
 }
 
 export interface PortalLoginCredentials {

@@ -120,6 +120,23 @@ const EnvSchema = z.object({
   // Shared bearer token for the runner's API. Optional — real (non-mock)
   // fetches fail with a clear error until it is set; the mock needs neither.
   BROWSER_RUNNER_TOKEN: z.string().min(16).optional(),
+  // Where real fetches run. 'static': one long-lived runner at
+  // BROWSER_RUNNER_URL (local dev). 'aci': a throwaway Azure Container
+  // Instance per session in the Israel Central egress subnet — the tax
+  // authority drops non-Israeli source IPs, so browsers must exit through the
+  // verified NAT IP there (aciSessionPool.ts).
+  TAX_FETCH_RUNNER_MODE: z.enum(['static', 'aci']).default('static'),
+  // aci mode only; all validated together on first use (aciSessionPool.ts).
+  TAX_FETCH_ACI_SUBSCRIPTION_ID: z.string().optional(),
+  TAX_FETCH_ACI_RESOURCE_GROUP: z.string().optional(),
+  TAX_FETCH_ACI_SUBNET_ID: z.string().optional(),
+  TAX_FETCH_ACI_IMAGE: z.string().optional(),
+  TAX_FETCH_ACI_ACR_IDENTITY_ID: z.string().optional(),
+  TAX_FETCH_ACI_LOCATION: z.string().default('israelcentral'),
+  // Cap on fetches in flight. Unset: 3 in static mode (real Chromes on one
+  // small runner), 100 in aci mode (each session is its own container; the
+  // effective bound is the ACI container-group quota).
+  TAX_FETCH_MAX_LIVE_SESSIONS: z.coerce.number().int().positive().optional(),
 });
 
 export const env = EnvSchema.parse(process.env);

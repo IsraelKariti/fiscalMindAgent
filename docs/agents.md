@@ -210,9 +210,24 @@ capability** — there is no accountant button.
   documents go to clients by email attachment only (see above).
 - **Prod**: `Dockerfile.browser-runner` (Playwright/noble base, Chrome
   channel, Xvfb, non-root) is the only image with a browser — web/worker stay
-  Alpine. Deploy it as its own container app (internal ingress only) with
-  ONLY `BROWSER_RUNNER_PORT`/`BROWSER_RUNNER_TOKEN`/`TAX_FETCH_SESSION_TTL_MS`
-  in its env, and point the worker's `BROWSER_RUNNER_URL` at it.
+  Alpine. Two runner modes (`TAX_FETCH_RUNNER_MODE`, `fetchClient.ts`):
+  - `static` (local dev): one long-lived runner process at
+    `BROWSER_RUNNER_URL`, with ONLY
+    `BROWSER_RUNNER_PORT`/`BROWSER_RUNNER_TOKEN`/`TAX_FETCH_SESSION_TTL_MS` in
+    its env.
+  - `aci` (prod): the tax authority drops non-Israeli source IPs (and only
+    some Azure Israel ranges pass its filter), so each session gets its own
+    throwaway Azure Container Instance (`taxFetch/aciSessionPool.ts`) in the
+    `fiscalmind-israel` RG's `aci-sessions` subnet, whose NAT gateway holds a
+    static egress IP verified against the site. Group names derive from the
+    session id (worker restarts re-find containers via ARM — no DB state);
+    containers are deleted on download/close/expiry, with a 15-min orphan
+    sweep as backstop. The worker's managed identity has Contributor on that
+    RG; image pulls use an AcrPull user-assigned identity
+    (`TAX_FETCH_ACI_ACR_IDENTITY_ID`). The Israel vnet is peered to the
+    Poland vnet, so the worker reaches session containers on private IPs.
+    Capacity: `sessionTracker` caps at 100 (`TAX_FETCH_MAX_LIVE_SESSIONS`);
+    the tax-fetch queue runs concurrency 8 in this mode.
 
 ## Prompt-injection defenses (content-level)
 

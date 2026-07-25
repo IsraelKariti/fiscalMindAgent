@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { env } from '../../../config/env.js';
 import { logger } from '../../../util/logger.js';
+import { provisionSessionContainer, resolveSessionBaseUrl, teardownSessionContainer } from './aciSessionPool.js';
 import {
   FetchAtCapacityError,
   OtpRejectedError,
@@ -39,11 +40,14 @@ const DownloadResponse = z.object({
 });
 
 class HttpTaxFetchClient implements TaxFetchClient {
-  private request(path: string, init: { method: string; body?: unknown }): Promise<globalThis.Response> {
+  /** Maps a session to its runner's base URL — a fixed sidecar in static mode, that session's own container in aci mode. */
+  constructor(private readonly baseUrlFor: (sessionId: string) => string | Promise<string>) {}
+
+  private async request(sessionId: string, path: string, init: { method: string; body?: unknown }): Promise<globalThis.Response> {
     if (!env.BROWSER_RUNNER_TOKEN) {
       throw new Error('BROWSER_RUNNER_TOKEN is not set — cannot reach the browser runner for a real fetch');
     }
-    return fetch(`${env.BROWSER_RUNNER_URL}${path}`, {
+    return fetch(`${await this.baseUrlFor(sessionId)}${path}`, {
       method: init.method,
       headers: {
         authorization: `Bearer ${env.BROWSER_RUNNER_TOKEN}`,
@@ -59,7 +63,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
   }
 
   async startLogin(sessionId: string, provider: string, creds: PortalLoginCredentials): Promise<void> {
-    const res = await this.request('/sessions', {
+    const res = await this.request(sessionId, '/sessions', {
       method: 'POST',
       body: { sessionId, provider, idNumber: creds.idNumber, userCode: creds.userCode },
     });
@@ -69,7 +73,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
   }
 
   async submitOtp(sessionId: string, otp: string): Promise<void> {
-    const res = await this.request(`/sessions/${encodeURIComponent(sessionId)}/otp`, { method: 'POST', body: { otp } });
+    const res = await this.request(sessionId, `/sessions/${encodeURIComponent(sessionId)}/otp`, { method: 'POST', body: { otp } });
     if (res.status === 204) return;
     if (res.status === 422) throw new OtpRejectedError();
     if (res.status === 410 || res.status === 404) throw new SessionGoneError();
@@ -77,7 +81,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
   }
 
   async downloadDocument(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument> {
-    const res = await this.request(`/sessions/${encodeURIComponent(sessionId)}/download`, {
+    const res = await this.request(sessionId, `/sessions/${encodeURIComponent(sessionId)}/download`, {
       method: 'POST',
       body: { taxYear: opts.taxYear },
     });
@@ -103,10 +107,52 @@ class HttpTaxFetchClient implements TaxFetchClient {
 
   async close(sessionId: string): Promise<void> {
     try {
-      await this.request(`/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
+      await this.request(sessionId, `/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
     } catch (err) {
       logger.warn('tax fetch: closing runner session failed', { sessionId, reason: String(err) });
     }
+  }
+}
+
+/**
+ * Container-per-session client (TAX_FETCH_RUNNER_MODE=aci): provisions an
+ * Azure Container Instance in the Israel egress subnet for each session and
+ * deletes it when the session ends, so capacity scales per fetch and the tax
+ * authority always sees the verified Israeli NAT IP. The in-session HTTP
+ * protocol is identical to the static runner's.
+ */
+class AciTaxFetchClient implements TaxFetchClient {
+  private readonly http = new HttpTaxFetchClient(async (sessionId) => {
+    const base = await resolveSessionBaseUrl(sessionId);
+    if (!base) throw new SessionGoneError();
+    return base;
+  });
+
+  async startLogin(sessionId: string, provider: string, creds: PortalLoginCredentials): Promise<void> {
+    await provisionSessionContainer(sessionId); // FetchAtCapacityError on ACI quota
+    try {
+      await this.http.startLogin(sessionId, provider, creds);
+    } catch (err) {
+      await teardownSessionContainer(sessionId);
+      throw err;
+    }
+  }
+
+  async submitOtp(sessionId: string, otp: string): Promise<void> {
+    await this.http.submitOtp(sessionId, otp);
+  }
+
+  async downloadDocument(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument> {
+    try {
+      return await this.http.downloadDocument(sessionId, opts);
+    } finally {
+      await teardownSessionContainer(sessionId);
+    }
+  }
+
+  // No runner DELETE call: the whole container goes away with the session.
+  async close(sessionId: string): Promise<void> {
+    await teardownSessionContainer(sessionId);
   }
 }
 
@@ -153,9 +199,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const httpClient = new HttpTaxFetchClient();
+const staticClient = new HttpTaxFetchClient(() => env.BROWSER_RUNNER_URL);
+const aciClient = new AciTaxFetchClient();
 const mockClient = new MockTaxFetchClient();
 
 export function getFetchClient(): TaxFetchClient {
-  return env.TAX_FETCH_MOCK ? mockClient : httpClient;
+  if (env.TAX_FETCH_MOCK) return mockClient;
+  return env.TAX_FETCH_RUNNER_MODE === 'aci' ? aciClient : staticClient;
 }

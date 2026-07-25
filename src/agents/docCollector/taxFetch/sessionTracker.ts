@@ -15,8 +15,12 @@ export interface TrackedSession {
   timer: NodeJS.Timeout;
 }
 
-/** At most this many fetches in flight at once (each is a real Chrome on the runner). */
-const MAX_LIVE_SESSIONS = 3;
+/**
+ * At most this many fetches in flight at once. Static mode: 3 — each is a real
+ * Chrome on the one small runner. ACI mode: each session brings its own
+ * container, so the default cap is high and the ACI quota is the real bound.
+ */
+const MAX_LIVE_SESSIONS = env.TAX_FETCH_MAX_LIVE_SESSIONS ?? (env.TAX_FETCH_RUNNER_MODE === 'aci' ? 100 : 3);
 
 type ExpiryHandler = (session: TrackedSession) => void;
 

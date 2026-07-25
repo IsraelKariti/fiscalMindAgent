@@ -19,10 +19,14 @@ permissions:
   id-token: write
   contents: read
 
+# The sandbox lives in its own subscription (FiscalMind Sandbox); the ACR
+# stays in the production subscription, so ACR commands run on the login
+# default while containerapp commands pass --subscription explicitly.
 env:
   RG: fiscalmind-sandbox
   ACR: fiscalmindacr
   IMAGE: fiscalmindacr.azurecr.io/fiscalmind-agent
+  SANDBOX_SUB: ${{ secrets.AZURE_SANDBOX_SUBSCRIPTION_ID }}
 
 jobs:
   deploy:
@@ -55,28 +59,28 @@ jobs:
 
       - name: Update worker
         run: |
-          az containerapp update -n sandbox-worker -g $RG \
+          az containerapp update -n sandbox-worker -g $RG --subscription $SANDBOX_SUB \
             --image $IMAGE:${{ steps.sha.outputs.sha }}
 
       - name: Run DB migrations (from worker)
         # Same TTY workaround as deploy.yml: `az containerapp exec` needs one
         # and doesn't propagate exit codes, so grep the migrator's success line.
         run: |
-          script -q -e -c "az containerapp exec -n sandbox-worker -g $RG --command 'node dist/scripts/migrate.js'" /dev/null | tee migrate.log
+          script -q -e -c "az containerapp exec -n sandbox-worker -g $RG --subscription $SANDBOX_SUB --command 'node dist/scripts/migrate.js'" /dev/null | tee migrate.log
           grep -q "migrations complete" migrate.log
 
       - name: Seed demo data (idempotent)
         run: |
-          script -q -e -c "az containerapp exec -n sandbox-worker -g $RG --command 'node dist/scripts/seedSandbox.js'" /dev/null | tee seed.log
+          script -q -e -c "az containerapp exec -n sandbox-worker -g $RG --subscription $SANDBOX_SUB --command 'node dist/scripts/seedSandbox.js'" /dev/null | tee seed.log
           grep -q "sandbox seed complete" seed.log
 
       - name: Update web
         run: |
-          az containerapp update -n sandbox-web -g $RG \
+          az containerapp update -n sandbox-web -g $RG --subscription $SANDBOX_SUB \
             --image $IMAGE:${{ steps.sha.outputs.sha }}
 
       - name: Health check
         run: |
-          FQDN=$(az containerapp show -n sandbox-web -g $RG --query properties.configuration.ingress.fqdn -o tsv)
+          FQDN=$(az containerapp show -n sandbox-web -g $RG --subscription $SANDBOX_SUB --query properties.configuration.ingress.fqdn -o tsv)
           sleep 30
           curl -fsS "https://$FQDN/healthz"

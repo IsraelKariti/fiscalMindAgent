@@ -43,9 +43,12 @@ jobs:
             --image $IMAGE:${{ github.sha }}
 
       - name: Run DB migrations (from worker, inside vnet)
+        # `az containerapp exec` needs a TTY, which CI runners lack — `script`
+        # fakes one. az doesn't propagate the remote exit code, so grep for the
+        # migrator's success line instead.
         run: |
-          az containerapp exec -n fiscalmind-worker -g $RG \
-            --command "node dist/scripts/migrate.js"
+          script -q -e -c "az containerapp exec -n fiscalmind-worker -g $RG --command 'node dist/scripts/migrate.js'" /dev/null | tee migrate.log
+          grep -q "migrations complete" migrate.log
 
       - name: Update web
         run: |

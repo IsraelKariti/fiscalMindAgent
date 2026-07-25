@@ -78,7 +78,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const lastInboundWa = [...history].reverse().find((m) => m.direction === 'inbound' && m.channel === 'whatsapp');
   const lastInboundWaAt = lastInboundWa ? (lastInboundWa.sent_at ?? lastInboundWa.created_at) : null;
   const taxFetch = await loadTaxFetchContext(client, documents, waState, lastInboundWaAt);
-  const taxFetchAllowed = allowedTaxFetchActions(taxFetch.state, taxFetch.available, taxFetch.clientRepliedSinceIntro);
+  const taxFetchAllowed = allowedTaxFetchActions(taxFetch.state, taxFetch.available, taxFetch.clientOnWhatsapp);
   const { template } = await getPromptTemplate(client.user_id);
   const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, template, waState, {
     state: taxFetch.state,
@@ -92,7 +92,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     taxFetch: {
       state: taxFetch.state,
       available: taxFetch.available,
-      clientRepliedSinceIntro: taxFetch.clientRepliedSinceIntro,
+      clientOnWhatsapp: taxFetch.clientOnWhatsapp,
     },
   };
   const { decision, usage, model } = await decide(systemInstruction, contents, decisionCtx);

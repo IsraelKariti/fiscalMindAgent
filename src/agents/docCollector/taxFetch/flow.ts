@@ -30,8 +30,8 @@ export interface TaxFetchContext {
   session: TaxFetchSessionRow | null;
   /** The pending required-document row a fetched 106 would satisfy. */
   pending106DocId: string | null;
-  /** The client has written on WhatsApp since the session entered agreed/wa_intro_sent — gates start_login. */
-  clientRepliedSinceIntro: boolean;
+  /** The conversation is live on WhatsApp (client wrote there in the last 24h) — gates start_login. */
+  clientOnWhatsapp: boolean;
 }
 
 export const TAX_FETCH_UNAVAILABLE: TaxFetchContext = {
@@ -39,7 +39,7 @@ export const TAX_FETCH_UNAVAILABLE: TaxFetchContext = {
   state: 'none',
   session: null,
   pending106DocId: null,
-  clientRepliedSinceIntro: false,
+  clientOnWhatsapp: false,
 };
 
 function taxYearFor(now: Date): number {
@@ -113,16 +113,14 @@ export async function loadTaxFetchContext(
     }
   }
 
-  // start_login readiness: the intro asked the client to confirm they're free —
-  // only a message of theirs arriving AFTER that transition counts as an answer.
-  // (updated_at is stamped when client_agreed moved the session to wa_intro_sent.)
-  const clientRepliedSinceIntro =
-    active !== null &&
-    (active.status === 'agreed' || active.status === 'wa_intro_sent') &&
-    lastInboundAt !== null &&
-    lastInboundAt.getTime() > active.updated_at.getTime();
+  // start_login readiness: the browser login (which fires a real OTP email at
+  // the client) may only run once the conversation is actually live on
+  // WhatsApp — the client wrote there within the 24h window. WhatsApp is
+  // phone-verified; email sender addresses are spoofable, so an email alone
+  // must never be able to trigger the login.
+  const clientOnWhatsapp = waState.allowed && waState.windowOpen && lastInboundAt !== null;
 
-  return { available, state, session, pending106DocId: pending106?.id ?? null, clientRepliedSinceIntro };
+  return { available, state, session, pending106DocId: pending106?.id ?? null, clientOnWhatsapp };
 }
 
 /** Enqueue the login this long after the heads-up message's send time, so the send has settled. */
@@ -150,7 +148,9 @@ export async function applyTaxFetchAction(
   switch (action) {
     case 'offer': {
       if (!ctx.available || !ctx.pending106DocId) return;
-      if (ctx.session && ctx.session.status === 'offered') return; // already offered
+      // A session already in flight: nothing to record (and a second insert
+      // would trip the one-active-session-per-client unique index).
+      if (ctx.session && taxFetchSessions.ACTIVE_TAX_FETCH_STATUSES.includes(ctx.session.status)) return;
       await taxFetchSessions.insert({
         clientId: client.id,
         provider: PROVIDER_ID,
@@ -172,16 +172,43 @@ export async function applyTaxFetchAction(
       return;
     }
     case 'start_login': {
-      if (!ctx.session) return;
+      // The runner only starts a login on a pre-login session (agreed /
+      // wa_intro_sent), so bring one into existence whatever the current state:
+      // promote a still-'offered' session, reuse a pre-login one, or — when
+      // nothing is in flight (first time, or after failed/expired/cancelled) —
+      // create a fresh session directly at wa_intro_sent.
+      let sessionId: string;
+      const active =
+        ctx.session && taxFetchSessions.ACTIVE_TAX_FETCH_STATUSES.includes(ctx.session.status) ? ctx.session : null;
+      if (active) {
+        if (active.status === 'offered') await taxFetchSessions.updateStatus(active.id, 'wa_intro_sent');
+        sessionId = active.id;
+      } else {
+        if (!ctx.available || !ctx.pending106DocId) return;
+        const fresh = await taxFetchSessions.insert({
+          clientId: client.id,
+          provider: PROVIDER_ID,
+          clientDocumentId: ctx.pending106DocId,
+          status: 'wa_intro_sent',
+          taxYear: taxYearFor(now),
+        });
+        sessionId = fresh.id;
+        logger.info('tax fetch: fresh session created for start_login', {
+          clientId: client.id,
+          priorSessionId: ctx.session?.id ?? null,
+          sessionId,
+        });
+        publishClientUpdated(client.id);
+      }
       // Delayed to just after the heads-up message's send time; the runner then
       // verifies that message actually went out before driving the browser.
       await enqueueTaxFetch(
-        { kind: 'start_login', sessionId: ctx.session.id, awaitEmailId: message.emailId ?? undefined },
+        { kind: 'start_login', sessionId, awaitEmailId: message.emailId ?? undefined },
         { delayMs: message.emailId ? message.delayMs + START_LOGIN_SEND_GRACE_MS : 0 },
       );
       logger.info('tax fetch: start_login enqueued', {
         clientId: client.id,
-        sessionId: ctx.session.id,
+        sessionId,
         awaitEmailId: message.emailId,
         delayMs: message.delayMs,
       });

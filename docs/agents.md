@@ -148,17 +148,18 @@ The doc collector can fetch a client's Form 106 (טופס 106) straight from the
 Israeli tax authority by driving a real browser, entirely as a **conversational
 capability** — there is no accountant button.
 
-- **Flow**: the LLM offers the fetch in the email thread when a pending required
-  document matches `/106/` and credentials are on file; on agreement it explains
-  the code step (the tax authority emails the client a one-time code, which the
-  client relays back on WhatsApp) and asks the client to confirm they're free.
-  `start_login`
-  only becomes an allowed action once the client has replied **on WhatsApp,
-  after** that intro (`clientRepliedSinceIntro`, computed in
-  `loadTaxFetchContext` from the last inbound *WhatsApp* timestamp vs. the
-  session's `updated_at` — email is spoof-adjacent and must never be able to
-  arm the login) — the post-send re-plan runs with no new client input and must
-  never be able to trigger the OTP email.
+- **Flow**: the LLM offers the fetch when a pending required document matches
+  `/106/` and credentials are on file; on agreement it explains the code step
+  (the tax authority emails the client a one-time code, which the client relays
+  back on WhatsApp). The action ladder is deliberately loose (2026-07-25): the
+  model judges when to offer/agree/start, and the code keeps only the hard
+  gates. `start_login` is allowed in any non-mid-flight state, but **only while
+  the conversation is live on WhatsApp** (`clientOnWhatsapp` in
+  `loadTaxFetchContext`: channel allowed + 24h window open + an inbound WhatsApp
+  message exists — email is spoof-adjacent and must never be able to arm the
+  login, which fires a real OTP email at the client). On `start_login` with no
+  pre-login session in flight (first time, or retry after failed/expired),
+  `flow.ts` creates a fresh session directly at `wa_intro_sent`.
   The login job is then enqueued delayed to the heads-up message's send time and
   the runner verifies that message's row is `sent` (bounded re-checks; an
   abandoned draft never sends → the login never runs), so the tax authority's
@@ -179,10 +180,15 @@ capability** — there is no accountant button.
   the document); the WhatsApp conversation only gets a confirmation text. A
   client with no email address / sender mailbox gets the platform copy only.
 - **State machine**: `tax_fetch_sessions` (migration 025) tracks one attempt
-  offer→delivery; the LLM only ever sees the actions valid in the current state
-  (`allowedTaxFetchActions` in `decisionSchema.ts`, gated in the prompt's
-  `buildTaxFetchSection` and re-validated in `normalizeDecision` via the new
-  `tax_fetch_action` decision field). `taxFetch/flow.ts` loads state + acts.
+  offer→delivery; the LLM sees every mechanically-possible action in the
+  current state (`allowedTaxFetchActions` in `decisionSchema.ts`, shown in the
+  prompt's `buildTaxFetchSection` and re-validated in `normalizeDecision` via
+  the `tax_fetch_action` decision field). The hard guards that remain: no
+  action at all after `delivered` (never re-fetch), `cancel` only while a live
+  browser session is mid-flight, offer/login require `available`, and
+  `start_login` requires `clientOnWhatsapp` (above). The prompt explains each
+  action's mechanics and tells the model to keep action and message text
+  consistent. `taxFetch/flow.ts` loads state + acts.
 - **Where the browser lives — secret isolation**: NOT in the worker. Real
   fetches run in the browser-runner sidecar (`src/browserRunner.ts`, own
   process/container), which holds no platform secrets — its env
@@ -279,8 +285,8 @@ touching prompt builders or planners:
     (`POST /debt-collector/clients/:id/confirm-paid`, button in the debt tab)
     or clearing the source row completes the goal. `no_debt` under
     `suspected_injection` records the snapshot but leaves the goal open.
-  - Tax fetch: the `start_login` readiness reply must arrive on WhatsApp (see
-    the 106-fetch section above).
+  - Tax fetch: `start_login` requires a live WhatsApp conversation — an email
+    alone can never arm it (see the 106-fetch section above).
 
 Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
 

@@ -73,8 +73,8 @@ export type NormalizedDecision =
 export interface TaxFetchDecisionState {
   state: string;
   available: boolean;
-  /** The client has written (any channel) since the code-step intro went out — the readiness gate for start_login. */
-  clientRepliedSinceIntro: boolean;
+  /** The conversation is live on WhatsApp (client wrote there in the last 24h) — the hard gate for start_login. */
+  clientOnWhatsapp: boolean;
 }
 
 /** What the surrounding code knows about the WhatsApp channel when validating the LLM's choice. */
@@ -94,25 +94,30 @@ export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, win
 /**
  * The tax_fetch_action values valid in a given state — the single source of
  * truth shared by the prompt (what to tell the LLM it may do) and the validator
- * (what to reject). Offering requires the fetch to be currently available.
- * start_login additionally requires the client to have replied since the intro:
- * the post-send re-plan runs with no new client input, and must never be able
- * to start the login (it triggers a real OTP email) off the pre-intro agreement.
+ * (what to reject). Deliberately loose (2026-07-25): the model is trusted to
+ * judge when to offer/start; code keeps only the hard guards — never re-fetch
+ * after a successful delivery, no offer/login without credentials + pending
+ * 106 + WhatsApp (`available`), no second login while a live browser session
+ * is mid-flight, and the login itself (it fires a real OTP email at the
+ * client) only once the conversation is live on WhatsApp — email sender
+ * addresses are spoofable, so an email alone must never trigger it.
  */
-export function allowedTaxFetchActions(state: string, available: boolean, clientRepliedSinceIntro: boolean): string[] {
+export function allowedTaxFetchActions(state: string, available: boolean, clientOnWhatsapp: boolean): string[] {
+  const start = available && clientOnWhatsapp ? ['start_login'] : [];
   switch (state) {
-    case 'none':
-      return available ? ['offer'] : [];
-    case 'offered':
-      return available ? ['offer', 'client_agreed'] : ['client_agreed'];
-    case 'agreed':
-    case 'wa_intro_sent':
-      return clientRepliedSinceIntro ? ['start_login', 'cancel'] : ['cancel'];
+    case 'delivered':
+      return []; // terminal: the forms are in — a re-fetch is never useful
     case 'awaiting_otp':
     case 'in_progress':
-      return ['cancel'];
+      return ['cancel']; // a live browser session exists; only stopping it makes sense
+    case 'none':
     case 'failed':
-      return available ? ['offer'] : [];
+      return available ? ['offer', ...start] : [];
+    case 'offered':
+      return available ? ['client_agreed', ...start, 'cancel'] : ['client_agreed', 'cancel'];
+    case 'agreed':
+    case 'wa_intro_sent':
+      return [...start, 'cancel'];
     default:
       return [];
   }
@@ -169,7 +174,7 @@ function validateTaxFetchAction(raw: DecisionResponse, ctx: DecisionContext): Ta
   const action = raw.tax_fetch_action;
   if (!action) return null;
   const allowed = ctx.taxFetch
-    ? allowedTaxFetchActions(ctx.taxFetch.state, ctx.taxFetch.available, ctx.taxFetch.clientRepliedSinceIntro)
+    ? allowedTaxFetchActions(ctx.taxFetch.state, ctx.taxFetch.available, ctx.taxFetch.clientOnWhatsapp)
     : [];
   if (!allowed.includes(action)) {
     throw new Error(

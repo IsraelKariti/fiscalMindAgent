@@ -5,11 +5,13 @@ import { z } from 'zod';
 import { runnerEnv } from './env.js';
 import { launchInteractivePage } from './launch.js';
 import { israelTaxAuthorityProvider } from './israelTaxAuthority.js';
+import { altshulerShahamProvider } from './altshulerShaham.js';
 import { OtpRejectedError, type DocumentFetchProvider } from './providerTypes.js';
 import { logger } from '../util/logger.js';
 
 const PROVIDERS: Record<string, DocumentFetchProvider> = {
   israel_tax_authority: israelTaxAuthorityProvider,
+  altshuler_shaham: altshulerShahamProvider,
 };
 
 /** At most this many browsers open at once (each is a real Chrome; the box is small). */

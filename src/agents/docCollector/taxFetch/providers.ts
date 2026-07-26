@@ -119,8 +119,60 @@ const israelTaxAuthoritySpec: FetchProviderSpec = {
   },
 };
 
+/**
+ * Altshuler Shaham (בית השקעות) — pulls a client's previous-year short annual
+ * pension report + tax certificates (דוח שנתי מקוצר ואישורי מס). One document
+ * per fetch; the site sends its OTP by SMS.
+ */
+const altshulerShahamSpec: FetchProviderSpec = {
+  id: 'altshuler_shaham',
+  siteNameHe: 'אלטשולר שחם',
+  otpChannel: 'sms',
+
+  async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
+    // The login needs a national ID and the client's phone. The ID comes from a
+    // portal-credentials row; fall back to the tax-authority row's id_number
+    // (same person, same ת"ז) so a client already set up for the 106 fetch needs
+    // no new credential. The phone is the client's own WhatsApp number.
+    const own = await clientPortalCredentials.getForClient(client.id, 'altshuler_shaham');
+    const idNumber = own?.id_number ?? (await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority'))?.id_number;
+    if (!idNumber || !client.wa_phone) return null;
+    return { idNumber, phoneNumber: client.wa_phone };
+  },
+
+  messages: {
+    loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר אלטשולר שחם כרגע. נוכל לנסות שוב מאוחר יותר.',
+    busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
+    otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
+    otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS מאלטשולר שחם.',
+    otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
+    downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
+  },
+
+  delivery: {
+    waConfirmation(_docs: FetchedDocument[], canEmail: boolean): string {
+      return canEmail
+        ? 'הצלחתי למשוך את הדוח השנתי ואישורי המס שלך מאלטשולר שחם 🎉 שלחתי לך עותק למייל.'
+        : 'הצלחתי למשוך את הדוח השנתי ואישורי המס שלך מאלטשולר שחם 🎉 המסמך נשמר והועבר לרואה החשבון.';
+    },
+
+    emailSubject(_docs: FetchedDocument[], taxYear: number): string {
+      return `דוח שנתי ואישורי מס - אלטשולר שחם - ${taxYear}`;
+    },
+
+    emailBodyLines(_docs: FetchedDocument[], taxYear: number): string[] {
+      return [`מצורף הדוח השנתי המקוצר ואישורי המס שלך לשנת ${taxYear}, שנמשכו עבורך מאלטשולר שחם.`];
+    },
+
+    fileLabel(_doc: FetchedDocument, taxYear: number): string | null {
+      return `דוח שנתי מקוצר ואישורי מס — אלטשולר שחם ${taxYear}`;
+    },
+  },
+};
+
 const SPECS: Record<string, FetchProviderSpec> = {
   [israelTaxAuthoritySpec.id]: israelTaxAuthoritySpec,
+  [altshulerShahamSpec.id]: altshulerShahamSpec,
 };
 
 /** Looks up a provider spec; throws on an id the worker doesn't know (bad row / version skew). */

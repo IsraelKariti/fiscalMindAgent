@@ -11,7 +11,8 @@ import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../sh
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext } from './decisionSchema.js';
-import { applyTaxFetchAction, loadTaxFetchContext } from './taxFetch/flow.js';
+import { applyTaxFetchAction, loadTaxFetchContexts } from './taxFetch/flow.js';
+import { getProviderSpec } from './taxFetch/providers.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { recordAudit } from '../../audit/audit.js';
 import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js';
@@ -77,23 +78,41 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // be able to trigger the real OTP email. (The OTP relay is WhatsApp-only anyway.)
   const lastInboundWa = [...history].reverse().find((m) => m.direction === 'inbound' && m.channel === 'whatsapp');
   const lastInboundWaAt = lastInboundWa ? (lastInboundWa.sent_at ?? lastInboundWa.created_at) : null;
-  const taxFetch = await loadTaxFetchContext(client, documents, waState, lastInboundWaAt);
-  const taxFetchAllowed = allowedTaxFetchActions(taxFetch.state, taxFetch.available, taxFetch.clientOnWhatsapp);
-  const { template } = await getPromptTemplate(client.user_id);
-  const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, template, waState, {
-    state: taxFetch.state,
-    available: taxFetch.available,
-    allowedActions: taxFetchAllowed,
+  const taxFetchContexts = await loadTaxFetchContexts(client, documents, waState, lastInboundWaAt);
+  const taxFetchPromptInputs = taxFetchContexts.map((c) => {
+    const spec = getProviderSpec(c.provider);
+    return {
+      provider: c.provider,
+      siteNameHe: spec.siteNameHe,
+      documentDescriptionHe: spec.documentDescriptionHe,
+      otpChannel: spec.otpChannel,
+      state: c.state,
+      available: c.available,
+      allowedActions: allowedTaxFetchActions(c.state, c.available, c.clientOnWhatsapp),
+    };
   });
+  const { template } = await getPromptTemplate(client.user_id);
+  const { systemInstruction, contents } = buildPrompt(
+    client,
+    accountant,
+    history,
+    documents,
+    files,
+    now,
+    template,
+    waState,
+    taxFetchPromptInputs,
+  );
   const decisionCtx: DecisionContext = {
     whatsappAllowed: waState.allowed,
     windowOpen: waState.windowOpen,
     templates: waState.templates,
-    taxFetch: {
-      state: taxFetch.state,
-      available: taxFetch.available,
-      clientOnWhatsapp: taxFetch.clientOnWhatsapp,
-    },
+    taxFetch: taxFetchContexts.map((c) => ({
+      provider: c.provider,
+      state: c.state,
+      available: c.available,
+      clientOnWhatsapp: c.clientOnWhatsapp,
+    })),
   };
   const { decision, usage, model } = await decide(systemInstruction, contents, decisionCtx);
 
@@ -197,14 +216,18 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       : decision.decision === 'goal_complete' && !decision.suspected_injection;
 
   // Under suspected injection the fetch may only be cancelled — an injected
-  // message must not be able to offer/agree/start a login (it triggers a real OTP email).
-  const taxFetchAction =
-    decision.suspected_injection && decision.tax_fetch_action !== 'cancel' ? null : decision.tax_fetch_action;
+  // message must not be able to offer/agree/start a login (it triggers a real OTP).
+  const taxFetchDecision =
+    decision.suspected_injection && decision.tax_fetch?.action !== 'cancel' ? null : decision.tax_fetch;
+  const taxFetchTargetCtx = taxFetchDecision
+    ? (taxFetchContexts.find((c) => c.provider === taxFetchDecision.provider) ?? null)
+    : null;
+  const taxFetchAction = taxFetchDecision?.action ?? null;
 
   if (allCollected) {
     // No message is drafted on this path; a fresh offer can't happen here (no
-    // pending 106 left), but cancel/agreed actions still need to land.
-    await applyTaxFetchAction(client, taxFetchAction, taxFetch, now, { emailId: null, delayMs: 0 });
+    // pending matching document left), but cancel/agreed actions still need to land.
+    await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, now, { emailId: null, delayMs: 0 });
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
@@ -247,12 +270,12 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     delayMs: Math.max(0, delayMs),
     reasoning: decision.reasoning,
   });
-  // Act on the tax-authority 106-fetch step (offer / client agreed / start login /
+  // Act on the document-fetch step (offer / client agreed / start login /
   // cancel) after the draft exists: an 'offered' session records which message
   // carries the offer (a superseded draft re-enables offering), and start_login
   // is enqueued against the heads-up draft so the browser login — and the OTP
-  // email it triggers — can only run after that message actually goes out.
-  await applyTaxFetchAction(client, taxFetchAction, taxFetch, now, {
+  // it triggers — can only run after that message actually goes out.
+  await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, now, {
     emailId,
     delayMs: Math.max(0, delayMs),
   });

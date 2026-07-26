@@ -24,8 +24,8 @@ function extractOtp(body: string): string | null {
 export async function maybeHandleOtpInbound(ctx: AgentContext, evt: InboundEvent): Promise<boolean> {
   if (evt.channel !== 'whatsapp' || !evt.isNewMessage || !evt.messageRowId) return false;
 
-  const session = await taxFetchSessions.getActiveForClient(ctx.client.id);
-  if (!session || session.status !== 'awaiting_otp') return false;
+  const session = await taxFetchSessions.getAwaitingOtpForClient(ctx.client.id);
+  if (!session) return false;
 
   const message = await emails.getById(evt.messageRowId);
   if (!message) return false;

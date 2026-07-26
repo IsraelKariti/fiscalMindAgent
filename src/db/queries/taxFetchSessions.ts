@@ -50,10 +50,20 @@ export async function getById(id: string): Promise<TaxFetchSessionRow | null> {
   return rows[0] ?? null;
 }
 
-export async function getActiveForClient(clientId: string): Promise<TaxFetchSessionRow | null> {
+/** The active fetch for one provider (the per-(client,provider) unique index allows one). */
+export async function getActiveForClientAndProvider(clientId: string, provider: string): Promise<TaxFetchSessionRow | null> {
   const { rows } = await pool.query<TaxFetchSessionRow>(
-    'SELECT * FROM tax_fetch_sessions WHERE client_id = $1 AND status = ANY($2) ORDER BY created_at DESC LIMIT 1',
-    [clientId, ACTIVE_TAX_FETCH_STATUSES],
+    'SELECT * FROM tax_fetch_sessions WHERE client_id = $1 AND provider = $2 AND status = ANY($3) ORDER BY created_at DESC LIMIT 1',
+    [clientId, provider, ACTIVE_TAX_FETCH_STATUSES],
+  );
+  return rows[0] ?? null;
+}
+
+/** The session awaiting an OTP (any provider) — the target for an inbound WhatsApp code. */
+export async function getAwaitingOtpForClient(clientId: string): Promise<TaxFetchSessionRow | null> {
+  const { rows } = await pool.query<TaxFetchSessionRow>(
+    "SELECT * FROM tax_fetch_sessions WHERE client_id = $1 AND status = 'awaiting_otp' ORDER BY created_at DESC LIMIT 1",
+    [clientId],
   );
   return rows[0] ?? null;
 }
@@ -63,6 +73,15 @@ export async function getLatestForClient(clientId: string): Promise<TaxFetchSess
   const { rows } = await pool.query<TaxFetchSessionRow>(
     'SELECT * FROM tax_fetch_sessions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 1',
     [clientId],
+  );
+  return rows[0] ?? null;
+}
+
+/** The most recent session for one provider regardless of status. */
+export async function getLatestForClientAndProvider(clientId: string, provider: string): Promise<TaxFetchSessionRow | null> {
+  const { rows } = await pool.query<TaxFetchSessionRow>(
+    'SELECT * FROM tax_fetch_sessions WHERE client_id = $1 AND provider = $2 ORDER BY created_at DESC LIMIT 1',
+    [clientId, provider],
   );
   return rows[0] ?? null;
 }

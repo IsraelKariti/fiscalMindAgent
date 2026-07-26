@@ -27,11 +27,17 @@ export const DecisionResponseSchema = z.object({
   /** When to send, as "YYYY-MM-DD HH:MM" wall-clock time in the accountant's timezone. */
   send_at: z.string().nullable(),
   /**
-   * Tax-authority 106-fetch step, or null. Which values are valid depends on the
-   * current fetch state (see the prompt's TAX AUTHORITY 106 FETCH section and
-   * allowedTaxFetchActions below).
+   * Document-fetch step, or null. Which values are valid depends on the current
+   * fetch state for the targeted provider (see the prompt's DOCUMENT FETCH
+   * sections and allowedTaxFetchActions below).
    */
   tax_fetch_action: z.enum(['offer', 'client_agreed', 'start_login', 'cancel']).nullable(),
+  /**
+   * Which provider tax_fetch_action targets (a provider id from a DOCUMENT FETCH
+   * section, e.g. 'israel_tax_authority' / 'altshuler_shaham'). Required whenever
+   * tax_fetch_action is set; null otherwise.
+   */
+  tax_fetch_provider: z.string().nullable(),
 });
 
 export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
@@ -48,6 +54,12 @@ export type FollowUpMessage =
 
 export type TaxFetchAction = 'offer' | 'client_agreed' | 'start_login' | 'cancel';
 
+/** A resolved fetch step: the action plus the provider it targets. */
+export interface TaxFetchDecision {
+  action: TaxFetchAction;
+  provider: string;
+}
+
 export type NormalizedDecision =
   | {
       decision: 'goal_complete';
@@ -55,7 +67,7 @@ export type NormalizedDecision =
       suspected_injection: boolean;
       collected_document_ids: string[];
       matched_files: MatchedFile[];
-      tax_fetch_action: TaxFetchAction | null;
+      tax_fetch: TaxFetchDecision | null;
     }
   | {
       decision: 'follow_up';
@@ -66,11 +78,12 @@ export type NormalizedDecision =
       message: FollowUpMessage;
       /** Validated wall-clock datetime in the accountant's timezone. */
       send_at: string;
-      tax_fetch_action: TaxFetchAction | null;
+      tax_fetch: TaxFetchDecision | null;
     };
 
-/** The tax-fetch situation the validator needs: its state and whether it's on offer. */
+/** One provider's fetch situation the validator needs: its state and whether it's on offer. */
 export interface TaxFetchDecisionState {
+  provider: string;
   state: string;
   available: boolean;
   /** The conversation is live on WhatsApp (client wrote there in the last 24h) — the hard gate for start_login. */
@@ -85,8 +98,8 @@ export interface DecisionContext {
   windowOpen: boolean;
   /** Approved templates the LLM may pick from (by content_sid). */
   templates: WaTemplateRow[];
-  /** Tax-fetch state; absent when the capability doesn't apply to this client. */
-  taxFetch?: TaxFetchDecisionState;
+  /** Per-provider fetch state; empty/absent when no fetch applies to this client. */
+  taxFetch?: TaxFetchDecisionState[];
 }
 
 export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, windowOpen: false, templates: [] };
@@ -169,23 +182,30 @@ export function normalizeFollowUpMessage(raw: FollowUpMessageInput, ctx: Decisio
   throw new Error(`follow_up chose whatsapp but filled neither whatsapp_text nor whatsapp_template: ${JSON.stringify(raw)}`);
 }
 
-/** Rejects a tax_fetch_action that isn't valid in the current state (contract violation). */
-function validateTaxFetchAction(raw: DecisionResponse, ctx: DecisionContext): TaxFetchAction | null {
+/** Resolves and validates the (provider, action) pair; rejects an action invalid for that provider's state. */
+function validateTaxFetch(raw: DecisionResponse, ctx: DecisionContext): TaxFetchDecision | null {
   const action = raw.tax_fetch_action;
   if (!action) return null;
-  const allowed = ctx.taxFetch
-    ? allowedTaxFetchActions(ctx.taxFetch.state, ctx.taxFetch.available, ctx.taxFetch.clientOnWhatsapp)
-    : [];
+  const providerId = raw.tax_fetch_provider;
+  if (!providerId) {
+    throw new Error(`tax_fetch_action "${action}" set without a tax_fetch_provider`);
+  }
+  const entry = ctx.taxFetch?.find((t) => t.provider === providerId);
+  if (!entry) {
+    const known = ctx.taxFetch?.map((t) => t.provider).join(', ') || 'none';
+    throw new Error(`tax_fetch_provider "${providerId}" is not offered to this client (offered: ${known})`);
+  }
+  const allowed = allowedTaxFetchActions(entry.state, entry.available, entry.clientOnWhatsapp);
   if (!allowed.includes(action)) {
     throw new Error(
-      `tax_fetch_action "${action}" not allowed in state "${ctx.taxFetch?.state ?? 'none'}" (allowed: ${allowed.join(', ') || 'none'})`,
+      `tax_fetch_action "${action}" not allowed for provider "${providerId}" in state "${entry.state}" (allowed: ${allowed.join(', ') || 'none'})`,
     );
   }
-  return action;
+  return { action, provider: providerId };
 }
 
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {
-  const taxFetchAction = validateTaxFetchAction(raw, ctx);
+  const taxFetch = validateTaxFetch(raw, ctx);
   if (raw.decision === 'goal_complete') {
     return {
       decision: 'goal_complete',
@@ -193,7 +213,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
       suspected_injection: raw.suspected_injection,
       collected_document_ids: raw.collected_document_ids,
       matched_files: raw.matched_files,
-      tax_fetch_action: taxFetchAction,
+      tax_fetch: taxFetch,
     };
   }
   if (raw.send_at == null || !isWallClockDateTime(raw.send_at)) {
@@ -207,6 +227,6 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
     matched_files: raw.matched_files,
     message: normalizeFollowUpMessage(raw, ctx),
     send_at: raw.send_at.trim(),
-    tax_fetch_action: taxFetchAction,
+    tax_fetch: taxFetch,
   };
 }

@@ -180,48 +180,73 @@ export function buildWhatsAppSection(token: string, wa: WaChannelState): string 
   return `${fence(token, 'WHATSAPP CHANNEL')}\nstatus: ENABLED — the client agreed to receive WhatsApp messages\n${windowLine}\napproved templates:\n${templates}\n${endFence(token, 'WHATSAPP CHANNEL')}`;
 }
 
-/**
- * Lives in `contents` (like the WhatsApp section) so custom system prompts still
- * see the tax-fetch capability and its current state. Omitted entirely when the
- * fetch isn't available and no session is in flight — zero noise for the many
- * clients this never applies to. `state` and `allowedActions` are derived by the
- * caller (loadTaxFetchContext) so the LLM only ever sees actions valid right now.
- */
-export function buildTaxFetchSection(token: string, state: string, available: boolean, allowedActions: string[]): string {
-  if (!available && state === 'none') return '';
-
-  // Short factual notes per state; the model is trusted to decide what to do
-  // with them (only mechanically-impossible actions are withheld from the list).
-  const stateGuidance: Record<string, string> = {
-    none: 'טרם הוצעה ללקוח משיכת טופס 106 (יש לנו את פרטי ההזדהות שלו). אם יש לו כמה מעסיקים — נמשוך את הטפסים מכל המעסיקים באותו תהליך.',
-    offered: 'הצעת ללקוח למשוך את הטופס; פעל לפי תגובתו.',
-    agreed: 'הלקוח הסכים למשיכה; ההזדהות מול רשות המסים טרם התחילה.',
-    wa_intro_sent: 'הלקוח הסכים והוסבר לו שלב הקוד; ההזדהות מול רשות המסים טרם התחילה.',
-    awaiting_otp:
-      'המערכת ממתינה שהלקוח יעביר ב-WhatsApp את הקוד שרשות המסים שלחה לאימייל שלו, ותטפל בו אוטומטית — פשוט המשך לשוחח רגיל. אל תבקש את הקוד שוב בעצמך. אם הלקוח אומר שלא קיבל קוד — הזכר לו לבדוק את תיבת האימייל (כולל ספאם), לא הודעות SMS. אם הלקוח שלח את הקוד בתשובה לאימייל — הסבר בעדינות שהקוד נקלט רק ב-WhatsApp ובקש שישלח אותו שם.',
-    in_progress: 'תהליך המשיכה מרשות המסים מתבצע כעת אוטומטית. המשך לשוחח רגיל.',
-    delivered: 'טפסי ה-106 כבר נמשכו ונשלחו ללקוח (טופס אחד מכל מעסיק). התהליך הסתיים בהצלחה — אין להציע או להתחיל משיכה נוספת.',
-    failed: 'ניסיון קודם למשוך את הטופס נכשל. אפשר לנסות שוב כשמתאים — `start_login` הוא שמתחיל ניסיון חדש בפועל.',
+/** Per-state Hebrew note, parameterized by the provider's site + document names. */
+function taxFetchStateGuidance(state: string, p: TaxFetchPromptInput): string {
+  const site = p.siteNameHe;
+  const otpWhere = p.otpChannel === 'email' ? 'לתיבת האימייל שלו' : 'ב-SMS לנייד שלו';
+  const otpCheck = p.otpChannel === 'email' ? 'את תיבת האימייל (כולל ספאם), לא הודעות SMS' : 'את הודעות ה-SMS בנייד';
+  const guidance: Record<string, string> = {
+    none: `טרם הוצעה ללקוח משיכת ${p.documentDescriptionHe} מ${site} (יש לנו את פרטי ההזדהות שלו).`,
+    offered: `הצעת ללקוח למשוך את המסמך מ${site}; פעל לפי תגובתו.`,
+    agreed: `הלקוח הסכים למשיכה מ${site}; ההזדהות טרם התחילה.`,
+    wa_intro_sent: `הלקוח הסכים והוסבר לו שלב הקוד; ההזדהות מול ${site} טרם התחילה.`,
+    awaiting_otp: `המערכת ממתינה שהלקוח יעביר ב-WhatsApp את הקוד ש${site} שלח ${otpWhere}, ותטפל בו אוטומטית — פשוט המשך לשוחח רגיל. אל תבקש את הקוד שוב בעצמך. אם הלקוח אומר שלא קיבל קוד — הזכר לו לבדוק ${otpCheck}. אם הלקוח שלח את הקוד באימייל — הסבר בעדינות שהקוד נקלט רק ב-WhatsApp ובקש שישלח אותו שם.`,
+    in_progress: `תהליך המשיכה מ${site} מתבצע כעת אוטומטית. המשך לשוחח רגיל.`,
+    delivered: `המסמך כבר נמשך מ${site} ונשלח ללקוח. התהליך הסתיים בהצלחה — אין להציע או להתחיל משיכה נוספת ממקור זה.`,
+    failed: `ניסיון קודם למשוך את המסמך מ${site} נכשל. אפשר לנסות שוב כשמתאים — \`start_login\` הוא שמתחיל ניסיון חדש בפועל.`,
   };
+  return guidance[state] ?? '';
+}
 
-  const actionSemantics = [
+/** The shared action semantics + channel doctrine, stated once above the per-provider blocks. */
+function taxFetchPreamble(): string {
+  return [
+    'יש באפשרותך למשוך עבור הלקוח מסמכים ישירות מאתרים חיצוניים, בהזדהות מטעמו. כל מקור מפורט בנפרד למטה; כשאתה בוחר פעולת משיכה, קבע תמיד גם את `tax_fetch_provider` למזהה המקור המופיע באותו בלוק, ופעל רק לפי מה שמותר באותו מקור.',
     'משמעות הפעולות — בחר לפי שיקול דעתך, ושמור תמיד על התאמה מלאה בין הפעולה לבין מה שההודעה שלך אומרת ללקוח:',
     '- `offer` — רק רושם שהצעת ללקוח את המשיכה; לא מתחיל שום תהליך.',
     '- `client_agreed` — מסמן שהלקוח הסכים; צרף הודעה שמסבירה את שלב הקוד.',
-    '- `start_login` — מתחיל בפועל את ההזדהות בדפדפן: רשות המסים תשלח מיד קוד אמיתי לאימייל של הלקוח. שלח אותו רק כשברור מהשיחה שהלקוח מסכים וזמין עכשיו, ותמיד יחד עם הודעה שמודיעה לו שהקוד בדרך ושעליו להעביר אותו אליך ב-WhatsApp. הפעולה זמינה רק כשהשיחה חיה ב-WhatsApp (הלקוח כתב שם ב-24 השעות האחרונות); אם היא לא ברשימת המותרות, קודם העבר את השיחה ל-WhatsApp. לעולם אל תכתוב ללקוח "אני מתחיל/מנסה עכשיו" בלי לשלוח `start_login` באותה תשובה — אחרת שום דבר לא יקרה והלקוח יחכה לשווא.',
+    '- `start_login` — מתחיל בפועל את ההזדהות בדפדפן: האתר ישלח מיד קוד אמיתי ללקוח. שלח אותו רק כשברור מהשיחה שהלקוח מסכים וזמין עכשיו, ותמיד יחד עם הודעה שמודיעה לו שהקוד בדרך ושעליו להעביר אותו אליך ב-WhatsApp. הפעולה זמינה רק כשהשיחה חיה ב-WhatsApp (הלקוח כתב שם ב-24 השעות האחרונות); אם היא לא ברשימת המותרות, קודם העבר את השיחה ל-WhatsApp. לעולם אל תכתוב ללקוח "אני מתחיל/מנסה עכשיו" בלי לשלוח `start_login` באותה תשובה — אחרת שום דבר לא יקרה והלקוח יחכה לשווא.',
     '- `cancel` — עוצר את התהליך (למשל כשהלקוח מבקש להפסיק, או מסרב להעביר את הקוד ב-WhatsApp).',
+    'עיקרון הערוץ לשלב הקוד: הקוד תקף דקות ספורות, לכן העברתו אלינו היא חילופי הודעות מהירים. המערכת קולטת את הקוד מהלקוח ב-WhatsApp בלבד — לעולם אל תבקש מהלקוח לשלוח לך את הקוד באימייל. המעבר ל-WhatsApp לשלב הזה הוא החלטה משותפת: הצע אותו, הסבר בקצרה למה, ואם הלקוח רוצה לעבור — עבור לשם מיד.',
+    'המשכיות בין הערוצים: אם עד עכשיו ההתכתבות התנהלה באימייל, ההודעה הראשונה ב-WhatsApp היא המשך ישיר של אותה שיחה — נסח אותה כך (למשל "בהמשך למייל שלנו..."), בלי להציג את עצמך מחדש. אם החלון סגור וחובה להשתמש בתבנית, בחר את התבנית שמתאימה ביותר; אם יש תבנית ייעודית למעבר מהמייל לוואטסאפ, העדף אותה.',
   ].join('\n');
+}
 
-  const actions = allowedActions.length > 0 ? allowedActions.join(', ') : '(אין)';
+/**
+ * Lives in `contents` (like the WhatsApp section) so custom system prompts still
+ * see the fetch capability and its current state. One block per available
+ * provider; empty string when no provider applies — zero noise for the many
+ * clients this never applies to. `state` and `allowedActions` are derived by the
+ * caller (loadTaxFetchContexts) so the LLM only ever sees actions valid right now.
+ */
+export function buildTaxFetchSection(token: string, providers: TaxFetchPromptInput[]): string {
+  const active = providers.filter((p) => p.available || p.state !== 'none');
+  if (active.length === 0) return '';
+
+  const blocks = active.map((p) => {
+    const otpLine =
+      p.otpChannel === 'email'
+        ? `ערוץ הקוד: ${p.siteNameHe} שולח את הקוד לתיבת האימייל של הלקוח (לא ב-SMS).`
+        : `ערוץ הקוד: ${p.siteNameHe} שולח את הקוד ב-SMS לנייד של הלקוח.`;
+    const actions = p.allowedActions.length > 0 ? p.allowedActions.join(', ') : '(אין)';
+    return [
+      `— מקור: ${p.siteNameHe} (tax_fetch_provider: ${p.provider})`,
+      `מסמך: ${p.documentDescriptionHe}`,
+      `status: ${p.state}`,
+      otpLine,
+      taxFetchStateGuidance(p.state, p),
+      `tax_fetch_action מותר כעת עבור מקור זה: ${actions}.`,
+    ].join('\n');
+  });
+
   return [
-    fence(token, 'TAX AUTHORITY 106 FETCH'),
-    `status: ${state}`,
-    actionSemantics,
-    'עיקרון הערוץ לשלב הקוד: רשות המסים שולחת ללקוח קוד חד-פעמי לתיבת האימייל שלו (לא ב-SMS), והקוד תקף דקות ספורות — לכן העברתו אלינו היא חילופי הודעות מהירים. אימייל מתאים להתכתבות איטית עם הפסקות ארוכות; WhatsApp מתאים לתקשורת מיידית — והמערכת קולטת את הקוד מהלקוח ב-WhatsApp בלבד. לעולם אל תבקש מהלקוח לשלוח לך את הקוד באימייל — הוא קורא את הקוד מהאימייל ושולח אותו ב-WhatsApp. המעבר ל-WhatsApp לשלב הזה הוא החלטה משותפת: הצע אותו, הסבר בקצרה למה, ואם הלקוח רוצה לעבור ל-WhatsApp — עבור לשם מיד.',
-    'המשכיות בין הערוצים: אם עד עכשיו ההתכתבות התנהלה באימייל, ההודעה הראשונה ב-WhatsApp היא המשך ישיר של אותה שיחה — נסח אותה כך (למשל "בהמשך למייל שלנו..."), בלי להציג את עצמך מחדש ובלי לפתוח כאילו זו פנייה חדשה. אם החלון סגור וחובה להשתמש בתבנית, בחר את התבנית שמתאימה ביותר להמשך השיחה — אם קיימת ברשימה תבנית ייעודית למעבר השיחה מהמייל לוואטסאפ, העדף אותה. ברגע שהלקוח יענה בוואטסאפ ייפתח החלון ותוכל להמשיך שם בהודעות חופשיות.',
-    stateGuidance[state] ?? '',
-    `tax_fetch_action מותר כעת: ${actions}. בכל מצב אחר השאר את השדה null.`,
-    endFence(token, 'TAX AUTHORITY 106 FETCH'),
+    fence(token, 'DOCUMENT FETCH'),
+    taxFetchPreamble(),
+    '',
+    blocks.join('\n\n'),
+    '',
+    'בכל מצב אחר, או כשאין פעולה לבצע, השאר את tax_fetch_action ו-tax_fetch_provider שניהם null.',
+    endFence(token, 'DOCUMENT FETCH'),
   ].join('\n');
 }
 
@@ -330,8 +355,12 @@ export interface Prompt {
   contents: string;
 }
 
-/** The tax-fetch state the prompt should surface, already gated to valid actions. */
+/** One provider's fetch state the prompt should surface, already gated to valid actions. */
 export interface TaxFetchPromptInput {
+  provider: string;
+  siteNameHe: string;
+  documentDescriptionHe: string;
+  otpChannel: 'email' | 'sms';
   state: string;
   available: boolean;
   allowedActions: string[];
@@ -346,14 +375,14 @@ export function buildPrompt(
   now: Date,
   template?: string,
   waState: WaChannelState = WHATSAPP_UNAVAILABLE,
-  taxFetch?: TaxFetchPromptInput,
+  taxFetch: TaxFetchPromptInput[] = [],
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
     buildDocumentsSection(token, documents),
     buildDeadlineSection(token, client, now),
     buildWhatsAppSection(token, waState),
-    taxFetch ? buildTaxFetchSection(token, taxFetch.state, taxFetch.available, taxFetch.allowedActions) : '',
+    buildTaxFetchSection(token, taxFetch),
     buildThreadTranscript(token, history, files),
   ].filter((s) => s !== '');
   return {

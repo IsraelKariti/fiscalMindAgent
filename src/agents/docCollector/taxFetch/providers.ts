@@ -15,8 +15,16 @@ export interface FetchProviderSpec {
   id: string;
   /** Site name as client-facing Hebrew texts spell it. */
   siteNameHe: string;
+  /** Short Hebrew name of what this fetch pulls, for the LLM prompt. */
+  documentDescriptionHe: string;
   /** Where the site sends its one-time code — email (tax authority) or SMS. */
   otpChannel: 'email' | 'sms';
+  /**
+   * True when a required-document row's name marks it as the document this
+   * provider fetches (the tax authority: a Form 106; Altshuler: the annual
+   * pension report). A pending match is what makes the fetch offerable.
+   */
+  matchesRequiredDocument(doc: { name: string }): boolean;
   /**
    * Gathers what the runner needs to log in for this client. Null when a
    * required value is missing — the fetch then fails before touching the site.
@@ -65,7 +73,12 @@ function taxAuthorityFetchedWhat(docs: FetchedDocument[]): string {
 const israelTaxAuthoritySpec: FetchProviderSpec = {
   id: 'israel_tax_authority',
   siteNameHe: 'רשות המסים',
+  documentDescriptionHe: 'טופס 106 (טופס אחד מכל מעסיק אם יש כמה)',
   otpChannel: 'email',
+
+  matchesRequiredDocument(doc: { name: string }): boolean {
+    return /106/.test(doc.name);
+  },
 
   async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
     const creds = await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority');
@@ -127,7 +140,12 @@ const israelTaxAuthoritySpec: FetchProviderSpec = {
 const altshulerShahamSpec: FetchProviderSpec = {
   id: 'altshuler_shaham',
   siteNameHe: 'אלטשולר שחם',
+  documentDescriptionHe: 'הדוח השנתי המקוצר ואישורי המס',
   otpChannel: 'sms',
+
+  matchesRequiredDocument(doc: { name: string }): boolean {
+    return /אלטשולר/.test(doc.name);
+  },
 
   async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
     // The login needs a national ID and the client's phone. The ID comes from a
@@ -180,4 +198,9 @@ export function getProviderSpec(providerId: string): FetchProviderSpec {
   const spec = SPECS[providerId];
   if (!spec) throw new Error(`unknown document-fetch provider: ${providerId}`);
   return spec;
+}
+
+/** Every registered provider, in a stable order — the offer/prompt layer iterates these. */
+export function listProviderSpecs(): FetchProviderSpec[] {
+  return Object.values(SPECS);
 }

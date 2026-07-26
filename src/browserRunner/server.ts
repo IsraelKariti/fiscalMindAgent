@@ -68,8 +68,14 @@ function buildAuthMiddleware(): (req: Request, res: Response, next: NextFunction
 const StartLoginBody = z.object({
   sessionId: z.string().min(1).max(200),
   provider: z.string().min(1),
-  idNumber: z.string().min(1).max(50),
-  userCode: z.string().min(1).max(100),
+  // Provider-keyed login values (e.g. idNumber/userCode, idNumber/phoneNumber);
+  // each provider validates its own required keys. Bounded so the body can't
+  // smuggle arbitrary bulk.
+  credentials: z
+    .record(z.string().min(1).max(40), z.string().min(1).max(200))
+    .refine((map) => Object.keys(map).length >= 1 && Object.keys(map).length <= 8, {
+      message: 'credentials must hold between 1 and 8 entries',
+    }),
 });
 const OtpBody = z.object({ otp: z.string().min(1).max(20) });
 const DownloadBody = z.object({ taxYear: z.number().int().min(2000).max(2100) });
@@ -95,7 +101,7 @@ export function createRunnerApp(): Express {
       res.status(400).json({ error: 'invalid body' });
       return;
     }
-    const { sessionId, provider: providerId, idNumber, userCode } = parsed.data;
+    const { sessionId, provider: providerId, credentials } = parsed.data;
     const provider = PROVIDERS[providerId];
     if (!provider) {
       res.status(400).json({ error: `unknown provider: ${providerId}` });
@@ -110,7 +116,7 @@ export function createRunnerApp(): Express {
     try {
       const launched = await launchInteractivePage();
       browser = launched.browser;
-      await provider.startLogin(launched.page, { idNumber, userCode });
+      await provider.startLogin(launched.page, credentials);
       sessions.set(sessionId, { browser, page: launched.page, providerId, timer: armBackstop(sessionId) });
       res.status(201).json({ ok: true });
     } catch (err) {
@@ -175,7 +181,7 @@ export function createRunnerApp(): Express {
           contentType: doc.contentType,
           dataBase64: doc.buffer.toString('base64'),
           employerName: doc.employerName ?? null,
-          kind: doc.kind ?? 'form106',
+          kind: doc.kind ?? null,
         })),
       });
     } catch (err) {

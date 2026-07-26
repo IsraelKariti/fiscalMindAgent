@@ -7,16 +7,25 @@ export interface FetchedDocument {
   /** Employer name exactly as the source site spells it (multi-employer Form 106), when the site provides one. */
   employerName?: string | null;
   /**
-   * What the document is: a per-employer Form 106 (the default when absent) or
-   * the year's all-employers salary summary (ריכוז נתוני שכר) the tax site
-   * offers alongside them.
+   * Provider-defined document kind (e.g. the tax authority's 'form106' /
+   * 'salary_summary'). The worker's delivery spec for the same provider
+   * interprets it; the runner treats it as opaque.
    */
-  kind?: 'form106' | 'salary_summary';
+  kind?: string | null;
 }
 
-export interface PortalLoginCredentials {
-  idNumber: string;
-  userCode: string;
+/**
+ * Login values keyed per provider (the tax authority: idNumber+userCode;
+ * Meitav: idNumber+phoneNumber). The worker assembles the map; each provider
+ * validates its own required keys via requireCredential().
+ */
+export type PortalCredentials = Record<string, string>;
+
+/** Pulls a required key out of the credentials map, failing loudly when the worker sent the wrong shape. */
+export function requireCredential(credentials: PortalCredentials, key: string, providerId: string): string {
+  const value = credentials[key];
+  if (!value) throw new Error(`provider ${providerId} requires credential "${key}"`);
+  return value;
 }
 
 /**
@@ -29,9 +38,10 @@ export interface DocumentFetchProvider {
   id: string;
   /**
    * Fills the login form and submits, leaving the page on the OTP screen. This
-   * is what makes the site send the one-time code to the client's email.
+   * is what makes the site send the one-time code to the client (email or SMS,
+   * depending on the site).
    */
-  startLogin(page: Page, creds: PortalLoginCredentials): Promise<void>;
+  startLogin(page: Page, credentials: PortalCredentials): Promise<void>;
   /**
    * Types the OTP and completes login. Throws OtpRejectedError when the site
    * rejects the code and the OTP screen is still up (so the caller can re-ask).

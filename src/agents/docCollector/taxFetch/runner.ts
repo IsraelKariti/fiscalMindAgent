@@ -1,10 +1,10 @@
-import * as clientPortalCredentials from '../../../db/queries/clientPortalCredentials.js';
 import * as clients from '../../../db/queries/clients.js';
 import * as emails from '../../../db/queries/emails.js';
 import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
 import * as waSenders from '../../../db/queries/waSenders.js';
 import { publishClientUpdated } from '../../../events/clientEvents.js';
 import { getFetchClient } from './fetchClient.js';
+import { getProviderSpec, type FetchProviderSpec } from './providers.js';
 import { FetchAtCapacityError, OtpRejectedError, SessionGoneError } from './types.js';
 import { sessionTracker } from './sessionTracker.js';
 import { agentWorkBlocked } from '../../killSwitch.js';
@@ -16,23 +16,12 @@ import { enqueueTaxFetch, type TaxFetchJob } from '../../../queue/taxFetchQueue.
 import { deliver } from './deliver.js';
 
 const MAX_OTP_ATTEMPTS = 3;
-const PROVIDER_ID = 'israel_tax_authority';
 
 // The heads-up message may still be a queued draft when the delayed start_login
 // job fires; re-check on this cadence before giving up (an abandoned draft —
 // superseded by a client reply — never sends, so the login must never run).
 const START_WAIT_RETRY_MS = 10_000;
 const MAX_START_WAIT_ATTEMPTS = 6;
-
-// Canned Hebrew progress lines the system sends directly (no LLM) as the fetch moves.
-const MSG = {
-  loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר רשות המסים כרגע. נוכל לנסות שוב מאוחר יותר.',
-  busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
-  otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
-  otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת באימייל מרשות המסים.',
-  otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
-  downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הטופס כרגע. נוכל לנסות שוב מאוחר יותר.',
-};
 
 /** Sends a canned WhatsApp line to the client; never throws (progress messaging is best-effort). */
 async function sendCanned(client: ClientRow, body: string): Promise<void> {
@@ -114,17 +103,29 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
     }
   }
 
-  const creds = await clientPortalCredentials.getForClient(session.client_id, PROVIDER_ID);
-  if (!creds) {
+  let spec: FetchProviderSpec;
+  try {
+    spec = getProviderSpec(session.provider);
+  } catch (err) {
+    // A provider id the worker doesn't know (bad row / version skew) — the
+    // fetch can never run; fail without a client message.
+    logger.error('tax fetch: unknown provider on session', err, { sessionId, provider: session.provider });
+    await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
+    publishClientUpdated(client.id);
+    return;
+  }
+
+  const credentials = await spec.buildCredentials(client);
+  if (!credentials) {
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: 'no portal credentials on file' });
-    await sendCanned(client, MSG.loginFailed);
+    await sendCanned(client, spec.messages.loginFailed);
     publishClientUpdated(client.id);
     return;
   }
 
   // Each live session is a real browser on the runner; refuse rather than pile up.
   if (sessionTracker.atCapacity()) {
-    await sendCanned(client, MSG.busy);
+    await sendCanned(client, spec.messages.busy);
     logger.warn('tax fetch: at session capacity, deferring', { sessionId });
     return; // stays 'agreed'/'wa_intro_sent'; the client can trigger again
   }
@@ -132,8 +133,8 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
   await taxFetchSessions.updateStatus(sessionId, 'logging_in');
   const fetchClient = getFetchClient();
   try {
-    await fetchClient.startLogin(sessionId, PROVIDER_ID, { idNumber: creds.id_number, userCode: creds.user_code });
-    sessionTracker.put({ sessionId, clientId: client.id, provider: PROVIDER_ID });
+    await fetchClient.startLogin(sessionId, spec.id, credentials);
+    sessionTracker.put({ sessionId, clientId: client.id, provider: spec.id });
     // No canned "code incoming" line here: the LLM's heads-up message (verified
     // sent above) already told the client an email is coming and where to send the code.
     await taxFetchSessions.updateStatus(sessionId, 'awaiting_otp', { otpRequestedAt: new Date() });
@@ -147,14 +148,14 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
       targetType: 'tax_fetch_session',
       targetId: sessionId,
       severity: 'warning',
-      detail: { clientName: client.name, provider: PROVIDER_ID, taxYear: session.tax_year },
+      detail: { clientName: client.name, provider: spec.id, taxYear: session.tax_year },
     });
     publishClientUpdated(client.id);
   } catch (err) {
     if (err instanceof FetchAtCapacityError) {
       // The runner is serving other fetches; same deferral as the local check.
       await taxFetchSessions.updateStatus(sessionId, session.status);
-      await sendCanned(client, MSG.busy);
+      await sendCanned(client, spec.messages.busy);
       logger.warn('tax fetch: runner at capacity, deferring', { sessionId });
       return;
     }
@@ -163,7 +164,7 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
     await fetchClient.close(sessionId);
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
     recordTaxFetchFailure(client, sessionId, 'login', errText(err));
-    await sendCanned(client, MSG.loginFailed);
+    await sendCanned(client, spec.messages.loginFailed);
     publishClientUpdated(client.id);
   }
 }
@@ -180,13 +181,14 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
       await taxFetchSessions.updateStatus(sessionId, 'expired', { error: 'otp submitted after session was lost' });
       const client = await clients.getById(session.client_id);
       if (client) {
-        await sendCanned(client, MSG.otpExpired);
+        await sendCanned(client, getProviderSpec(session.provider).messages.otpExpired);
         publishClientUpdated(client.id);
       }
     }
     return;
   }
 
+  const spec = getProviderSpec(live.provider);
   const client = await clients.getById(live.clientId);
   if (!client) {
     await fetchClient.close(sessionId);
@@ -212,22 +214,22 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
       const attempts = await taxFetchSessions.incrementOtpAttempts(sessionId);
       if (attempts < MAX_OTP_ATTEMPTS) {
         // The runner kept the page on the OTP screen; re-arm the wait for another code.
-        sessionTracker.put({ sessionId, clientId: client.id, provider: PROVIDER_ID });
+        sessionTracker.put({ sessionId, clientId: client.id, provider: live.provider });
         await taxFetchSessions.updateStatus(sessionId, 'awaiting_otp');
-        await sendCanned(client, MSG.otpRejected);
+        await sendCanned(client, spec.messages.otpRejected);
         publishClientUpdated(client.id);
         return;
       }
       await fetchClient.close(sessionId);
       await taxFetchSessions.updateStatus(sessionId, 'failed', { error: 'otp rejected too many times' });
       recordTaxFetchFailure(client, sessionId, 'otp', 'otp rejected too many times');
-      await sendCanned(client, MSG.otpGaveUp);
+      await sendCanned(client, spec.messages.otpGaveUp);
       publishClientUpdated(client.id);
       return;
     }
     if (err instanceof SessionGoneError) {
       await taxFetchSessions.updateStatus(sessionId, 'expired', { error: 'browser session was lost' });
-      await sendCanned(client, MSG.otpExpired);
+      await sendCanned(client, spec.messages.otpExpired);
       publishClientUpdated(client.id);
       return;
     }
@@ -235,7 +237,7 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
     await fetchClient.close(sessionId);
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
     recordTaxFetchFailure(client, sessionId, 'otp', errText(err));
-    await sendCanned(client, MSG.loginFailed);
+    await sendCanned(client, spec.messages.loginFailed);
     publishClientUpdated(client.id);
     return;
   }
@@ -261,7 +263,7 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
     logger.error('tax fetch: download/deliver failed', err, { sessionId, clientId: client.id });
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
     recordTaxFetchFailure(client, sessionId, 'download', errText(err));
-    await sendCanned(client, MSG.downloadFailed);
+    await sendCanned(client, spec.messages.downloadFailed);
     publishClientUpdated(client.id);
   } finally {
     // The runner closes after a download attempt on its own; this covers the
@@ -293,7 +295,7 @@ export function wireSessionExpiry(): void {
         }
         const client = await clients.getById(session.clientId);
         if (client) {
-          await sendCanned(client, MSG.otpExpired);
+          await sendCanned(client, getProviderSpec(session.provider).messages.otpExpired);
           publishClientUpdated(client.id);
         }
       } catch (err) {

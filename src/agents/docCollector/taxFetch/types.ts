@@ -12,17 +12,18 @@ export interface FetchedDocument {
   /** Employer name exactly as the source site spells it (multi-employer Form 106), when the site provides one. */
   employerName?: string | null;
   /**
-   * What the document is: a per-employer Form 106 (the default when absent) or
-   * the year's all-employers salary summary (ריכוז נתוני שכר) the tax site
-   * offers alongside them.
+   * Provider-defined document kind (e.g. the tax authority's 'form106' /
+   * 'salary_summary'). Only that provider's delivery spec interprets it.
    */
-  kind?: 'form106' | 'salary_summary';
+  kind?: string | null;
 }
 
-export interface PortalLoginCredentials {
-  idNumber: string;
-  userCode: string;
-}
+/**
+ * Login values the runner types into the site, keyed per provider — the tax
+ * authority needs idNumber+userCode, Meitav idNumber+phoneNumber. The provider
+ * spec (providers.ts) builds the map; the runner-side provider validates it.
+ */
+export type PortalCredentials = Record<string, string>;
 
 /** The site said the OTP was wrong; the login can be retried with a new code. */
 export class OtpRejectedError extends Error {

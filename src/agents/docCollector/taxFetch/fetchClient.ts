@@ -8,7 +8,7 @@ import {
   SessionGoneError,
   sanitizeFilename,
   type FetchedDocument,
-  type PortalLoginCredentials,
+  type PortalCredentials,
 } from './types.js';
 
 /**
@@ -19,7 +19,7 @@ import {
  */
 export interface TaxFetchClient {
   /** Launches the login; on return the remote page sits on the OTP screen. */
-  startLogin(sessionId: string, provider: string, creds: PortalLoginCredentials): Promise<void>;
+  startLogin(sessionId: string, provider: string, credentials: PortalCredentials): Promise<void>;
   /** Submits the OTP. Throws OtpRejectedError (retryable) or SessionGoneError. */
   submitOtp(sessionId: string, otp: string): Promise<void>;
   /** Downloads all matching documents (one per employer for Form 106); the remote session is closed afterwards either way. */
@@ -43,7 +43,10 @@ const DownloadResponse = z.object({
         contentType: z.string().min(1),
         dataBase64: z.string().min(1),
         employerName: z.string().max(MAX_EMPLOYER_NAME_CHARS).nullish(),
-        kind: z.enum(['form106', 'salary_summary']).nullish(),
+        // Provider-defined vocabulary; the runner's response crosses a trust
+        // boundary, so only shape is enforced here — meaning is the delivery
+        // spec's problem (an unknown kind just gets default handling).
+        kind: z.string().min(1).max(50).nullish(),
       }),
     )
     .min(1)
@@ -73,10 +76,10 @@ class HttpTaxFetchClient implements TaxFetchClient {
     return new Error(`browser runner responded ${res.status}: ${body?.error ?? 'unknown error'}`);
   }
 
-  async startLogin(sessionId: string, provider: string, creds: PortalLoginCredentials): Promise<void> {
+  async startLogin(sessionId: string, provider: string, credentials: PortalCredentials): Promise<void> {
     const res = await this.request(sessionId, '/sessions', {
       method: 'POST',
-      body: { sessionId, provider, idNumber: creds.idNumber, userCode: creds.userCode },
+      body: { sessionId, provider, credentials },
     });
     if (res.status === 201) return;
     if (res.status === 409) throw new FetchAtCapacityError();
@@ -115,7 +118,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
       }
       // The name originates on the external site: keep it plain text, one line.
       const cleanedEmployer = employerName?.replace(/[\p{Cc}\p{Cf}]+/gu, ' ').replace(/\s+/g, ' ').trim() || null;
-      return { buffer, filename: sanitizeFilename(filename), contentType, employerName: cleanedEmployer, kind: kind ?? 'form106' };
+      return { buffer, filename: sanitizeFilename(filename), contentType, employerName: cleanedEmployer, kind: kind ?? null };
     });
   }
 
@@ -142,10 +145,10 @@ class AciTaxFetchClient implements TaxFetchClient {
     return base;
   });
 
-  async startLogin(sessionId: string, provider: string, creds: PortalLoginCredentials): Promise<void> {
+  async startLogin(sessionId: string, provider: string, credentials: PortalCredentials): Promise<void> {
     await provisionSessionContainer(sessionId); // FetchAtCapacityError on ACI quota
     try {
-      await this.http.startLogin(sessionId, provider, creds);
+      await this.http.startLogin(sessionId, provider, credentials);
     } catch (err) {
       await teardownSessionContainer(sessionId);
       throw err;

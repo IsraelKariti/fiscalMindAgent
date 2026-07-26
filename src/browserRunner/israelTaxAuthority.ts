@@ -1,7 +1,13 @@
 import type { Download, Page, Response } from 'playwright';
 import { debugShot, typeHuman } from './launch.js';
 import { logger } from '../util/logger.js';
-import { OtpRejectedError, type DocumentFetchProvider, type FetchedDocument, type PortalLoginCredentials } from './providerTypes.js';
+import {
+  OtpRejectedError,
+  requireCredential,
+  type DocumentFetchProvider,
+  type FetchedDocument,
+  type PortalCredentials,
+} from './providerTypes.js';
 
 const LOGIN_URL = 'https://secapp.taxes.gov.il/taxes-login/login/general';
 const PERSONAL_AREA_URL = 'https://secapp.taxes.gov.il/sr-ezor-ishi/main/main-page';
@@ -25,14 +31,17 @@ const PDF_CAPTURE_TIMEOUT_MS = 30_000;
 export const israelTaxAuthorityProvider: DocumentFetchProvider = {
   id: 'israel_tax_authority',
 
-  async startLogin(page: Page, creds: PortalLoginCredentials): Promise<void> {
+  async startLogin(page: Page, credentials: PortalCredentials): Promise<void> {
+    const idNumber = requireCredential(credentials, 'idNumber', 'israel_tax_authority');
+    const userCode = requireCredential(credentials, 'userCode', 'israel_tax_authority');
+
     await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 120_000 });
     await page.waitForSelector('#ID', { state: 'visible' });
     await debugShot(page, 'taxes-01-page-loaded');
 
-    await typeHuman(page, page.locator('#ID'), creds.idNumber);
+    await typeHuman(page, page.locator('#ID'), idNumber);
     await page.keyboard.press('Tab');
-    await typeHuman(page, page.locator('#code'), creds.userCode);
+    await typeHuman(page, page.locator('#code'), userCode);
     await page.keyboard.press('Tab');
     await debugShot(page, 'taxes-02-credentials-filled');
 

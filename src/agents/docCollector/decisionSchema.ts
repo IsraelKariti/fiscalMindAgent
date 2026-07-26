@@ -38,6 +38,12 @@ export const DecisionResponseSchema = z.object({
    * tax_fetch_action is set; null otherwise.
    */
   tax_fetch_provider: z.string().nullable(),
+  /**
+   * Which of the provider's document types the action covers — the subset the
+   * client agreed to (per-document consent), by document-type key. Empty/null
+   * means "all of that provider's pending documents".
+   */
+  tax_fetch_document_keys: z.array(z.string()).nullable(),
 });
 
 export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
@@ -54,10 +60,12 @@ export type FollowUpMessage =
 
 export type TaxFetchAction = 'offer' | 'client_agreed' | 'start_login' | 'cancel';
 
-/** A resolved fetch step: the action plus the provider it targets. */
+/** A resolved fetch step: the action, the provider it targets, and which document types it covers. */
 export interface TaxFetchDecision {
   action: TaxFetchAction;
   provider: string;
+  /** Agreed document-type keys (subset of the provider's pending types). */
+  documentKeys: string[];
 }
 
 export type NormalizedDecision =
@@ -81,13 +89,15 @@ export type NormalizedDecision =
       tax_fetch: TaxFetchDecision | null;
     };
 
-/** One provider's fetch situation the validator needs: its state and whether it's on offer. */
+/** One provider's fetch situation the validator needs: its state, availability, and pending document types. */
 export interface TaxFetchDecisionState {
   provider: string;
   state: string;
   available: boolean;
   /** The conversation is live on WhatsApp (client wrote there in the last 24h) — the hard gate for start_login. */
   clientOnWhatsapp: boolean;
+  /** Document-type keys currently pending (offerable) for this provider — the valid set for tax_fetch_document_keys. */
+  documentKeys: string[];
 }
 
 /** What the surrounding code knows about the WhatsApp channel when validating the LLM's choice. */
@@ -201,7 +211,17 @@ function validateTaxFetch(raw: DecisionResponse, ctx: DecisionContext): TaxFetch
       `tax_fetch_action "${action}" not allowed for provider "${providerId}" in state "${entry.state}" (allowed: ${allowed.join(', ') || 'none'})`,
     );
   }
-  return { action, provider: providerId };
+  // Per-document consent: keep only keys that are actually pending for this
+  // provider. Empty/absent means "all pending documents".
+  const requested = raw.tax_fetch_document_keys ?? [];
+  const unknown = requested.filter((k) => !entry.documentKeys.includes(k));
+  if (unknown.length > 0) {
+    throw new Error(
+      `tax_fetch_document_keys ${JSON.stringify(unknown)} are not pending for provider "${providerId}" (pending: ${entry.documentKeys.join(', ') || 'none'})`,
+    );
+  }
+  const documentKeys = requested.length > 0 ? requested : entry.documentKeys;
+  return { action, provider: providerId, documentKeys };
 }
 
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {

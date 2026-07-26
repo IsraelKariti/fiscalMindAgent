@@ -80,7 +80,10 @@ const StartLoginBody = z.object({
     }),
 });
 const OtpBody = z.object({ otp: z.string().min(1).max(20) });
-const DownloadBody = z.object({ taxYear: z.number().int().min(2000).max(2100) });
+const DownloadBody = z.object({
+  taxYear: z.number().int().min(2000).max(2100),
+  documentKeys: z.array(z.string().min(1).max(50)).max(10).optional(),
+});
 
 const errText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
@@ -176,7 +179,10 @@ export function createRunnerApp(): Express {
       return;
     }
     try {
-      const docs = await PROVIDERS[session.providerId]!.downloadDocuments(session.page, { taxYear: parsed.data.taxYear });
+      const docs = await PROVIDERS[session.providerId]!.downloadDocuments(session.page, {
+        taxYear: parsed.data.taxYear,
+        documentKeys: parsed.data.documentKeys ?? [],
+      });
       res.json({
         documents: docs.map((doc) => ({
           filename: doc.filename,

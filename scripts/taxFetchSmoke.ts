@@ -34,7 +34,7 @@ async function main(): Promise<void> {
 
     await israelTaxAuthorityProvider.submitOtp(page, otp);
     console.log('authenticated — downloading Form 106s…');
-    const docs = await israelTaxAuthorityProvider.downloadDocuments(page, { taxYear });
+    const docs = await israelTaxAuthorityProvider.downloadDocuments(page, { taxYear, documentKeys: ['form106'] });
 
     for (const doc of docs) {
       const outPath = new URL(`./${doc.filename}`, import.meta.url).pathname;

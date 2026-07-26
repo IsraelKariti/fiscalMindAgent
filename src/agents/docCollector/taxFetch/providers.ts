@@ -3,28 +3,39 @@ import type { ClientRow } from '../../../db/types.js';
 import type { FetchedDocument, PortalCredentials } from './types.js';
 
 /**
+ * One kind of document a provider can fetch — the unit of both consent and
+ * checklist-matching. A provider may offer several (Altshuler: pension + study
+ * fund, fetched in one login); the tax authority offers exactly one. `key` is
+ * stored in tax_fetch_sessions.document_keys and passed to the runner to select
+ * what to download.
+ */
+export interface FetchDocumentType {
+  /** Stable id: session.document_keys entries, the runner's download selector, and (usually) FetchedDocument.kind. */
+  key: string;
+  /** Short Hebrew name of this document, for the LLM prompt. */
+  documentDescriptionHe: string;
+  /** True when a required-document row's name marks it as this document (what makes this type offerable). */
+  matchesRequiredDocument(doc: { name: string }): boolean;
+  /** Which downloaded files count toward this type's checklist item. Defaults to `doc.kind === key`. */
+  ownsFetchedDocument?(doc: FetchedDocument): boolean;
+}
+
+/**
  * Worker-side description of a portal the platform can fetch documents from.
  * Everything provider-specific that the generic session machinery (runner.ts,
- * deliver.ts) needs lives here: how to assemble the login credentials, the
- * canned Hebrew progress lines, and the delivery wording/labels. The browser
- * steps themselves live in the runner sidecar's provider of the same id
- * (src/browserRunner/).
+ * deliver.ts) needs lives here: the fetchable document types, login credentials,
+ * canned Hebrew progress lines, and delivery wording/labels. The browser steps
+ * live in the runner sidecar's provider of the same id (src/browserRunner/).
  */
 export interface FetchProviderSpec {
   /** Matches client_portal_credentials.provider, tax_fetch_sessions.provider and the runner-side provider id. */
   id: string;
   /** Site name as client-facing Hebrew texts spell it. */
   siteNameHe: string;
-  /** Short Hebrew name of what this fetch pulls, for the LLM prompt. */
-  documentDescriptionHe: string;
   /** Where the site sends its one-time code — email (tax authority) or SMS. */
   otpChannel: 'email' | 'sms';
-  /**
-   * True when a required-document row's name marks it as the document this
-   * provider fetches (the tax authority: a Form 106; Altshuler: the annual
-   * pension report). A pending match is what makes the fetch offerable.
-   */
-  matchesRequiredDocument(doc: { name: string }): boolean;
+  /** The document types this provider can fetch (one login can produce several). */
+  documents: FetchDocumentType[];
   /**
    * Gathers what the runner needs to log in for this client. Null when a
    * required value is missing — the fetch then fails before touching the site.
@@ -51,6 +62,13 @@ export interface FetchProviderSpec {
   };
 }
 
+/** Does this fetched file count toward the given document type's checklist item? */
+export function typeOwnsFetched(type: FetchDocumentType, doc: FetchedDocument): boolean {
+  return type.ownsFetchedDocument ? type.ownsFetchedDocument(doc) : doc.kind === type.key;
+}
+
+// ── Israel Tax Authority ────────────────────────────────────────────────────
+
 /** The real per-employer forms, excluding the ride-along salary summary. */
 const form106sOf = (docs: FetchedDocument[]): FetchedDocument[] => docs.filter((d) => d.kind !== 'salary_summary');
 const summaryOf = (docs: FetchedDocument[]): FetchedDocument | undefined =>
@@ -73,12 +91,18 @@ function taxAuthorityFetchedWhat(docs: FetchedDocument[]): string {
 const israelTaxAuthoritySpec: FetchProviderSpec = {
   id: 'israel_tax_authority',
   siteNameHe: 'רשות המסים',
-  documentDescriptionHe: 'טופס 106 (טופס אחד מכל מעסיק אם יש כמה)',
   otpChannel: 'email',
 
-  matchesRequiredDocument(doc: { name: string }): boolean {
-    return /106/.test(doc.name);
-  },
+  documents: [
+    {
+      key: 'form106',
+      documentDescriptionHe: 'טופס 106 (טופס אחד מכל מעסיק אם יש כמה)',
+      matchesRequiredDocument: (doc) => /106/.test(doc.name),
+      // One login yields every employer's 106 plus the salary summary; all of
+      // them satisfy the single 106 checklist item.
+      ownsFetchedDocument: () => true,
+    },
+  ],
 
   async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
     const creds = await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority');
@@ -132,20 +156,45 @@ const israelTaxAuthoritySpec: FetchProviderSpec = {
   },
 };
 
+// ── Altshuler Shaham ────────────────────────────────────────────────────────
+
+/** Human product noun per Altshuler document kind, for delivery wording. */
+function altshulerProductNoun(kind: string | null | undefined): string {
+  return kind === 'study_fund_annual' ? 'קרן ההשתלמות' : 'הפנסיה';
+}
+
+/** Joins Hebrew product nouns with the right conjunction ("א' ו-ב'"). */
+function joinHe(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} ו${items[items.length - 1]}`;
+}
+
 /**
- * Altshuler Shaham (בית השקעות) — pulls a client's previous-year short annual
- * pension report + tax certificates (דוח שנתי מקוצר ואישורי מס). One document
- * per fetch; the site sends its OTP by SMS.
+ * Altshuler Shaham (בית השקעות). One SMS-OTP login can pull the previous year's
+ * short annual report + tax certificates for the client's pension (פנסיה tab)
+ * and/or study fund (קרן השתלמות, גמל tab) — whichever the client agreed to.
+ * The two reports share an identical filename on the site, so they are told
+ * apart only by which product they were fetched under (the kind).
  */
 const altshulerShahamSpec: FetchProviderSpec = {
   id: 'altshuler_shaham',
   siteNameHe: 'אלטשולר שחם',
-  documentDescriptionHe: 'הדוח השנתי המקוצר ואישורי המס',
   otpChannel: 'sms',
 
-  matchesRequiredDocument(doc: { name: string }): boolean {
-    return /אלטשולר/.test(doc.name);
-  },
+  documents: [
+    {
+      key: 'pension_annual',
+      documentDescriptionHe: 'דוח שנתי ואישורי מס — פנסיה',
+      // Both names carry "אלטשולר"; the study fund adds "קרן השתלמות", so the
+      // pension is an Altshuler doc that is NOT the study fund.
+      matchesRequiredDocument: (doc) => /אלטשולר/.test(doc.name) && !/השתלמות/.test(doc.name),
+    },
+    {
+      key: 'study_fund_annual',
+      documentDescriptionHe: 'דוח שנתי ואישורי מס — קרן השתלמות',
+      matchesRequiredDocument: (doc) => /השתלמות/.test(doc.name) && /אלטשולר/.test(doc.name),
+    },
+  ],
 
   async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
     // The login needs a national ID and the client's phone. The ID comes from a
@@ -168,22 +217,35 @@ const altshulerShahamSpec: FetchProviderSpec = {
   },
 
   delivery: {
-    waConfirmation(_docs: FetchedDocument[], canEmail: boolean): string {
-      return canEmail
-        ? 'הצלחתי למשוך את הדוח השנתי ואישורי המס שלך מאלטשולר שחם 🎉 שלחתי לך עותק למייל.'
-        : 'הצלחתי למשוך את הדוח השנתי ואישורי המס שלך מאלטשולר שחם 🎉 המסמך נשמר והועבר לרואה החשבון.';
+    waConfirmation(docs: FetchedDocument[], canEmail: boolean): string {
+      const products = joinHe(docs.map((d) => altshulerProductNoun(d.kind)));
+      const single = docs.length === 1;
+      const tail = canEmail
+        ? single
+          ? 'שלחתי לך עותק למייל.'
+          : 'שלחתי לך עותקים למייל.'
+        : single
+          ? 'המסמך נשמר והועבר לרואה החשבון.'
+          : 'המסמכים נשמרו והועברו לרואה החשבון.';
+      return `הצלחתי למשוך את הדוח השנתי ואישורי המס של ${products} שלך מאלטשולר שחם 🎉 ${tail}`;
     },
 
-    emailSubject(_docs: FetchedDocument[], taxYear: number): string {
-      return `דוח שנתי ואישורי מס - אלטשולר שחם - ${taxYear}`;
+    emailSubject(docs: FetchedDocument[], taxYear: number): string {
+      const products = joinHe(docs.map((d) => (d.kind === 'study_fund_annual' ? 'קרן השתלמות' : 'פנסיה')));
+      return `דוח שנתי ואישורי מס (${products}) - אלטשולר שחם - ${taxYear}`;
     },
 
-    emailBodyLines(_docs: FetchedDocument[], taxYear: number): string[] {
-      return [`מצורף הדוח השנתי המקוצר ואישורי המס שלך לשנת ${taxYear}, שנמשכו עבורך מאלטשולר שחם.`];
+    emailBodyLines(docs: FetchedDocument[], taxYear: number): string[] {
+      return [
+        `מצורפים הדוחות השנתיים ואישורי המס שלך לשנת ${taxYear}, שנמשכו עבורך מאלטשולר שחם:`,
+        '',
+        ...docs.map((d) => `• דוח שנתי ואישורי מס — ${d.kind === 'study_fund_annual' ? 'קרן השתלמות' : 'פנסיה'}`),
+      ];
     },
 
-    fileLabel(_doc: FetchedDocument, taxYear: number): string | null {
-      return `דוח שנתי מקוצר ואישורי מס — אלטשולר שחם ${taxYear}`;
+    fileLabel(doc: FetchedDocument, taxYear: number): string | null {
+      const product = doc.kind === 'study_fund_annual' ? 'קרן השתלמות' : 'פנסיה';
+      return `דוח שנתי ואישורי מס — ${product} — אלטשולר שחם ${taxYear}`;
     },
   },
 };

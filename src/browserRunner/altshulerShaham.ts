@@ -12,8 +12,18 @@ import {
 const LOGIN_URL = 'https://online.as-invest.co.il/login';
 const REPORTS_URL = 'https://online.as-invest.co.il/periodic-reports-and-tax-certificates';
 
-/** The one document this provider fetches today: the previous year's short annual pension report + tax certificates. */
+/** The report clicked under each product tab; pension and study fund share the same on-screen label. */
 const TARGET_REPORT_LABEL = 'דוח שנתי מקוצר ואישורי מס';
+
+/**
+ * Which product tab on the reports page each document-type key lives under.
+ * The study fund (קרן השתלמות) is a gemel-family product, so it sits under גמל;
+ * the pension under פנסיה.
+ */
+const TAB_FOR_KEY: Record<string, string> = {
+  pension_annual: 'פנסיה',
+  study_fund_annual: 'גמל',
+};
 
 /** Per-click download window; the site builds the blob locally so it's usually fast. */
 const DOWNLOAD_TIMEOUT_MS = 30_000;
@@ -93,8 +103,11 @@ export const altshulerShahamProvider: DocumentFetchProvider = {
     await debugShot(page, 'as-05-authenticated');
   },
 
-  async downloadDocuments(page: Page, opts: { taxYear: number }): Promise<FetchedDocument[]> {
+  async downloadDocuments(page: Page, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]> {
     const year = String(opts.taxYear);
+    // Fetch the agreed types; default to pension when none was specified (older
+    // single-document sessions).
+    const keys = opts.documentKeys.length > 0 ? opts.documentKeys : ['pension_annual'];
 
     // The lobby shows a marketing dialog that intercepts clicks; dismiss it.
     await dismissMarketingPopup(page);
@@ -104,39 +117,39 @@ export const altshulerShahamProvider: DocumentFetchProvider = {
       await page.goto(REPORTS_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     }
     await page.waitForSelector('text=דוחות תקופתיים ואישורי מס', { timeout: 30_000 });
-    await dismissMarketingPopup(page); // may re-render after navigation
+    await page.waitForTimeout(1_500); // the marketing dialog renders a beat after navigation
+    await dismissMarketingPopup(page);
     await debugShot(page, 'as-06-reports-page');
 
-    // Product sub-tab: פנסיה. The label text appears more than once in the DOM
-    // (some copies hidden), so pick the visible one.
-    await page.getByText('פנסיה', { exact: true }).filter({ visible: true }).first().click();
-    await page.waitForTimeout(1_500);
+    const docs: FetchedDocument[] = [];
+    for (const key of keys) {
+      const tab = TAB_FOR_KEY[key];
+      if (!tab) throw new Error(`altshuler: unknown document key "${key}"`);
 
-    // Year selector is a custom dropdown (no native <select>): click the shown
-    // value to open it, then click the requested year.
-    await selectYear(page, year);
-    await debugShot(page, 'as-07-year-selected');
+      // The marketing dialog can re-open; clear it right before the tab click,
+      // which it would otherwise intercept.
+      await dismissMarketingPopup(page);
+      // Product sub-tab (פנסיה / גמל). The label text appears more than once in
+      // the DOM (some copies hidden), so pick the visible one.
+      await page.getByText(tab, { exact: true }).filter({ visible: true }).first().click();
+      await page.waitForTimeout(1_500);
 
-    // The target report; clicking it triggers a browser download of the PDF.
-    const captured = await captureDownload(page, () =>
-      page.getByText(TARGET_REPORT_LABEL, { exact: false }).filter({ visible: true }).first().click(),
-    );
+      // Year selector is an Angular Material select: open it, then pick the year.
+      await selectYear(page, year);
+      await debugShot(page, `as-07-${key}-year-selected`);
 
-    logger.info('altshuler fetch: document captured', {
-      year,
-      filename: captured.filename,
-      bytes: captured.buffer.length,
-    });
-    await debugShot(page, 'as-08-after-download');
+      // The target report; clicking it triggers a browser download of the PDF.
+      // Pension and study fund share this label, so the tab we're on determines
+      // which product this file is.
+      const captured = await captureDownload(page, () =>
+        page.getByText(TARGET_REPORT_LABEL, { exact: false }).filter({ visible: true }).first().click(),
+      );
+      docs.push({ buffer: captured.buffer, filename: captured.filename, contentType: 'application/pdf', kind: key });
+      logger.info('altshuler fetch: document captured', { year, key, filename: captured.filename, bytes: captured.buffer.length });
+      await debugShot(page, `as-08-${key}-downloaded`);
+    }
 
-    return [
-      {
-        buffer: captured.buffer,
-        filename: captured.filename,
-        contentType: 'application/pdf',
-        kind: 'pension_annual',
-      },
-    ];
+    return docs;
   },
 };
 
@@ -147,28 +160,36 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
-/** Closes the lobby marketing dialog if it's up. Best-effort; never throws. */
+/**
+ * Closes the marketing dialog if it's up. It can render late and re-open, so
+ * keep closing (button, else Escape) until it's gone or we give up. Best-effort;
+ * never throws.
+ */
 async function dismissMarketingPopup(page: Page): Promise<void> {
-  const closeBtn = page.locator('app-pop-up [role="dialog"] button.close, [role="dialog"] button.close');
-  if (await closeBtn.first().isVisible().catch(() => false)) {
-    await closeBtn.first().click().catch(() => undefined);
-    await page.waitForTimeout(500);
+  for (let i = 0; i < 12; i++) {
+    const dialog = page.locator('app-pop-up [role="dialog"], [role="dialog"]');
+    if (!(await dialog.first().isVisible().catch(() => false))) return;
+    const closeBtn = dialog.locator('button.close, button.close-icon, button[aria-label*="סגור"], [class*="close"]');
+    if (await closeBtn.first().isVisible().catch(() => false)) {
+      await closeBtn.first().click().catch(() => undefined);
+    } else {
+      await page.keyboard.press('Escape').catch(() => undefined);
+    }
+    await page.waitForTimeout(400);
   }
 }
 
-/** Opens the custom year dropdown and picks `year`. */
+/** Sets the Angular Material year select to `year` (idempotent — a no-op if already selected). */
 async function selectYear(page: Page, year: string): Promise<void> {
-  // The current value is rendered as visible text near "לאיזו שנה?". Clicking it
-  // opens the option list; if `year` is already shown as an option, click it.
-  const target = page.getByText(new RegExp(`^\\s*${year}\\s*$`)).filter({ visible: true });
-  if (await target.first().isVisible().catch(() => false)) {
-    await target.first().click();
-  } else {
-    // Open the dropdown by clicking whatever year is currently displayed.
-    await page.locator('text=לאיזו שנה?').click().catch(() => undefined);
-    await page.waitForTimeout(600);
-    await target.first().click({ timeout: 5_000 });
-  }
+  const current = (await page.locator('mat-select .mat-select-value-text').first().textContent().catch(() => ''))?.trim();
+  if (current === year) return;
+  await page.locator('mat-select').first().click();
+  await page.waitForTimeout(600);
+  await page
+    .locator('mat-option, [role="option"]')
+    .filter({ hasText: new RegExp(`^\\s*${year}\\s*$`) })
+    .first()
+    .click({ timeout: 5_000 });
   await page.waitForTimeout(2_000); // let the document list re-render for the year
 }
 

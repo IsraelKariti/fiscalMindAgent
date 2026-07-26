@@ -41,6 +41,8 @@ export interface TaxFetchSessionRow {
   delivered_at: Date | null;
   /** The drafted message carrying the offer; the offer only counts once it is sent. */
   offer_email_id: string | null;
+  /** Agreed in-scope document-type keys (providers.ts). NULL = the provider's default type(s). */
+  document_keys: string[] | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -93,13 +95,27 @@ export async function insert(args: {
   status: TaxFetchStatus;
   taxYear: number;
   offerEmailId?: string | null;
+  documentKeys?: string[] | null;
 }): Promise<TaxFetchSessionRow> {
   const { rows } = await pool.query<TaxFetchSessionRow>(
-    `INSERT INTO tax_fetch_sessions (client_id, provider, client_document_id, status, tax_year, offer_email_id)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [args.clientId, args.provider, args.clientDocumentId, args.status, args.taxYear, args.offerEmailId ?? null],
+    `INSERT INTO tax_fetch_sessions (client_id, provider, client_document_id, status, tax_year, offer_email_id, document_keys)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [
+      args.clientId,
+      args.provider,
+      args.clientDocumentId,
+      args.status,
+      args.taxYear,
+      args.offerEmailId ?? null,
+      args.documentKeys ?? null,
+    ],
   );
   return rows[0]!;
+}
+
+/** Updates the agreed in-scope document-type keys (client narrowed/changed the set). */
+export async function setDocumentKeys(id: string, documentKeys: string[]): Promise<void> {
+  await pool.query('UPDATE tax_fetch_sessions SET document_keys = $2, updated_at = now() WHERE id = $1', [id, documentKeys]);
 }
 
 export async function updateStatus(

@@ -11,7 +11,7 @@ import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../sh
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext } from './decisionSchema.js';
-import { applyTaxFetchAction, loadTaxFetchContexts } from './taxFetch/flow.js';
+import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys } from './taxFetch/flow.js';
 import { getProviderSpec } from './taxFetch/providers.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { recordAudit } from '../../audit/audit.js';
@@ -84,11 +84,16 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     return {
       provider: c.provider,
       siteNameHe: spec.siteNameHe,
-      documentDescriptionHe: spec.documentDescriptionHe,
       otpChannel: spec.otpChannel,
       state: c.state,
       available: c.available,
       allowedActions: allowedTaxFetchActions(c.state, c.available, c.clientOnWhatsapp),
+      documentTypes: c.documentTypes.map((d) => ({
+        key: d.key,
+        descriptionHe: d.descriptionHe,
+        pending: d.pendingDocumentId !== null,
+        collected: d.collected,
+      })),
     };
   });
   const { template } = await getPromptTemplate(client.user_id);
@@ -112,6 +117,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       state: c.state,
       available: c.available,
       clientOnWhatsapp: c.clientOnWhatsapp,
+      documentKeys: pendingKeys(c),
     })),
   };
   const { decision, usage, model } = await decide(systemInstruction, contents, decisionCtx);
@@ -223,11 +229,12 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     ? (taxFetchContexts.find((c) => c.provider === taxFetchDecision.provider) ?? null)
     : null;
   const taxFetchAction = taxFetchDecision?.action ?? null;
+  const taxFetchKeys = taxFetchDecision?.documentKeys ?? null;
 
   if (allCollected) {
     // No message is drafted on this path; a fresh offer can't happen here (no
     // pending matching document left), but cancel/agreed actions still need to land.
-    await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, now, { emailId: null, delayMs: 0 });
+    await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, taxFetchKeys, now, { emailId: null, delayMs: 0 });
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
@@ -275,7 +282,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // carries the offer (a superseded draft re-enables offering), and start_login
   // is enqueued against the heads-up draft so the browser login — and the OTP
   // it triggers — can only run after that message actually goes out.
-  await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, now, {
+  await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, taxFetchKeys, now, {
     emailId,
     delayMs: Math.max(0, delayMs),
   });

@@ -47,8 +47,13 @@ export interface DocumentFetchProvider {
    * rejects the code and the OTP screen is still up (so the caller can re-ask).
    */
   submitOtp(page: Page, otp: string): Promise<void>;
-  /** Navigates to and downloads every matching document (one per employer for Form 106). */
-  downloadDocuments(page: Page, opts: { taxYear: number }): Promise<FetchedDocument[]>;
+  /**
+   * Navigates to and downloads the requested document types in this one session.
+   * `documentKeys` are the provider's FetchDocumentType keys the client agreed to
+   * (e.g. ['pension_annual','study_fund_annual']); a provider that only fetches
+   * one thing (Form 106) ignores them.
+   */
+  downloadDocuments(page: Page, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]>;
 }
 
 /** The site said the OTP was wrong; the login can be retried with a new code. */

@@ -69,7 +69,9 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
     await debugShot(page, 'taxes-05-authenticated');
   },
 
-  async downloadDocuments(page: Page, opts: { taxYear: number }): Promise<FetchedDocument[]> {
+  async downloadDocuments(page: Page, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]> {
+    // Single document type ('form106'); documentKeys is irrelevant here — one
+    // login always yields every employer's 106 plus the salary summary.
     const year = String(opts.taxYear);
 
     // Step 1: personal area → open the Form 106 page (skip if already there).

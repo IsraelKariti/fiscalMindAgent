@@ -180,14 +180,14 @@ export function buildWhatsAppSection(token: string, wa: WaChannelState): string 
   return `${fence(token, 'WHATSAPP CHANNEL')}\nstatus: ENABLED — the client agreed to receive WhatsApp messages\n${windowLine}\napproved templates:\n${templates}\n${endFence(token, 'WHATSAPP CHANNEL')}`;
 }
 
-/** Per-state Hebrew note, parameterized by the provider's site + document names. */
+/** Per-state Hebrew note, parameterized by the provider's site + OTP channel. */
 function taxFetchStateGuidance(state: string, p: TaxFetchPromptInput): string {
   const site = p.siteNameHe;
   const otpWhere = p.otpChannel === 'email' ? 'לתיבת האימייל שלו' : 'ב-SMS לנייד שלו';
   const otpCheck = p.otpChannel === 'email' ? 'את תיבת האימייל (כולל ספאם), לא הודעות SMS' : 'את הודעות ה-SMS בנייד';
   const guidance: Record<string, string> = {
-    none: `טרם הוצעה ללקוח משיכת ${p.documentDescriptionHe} מ${site} (יש לנו את פרטי ההזדהות שלו).`,
-    offered: `הצעת ללקוח למשוך את המסמך מ${site}; פעל לפי תגובתו.`,
+    none: `טרם הוצעה ללקוח משיכת המסמכים מ${site} (יש לנו את פרטי ההזדהות שלו).`,
+    offered: `הצעת ללקוח למשוך את המסמך/ים מ${site}; פעל לפי תגובתו.`,
     agreed: `הלקוח הסכים למשיכה מ${site}; ההזדהות טרם התחילה.`,
     wa_intro_sent: `הלקוח הסכים והוסבר לו שלב הקוד; ההזדהות מול ${site} טרם התחילה.`,
     awaiting_otp: `המערכת ממתינה שהלקוח יעביר ב-WhatsApp את הקוד ש${site} שלח ${otpWhere}, ותטפל בו אוטומטית — פשוט המשך לשוחח רגיל. אל תבקש את הקוד שוב בעצמך. אם הלקוח אומר שלא קיבל קוד — הזכר לו לבדוק ${otpCheck}. אם הלקוח שלח את הקוד באימייל — הסבר בעדינות שהקוד נקלט רק ב-WhatsApp ובקש שישלח אותו שם.`,
@@ -207,6 +207,7 @@ function taxFetchPreamble(): string {
     '- `client_agreed` — מסמן שהלקוח הסכים; צרף הודעה שמסבירה את שלב הקוד.',
     '- `start_login` — מתחיל בפועל את ההזדהות בדפדפן: האתר ישלח מיד קוד אמיתי ללקוח. שלח אותו רק כשברור מהשיחה שהלקוח מסכים וזמין עכשיו, ותמיד יחד עם הודעה שמודיעה לו שהקוד בדרך ושעליו להעביר אותו אליך ב-WhatsApp. הפעולה זמינה רק כשהשיחה חיה ב-WhatsApp (הלקוח כתב שם ב-24 השעות האחרונות); אם היא לא ברשימת המותרות, קודם העבר את השיחה ל-WhatsApp. לעולם אל תכתוב ללקוח "אני מתחיל/מנסה עכשיו" בלי לשלוח `start_login` באותה תשובה — אחרת שום דבר לא יקרה והלקוח יחכה לשווא.',
     '- `cancel` — עוצר את התהליך (למשל כשהלקוח מבקש להפסיק, או מסרב להעביר את הקוד ב-WhatsApp).',
+    'מסמכים מרובים באותו מקור (משיכה אחת): כשלמקור יש יותר ממסמך אחד שממתין (למשל פנסיה וגם קרן השתלמות באלטשולר), אפשר למשוך את כולם בהזדהות אחת. הצע ללקוח להביא את כולם יחד, אך משוך רק את מה שהלקוח אישר בפירוש — ההסכמה היא לכל מסמך בנפרד (הוא יכול לאשר את שניהם, רק אחד, או אף אחד). קבע ב-`tax_fetch_document_keys` את רשימת המפתחות (keys) של המסמכים שהלקוח אישר. אם הלקוח אישר את כל המסמכים הממתינים, אפשר להשאיר את השדה ריק (משמעו: כל הממתינים).',
     'עיקרון הערוץ לשלב הקוד: הקוד תקף דקות ספורות, לכן העברתו אלינו היא חילופי הודעות מהירים. המערכת קולטת את הקוד מהלקוח ב-WhatsApp בלבד — לעולם אל תבקש מהלקוח לשלוח לך את הקוד באימייל. המעבר ל-WhatsApp לשלב הזה הוא החלטה משותפת: הצע אותו, הסבר בקצרה למה, ואם הלקוח רוצה לעבור — עבור לשם מיד.',
     'המשכיות בין הערוצים: אם עד עכשיו ההתכתבות התנהלה באימייל, ההודעה הראשונה ב-WhatsApp היא המשך ישיר של אותה שיחה — נסח אותה כך (למשל "בהמשך למייל שלנו..."), בלי להציג את עצמך מחדש. אם החלון סגור וחובה להשתמש בתבנית, בחר את התבנית שמתאימה ביותר; אם יש תבנית ייעודית למעבר מהמייל לוואטסאפ, העדף אותה.',
   ].join('\n');
@@ -229,9 +230,14 @@ export function buildTaxFetchSection(token: string, providers: TaxFetchPromptInp
         ? `ערוץ הקוד: ${p.siteNameHe} שולח את הקוד לתיבת האימייל של הלקוח (לא ב-SMS).`
         : `ערוץ הקוד: ${p.siteNameHe} שולח את הקוד ב-SMS לנייד של הלקוח.`;
     const actions = p.allowedActions.length > 0 ? p.allowedActions.join(', ') : '(אין)';
+    const docLines = p.documentTypes.map((d) => {
+      const status = d.pending ? 'ממתין למשיכה' : d.collected ? 'כבר נאסף' : 'לא נדרש';
+      return `  • ${d.descriptionHe} [key: ${d.key}] — ${status}`;
+    });
     return [
       `— מקור: ${p.siteNameHe} (tax_fetch_provider: ${p.provider})`,
-      `מסמך: ${p.documentDescriptionHe}`,
+      'מסמכים במקור זה:',
+      ...docLines,
       `status: ${p.state}`,
       otpLine,
       taxFetchStateGuidance(p.state, p),
@@ -245,7 +251,7 @@ export function buildTaxFetchSection(token: string, providers: TaxFetchPromptInp
     '',
     blocks.join('\n\n'),
     '',
-    'בכל מצב אחר, או כשאין פעולה לבצע, השאר את tax_fetch_action ו-tax_fetch_provider שניהם null.',
+    'בכל מצב אחר, או כשאין פעולה לבצע, השאר את tax_fetch_action, tax_fetch_provider ו-tax_fetch_document_keys כולם null.',
     endFence(token, 'DOCUMENT FETCH'),
   ].join('\n');
 }
@@ -359,11 +365,12 @@ export interface Prompt {
 export interface TaxFetchPromptInput {
   provider: string;
   siteNameHe: string;
-  documentDescriptionHe: string;
   otpChannel: 'email' | 'sms';
   state: string;
   available: boolean;
   allowedActions: string[];
+  /** Each fetchable document type and its status (drives per-document consent). */
+  documentTypes: { key: string; descriptionHe: string; pending: boolean; collected: boolean }[];
 }
 
 export function buildPrompt(

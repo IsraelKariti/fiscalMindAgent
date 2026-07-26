@@ -17,7 +17,7 @@ import { uploadBlob } from '../../../storage/blob.js';
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientRow } from '../../../db/types.js';
-import { getProviderSpec } from './providers.js';
+import { getProviderSpec, typeOwnsFetched } from './providers.js';
 import { sanitizeFilename, type FetchedDocument } from './types.js';
 import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js';
 
@@ -67,6 +67,20 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     agentInstanceId: client.agent_instance_id,
   });
 
+  // Resolve which pending checklist item each fetched file satisfies. A session
+  // may cover several document types (Altshuler pension + study fund); each file
+  // is linked to the pending required document its type matches, so both get
+  // marked collected independently. session.document_keys scopes which types are
+  // in play; session.client_document_id is the legacy single-doc fallback.
+  const clientDocs = await clientDocuments.listForClient(client.id);
+  const activeKeys = session.document_keys ?? spec.documents.map((t) => t.key);
+  const targetDocIdFor = (doc: FetchedDocument): string | null => {
+    const type = spec.documents.find((t) => activeKeys.includes(t.key) && typeOwnsFetched(t, doc));
+    const match = type ? clientDocs.find((d) => type.matchesRequiredDocument(d)) : null;
+    return match?.id ?? session.client_document_id;
+  };
+  const collectedDocIds = new Set<string>();
+
   const files = [];
   const usedNames = new Set<string>();
   for (const [i, doc] of docs.entries()) {
@@ -94,12 +108,14 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     if (!file) throw new Error(`tax fetch: document_files insert returned no row for session ${session.id}`);
     files.push(file);
 
-    if (session.client_document_id) {
-      await documentFiles.linkToDocument(file.id, client.id, session.client_document_id);
+    const targetDocId = targetDocIdFor(doc);
+    if (targetDocId) {
+      await documentFiles.linkToDocument(file.id, client.id, targetDocId);
+      collectedDocIds.add(targetDocId);
     }
   }
-  if (session.client_document_id) {
-    await clientDocuments.markCollected(client.id, [session.client_document_id]);
+  if (collectedDocIds.size > 0) {
+    await clientDocuments.markCollected(client.id, [...collectedDocIds]);
   }
 
   // The files themselves, as email attachments on the client's collection

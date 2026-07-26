@@ -22,8 +22,8 @@ export interface TaxFetchClient {
   startLogin(sessionId: string, provider: string, credentials: PortalCredentials): Promise<void>;
   /** Submits the OTP. Throws OtpRejectedError (retryable) or SessionGoneError. */
   submitOtp(sessionId: string, otp: string): Promise<void>;
-  /** Downloads all matching documents (one per employer for Form 106); the remote session is closed afterwards either way. */
-  downloadDocuments(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument[]>;
+  /** Downloads the agreed document types (documentKeys); the remote session is closed afterwards either way. */
+  downloadDocuments(sessionId: string, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]>;
   /** Closes the remote session. Idempotent, never throws. */
   close(sessionId: string): Promise<void>;
 }
@@ -94,10 +94,10 @@ class HttpTaxFetchClient implements TaxFetchClient {
     throw await this.errorFrom(res);
   }
 
-  async downloadDocuments(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument[]> {
+  async downloadDocuments(sessionId: string, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]> {
     const res = await this.request(sessionId, `/sessions/${encodeURIComponent(sessionId)}/download`, {
       method: 'POST',
-      body: { taxYear: opts.taxYear },
+      body: { taxYear: opts.taxYear, documentKeys: opts.documentKeys },
     });
     if (res.status === 410 || res.status === 404) throw new SessionGoneError();
     if (!res.ok) throw await this.errorFrom(res);
@@ -159,7 +159,7 @@ class AciTaxFetchClient implements TaxFetchClient {
     await this.http.submitOtp(sessionId, otp);
   }
 
-  async downloadDocuments(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument[]> {
+  async downloadDocuments(sessionId: string, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]> {
     try {
       return await this.http.downloadDocuments(sessionId, opts);
     } finally {
@@ -200,14 +200,26 @@ class MockTaxFetchClient implements TaxFetchClient {
     if (!/^\d{6}$/.test(otp.trim())) throw new OtpRejectedError();
   }
 
-  async downloadDocuments(sessionId: string, opts: { taxYear: number }): Promise<FetchedDocument[]> {
+  async downloadDocuments(sessionId: string, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]> {
     if (!this.live.has(sessionId)) throw new SessionGoneError();
     await sleep(500);
     this.live.delete(sessionId);
-    // Two employers plus the all-employers salary summary, like a real
-    // multi-employer year (the live site lists the summary link first), so the
-    // whole delivery path (multiple blobs, labels, plural texts) is exercised
-    // without the site.
+    // Provider-aware via the agreed keys: any non-106 key set (e.g. Altshuler's
+    // pension/study fund) returns one PDF per requested key, so the multi-document
+    // delivery path is exercised with the right kinds and labels.
+    const keys = opts.documentKeys.filter((k) => k !== 'form106');
+    if (keys.length > 0) {
+      return keys.map((key) => ({
+        buffer: MOCK_PDF,
+        filename: `mock_${key}_${opts.taxYear}.pdf`,
+        contentType: 'application/pdf',
+        employerName: null,
+        kind: key,
+      }));
+    }
+    // Tax authority default: two employers plus the all-employers salary summary,
+    // like a real multi-employer year, so the whole delivery path (multiple
+    // blobs, labels, plural texts) is exercised without the site.
     return [
       {
         buffer: MOCK_PDF,

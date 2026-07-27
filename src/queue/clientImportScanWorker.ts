@@ -1,12 +1,12 @@
 import { Queue, Worker } from 'bullmq';
-import { redisConnection } from './connection.js';
+import { bullOpts } from './connection.js';
 import { runClientImportScan } from '../agents/shared/clientImportScan.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 
 export const CLIENT_IMPORT_SCAN_QUEUE_NAME = 'client_import_scan';
 
-export const clientImportScanQueue = new Queue(CLIENT_IMPORT_SCAN_QUEUE_NAME, { connection: redisConnection });
+export const clientImportScanQueue = new Queue(CLIENT_IMPORT_SCAN_QUEUE_NAME, { ...bullOpts });
 
 /**
  * Registers (idempotently) the daily client-import sweep at 00:50 local time —
@@ -23,7 +23,7 @@ export async function ensureClientImportScanScheduler(): Promise<void> {
 
 export function createClientImportScanWorker(): Worker {
   const worker = new Worker(CLIENT_IMPORT_SCAN_QUEUE_NAME, () => runClientImportScan(), {
-    connection: redisConnection,
+    ...bullOpts,
     concurrency: 1,
   });
   worker.on('completed', (job) => logger.info('client_import_scan job completed', { jobId: job.id }));

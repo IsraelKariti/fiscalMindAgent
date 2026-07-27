@@ -1,12 +1,12 @@
 import { Queue, Worker } from 'bullmq';
-import { redisConnection } from './connection.js';
+import { bullOpts } from './connection.js';
 import { runAnomalyScan } from '../alerts/anomalyScan.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 
 export const ANOMALY_SCAN_QUEUE_NAME = 'anomaly_scan';
 
-export const anomalyScanQueue = new Queue(ANOMALY_SCAN_QUEUE_NAME, { connection: redisConnection });
+export const anomalyScanQueue = new Queue(ANOMALY_SCAN_QUEUE_NAME, { ...bullOpts });
 
 /**
  * Registers (idempotently) the 15-minute anomaly sweep over the audit trail.
@@ -26,7 +26,7 @@ export function createAnomalyScanWorker(): Worker {
   // Unlike every other worker, runAnomalyScan is NOT kill-switch-gated:
   // detection is the layer that must survive an incident.
   const worker = new Worker(ANOMALY_SCAN_QUEUE_NAME, () => runAnomalyScan(), {
-    connection: redisConnection,
+    ...bullOpts,
     concurrency: 1,
   });
   worker.on('completed', (job) => logger.info('anomaly_scan job completed', { jobId: job.id }));

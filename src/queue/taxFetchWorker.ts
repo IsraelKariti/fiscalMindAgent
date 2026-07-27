@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { redisConnection } from './connection.js';
+import { bullOpts } from './connection.js';
 import { TAX_FETCH_QUEUE_NAME, type TaxFetchJob } from './taxFetchQueue.js';
 import { expireOrphanedTaxFetchSessions, runTaxFetchJob, wireSessionExpiry } from '../agents/docCollector/taxFetch/runner.js';
 import { sweepOrphanedSessionContainers } from '../agents/docCollector/taxFetch/aciSessionPool.js';
@@ -18,7 +18,7 @@ const CONTAINER_SWEEP_INTERVAL_MS = 15 * 60_000;
 export function createTaxFetchWorker(): Worker<TaxFetchJob> {
   wireSessionExpiry();
   const worker = new Worker<TaxFetchJob>(TAX_FETCH_QUEUE_NAME, (job) => runTaxFetchJob(job.data), {
-    connection: redisConnection,
+    ...bullOpts,
     concurrency: env.TAX_FETCH_RUNNER_MODE === 'aci' ? 8 : 1,
   });
   worker.on('failed', (job, err) => logger.error('tax_fetch job failed', err, { jobId: job?.id, kind: job?.data.kind }));

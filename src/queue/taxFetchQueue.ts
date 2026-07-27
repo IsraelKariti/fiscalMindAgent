@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import { redisConnection } from './connection.js';
+import { bullOpts } from './connection.js';
 
 export const TAX_FETCH_QUEUE_NAME = 'tax_fetch';
 
@@ -16,7 +16,7 @@ export type TaxFetchJob =
   | { kind: 'submit_otp'; sessionId: string; otp: string }
   | { kind: 'cancel'; sessionId: string };
 
-export const taxFetchQueue = new Queue<TaxFetchJob>(TAX_FETCH_QUEUE_NAME, { connection: redisConnection });
+export const taxFetchQueue = new Queue<TaxFetchJob>(TAX_FETCH_QUEUE_NAME, { ...bullOpts });
 
 export async function enqueueTaxFetch(job: TaxFetchJob, opts: { delayMs?: number } = {}): Promise<void> {
   await taxFetchQueue.add(job.kind, job, {

@@ -1,12 +1,12 @@
 import { Queue, Worker } from 'bullmq';
-import { redisConnection } from './connection.js';
+import { bullOpts } from './connection.js';
 import { runDebtScan } from '../agents/debtCollector/dailyScan.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 
 export const DEBT_SCAN_QUEUE_NAME = 'debt_scan';
 
-export const debtScanQueue = new Queue(DEBT_SCAN_QUEUE_NAME, { connection: redisConnection });
+export const debtScanQueue = new Queue(DEBT_SCAN_QUEUE_NAME, { ...bullOpts });
 
 /**
  * Registers (idempotently) the daily debtor sweep at 00:30 local time —
@@ -23,7 +23,7 @@ export async function ensureDebtScanScheduler(): Promise<void> {
 
 export function createDebtScanWorker(): Worker {
   const worker = new Worker(DEBT_SCAN_QUEUE_NAME, () => runDebtScan(), {
-    connection: redisConnection,
+    ...bullOpts,
     concurrency: 1,
   });
   worker.on('completed', (job) => logger.info('debt_scan job completed', { jobId: job.id }));

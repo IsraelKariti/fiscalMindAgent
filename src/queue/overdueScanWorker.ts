@@ -1,12 +1,12 @@
 import { Queue, Worker } from 'bullmq';
-import { redisConnection } from './connection.js';
+import { bullOpts } from './connection.js';
 import { runOverdueScan } from '../agents/docCollector/overdueScan.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 
 export const OVERDUE_SCAN_QUEUE_NAME = 'overdue_scan';
 
-export const overdueScanQueue = new Queue(OVERDUE_SCAN_QUEUE_NAME, { connection: redisConnection });
+export const overdueScanQueue = new Queue(OVERDUE_SCAN_QUEUE_NAME, { ...bullOpts });
 
 /**
  * Registers (idempotently) the daily scan at 00:10 local time — so "the due
@@ -23,7 +23,7 @@ export async function ensureOverdueScanScheduler(): Promise<void> {
 
 export function createOverdueScanWorker(): Worker {
   const worker = new Worker(OVERDUE_SCAN_QUEUE_NAME, () => runOverdueScan(), {
-    connection: redisConnection,
+    ...bullOpts,
     concurrency: 1,
   });
   worker.on('completed', (job) => logger.info('overdue_scan job completed', { jobId: job.id }));

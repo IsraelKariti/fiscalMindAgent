@@ -1,5 +1,5 @@
 import { Worker, type Job } from 'bullmq';
-import { redisConnection } from './connection.js';
+import { bullOpts } from './connection.js';
 import { SEND_EMAIL_QUEUE_NAME } from './sendEmailQueue.js';
 import { withClientLock } from '../db/withClientLock.js';
 import * as clients from '../db/queries/clients.js';
@@ -180,7 +180,7 @@ async function sendWhatsAppDraft(client: ClientRow, draft: EmailRow): Promise<Se
 }
 
 export function createSendEmailWorker(): Worker {
-  const worker = new Worker(SEND_EMAIL_QUEUE_NAME, onScheduledSend, { connection: redisConnection });
+  const worker = new Worker(SEND_EMAIL_QUEUE_NAME, onScheduledSend, { ...bullOpts });
   worker.on('completed', (job) => logger.info('send_email job completed', { jobId: job.id }));
   worker.on('failed', (job, err) => logger.error('send_email job failed', err, { jobId: job?.id }));
   return worker;

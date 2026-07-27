@@ -3,6 +3,11 @@ name: Deploy to Azure
 # Manual-only: pushes to master auto-deploy the sandbox (deploy-sandbox.yml);
 # promote to production by running this workflow from the Actions tab (or
 # `gh workflow run deploy.yml`).
+#
+# Production runs on App Service in Israel Central (fiscalmind-il-web/-worker,
+# RG fiscalmind-israel) behind the fiscalmind-il-natgw static egress IP.
+# Migrations run inside the worker's startup command (App Service has no
+# `exec`), so a healthy worker implies they succeeded.
 on:
   workflow_dispatch:
 
@@ -15,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  RG: fiscalmind-resourcegroup
+  RG: fiscalmind-israel
   ACR: fiscalmindacr
   IMAGE: fiscalmindacr.azurecr.io/fiscalmind-agent
 
@@ -42,25 +47,36 @@ jobs:
             docker push $IMAGE:${{ github.sha }}
           fi
 
-      - name: Update worker
+      - name: Update worker (startup command runs migrations before the worker)
         run: |
-          az containerapp update -n fiscalmind-worker -g $RG \
-            --image $IMAGE:${{ github.sha }}
+          az webapp config container set -n fiscalmind-il-worker -g $RG \
+            --container-image-name $IMAGE:${{ github.sha }} \
+            --container-registry-url https://fiscalmindacr.azurecr.io
+          az webapp restart -n fiscalmind-il-worker -g $RG
 
-      - name: Run DB migrations (from worker, inside vnet)
-        # `az containerapp exec` needs a TTY, which CI runners lack — `script`
-        # fakes one. az doesn't propagate the remote exit code, so grep for the
-        # migrator's success line instead.
+      - name: Wait for worker health (implies migrations succeeded)
         run: |
-          script -q -e -c "az containerapp exec -n fiscalmind-worker -g $RG --command 'node dist/scripts/migrate.js'" /dev/null | tee migrate.log
-          grep -q "migrations complete" migrate.log
+          for i in $(seq 1 30); do
+            if curl -fsS "https://fiscalmind-il-worker.azurewebsites.net/healthz" > /dev/null 2>&1; then
+              echo "worker healthy"; exit 0
+            fi
+            sleep 10
+          done
+          echo "worker never became healthy"; exit 1
 
       - name: Update web
         run: |
-          az containerapp update -n fiscalmind-web -g $RG \
-            --image $IMAGE:${{ github.sha }}
+          az webapp config container set -n fiscalmind-il-web -g $RG \
+            --container-image-name $IMAGE:${{ github.sha }} \
+            --container-registry-url https://fiscalmindacr.azurecr.io
+          az webapp restart -n fiscalmind-il-web -g $RG
 
       - name: Health check
         run: |
-          sleep 30
-          curl -fsS https://agent.fiscalmind.app/healthz
+          for i in $(seq 1 30); do
+            if curl -fsS "https://fiscalmind-il-web.azurewebsites.net/healthz" > /dev/null 2>&1; then
+              echo "web healthy"; exit 0
+            fi
+            sleep 10
+          done
+          echo "web never became healthy"; exit 1

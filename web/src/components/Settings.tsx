@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { type AccountTier, type EmailSenderStatus, type MailboxStatus, type WaSenderStatus } from '../api';
+import { type EmailSenderStatus, type MailboxStatus, type WaSenderStatus } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
 import { useT } from '../i18n';
@@ -9,9 +9,6 @@ import { SettingsGroup, SettingsRow } from './SettingsUI';
 interface Props {
   /** Legacy account mailbox — shown as a fallback for instances that predate admin-assigned addresses. */
   mailbox: MailboxStatus | null;
-  tier: AccountTier | null;
-  /** Where the upgrade CTA points until self-serve billing exists. */
-  contactEmail: string | null;
   /** The active agent type's own settings section (AgentTypeUI.settingsPanel), if it has one. */
   agentPanel?: ReactNode;
   /** When set (AgentTypeUI.settingsPanelTabKey), agentPanel gets its own tab instead of rendering inline. */
@@ -20,7 +17,7 @@ interface Props {
   hideMailbox?: boolean;
 }
 
-export function Settings({ mailbox, tier, contactEmail, agentPanel, agentPanelTabKey, hideMailbox }: Props) {
+export function Settings({ mailbox, agentPanel, agentPanelTabKey, hideMailbox }: Props) {
   const { t } = useT();
   const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
   const [emailSender, setEmailSender] = useState<EmailSenderStatus | null>(null);
@@ -75,28 +72,6 @@ export function Settings({ mailbox, tier, contactEmail, agentPanel, agentPanelTa
         agentPanel
       ) : (
         <>
-      <SettingsGroup title={t.settingsGroupAccount}>
-        <SettingsRow
-          title={t.yourPlan}
-          description={tier === 'premium' ? t.planPremiumDesc : t.planStandardDesc}
-          control={
-            <>
-              <span className={`badge ${tier === 'premium' ? 'badge-premium' : 'badge-neutral'}`}>
-                {tier === 'premium' ? t.tierPremium : t.tierNormal}
-              </span>
-              {tier !== 'premium' && contactEmail && (
-                <a
-                  className="btn btn-primary btn-small plan-upgrade-btn"
-                  href={`mailto:${contactEmail}?subject=${encodeURIComponent(t.upgradeMailSubject)}`}
-                >
-                  {t.upgradeToPremium}
-                </a>
-              )}
-            </>
-          }
-        />
-      </SettingsGroup>
-
       <SettingsGroup title={t.settingsGroupChannels}>
         {!hideMailbox && (
           <SettingsRow

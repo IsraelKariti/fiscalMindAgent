@@ -61,10 +61,9 @@ async function sessionStatus(userId: string) {
   // that instance can send (its admin-assigned address, or the legacy
   // account mailbox for grandfathered accounts).
   const docCollector = await agentInstances.getByTypeForUser(user.id, 'doc_collector');
-  const [sender, whitelisted, tier] = await Promise.all([
+  const [sender, whitelisted] = await Promise.all([
     resolveSenderMailbox(docCollector?.id ?? null, user.id),
     whitelist.isWhitelisted(user.email),
-    whitelist.getTier(user.email),
   ]);
   return {
     provisioned: true,
@@ -73,7 +72,6 @@ async function sessionStatus(userId: string) {
     linked: !user.google_sub.startsWith('monday:'),
     email: user.email,
     whitelisted: user.is_admin || whitelisted,
-    tier,
     senderAssigned: sender !== null,
     appUrl: env.APP_BASE_URL,
   };
@@ -137,9 +135,9 @@ mondayRouter.post(
       }
       throw err;
     }
-    // monday installs are self-serve: whitelist on provision at the normal tier
+    // monday installs are self-serve: whitelist on provision
     // (no-op when an admin already whitelisted the email).
-    await whitelist.add(email, name ?? null, 'normal');
+    await whitelist.add(email, name ?? null);
     await mondayAccounts.upsert({
       mondayAccountId: req.monday!.accountId,
       mondayUserId: req.monday!.userId,
@@ -194,8 +192,6 @@ mondayRouter.get(
       user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },
       isAdmin,
       whitelisted: isAdmin || (await whitelist.isWhitelisted(user.email)),
-      tier: await whitelist.getTier(user.email),
-      contactEmail: env.ADMIN_EMAILS[0] ?? null,
     });
   }),
 );

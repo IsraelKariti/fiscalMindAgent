@@ -1,6 +1,5 @@
 import { pool } from '../pool.js';
 import type { UserRow } from '../types.js';
-import type { AccountTier } from './whitelist.js';
 
 export async function getById(id: string): Promise<UserRow | null> {
   const { rows } = await pool.query<UserRow>('SELECT * FROM users WHERE id = $1', [id]);
@@ -15,8 +14,6 @@ export interface UserListRow {
   created_at: string;
   mailbox_address: string | null;
   whitelisted: boolean;
-  /** Null when the user is not whitelisted (tier lives on the whitelist entry). */
-  tier: AccountTier | null;
 }
 
 /**
@@ -27,8 +24,7 @@ export async function listAll(): Promise<UserListRow[]> {
   const { rows } = await pool.query<UserListRow>(
     `SELECT u.id, u.email, u.name, u.is_admin, u.created_at,
             m.email_address AS mailbox_address,
-            (w.email IS NOT NULL) AS whitelisted,
-            w.tier
+            (w.email IS NOT NULL) AS whitelisted
      FROM users u
      LEFT JOIN agent_mailboxes m ON m.user_id = u.id
      LEFT JOIN whitelisted_emails w ON w.email = lower(u.email)

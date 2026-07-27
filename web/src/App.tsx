@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, type AccountTier, type Me } from './api';
+import { api, type Me } from './api';
 import { Login } from './components/Login';
 import { Workspace } from './components/Workspace';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -13,8 +13,6 @@ export function App() {
   const [user, setUser] = useState<Me['user'] | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [whitelisted, setWhitelisted] = useState(false);
-  const [tier, setTier] = useState<AccountTier | null>(null);
-  const [contactEmail, setContactEmail] = useState<string | null>(null);
   const [impersonating, setImpersonating] = useState<Me['impersonating'] | null>(null);
   const [envName, setEnvName] = useState<string | null>(null);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
@@ -26,14 +24,12 @@ export function App() {
   useEffect(() => {
     api
       .me()
-      .then(({ authenticated, user: me, isAdmin: admin, whitelisted: allowed, tier: planTier, contactEmail: contact, impersonating: viewing, envName: env }) => {
+      .then(({ authenticated, user: me, isAdmin: admin, whitelisted: allowed, impersonating: viewing, envName: env }) => {
         setAuthed(authenticated);
         setEnvName(env ?? null);
         setUser(me ?? null);
         setIsAdmin(admin ?? false);
         setWhitelisted(allowed ?? false);
-        setTier(planTier ?? null);
-        setContactEmail(contact ?? null);
         setImpersonating(viewing ?? null);
         // Drop a stale ?login_error= once signed in.
         if (authenticated && window.location.search) window.history.replaceState(null, '', '/');
@@ -102,8 +98,6 @@ export function App() {
       {envBanner}
       <Workspace
         userEmail={user?.email ?? null}
-        tier={tier}
-        contactEmail={contactEmail}
         impersonatingEmail={impersonating?.email ?? null}
         onStopImpersonating={stopImpersonating}
         onLogout={requestLogout}

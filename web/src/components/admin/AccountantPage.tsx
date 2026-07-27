@@ -5,15 +5,14 @@ import { formatTimestamp, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
 import { CopyButton } from '../CopyButton';
-import { UpgradeAccountModal } from '../UpgradeAccountModal';
-import { MODEL_LABELS, StatusBadge, TierBadge, type AccountantRow } from './shared';
+import { MODEL_LABELS, StatusBadge, type AccountantRow } from './shared';
 
 interface Props {
   /** Null when the routed email matches no known accountant (stale link). */
   row: AccountantRow | null;
   onBack: () => void;
   onOpenAgent: (agentType: string) => void;
-  /** Re-fetches the roster after access/tier changes. */
+  /** Re-fetches the roster after access changes. */
   onChanged: () => Promise<void>;
 }
 
@@ -26,7 +25,6 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
   const { t } = useT();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [upgrading, setUpgrading] = useState(false);
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
 
   // The agents summary (incl. disabled instances and not-yet-created types).
@@ -142,18 +140,12 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
         <div className="card-header">
           <div className="card-title-row">
             <h2>{row.name ?? row.email}</h2>
-            <TierBadge row={row} />
             <StatusBadge row={row} />
           </div>
           <span className="btn-row admin-row-actions">
             {row.user && (
               <button className="btn btn-ghost btn-small" disabled={busy} onClick={impersonate}>
                 {busy ? t.justAMoment : t.enterAccount}
-              </button>
-            )}
-            {row.tier === 'normal' && (
-              <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => setUpgrading(true)}>
-                {t.upgradeAction}
               </button>
             )}
             {!row.whitelisted && (
@@ -170,10 +162,6 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
               <span dir="ltr">{row.email}</span>
               <CopyButton text={row.email} />
             </dd>
-          </div>
-          <div>
-            <dt>{t.tierLabel}</dt>
-            <dd>{row.tier ? (row.tier === 'premium' ? t.tierPremium : t.tierNormal) : <span className="muted">—</span>}</dd>
           </div>
           <div>
             <dt>{t.agentMailbox}</dt>
@@ -305,17 +293,6 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
       )}
 
       <p className="muted admin-detail-note">{t.adminDetailNote}</p>
-
-      {upgrading && (
-        <UpgradeAccountModal
-          email={row.email}
-          onClose={() => setUpgrading(false)}
-          onUpgraded={() => {
-            setUpgrading(false);
-            void onChanged();
-          }}
-        />
-      )}
 
       {confirmingRevoke && (
         <ConfirmModal

@@ -342,17 +342,11 @@ export const me: RequestHandler = async (req, res) => {
   }
 
   const isAdmin = user.is_admin;
-  // Tier of the workspace being viewed — the impersonated accountant's while
-  // impersonating, null for admins (they are not accountants).
-  const tier = await whitelist.getTier(impersonating?.email ?? user.email);
   res.json({
     authenticated: true,
     user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },
     isAdmin,
     whitelisted: isAdmin || (await whitelist.isWhitelisted(user.email)),
-    tier,
-    // Where "Upgrade to Premium" points until self-serve billing exists.
-    contactEmail: env.ADMIN_EMAILS[0] ?? null,
     // Non-null on non-production stacks — the GUI shows an environment banner.
     envName: env.ENV_NAME ?? null,
     ...(impersonating ? { impersonating } : {}),

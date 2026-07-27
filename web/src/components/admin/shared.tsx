@@ -1,4 +1,4 @@
-import type { Accountant, AccountTier, WhitelistEntry } from '../../api';
+import type { Accountant, WhitelistEntry } from '../../api';
 import { useT } from '../../i18n';
 
 /** Display names for the pickable model ids (brand names, not translated). */
@@ -17,15 +17,13 @@ export interface AccountantRow {
   email: string;
   name: string | null;
   whitelisted: boolean;
-  /** Null when not whitelisted (the tier lives on the whitelist entry). */
-  tier: AccountTier | null;
   user: Accountant | null;
 }
 
 export function buildAccountantRows(accountants: Accountant[], whitelist: WhitelistEntry[]): AccountantRow[] {
   const byEmail = new Map<string, AccountantRow>();
   for (const entry of whitelist) {
-    byEmail.set(entry.email, { email: entry.email, name: entry.name, whitelisted: true, tier: entry.tier, user: null });
+    byEmail.set(entry.email, { email: entry.email, name: entry.name, whitelisted: true, user: null });
   }
   for (const user of accountants) {
     const key = user.email.toLowerCase();
@@ -34,7 +32,7 @@ export function buildAccountantRows(accountants: Accountant[], whitelist: Whitel
       existing.user = user;
       existing.name = existing.name ?? user.name;
     } else {
-      byEmail.set(key, { email: key, name: user.name, whitelisted: user.whitelisted, tier: user.tier, user });
+      byEmail.set(key, { email: key, name: user.name, whitelisted: user.whitelisted, user });
     }
   }
   return [...byEmail.values()];
@@ -66,7 +64,3 @@ export function StatusBadge({ row }: { row: AccountantRow }) {
   );
 }
 
-export function TierBadge({ row }: { row: AccountantRow }) {
-  const { t } = useT();
-  return row.tier === 'premium' ? <span className="badge badge-premium">{t.tierPremium}</span> : null;
-}

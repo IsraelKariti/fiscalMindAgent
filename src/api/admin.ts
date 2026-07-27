@@ -32,7 +32,6 @@ const WhitelistAddSchema = z
   .object({
     email: z.string().email().max(320),
     name: z.string().min(1).max(200).nullable().optional(),
-    tier: z.enum(['normal', 'premium']).optional(),
   })
   .strict();
 
@@ -117,7 +116,6 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         createdAt: u.created_at,
         mailbox: u.mailbox_address,
         whitelisted: u.whitelisted,
-        tier: u.tier,
         agents: agentsByUser.get(u.id) ?? [],
         llmUsage: usageByUser.get(u.id) ?? [],
       })),
@@ -535,7 +533,6 @@ export const adminListWhitelist: RequestHandler = async (_req, res) => {
     entries: entries.map((e) => ({
       email: e.email,
       name: e.name,
-      tier: e.tier,
       signedUp: e.signed_up,
       createdAt: e.created_at,
     })),
@@ -554,35 +551,13 @@ export const adminAddToWhitelist: RequestHandler = async (req, res) => {
     res.status(400).json({ error: 'Admin accounts already have access.' });
     return;
   }
-  const entry = await whitelist.add(email, parsed.data.name ?? null, parsed.data.tier ?? 'normal');
+  const entry = await whitelist.add(email, parsed.data.name ?? null);
   if (!entry) {
     res.status(409).json({ error: 'This email is already whitelisted.' });
     return;
   }
-  logger.info('whitelist entry added', { adminUserId: req.realUserId, email, tier: entry.tier });
-  res.status(201).json({ entry: { email: entry.email, name: entry.name, tier: entry.tier, createdAt: entry.created_at } });
-};
-
-const TierSchema = z.object({ tier: z.enum(['normal', 'premium']) }).strict();
-
-/** PUT /api/admin/whitelist/:email/tier — change an account's tier (e.g. a manual premium upgrade). */
-export const adminSetTier: RequestHandler = async (req, res) => {
-  const email = z.string().email().safeParse(req.params.email);
-  const parsed = TierSchema.safeParse(req.body);
-  if (!email.success || !parsed.success) {
-    res.status(400).json({ error: 'Invalid tier change.' });
-    return;
-  }
-  if (!(await whitelist.setTier(email.data, parsed.data.tier))) {
-    res.status(404).json({ error: 'Email not found in the whitelist.' });
-    return;
-  }
-  logger.info('account tier changed', {
-    adminUserId: req.realUserId,
-    email: email.data.toLowerCase(),
-    tier: parsed.data.tier,
-  });
-  res.json({ ok: true });
+  logger.info('whitelist entry added', { adminUserId: req.realUserId, email });
+  res.status(201).json({ entry: { email: entry.email, name: entry.name, createdAt: entry.created_at } });
 };
 
 const AdminGrantSchema = z.object({ email: z.string().email().max(320) }).strict();

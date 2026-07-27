@@ -55,8 +55,6 @@ export function MondayObject() {
   return (
     <Workspace
       userEmail={me.user?.email ?? null}
-      tier={me.tier ?? null}
-      contactEmail={me.contactEmail ?? null}
       // Unpinned: the object shows the same multi-agent shell as the
       // standalone app (agents-home grid + sidebar switcher when the account
       // has several agents; auto-enter when it has one).

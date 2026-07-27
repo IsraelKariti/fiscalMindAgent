@@ -25,7 +25,7 @@ server and built from `web/src/monday/`:
   the tokens expire within minutes).
 - **Accounts** — first load auto-provisions a fiscalMind user keyed by the
   monday `(account_id, user_id)` pair (`monday_accounts` table, migration 017)
-  and whitelists it at the `normal` tier. If the monday user's email already
+  and whitelists it. If the monday user's email already
   belongs to a Google-based account, the surface instead offers "link with your
   Google account" — a popup running the normal Google login, carrying a signed
   short-lived token that tells the callback which monday identity to point at

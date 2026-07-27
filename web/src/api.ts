@@ -211,10 +211,6 @@ export interface Me {
   isAdmin?: boolean;
   /** Whether this account may use the app (admins are always true). */
   whitelisted?: boolean;
-  /** Tier of the workspace being viewed — the impersonated accountant's while impersonating, null for admins. */
-  tier?: AccountTier | null;
-  /** Where "Upgrade to Premium" points until self-serve billing exists. */
-  contactEmail?: string | null;
   impersonating?: { id: string; email: string; name: string | null };
   /** Non-null on non-production stacks (e.g. 'sandbox') — shows the env banner. */
   envName?: string | null;
@@ -246,8 +242,6 @@ export interface Accountant {
   createdAt: string;
   mailbox: string | null;
   whitelisted: boolean;
-  /** Null when the user is not whitelisted (tier lives on the whitelist entry). */
-  tier: AccountTier | null;
   /** Every agent instance incl. disabled ones (agent-specific stats live on the agent pages). */
   agents: AccountantAgentSummary[];
   llmUsage: AccountantModelUsage[];
@@ -340,12 +334,9 @@ export interface AdminUser {
   createdAt: string;
 }
 
-export type AccountTier = 'normal' | 'premium';
-
 export interface WhitelistEntry {
   email: string;
   name: string | null;
-  tier: AccountTier;
   signedUp: boolean;
   createdAt: string;
 }
@@ -686,18 +677,13 @@ export const api = {
   adminRevokeAdmin: (userId: string) =>
     request<{ ok: true }>(`/admin/admins/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
   adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/admin/whitelist'),
-  adminAddToWhitelist: (email: string, name?: string, tier?: AccountTier) =>
+  adminAddToWhitelist: (email: string, name?: string) =>
     request<{ entry: WhitelistEntry }>('/admin/whitelist', {
       method: 'POST',
-      body: JSON.stringify({ email, ...(name ? { name } : {}), ...(tier ? { tier } : {}) }),
+      body: JSON.stringify({ email, ...(name ? { name } : {}) }),
     }),
   adminRemoveFromWhitelist: (email: string) =>
     request<{ ok: true }>(`/admin/whitelist/${encodeURIComponent(email)}`, { method: 'DELETE' }),
-  adminSetTier: (email: string, tier: AccountTier) =>
-    request<{ ok: true }>(`/admin/whitelist/${encodeURIComponent(email)}/tier`, {
-      method: 'PUT',
-      body: JSON.stringify({ tier }),
-    }),
   impersonate: (userId: string) =>
     request<{ ok: true }>('/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),
   stopImpersonating: () => request<{ ok: true }>('/admin/impersonate/stop', { method: 'POST' }),

@@ -30,7 +30,6 @@ import {
   adminSetAgentEmail,
   adminSetKillSwitch,
   adminSetModel,
-  adminSetTier,
   requireAdmin,
   startImpersonation,
   stopImpersonation,
@@ -100,7 +99,6 @@ apiRouter.delete('/admin/admins/:userId', wrap(requireAdmin), wrap(adminRevokeAd
 apiRouter.get('/admin/whitelist', wrap(requireAdmin), wrap(adminListWhitelist));
 apiRouter.post('/admin/whitelist', wrap(requireAdmin), wrap(adminAddToWhitelist));
 apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemoveFromWhitelist));
-apiRouter.put('/admin/whitelist/:email/tier', wrap(requireAdmin), wrap(adminSetTier));
 
 apiRouter.post('/admin/agent-emails', wrap(requireAdmin), wrap(adminSetAgentEmail));
 apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));

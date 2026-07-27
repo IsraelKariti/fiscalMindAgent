@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { agentApi, api, type AccountTier, type AgentInstance, type Client, type MailboxStatus } from '../api';
+import { agentApi, api, type AgentInstance, type Client, type MailboxStatus } from '../api';
 import { ClientsRefreshProvider, WorkspaceApiProvider } from '../agents/ApiContext';
 import { getAgentUI } from '../agents/registry';
 import { AgentsHome } from './AgentsHome';
@@ -22,8 +22,6 @@ type View =
 
 interface Props {
   userEmail: string | null;
-  tier: AccountTier | null;
-  contactEmail: string | null;
   /** Set while an admin is impersonating (standalone only); enables the prompt-tuning view. */
   impersonatingEmail?: string | null;
   onStopImpersonating?: () => void;
@@ -50,8 +48,6 @@ interface Props {
  */
 export function Workspace({
   userEmail,
-  tier,
-  contactEmail,
   impersonatingEmail,
   onStopImpersonating,
   onLogout,
@@ -231,7 +227,6 @@ export function Workspace({
           onImportClients={renderImportPanel && agentUI.supportsBoardImport ? () => setImporting(true) : undefined}
           onDeleteClient={setDeleting}
           userEmail={userEmail}
-          tier={tier}
           impersonatingEmail={impersonatingEmail ?? null}
           onStopImpersonating={onStopImpersonating}
           onLogout={onLogout}
@@ -252,8 +247,6 @@ export function Workspace({
           {view.kind === 'settings' && (
             <Settings
               mailbox={mailbox}
-              tier={tier}
-              contactEmail={contactEmail}
               agentPanel={agentUI.settingsPanel?.()}
               agentPanelTabKey={agentUI.settingsPanelTabKey}
               hideMailbox={!agentUI.channels.includes('email')}

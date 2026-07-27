@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { getAgentUI } from '../../agents/registry';
 import { useT } from '../../i18n';
 import { AddAccountantModal } from '../AddAccountantModal';
-import { StatusBadge, TierBadge, rowStatus, type AccountantRow, type RowStatus } from './shared';
+import { StatusBadge, rowStatus, type AccountantRow, type RowStatus } from './shared';
 
 interface Props {
   rows: AccountantRow[];
@@ -72,7 +72,6 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
                     <th className="admin-col-name">{t.nameLabel}</th>
                     <th className="admin-col-email">{t.emailLabel}</th>
                     <th>{t.adminStatusLabel}</th>
-                    <th>{t.tierLabel}</th>
                     <th>{t.adminAgentsTitle}</th>
                   </tr>
                 </thead>
@@ -94,7 +93,6 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
                       <td>
                         <StatusBadge row={row} />
                       </td>
-                      <td>{row.tier === 'premium' ? <TierBadge row={row} /> : row.tier ? t.tierNormal : '—'}</td>
                       <td>
                         {row.user && row.user.agents.some((a) => a.enabled) ? (
                           <span

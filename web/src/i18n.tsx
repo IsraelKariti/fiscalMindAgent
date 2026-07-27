@@ -258,7 +258,6 @@ const he = {
 
   // Settings
   settingsTitle: 'הגדרות',
-  settingsGroupAccount: 'חשבון',
   settingsGroupChannels: 'ערוצי הסוכן',
   agentMailbox: 'תיבת הסוכן',
   agentMailboxDesc: 'הכתובת שממנה הסוכן שולח ומקבל מיילים. הלקוחות מתכתבים איתה; מנהל המערכת מקצה אותה.',
@@ -612,11 +611,6 @@ const he = {
   adminDetailNote:
     'רק רואי חשבון ברשימת ההיתרים יכולים להשתמש באפליקציה. "כניסה לחשבון" פותחת את הדשבורד שלהם בדיוק כפי שהם רואים אותו — ובזמן הכניסה, כל פעולה שלכם חלה על החשבון שלהם.',
   accountantsRefreshFailed: 'רענון רשימת רואי החשבון נכשל.',
-  upgradeAction: 'שדרוג',
-  upgradeAccountWarning: (email: string) =>
-    `אתם עומדים לשדרג את ${email} לפרימיום באופן ידני, בלי שהחשבון שילם על המנוי. כל יכולות הפרימיום ייפתחו לו מייד וללא תשלום.`,
-  upgrading: 'משדרג…',
-  upgradeAccountFailed: 'שדרוג החשבון נכשל.',
   llmModelTitle: 'מודל השפה',
   llmModelDesc:
     'המודל של Gemini שמשמש את כל קריאות ה־LLM — ניסוח מיילים, החלטות תזמון וניתוח קבצים — עבור כל רואי החשבון וכל הלקוחות. שינוי נכנס לתוקף מייד, מהקריאה הבאה.',
@@ -641,16 +635,6 @@ const he = {
   addAccountantLead: 'הוסיפו את כתובת ה־Gmail שאיתה רואה החשבון יתחבר. הגישה נפתחת ברגע ההוספה — אפשר להתחבר מייד.',
   googleEmail: 'אימייל Google',
   nameOptional: 'שם (אופציונלי)',
-  tierLabel: 'רמת מנוי',
-  tierNormal: 'סטנדרט',
-  tierPremium: 'פרימיום',
-
-  // Plan section (Settings) + sidebar upgrade
-  yourPlan: 'המנוי שלך',
-  planStandardDesc: 'מנוי סטנדרט — כל היכולות הקיימות פתוחות.',
-  planPremiumDesc: 'מנוי פרימיום — כל היכולות פתוחות. תודה שאתם איתנו!',
-  upgradeToPremium: 'שדרוג לפרימיום',
-  upgradeMailSubject: 'שדרוג לפרימיום ב־FiscalMind',
   addAccountantFailed: 'הוספת רואה החשבון נכשלה.',
   adding: 'מוסיף…',
 

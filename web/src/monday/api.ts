@@ -1,4 +1,4 @@
-import type { AccountTier, DashboardSummary, Me } from '../api';
+import type { DashboardSummary, Me } from '../api';
 import { getSessionToken } from './sdk';
 
 /** What the widget may show for this monday user (see POST /api/monday/session). */
@@ -8,7 +8,6 @@ export interface MondaySessionStatus {
   linked: boolean;
   email: string;
   whitelisted: boolean;
-  tier: AccountTier | null;
   /** Whether the doc collector has a sender address (admin-assigned, or the legacy account mailbox). */
   senderAssigned: boolean;
   /** Base URL of the standalone app, for "open in FiscalMind" links. */

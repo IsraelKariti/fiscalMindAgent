@@ -556,7 +556,7 @@ code {
   margin-bottom: 14px;
 }
 
-/* Title with its badges on one line (count, tier, status) — not stacked. */
+/* Title with its badges on one line (count, status) — not stacked. */
 .card-title-row {
   display: flex;
   align-items: center;
@@ -611,36 +611,6 @@ code {
   background: var(--error-bg);
   color: var(--error);
   border-color: rgba(251, 113, 133, 0.35);
-}
-
-/* Premium-tier accountants (admin roster + plan card) */
-.badge-premium {
-  background: rgba(167, 139, 250, 0.14);
-  color: #8b5cf6;
-  border-color: rgba(167, 139, 250, 0.4);
-}
-
-/* Sidebar "Upgrade to Premium" pill — quiet door to more, not an ad. */
-.sidebar-upgrade {
-  color: var(--primary);
-  font-weight: 600;
-  background: var(--primary-soft);
-  border-color: rgba(139, 92, 246, 0.3);
-}
-
-.sidebar-upgrade:hover {
-  background: rgba(139, 92, 246, 0.26);
-  border-color: rgba(139, 92, 246, 0.5);
-}
-
-/* Premium chip over the email in the sidebar account row */
-.tier-chip-premium {
-  color: var(--primary);
-}
-
-a.plan-upgrade-btn {
-  display: inline-block;
-  text-decoration: none;
 }
 
 .badge-note {
@@ -787,13 +757,6 @@ a.plan-upgrade-btn {
 
 .detail-wide {
   grid-column: 1 / -1;
-}
-
-/* Tier value with its inline upgrade button (admin detail grid) */
-.tier-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* Forms */
@@ -1128,7 +1091,7 @@ textarea {
   color: transparent;
 }
 
-/* Hazard-styled warning modal (admin grants Premium without payment) */
+/* Hazard-styled warning modal (ConfirmModal's warning variant) */
 .modal-warning {
   width: 400px;
   align-items: center;

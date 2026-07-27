@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { AccountTier, Client } from '../api';
+import type { Client } from '../api';
 import { contactLabel, displayClientName, isOverdueStopped } from '../format';
 import { useT } from '../i18n';
 
@@ -28,8 +28,6 @@ interface Props {
   muteDots?: boolean;
   onDeleteClient: (client: Client) => void;
   userEmail: string | null;
-  /** Tier of the workspace being viewed (the impersonated accountant's while impersonating). */
-  tier: AccountTier | null;
   impersonatingEmail: string | null;
   onStopImpersonating?: () => void;
   /** Absent in the monday iframe, where the identity is monday's — the logout button hides. */
@@ -92,12 +90,6 @@ const icon = {
       <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   ),
-  sparkles: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
-      <path d="M19 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z" />
-    </svg>
-  ),
   grid: (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -131,7 +123,6 @@ export function Sidebar({
   muteDots,
   onDeleteClient,
   userEmail,
-  tier,
   impersonatingEmail,
   onStopImpersonating,
   onLogout,
@@ -257,12 +248,6 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-footer">
-        {tier === 'normal' && (
-          <button className="client-item sidebar-upgrade" onClick={onSelectSettings}>
-            <span className="nav-item-icon">{icon.sparkles}</span>
-            <span className="client-item-name">{t.upgradeToPremium}</span>
-          </button>
-        )}
         <button
           className={`client-item ${settingsSelected ? 'selected' : ''}`}
           onClick={onSelectSettings}
@@ -323,11 +308,6 @@ export function Sidebar({
             >
               <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
               <span className="id-card-text">
-                {/* The account row shows the real signed-in user, so the tier chip
-                    hides while impersonating (the tier is the impersonated one's). */}
-                {tier === 'premium' && !impersonatingEmail && (
-                  <span className="microlabel tier-chip-premium">{t.tierPremium}</span>
-                )}
                 <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
               </span>
               <span className="account-row-chevron">{icon.chevronsUpDown}</span>
@@ -336,9 +316,6 @@ export function Sidebar({
             <div className="account-row" title={t.googleAccountTitle}>
               <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
               <span className="id-card-text">
-                {tier === 'premium' && !impersonatingEmail && (
-                  <span className="microlabel tier-chip-premium">{t.tierPremium}</span>
-                )}
                 <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
               </span>
             </div>

@@ -22,9 +22,11 @@ permissions:
   id-token: write
   contents: read
 
-# The sandbox lives in its own subscription (FiscalMind Sandbox); the ACR
-# stays in the production subscription, so ACR commands run on the login
-# default while containerapp commands pass --subscription explicitly.
+# The sandbox lives in its own subscription (FiscalMind Sandbox) on App Service
+# in Israel Central; the ACR stays in the production subscription, so ACR
+# commands run on the login default while webapp commands pass --subscription
+# explicitly. Migrations + demo seed run inside the worker's startup command
+# (App Service has no `exec`), so a healthy worker implies both succeeded.
 env:
   RG: fiscalmind-sandbox
   ACR: fiscalmindacr
@@ -61,30 +63,36 @@ jobs:
             docker push $IMAGE:${{ steps.sha.outputs.sha }}
           fi
 
-      - name: Update worker
+      - name: Update worker (startup command runs migrations + seed before the worker)
         run: |
-          az containerapp update -n sandbox-worker -g $RG --subscription $SANDBOX_SUB \
-            --image $IMAGE:${{ steps.sha.outputs.sha }}
+          az webapp config container set -n sandbox-il-worker -g $RG --subscription $SANDBOX_SUB \
+            --container-image-name $IMAGE:${{ steps.sha.outputs.sha }} \
+            --container-registry-url https://fiscalmindacr.azurecr.io
+          az webapp restart -n sandbox-il-worker -g $RG --subscription $SANDBOX_SUB
 
-      - name: Run DB migrations (from worker)
-        # Same TTY workaround as deploy.yml: `az containerapp exec` needs one
-        # and doesn't propagate exit codes, so grep the migrator's success line.
+      - name: Wait for worker health (implies migrations + seed succeeded)
         run: |
-          script -q -e -c "az containerapp exec -n sandbox-worker -g $RG --subscription $SANDBOX_SUB --command 'node dist/scripts/migrate.js'" /dev/null | tee migrate.log
-          grep -q "migrations complete" migrate.log
-
-      - name: Seed demo data (idempotent)
-        run: |
-          script -q -e -c "az containerapp exec -n sandbox-worker -g $RG --subscription $SANDBOX_SUB --command 'node dist/scripts/seedSandbox.js'" /dev/null | tee seed.log
-          grep -q "sandbox seed complete" seed.log
+          for i in $(seq 1 30); do
+            if curl -fsS "https://sandbox-il-worker.azurewebsites.net/healthz" > /dev/null 2>&1; then
+              echo "worker healthy"; exit 0
+            fi
+            sleep 10
+          done
+          echo "worker never became healthy"; exit 1
 
       - name: Update web
         run: |
-          az containerapp update -n sandbox-web -g $RG --subscription $SANDBOX_SUB \
-            --image $IMAGE:${{ steps.sha.outputs.sha }}
+          az webapp config container set -n sandbox-il-web -g $RG --subscription $SANDBOX_SUB \
+            --container-image-name $IMAGE:${{ steps.sha.outputs.sha }} \
+            --container-registry-url https://fiscalmindacr.azurecr.io
+          az webapp restart -n sandbox-il-web -g $RG --subscription $SANDBOX_SUB
 
       - name: Health check
         run: |
-          FQDN=$(az containerapp show -n sandbox-web -g $RG --subscription $SANDBOX_SUB --query properties.configuration.ingress.fqdn -o tsv)
-          sleep 30
-          curl -fsS "https://$FQDN/healthz"
+          for i in $(seq 1 30); do
+            if curl -fsS "https://sandbox-il-web.azurewebsites.net/healthz" > /dev/null 2>&1; then
+              echo "web healthy"; exit 0
+            fi
+            sleep 10
+          done
+          echo "web never became healthy"; exit 1

@@ -30,6 +30,8 @@ const EnvSchema = z.object({
   GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
   ACCOUNTANT_TIMEZONE: z.string().min(1).default('America/New_York'),
   PORT: z.coerce.number().int().positive().default(3000),
+  /** When set, the worker serves 200 on /healthz here (App Service pings the container port). */
+  WORKER_HEALTH_PORT: z.coerce.number().int().positive().optional(),
   // Public base URL of the dashboard/web process (no trailing slash) — used to
   // build OAuth redirect URIs. http://localhost:3000 locally, the real
   // https://app.<domain> in production.

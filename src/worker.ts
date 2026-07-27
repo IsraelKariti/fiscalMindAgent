@@ -1,3 +1,4 @@
+import http from 'node:http';
 import { createSendEmailWorker } from './queue/sendEmailWorker.js';
 import { resyncScheduledJobs } from './queue/resyncScheduledJobs.js';
 import { createOverdueScanWorker, ensureOverdueScanScheduler } from './queue/overdueScanWorker.js';
@@ -5,10 +6,23 @@ import { createDebtScanWorker, ensureDebtScanScheduler } from './queue/debtScanW
 import { createClientImportScanWorker, ensureClientImportScanScheduler } from './queue/clientImportScanWorker.js';
 import { createTaxFetchWorker, sweepOrphanedTaxFetchSessions } from './queue/taxFetchWorker.js';
 import { createAnomalyScanWorker, ensureAnomalyScanScheduler } from './queue/anomalyScanWorker.js';
+import { env } from './config/env.js';
 import { runOverdueScan } from './agents/docCollector/overdueScan.js';
 import { runDebtScan } from './agents/debtCollector/dailyScan.js';
 import { runClientImportScan } from './agents/shared/clientImportScan.js';
 import { logger } from './util/logger.js';
+
+// App Service (unlike Container Apps) probes the container's port and restarts
+// containers that never listen; the worker has no HTTP role, so expose a bare
+// health endpoint only where the platform demands one.
+if (env.WORKER_HEALTH_PORT) {
+  http
+    .createServer((req, res) => {
+      res.writeHead(req.url === '/healthz' || req.url === '/' ? 200 : 404);
+      res.end();
+    })
+    .listen(env.WORKER_HEALTH_PORT, () => logger.info('worker health listener up', { port: env.WORKER_HEALTH_PORT }));
+}
 
 await resyncScheduledJobs();
 const worker = createSendEmailWorker();

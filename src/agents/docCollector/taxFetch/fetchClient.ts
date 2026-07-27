@@ -33,6 +33,7 @@ export interface TaxFetchClient {
 const MAX_DOWNLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_DOCUMENTS_PER_FETCH = 20;
 const MAX_EMPLOYER_NAME_CHARS = 200;
+const MAX_TITLE_CHARS = 200;
 const ALLOWED_CONTENT_TYPES = new Set(['application/pdf']);
 
 const DownloadResponse = z.object({
@@ -43,6 +44,7 @@ const DownloadResponse = z.object({
         contentType: z.string().min(1),
         dataBase64: z.string().min(1),
         employerName: z.string().max(MAX_EMPLOYER_NAME_CHARS).nullish(),
+        title: z.string().max(MAX_TITLE_CHARS).nullish(),
         // Provider-defined vocabulary; the runner's response crosses a trust
         // boundary, so only shape is enforced here — meaning is the delivery
         // spec's problem (an unknown kind just gets default handling).
@@ -104,7 +106,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
 
     const parsed = DownloadResponse.safeParse(await res.json().catch(() => null));
     if (!parsed.success) throw new Error('browser runner returned a malformed download response');
-    return parsed.data.documents.map(({ filename, contentType, dataBase64, employerName, kind }) => {
+    return parsed.data.documents.map(({ filename, contentType, dataBase64, employerName, title, kind }) => {
       if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
         throw new Error(`browser runner returned a disallowed content type: ${contentType}`);
       }
@@ -116,9 +118,17 @@ class HttpTaxFetchClient implements TaxFetchClient {
       if (buffer.length === 0 || buffer.length > MAX_DOWNLOAD_BYTES) {
         throw new Error('browser runner returned an empty or oversized document');
       }
-      // The name originates on the external site: keep it plain text, one line.
-      const cleanedEmployer = employerName?.replace(/[\p{Cc}\p{Cf}]+/gu, ' ').replace(/\s+/g, ' ').trim() || null;
-      return { buffer, filename: sanitizeFilename(filename), contentType, employerName: cleanedEmployer, kind: kind ?? null };
+      // These names originate on the external site: keep them plain text, one line.
+      const oneLine = (text: string | null | undefined): string | null =>
+        text?.replace(/[\p{Cc}\p{Cf}]+/gu, ' ').replace(/\s+/g, ' ').trim() || null;
+      return {
+        buffer,
+        filename: sanitizeFilename(filename),
+        contentType,
+        employerName: oneLine(employerName),
+        title: oneLine(title),
+        kind: kind ?? null,
+      };
     });
   }
 
@@ -187,11 +197,12 @@ const MOCK_PDF = Buffer.from(
  * tested.
  */
 class MockTaxFetchClient implements TaxFetchClient {
-  private readonly live = new Set<string>();
+  /** session id → provider, so downloads can mirror each provider's real document shape. */
+  private readonly live = new Map<string, string>();
 
-  async startLogin(sessionId: string): Promise<void> {
+  async startLogin(sessionId: string, provider: string): Promise<void> {
     await sleep(2000);
-    this.live.add(sessionId);
+    this.live.set(sessionId, provider);
   }
 
   async submitOtp(sessionId: string, otp: string): Promise<void> {
@@ -201,9 +212,33 @@ class MockTaxFetchClient implements TaxFetchClient {
   }
 
   async downloadDocuments(sessionId: string, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]> {
-    if (!this.live.has(sessionId)) throw new SessionGoneError();
+    const provider = this.live.get(sessionId);
+    if (!provider) throw new SessionGoneError();
     await sleep(500);
     this.live.delete(sessionId);
+    // Harel: a client can hold several study funds, all the same document kind
+    // told apart only by their on-site titles — return two so the multi-fund
+    // delivery path (labels, plural texts) is exercised without the site.
+    if (provider === 'harel') {
+      return [
+        {
+          buffer: MOCK_PDF,
+          filename: `mock_harel_study_fund_${opts.taxYear}_1.pdf`,
+          contentType: 'application/pdf',
+          employerName: null,
+          title: 'דוח שנתי קרן השתלמות מסלול כללי',
+          kind: 'study_fund_annual',
+        },
+        {
+          buffer: MOCK_PDF,
+          filename: `mock_harel_study_fund_${opts.taxYear}_2.pdf`,
+          contentType: 'application/pdf',
+          employerName: null,
+          title: 'דוח שנתי קרן השתלמות מסלול מניות',
+          kind: 'study_fund_annual',
+        },
+      ];
+    }
     // Provider-aware via the agreed keys: any non-106 key set (e.g. Altshuler's
     // pension/study fund) returns one PDF per requested key, so the multi-document
     // delivery path is exercised with the right kinds and labels.

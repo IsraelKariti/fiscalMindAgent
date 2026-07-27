@@ -212,7 +212,10 @@ capability** — there is no accountant button.
   `config/env.ts` would defeat the isolation.
 - **Providers**: `src/browserRunner/` is provider-structured
   (`DocumentFetchProvider` in `providerTypes.ts`) so other sites can be added;
-  today only `israel_tax_authority`. `TAX_FETCH_MOCK=true` swaps in an
+  today `israel_tax_authority` (Form 106), `altshuler_shaham` (pension/study-fund
+  annual report + tax certs) and `harel` (study-fund annual reports — downloads
+  every doc under תחום גמל והשתלמות for the year, all result pages; a worker-side
+  spec in `taxFetch/providers.ts` mirrors each). `TAX_FETCH_MOCK=true` swaps in an
   in-worker no-runner mock (`fetchClient.ts` — every real login emails a real
   citizen an OTP, so iterate on the mock). `scripts/taxFetchSmoke.ts` validates the
   real-site port once, interactively (no token/runner needed).

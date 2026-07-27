@@ -7,6 +7,12 @@ export interface FetchedDocument {
   /** Employer name exactly as the source site spells it (multi-employer Form 106), when the site provides one. */
   employerName?: string | null;
   /**
+   * The document's on-site row title, exactly as the site shows it (e.g. a
+   * Harel study-fund report's name). Distinguishes several documents of the
+   * same kind when the site names them freely.
+   */
+  title?: string | null;
+  /**
    * Provider-defined document kind (e.g. the tax authority's 'form106' /
    * 'salary_summary'). The worker's delivery spec for the same provider
    * interprets it; the runner treats it as opaque.

@@ -2,7 +2,7 @@ import { decryptSecret, encryptSecret } from '../../crypto/secretBox.js';
 import { pool } from '../pool.js';
 
 /** Browser-automation portals we can log into on a client's behalf. */
-export type PortalProvider = 'israel_tax_authority' | 'altshuler_shaham';
+export type PortalProvider = 'israel_tax_authority' | 'altshuler_shaham' | 'harel';
 
 /**
  * Per-client portal login credentials, imported from the accountant's

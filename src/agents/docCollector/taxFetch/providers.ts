@@ -250,9 +250,100 @@ const altshulerShahamSpec: FetchProviderSpec = {
   },
 };
 
+// ── Harel ───────────────────────────────────────────────────────────────────
+
+/** A fetched Harel doc's display name: the on-site row title, else a generic noun. */
+function harelDocName(doc: FetchedDocument): string {
+  return doc.title ?? 'דוח שנתי — קרן השתלמות';
+}
+
+/**
+ * Harel (הראל ביטוח ופיננסים). One SMS-OTP login pulls the previous year's
+ * annual documents for EVERY study fund the client holds there (the personal
+ * area's דוחות תקופתיים list filtered to תחום גמל והשתלמות + שנתי + the year) —
+ * a client can hold several funds/accounts and Harel names the report documents
+ * freely (דוח תקופתי מקוצר / דוחות תקופתיים / אישור מס דוח שנתי מקוצר…, verified
+ * live 2026-07-27), so the runner downloads the whole filtered list and each
+ * file carries its on-site row title (doc type + account), never a hardcoded
+ * document name.
+ */
+const harelSpec: FetchProviderSpec = {
+  id: 'harel',
+  siteNameHe: 'הראל',
+  otpChannel: 'sms',
+
+  documents: [
+    {
+      key: 'study_fund_annual',
+      documentDescriptionHe: 'דוח שנתי ואישורי מס — קרן השתלמות (כל הדוחות אם יש כמה קרנות)',
+      matchesRequiredDocument: (doc) => /השתלמות/.test(doc.name) && /הראל/.test(doc.name),
+      // One login yields a report per fund; all of them satisfy the single
+      // study-fund checklist item.
+      ownsFetchedDocument: () => true,
+    },
+  ],
+
+  async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
+    // The login needs a national ID and the client's phone. The ID comes from a
+    // portal-credentials row; fall back to the tax-authority row's id_number
+    // (same person, same ת"ז) so a client already set up for the 106 fetch needs
+    // no new credential. The phone is the client's own WhatsApp number.
+    const own = await clientPortalCredentials.getForClient(client.id, 'harel');
+    const idNumber = own?.id_number ?? (await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority'))?.id_number;
+    if (!idNumber || !client.wa_phone) return null;
+    return { idNumber, phoneNumber: client.wa_phone };
+  },
+
+  messages: {
+    loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר הראל כרגע. נוכל לנסות שוב מאוחר יותר.',
+    busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
+    otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
+    otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS מהראל.',
+    otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
+    downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
+  },
+
+  delivery: {
+    waConfirmation(docs: FetchedDocument[], canEmail: boolean): string {
+      const single = docs.length === 1;
+      const fetchedWhat = single
+        ? 'את הדוח השנתי של קרן ההשתלמות שלך'
+        : `${docs.length} דוחות שנתיים של קרנות ההשתלמות שלך`;
+      const tail = canEmail
+        ? single
+          ? 'שלחתי לך עותק למייל.'
+          : 'שלחתי לך עותקים למייל.'
+        : single
+          ? 'המסמך נשמר והועבר לרואה החשבון.'
+          : 'המסמכים נשמרו והועברו לרואה החשבון.';
+      return `הצלחתי למשוך ${fetchedWhat} מהראל 🎉 ${tail}`;
+    },
+
+    emailSubject(docs: FetchedDocument[], taxYear: number): string {
+      return docs.length > 1
+        ? `דוחות שנתיים קרנות השתלמות - הראל - ${taxYear}`
+        : `דוח שנתי קרן השתלמות - הראל - ${taxYear}`;
+    },
+
+    emailBodyLines(docs: FetchedDocument[], taxYear: number): string[] {
+      return [
+        docs.length === 1
+          ? `מצורף הדוח השנתי של קרן ההשתלמות שלך לשנת ${taxYear}, שנמשך עבורך מהראל.`
+          : `מצורפים ${docs.length} הדוחות השנתיים של קרנות ההשתלמות שלך לשנת ${taxYear}, שנמשכו עבורך מהראל:`,
+        ...(docs.length > 1 ? ['', ...docs.map((d) => `• ${harelDocName(d)}`)] : []),
+      ];
+    },
+
+    fileLabel(doc: FetchedDocument, taxYear: number): string | null {
+      return `${harelDocName(doc)} — הראל ${taxYear}`;
+    },
+  },
+};
+
 const SPECS: Record<string, FetchProviderSpec> = {
   [israelTaxAuthoritySpec.id]: israelTaxAuthoritySpec,
   [altshulerShahamSpec.id]: altshulerShahamSpec,
+  [harelSpec.id]: harelSpec,
 };
 
 /** Looks up a provider spec; throws on an id the worker doesn't know (bad row / version skew). */

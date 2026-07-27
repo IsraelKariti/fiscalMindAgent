@@ -32,6 +32,8 @@ COPY --from=backend-build /app/dist dist/
 COPY --from=gui-build /gui/dist web/dist/
 # migrate.js resolves ../migrations relative to its own location (dist/scripts/)
 COPY migrations/ dist/migrations/
+# App Service worker startup (see the script header for why it exists)
+COPY scripts/appservice-start-worker.sh ./
 USER node
 EXPOSE 3000
 CMD ["node", "dist/src/web.js"]

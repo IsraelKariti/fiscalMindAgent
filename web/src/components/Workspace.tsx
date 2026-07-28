@@ -64,9 +64,10 @@ export function Workspace({
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
 
-  // Which agent workspace this shell shows. A single instance (or a pinned
-  // type) auto-enters it — same UX as before agents existed; with several,
-  // the remembered one wins and no memory lands on the agents-home page.
+  // Which agent workspace this shell shows. Boot always auto-enters one —
+  // the pinned type, the remembered one, else the doc collector (the product's
+  // core agent), else the first. The agents-home grid is never a landing page;
+  // multi-agent accounts reach it only via the sidebar's "my agents" item.
   useEffect(() => {
     api
       .listAgents()
@@ -76,12 +77,13 @@ export function Workspace({
           setAgent(list.find((a) => a.agentType === pinnedAgentType) ?? list[0] ?? null);
           return;
         }
-        if (list.length <= 1) {
-          setAgent(list[0] ?? null);
-          return;
-        }
         const stored = sessionStorage.getItem('fm.lastAgentId');
-        setAgent(list.find((a) => a.id === stored) ?? null);
+        setAgent(
+          list.find((a) => a.id === stored) ??
+            list.find((a) => a.agentType === 'doc_collector') ??
+            list[0] ??
+            null,
+        );
       })
       .catch(console.error);
   }, [pinnedAgentType]);
@@ -95,7 +97,8 @@ export function Workspace({
     setAgent(next);
   };
   const showAgentsHome = () => {
-    // Explicitly leaving an agent also forgets it, so a refresh lands back home.
+    // Explicitly leaving an agent also forgets it — a refresh from here boots
+    // into the default (doc collector) rather than the forgotten agent.
     sessionStorage.removeItem('fm.lastAgentId');
     setClients([]);
     setView({ kind: 'empty' });
@@ -174,9 +177,9 @@ export function Workspace({
   if (!agents) {
     return <div className="screen-center muted">{t.loading}</div>;
   }
-  // No active agent: the top-level registry page (multi-agent accounts only —
-  // single-agent and pinned shells auto-enter above; empty accounts see the
-  // none-enabled message inside).
+  // No active agent: reached only when the account has no agents at all (the
+  // none-enabled message inside) or after an explicit "my agents" click —
+  // boot never lands here anymore.
   if (!agent || !wsApi) {
     return <AgentsHome agents={agents} onSelectAgent={enterAgent} userEmail={userEmail} onLogout={onLogout} />;
   }

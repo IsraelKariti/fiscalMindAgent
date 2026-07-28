@@ -102,12 +102,14 @@ active type's tabs. Requests flow through `agentApi(agentId)` provided via
 `WorkspaceApiContext` (`useWorkspaceApi()` in components; the default context
 value is the legacy unprefixed `api`).
 
-Shell behavior (`Workspace.tsx`): boots on `GET /agents`; one instance →
-auto-enter (pre-agents UX); several → `AgentsHome` card grid + sidebar
-switcher. A `pinnedAgentType` prop can lock a surface to one type; no surface
-uses it today — the monday custom object was unpinned from `doc_collector`
-once `customer_service` shipped, so it shows the same multi-agent shell as
-the standalone app.
+Shell behavior (`Workspace.tsx`): boots on `GET /agents` and always
+auto-enters an agent — the remembered one, else the `doc_collector` instance
+(the product's core agent), else the first. The `AgentsHome` card grid is
+never a landing page; multi-agent accounts reach it only via the sidebar's
+"my agents" item (agent-less accounts see its none-enabled message). A
+`pinnedAgentType` prop can lock a surface to one type; no surface uses it
+today — the monday custom object was unpinned from `doc_collector` once
+`customer_service` shipped, so it shows the same shell as the standalone app.
 
 ## Adding an agent type (checklist)
 

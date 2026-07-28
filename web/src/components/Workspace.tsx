@@ -211,7 +211,6 @@ export function Workspace({
         <Sidebar
           agentName={agent.name}
           agentIcon={agentUI.icon}
-          onShowAgents={!pinnedAgentType && agents.length > 1 ? showAgentsHome : undefined}
           clients={clients}
           selectedClientId={view.kind === 'client' ? view.clientId : null}
           dashboardSelected={view.kind === 'overview'}

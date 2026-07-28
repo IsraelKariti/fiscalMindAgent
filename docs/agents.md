@@ -105,8 +105,9 @@ value is the legacy unprefixed `api`).
 Shell behavior (`Workspace.tsx`): boots on `GET /agents` and always
 auto-enters an agent — the remembered one, else the `doc_collector` instance
 (the product's core agent), else the first. The `AgentsHome` card grid is
-never a landing page; multi-agent accounts reach it only via the sidebar's
-"my agents" item (agent-less accounts see its none-enabled message). A
+not accountant-reachable anymore (no landing page, no sidebar item) — it
+survives only as the none-enabled message for agent-less accounts and as
+the coming-soon pane's back target. A
 `pinnedAgentType` prop can lock a surface to one type; no surface uses it
 today — the monday custom object was unpinned from `doc_collector` once
 `customer_service` shipped, so it shows the same shell as the standalone app.

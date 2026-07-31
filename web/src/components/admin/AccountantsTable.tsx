@@ -22,10 +22,12 @@ export function AccountantsTable({ rows, onOpen, onChanged }: Props) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const deleteAccount = async (row: AccountantRow) => {
-    if (!row.user) return;
     setDeleteError(null);
     try {
-      await api.adminDeleteAccountant(row.user.id);
+      // Signed-up account: full deletion (data + whitelist entry). Invited-only
+      // row: there's no account yet — removing the whitelist entry is the whole job.
+      if (row.user) await api.adminDeleteAccountant(row.user.id);
+      else await api.adminRemoveFromWhitelist(row.email);
       onChanged();
     } catch (err) {
       setDeleteError(err instanceof ApiError ? err.message : t.deleteAccountFailed);
@@ -130,17 +132,15 @@ export function AccountantsTable({ rows, onOpen, onChanged }: Props) {
                         )}
                       </td>
                       <td className="admin-col-actions">
-                        {row.user && (
-                          <button
-                            className="btn btn-ghost btn-small danger-action"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleting(row);
-                            }}
-                          >
-                            {t.deleteAccountTitle}
-                          </button>
-                        )}
+                        <button
+                          className="btn btn-ghost btn-small danger-action"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleting(row);
+                          }}
+                        >
+                          {t.deleteAccountTitle}
+                        </button>
                       </td>
                     </tr>
                   ))}

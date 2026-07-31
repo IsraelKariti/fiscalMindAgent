@@ -692,8 +692,8 @@ export const adminGrantAdmin: RequestHandler = async (req, res) => {
  * account. FK cascades take everything they own: agent instances (whole-account
  * deletion is the one sanctioned way an agent_instances row dies — "disable,
  * don't delete" applies to live accounts), clients, conversations, documents,
- * tokens. The whitelist entry is left alone so the person can sign in again to
- * a fresh account; remove it separately to revoke access.
+ * tokens. The whitelist entry goes with it, so the person disappears from the
+ * roster entirely; re-adding the email issues a fresh invite.
  */
 export const adminDeleteAccountant: RequestHandler = async (req, res) => {
   const userId = z.string().uuid().safeParse(req.params.userId);
@@ -711,6 +711,7 @@ export const adminDeleteAccountant: RequestHandler = async (req, res) => {
     return;
   }
   await users.deleteById(userId.data);
+  await whitelist.remove(target.email.toLowerCase());
   logger.warn('accountant account deleted', { adminUserId: req.realUserId, targetUserId: target.id, targetEmail: target.email });
   res.json({ ok: true });
 };

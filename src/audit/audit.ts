@@ -29,6 +29,7 @@ export type AuditAction =
   | 'debt.confirmed_paid'
   | 'injection.cycle_suppressed'
   | 'client.auto_enrolled'
+  | 'agent.auto_provisioned'
   | `admin.${string}`;
 
 export interface AuditEvent {

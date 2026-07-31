@@ -12,9 +12,13 @@ are live too. Industry pattern followed: one app with an agent registry
 - **Agent type** — behavior + UI defined in code. Backend half in
   `src/agents/<type>/`, frontend half in `web/src/agents/<type>.tsx`,
   registered in `src/agents/registry.ts` and `web/src/agents/registry.ts`.
-- **Agent instance** — one row in `agent_instances` per (accountant, type),
-  created by admin enablement only (`agentInstances.enableInstance`); new
-  accounts start with zero agents. `enabled=false`
+- **Agent instance** — one row in `agent_instances` per (accountant, type).
+  The doc collector is the default — and only — out-of-the-box agent: a
+  whitelisted account with zero instance rows (enabled or not) gets an enabled
+  `doc_collector` on first app load (`ensureDefaultDocCollector` in
+  `src/api/auth.ts`, audited as `agent.auto_provisioned`; no sender address —
+  an admin still assigns that). Every other type is admin-enabled only
+  (`agentInstances.enableInstance`). `enabled=false`
   hides an instance; **never DELETE an instance row — clients cascade off it
   and the agent's data would be destroyed.**
 - **Kill switches** — `agent_instances.enabled` is re-checked at act time

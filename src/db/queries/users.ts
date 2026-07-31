@@ -124,7 +124,8 @@ export async function upsertFromGoogle(args: {
   );
   const row = rows[0];
   if (!row) throw new Error('upsertFromGoogle: no row returned');
-  // New accounts start with zero agent instances — an admin enables agents
-  // per accountant from the admin panel (agentInstances.enableInstance).
+  // New accounts start with zero agent instances here; a whitelisted account
+  // gets its default doc_collector on first app load (ensureDefaultDocCollector
+  // in api/auth.ts). Everything else is admin-enabled (agentInstances.enableInstance).
   return row;
 }

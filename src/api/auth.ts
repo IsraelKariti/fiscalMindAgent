@@ -2,9 +2,11 @@ import crypto from 'node:crypto';
 import type { Request, RequestHandler, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env.js';
+import * as agentInstances from '../db/queries/agentInstances.js';
 import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
+import { recordAudit } from '../audit/audit.js';
 import { logger } from '../util/logger.js';
 import { consumeMondayHandoffToken, verifyMondayLinkToken } from './mondayAuth.js';
 
@@ -314,6 +316,35 @@ export const logout: RequestHandler = (_req, res) => {
   res.json({ ok: true });
 };
 
+/**
+ * The doc collector is the product's default — and only — out-of-the-box
+ * agent: an activated (whitelisted) account with no agent instances at all
+ * gets an enabled doc_collector the first time it loads the app. Every other
+ * agent type stays admin-enabled, and accounts whose instances an admin
+ * disabled are left alone (any row, enabled or not, skips provisioning).
+ * The instance starts without a sender address (there is deliberately no
+ * auto-derivation anywhere), so client intake stays blocked until an admin
+ * assigns one. Idempotent under concurrent calls via enableInstance's upsert.
+ */
+async function ensureDefaultDocCollector(user: { id: string; email: string }): Promise<void> {
+  try {
+    const existing = await agentInstances.listAllForUser(user.id);
+    if (existing.length > 0) return;
+    const instance = await agentInstances.enableInstance(user.id, 'doc_collector');
+    recordAudit({
+      actorType: 'system',
+      action: 'agent.auto_provisioned',
+      actorUserId: user.id,
+      agentInstanceId: instance.id,
+      detail: { agentType: 'doc_collector', email: user.email },
+    });
+    logger.info('default doc_collector auto-provisioned', { userId: user.id });
+  } catch (err) {
+    // Provisioning must never block sign-in — the next /api/me retries.
+    logger.error('default agent auto-provision failed', err, { userId: user.id });
+  }
+}
+
 /** GET /api/me — session + profile for the SPA. `user` is always the real signed-in user. */
 export const me: RequestHandler = async (req, res) => {
   const identity = resolveIdentity(req);
@@ -342,11 +373,13 @@ export const me: RequestHandler = async (req, res) => {
   }
 
   const isAdmin = user.is_admin;
+  const whitelisted = isAdmin || (await whitelist.isWhitelisted(user.email));
+  if (whitelisted) await ensureDefaultDocCollector(user);
   res.json({
     authenticated: true,
     user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },
     isAdmin,
-    whitelisted: isAdmin || (await whitelist.isWhitelisted(user.email)),
+    whitelisted,
     // Non-null on non-production stacks — the GUI shows an environment banner.
     envName: env.ENV_NAME ?? null,
     ...(impersonating ? { impersonating } : {}),

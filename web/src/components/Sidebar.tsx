@@ -131,7 +131,7 @@ export function Sidebar({
   const { t } = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
-  const hasAccountMenu = Boolean(onShowAgents || onLogout);
+  const hasAccountMenu = Boolean(onShowAgents);
   useEffect(() => {
     if (!menuOpen) return;
     const onPointerDown = (e: PointerEvent) => {
@@ -255,6 +255,12 @@ export function Sidebar({
           <span className="nav-item-icon">{icon.gear}</span>
           <span className="client-item-name">{t.settings}</span>
         </button>
+        {onLogout && (
+          <button className="client-item" onClick={onLogout}>
+            <span className="nav-item-icon">{icon.logout}</span>
+            <span className="client-item-name">{t.logout}</span>
+          </button>
+        )}
         {impersonatingEmail && (
           <div className="id-card impersonation-card" title={t.impersonationTitle}>
             <span className="id-card-icon">{icon.eye}</span>
@@ -281,19 +287,6 @@ export function Sidebar({
                 >
                   <span className="nav-item-icon">{icon.grid}</span>
                   <span>{t.agentsHomeTitle}</span>
-                </button>
-              )}
-              {onLogout && (
-                <button
-                  className="account-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onLogout();
-                  }}
-                >
-                  <span className="nav-item-icon">{icon.logout}</span>
-                  <span>{t.logout}</span>
                 </button>
               )}
             </div>

@@ -707,6 +707,8 @@ export const api = {
     }),
   adminRemoveFromWhitelist: (email: string) =>
     request<{ ok: true }>(`/admin/whitelist/${encodeURIComponent(email)}`, { method: 'DELETE' }),
+  adminDeleteAccountant: (userId: string) =>
+    request<{ ok: true }>(`/admin/accountants/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
   impersonate: (userId: string) =>
     request<{ ok: true }>('/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),
   stopImpersonating: () => request<{ ok: true }>('/admin/impersonate/stop', { method: 'POST' }),

@@ -43,6 +43,17 @@ export async function listAll(): Promise<UserListRow[]> {
   return rows;
 }
 
+/**
+ * Permanently deletes an account; FK cascades take its agent instances,
+ * clients, emails, documents and tokens with it. `NOT is_admin` is a second
+ * line of defense under the handler's own guard — an admin row is never
+ * deletable here regardless of caller bugs.
+ */
+export async function deleteById(id: string): Promise<UserRow | null> {
+  const { rows } = await pool.query<UserRow>('DELETE FROM users WHERE id = $1 AND NOT is_admin RETURNING *', [id]);
+  return rows[0] ?? null;
+}
+
 export async function getByEmail(email: string): Promise<UserRow | null> {
   const { rows } = await pool.query<UserRow>('SELECT * FROM users WHERE email = $1', [email]);
   return rows[0] ?? null;

@@ -144,7 +144,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
           <AccountantsTable
             rows={rows}
             onOpen={(email) => navigate({ screen: 'accountant', email })}
-            onAdded={() => refresh().catch(() => setError(t.accountantsRefreshFailed))}
+            onChanged={() => refresh().catch(() => setError(t.accountantsRefreshFailed))}
           />
         )}
 

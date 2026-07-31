@@ -17,6 +17,7 @@ import {
   adminDisableAgent,
   adminEnableAgent,
   adminGetKillSwitch,
+  adminDeleteAccountant,
   adminGetModel,
   adminGrantAdmin,
   adminListAccountantAgents,
@@ -85,6 +86,7 @@ apiRouter.get('/admin/accountants', wrap(requireAdmin), wrap(adminListAccountant
 apiRouter.get('/admin/accountants/:userId/agents', wrap(requireAdmin), wrap(adminListAccountantAgents));
 apiRouter.post('/admin/accountants/:userId/agents', wrap(requireAdmin), wrap(adminEnableAgent));
 apiRouter.delete('/admin/accountants/:userId/agents/:agentType', wrap(requireAdmin), wrap(adminDisableAgent));
+apiRouter.delete('/admin/accountants/:userId', wrap(requireAdmin), wrap(adminDeleteAccountant));
 apiRouter.post('/admin/impersonate', wrap(requireAdmin), wrap(startImpersonation));
 apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersonation));
 apiRouter.get('/admin/llm-usage/daily', wrap(requireAdmin), wrap(adminLlmUsageDaily));

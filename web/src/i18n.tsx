@@ -594,6 +594,10 @@ const he = {
   auditColSeverity: 'חומרה',
   auditColDetail: 'פרטים',
   adminDangerZone: 'פעולות מסוכנות',
+  deleteAccountTitle: 'מחיקת חשבון',
+  deleteAccountConfirm: (email: string) =>
+    `למחוק לצמיתות את החשבון של ${email}? כל הנתונים — סוכנים, לקוחות, שיחות ומסמכים — יימחקו ולא ניתן לשחזר אותם. הכתובת תישאר ברשימת ההיתרים, כך שאפשר יהיה להתחבר מחדש ולהתחיל מאפס.`,
+  deleteAccountFailed: 'מחיקת החשבון נכשלה.',
   adminRevokeDesc: 'ביטול הגישה מנתק את רואה החשבון מהאפליקציה מייד. הנתונים נשמרים, ואפשר להפעיל את הגישה מחדש בכל רגע.',
   justAMoment: 'רק רגע…',
   enterAccount: 'כניסה לחשבון',

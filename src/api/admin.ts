@@ -687,6 +687,34 @@ export const adminGrantAdmin: RequestHandler = async (req, res) => {
   res.status(201).json({ admin: { id: user.id, email: user.email, name: user.name, createdAt: user.created_at } });
 };
 
+/**
+ * DELETE /api/admin/accountants/:userId — permanently delete an accountant's
+ * account. FK cascades take everything they own: agent instances (whole-account
+ * deletion is the one sanctioned way an agent_instances row dies — "disable,
+ * don't delete" applies to live accounts), clients, conversations, documents,
+ * tokens. The whitelist entry is left alone so the person can sign in again to
+ * a fresh account; remove it separately to revoke access.
+ */
+export const adminDeleteAccountant: RequestHandler = async (req, res) => {
+  const userId = z.string().uuid().safeParse(req.params.userId);
+  if (!userId.success) {
+    res.status(404).json({ error: 'Accountant not found.' });
+    return;
+  }
+  const target = await users.getById(userId.data);
+  if (!target) {
+    res.status(404).json({ error: 'Accountant not found.' });
+    return;
+  }
+  if (target.is_admin) {
+    res.status(400).json({ error: 'Cannot delete an admin account — revoke admin access first.' });
+    return;
+  }
+  await users.deleteById(userId.data);
+  logger.warn('accountant account deleted', { adminUserId: req.realUserId, targetUserId: target.id, targetEmail: target.email });
+  res.json({ ok: true });
+};
+
 /** DELETE /api/admin/admins/:userId — revoke admin access; never your own, never the last admin's. */
 export const adminRevokeAdmin: RequestHandler = async (req, res) => {
   const userId = z.string().uuid().safeParse(req.params.userId);

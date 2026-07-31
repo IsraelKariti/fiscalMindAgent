@@ -21,6 +21,7 @@ const KNOWN_ROUTES: Record<string, { action: `admin.${string}`; severity: AuditS
   'POST /admin/impersonate/stop': { action: 'admin.impersonation_stopped', severity: 'info' },
   'POST /admin/accountants/:userId/agents': { action: 'admin.agent_enabled', severity: 'info' },
   'DELETE /admin/accountants/:userId/agents/:agentType': { action: 'admin.agent_disabled', severity: 'warning' },
+  'DELETE /admin/accountants/:userId': { action: 'admin.accountant_deleted', severity: 'critical' },
   'PUT /admin/model': { action: 'admin.model_changed', severity: 'warning' },
   'POST /admin/agent-emails': { action: 'admin.agent_email_set', severity: 'info' },
   'POST /admin/agent-tax-year': { action: 'admin.agent_tax_year_set', severity: 'info' },

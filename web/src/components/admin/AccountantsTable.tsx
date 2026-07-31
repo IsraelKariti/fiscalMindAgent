@@ -1,21 +1,36 @@
 import { useMemo, useState } from 'react';
+import { api, ApiError } from '../../api';
 import { getAgentUI } from '../../agents/registry';
 import { useT } from '../../i18n';
 import { AddAccountantModal } from '../AddAccountantModal';
+import { ConfirmModal } from '../ConfirmModal';
 import { StatusBadge, rowStatus, type AccountantRow, type RowStatus } from './shared';
 
 interface Props {
   rows: AccountantRow[];
   onOpen: (email: string) => void;
-  onAdded: () => void;
+  onChanged: () => void;
 }
 
 /** The accountant roster: a searchable, filterable full-width table; a row opens the accountant's page. */
-export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
+export function AccountantsTable({ rows, onOpen, onChanged }: Props) {
   const { t } = useT();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<RowStatus | 'all'>('all');
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState<AccountantRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const deleteAccount = async (row: AccountantRow) => {
+    if (!row.user) return;
+    setDeleteError(null);
+    try {
+      await api.adminDeleteAccountant(row.user.id);
+      onChanged();
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : t.deleteAccountFailed);
+    }
+  };
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -66,6 +81,8 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
             </select>
           </div>
 
+          {deleteError && <div className="error-banner">{deleteError}</div>}
+
           {visible.length === 0 ? (
             <div className="muted">{t.adminNoMatches}</div>
           ) : (
@@ -77,6 +94,7 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
                     <th className="admin-col-email">{t.emailLabel}</th>
                     <th>{t.adminStatusLabel}</th>
                     <th>{t.adminAgentsTitle}</th>
+                    <th aria-label={t.deleteAccountTitle} />
                   </tr>
                 </thead>
                 <tbody>
@@ -111,6 +129,19 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
                           <span className="muted">—</span>
                         )}
                       </td>
+                      <td className="admin-col-actions">
+                        {row.user && (
+                          <button
+                            className="btn btn-ghost btn-small danger-action"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleting(row);
+                            }}
+                          >
+                            {t.deleteAccountTitle}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -125,8 +156,20 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
           onClose={() => setAdding(false)}
           onAdded={() => {
             setAdding(false);
-            onAdded();
+            onChanged();
           }}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmModal
+          title={t.deleteAccountTitle}
+          note={t.deleteAccountConfirm(deleting.email)}
+          confirmLabel={t.deleteAccountTitle}
+          danger
+          warning
+          onConfirm={() => deleteAccount(deleting)}
+          onClose={() => setDeleting(null)}
         />
       )}
     </section>

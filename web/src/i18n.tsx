@@ -206,6 +206,15 @@ const he = {
   adminAgentEmailSaveFailed: 'שמירת הכתובת נכשלה.',
   adminAgentEmailChangeConfirm: (emailAddress: string) =>
     `להחליף את ‎${emailAddress}? הכתובת הישנה תפסיק לקבל מיילים — תשובות של לקוחות לשיחות קיימות לא יגיעו לסוכן.`,
+  adminAgentActivateTaxYearExplain:
+    'בחרו גם את שנת המס שעבורה הסוכן אוסף את המסמכים (למשל 2025). הסוכן יציין את השנה מול הלקוחות וימשוך מהאתרים החיצוניים רק מסמכים של השנה הזו. אפשר לשנות אותה בהמשך.',
+  adminAgentTaxYearLabel: 'שנת המס',
+  adminAgentTaxYearTitle: 'שנת המס',
+  adminAgentTaxYearDesc:
+    'השנה שעבורה הסוכן אוסף את המסמכים. הסוכן מציין אותה מול הלקוחות, ובמשיכת מסמכים מאתרים חיצוניים (שמחזיקים מסמכים לכמה שנים) הוא מושך רק את מסמכי השנה הזו.',
+  adminAgentTaxYearChange: 'שינוי שנת המס',
+  adminAgentTaxYearChangeDesc: 'השינוי חל מרגע השמירה על ההודעות והמשיכות הבאות; משיכות שכבר החלו ימשיכו עם השנה הקודמת.',
+  adminAgentTaxYearSaveFailed: 'שמירת שנת המס נכשלה.',
   adminOrphanNumbersTitle: 'מספרי WhatsApp לא משויכים',
   adminOrphanNumbersDesc:
     'מספרים שבבעלות חשבון ה-Twilio (ומחויבים חודשית) אך אינם משויכים לאף סוכן. אפשר לשייך מספר מחדש דרך כרטיס הסוכן, או לשחרר אותו כאן כדי להפסיק את החיוב.',

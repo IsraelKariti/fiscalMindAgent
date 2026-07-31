@@ -55,6 +55,8 @@ const ANALYSIS_PROMPT = `אתה בודק מסמכים עבור משרד רואי
 רשימת המסמכים הנדרשים מהלקוח:
 {{documents}}
 
+המסמכים נאספים עבור שנת המס {{tax_year}}. אם המסמך הוא מסמך תלוי-שנה (כמו טופס 106, אישור שנתי או דוח שנתי) והוא מתייחס במפורש לשנת מס אחרת - אל תקבע התאמה (matched_document_id: null). מסמכים שאינם תלויי-שנה (כמו צילום תעודת זהות) אינם מושפעים מכך.
+
 השב לפי הסכמה:
 - document_kind: מהו המסמך בפועל לפי תוכנו (למשל "טופס 867 מבנק הפועלים", "דוח שנתי מקרן פנסיה", "צילום תעודת זהות").
 - summary: סיכום קצר (משפט-שניים) של תוכן המסמך, בעברית.
@@ -80,6 +82,8 @@ export async function analyzeFile(
   contentType: string,
   filename: string,
   requiredDocuments: ClientDocumentRow[],
+  /** The instance's configured tax year (resolveTaxYear) — year-mismatched annual documents must not match. */
+  taxYear: number,
 ): Promise<AnalyzeFileResult> {
   const documentLines =
     requiredDocuments.length > 0
@@ -87,10 +91,9 @@ export async function analyzeFile(
           .map((doc) => `[id: ${doc.id}] ${doc.name}${doc.description ? ` — ${doc.description}` : ''}`)
           .join('\n')
       : '(אין מסמכים מוגדרים)';
-  const prompt = ANALYSIS_PROMPT.replace('{{documents}}', documentLines).replace(
-    '{{filename}}',
-    sanitizeInline(filename, 150),
-  );
+  const prompt = ANALYSIS_PROMPT.replace('{{documents}}', documentLines)
+    .replace('{{tax_year}}', String(taxYear))
+    .replace('{{filename}}', sanitizeInline(filename, 150));
 
   const model = await getGeminiModel();
   const response = await generateWithRetry({

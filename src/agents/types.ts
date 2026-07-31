@@ -46,6 +46,13 @@ export interface AgentTypeDefinition {
    */
   emailSuffix?: string;
   /**
+   * The agent's work is scoped to one tax year (agent_instances.tax_year,
+   * admin-set in the activation modal; unset = the last concluded year). The
+   * agent must surface that year to clients and use it when fetching documents
+   * from external sites that hold multiple years.
+   */
+  collectsTaxYear?: boolean;
+  /**
    * One planning step for one client — decide, act on goal state, and (for
    * conversational agents) schedule the next message. Runs inside
    * setFutureEmail's drafting-state wrapper (paused/complete guards, drafting

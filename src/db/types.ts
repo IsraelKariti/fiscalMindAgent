@@ -13,6 +13,8 @@ export interface AgentInstanceRow {
   enabled: boolean;
   /** Per-instance config (cron pattern, prompt override, …) — shape owned by the agent type. */
   settings: Record<string, unknown>;
+  /** The tax year documents are collected for (admin-set; NULL = default to the last concluded year). */
+  tax_year: number | null;
   created_at: Date;
   updated_at: Date;
 }

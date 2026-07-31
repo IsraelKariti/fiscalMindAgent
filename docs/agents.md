@@ -110,6 +110,17 @@ tenancy / admin impersonation / monday token auth.
   Activation of a type that emails clients (has `emailSuffix`) is email-gated:
   the first enable must carry `emailLocalPart` (the admin picks it with the
   accountant in the activation modal; a re-enable keeps the existing address).
+  Types with `collectsTaxYear` (today only the doc collector) are year-gated
+  the same way: the first enable must carry `taxYear` (the modal prefills the
+  last concluded year), stored in `agent_instances.tax_year` (migration 042 —
+  a column, not `settings`, because the accountant-facing settings PUT replaces
+  that JSONB wholesale) and changeable later via
+  `POST /api/admin/agent-tax-year`. `resolveTaxYear`
+  (`src/agents/shared/taxYear.ts`) falls back to the last concluded year when
+  unset (auto-provisioned instances). The year feeds the planner prompt
+  (`{{tax_year}}` placeholder), the file analyzer (year-mismatched annual
+  documents must not match), and new tax-fetch sessions (external sites hold
+  multiple years).
   There is deliberately NO auto-derivation of instance sender addresses
   anywhere — `POST /api/admin/agent-emails` (also modal-confirmed in the UI)
   is the only other way an instance gets or changes its address;

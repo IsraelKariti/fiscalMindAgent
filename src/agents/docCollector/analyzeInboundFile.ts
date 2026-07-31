@@ -2,6 +2,7 @@ import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { analyzeFile, isAnalyzable } from './analyzeFile.js';
+import { resolveTaxYear } from '../shared/taxYear.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
 import type { DocumentFileRow } from '../../db/types.js';
@@ -26,7 +27,8 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
   }
   try {
     const requiredDocuments = await clientDocuments.listForClient(clientId);
-    const { analysis, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments);
+    const taxYear = resolveTaxYear(ctx.instance, new Date());
+    const { analysis, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear);
     await documentFiles.setAnalysis(file.id, 'done', analysis);
     if (ctx.client.user_id) {
       await llmUsage.add(ctx.client.user_id, ctx.client.agent_instance_id, model, usage);

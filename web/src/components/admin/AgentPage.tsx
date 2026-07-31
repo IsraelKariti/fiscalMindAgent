@@ -5,6 +5,18 @@ import { getAgentUI } from '../../agents/registry';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
 import { Spinner } from '../Spinner';
+
+/**
+ * Selectable tax years: the current year (computed at render time) back 3
+ * years, plus the already-configured year when it falls outside that window —
+ * the select must always be able to display the stored value.
+ */
+function taxYearOptions(configured: number | null): number[] {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
+  if (configured !== null && !years.includes(configured)) years.push(configured);
+  return years.sort((a, b) => b - a);
+}
 import { WaPoolModal } from '../WaPoolModal';
 import type { AccountantRow } from './shared';
 
@@ -19,6 +31,8 @@ function ActivateAgentModal({
   existingEmail,
   suggestedLocalPart,
   emailDomain,
+  collectsTaxYear,
+  initialTaxYear,
   onConfirm,
   onClose,
 }: {
@@ -27,11 +41,16 @@ function ActivateAgentModal({
   existingEmail: string | null;
   suggestedLocalPart: string | null;
   emailDomain: string;
-  onConfirm: (emailLocalPart: string | null) => void;
+  /** The type's work is scoped to one tax year — the modal collects it alongside the address. */
+  collectsTaxYear: boolean;
+  /** Prefill: the instance's configured year on re-enable, else the derived default. */
+  initialTaxYear: number;
+  onConfirm: (emailLocalPart: string | null, taxYear: number | null) => void;
   onClose: () => void;
 }) {
   const { t } = useT();
   const [localPart, setLocalPart] = useState(suggestedLocalPart ?? '');
+  const [taxYear, setTaxYear] = useState(initialTaxYear);
   const needsEmail = !existingEmail;
 
   // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
@@ -56,6 +75,26 @@ function ActivateAgentModal({
             <span className="muted">@{emailDomain}</span>
           </span>
         )}
+        {collectsTaxYear && (
+          <>
+            <p className="muted">{t.adminAgentActivateTaxYearExplain}</p>
+            <span className="wa-manual-entry" dir="ltr">
+              <select
+                dir="ltr"
+                aria-label={t.adminAgentTaxYearLabel}
+                value={taxYear}
+                onChange={(e) => setTaxYear(Number(e.target.value))}
+              >
+                {taxYearOptions(initialTaxYear).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+              <span className="muted">{t.adminAgentTaxYearLabel}</span>
+            </span>
+          </>
+        )}
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose}>
             {t.cancel}
@@ -66,7 +105,7 @@ function ActivateAgentModal({
             disabled={needsEmail && !localPart.trim()}
             onClick={() => {
               onClose();
-              onConfirm(needsEmail ? localPart.trim() : null);
+              onConfirm(needsEmail ? localPart.trim() : null, collectsTaxYear ? taxYear : null);
             }}
           >
             {t.adminAgentActivateConfirm}
@@ -103,6 +142,7 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
     availableTypes: string[];
     emailInfoByType: Record<string, AgentTypeEmailInfo>;
     emailDomain: string;
+    defaultTaxYear: number;
   } | null>(null);
   const loadAgents = useCallback(async () => {
     if (!userId) return;
@@ -120,6 +160,7 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   const typeEmailInfo = agentInfo?.emailInfoByType?.[agentType] ?? null;
   const emailCapable = instance ? Boolean(instance.emailCapable) : Boolean(typeEmailInfo?.emailCapable);
   const suggestedLocalPart = instance?.suggestedEmailLocalPart ?? typeEmailInfo?.suggestedEmailLocalPart ?? null;
+  const taxYearCapable = instance ? Boolean(instance.taxYearCapable) : Boolean(typeEmailInfo?.taxYearCapable);
 
   // The address input starts from the assigned local part, else the derived
   // suggestion, so "enable → confirm the default" is a single click.
@@ -130,6 +171,12 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   useEffect(() => {
     setEmailLocalPart(instance?.emailAddress?.split('@')[0] ?? instance?.suggestedEmailLocalPart ?? '');
   }, [instance?.emailAddress, instance?.suggestedEmailLocalPart]);
+
+  // The tax-year select tracks the configured year, falling back to the derived default.
+  const [taxYearInput, setTaxYearInput] = useState<number | null>(null);
+  useEffect(() => {
+    setTaxYearInput(instance?.taxYear ?? agentInfo?.defaultTaxYear ?? null);
+  }, [instance?.taxYear, agentInfo?.defaultTaxYear]);
 
   // The unassigned-numbers pool: shown as a count on the pool option and
   // offered in the picker modal.
@@ -182,9 +229,9 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   const toggleEnabled = async () => {
     if (!userId) return;
     const enable = !(instance?.enabled ?? false);
-    // Email-capable agents activate through the modal: it explains the
-    // implications and (on first activation) collects the mandatory address.
-    if (enable && emailCapable) {
+    // Email-capable / year-scoped agents activate through the modal: it explains
+    // the implications and collects the mandatory address and/or tax year.
+    if (enable && (emailCapable || taxYearCapable)) {
       setActivating(true);
       return;
     }
@@ -194,10 +241,10 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
     );
   };
 
-  const activate = (chosenLocalPart: string | null) => {
+  const activate = (chosenLocalPart: string | null, chosenTaxYear: number | null) => {
     if (!userId) return;
     void run(
-      () => api.adminEnableAgent(userId, agentType, chosenLocalPart ?? undefined),
+      () => api.adminEnableAgent(userId, agentType, chosenLocalPart ?? undefined, chosenTaxYear ?? undefined),
       t.adminAgentsUpdateFailed,
       t.adminAgentEmailConflict,
     );
@@ -297,6 +344,54 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
                     `${emailLocalPart.trim().toLowerCase()}@${agentInfo?.emailDomain}` === instance.emailAddress
                   }
                   onClick={() => (instance.emailAddress ? setConfirmingEmailChange(true) : setConfirmingEmailAssign(true))}
+                >
+                  {t.adminAgentEmailSave}
+                </button>
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {instance && instance.taxYearCapable && (
+        <section className="card">
+          <div className="settings-section">
+            <h3>{t.adminAgentTaxYearTitle}</h3>
+            <p className="muted">{t.adminAgentTaxYearDesc}</p>
+
+            <div className="wa-number-display" dir="ltr">
+              {instance.taxYear ?? agentInfo?.defaultTaxYear}
+            </div>
+
+            <div className="wa-action-row">
+              <span className="doc-text">
+                <span className="doc-name">{t.adminAgentTaxYearChange}</span>
+                <span className="doc-desc muted">{t.adminAgentTaxYearChangeDesc}</span>
+              </span>
+              <span className="wa-manual-entry" dir="ltr">
+                <select
+                  dir="ltr"
+                  aria-label={t.adminAgentTaxYearLabel}
+                  value={taxYearInput ?? ''}
+                  disabled={busy}
+                  onChange={(e) => setTaxYearInput(Number(e.target.value))}
+                >
+                  {taxYearOptions(instance.taxYear ?? agentInfo?.defaultTaxYear ?? null).map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn btn-ghost btn-small"
+                  disabled={
+                    busy ||
+                    taxYearInput === null ||
+                    taxYearInput === (instance.taxYear ?? agentInfo?.defaultTaxYear)
+                  }
+                  onClick={() =>
+                    run(() => api.adminSetAgentTaxYear(instance.id, taxYearInput!), t.adminAgentTaxYearSaveFailed)
+                  }
                 >
                   {t.adminAgentEmailSave}
                 </button>
@@ -442,6 +537,8 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
           existingEmail={instance?.emailAddress ?? null}
           suggestedLocalPart={suggestedLocalPart}
           emailDomain={agentInfo?.emailDomain ?? ''}
+          collectsTaxYear={taxYearCapable}
+          initialTaxYear={instance?.taxYear ?? agentInfo?.defaultTaxYear ?? new Date().getFullYear() - 1}
           onConfirm={activate}
           onClose={() => setActivating(false)}
         />

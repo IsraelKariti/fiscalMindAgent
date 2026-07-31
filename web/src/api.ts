@@ -471,12 +471,17 @@ export interface AgentInstance {
   suggestedEmailLocalPart?: string | null;
   /** Admin listing only: false for agent types that never email clients (no address to manage). */
   emailCapable?: boolean;
+  /** Admin listing only: true for agent types whose work is scoped to one tax year. */
+  taxYearCapable?: boolean;
+  /** Admin listing only: the configured tax year, null until an admin sets one (code falls back to the last concluded year). */
+  taxYear?: number | null;
 }
 
 /** Per-type email facts for the admin agent page — covers types with no instance yet. */
 export interface AgentTypeEmailInfo {
   emailCapable: boolean;
   suggestedEmailLocalPart: string | null;
+  taxYearCapable: boolean;
 }
 
 /**
@@ -636,16 +641,26 @@ export const api = {
       availableTypes: string[];
       emailInfoByType: Record<string, AgentTypeEmailInfo>;
       emailDomain: string;
+      defaultTaxYear: number;
     }>(`/admin/accountants/${userId}/agents`),
   adminSetAgentEmail: (agentInstanceId: string, localPart: string) =>
     request<{ emailAddress: string }>('/admin/agent-emails', {
       method: 'POST',
       body: JSON.stringify({ agentInstanceId, localPart }),
     }),
-  adminEnableAgent: (userId: string, agentType: string, emailLocalPart?: string) =>
+  adminSetAgentTaxYear: (agentInstanceId: string, taxYear: number) =>
+    request<{ taxYear: number }>('/admin/agent-tax-year', {
+      method: 'POST',
+      body: JSON.stringify({ agentInstanceId, taxYear }),
+    }),
+  adminEnableAgent: (userId: string, agentType: string, emailLocalPart?: string, taxYear?: number) =>
     request<{ agent: AgentInstance }>(`/admin/accountants/${userId}/agents`, {
       method: 'POST',
-      body: JSON.stringify(emailLocalPart ? { agentType, emailLocalPart } : { agentType }),
+      body: JSON.stringify({
+        agentType,
+        ...(emailLocalPart ? { emailLocalPart } : {}),
+        ...(taxYear != null ? { taxYear } : {}),
+      }),
     }),
   adminDisableAgent: (userId: string, agentType: string) =>
     request<{ ok: true }>(`/admin/accountants/${userId}/agents/${encodeURIComponent(agentType)}`, {

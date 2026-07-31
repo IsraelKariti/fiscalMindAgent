@@ -9,6 +9,7 @@ import { buildPrompt, type WaChannelState } from './prompt.js';
 import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccountant.js';
 import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
 import { lastInboundMessageAt, rollWeekendSendAt } from '../shared/sendAtGuard.js';
+import { resolveTaxYear } from '../shared/taxYear.js';
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext } from './decisionSchema.js';
@@ -70,6 +71,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const { client, accountant } = ctx;
   const clientId = client.id;
   const now = new Date();
+  const taxYear = resolveTaxYear(ctx.instance, now);
   const history = await emails.listForClient(clientId);
   const documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
@@ -108,6 +110,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     template,
     waState,
     taxFetchPromptInputs,
+    taxYear,
   );
   const decisionCtx: DecisionContext = {
     whatsappAllowed: waState.allowed,
@@ -235,7 +238,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   if (allCollected) {
     // No message is drafted on this path; a fresh offer can't happen here (no
     // pending matching document left), but cancel/agreed actions still need to land.
-    await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, taxFetchKeys, now, { emailId: null, delayMs: 0 });
+    await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, taxFetchKeys, taxYear, { emailId: null, delayMs: 0 });
     await clients.updateGoalStatus(clientId, 'complete');
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
@@ -291,7 +294,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // carries the offer (a superseded draft re-enables offering), and start_login
   // is enqueued against the heads-up draft so the browser login — and the OTP
   // it triggers — can only run after that message actually goes out.
-  await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, taxFetchKeys, now, {
+  await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, taxFetchKeys, taxYear, {
     emailId,
     delayMs: Math.max(0, delayMs),
   });

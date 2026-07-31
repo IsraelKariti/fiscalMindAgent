@@ -68,6 +68,7 @@ export const PROMPT_PLACEHOLDERS = [
   'accountant_timezone',
   'accountant_name',
   'upcoming_dates',
+  'tax_year',
 ] as const;
 
 export type PromptPlaceholder = (typeof PROMPT_PLACEHOLDERS)[number];
@@ -87,6 +88,8 @@ export function buildSystemPrompt(
   template: string = DEFAULT_PROMPT_TEMPLATE,
   /** Per-call fence token; when set, the untrusted-data doctrine is appended AFTER the (possibly custom) template so no template edit can drop it. */
   fenceToken?: string,
+  /** The instance's configured tax year (resolveTaxYear); defaults to the last concluded year. */
+  taxYear?: number,
 ): string {
   const last = history[history.length - 1];
   const sinceLast = last
@@ -104,6 +107,7 @@ export function buildSystemPrompt(
     accountant_name:
       accountant?.hebrew_name?.trim() || accountant?.name?.trim() || accountant?.email || 'המטפל בתיק',
     upcoming_dates: formatUpcomingDates(now, env.ACCOUNTANT_TIMEZONE),
+    tax_year: String(taxYear ?? now.getFullYear() - 1),
   });
   return fenceToken ? `${rendered}\n\n${buildUntrustedDataDoctrine(fenceToken, true)}` : rendered;
 }
@@ -330,6 +334,7 @@ export function buildPrompt(
   template?: string,
   waState: WaChannelState = WHATSAPP_UNAVAILABLE,
   taxFetch: TaxFetchPromptInput[] = [],
+  taxYear?: number,
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
@@ -340,7 +345,7 @@ export function buildPrompt(
     buildThreadTranscript(token, history, files),
   ].filter((s) => s !== '');
   return {
-    systemInstruction: buildSystemPrompt(client, accountant, history, now, template, token),
+    systemInstruction: buildSystemPrompt(client, accountant, history, now, template, token, taxYear),
     contents: sections.join('\n\n'),
   };
 }

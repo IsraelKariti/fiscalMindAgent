@@ -99,6 +99,15 @@ export async function enableInstance(userId: string, agentType: string): Promise
   return row;
 }
 
+/** Admin-owned tax year (agent types with collectsTaxYear); NULL falls back to the last concluded year. */
+export async function setTaxYear(id: string, taxYear: number): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'UPDATE agent_instances SET tax_year = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, taxYear],
+  );
+  return rows[0] ?? null;
+}
+
 /** Replaces the instance's settings JSONB — shape owned by the agent type's Zod schema. */
 export async function updateSettings(id: string, settings: Record<string, unknown>): Promise<AgentInstanceRow | null> {
   const { rows } = await pool.query<AgentInstanceRow>(

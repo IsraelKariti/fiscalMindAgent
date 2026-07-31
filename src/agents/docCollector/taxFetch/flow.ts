@@ -50,12 +50,6 @@ export function pendingKeys(ctx: TaxFetchContext): string[] {
   return ctx.documentTypes.filter((t) => t.pendingDocumentId).map((t) => t.key);
 }
 
-function taxYearFor(now: Date): number {
-  // The most recently concluded year (Form 106 default; the previous calendar
-  // year for the Altshuler reports too).
-  return now.getFullYear() - 1;
-}
-
 function promptStateFor(status: TaxFetchSessionRow['status']): TaxFetchPromptState {
   switch (status) {
     case 'offered':
@@ -204,7 +198,8 @@ export async function applyTaxFetchAction(
   action: TaxFetchAction | null,
   ctx: TaxFetchContext | null,
   agreedKeys: string[] | null,
-  now: Date,
+  /** The instance's configured tax year (resolveTaxYear) — sites hold documents for multiple years. */
+  taxYear: number,
   message: { emailId: string | null; delayMs: number },
 ): Promise<void> {
   if (!action || !ctx) return;
@@ -222,7 +217,7 @@ export async function applyTaxFetchAction(
         provider,
         clientDocumentId: primaryDocumentId(keys, ctx),
         status: 'offered',
-        taxYear: taxYearFor(now),
+        taxYear,
         offerEmailId: message.emailId,
         documentKeys: keys,
       });
@@ -260,7 +255,7 @@ export async function applyTaxFetchAction(
           provider,
           clientDocumentId: primaryDocumentId(keys, ctx),
           status: 'wa_intro_sent',
-          taxYear: taxYearFor(now),
+          taxYear,
           documentKeys: keys,
         });
         sessionId = fresh.id;

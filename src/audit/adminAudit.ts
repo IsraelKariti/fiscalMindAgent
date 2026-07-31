@@ -23,6 +23,7 @@ const KNOWN_ROUTES: Record<string, { action: `admin.${string}`; severity: AuditS
   'DELETE /admin/accountants/:userId/agents/:agentType': { action: 'admin.agent_disabled', severity: 'warning' },
   'PUT /admin/model': { action: 'admin.model_changed', severity: 'warning' },
   'POST /admin/agent-emails': { action: 'admin.agent_email_set', severity: 'info' },
+  'POST /admin/agent-tax-year': { action: 'admin.agent_tax_year_set', severity: 'info' },
   'POST /admin/wa-senders/provision': { action: 'admin.wa_number_provisioned', severity: 'warning' },
   'POST /admin/wa-senders/:agentInstanceId/release': { action: 'admin.wa_number_released', severity: 'warning' },
   'POST /admin/wa-numbers/release': { action: 'admin.wa_number_released', severity: 'warning' },

@@ -10,6 +10,7 @@ import * as waSenders from '../db/queries/waSenders.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { getAgentType, getAgentTypeIfKnown, listAgentTypes } from '../agents/registry.js';
 import { getKillSwitchState, setKillSwitch } from '../agents/killSwitch.js';
+import { defaultTaxYear } from '../agents/shared/taxYear.js';
 import { RESERVED } from './mailbox.js';
 import { env } from '../config/env.js';
 import { getPricingForModel } from '../gemini/pricing.js';
@@ -181,8 +182,10 @@ export const adminLlmUsageDaily: RequestHandler = async (req, res) => {
   });
 };
 
+const TaxYearSchema = z.number().int().min(2000).max(2100);
+
 const AgentEnableSchema = z
-  .object({ agentType: z.string().min(1), emailLocalPart: z.string().optional() })
+  .object({ agentType: z.string().min(1), emailLocalPart: z.string().optional(), taxYear: TaxYearSchema.optional() })
   .strict();
 
 function knownAgentTypes(): Set<string> {
@@ -208,7 +211,8 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
       // The derived default shown in the admin's address input for agents
       // that don't have an address yet (null when the type doesn't email
       // clients or the accountant hasn't claimed a mailbox).
-      const suffix = getAgentType(i.agent_type).emailSuffix;
+      const def = getAgentType(i.agent_type);
+      const suffix = def.emailSuffix;
       return {
         id: i.id,
         agentType: i.agent_type,
@@ -218,6 +222,8 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
         emailAddress: emailByInstance.get(i.id) ?? null,
         suggestedEmailLocalPart: suffix && accountMailbox ? `${accountMailbox.local_part}-${suffix}` : null,
         emailCapable: Boolean(suffix),
+        taxYearCapable: Boolean(def.collectsTaxYear),
+        taxYear: i.tax_year,
       };
     }),
     availableTypes: [...knownAgentTypes()],
@@ -230,10 +236,13 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
           emailCapable: Boolean(d.emailSuffix),
           suggestedEmailLocalPart:
             d.emailSuffix && accountMailbox ? `${accountMailbox.local_part}-${d.emailSuffix}` : null,
+          taxYearCapable: Boolean(d.collectsTaxYear),
         },
       ]),
     ),
     emailDomain: env.AGENT_EMAIL_DOMAIN,
+    // Prefill for the activation modal's year input (the last concluded year).
+    defaultTaxYear: defaultTaxYear(new Date()),
   });
 };
 
@@ -274,8 +283,17 @@ export const adminEnableAgent: RequestHandler = async (req, res) => {
 
   const agentType = parsed.data.agentType;
   const existing = await agentInstances.getByTypeForUser(userId.data, agentType);
-  const emailCapable = Boolean(getAgentType(agentType).emailSuffix);
+  const typeDef = getAgentType(agentType);
+  const emailCapable = Boolean(typeDef.emailSuffix);
   const hasEmail = existing ? Boolean(await agentMailboxes.getByInstanceId(existing.id)) : false;
+
+  // Year-scoped agents activate with a tax year, same deliberate-choice rule as
+  // the address: the first activation must carry one; a re-enable keeps the
+  // stored year unless the modal sent a new one.
+  if (typeDef.collectsTaxYear && parsed.data.taxYear == null && existing?.tax_year == null) {
+    res.status(400).json({ error: 'A tax year is required to activate this agent.' });
+    return;
+  }
 
   let localPart: string | null = null;
   if (emailCapable && !hasEmail) {
@@ -292,6 +310,9 @@ export const adminEnableAgent: RequestHandler = async (req, res) => {
   }
 
   const instance = await agentInstances.enableInstance(userId.data, agentType);
+  if (typeDef.collectsTaxYear && parsed.data.taxYear != null && parsed.data.taxYear !== instance.tax_year) {
+    await agentInstances.setTaxYear(instance.id, parsed.data.taxYear);
+  }
   if (localPart) {
     try {
       await agentMailboxes.insertForInstance({
@@ -317,6 +338,7 @@ export const adminEnableAgent: RequestHandler = async (req, res) => {
     userId: userId.data,
     agentType: instance.agent_type,
     emailAddress: localPart ? `${localPart}@${env.AGENT_EMAIL_DOMAIN}` : undefined,
+    taxYear: parsed.data.taxYear,
   });
   res.status(201).json({ agent: { id: instance.id, agentType: instance.agent_type, name: instance.name, enabled: instance.enabled } });
 };
@@ -397,6 +419,39 @@ export const adminSetAgentEmail: RequestHandler = async (req, res) => {
     }
     throw err;
   }
+};
+
+const AgentTaxYearSchema = z.object({ agentInstanceId: z.string().uuid(), taxYear: TaxYearSchema }).strict();
+
+/**
+ * POST /api/admin/agent-tax-year — set or change the tax year a year-scoped
+ * agent instance collects documents for. Takes effect on the next planning
+ * cycle / fetch session; already-created tax_fetch_sessions keep their year.
+ */
+export const adminSetAgentTaxYear: RequestHandler = async (req, res) => {
+  const parsed = AgentTaxYearSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Expected { agentInstanceId, taxYear }.' });
+    return;
+  }
+  const instance = await agentInstances.getById(parsed.data.agentInstanceId);
+  if (!instance) {
+    res.status(404).json({ error: 'Agent not found.' });
+    return;
+  }
+  // IfKnown: a retired type's instance row may still exist.
+  if (!getAgentTypeIfKnown(instance.agent_type)?.collectsTaxYear) {
+    res.status(400).json({ error: 'This agent type is not scoped to a tax year.' });
+    return;
+  }
+  const updated = await agentInstances.setTaxYear(instance.id, parsed.data.taxYear);
+  logger.info('agent tax year set', {
+    adminUserId: req.realUserId,
+    instanceId: instance.id,
+    taxYear: parsed.data.taxYear,
+    previous: instance.tax_year,
+  });
+  res.json({ taxYear: updated?.tax_year ?? parsed.data.taxYear });
 };
 
 /** POST /api/admin/impersonate — start viewing the given accountant's dashboard. */

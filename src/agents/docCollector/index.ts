@@ -16,6 +16,7 @@ export const docCollectorAgent: AgentTypeDefinition = {
   id: 'doc_collector',
   conversationModel: 'scheduled_follow_up',
   emailSuffix: 'document',
+  collectsTaxYear: true,
   planNextAction: planFollowUp,
   async onInboundMessage(ctx, evt) {
     // A WhatsApp reply carrying the tax-authority OTP is time-critical: route it

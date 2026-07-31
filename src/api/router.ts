@@ -28,6 +28,7 @@ import {
   adminRemoveFromWhitelist,
   adminRevokeAdmin,
   adminSetAgentEmail,
+  adminSetAgentTaxYear,
   adminSetKillSwitch,
   adminSetModel,
   adminSetWhitelistHebrewName,
@@ -103,6 +104,7 @@ apiRouter.patch('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminSetWhit
 apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemoveFromWhitelist));
 
 apiRouter.post('/admin/agent-emails', wrap(requireAdmin), wrap(adminSetAgentEmail));
+apiRouter.post('/admin/agent-tax-year', wrap(requireAdmin), wrap(adminSetAgentTaxYear));
 apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));
 apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender));
 apiRouter.post('/admin/wa-senders/provision', wrap(requireAdmin), wrap(adminProvisionWaSender));

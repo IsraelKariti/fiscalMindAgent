@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, ApiError, type AgentInstance } from '../../api';
-import { getAgentUI } from '../../agents/registry';
+import { getAgentUI, getAllAgentUIs } from '../../agents/registry';
 import { formatTimestamp, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
@@ -37,10 +37,12 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
   }, [userId]);
 
   // One row per agent type: the accountant's instance when it exists, else the
-  // enableable type itself (named from the frontend registry).
+  // enableable type itself (named from the frontend registry). Rows follow the
+  // registry order (doc collector first), not instance creation order.
   const agentRows = useMemo(() => {
     if (!agentInfo) return [];
     const instantiated = new Set(agentInfo.agents.map((a) => a.agentType));
+    const registryOrder = new Map(getAllAgentUIs().map((ui, i) => [ui.agentType, i]));
     return [
       ...agentInfo.agents.map((a) => ({ ...a, instantiated: true })),
       ...agentInfo.availableTypes
@@ -53,7 +55,9 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
           waPhoneNumber: null as string | null,
           instantiated: false,
         })),
-    ];
+    ].sort(
+      (a, b) => (registryOrder.get(a.agentType) ?? Infinity) - (registryOrder.get(b.agentType) ?? Infinity),
+    );
   }, [agentInfo]);
 
   const enabledAgents = useMemo(() => (row?.user?.agents ?? []).filter((a) => a.enabled), [row]);

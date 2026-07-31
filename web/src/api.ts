@@ -239,6 +239,8 @@ export interface Accountant {
   id: string;
   email: string;
   name: string | null;
+  /** Admin-entered Hebrew name of the accountant/firm — the name agents sign with. */
+  hebrewName: string | null;
   createdAt: string;
   mailbox: string | null;
   whitelisted: boolean;
@@ -337,6 +339,7 @@ export interface AdminUser {
 export interface WhitelistEntry {
   email: string;
   name: string | null;
+  hebrewName: string | null;
   signedUp: boolean;
   createdAt: string;
 }
@@ -677,10 +680,15 @@ export const api = {
   adminRevokeAdmin: (userId: string) =>
     request<{ ok: true }>(`/admin/admins/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
   adminListWhitelist: () => request<{ entries: WhitelistEntry[] }>('/admin/whitelist'),
-  adminAddToWhitelist: (email: string, name?: string) =>
+  adminAddToWhitelist: (email: string, name?: string, hebrewName?: string) =>
     request<{ entry: WhitelistEntry }>('/admin/whitelist', {
       method: 'POST',
-      body: JSON.stringify({ email, ...(name ? { name } : {}) }),
+      body: JSON.stringify({ email, ...(name ? { name } : {}), ...(hebrewName ? { hebrewName } : {}) }),
+    }),
+  adminSetHebrewName: (email: string, hebrewName: string | null) =>
+    request<{ ok: true }>(`/admin/whitelist/${encodeURIComponent(email)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ hebrewName }),
     }),
   adminRemoveFromWhitelist: (email: string) =>
     request<{ ok: true }>(`/admin/whitelist/${encodeURIComponent(email)}`, { method: 'DELETE' }),

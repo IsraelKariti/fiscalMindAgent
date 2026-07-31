@@ -22,6 +22,12 @@ export interface UserRow {
   google_sub: string;
   email: string;
   name: string | null;
+  /**
+   * Admin-entered Hebrew name of the accountant/firm (whitelisted_emails.hebrew_name,
+   * migration 040). Only populated by users.getById's whitelist join — rows coming
+   * from `RETURNING *` don't carry it. Agents prefer it over the Google-synced name.
+   */
+  hebrew_name?: string | null;
   picture_url: string | null;
   /** DB-managed admin flag (migration 033) — the only thing that grants admin access. */
   is_admin: boolean;

@@ -96,7 +96,8 @@ async function sendEmailDraft(client: ClientRow, draft: EmailRow): Promise<SendO
 
   const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
   const accountant = client.user_id ? await users.getById(client.user_id) : null;
-  const displayName = [accountant?.name, instance?.name].filter(Boolean).join(' – ') || null;
+  const displayName =
+    [accountant?.hebrew_name?.trim() || accountant?.name, instance?.name].filter(Boolean).join(' – ') || null;
 
   // Thread the conversation via In-Reply-To/References built from the
   // Message-IDs exchanged with this client so far (capped to the last 20).

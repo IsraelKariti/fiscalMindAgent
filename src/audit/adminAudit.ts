@@ -16,6 +16,7 @@ const KNOWN_ROUTES: Record<string, { action: `admin.${string}`; severity: AuditS
   'PUT /admin/kill-switch': { action: 'admin.kill_switch_set', severity: 'critical' },
   'POST /admin/whitelist': { action: 'admin.whitelist_added', severity: 'critical' },
   'DELETE /admin/whitelist/:email': { action: 'admin.whitelist_removed', severity: 'warning' },
+  'PATCH /admin/whitelist/:email': { action: 'admin.whitelist_hebrew_name_set', severity: 'info' },
   'POST /admin/impersonate': { action: 'admin.impersonation_started', severity: 'warning' },
   'POST /admin/impersonate/stop': { action: 'admin.impersonation_stopped', severity: 'info' },
   'POST /admin/accountants/:userId/agents': { action: 'admin.agent_enabled', severity: 'info' },

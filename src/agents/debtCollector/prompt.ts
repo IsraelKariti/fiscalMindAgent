@@ -56,7 +56,8 @@ function buildSystemPrompt(
     : 'N/A (no messages sent yet)';
 
   const rendered = renderTemplate(PROMPT_TEMPLATE, {
-    accountant_name: accountant?.name?.trim() || accountant?.email || 'המטפל בתיק',
+    accountant_name:
+      accountant?.hebrew_name?.trim() || accountant?.name?.trim() || accountant?.email || 'המטפל בתיק',
     client_name: sanitizeInline(client.name, 200),
     client_email: sanitizeInline(client.email_address, 200),
     engagement_start_date: formatDate(client.created_at),

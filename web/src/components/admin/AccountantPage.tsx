@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { api, ApiError, type AgentInstance } from '../../api';
 import { getAgentUI, getAllAgentUIs } from '../../agents/registry';
 import { formatTimestamp, formatUsd, LOCALE } from '../../format';
@@ -26,6 +27,8 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
+  // 'activate' collects the Hebrew name while whitelisting; 'edit' updates it later.
+  const [nameModal, setNameModal] = useState<'activate' | 'edit' | null>(null);
 
   // The agents summary (incl. disabled instances and not-yet-created types).
   const userId = row?.user?.id ?? null;
@@ -77,7 +80,7 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
         {t.accountantsLabel}
       </button>
       <span className="breadcrumb-sep">/</span>
-      <span className="breadcrumb-current">{row ? (row.name ?? row.email) : '…'}</span>
+      <span className="breadcrumb-current">{row ? (row.hebrewName ?? row.name ?? row.email) : '…'}</span>
     </nav>
   );
 
@@ -109,19 +112,6 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
     }
   };
 
-  const activate = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.adminAddToWhitelist(row.email, row.name ?? undefined);
-      await onChanged();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : t.activateFailed);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const revoke = async () => {
     setBusy(true);
     setError(null);
@@ -143,7 +133,7 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
       <section className="card">
         <div className="card-header">
           <div className="card-title-row">
-            <h2>{row.name ?? row.email}</h2>
+            <h2>{row.hebrewName ?? row.name ?? row.email}</h2>
             <StatusBadge row={row} />
           </div>
           <span className="btn-row admin-row-actions">
@@ -153,7 +143,7 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
               </button>
             )}
             {!row.whitelisted && (
-              <button className="btn btn-primary btn-small" disabled={busy} onClick={activate}>
+              <button className="btn btn-primary btn-small" disabled={busy} onClick={() => setNameModal('activate')}>
                 {t.activate}
               </button>
             )}
@@ -165,6 +155,17 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
             <dd className="detail-copy-row">
               <span dir="ltr">{row.email}</span>
               <CopyButton text={row.email} />
+            </dd>
+          </div>
+          <div>
+            <dt>{t.hebrewNameLabel}</dt>
+            <dd className="detail-copy-row">
+              {row.hebrewName ?? <span className="muted">{t.hebrewNameNotSet}</span>}
+              {row.whitelisted && (
+                <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => setNameModal('edit')}>
+                  {t.edit}
+                </button>
+              )}
             </dd>
           </div>
           <div>
@@ -308,6 +309,79 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
           onClose={() => setConfirmingRevoke(false)}
         />
       )}
+
+      {nameModal && (
+        <HebrewNameModal
+          title={nameModal === 'activate' ? t.activateAccountTitle : t.hebrewNameLabel}
+          confirmLabel={nameModal === 'activate' ? t.activate : t.save}
+          fallbackError={nameModal === 'activate' ? t.activateFailed : t.hebrewNameSaveFailed}
+          initialValue={row.hebrewName ?? ''}
+          onSubmit={async (hebrewName) => {
+            if (nameModal === 'activate') {
+              await api.adminAddToWhitelist(row.email, row.name ?? undefined, hebrewName);
+            } else {
+              await api.adminSetHebrewName(row.email, hebrewName);
+            }
+            await onChanged();
+          }}
+          onClose={() => setNameModal(null)}
+        />
+      )}
     </>
+  );
+}
+
+interface HebrewNameModalProps {
+  title: string;
+  confirmLabel: string;
+  fallbackError: string;
+  initialValue: string;
+  onSubmit: (hebrewName: string) => Promise<void>;
+  onClose: () => void;
+}
+
+/** Collects the Hebrew name agents sign with — on account activation and when editing it later. */
+function HebrewNameModal({ title, confirmLabel, fallbackError, initialValue, onSubmit, onClose }: HebrewNameModalProps) {
+  const { t } = useT();
+  const [value, setValue] = useState(initialValue);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await onSubmit(value.trim());
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : fallbackError);
+      setBusy(false);
+    }
+  };
+
+  // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
+  // which re-anchor position:fixed to the card instead of the viewport.
+  return createPortal(
+    <div className="modal-backdrop" onClick={onClose}>
+      <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <h2>{title}</h2>
+        <label className="field">
+          <span>{t.hebrewNameFieldLabel}</span>
+          <input value={value} onChange={(e) => setValue(e.target.value)} maxLength={200} autoFocus required />
+        </label>
+        <p className="muted">{t.hebrewNameHint}</p>
+        {error && <div className="error-banner">{error}</div>}
+        <div className="btn-row modal-actions">
+          <button className="btn btn-ghost" type="button" onClick={onClose} disabled={busy}>
+            {t.cancel}
+          </button>
+          <button className="btn btn-primary" type="submit" disabled={busy}>
+            {busy ? t.saving : confirmLabel}
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body,
   );
 }

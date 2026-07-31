@@ -125,7 +125,8 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   if (canEmail) {
     const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
     const accountant = client.user_id ? await users.getById(client.user_id) : null;
-    const displayName = [accountant?.name, instance?.name].filter(Boolean).join(' – ') || null;
+    const displayName =
+      [accountant?.hebrew_name?.trim() || accountant?.name, instance?.name].filter(Boolean).join(' – ') || null;
     const messageIds = await emails.listMessageIdsForClient(client.id);
     await sendEmail({
       from: formatFrom(displayName, mailbox!.email_address),

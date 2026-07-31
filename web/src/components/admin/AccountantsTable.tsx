@@ -22,7 +22,11 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
     return rows.filter((row) => {
       if (statusFilter !== 'all' && rowStatus(row) !== statusFilter) return false;
       if (!q) return true;
-      return row.email.includes(q) || (row.name ?? '').toLowerCase().includes(q);
+      return (
+        row.email.includes(q) ||
+        (row.name ?? '').toLowerCase().includes(q) ||
+        (row.hebrewName ?? '').toLowerCase().includes(q)
+      );
     });
   }, [rows, query, statusFilter]);
 
@@ -86,7 +90,7 @@ export function AccountantsTable({ rows, onOpen, onAdded }: Props) {
                         if (e.key === 'Enter') onOpen(row.email);
                       }}
                     >
-                      <td className="admin-table-name">{row.name ?? <span className="muted">—</span>}</td>
+                      <td className="admin-table-name">{row.hebrewName ?? row.name ?? <span className="muted">—</span>}</td>
                       <td>
                         <span dir="ltr">{row.email}</span>
                       </td>

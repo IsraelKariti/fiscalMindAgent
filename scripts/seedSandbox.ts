@@ -44,7 +44,7 @@ async function main(): Promise<void> {
     name: 'רו״ח דמו (סנדבוקס)',
     pictureUrl: null,
   });
-  await whitelist.add(DEMO_EMAIL, 'Sandbox demo accountant');
+  await whitelist.add(DEMO_EMAIL, 'Sandbox demo accountant', 'רו״ח דמו (סנדבוקס)');
   logger.info('demo accountant ready', { userId: accountant.id, email: DEMO_EMAIL });
 
   const instanceByType = new Map<string, string>();

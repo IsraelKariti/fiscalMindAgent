@@ -16,6 +16,8 @@ export const MODEL_LABELS: Record<string, string> = {
 export interface AccountantRow {
   email: string;
   name: string | null;
+  /** Admin-entered Hebrew name of the accountant/firm — the name agents sign with. */
+  hebrewName: string | null;
   whitelisted: boolean;
   user: Accountant | null;
 }
@@ -23,7 +25,13 @@ export interface AccountantRow {
 export function buildAccountantRows(accountants: Accountant[], whitelist: WhitelistEntry[]): AccountantRow[] {
   const byEmail = new Map<string, AccountantRow>();
   for (const entry of whitelist) {
-    byEmail.set(entry.email, { email: entry.email, name: entry.name, whitelisted: true, user: null });
+    byEmail.set(entry.email, {
+      email: entry.email,
+      name: entry.name,
+      hebrewName: entry.hebrewName,
+      whitelisted: true,
+      user: null,
+    });
   }
   for (const user of accountants) {
     const key = user.email.toLowerCase();
@@ -31,8 +39,9 @@ export function buildAccountantRows(accountants: Accountant[], whitelist: Whitel
     if (existing) {
       existing.user = user;
       existing.name = existing.name ?? user.name;
+      existing.hebrewName = existing.hebrewName ?? user.hebrewName;
     } else {
-      byEmail.set(key, { email: key, name: user.name, whitelisted: user.whitelisted, user });
+      byEmail.set(key, { email: key, name: user.name, hebrewName: user.hebrewName, whitelisted: user.whitelisted, user });
     }
   }
   return [...byEmail.values()];

@@ -2,7 +2,16 @@ import { pool } from '../pool.js';
 import type { UserRow } from '../types.js';
 
 export async function getById(id: string): Promise<UserRow | null> {
-  const { rows } = await pool.query<UserRow>('SELECT * FROM users WHERE id = $1', [id]);
+  // hebrew_name rides along from the whitelist entry (migration 040): it's the
+  // admin-entered name agents sign with, kept out of users so it survives the
+  // Google profile re-sync on every login.
+  const { rows } = await pool.query<UserRow>(
+    `SELECT u.*, w.hebrew_name
+     FROM users u
+     LEFT JOIN whitelisted_emails w ON w.email = lower(u.email)
+     WHERE u.id = $1`,
+    [id],
+  );
   return rows[0] ?? null;
 }
 
@@ -10,6 +19,7 @@ export interface UserListRow {
   id: string;
   email: string;
   name: string | null;
+  hebrew_name: string | null;
   is_admin: boolean;
   created_at: string;
   mailbox_address: string | null;
@@ -22,7 +32,7 @@ export interface UserListRow {
  */
 export async function listAll(): Promise<UserListRow[]> {
   const { rows } = await pool.query<UserListRow>(
-    `SELECT u.id, u.email, u.name, u.is_admin, u.created_at,
+    `SELECT u.id, u.email, u.name, w.hebrew_name, u.is_admin, u.created_at,
             m.email_address AS mailbox_address,
             (w.email IS NOT NULL) AS whitelisted
      FROM users u

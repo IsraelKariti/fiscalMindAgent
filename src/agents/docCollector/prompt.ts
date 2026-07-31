@@ -101,7 +101,8 @@ export function buildSystemPrompt(
     current_datetime_local: formatLocalDateTime(now, env.ACCOUNTANT_TIMEZONE),
     time_since_last_message: sinceLast,
     accountant_timezone: env.ACCOUNTANT_TIMEZONE,
-    accountant_name: accountant?.name?.trim() || accountant?.email || 'המטפל בתיק',
+    accountant_name:
+      accountant?.hebrew_name?.trim() || accountant?.name?.trim() || accountant?.email || 'המטפל בתיק',
     upcoming_dates: formatUpcomingDates(now, env.ACCOUNTANT_TIMEZONE),
   });
   return fenceToken ? `${rendered}\n\n${buildUntrustedDataDoctrine(fenceToken, true)}` : rendered;

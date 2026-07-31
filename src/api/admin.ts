@@ -32,7 +32,12 @@ const WhitelistAddSchema = z
   .object({
     email: z.string().email().max(320),
     name: z.string().min(1).max(200).nullable().optional(),
+    hebrewName: z.string().min(1).max(200).nullable().optional(),
   })
+  .strict();
+
+const WhitelistHebrewNameSchema = z
+  .object({ hebrewName: z.string().min(1).max(200).nullable() })
   .strict();
 
 /**
@@ -113,6 +118,7 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         id: u.id,
         email: u.email,
         name: u.name,
+        hebrewName: u.hebrew_name,
         createdAt: u.created_at,
         mailbox: u.mailbox_address,
         whitelisted: u.whitelisted,
@@ -533,6 +539,7 @@ export const adminListWhitelist: RequestHandler = async (_req, res) => {
     entries: entries.map((e) => ({
       email: e.email,
       name: e.name,
+      hebrewName: e.hebrew_name,
       signedUp: e.signed_up,
       createdAt: e.created_at,
     })),
@@ -551,13 +558,35 @@ export const adminAddToWhitelist: RequestHandler = async (req, res) => {
     res.status(400).json({ error: 'Admin accounts already have access.' });
     return;
   }
-  const entry = await whitelist.add(email, parsed.data.name ?? null);
+  const entry = await whitelist.add(email, parsed.data.name ?? null, parsed.data.hebrewName ?? null);
   if (!entry) {
     res.status(409).json({ error: 'This email is already whitelisted.' });
     return;
   }
   logger.info('whitelist entry added', { adminUserId: req.realUserId, email });
-  res.status(201).json({ entry: { email: entry.email, name: entry.name, createdAt: entry.created_at } });
+  res.status(201).json({
+    entry: { email: entry.email, name: entry.name, hebrewName: entry.hebrew_name, createdAt: entry.created_at },
+  });
+};
+
+/**
+ * PATCH /api/admin/whitelist/:email — set the Hebrew name agents sign with.
+ * Lives on the whitelist entry, so it can be edited before first sign-in and
+ * survives the Google profile re-sync.
+ */
+export const adminSetWhitelistHebrewName: RequestHandler = async (req, res) => {
+  const email = z.string().email().safeParse(req.params.email);
+  const parsed = WhitelistHebrewNameSchema.safeParse(req.body);
+  if (!email.success || !parsed.success) {
+    res.status(400).json({ error: 'Enter a valid Hebrew name.' });
+    return;
+  }
+  if (!(await whitelist.setHebrewName(email.data, parsed.data.hebrewName))) {
+    res.status(404).json({ error: 'Email not found in the whitelist.' });
+    return;
+  }
+  logger.info('whitelist hebrew name set', { adminUserId: req.realUserId, email: email.data.toLowerCase() });
+  res.json({ ok: true });
 };
 
 const AdminGrantSchema = z.object({ email: z.string().email().max(320) }).strict();

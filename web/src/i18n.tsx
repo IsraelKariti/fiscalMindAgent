@@ -632,9 +632,17 @@ const he = {
   addAccountantTitle: 'הוספת רואה חשבון',
   addAccountantLead: 'הוסיפו את כתובת ה־Gmail שאיתה רואה החשבון יתחבר. הגישה נפתחת ברגע ההוספה — אפשר להתחבר מייד.',
   googleEmail: 'אימייל Google',
-  nameOptional: 'שם (אופציונלי)',
   addAccountantFailed: 'הוספת רואה החשבון נכשלה.',
   adding: 'מוסיף…',
+
+  // Hebrew name of the accountant/firm (fills {{accountant_name}} in agent prompts)
+  hebrewNameLabel: 'שם בעברית',
+  hebrewNameFieldLabel: 'שם רואה החשבון או המשרד (בעברית)',
+  hebrewNameHint:
+    'זהו שם המשרד כפי שיופיע בהודעות ללקוחות — למשל בחתימה "העוזר הדיגיטלי של משרד רואה החשבון …" — במקום השם באנגלית מחשבון ה־Google.',
+  hebrewNameNotSet: 'לא הוגדר',
+  hebrewNameSaveFailed: 'שמירת השם בעברית נכשלה.',
+  activateAccountTitle: 'הפעלת חשבון',
 
   // Charts
   filePdf: 'קובצי PDF',

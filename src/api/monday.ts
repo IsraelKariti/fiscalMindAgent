@@ -137,7 +137,9 @@ mondayRouter.post(
     }
     // monday installs are self-serve: whitelist on provision
     // (no-op when an admin already whitelisted the email).
-    await whitelist.add(email, name ?? null);
+    // Self-serve installs have no admin in the loop, so no Hebrew name yet —
+    // agents fall back to the profile name until an admin fills it in.
+    await whitelist.add(email, name ?? null, null);
     await mondayAccounts.upsert({
       mondayAccountId: req.monday!.accountId,
       mondayUserId: req.monday!.userId,

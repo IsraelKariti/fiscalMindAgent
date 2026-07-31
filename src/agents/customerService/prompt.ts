@@ -36,7 +36,8 @@ const MAX_HISTORY_MESSAGES = 30;
 const PROMPT_TEMPLATE = loadPrompt(new URL('./prompt.md', import.meta.url));
 
 function buildSystemInstruction(client: ClientRow, accountant: UserRow | null, fenceToken: string): string {
-  const accountantName = accountant?.name?.trim() || accountant?.email || 'המשרד';
+  const accountantName =
+    accountant?.hebrew_name?.trim() || accountant?.name?.trim() || accountant?.email || 'המשרד';
   const rendered = renderTemplate(PROMPT_TEMPLATE, { accountant_name: accountantName });
   return `${rendered}\n\n${buildUntrustedDataDoctrine(fenceToken, true)}`;
 }

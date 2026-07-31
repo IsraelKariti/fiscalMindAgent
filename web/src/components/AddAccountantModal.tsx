@@ -12,7 +12,7 @@ interface Props {
 export function AddAccountantModal({ onAdded, onClose }: Props) {
   const { t } = useT();
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [hebrewName, setHebrewName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -21,7 +21,7 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await api.adminAddToWhitelist(email.trim().toLowerCase(), name.trim() || undefined);
+      await api.adminAddToWhitelist(email.trim().toLowerCase(), undefined, hebrewName.trim());
       onAdded();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t.addAccountantFailed);
@@ -49,9 +49,10 @@ export function AddAccountantModal({ onAdded, onClose }: Props) {
           />
         </label>
         <label className="field">
-          <span>{t.nameOptional}</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
+          <span>{t.hebrewNameFieldLabel}</span>
+          <input value={hebrewName} onChange={(e) => setHebrewName(e.target.value)} maxLength={200} required />
         </label>
+        <p className="muted">{t.hebrewNameHint}</p>
         {error && <div className="error-banner">{error}</div>}
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose} disabled={busy}>

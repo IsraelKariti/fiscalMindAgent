@@ -2127,6 +2127,17 @@ textarea {
   font-size: 14px;
 }
 
+/* Tax-year Dropdown host: the trigger is width:100%, so the wrapper sets the
+   compact width matching the sibling inputs. */
+.tax-year-dropdown {
+  width: 110px;
+}
+
+.tax-year-dropdown .dropdown-trigger {
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
 .admin-detail-note {
   margin-top: 16px;
   font-size: 14px;

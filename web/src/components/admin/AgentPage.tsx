@@ -4,6 +4,7 @@ import { api, ApiError, type AgentInstance, type AgentTypeEmailInfo, type Orphan
 import { getAgentUI } from '../../agents/registry';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
+import { Dropdown } from '../Dropdown';
 import { Spinner } from '../Spinner';
 
 /**
@@ -11,11 +12,11 @@ import { Spinner } from '../Spinner';
  * years, plus the already-configured year when it falls outside that window —
  * the select must always be able to display the stored value.
  */
-function taxYearOptions(configured: number | null): number[] {
+function taxYearOptions(configured: number | null): { value: string; label: string }[] {
   const currentYear = new Date().getFullYear();
   const years = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
   if (configured !== null && !years.includes(configured)) years.push(configured);
-  return years.sort((a, b) => b - a);
+  return years.sort((a, b) => b - a).map((year) => ({ value: String(year), label: String(year) }));
 }
 import { WaPoolModal } from '../WaPoolModal';
 import type { AccountantRow } from './shared';
@@ -79,18 +80,13 @@ function ActivateAgentModal({
           <>
             <p className="muted">{t.adminAgentActivateTaxYearExplain}</p>
             <span className="wa-manual-entry" dir="ltr">
-              <select
-                dir="ltr"
-                aria-label={t.adminAgentTaxYearLabel}
-                value={taxYear}
-                onChange={(e) => setTaxYear(Number(e.target.value))}
-              >
-                {taxYearOptions(initialTaxYear).map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+              <span className="tax-year-dropdown">
+                <Dropdown
+                  value={String(taxYear)}
+                  options={taxYearOptions(initialTaxYear)}
+                  onChange={(v) => setTaxYear(Number(v))}
+                />
+              </span>
               <span className="muted">{t.adminAgentTaxYearLabel}</span>
             </span>
           </>
@@ -369,19 +365,13 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
                 <span className="doc-desc muted">{t.adminAgentTaxYearChangeDesc}</span>
               </span>
               <span className="wa-manual-entry" dir="ltr">
-                <select
-                  dir="ltr"
-                  aria-label={t.adminAgentTaxYearLabel}
-                  value={taxYearInput ?? ''}
-                  disabled={busy}
-                  onChange={(e) => setTaxYearInput(Number(e.target.value))}
-                >
-                  {taxYearOptions(instance.taxYear ?? agentInfo?.defaultTaxYear ?? null).map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
+                <span className="tax-year-dropdown">
+                  <Dropdown
+                    value={taxYearInput !== null ? String(taxYearInput) : ''}
+                    options={taxYearOptions(instance.taxYear ?? agentInfo?.defaultTaxYear ?? null)}
+                    onChange={(v) => setTaxYearInput(Number(v))}
+                  />
+                </span>
                 <button
                   className="btn btn-ghost btn-small"
                   disabled={

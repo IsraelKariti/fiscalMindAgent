@@ -935,6 +935,18 @@ textarea {
   cursor: default;
 }
 
+.btn-spinner {
+  vertical-align: -2px;
+  margin-inline-end: 6px;
+  animation: btn-spinner-rotate 1s linear infinite;
+}
+
+@keyframes btn-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .btn-primary {
   background: var(--gradient);
   background-size: 200% 200%;

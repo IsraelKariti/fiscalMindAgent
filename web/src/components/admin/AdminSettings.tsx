@@ -3,6 +3,7 @@ import { api, ApiError, type AdminUser, type GeminiModelState, type KillSwitchSt
 import { formatTimestamp } from '../../format';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
+import { Spinner } from '../Spinner';
 import { MODEL_LABELS } from './shared';
 
 interface Props {
@@ -299,7 +300,14 @@ export function AdminSettings({ userEmail }: Props) {
                   title={t.adminWaNumberReleaseTitle}
                   onClick={() => setOrphanReleaseConfirm(n.phoneNumber)}
                 >
-                  {orphanReleasing === n.phoneNumber ? t.adminWaNumberReleasing : t.adminWaNumberRelease}
+                  {orphanReleasing === n.phoneNumber ? (
+                    <>
+                      <Spinner />
+                      {t.adminWaNumberReleasing}
+                    </>
+                  ) : (
+                    t.adminWaNumberRelease
+                  )}
                 </button>
               </li>
             ))}

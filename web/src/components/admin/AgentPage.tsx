@@ -4,6 +4,7 @@ import { api, ApiError, type AgentInstance, type AgentTypeEmailInfo, type Orphan
 import { getAgentUI } from '../../agents/registry';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
+import { Spinner } from '../Spinner';
 import { WaPoolModal } from '../WaPoolModal';
 import type { AccountantRow } from './shared';
 
@@ -339,7 +340,14 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
                     disabled={busy}
                     onClick={() => setConfirmingRelease(true)}
                   >
-                    {releasing ? t.adminWaNumberReleasing : t.adminWaNumberRelease}
+                    {releasing ? (
+                      <>
+                        <Spinner />
+                        {t.adminWaNumberReleasing}
+                      </>
+                    ) : (
+                      t.adminWaNumberRelease
+                    )}
                   </button>
                 </div>
               </>
@@ -374,7 +382,14 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
                     <span className="doc-desc muted">{t.adminWaOptionBuyDesc}</span>
                   </span>
                   <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => setConfirmingBuy(true)}>
-                    {buying ? t.adminWaNumberBuying : t.adminWaNumberBuy}
+                    {buying ? (
+                      <>
+                        <Spinner />
+                        {t.adminWaNumberBuying}
+                      </>
+                    ) : (
+                      t.adminWaNumberBuy
+                    )}
                   </button>
                 </div>
 

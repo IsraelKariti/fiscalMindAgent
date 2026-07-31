@@ -6,6 +6,7 @@ import * as emails from '../../db/queries/emails.js';
 import { getWaChannelState } from '../docCollector/plan.js';
 import { sendClaimedDocumentsEmail } from '../docCollector/notifyAccountant.js';
 import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
+import { lastInboundMessageAt, rollWeekendSendAt } from '../shared/sendAtGuard.js';
 import { buildPrompt, isInterviewComplete } from './prompt.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { decide } from './decide.js';
@@ -217,10 +218,18 @@ export async function planAnnualReport(ctx: AgentContext): Promise<void> {
   }
 
   // The LLM answers with a wall-clock datetime in the accountant's timezone.
-  const sendAtUtc = zonedTimeToUtc(decision.send_at, env.ACCOUNTANT_TIMEZONE);
+  const weekendGuard = rollWeekendSendAt(decision.send_at, lastInboundMessageAt(history), now);
+  if (weekendGuard.rolled) {
+    logger.warn('proactive send_at fell on the Israeli weekend; rolled to Sunday', {
+      clientId,
+      requested: decision.send_at,
+      send_at: weekendGuard.sendAt,
+    });
+  }
+  const sendAtUtc = zonedTimeToUtc(weekendGuard.sendAt, env.ACCOUNTANT_TIMEZONE);
   const delayMs = sendAtUtc.getTime() - Date.now();
   if (delayMs < 0) {
-    logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: decision.send_at });
+    logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: weekendGuard.sendAt });
   }
   const message = decision.message;
   await scheduleDraftMessage(clientId, {
@@ -236,7 +245,7 @@ export async function planAnnualReport(ctx: AgentContext): Promise<void> {
     clientId,
     channel: message.channel,
     kind: message.channel === 'whatsapp' ? message.kind : 'email',
-    send_at: decision.send_at,
+    send_at: weekendGuard.sendAt,
     send_at_utc: sendAtUtc.toISOString(),
     reasoning: decision.reasoning,
   });

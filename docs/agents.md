@@ -69,6 +69,14 @@ at module init by `src/agents/shared/promptFile.ts` (`loadPrompt` /
 `scripts/copyPromptAssets.mjs` to place them in `dist/src`; keep new prompt
 text in .md files, never in template literals.
 
+**Weekend send guard**: the prompts tell the scheduling agents not to send
+proactive messages on the Israeli weekend, but that is enforced in code, not
+trusted to the LLM: every planner passes the decision's `send_at` through
+`rollWeekendSendAt` (`src/agents/shared/sendAtGuard.ts`) — when the client has
+been silent for over 24h (i.e. the message is proactive, not a reply in an
+active conversation), a Friday/Saturday send rolls to Sunday at the same
+wall-clock time. New scheduling planners must apply the same guard.
+
 Dispatch seams: `src/orchestration/setFutureEmail.ts` (generic dispatcher),
 `src/webhook/onInbound{Email,WhatsApp}.ts` (reaction half),
 `src/webhook/analyzeStoredFile.ts`, `src/agents/resolve.ts`

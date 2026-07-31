@@ -146,7 +146,7 @@ export function allowedTaxFetchActions(state: string, available: boolean, client
   }
 }
 
-/** Just the message-shaping fields, so agents reusing this (annual report) needn't carry every field. */
+/** Just the message-shaping fields, so agents reusing this needn't carry every field. */
 export type FollowUpMessageInput = Pick<
   DecisionResponse,
   'channel' | 'email_subject' | 'email_body' | 'whatsapp_text' | 'whatsapp_template'

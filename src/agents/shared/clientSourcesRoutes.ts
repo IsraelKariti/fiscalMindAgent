@@ -26,10 +26,10 @@ const ScanRequestSchema = z
   .strict();
 
 /**
- * The client-import source routes shared by the doc collector and the
- * annual-report assistant, registered into each agent's (already
- * agent-type-guarded) router under /client-sources. The settings schema is the
- * agent's own — the doc collector's adds the default-documents checklist.
+ * The client-import source routes (today only the doc collector's), registered
+ * into the agent's (already agent-type-guarded) router under /client-sources.
+ * The settings schema is the agent's own — the doc collector's adds the
+ * default-documents checklist.
  */
 export function registerClientSourceRoutes(
   router: Router,

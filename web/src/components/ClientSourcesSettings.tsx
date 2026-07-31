@@ -752,7 +752,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
   );
 }
 
-/** The doc collector's / annual-report assistant's panel, bound to the shared /client-sources routes. */
+/** The doc collector's panel, bound to the shared /client-sources routes. */
 export function ClientImportSettings({
   withDocuments = false,
   withPortalCredentials = false,

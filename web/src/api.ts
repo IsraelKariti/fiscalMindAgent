@@ -406,7 +406,7 @@ export interface DebtCollectorSettings {
   sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; emailColumn: string; nameColumn?: string }[];
 }
 
-/** Client-import sources config (doc collector + annual report; agent_instances.settings). */
+/** Client-import sources config (doc collector; agent_instances.settings). */
 export interface ClientSourcesConfig {
   boards: {
     boardId: string;
@@ -581,7 +581,7 @@ function makeWorkspaceApi(prefix: string) {
       request<{ meta: SpreadsheetMeta }>(
         `${prefix}/debt-collector/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/meta`,
       ),
-    // Client-import sources (routes exist only on doc_collector / annual_report_assistant instances).
+    // Client-import sources (routes exist only on doc_collector instances).
     sourcesGetSettings: () =>
       request<{ settings: ClientSourcesConfig; mondayConnected: boolean; googleConnected: boolean }>(
         `${prefix}/client-sources/settings`,

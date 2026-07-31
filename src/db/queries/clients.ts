@@ -382,18 +382,6 @@ export async function setDebtSnapshot(id: string, snapshot: Record<string, unkno
   );
 }
 
-/**
- * Stamps the annual-report assistant's sticky interview-complete flag
- * (agent_fields.interview_complete). Agent-status write, so updated_at is left
- * alone — it tracks accountant edits.
- */
-export async function markInterviewComplete(id: string): Promise<void> {
-  await pool.query(
-    `UPDATE clients SET agent_fields = agent_fields || jsonb_build_object('interview_complete', true) WHERE id = $1`,
-    [id],
-  );
-}
-
 export async function updateName(id: string, name: string): Promise<void> {
   await pool.query('UPDATE clients SET name = $2, updated_at = now() WHERE id = $1', [id, name]);
 }

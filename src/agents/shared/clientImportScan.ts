@@ -23,7 +23,7 @@ import {
 } from './clientSources.js';
 
 /** Agent types whose clients are auto-enrolled from the configured sources (every row, no screening). */
-export const CLIENT_IMPORT_AGENT_TYPES = ['doc_collector', 'annual_report_assistant'] as const;
+export const CLIENT_IMPORT_AGENT_TYPES = ['doc_collector'] as const;
 
 /** New clients enrolled per instance per run — keeps a huge board from flooding the send pipeline. */
 const MAX_ENROLL = 500;
@@ -257,7 +257,7 @@ export async function scanClientImportInstance(
 }
 
 /**
- * The daily sweep: for every enabled doc-collector / annual-report instance
+ * The daily sweep: for every enabled client-import instance (CLIENT_IMPORT_AGENT_TYPES)
  * with configured sources, enroll any new rows. Runs daily just after local
  * midnight plus once on worker boot; existing clients are skipped, so
  * overlapping runs are harmless.

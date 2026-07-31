@@ -3,8 +3,10 @@
 Since 2026-07-11 (prod v11, migration 019) fiscalMind is a multi-agent
 platform: one app hosting several developer-built agent types, each enabled
 per accountant and owning its own client list. The document collector is
-agent #1; `debt_collector`, `customer_service` and `annual_report_assistant`
-are live too. Industry pattern followed: one app with an agent registry
+agent #1; `debt_collector` and `customer_service` are live too
+(`annual_report_assistant` was retired 2026-07-31 — migration 041 disabled its
+instances; the rows survive, hidden, because instance rows are never deleted).
+Industry pattern followed: one app with an agent registry
 (HubSpot Breeze / Salesforce Agentforce model) — never one app per agent.
 
 ## Concepts
@@ -301,7 +303,7 @@ touching prompt builders or planners:
   never linked to documents, and never count as evidence; the workspace files
   card shows a "תוכן חשוד" badge.
 - **Authority reduction** — LLM verdicts alone can't flip consequential state:
-  - Doc collector / annual report: `collected` requires file evidence — the
+  - Doc collector: `collected` requires file evidence — the
     analyzer's own match (tier A, `fileMatchesDocument`) or a planner pairing
     with a verified legible file (tier B, `isVerifiedLegibleFile`). A no-file
     claim ("delivered by fax / in person") becomes status **`claimed`**
@@ -354,24 +356,7 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   Config lives in `agent_instances.settings`
   (`customerService/settings.ts`); the settings UI is the `settingsPanel`
   slot on `AgentTypeUI`, rendered in the workspace Settings view.
-- `annual_report_assistant` is the doc collector's autonomous sibling
-  (`src/agents/annualReport/`): no accountant-defined document list — clients
-  are added name+email only (`simpleClientForm`), and the agent interviews the
-  client (annual personal return, טופס 1301/135: triage שכיר/עצמאי, capital
-  income, proactive credits). Documents it determines become ordinary
-  `client_documents` rows via the decision field `add_documents` (deduped by
-  normalized name; `matched_file_id` lets a volunteered file create the row
-  already collected — only when that file's analysis is verified, see the
-  prompt-injection section), so the collection machinery is shared. Completion is
-  derived, never trusted from the LLM: sticky `agent_fields.interview_complete`
-  AND ≥1 document AND none pending — zero rows can never complete. Checking
-  every box in the documents tab is an accountant override (stamps the
-  interview flag too). Reuses docCollector's `getWaChannelState`, prompt
-  section builders, `analyzeInboundFile` and `sendToAccountant` via cross-dir
-  imports; has its own prompt template and deliberately does NOT honor the doc
-  collector's per-user custom template. The overdue scan covers both types
-  (`clients.listOverdueForAgentTypes`).
-- **Client-import sources** (doc collector + annual-report assistant): the
+- **Client-import sources** (doc collector): the
   accountant links monday boards / Google Sheets (email + optional name
   column, per-instance in `agent_instances.settings`) and every row that isn't
   a client yet is enrolled — immediately via the settings panel's per-source
@@ -381,7 +366,7 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   in `src/agents/shared/`: `clientSources.ts` (source schemas + whole-source
   sweep + candidate collection — the debt collector's settings/scan now build
   on it too), `clientImportScan.ts` (enroll-all scan; no LLM screening),
-  `clientSourcesRoutes.ts` (the `/client-sources/*` routes both agents mount).
+  `clientSourcesRoutes.ts` (the `/client-sources/*` routes the agent mounts).
   The doc collector additionally keeps a `documents` checklist in its settings
   (`docCollector/settings.ts`) — every imported client is created with it, and
   the import refuses to run while the checklist is empty (a document-less

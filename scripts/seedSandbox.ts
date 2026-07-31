@@ -20,7 +20,7 @@ import * as clients from '../src/db/queries/clients.js';
 const DEMO_SUB = 'sandbox-demo-accountant';
 const DEMO_EMAIL = 'demo.accountant@sandbox.invalid';
 
-const AGENT_TYPES = ['doc_collector', 'annual_report_assistant', 'debt_collector', 'customer_service'];
+const AGENT_TYPES = ['doc_collector', 'debt_collector', 'customer_service'];
 
 const DEMO_CLIENTS: { agentType: string; name: string; email: string; phone: string }[] = [
   { agentType: 'doc_collector', name: 'ישראל ישראלי', email: 'client-doc-1@sandbox.invalid', phone: '+15005550001' },

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { api, type Accountant, type LlmDailyUsage } from '../../api';
-import { getAgentUI } from '../../agents/registry';
+import { getAgentUIIfKnown } from '../../agents/registry';
 import { formatCompact, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { ChartCard, ChartEmpty, NEUTRAL, SERIES } from '../charts/common';
@@ -101,7 +101,12 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
     return a ? (a.name ?? a.email) : id.slice(0, 8);
   };
   const groupKeyOf = (r: LlmDailyUsage) => (groupBy === 'accountant' ? r.userId : r.agentType);
-  const groupLabelOf = (key: string) => (groupBy === 'accountant' ? accountantLabel(key) : t[getAgentUI(key).nameKey]);
+  // Usage history outlives agent types — label retired types by their raw id.
+  const agentTypeLabel = (type: string) => {
+    const ui = getAgentUIIfKnown(type);
+    return ui ? t[ui.nameKey] : type;
+  };
+  const groupLabelOf = (key: string) => (groupBy === 'accountant' ? accountantLabel(key) : agentTypeLabel(key));
 
   const metricValue = (r: LlmDailyUsage) => (metric === 'cost' ? (r.cost ?? 0) : tokensOf(r));
   const fmtValue = metric === 'cost' ? formatUsd : formatCompact;
@@ -298,7 +303,7 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
               <option value="all">{t.usageAllAgentTypes}</option>
               {agentTypes.map((type) => (
                 <option key={type} value={type}>
-                  {t[getAgentUI(type).nameKey]}
+                  {agentTypeLabel(type)}
                 </option>
               ))}
             </select>

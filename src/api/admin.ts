@@ -8,7 +8,7 @@ import * as llmUsage from '../db/queries/llmUsage.js';
 import * as users from '../db/queries/users.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as whitelist from '../db/queries/whitelist.js';
-import { getAgentType, listAgentTypes } from '../agents/registry.js';
+import { getAgentType, getAgentTypeIfKnown, listAgentTypes } from '../agents/registry.js';
 import { getKillSwitchState, setKillSwitch } from '../agents/killSwitch.js';
 import { RESERVED } from './mailbox.js';
 import { env } from '../config/env.js';
@@ -75,8 +75,12 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
     agentInstances.listAllWithClientCounts(),
   ]);
 
+  const known = knownAgentTypes();
   const agentsByUser = new Map<string, object[]>();
   for (const instance of instances) {
+    // Instances of retired agent types keep their rows (never deleted —
+    // clients cascade off them) but are gone from the platform: hide them.
+    if (!known.has(instance.agent_type)) continue;
     const entries = agentsByUser.get(instance.user_id) ?? [];
     entries.push({
       id: instance.id,
@@ -192,7 +196,8 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'User not found.' });
     return;
   }
-  const instances = await agentInstances.listAllForUser(userId.data);
+  // Retired-type instances keep their rows but are hidden and not re-enableable.
+  const instances = (await agentInstances.listAllForUser(userId.data)).filter((i) => knownAgentTypes().has(i.agent_type));
   const senders = await waSenders.listForUser(userId.data);
   const numberByInstance = new Map(senders.map((s) => [s.agent_instance_id, s.phone_number]));
   const instanceMailboxes = await agentMailboxes.listForInstancesOfUser(userId.data);
@@ -352,7 +357,9 @@ export const adminSetAgentEmail: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'Agent not found.' });
     return;
   }
-  if (!getAgentType(instance.agent_type).emailSuffix) {
+  // IfKnown: a retired type's instance row may still exist — treat it like a
+  // type that doesn't email clients instead of throwing.
+  if (!getAgentTypeIfKnown(instance.agent_type)?.emailSuffix) {
     res.status(400).json({ error: 'This agent type does not email clients.' });
     return;
   }

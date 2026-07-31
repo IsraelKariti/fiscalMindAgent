@@ -12,6 +12,7 @@ import {
   sanitizeUntrusted,
 } from '../shared/promptSafety.js';
 import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
+import { formatUpcomingDates } from '../shared/upcomingDates.js';
 import type { DebtData } from './data.js';
 
 function formatDate(d: Date): string {
@@ -63,6 +64,7 @@ function buildSystemPrompt(
     current_datetime_utc: now.toISOString(),
     current_datetime_local: formatLocalDateTime(now, env.ACCOUNTANT_TIMEZONE),
     time_since_last_message: sinceLast,
+    upcoming_dates: formatUpcomingDates(now, env.ACCOUNTANT_TIMEZONE),
   });
   return `${rendered}\n\n${buildUntrustedDataDoctrine(fenceToken, true)}`;
 }

@@ -12,6 +12,7 @@ import {
   sanitizeUntrusted,
 } from '../shared/promptSafety.js';
 import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
+import { formatUpcomingDates } from '../shared/upcomingDates.js';
 
 /** Everything the prompt tells the LLM about the WhatsApp channel's current availability. */
 export interface WaChannelState {
@@ -66,6 +67,7 @@ export const PROMPT_PLACEHOLDERS = [
   'time_since_last_message',
   'accountant_timezone',
   'accountant_name',
+  'upcoming_dates',
 ] as const;
 
 export type PromptPlaceholder = (typeof PROMPT_PLACEHOLDERS)[number];
@@ -100,6 +102,7 @@ export function buildSystemPrompt(
     time_since_last_message: sinceLast,
     accountant_timezone: env.ACCOUNTANT_TIMEZONE,
     accountant_name: accountant?.name?.trim() || accountant?.email || 'המטפל בתיק',
+    upcoming_dates: formatUpcomingDates(now, env.ACCOUNTANT_TIMEZONE),
   });
   return fenceToken ? `${rendered}\n\n${buildUntrustedDataDoctrine(fenceToken, true)}` : rendered;
 }

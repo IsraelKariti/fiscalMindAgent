@@ -60,6 +60,15 @@ are live too. Industry pattern followed: one app with an agent registry
 - `buildRouter?()` — agent-specific API routes composed into the workspace
   router (guard on `req.agentInstance.agent_type`, `next('router')` otherwise).
 
+**Agent prompts are plain Markdown files**, not inline strings: each agent's
+system-prompt template lives in `src/agents/<type>/prompt.md` next to its
+`prompt.ts` (the debt collector's daily-scan screening prompt is
+`dailyScanPrompt.md`). They use `{{placeholder}}` substitution and are loaded
+at module init by `src/agents/shared/promptFile.ts` (`loadPrompt` /
+`renderTemplate`). tsc does not copy them — `npm run build` runs
+`scripts/copyPromptAssets.mjs` to place them in `dist/src`; keep new prompt
+text in .md files, never in template literals.
+
 Dispatch seams: `src/orchestration/setFutureEmail.ts` (generic dispatcher),
 `src/webhook/onInbound{Email,WhatsApp}.ts` (reaction half),
 `src/webhook/analyzeStoredFile.ts`, `src/agents/resolve.ts`

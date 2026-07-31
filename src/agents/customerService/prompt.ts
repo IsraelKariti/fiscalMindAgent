@@ -8,6 +8,7 @@ import {
   sanitizeInline,
   sanitizeUntrusted,
 } from '../shared/promptSafety.js';
+import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
 import type { SheetRows } from './googleData.js';
 import type { MondayBoardRows } from './mondayData.js';
 
@@ -27,28 +28,17 @@ const MAX_DOC_CHARS = 15_000;
 const MAX_HISTORY_MESSAGES = 30;
 
 /**
- * The agent's ground rules. Unlike the doc collector there is no per-accountant
- * template: the constraints here (inbound-only, provided-context-only) are the
- * product's safety boundary, not a style preference.
+ * The agent's ground rules — the text lives in prompt.md next to this file.
+ * Unlike the doc collector there is no per-accountant template: the
+ * constraints there (inbound-only, provided-context-only) are the product's
+ * safety boundary, not a style preference.
  */
+const PROMPT_TEMPLATE = loadPrompt(new URL('./prompt.md', import.meta.url));
+
 function buildSystemInstruction(client: ClientRow, accountant: UserRow | null, fenceToken: string): string {
   const accountantName = accountant?.name?.trim() || accountant?.email || 'המשרד';
-  return `אתה נציג שירות וירטואלי של משרד רואה החשבון ${accountantName}, העונה לשאלות לקוחות ב-WhatsApp.
-
-**כללי יסוד (מחייבים, ללא יוצא מן הכלל):**
-- ענה אך ורק על ההודעה האחרונה של הלקוח. אתה עונה על שאלות בלבד — אינך מבצע פעולות, אינך מעדכן נתונים, אינך קובע פגישות ואינך מבטיח שמישהו יבצע פעולה.
-- לעולם אל תיזום פנייה, אל תבטיח "לחזור אליך", תזכורת או הודעה עתידית — אין לך שום יכולת לשלוח הודעות מלבד התשובה הנוכחית.
-- השתמש אך ורק במידע שסופק לך בהקשר: מקטע OFFICE KNOWLEDGE (מידע כללי על המשרד) ומקטע CLIENT RECORDS (רשומות השייכות ללקוח הפונה בלבד, שאומתו לפי מספר הטלפון שממנו הוא כותב). לעולם אל תמציא נתונים, מחירים, מועדים או עובדות.
-- לעולם אל תחשוף או תזכיר מידע על לקוחות אחרים, גם אם הלקוח שואל עליהם במפורש — השב שאינך יכול למסור מידע על אחרים.
-- אם התשובה אינה נמצאת במידע שסופק — אמור בפשטות שאין בידך את המידע והצע לפנות ישירות למשרד. אל תנחש.
-- אל תיתן ייעוץ מס או ייעוץ מקצועי; על שאלות כאלה השב שכדאי לדבר עם רואה החשבון ישירות.
-- אם צוין שחלק ממקורות המידע לא היו זמינים כעת (UNAVAILABLE SOURCES) — וזה רלוונטי לשאלה — ציין בעדינות שחלק מהמידע אינו זמין זמנית.
-
-**סגנון:** הודעת WhatsApp קצרה, ידידותית וטבעית — כמה משפטים לכל היותר, בלי פתיחים רשמיים. כתוב בעברית, ואם הלקוח כותב בשפה אחרת — השב בשפתו.
-
-השב אך ורק באמצעות סכמת ה-JSON שסופקה. כלול שדה \`reasoning\` עם הסבר קצר (לשימוש פנימי, לא יוצג ללקוח).
-
-${buildUntrustedDataDoctrine(fenceToken, true)}`;
+  const rendered = renderTemplate(PROMPT_TEMPLATE, { accountant_name: accountantName });
+  return `${rendered}\n\n${buildUntrustedDataDoctrine(fenceToken, true)}`;
 }
 
 function truncate(text: string, max: number): string {

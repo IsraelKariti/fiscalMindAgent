@@ -14,7 +14,7 @@
     "dev:browser-runner": "node scripts/devBrowserRunner.mjs",
     "dev:gui": "npm run dev --prefix web",
     "dev:landing": "node scripts/devLanding.mjs",
-    "build": "tsc -p .",
+    "build": "tsc -p . && node scripts/copyPromptAssets.mjs",
     "build:gui": "npm run build --prefix web",
     "start:web": "node dist/src/web.js",
     "start:worker": "node dist/src/worker.js",

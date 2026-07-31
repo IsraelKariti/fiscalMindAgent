@@ -12,6 +12,7 @@ import { generateWithRetry, usageFromResponse } from '../../gemini/generate.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
 import { collectCandidates, loadAllRows, type Candidate } from '../shared/clientSources.js';
+import { loadPrompt } from '../shared/promptFile.js';
 import { parseSettings } from './settings.js';
 
 /** Rows the screening prompt may carry per instance per day — keeps one Gemini call bounded. */
@@ -32,11 +33,7 @@ const ScanResponseSchema = z.object({
 const scanJsonSchema = zodToJsonSchema(ScanResponseSchema) as Record<string, unknown>;
 delete scanJsonSchema.$schema;
 
-const SCAN_SYSTEM_PROMPT = `אתה סוכן גביית חובות של משרד רואי חשבון. תוצג בפניך רשימת שורות מתוך הלוחות והגיליונות של המשרד — כל שורה שייכת ללקוח (מזוהה לפי כתובת אימייל) שעדיין אין לו תיק גבייה פתוח.
-
-זהה אילו מהשורות מעידות על חוב פתוח שטרם שולם: יתרת חוב, תשלום שלא הוסדר, פיגור בתשלומים וכדומה. שורה שאינה מראה חוב פתוח (שולם, יתרה אפס, אין אינדיקציה) — אל תכלול.
-
-השב אך ורק לפי סכמת ה-JSON: מערך debtors ובו, לכל לקוח עם חוב פתוח, כתובת האימייל שלו בדיוק כפי שהופיעה בשורה, ו-reasoning קצר (לשימוש פנימי). אם אין חייבים — החזר מערך ריק.`;
+const SCAN_SYSTEM_PROMPT = loadPrompt(new URL('./dailyScanPrompt.md', import.meta.url));
 
 /** One Gemini screening call over the not-yet-enrolled rows; returns the debtor emails it flagged. */
 async function screenForDebtors(instance: AgentInstanceRow, candidates: Candidate[]): Promise<Set<string>> {

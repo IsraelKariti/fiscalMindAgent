@@ -249,13 +249,13 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
 
 // Instance addresses use the DB's widened cap (prefix + suffix), not the
 // 30-char claim regex in mailbox.ts.
-const INSTANCE_LOCAL_PART_RE = /^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])?$/;
+const INSTANCE_LOCAL_PART_RE = /^(?!.*\.\.)[a-z0-9]([a-z0-9.-]{1,38}[a-z0-9])?$/;
 
 /** Normalizes and validates an instance address local part; shared by enable and re-address. */
 function parseInstanceLocalPart(raw: string): { localPart: string } | { status: number; error: string } {
   const localPart = raw.trim().toLowerCase();
   if (!INSTANCE_LOCAL_PART_RE.test(localPart)) {
-    return { status: 400, error: 'Addresses are 3–40 characters: lowercase letters, digits and hyphens (not at the edges).' };
+    return { status: 400, error: 'Addresses are 3–40 characters: lowercase letters, digits, dots and hyphens (not at the edges, no consecutive dots).' };
   }
   if (RESERVED.has(localPart)) {
     return { status: 409, error: 'That name is reserved.' };

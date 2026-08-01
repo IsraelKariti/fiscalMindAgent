@@ -20,6 +20,7 @@ import {
   saveGeminiModel,
 } from '../gemini/modelSettings.js';
 import { auditAdminMutation } from '../audit/adminAudit.js';
+import { markNumberAsPooled } from '../twilio/provision.js';
 import { logger } from '../util/logger.js';
 import { clearImpersonationCookie, setImpersonationCookie } from './auth.js';
 
@@ -715,8 +716,13 @@ export const adminDeleteAccountant: RequestHandler = async (req, res) => {
     res.status(400).json({ error: 'Cannot delete an admin account — revoke admin access first.' });
     return;
   }
+  // Their WhatsApp numbers survive the cascade (still owned on Twilio) and
+  // return to the available pool — rename them so the pool doesn't keep
+  // showing the deleted account's agent labels.
+  const senders = await waSenders.listForUser(userId.data);
   await users.deleteById(userId.data);
   await whitelist.remove(target.email.toLowerCase());
+  for (const sender of senders) await markNumberAsPooled(sender.phone_number);
   logger.warn('accountant account deleted', { adminUserId: req.realUserId, targetUserId: target.id, targetEmail: target.email });
   res.json({ ok: true });
 };

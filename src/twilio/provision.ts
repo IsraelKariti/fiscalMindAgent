@@ -92,6 +92,26 @@ export async function listOwnedNumbers(): Promise<OwnedNumber[]> {
   }));
 }
 
+/**
+ * After a number is unassigned from an agent, rewrite its Twilio friendly name
+ * so the available-numbers pool doesn't keep showing the old agent's label.
+ * Best-effort: does nothing when Twilio isn't configured or the number isn't
+ * owned by this account (manually assigned external numbers), and swallows
+ * failures — unassignment must not fail over a cosmetic rename.
+ */
+export async function markNumberAsPooled(phoneNumber: string): Promise<void> {
+  if (!isTwilioConfigured()) return;
+  try {
+    const client = twilioClient();
+    const [owned] = await client.incomingPhoneNumbers.list({ phoneNumber, limit: 1 });
+    if (!owned) return;
+    await client.incomingPhoneNumbers(owned.sid).update({ friendlyName: 'fiscalmind pool' });
+    logger.info('twilio number renamed to pool', { phoneNumber });
+  } catch (err) {
+    logger.error('failed to rename unassigned twilio number', err);
+  }
+}
+
 /** The number isn't on this Twilio account, so there is nothing to release. */
 export class NumberNotOwnedError extends Error {
   constructor(phoneNumber: string) {

@@ -6,6 +6,7 @@ import * as waTemplates from '../db/queries/waTemplates.js';
 import {
   isProvisioningConfigured,
   listOwnedNumbers,
+  markNumberAsPooled,
   NumberNotOwnedError,
   provisionWhatsAppNumber,
   releaseWhatsAppNumber,
@@ -135,12 +136,14 @@ export const adminProvisionWaSender: RequestHandler = async (req, res) => {
 /** DELETE /api/admin/wa-senders/:agentInstanceId — unassign the agent instance's number. */
 export const adminDeleteWaSender: RequestHandler = async (req, res) => {
   const instanceId = z.string().uuid().safeParse(req.params.agentInstanceId);
-  if (!instanceId.success || !(await waSenders.getByInstanceId(instanceId.data))) {
+  const sender = instanceId.success ? await waSenders.getByInstanceId(instanceId.data) : null;
+  if (!sender) {
     res.status(404).json({ error: 'No WhatsApp sender assigned to this agent instance.' });
     return;
   }
-  await waSenders.deleteForInstance(instanceId.data);
-  logger.info('wa sender unassigned', { adminUserId: req.realUserId, agentInstanceId: instanceId.data });
+  await waSenders.deleteForInstance(sender.agent_instance_id);
+  await markNumberAsPooled(sender.phone_number);
+  logger.info('wa sender unassigned', { adminUserId: req.realUserId, agentInstanceId: sender.agent_instance_id });
   res.json({ ok: true });
 };
 

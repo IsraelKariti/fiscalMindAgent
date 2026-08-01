@@ -4,6 +4,7 @@ import * as agentInstances from '../db/queries/agentInstances.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
 import {
+  claimSenderWebhook,
   isProvisioningConfigured,
   listOwnedNumbers,
   markNumberAsPooled,
@@ -62,6 +63,16 @@ export const adminUpsertWaSender: RequestHandler = async (req, res) => {
   }
   if (!(await agentInstances.getById(parsed.data.agentInstanceId))) {
     res.status(404).json({ error: 'Agent instance not found.' });
+    return;
+  }
+  // Claim the number's inbound webhook for this environment before recording
+  // the assignment — a pool number may still point at the environment that
+  // provisioned it, which would silently swallow every client reply.
+  try {
+    await claimSenderWebhook(phoneNumber);
+  } catch (err) {
+    logger.error('wa sender webhook claim failed', err, { phoneNumber });
+    res.status(502).json({ error: 'Updating the number’s inbound webhook on Twilio failed; the number was not assigned.' });
     return;
   }
   try {

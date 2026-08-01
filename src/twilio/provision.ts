@@ -112,6 +112,30 @@ export async function markNumberAsPooled(phoneNumber: string): Promise<void> {
   }
 }
 
+/**
+ * Points an already-registered sender's inbound webhook at this environment.
+ * Prod and dev share one Twilio account, so a pool number keeps the callback
+ * URL of whichever environment originally provisioned it — assigning it to an
+ * agent must therefore also claim its inbound traffic. No-op when Twilio isn't
+ * configured or the number has no sender on this account (externally
+ * registered numbers).
+ */
+export async function claimSenderWebhook(phoneNumber: string): Promise<void> {
+  if (!isTwilioConfigured() || !env.TWILIO_WEBHOOK_URL) return;
+  const client = twilioClient();
+  // The senders API has no per-number lookup, only a channel-wide list.
+  const senders = await client.messaging.v2.channelsSenders.list({ channel: 'whatsapp' });
+  const sender = senders.find((s) => s.senderId === `whatsapp:${phoneNumber}`);
+  if (!sender) return;
+  if (sender.webhook?.callbackUrl === env.TWILIO_WEBHOOK_URL) return;
+  // Same snake_case caveat as in provisionWhatsAppNumber: the SDK forwards
+  // this object verbatim as the JSON body.
+  const body = { webhook: { callback_url: env.TWILIO_WEBHOOK_URL, callback_method: 'POST' } };
+  const handle = client.messaging.v2.channelsSenders(sender.sid);
+  await handle.update(body as unknown as Parameters<typeof handle.update>[0]);
+  logger.info('wa sender webhook claimed', { phoneNumber, callbackUrl: env.TWILIO_WEBHOOK_URL });
+}
+
 /** The number isn't on this Twilio account, so there is nothing to release. */
 export class NumberNotOwnedError extends Error {
   constructor(phoneNumber: string) {

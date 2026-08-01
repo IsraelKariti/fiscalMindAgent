@@ -8,6 +8,7 @@ import { israelTaxAuthorityProvider } from './israelTaxAuthority.js';
 import { altshulerShahamProvider } from './altshulerShaham.js';
 import { harelProvider } from './harel.js';
 import { OtpRejectedError, type DocumentFetchProvider } from './providerTypes.js';
+import { RUNNER_PROTOCOL_VERSION } from './protocol.js';
 import { logger } from '../util/logger.js';
 
 const PROVIDERS: Record<string, DocumentFetchProvider> = {
@@ -93,9 +94,10 @@ export function createRunnerApp(): Express {
   const app = express();
   app.use(express.json({ limit: '16kb' }));
 
-  // Auth-free so container health probes can hit it; reveals only liveness.
+  // Auth-free so container health probes can hit it; reveals only liveness
+  // and the contract version the worker checks before starting a login.
   app.get('/healthz', (_req, res) => {
-    res.json({ ok: true, liveSessions: sessions.size });
+    res.json({ ok: true, liveSessions: sessions.size, protocolVersion: RUNNER_PROTOCOL_VERSION });
   });
 
   app.use(buildAuthMiddleware());

@@ -5,6 +5,9 @@
 # REDIS_URL, SECRET_ENC_KEY or any API key: the whole point of the sidecar is
 # that the process rendering hostile web content has nothing worth stealing.
 #
+# Built by deploy.yml on every prod deploy (tagged with the git SHA, wired to
+# the worker via TAX_FETCH_ACI_IMAGE) so it can't drift from the worker's HTTP
+# contract (src/browserRunner/protocol.ts). Local build:
 #   docker build -f Dockerfile.browser-runner -t fiscalmind-browser .
 
 FROM node:22-alpine AS build

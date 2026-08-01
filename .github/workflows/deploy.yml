@@ -23,6 +23,7 @@ env:
   RG: fiscalmind-israel
   ACR: fiscalmindacr
   IMAGE: fiscalmindacr.azurecr.io/fiscalmind-agent
+  BROWSER_IMAGE: fiscalmindacr.azurecr.io/fiscalmind-browser
 
 jobs:
   deploy:
@@ -47,8 +48,24 @@ jobs:
             docker push $IMAGE:${{ github.sha }}
           fi
 
+      # The tax-fetch ACI browser runner ships as its own image and must stay
+      # in lockstep with the worker's HTTP contract (src/browserRunner/protocol.ts)
+      # — a stale image broke every prod fetch on 2026-08-01. Building it here,
+      # tagged with the same SHA, keeps them in sync by construction.
+      - name: Build and push browser-runner image
+        run: |
+          if az acr repository show --name $ACR --image fiscalmind-browser:${{ github.sha }} > /dev/null 2>&1; then
+            echo "tag already in ACR — skipping build"
+          else
+            docker build -f Dockerfile.browser-runner -t $BROWSER_IMAGE:${{ github.sha }} .
+            docker push $BROWSER_IMAGE:${{ github.sha }}
+          fi
+
       - name: Update worker (startup command runs migrations before the worker)
         run: |
+          # appsettings set echoes every setting's value — keep secrets out of the CI log.
+          az webapp config appsettings set -n fiscalmind-il-worker -g $RG \
+            --settings TAX_FETCH_ACI_IMAGE=$BROWSER_IMAGE:${{ github.sha }} > /dev/null
           az webapp config container set -n fiscalmind-il-worker -g $RG \
             --container-image-name $IMAGE:${{ github.sha }} \
             --container-registry-url https://fiscalmindacr.azurecr.io

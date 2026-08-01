@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { env } from '../../../config/env.js';
+import { RUNNER_PROTOCOL_VERSION } from '../../../browserRunner/protocol.js';
 import { logger } from '../../../util/logger.js';
 import { provisionSessionContainer, resolveSessionBaseUrl, teardownSessionContainer } from './aciSessionPool.js';
 import {
@@ -55,6 +56,30 @@ const DownloadResponse = z.object({
     .max(MAX_DOCUMENTS_PER_FETCH),
 });
 
+/**
+ * Refuses to drive a runner built from a different contract version (the
+ * worker and runner image deploy separately, so they can drift — a stale
+ * image broke every prod fetch on 2026-08-01 with an opaque 400). An
+ * unreachable or malformed /healthz is NOT treated as a mismatch: the login
+ * call right after will fail with the real transport error instead.
+ */
+async function assertRunnerProtocol(baseUrl: string): Promise<void> {
+  let version: unknown;
+  try {
+    const res = await fetch(`${baseUrl}/healthz`, { signal: AbortSignal.timeout(5000) });
+    version = ((await res.json()) as { protocolVersion?: unknown }).protocolVersion;
+  } catch {
+    return;
+  }
+  if (version !== RUNNER_PROTOCOL_VERSION) {
+    throw new Error(
+      `browser runner speaks protocol ${typeof version === 'number' ? version : 'pre-versioning'}, ` +
+        `worker expects ${RUNNER_PROTOCOL_VERSION} — rebuild the fiscalmind-browser image from this commit ` +
+        `and update TAX_FETCH_ACI_IMAGE (deploy.yml does this on prod deploys)`,
+    );
+  }
+}
+
 class HttpTaxFetchClient implements TaxFetchClient {
   /** Maps a session to its runner's base URL — a fixed sidecar in static mode, that session's own container in aci mode. */
   constructor(private readonly baseUrlFor: (sessionId: string) => string | Promise<string>) {}
@@ -79,6 +104,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
   }
 
   async startLogin(sessionId: string, provider: string, credentials: PortalCredentials): Promise<void> {
+    await assertRunnerProtocol(await this.baseUrlFor(sessionId));
     const res = await this.request(sessionId, '/sessions', {
       method: 'POST',
       body: { sessionId, provider, credentials },

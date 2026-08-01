@@ -51,7 +51,21 @@ export type RowStatus = 'active' | 'invited' | 'none';
 
 export function rowStatus(row: AccountantRow): RowStatus {
   if (!row.whitelisted) return 'none';
-  return row.user ? 'active' : 'invited';
+  // Invited accounts have a user row from the moment of activation (so the
+  // admin can configure their agents) — "active" means they actually signed in.
+  return row.user?.signedIn ? 'active' : 'invited';
+}
+
+/**
+ * Selectable tax years: the current year (computed at render time) back 3
+ * years, plus the already-configured year when it falls outside that window —
+ * the select must always be able to display the stored value.
+ */
+export function taxYearOptions(configured: number | null): { value: string; label: string }[] {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
+  if (configured !== null && !years.includes(configured)) years.push(configured);
+  return years.sort((a, b) => b - a).map((year) => ({ value: String(year), label: String(year) }));
 }
 
 export function StatusBadge({ row }: { row: AccountantRow }) {

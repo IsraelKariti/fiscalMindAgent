@@ -24,8 +24,9 @@ export function AccountantsTable({ rows, onOpen, onChanged }: Props) {
   const deleteAccount = async (row: AccountantRow) => {
     setDeleteError(null);
     try {
-      // Signed-up account: full deletion (data + whitelist entry). Invited-only
-      // row: there's no account yet — removing the whitelist entry is the whole job.
+      // Any row with an account (signed-in or invited): full deletion, data +
+      // whitelist entry. The whitelist-only fallback covers rows whose user
+      // record is missing (e.g. a stale roster after a partial refresh).
       if (row.user) await api.adminDeleteAccountant(row.user.id);
       else await api.adminRemoveFromWhitelist(row.email);
       onChanged();

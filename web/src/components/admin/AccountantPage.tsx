@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { api, ApiError, type AgentInstance } from '../../api';
+import { api, ApiError, type AgentInstance, type AgentTypeEmailInfo } from '../../api';
 import { getAgentUI, getAllAgentUIs } from '../../agents/registry';
 import { formatTimestamp, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
+import { AddAgentModal } from './AddAgentModal';
 import { ConfirmModal } from '../ConfirmModal';
 import { CopyButton } from '../CopyButton';
 import { MODEL_LABELS, StatusBadge, type AccountantRow } from './shared';
@@ -29,39 +30,44 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
   // 'activate' collects the Hebrew name while whitelisting; 'edit' updates it later.
   const [nameModal, setNameModal] = useState<'activate' | 'edit' | null>(null);
+  const [addingAgent, setAddingAgent] = useState(false);
 
-  // The agents summary (incl. disabled instances and not-yet-created types).
+  // The agents summary (incl. disabled instances) + what the add-agent modal needs.
   const userId = row?.user?.id ?? null;
-  const [agentInfo, setAgentInfo] = useState<{ agents: AgentInstance[]; availableTypes: string[] } | null>(null);
+  const [agentInfo, setAgentInfo] = useState<{
+    agents: AgentInstance[];
+    availableTypes: string[];
+    emailInfoByType: Record<string, AgentTypeEmailInfo>;
+    emailDomain: string;
+    defaultTaxYear: number;
+  } | null>(null);
+  const loadAgentInfo = useCallback(async () => {
+    if (!userId) return;
+    setAgentInfo(await api.adminListAccountantAgents(userId));
+  }, [userId]);
   useEffect(() => {
     setAgentInfo(null);
-    if (!userId) return;
-    api.adminListAccountantAgents(userId).then(setAgentInfo).catch(() => {});
-  }, [userId]);
+    loadAgentInfo().catch(() => {});
+  }, [loadAgentInfo]);
 
-  // One row per agent type: the accountant's instance when it exists, else the
-  // enableable type itself (named from the frontend registry). Rows follow the
-  // registry order (doc collector first), not instance creation order.
-  const agentRows = useMemo(() => {
+  // Only agents the admin actually created show here — a type with no instance
+  // is added through the add-agent modal, never listed as a phantom row. Rows
+  // follow the registry order (doc collector first), not creation order.
+  const registryOrder = useMemo(() => new Map(getAllAgentUIs().map((ui, i) => [ui.agentType, i])), []);
+  const agentRows = useMemo(
+    () =>
+      [...(agentInfo?.agents ?? [])].sort(
+        (a, b) => (registryOrder.get(a.agentType) ?? Infinity) - (registryOrder.get(b.agentType) ?? Infinity),
+      ),
+    [agentInfo, registryOrder],
+  );
+  const addableTypes = useMemo(() => {
     if (!agentInfo) return [];
     const instantiated = new Set(agentInfo.agents.map((a) => a.agentType));
-    const registryOrder = new Map(getAllAgentUIs().map((ui, i) => [ui.agentType, i]));
-    return [
-      ...agentInfo.agents.map((a) => ({ ...a, instantiated: true })),
-      ...agentInfo.availableTypes
-        .filter((type) => !instantiated.has(type))
-        .map((type) => ({
-          id: type,
-          agentType: type,
-          name: null as string | null,
-          enabled: false,
-          waPhoneNumber: null as string | null,
-          instantiated: false,
-        })),
-    ].sort(
-      (a, b) => (registryOrder.get(a.agentType) ?? Infinity) - (registryOrder.get(b.agentType) ?? Infinity),
-    );
-  }, [agentInfo]);
+    return agentInfo.availableTypes
+      .filter((type) => !instantiated.has(type))
+      .sort((a, b) => (registryOrder.get(a) ?? Infinity) - (registryOrder.get(b) ?? Infinity));
+  }, [agentInfo, registryOrder]);
 
   const enabledAgents = useMemo(() => (row?.user?.agents ?? []).filter((a) => a.enabled), [row]);
   const clientTotal = enabledAgents.reduce((sum, a) => sum + a.clientCount, 0);
@@ -174,7 +180,13 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
           </div>
           <div>
             <dt>{t.joinedLabel}</dt>
-            <dd>{row.user ? formatTimestamp(row.user.createdAt) : <span className="muted">{t.notSignedInYet}</span>}</dd>
+            <dd>
+              {row.user?.signedIn ? (
+                formatTimestamp(row.user.createdAt)
+              ) : (
+                <span className="muted">{t.notSignedInYet}</span>
+              )}
+            </dd>
           </div>
         </dl>
       </section>
@@ -205,39 +217,46 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
         </div>
       )}
 
-      {row.user && agentRows.length > 0 && (
+      {row.user && (
         <section className="card">
           <div className="card-header">
             <div>
               <h2>{t.adminAgentsTitle}</h2>
             </div>
+            {agentInfo && addableTypes.length > 0 && (
+              <button className="btn btn-primary btn-small" disabled={busy} onClick={() => setAddingAgent(true)}>
+                {t.adminAddAgent}
+              </button>
+            )}
           </div>
-          <ul className="doc-list">
-            {agentRows.map((agent) => (
-              <li key={agent.id} className="doc-row admin-agent-summary">
-                <span className="doc-text">
-                  <span className="doc-name">{agent.name ?? t[getAgentUI(agent.agentType).nameKey]}</span>
-                  <span className="doc-desc muted">{t[getAgentUI(agent.agentType).descriptionKey]}</span>
-                </span>
-                <span className="admin-agent-summary-meta">
-                  {agent.instantiated && (
+          {!agentInfo && <p className="muted">{t.loading}</p>}
+          {agentInfo && agentRows.length === 0 && <p className="muted">{t.adminNoAgentsConfigured}</p>}
+          {agentRows.length > 0 && (
+            <ul className="doc-list">
+              {agentRows.map((agent) => (
+                <li key={agent.id} className="doc-row admin-agent-summary">
+                  <span className="doc-text">
+                    <span className="doc-name">{agent.name ?? t[getAgentUI(agent.agentType).nameKey]}</span>
+                    <span className="doc-desc muted">{t[getAgentUI(agent.agentType).descriptionKey]}</span>
+                  </span>
+                  <span className="admin-agent-summary-meta">
                     <span className="muted">{t.nClientsTitle(clientCountByType.get(agent.agentType) ?? 0)}</span>
-                  )}
-                  {agent.waPhoneNumber ? (
-                    <span className="muted" dir="ltr">
-                      {agent.waPhoneNumber}
-                    </span>
-                  ) : (
-                    agent.instantiated && <span className="muted">{t.adminWaNumberNone}</span>
-                  )}
-                  {agent.enabled && <span className="badge badge-success">{t.activeBadge}</span>}
-                </span>
-                <button className="btn btn-ghost btn-small" onClick={() => onOpenAgent(agent.agentType)}>
-                  {t.adminManageAgent}
-                </button>
-              </li>
-            ))}
-          </ul>
+                    {agent.waPhoneNumber ? (
+                      <span className="muted" dir="ltr">
+                        {agent.waPhoneNumber}
+                      </span>
+                    ) : (
+                      <span className="muted">{t.adminWaNumberNone}</span>
+                    )}
+                    {agent.enabled && <span className="badge badge-success">{t.activeBadge}</span>}
+                  </span>
+                  <button className="btn btn-ghost btn-small" onClick={() => onOpenAgent(agent.agentType)}>
+                    {t.adminManageAgent}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
@@ -307,6 +326,21 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
           danger
           onConfirm={revoke}
           onClose={() => setConfirmingRevoke(false)}
+        />
+      )}
+
+      {addingAgent && userId && agentInfo && (
+        <AddAgentModal
+          userId={userId}
+          addableTypes={addableTypes}
+          emailInfoByType={agentInfo.emailInfoByType}
+          emailDomain={agentInfo.emailDomain}
+          defaultTaxYear={agentInfo.defaultTaxYear}
+          onAdded={async () => {
+            await loadAgentInfo();
+            await onChanged();
+          }}
+          onClose={() => setAddingAgent(false)}
         />
       )}
 

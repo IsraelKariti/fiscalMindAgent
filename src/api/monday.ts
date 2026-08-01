@@ -68,8 +68,9 @@ async function sessionStatus(userId: string) {
   return {
     provisioned: true,
     // Auto-provisioned users carry a synthetic `monday:<ids>` google_sub until
-    // they link a real Google sign-in.
-    linked: !user.google_sub.startsWith('monday:'),
+    // they link a real Google sign-in. (NULL — an admin-invited account that
+    // never signed in — can't reach here via monday, but counts as unlinked.)
+    linked: user.google_sub !== null && !user.google_sub.startsWith('monday:'),
     email: user.email,
     whitelisted: user.is_admin || whitelisted,
     senderAssigned: sender !== null,

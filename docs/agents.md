@@ -15,12 +15,16 @@ Industry pattern followed: one app with an agent registry
   `src/agents/<type>/`, frontend half in `web/src/agents/<type>.tsx`,
   registered in `src/agents/registry.ts` and `web/src/agents/registry.ts`.
 - **Agent instance** — one row in `agent_instances` per (accountant, type).
-  The doc collector is the default — and only — out-of-the-box agent: a
-  whitelisted account with zero instance rows (enabled or not) gets an enabled
-  `doc_collector` on first app load (`ensureDefaultDocCollector` in
-  `src/api/auth.ts`, audited as `agent.auto_provisioned`; no sender address —
-  an admin still assigns that). Every other type is admin-enabled only
-  (`agentInstances.enableInstance`). `enabled=false`
+  Every instance — the doc collector included — is admin-created
+  (`agentInstances.enableInstance`); nothing is auto-provisioned at sign-in.
+  Onboarding is admin-first (migration 043): activating (whitelisting) an
+  accountant immediately creates their `users` row as an *invited* account
+  (`google_sub` NULL, `users.createInvited`), so the admin can add agents and
+  assign their email addresses and WhatsApp numbers before the accountant's
+  first login; the first verified Google sign-in with that email claims the
+  row (`users.claimInvitedByEmail`, Google-login callback only — unverified
+  email claims like monday's must never claim an invited account). The
+  accountant sees exactly the agents the admin configured. `enabled=false`
   hides an instance; **never DELETE an instance row — clients cascade off it
   and the agent's data would be destroyed.**
 - **Kill switches** — `agent_instances.enabled` is re-checked at act time
@@ -117,7 +121,7 @@ tenancy / admin impersonation / monday token auth.
   that JSONB wholesale) and changeable later via
   `POST /api/admin/agent-tax-year`. `resolveTaxYear`
   (`src/agents/shared/taxYear.ts`) falls back to the last concluded year when
-  unset (auto-provisioned instances). The year feeds the planner prompt
+  unset (legacy instances from the auto-provisioning era). The year feeds the planner prompt
   (`{{tax_year}}` placeholder), the file analyzer (year-mismatched annual
   documents must not match), and new tax-fetch sessions (external sites hold
   multiple years).

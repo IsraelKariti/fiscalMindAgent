@@ -127,6 +127,7 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         createdAt: u.created_at,
         mailbox: u.mailbox_address,
         whitelisted: u.whitelisted,
+        signedIn: u.signed_in,
         agents: agentsByUser.get(u.id) ?? [],
         llmUsage: usageByUser.get(u.id) ?? [],
       })),
@@ -625,7 +626,11 @@ export const adminAddToWhitelist: RequestHandler = async (req, res) => {
     res.status(409).json({ error: 'This email is already whitelisted.' });
     return;
   }
-  logger.info('whitelist entry added', { adminUserId: req.realUserId, email });
+  // Activation creates the account right away (an invited row — no Google
+  // identity until first sign-in claims it), so the admin can configure the
+  // accountant's agents, addresses and WhatsApp numbers before they ever log in.
+  const invited = await users.createInvited(email, parsed.data.name ?? null);
+  logger.info('whitelist entry added', { adminUserId: req.realUserId, email, invitedUserId: invited?.id });
   res.status(201).json({
     entry: { email: entry.email, name: entry.name, hebrewName: entry.hebrew_name, createdAt: entry.created_at },
   });

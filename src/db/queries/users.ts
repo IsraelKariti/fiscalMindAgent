@@ -24,6 +24,8 @@ export interface UserListRow {
   created_at: string;
   mailbox_address: string | null;
   whitelisted: boolean;
+  /** False for invited rows (admin-created, no Google identity claimed yet). */
+  signed_in: boolean;
 }
 
 /**
@@ -34,7 +36,8 @@ export async function listAll(): Promise<UserListRow[]> {
   const { rows } = await pool.query<UserListRow>(
     `SELECT u.id, u.email, u.name, w.hebrew_name, u.is_admin, u.created_at,
             m.email_address AS mailbox_address,
-            (w.email IS NOT NULL) AS whitelisted
+            (w.email IS NOT NULL) AS whitelisted,
+            (u.google_sub IS NOT NULL) AS signed_in
      FROM users u
      LEFT JOIN agent_mailboxes m ON m.user_id = u.id
      LEFT JOIN whitelisted_emails w ON w.email = lower(u.email)
@@ -125,9 +128,50 @@ export async function bootstrapAdminsIfNone(emails: string[]): Promise<string[]>
 }
 
 /**
+ * Admin-side account creation (activation/whitelisting): an "invited" row with
+ * no Google identity, so agents can be configured before the accountant's
+ * first sign-in. Returns null when a user with this email already exists
+ * (any casing) — the caller then has nothing to do.
+ */
+export async function createInvited(email: string, name: string | null): Promise<UserRow | null> {
+  const { rows } = await pool.query<UserRow>(
+    `INSERT INTO users (email, name)
+     SELECT $1, $2
+     WHERE NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = lower($1))
+     ON CONFLICT (email) DO NOTHING
+     RETURNING *`,
+    [email.toLowerCase(), name],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * First verified Google sign-in of an invited account: fills in the Google
+ * identity on the admin-created row so everything configured pre-login (agents,
+ * addresses, WhatsApp numbers) is already theirs. Google-login callback only —
+ * unverified email claims (e.g. monday-reported emails) must never reach this.
+ */
+export async function claimInvitedByEmail(args: {
+  googleSub: string;
+  email: string;
+  name: string | null;
+  pictureUrl: string | null;
+}): Promise<UserRow | null> {
+  const { rows } = await pool.query<UserRow>(
+    `UPDATE users
+     SET google_sub = $1, email = $2, name = $3, picture_url = $4, updated_at = now()
+     WHERE google_sub IS NULL AND lower(email) = lower($2)
+     RETURNING *`,
+    [args.googleSub, args.email, args.name, args.pictureUrl],
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * Called on every Google sign-in: creates the user on first login, and keeps
  * email/name/picture in sync with the Google profile afterwards. `google_sub`
  * is Google's stable per-account id — email can change, sub never does.
+ * (Invited rows never conflict here — their google_sub is NULL.)
  */
 export async function upsertFromGoogle(args: {
   googleSub: string;
@@ -145,8 +189,7 @@ export async function upsertFromGoogle(args: {
   );
   const row = rows[0];
   if (!row) throw new Error('upsertFromGoogle: no row returned');
-  // New accounts start with zero agent instances here; a whitelisted account
-  // gets its default doc_collector on first app load (ensureDefaultDocCollector
-  // in api/auth.ts). Everything else is admin-enabled (agentInstances.enableInstance).
+  // Accounts start with zero agent instances; every agent — the doc collector
+  // included — is admin-created (agentInstances.enableInstance).
   return row;
 }

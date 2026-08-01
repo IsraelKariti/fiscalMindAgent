@@ -21,7 +21,8 @@ export interface AgentInstanceRow {
 
 export interface UserRow {
   id: string;
-  google_sub: string;
+  /** NULL on invited rows (admin-created at activation, before first Google sign-in). */
+  google_sub: string | null;
   email: string;
   name: string | null;
   /**

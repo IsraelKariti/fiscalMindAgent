@@ -244,6 +244,8 @@ export interface Accountant {
   createdAt: string;
   mailbox: string | null;
   whitelisted: boolean;
+  /** False for invited accounts — admin-created at activation, no Google sign-in yet. */
+  signedIn: boolean;
   /** Every agent instance incl. disabled ones (agent-specific stats live on the agent pages). */
   agents: AccountantAgentSummary[];
   llmUsage: AccountantModelUsage[];

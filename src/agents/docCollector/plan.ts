@@ -289,11 +289,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     delayMs: Math.max(0, delayMs),
     reasoning: decision.reasoning,
   });
-  // Act on the document-fetch step (offer / client agreed / start login /
-  // cancel) after the draft exists: an 'offered' session records which message
-  // carries the offer (a superseded draft re-enables offering), and start_login
-  // is enqueued against the heads-up draft so the browser login — and the OTP
-  // it triggers — can only run after that message actually goes out.
+  // Act on the document-fetch step (client agreed / start login / cancel)
+  // after the draft exists: start_login is enqueued against the heads-up draft
+  // so the browser login — and the OTP it triggers — can only run after that
+  // message actually goes out. (Offers are message text only; nothing to act on.)
   await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, taxFetchKeys, taxYear, {
     emailId,
     delayMs: Math.max(0, delayMs),

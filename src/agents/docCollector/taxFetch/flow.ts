@@ -1,4 +1,3 @@
-import * as emails from '../../../db/queries/emails.js';
 import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
 import { publishClientUpdated } from '../../../events/clientEvents.js';
 import { enqueueTaxFetch } from '../../../queue/taxFetchQueue.js';
@@ -12,7 +11,6 @@ import { listProviderSpecs, type FetchDocumentType, type FetchProviderSpec } fro
 /** The fetch's state as the prompt/decision layer sees it (collapses the worker's finer statuses). */
 export type TaxFetchPromptState =
   | 'none'
-  | 'offered'
   | 'agreed'
   | 'wa_intro_sent'
   | 'awaiting_otp'
@@ -52,8 +50,6 @@ export function pendingKeys(ctx: TaxFetchContext): string[] {
 
 function promptStateFor(status: TaxFetchSessionRow['status']): TaxFetchPromptState {
   switch (status) {
-    case 'offered':
-      return 'offered';
     case 'agreed':
       return 'agreed';
     case 'wa_intro_sent':
@@ -99,23 +95,7 @@ async function loadContextForProvider(
   const hasCredentials = (await spec.buildCredentials(client)) !== null;
   const available = hasCredentials && anyPending && waState.allowed;
 
-  let active = await taxFetchSessions.getActiveForClientAndProvider(client.id, spec.id);
-  // An 'offered' session whose offer draft was superseded before sending (the
-  // client never saw the offer) must not keep suppressing a fresh one. Pre-027
-  // rows have no offer_email_id and keep the old always-offered read.
-  if (active && active.status === 'offered' && active.offer_email_id) {
-    const offerMessage = await emails.getById(active.offer_email_id);
-    if (!offerMessage || offerMessage.status !== 'sent') {
-      await taxFetchSessions.updateStatus(active.id, 'cancelled');
-      logger.info('tax fetch: unsent offer draft superseded, session cancelled', {
-        clientId: client.id,
-        provider: spec.id,
-        sessionId: active.id,
-      });
-      active = null;
-    }
-  }
-
+  const active = await taxFetchSessions.getActiveForClientAndProvider(client.id, spec.id);
   let session = active;
   let state: TaxFetchPromptState = active ? promptStateFor(active.status) : 'none';
   if (!active) {
@@ -187,11 +167,10 @@ function primaryDocumentId(keys: string[], ctx: TaxFetchContext): string | null 
  * Acts on the LLM's tax_fetch_action for one provider after the normal document
  * handling. `agreedKeys` is the per-document consent subset (which of the
  * provider's document types the client agreed to fetch). `message` is the
- * accompanying drafted row + its send delay: an 'offered' session only sticks
- * once that draft is actually sent (see loadContextForProvider), and start_login
- * is enqueued to run only after the heads-up message goes out — the login
- * triggers the real OTP, which must never reach the client before the message
- * warning about it.
+ * accompanying drafted row + its send delay: start_login is enqueued to run
+ * only after the heads-up message goes out — the login triggers the real OTP,
+ * which must never reach the client before the message warning about it.
+ * Offers are message text only and never touch this function.
  */
 export async function applyTaxFetchAction(
   client: ClientRow,
@@ -207,46 +186,49 @@ export async function applyTaxFetchAction(
   const keys = effectiveKeys(agreedKeys, ctx);
 
   switch (action) {
-    case 'offer': {
-      if (!ctx.available || keys.length === 0) return;
-      // A session already in flight: nothing to record (and a second insert would
-      // trip the one-active-per-provider unique index).
-      if (ctx.session && taxFetchSessions.ACTIVE_TAX_FETCH_STATUSES.includes(ctx.session.status)) return;
-      await taxFetchSessions.insert({
-        clientId: client.id,
-        provider,
-        clientDocumentId: primaryDocumentId(keys, ctx),
-        status: 'offered',
-        taxYear,
-        offerEmailId: message.emailId,
-        documentKeys: keys,
-      });
-      logger.info('tax fetch: offered', { clientId: client.id, provider, keys });
-      publishClientUpdated(client.id);
-      return;
-    }
     case 'client_agreed': {
-      if (!ctx.session) return;
-      // The scheduled message is the WhatsApp intro; mark it and store the agreed
-      // document set (the client may have narrowed it from the offer).
-      await taxFetchSessions.setDocumentKeys(ctx.session.id, keys);
-      await taxFetchSessions.updateStatus(ctx.session.id, 'wa_intro_sent');
-      logger.info('tax fetch: client agreed, intro scheduled', { clientId: client.id, provider, sessionId: ctx.session.id, keys });
+      // Offers live in message text only, so consent is usually the machine's
+      // first sight of a fetch: create the session directly at wa_intro_sent
+      // (the scheduled message is the WhatsApp intro). A pre-login session
+      // already in flight just absorbs the (possibly narrowed) document set.
+      const active =
+        ctx.session && taxFetchSessions.ACTIVE_TAX_FETCH_STATUSES.includes(ctx.session.status) ? ctx.session : null;
+      if (active) {
+        await taxFetchSessions.setDocumentKeys(active.id, keys);
+        if (active.status === 'agreed') await taxFetchSessions.updateStatus(active.id, 'wa_intro_sent');
+        logger.info('tax fetch: client agreed, intro scheduled', { clientId: client.id, provider, sessionId: active.id, keys });
+      } else {
+        if (!ctx.available || keys.length === 0) return;
+        const fresh = await taxFetchSessions.insert({
+          clientId: client.id,
+          provider,
+          clientDocumentId: primaryDocumentId(keys, ctx),
+          status: 'wa_intro_sent',
+          taxYear,
+          documentKeys: keys,
+        });
+        logger.info('tax fetch: client agreed, session created', {
+          clientId: client.id,
+          provider,
+          priorSessionId: ctx.session?.id ?? null,
+          sessionId: fresh.id,
+          keys,
+        });
+      }
       publishClientUpdated(client.id);
       return;
     }
     case 'start_login': {
       // The runner only starts a login on a pre-login session (agreed /
       // wa_intro_sent), so bring one into existence whatever the current state:
-      // promote a still-'offered' session, reuse a pre-login one, or — when
-      // nothing is in flight (first time, or after failed/expired/cancelled) —
-      // create a fresh session directly at wa_intro_sent.
+      // reuse a pre-login one, or — when nothing is in flight (first time, or
+      // after failed/expired/cancelled) — create a fresh session directly at
+      // wa_intro_sent.
       let sessionId: string;
       const active =
         ctx.session && taxFetchSessions.ACTIVE_TAX_FETCH_STATUSES.includes(ctx.session.status) ? ctx.session : null;
       if (active) {
         await taxFetchSessions.setDocumentKeys(active.id, keys);
-        if (active.status === 'offered') await taxFetchSessions.updateStatus(active.id, 'wa_intro_sent');
         sessionId = active.id;
       } else {
         if (!ctx.available || keys.length === 0) return;

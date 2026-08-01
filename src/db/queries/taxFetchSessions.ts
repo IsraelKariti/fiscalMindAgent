@@ -1,7 +1,6 @@
 import { pool } from '../pool.js';
 
 export type TaxFetchStatus =
-  | 'offered'
   | 'agreed'
   | 'wa_intro_sent'
   | 'logging_in'
@@ -15,7 +14,6 @@ export type TaxFetchStatus =
 
 /** Statuses of a fetch that is still in flight (the partial unique index allows one per client). */
 export const ACTIVE_TAX_FETCH_STATUSES: TaxFetchStatus[] = [
-  'offered',
   'agreed',
   'wa_intro_sent',
   'logging_in',
@@ -39,8 +37,6 @@ export interface TaxFetchSessionRow {
   document_file_id: string | null;
   otp_requested_at: Date | null;
   delivered_at: Date | null;
-  /** The drafted message carrying the offer; the offer only counts once it is sent. */
-  offer_email_id: string | null;
   /** Agreed in-scope document-type keys (providers.ts). NULL = the provider's default type(s). */
   document_keys: string[] | null;
   created_at: Date;
@@ -94,21 +90,12 @@ export async function insert(args: {
   clientDocumentId: string | null;
   status: TaxFetchStatus;
   taxYear: number;
-  offerEmailId?: string | null;
   documentKeys?: string[] | null;
 }): Promise<TaxFetchSessionRow> {
   const { rows } = await pool.query<TaxFetchSessionRow>(
-    `INSERT INTO tax_fetch_sessions (client_id, provider, client_document_id, status, tax_year, offer_email_id, document_keys)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [
-      args.clientId,
-      args.provider,
-      args.clientDocumentId,
-      args.status,
-      args.taxYear,
-      args.offerEmailId ?? null,
-      args.documentKeys ?? null,
-    ],
+    `INSERT INTO tax_fetch_sessions (client_id, provider, client_document_id, status, tax_year, document_keys)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [args.clientId, args.provider, args.clientDocumentId, args.status, args.taxYear, args.documentKeys ?? null],
   );
   return rows[0]!;
 }

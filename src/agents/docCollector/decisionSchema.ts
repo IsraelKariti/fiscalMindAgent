@@ -29,9 +29,11 @@ export const DecisionResponseSchema = z.object({
   /**
    * Document-fetch step, or null. Which values are valid depends on the current
    * fetch state for the targeted provider (see the prompt's DOCUMENT FETCH
-   * sections and allowedTaxFetchActions below).
+   * sections and allowedTaxFetchActions below). Offering is not an action:
+   * offers live in message text only; the machine first hears about a fetch
+   * when the client agrees (client_agreed) or a login starts.
    */
-  tax_fetch_action: z.enum(['offer', 'client_agreed', 'start_login', 'cancel']).nullable(),
+  tax_fetch_action: z.enum(['client_agreed', 'start_login', 'cancel']).nullable(),
   /**
    * Which provider tax_fetch_action targets (a provider id from a DOCUMENT FETCH
    * section, e.g. 'israel_tax_authority' / 'altshuler_shaham'). Required whenever
@@ -58,7 +60,7 @@ export type FollowUpMessage =
   | { channel: 'whatsapp'; kind: 'freeform'; body: string }
   | { channel: 'whatsapp'; kind: 'template'; contentSid: string; variables: string[]; renderedBody: string };
 
-export type TaxFetchAction = 'offer' | 'client_agreed' | 'start_login' | 'cancel';
+export type TaxFetchAction = 'client_agreed' | 'start_login' | 'cancel';
 
 /** A resolved fetch step: the action, the provider it targets, and which document types it covers. */
 export interface TaxFetchDecision {
@@ -117,13 +119,16 @@ export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, win
 /**
  * The tax_fetch_action values valid in a given state — the single source of
  * truth shared by the prompt (what to tell the LLM it may do) and the validator
- * (what to reject). Deliberately loose (2026-07-25): the model is trusted to
- * judge when to offer/start; code keeps only the hard guards — never re-fetch
- * after a successful delivery, no offer/login without credentials + pending
- * 106 + WhatsApp (`available`), no second login while a live browser session
- * is mid-flight, and the login itself (it fires a real OTP email at the
- * client) only once the conversation is live on WhatsApp — email sender
- * addresses are spoofable, so an email alone must never trigger it.
+ * (what to reject). Deliberately loose (2026-07-25; 'offered' retired
+ * 2026-08-01): offering happens in message text only and is never recorded —
+ * the conversation, not bookkeeping, is the source of truth for consent, so
+ * client_agreed is valid whenever no attempt is in flight. Code keeps only the
+ * hard guards — never re-fetch after a successful delivery, no consent/login
+ * without credentials + pending docs + WhatsApp (`available`), no second login
+ * while a live browser session is mid-flight, and the login itself (it fires a
+ * real OTP email at the client) only once the conversation is live on
+ * WhatsApp — email sender addresses are spoofable, so an email alone must
+ * never trigger it.
  */
 export function allowedTaxFetchActions(state: string, available: boolean, clientOnWhatsapp: boolean): string[] {
   const start = available && clientOnWhatsapp ? ['start_login'] : [];
@@ -135,9 +140,7 @@ export function allowedTaxFetchActions(state: string, available: boolean, client
       return ['cancel']; // a live browser session exists; only stopping it makes sense
     case 'none':
     case 'failed':
-      return available ? ['offer', ...start] : [];
-    case 'offered':
-      return available ? ['client_agreed', ...start, 'cancel'] : ['client_agreed', 'cancel'];
+      return available ? ['client_agreed', ...start] : [];
     case 'agreed':
     case 'wa_intro_sent':
       return [...start, 'cancel'];

@@ -225,15 +225,19 @@ capability** — there is no accountant button.
   the document); the WhatsApp conversation only gets a confirmation text. A
   client with no email address / sender mailbox gets the platform copy only.
 - **State machine**: `tax_fetch_sessions` (migration 025) tracks one attempt
-  offer→delivery; the LLM sees every mechanically-possible action in the
+  consent→delivery; the LLM sees every mechanically-possible action in the
   current state (`allowedTaxFetchActions` in `decisionSchema.ts`, shown in the
   prompt's `buildTaxFetchSection` and re-validated in `normalizeDecision` via
-  the `tax_fetch_action` decision field). The hard guards that remain: no
-  action at all after `delivered` (never re-fetch), `cancel` only while a live
-  browser session is mid-flight, offer/login require `available`, and
-  `start_login` requires `clientOnWhatsapp` (above). The prompt explains each
-  action's mechanics and tells the model to keep action and message text
-  consistent. `taxFetch/flow.ts` loads state + acts.
+  the `tax_fetch_action` decision field). Offering is NOT a state or an action
+  (the `offered` status was retired in migration 045): the model offers in
+  message text and reads the thread to know it already did; the session first
+  exists when the client agrees — `client_agreed` creates it directly at
+  `wa_intro_sent` — or when a login starts. The hard guards: no action at all
+  after `delivered` (never re-fetch), `cancel` only while a live browser
+  session is mid-flight, consent/login require `available`, and `start_login`
+  requires `clientOnWhatsapp` (above). Everything conversational is the
+  model's judgment; only side-effecting steps are code-gated.
+  `taxFetch/flow.ts` loads state + acts.
 - **Where the browser lives — secret isolation**: NOT in the worker. Real
   fetches run in the browser-runner sidecar (`src/browserRunner.ts`, own
   process/container), which holds no platform secrets — its env

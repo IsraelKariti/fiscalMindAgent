@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { api, ApiError, type AgentInstance, type AgentTypeEmailInfo, type OrphanedWaNumber } from '../../api';
+import {
+  api,
+  ApiError,
+  type AdminWaSenderStatus,
+  type AgentInstance,
+  type AgentTypeEmailInfo,
+  type OrphanedWaNumber,
+} from '../../api';
 import { getAgentUI } from '../../agents/registry';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
@@ -186,6 +193,36 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   const [buying, setBuying] = useState(false);
   const [confirmingRelease, setConfirmingRelease] = useState(false);
   const [releasing, setReleasing] = useState(false);
+
+  // An assignment alone doesn't mean the number can send: Meta registration can
+  // fail after provisioning "succeeded", leaving the sender OFFLINE and every
+  // send rejected. Show Twilio's live state next to the number, polling while
+  // registration is still settling.
+  const [waStatus, setWaStatus] = useState<AdminWaSenderStatus | null>(null);
+  const [waStatusRecheck, setWaStatusRecheck] = useState(0);
+  const instanceId = instance?.id ?? null;
+  const waPhoneNumber = instance?.waPhoneNumber ?? null;
+  useEffect(() => {
+    setWaStatus(null);
+    if (!instanceId || !waPhoneNumber) return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const check = async () => {
+      try {
+        const status = await api.adminGetWaSenderStatus(instanceId);
+        if (cancelled) return;
+        setWaStatus(status);
+        if (status.senderStatus === 'CREATING') timer = window.setTimeout(() => void check(), 5000);
+      } catch {
+        if (!cancelled) setWaStatus({ phoneNumber: waPhoneNumber, senderStatus: 'UNKNOWN', offlineReasons: [] });
+      }
+    };
+    void check();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, [instanceId, waPhoneNumber, waStatusRecheck]);
 
   const run = async (op: () => Promise<unknown>, failMessage: string, conflictMessage?: string) => {
     setBusy(true);
@@ -387,9 +424,53 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
 
             {instance.waPhoneNumber ? (
               <>
-                <div className="wa-number-display" dir="ltr">
-                  {instance.waPhoneNumber}
+                <div className="wa-number-line">
+                  <div className="wa-number-display" dir="ltr">
+                    {instance.waPhoneNumber}
+                  </div>
+                  {waStatus === null ? (
+                    <span className="badge badge-neutral">
+                      <Spinner /> {t.adminWaStatusChecking}
+                    </span>
+                  ) : waStatus.senderStatus === 'ONLINE' ? (
+                    <span className="badge badge-success">{t.adminWaStatusOnline}</span>
+                  ) : waStatus.senderStatus === 'CREATING' ? (
+                    <span className="badge badge-pending">
+                      <Spinner /> {t.adminWaStatusCreating}
+                    </span>
+                  ) : waStatus.senderStatus === 'UNREGISTERED' ? (
+                    <span className="badge badge-danger">{t.adminWaStatusUnregistered}</span>
+                  ) : waStatus.senderStatus === 'UNKNOWN' ? (
+                    <span className="badge badge-neutral">{t.adminWaStatusUnknown}</span>
+                  ) : (
+                    <span className="badge badge-danger">{t.adminWaStatusOffline}</span>
+                  )}
+                  {waStatus !== null && waStatus.senderStatus !== 'CREATING' && waStatus.senderStatus !== 'ONLINE' && (
+                    <button
+                      className="btn btn-ghost btn-small"
+                      disabled={busy}
+                      onClick={() => setWaStatusRecheck((n) => n + 1)}
+                    >
+                      {t.adminWaStatusRecheck}
+                    </button>
+                  )}
                 </div>
+                {waStatus !== null && (waStatus.senderStatus === 'OFFLINE' || waStatus.senderStatus === 'UNREGISTERED') && (
+                  <div className="error-banner">
+                    {waStatus.senderStatus === 'UNREGISTERED' ? (
+                      t.adminWaStatusUnregisteredExplain
+                    ) : (
+                      <>
+                        {t.adminWaStatusOfflineExplain}
+                        {waStatus.offlineReasons.map((r) => (
+                          <div key={r.code} dir="ltr" className="wa-offline-reason">
+                            {r.code}: {r.message}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
                 <div className="wa-action-row">
                   <span className="doc-text">
                     <span className="doc-name">{t.adminWaDetachAction}</span>

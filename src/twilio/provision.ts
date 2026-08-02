@@ -75,6 +75,31 @@ export async function provisionWhatsAppNumber(friendlyName: string): Promise<Pro
   }
 }
 
+export interface WaSenderLiveStatus {
+  /** Twilio sender status: ONLINE (deliverable), CREATING, OFFLINE — or UNREGISTERED when no sender exists for the number. */
+  status: string;
+  /** Meta's explanation while OFFLINE (e.g. 63104 WABA number limit); empty otherwise. */
+  offlineReasons: { code: string; message: string }[];
+}
+
+/**
+ * The number's real WhatsApp registration state on Twilio. A number can be
+ * assigned to an agent while its sender is OFFLINE (Meta registration failed
+ * after provisioning "succeeded") — every send from it is rejected until it
+ * comes ONLINE, so the admin UI must show this state, not the assignment.
+ */
+export async function getSenderLiveStatus(phoneNumber: string): Promise<WaSenderLiveStatus> {
+  // The senders API has no per-number lookup, only a channel-wide list.
+  const senders = await twilioClient().messaging.v2.channelsSenders.list({ channel: 'whatsapp' });
+  const sender = senders.find((s) => s.senderId === `whatsapp:${phoneNumber}`);
+  if (!sender) return { status: 'UNREGISTERED', offlineReasons: [] };
+  const reasons = (sender.offlineReasons ?? []) as { code?: string; message?: string }[];
+  return {
+    status: sender.status,
+    offlineReasons: reasons.map((r) => ({ code: r.code ?? '', message: r.message ?? '' })),
+  };
+}
+
 export interface OwnedNumber {
   /** E.164 number. */
   phoneNumber: string;

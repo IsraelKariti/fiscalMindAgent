@@ -180,6 +180,17 @@ const he = {
   adminAddAgentFailed: 'הוספת הסוכן נכשלה.',
   adminAddAgentWaFailed: 'הסוכן נוסף, אבל הקצאת מספר ה-WhatsApp נכשלה — אפשר להקצות מספר מדף הסוכן.',
   adminNoAgentsConfigured: 'עוד לא הוגדרו סוכנים לחשבון הזה — רואה החשבון יראה סוכן רק אחרי שתוסיפו ותגדירו אותו כאן.',
+  adminWaStatusChecking: 'בודק את סטטוס הרישום בוואטסאפ…',
+  adminWaStatusOnline: 'פעיל בוואטסאפ',
+  adminWaStatusCreating: 'נרשם בוואטסאפ…',
+  adminWaStatusOffline: 'הרישום בוואטסאפ נכשל',
+  adminWaStatusUnregistered: 'לא רשום בוואטסאפ',
+  adminWaStatusUnknown: 'סטטוס הרישום לא זמין',
+  adminWaStatusOfflineExplain:
+    'המספר הוקצה לסוכן אבל הרישום שלו בוואטסאפ לא הושלם — הסוכן לא יכול לשלוח או לקבל הודעות מהמספר הזה. הסיבה שדווחה:',
+  adminWaStatusUnregisteredExplain:
+    'המספר משויך לסוכן אבל לא רשום כשולח וואטסאפ בחשבון Twilio — הסוכן לא יכול לשלוח או לקבל הודעות מהמספר הזה.',
+  adminWaStatusRecheck: 'בדיקה חוזרת',
   adminWaNumberSaveFailed: 'עדכון מספר ה-WhatsApp נכשל.',
   adminWaNumberConflict: 'המספר הזה כבר מוקצה לסוכן אחר.',
   adminWaNumberBuy: 'קניית מספר',

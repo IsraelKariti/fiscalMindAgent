@@ -41,6 +41,7 @@ import {
   adminCreateWaTemplate,
   adminDeleteWaSender,
   adminDeleteWaTemplate,
+  adminGetWaSenderStatus,
   adminListOrphanedWaNumbers,
   adminListWaSenders,
   adminListWaTemplates,
@@ -110,6 +111,7 @@ apiRouter.post('/admin/agent-tax-year', wrap(requireAdmin), wrap(adminSetAgentTa
 apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));
 apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender));
 apiRouter.post('/admin/wa-senders/provision', wrap(requireAdmin), wrap(adminProvisionWaSender));
+apiRouter.get('/admin/wa-senders/:agentInstanceId/status', wrap(requireAdmin), wrap(adminGetWaSenderStatus));
 apiRouter.delete('/admin/wa-senders/:agentInstanceId', wrap(requireAdmin), wrap(adminDeleteWaSender));
 apiRouter.post('/admin/wa-senders/:agentInstanceId/release', wrap(requireAdmin), wrap(adminReleaseWaSender));
 apiRouter.get('/admin/wa-numbers/orphaned', wrap(requireAdmin), wrap(adminListOrphanedWaNumbers));

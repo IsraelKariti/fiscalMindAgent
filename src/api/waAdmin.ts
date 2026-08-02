@@ -5,6 +5,7 @@ import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
 import {
   claimSenderWebhook,
+  getSenderLiveStatus,
   isProvisioningConfigured,
   listOwnedNumbers,
   markNumberAsPooled,
@@ -142,6 +143,32 @@ export const adminProvisionWaSender: RequestHandler = async (req, res) => {
     sender: { agentInstanceId: sender.agent_instance_id, phoneNumber: sender.phone_number },
     senderStatus: provisioned.senderStatus,
   });
+};
+
+/**
+ * GET /api/admin/wa-senders/:agentInstanceId/status — the assigned number's
+ * live WhatsApp registration state on Twilio. An assignment alone doesn't mean
+ * the number can send: Meta registration can fail after provisioning (e.g.
+ * WABA number limit), leaving the sender OFFLINE and every send rejected.
+ */
+export const adminGetWaSenderStatus: RequestHandler = async (req, res) => {
+  const instanceId = z.string().uuid().safeParse(req.params.agentInstanceId);
+  const sender = instanceId.success ? await waSenders.getByInstanceId(instanceId.data) : null;
+  if (!sender) {
+    res.status(404).json({ error: 'No WhatsApp sender assigned to this agent instance.' });
+    return;
+  }
+  if (!isTwilioConfigured()) {
+    res.json({ phoneNumber: sender.phone_number, senderStatus: 'UNKNOWN', offlineReasons: [] });
+    return;
+  }
+  try {
+    const live = await getSenderLiveStatus(sender.phone_number);
+    res.json({ phoneNumber: sender.phone_number, senderStatus: live.status, offlineReasons: live.offlineReasons });
+  } catch (err) {
+    logger.error('wa sender status fetch failed', err, { phoneNumber: sender.phone_number });
+    res.status(502).json({ error: 'Fetching the sender status from Twilio failed.' });
+  }
 };
 
 /** DELETE /api/admin/wa-senders/:agentInstanceId — unassign the agent instance's number. */

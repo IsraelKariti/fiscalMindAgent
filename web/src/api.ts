@@ -359,6 +359,15 @@ export interface WaSenderStatus {
   phoneNumber: string | null;
 }
 
+/** Admin view: the assigned number's live WhatsApp registration state on Twilio. */
+export interface AdminWaSenderStatus {
+  phoneNumber: string;
+  /** ONLINE | CREATING | OFFLINE | UNREGISTERED (no sender on Twilio) | UNKNOWN (Twilio not configured). */
+  senderStatus: string;
+  /** Meta's explanation while OFFLINE (e.g. WABA number limit); empty otherwise. */
+  offlineReasons: { code: string; message: string }[];
+}
+
 /** This agent's admin-assigned sender address (null until an admin assigns one). */
 export interface EmailSenderStatus {
   assigned: boolean;
@@ -678,6 +687,8 @@ export const api = {
       '/admin/wa-senders/provision',
       { method: 'POST', body: JSON.stringify({ agentInstanceId }) },
     ),
+  adminGetWaSenderStatus: (agentInstanceId: string) =>
+    request<AdminWaSenderStatus>(`/admin/wa-senders/${agentInstanceId}/status`),
   adminDeleteWaSender: (agentInstanceId: string) =>
     request<{ ok: true }>(`/admin/wa-senders/${agentInstanceId}`, { method: 'DELETE' }),
   adminReleaseWaSender: (agentInstanceId: string) =>

@@ -43,6 +43,8 @@ export interface FetchProviderSpec {
   buildCredentials(client: ClientRow): Promise<PortalCredentials | null>;
   /** Canned Hebrew progress lines the system sends directly (no LLM) as the fetch moves. */
   messages: {
+    /** Sent the moment the login submit fired the real OTP — the code lives ~4 minutes, so this must land instantly. */
+    otpSent: string;
     loginFailed: string;
     busy: string;
     otpExpired: string;
@@ -111,6 +113,7 @@ const israelTaxAuthoritySpec: FetchProviderSpec = {
   },
 
   messages: {
+    otpSent: 'הקוד נשלח אליך הרגע מרשות המסים לתיבת האימייל שלך 📧 הוא תקף לדקות ספורות — אנא שלח/י לי אותו כאן ברגע שהוא מגיע.',
     loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר רשות המסים כרגע. נוכל לנסות שוב מאוחר יותר.',
     busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
     otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
@@ -208,6 +211,7 @@ const altshulerShahamSpec: FetchProviderSpec = {
   },
 
   messages: {
+    otpSent: 'הקוד נשלח אליך הרגע מאלטשולר שחם ב-SMS 📱 הוא תקף לדקות ספורות — אנא שלח/י לי אותו כאן ברגע שהוא מגיע.',
     loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר אלטשולר שחם כרגע. נוכל לנסות שוב מאוחר יותר.',
     busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
     otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
@@ -295,6 +299,7 @@ const harelSpec: FetchProviderSpec = {
   },
 
   messages: {
+    otpSent: 'הקוד נשלח אליך הרגע מהראל ב-SMS 📱 הוא תקף לדקות ספורות — אנא שלח/י לי אותו כאן ברגע שהוא מגיע.',
     loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר הראל כרגע. נוכל לנסות שוב מאוחר יותר.',
     busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
     otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',

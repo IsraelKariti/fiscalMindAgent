@@ -13,7 +13,13 @@ export type TaxFetchJob =
       /** How many times the runner has already re-checked an unsent heads-up message. */
       awaitAttempt?: number;
     }
-  | { kind: 'submit_otp'; sessionId: string; otp: string }
+  | {
+      kind: 'submit_otp';
+      sessionId: string;
+      otp: string;
+      /** How many times the runner has already waited for a still-completing login (code sent early). */
+      awaitAttempt?: number;
+    }
   | { kind: 'cancel'; sessionId: string };
 
 export const taxFetchQueue = new Queue<TaxFetchJob>(TAX_FETCH_QUEUE_NAME, { ...bullOpts });

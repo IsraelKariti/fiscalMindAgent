@@ -26,6 +26,13 @@ const MAX_OTP_ATTEMPTS = 3;
 const START_WAIT_RETRY_MS = 10_000;
 const MAX_START_WAIT_ATTEMPTS = 6;
 
+// The intercept accepts a code while the session is still 'logging_in' (the OTP
+// fires at the credential submit, moments before 'awaiting_otp'). The submit job
+// then waits for the login to settle on this cadence; generous max because in
+// ACI mode the login job can sit minutes in container provisioning first.
+const OTP_SETTLE_RETRY_MS = 10_000;
+const MAX_OTP_SETTLE_ATTEMPTS = 30;
+
 /** Sends a canned WhatsApp line to the client; never throws (progress messaging is best-effort). */
 async function sendCanned(client: ClientRow, body: string): Promise<void> {
   try {
@@ -69,7 +76,7 @@ export async function runTaxFetchJob(job: TaxFetchJob): Promise<void> {
     case 'start_login':
       return runStartLogin(job);
     case 'submit_otp':
-      return runSubmitOtp(job.sessionId, job.otp);
+      return runSubmitOtp(job);
     case 'cancel':
       return runCancel(job.sessionId);
   }
@@ -157,9 +164,12 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
   try {
     await fetchClient.startLogin(sessionId, spec.id, credentials);
     sessionTracker.put({ sessionId, clientId: client.id, provider: spec.id });
-    // No canned "code incoming" line here: the LLM's heads-up message (verified
-    // sent above) already told the client an email is coming and where to send the code.
     await taxFetchSessions.updateStatus(sessionId, 'awaiting_otp', { otpRequestedAt: new Date() });
+    // The credential submit just fired the real OTP, which lives ~4 minutes.
+    // The LLM's heads-up (verified sent above) preceded browser startup by up to
+    // minutes, so the client needs this line at the actual moment — after the
+    // status flip, so a lightning-fast reply already matches the OTP intercept.
+    await sendCanned(client, spec.messages.otpSent);
     // 'warning' severity: this just fired a real OTP email at a real citizen —
     // the single most sensitive action the platform takes.
     recordAudit({
@@ -192,7 +202,23 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
   }
 }
 
-async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
+async function runSubmitOtp(job: Extract<TaxFetchJob, { kind: 'submit_otp' }>): Promise<void> {
+  const { sessionId, otp } = job;
+
+  // Code arrived before the login settled — wait for 'awaiting_otp' (or a
+  // terminal status, which the tracker-miss path below handles) instead of
+  // burning the client's code.
+  const row = await taxFetchSessions.getById(sessionId);
+  if (row?.status === 'logging_in') {
+    const attempt = job.awaitAttempt ?? 0;
+    if (attempt >= MAX_OTP_SETTLE_ATTEMPTS) {
+      logger.warn('tax fetch: login never settled, dropping early otp', { sessionId, attempt });
+      return;
+    }
+    await enqueueTaxFetch({ ...job, awaitAttempt: attempt + 1 }, { delayMs: OTP_SETTLE_RETRY_MS });
+    return;
+  }
+
   const fetchClient = getFetchClient();
   const live = sessionTracker.take(sessionId);
   if (!live) {

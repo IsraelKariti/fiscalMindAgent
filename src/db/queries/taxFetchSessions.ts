@@ -57,10 +57,15 @@ export async function getActiveForClientAndProvider(clientId: string, provider: 
   return rows[0] ?? null;
 }
 
-/** The session awaiting an OTP (any provider) — the target for an inbound WhatsApp code. */
+/**
+ * The session awaiting an OTP (any provider) — the target for an inbound
+ * WhatsApp code. Includes 'logging_in': the OTP fires at the credential submit,
+ * moments before the session reaches 'awaiting_otp', and a fast client's code
+ * must not fall through to the LLM (the submit job waits for the login to settle).
+ */
 export async function getAwaitingOtpForClient(clientId: string): Promise<TaxFetchSessionRow | null> {
   const { rows } = await pool.query<TaxFetchSessionRow>(
-    "SELECT * FROM tax_fetch_sessions WHERE client_id = $1 AND status = 'awaiting_otp' ORDER BY created_at DESC LIMIT 1",
+    "SELECT * FROM tax_fetch_sessions WHERE client_id = $1 AND status IN ('logging_in', 'awaiting_otp') ORDER BY created_at DESC LIMIT 1",
     [clientId],
   );
   return rows[0] ?? null;

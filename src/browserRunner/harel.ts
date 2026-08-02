@@ -1,5 +1,5 @@
 import type { FrameLocator, Page } from 'playwright';
-import { debugShot, typeHuman } from './launch.js';
+import { debugShot, humanPause, typeHuman } from './launch.js';
 import { logger } from '../util/logger.js';
 import { captureNextPdf } from './pdfCapture.js';
 import {
@@ -94,6 +94,7 @@ export const harelProvider: DocumentFetchProvider = {
     await page.waitForSelector('#uid', { state: 'visible', timeout: 120_000 });
     await debugShot(page, 'harel-01-page-loaded');
 
+    await humanPause(page, 2_000, 6_000); // "reading" the modal before typing
     await typeHuman(page, page.locator('#uid'), idNumber);
     await page.keyboard.press('Tab');
 
@@ -105,6 +106,7 @@ export const harelProvider: DocumentFetchProvider = {
     await debugShot(page, 'harel-02-credentials-filled');
 
     // המשך sends the SMS and swaps the modal to the code-entry step (#otp).
+    await humanPause(page);
     await page.locator('.otp-login button', { hasText: 'המשך' }).first().click();
     await page.waitForSelector('#otp', { state: 'visible', timeout: 45_000 });
     await debugShot(page, 'harel-03-otp-screen');
@@ -114,6 +116,9 @@ export const harelProvider: DocumentFetchProvider = {
     await typeHuman(page, page.locator('#otp'), otp);
     await debugShot(page, 'harel-04-otp-filled');
 
+    // Short pause only: the SMS code expires within minutes, so the submit
+    // must not sit behind a long human-cadence delay.
+    await humanPause(page, 1_000, 3_000);
     await page.locator('button.contained.primary', { hasText: 'המשך' }).first().click();
 
     // Success leaves Login.aspx for the personal area (client-view.aspx). A
@@ -151,6 +156,7 @@ export const harelProvider: DocumentFetchProvider = {
     // only focuses it and the second click opens the menu (verified live), so
     // keep clicking until the report link shows. Falls back to the menu
     // entry's direct URL if the menu markup shifts.
+    await humanPause(page); // settle on the personal area before navigating
     try {
       const navButton = page.locator('button', { hasText: 'פעולות נפוצות' }).filter({ visible: true }).first();
       const reportsLink = page.locator('a', { hasText: 'לצפות בדוחות שנתיים' }).filter({ visible: true }).first();
@@ -158,6 +164,7 @@ export const harelProvider: DocumentFetchProvider = {
         await navButton.click({ timeout: 10_000 });
         await page.waitForTimeout(1_200);
       }
+      await humanPause(page, 1_000, 4_000); // scan the open menu before picking the link
       await reportsLink.click({ timeout: 5_000 });
     } catch {
       logger.warn('harel fetch: nav menu path failed, navigating directly to the reports URL');
@@ -174,8 +181,11 @@ export const harelProvider: DocumentFetchProvider = {
     // Filters, picked by visible label (the year by its text, never by index).
     // A missing year option fails loudly here instead of downloading another
     // year's documents.
+    await humanPause(page); // "reading" the reports page before filtering
     await reports.locator('#madorCurrentValue').selectOption({ label: SECTOR_OPTION_LABEL });
+    await humanPause(page, 1_000, 4_000);
     await reports.locator('#repType').selectOption({ label: ANNUAL_PERIOD_LABEL });
+    await humanPause(page, 1_000, 4_000);
     await reports.locator('#repYear').selectOption({ label: year });
     // Snapshot before filtering: whether the table held anything pre-Enter is
     // what tells a genuinely-empty result apart from a filter that never ran
@@ -189,6 +199,7 @@ export const harelProvider: DocumentFetchProvider = {
     // No change handlers on the selects — the app filters server-side on Enter
     // (document-level keyCode-13 handler → getDimutTable AJAX). The watcher is
     // armed BEFORE Enter so the round-trip can't slip past it.
+    await humanPause(page, 2_000, 8_000);
     let filterAnswered = watchFilterRoundTrip(page);
     await reports.locator('#repYear').press('Enter');
     await waitForFilteredRows(page, reports, year, {
@@ -213,6 +224,7 @@ export const harelProvider: DocumentFetchProvider = {
         // The site names every download dimutWeb.PDF, so the filename is
         // synthesized from the row: document type + account + year.
         const filename = `${slug(row.docType) || 'report'}_${row.accountNumber || row.docId}_${year}.pdf`;
+        await humanPause(page, 5_000, 15_000); // human cadence between row downloads
         const captured = await captureNextPdf(page, () => link.click(), filename);
         docs.push({
           buffer: captured.buffer,
@@ -234,6 +246,7 @@ export const harelProvider: DocumentFetchProvider = {
       // li.next carries class "disable" on the last page.
       const next = reports.locator('#pagination_holder li.next:not(.disable) a').first();
       if (!(await next.isVisible().catch(() => false))) break;
+      await humanPause(page);
       filterAnswered = watchFilterRoundTrip(page);
       await next.click();
       await waitForFilteredRows(page, reports, year, {

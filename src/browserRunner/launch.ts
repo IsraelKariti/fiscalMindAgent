@@ -27,17 +27,30 @@ export async function launchInteractivePage(): Promise<LaunchedSession> {
 const rand = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min;
 
 /**
- * Types text one character at a time with small random delays. The site's forms
- * are Angular reactive forms — `locator.fill()` sets the value without firing
- * the per-keystroke input events Angular's change detection needs, so the field
+ * Types text one character at a time with slow random delays (1–2s per char,
+ * like a person reading digits off a card). The site's forms are Angular
+ * reactive forms — `locator.fill()` sets the value without firing the
+ * per-keystroke input events Angular's change detection needs, so the field
  * looks empty on submit. Keep the char-by-char typing.
  */
 export async function typeHuman(page: Page, locator: Locator, text: string): Promise<void> {
   await locator.click();
   for (const char of text) {
     await page.keyboard.type(char);
-    await page.waitForTimeout(rand(80, 150));
+    await page.waitForTimeout(rand(1_000, 2_000));
   }
+}
+
+/**
+ * Random pre-action pause so clicks and navigations arrive at a human cadence
+ * instead of back-to-back. The default 5–20s is for page-level actions; pass a
+ * tighter range for micro-steps. Ranges are budgeted against the 10-minute
+ * session TTL (TAX_FETCH_SESSION_TTL_MS) — a whole fetch, including per-row
+ * pauses, must stay well inside it. OTP submission must NOT get a long pause:
+ * the sites' one-time codes expire within minutes of the client receiving them.
+ */
+export async function humanPause(page: Page, minMs = 5_000, maxMs = 20_000): Promise<void> {
+  await page.waitForTimeout(rand(minMs, maxMs));
 }
 
 /** Best-effort step screenshot when TAX_FETCH_DEBUG_DIR is set; never throws. */

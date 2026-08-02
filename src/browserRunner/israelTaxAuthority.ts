@@ -1,5 +1,5 @@
 import type { Page } from 'playwright';
-import { debugShot, typeHuman } from './launch.js';
+import { debugShot, humanPause, typeHuman } from './launch.js';
 import { logger } from '../util/logger.js';
 import { captureNextPdf } from './pdfCapture.js';
 import {
@@ -37,12 +37,14 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
     await page.waitForSelector('#ID', { state: 'visible' });
     await debugShot(page, 'taxes-01-page-loaded');
 
+    await humanPause(page, 2_000, 6_000); // "reading" the form before typing
     await typeHuman(page, page.locator('#ID'), idNumber);
     await page.keyboard.press('Tab');
     await typeHuman(page, page.locator('#code'), userCode);
     await page.keyboard.press('Tab');
     await debugShot(page, 'taxes-02-credentials-filled');
 
+    await humanPause(page);
     await page.locator('button.btn-primary', { hasText: 'המשך' }).click();
     // The OTP screen is where the site emails the client the code.
     await page.waitForURL((url) => url.href.includes('otp'), { timeout: 30_000 });
@@ -54,6 +56,8 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
     await page.keyboard.press('Tab');
     await debugShot(page, 'taxes-04-otp-filled');
 
+    // Short pause only: the emailed code expires within minutes.
+    await humanPause(page, 1_000, 3_000);
     await page.locator('button.btn-primary', { hasText: 'כניסה' }).click();
 
     // Success = navigation to the personal area. A wrong code leaves us on the
@@ -79,6 +83,7 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
       }
       await page.waitForSelector('text=טפסי 106', { timeout: 30_000 });
       await debugShot(page, 'taxes-06-personal-area');
+      await humanPause(page); // settle on the personal area before navigating
       await page.locator('text=טפסי 106').first().click();
       await page.waitForURL((url) => url.href.includes('sr-ezor-ishi/main/form106'), { timeout: 30_000 });
     }
@@ -92,6 +97,7 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
     // visible to click.)
     const yearLinks = page.locator(`a[role="button"][aria-label*="${year}"]`);
     if (!(await yearLinks.first().isVisible().catch(() => false))) {
+      await humanPause(page, 2_000, 6_000);
       await page.locator('h3.accordion__heading', { hasText: year }).first().click();
       await page.waitForSelector(`a[role="button"][aria-label*="${year}"]`, { timeout: 10_000 });
     }
@@ -148,6 +154,7 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
           : info.deductionFile
             ? `form_106_${year}_${info.deductionFile}`
             : `form_106_${year}_${i + 1}`;
+      await humanPause(page, 5_000, 15_000); // human cadence between document downloads
       const captured = await captureNextPdf(page, () => link.click(), `${fallbackBase}.pdf`);
 
       let filename = captured.filename;

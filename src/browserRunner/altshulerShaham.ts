@@ -1,5 +1,5 @@
 import type { Download, Page } from 'playwright';
-import { debugShot, typeHuman } from './launch.js';
+import { debugShot, humanPause, typeHuman } from './launch.js';
 import { logger } from '../util/logger.js';
 import {
   OtpRejectedError,
@@ -49,6 +49,7 @@ export const altshulerShahamProvider: DocumentFetchProvider = {
     await page.waitForSelector('input[placeholder=".מספר ת.ז"]', { state: 'visible', timeout: 30_000 });
     await debugShot(page, 'as-01-page-loaded');
 
+    await humanPause(page, 2_000, 6_000); // "reading" the form before typing
     // ID-type radio (ת"ז) is the default; select it defensively before typing.
     const idRadio = page.locator('#externalIdType');
     if (!(await idRadio.isChecked().catch(() => false))) await idRadio.check().catch(() => undefined);
@@ -63,6 +64,7 @@ export const altshulerShahamProvider: DocumentFetchProvider = {
     await debugShot(page, 'as-02-credentials-filled');
 
     // Submitting sends the SMS one-time code and moves to the OTP screen.
+    await humanPause(page);
     await page.locator('button[type="submit"]').click();
     await page.waitForURL((url) => url.href.includes('verify-otp'), { timeout: 30_000 });
     await page.waitForSelector('#otpInput', { state: 'visible', timeout: 15_000 });
@@ -74,6 +76,8 @@ export const altshulerShahamProvider: DocumentFetchProvider = {
     await page.keyboard.press('Tab');
     await debugShot(page, 'as-04-otp-filled');
 
+    // Short pause only: the SMS code expires within minutes.
+    await humanPause(page, 1_000, 3_000);
     await page.locator('button[type="submit"]').click();
 
     // Success navigates to the lobby; a wrong code stays on /verify-otp and pops
@@ -131,6 +135,7 @@ export const altshulerShahamProvider: DocumentFetchProvider = {
       await dismissMarketingPopup(page);
       // Product sub-tab (פנסיה / גמל). The label text appears more than once in
       // the DOM (some copies hidden), so pick the visible one.
+      await humanPause(page);
       await page.getByText(tab, { exact: true }).filter({ visible: true }).first().click();
       await page.waitForTimeout(1_500);
 
@@ -141,6 +146,7 @@ export const altshulerShahamProvider: DocumentFetchProvider = {
       // The target report; clicking it triggers a browser download of the PDF.
       // Pension and study fund share this label, so the tab we're on determines
       // which product this file is.
+      await humanPause(page, 5_000, 15_000); // human cadence between document downloads
       const captured = await captureDownload(page, () =>
         page.getByText(TARGET_REPORT_LABEL, { exact: false }).filter({ visible: true }).first().click(),
       );

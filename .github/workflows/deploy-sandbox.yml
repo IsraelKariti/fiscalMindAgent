@@ -1,4 +1,4 @@
-name: Deploy to Azure sandbox
+﻿name: Deploy to Azure sandbox
 
 # Every push to master lands here automatically; production (deploy.yml) is
 # promoted manually afterwards. The dispatch trigger remains for rehearsing an
@@ -76,7 +76,7 @@ jobs:
       - name: Wait for worker health (this sha answering implies migrations + seed succeeded)
         run: |
           for i in $(seq 1 60); do
-            got=$(curl -fsS "https://sandbox-il-worker.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null)
+            got=$(curl -fsS "https://sandbox-il-worker.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null || true)
             if [ "$got" = "${{ steps.sha.outputs.sha }}" ]; then
               echo "worker healthy on ${{ steps.sha.outputs.sha }}"; exit 0
             fi
@@ -94,7 +94,7 @@ jobs:
       - name: Health check
         run: |
           for i in $(seq 1 60); do
-            got=$(curl -fsS "https://sandbox-il-web.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null)
+            got=$(curl -fsS "https://sandbox-il-web.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null || true)
             if [ "$got" = "${{ steps.sha.outputs.sha }}" ]; then
               echo "web healthy on ${{ steps.sha.outputs.sha }}"; exit 0
             fi

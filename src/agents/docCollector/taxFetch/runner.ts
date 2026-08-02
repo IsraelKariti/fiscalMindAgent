@@ -2,7 +2,10 @@ import * as clients from '../../../db/queries/clients.js';
 import * as emails from '../../../db/queries/emails.js';
 import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
 import * as waSenders from '../../../db/queries/waSenders.js';
+import { withClientLock } from '../../../db/withClientLock.js';
 import { publishClientUpdated } from '../../../events/clientEvents.js';
+import { removeFutureEmail } from '../../../orchestration/removeFutureEmail.js';
+import { setFutureEmail } from '../../../orchestration/setFutureEmail.js';
 import { getFetchClient } from './fetchClient.js';
 import { getProviderSpec, type FetchProviderSpec } from './providers.js';
 import { FetchAtCapacityError, OtpRejectedError, SessionGoneError } from './types.js';
@@ -40,6 +43,24 @@ async function sendCanned(client: ClientRow, body: string): Promise<void> {
     });
   } catch (err) {
     logger.error('tax fetch: progress message send failed', err, { clientId: client.id });
+  }
+}
+
+/**
+ * Keepalive after a terminal fetch outcome (failed/expired): the canned status
+ * line is not a scheduled follow-up, so without this the conversation dies
+ * unless the client happens to write back. Re-plan — same as deliver() does on
+ * success — so the agent drafts the recovery message with the terminal state in
+ * view. Best-effort: the fetch outcome itself is already recorded.
+ */
+async function replanAfterFetchEnd(clientId: string): Promise<void> {
+  try {
+    await withClientLock(clientId, async () => {
+      await removeFutureEmail(clientId);
+      await setFutureEmail(clientId);
+    });
+  } catch (err) {
+    logger.error('tax fetch: post-outcome re-plan failed', err, { clientId });
   }
 }
 
@@ -120,6 +141,7 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: 'no portal credentials on file' });
     await sendCanned(client, spec.messages.loginFailed);
     publishClientUpdated(client.id);
+    await replanAfterFetchEnd(client.id);
     return;
   }
 
@@ -166,6 +188,7 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
     recordTaxFetchFailure(client, sessionId, 'login', errText(err));
     await sendCanned(client, spec.messages.loginFailed);
     publishClientUpdated(client.id);
+    await replanAfterFetchEnd(client.id);
   }
 }
 
@@ -183,6 +206,7 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
       if (client) {
         await sendCanned(client, getProviderSpec(session.provider).messages.otpExpired);
         publishClientUpdated(client.id);
+        await replanAfterFetchEnd(client.id);
       }
     }
     return;
@@ -225,12 +249,14 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
       recordTaxFetchFailure(client, sessionId, 'otp', 'otp rejected too many times');
       await sendCanned(client, spec.messages.otpGaveUp);
       publishClientUpdated(client.id);
+      await replanAfterFetchEnd(client.id);
       return;
     }
     if (err instanceof SessionGoneError) {
       await taxFetchSessions.updateStatus(sessionId, 'expired', { error: 'browser session was lost' });
       await sendCanned(client, spec.messages.otpExpired);
       publishClientUpdated(client.id);
+      await replanAfterFetchEnd(client.id);
       return;
     }
     logger.error('tax fetch: otp verification failed', err, { sessionId, clientId: client.id });
@@ -239,6 +265,7 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
     recordTaxFetchFailure(client, sessionId, 'otp', errText(err));
     await sendCanned(client, spec.messages.loginFailed);
     publishClientUpdated(client.id);
+    await replanAfterFetchEnd(client.id);
     return;
   }
 
@@ -268,6 +295,7 @@ async function runSubmitOtp(sessionId: string, otp: string): Promise<void> {
     recordTaxFetchFailure(client, sessionId, 'download', errText(err));
     await sendCanned(client, spec.messages.downloadFailed);
     publishClientUpdated(client.id);
+    await replanAfterFetchEnd(client.id);
   } finally {
     // The runner closes after a download attempt on its own; this covers the
     // mock's bookkeeping and any path that bailed before downloading.
@@ -300,6 +328,7 @@ export function wireSessionExpiry(): void {
         if (client) {
           await sendCanned(client, getProviderSpec(session.provider).messages.otpExpired);
           publishClientUpdated(client.id);
+          await replanAfterFetchEnd(client.id);
         }
       } catch (err) {
         logger.error('tax fetch: expiry handling failed', err, { sessionId: session.sessionId });

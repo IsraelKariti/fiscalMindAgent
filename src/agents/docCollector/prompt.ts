@@ -76,6 +76,16 @@ export type PromptPlaceholder = (typeof PROMPT_PLACEHOLDERS)[number];
 /** The doc collector's system-prompt template — the text lives in prompt.md next to this file. */
 export const DEFAULT_PROMPT_TEMPLATE = loadPrompt(new URL('./prompt.md', import.meta.url));
 
+/**
+ * The scheduling contract, appended after every template — including custom
+ * accountant-edited ones (promptSettings) — so no template edit can drop it.
+ * decisionSchema enforces the same invariant mechanically; this block keeps the
+ * model aligned with it. The full rationale lives in prompt.md's keepalive
+ * section, which custom templates may rephrase but this contract survives.
+ */
+const KEEPALIVE_CONTRACT =
+  'חוזה תזמון (תקף תמיד, גם אם ההנחיות למעלה נוסחו אחרת): בכל החלטת follow_up חובה לכלול בדיוק הודעה אחת מלאה - הערוץ שנבחר ושדות ההודעה שלו - וגם send_at עתידי. תשובת follow_up עם שדות הודעה ריקים או בלי send_at תיפסל ולא תבוצע; "אין צורך בהודעה" אינו מצב קיים. ההודעה המתוזמנת נשלחת רק אם הלקוח שותק עד send_at - כל הודעה נכנסת ממנו מבטלת אותה ומפעילה תכנון מחדש - ולכן מתזמנים אותה תמיד: היא המנגנון שמבטיח שהשיחה לא תמות אם הלקוח שכח או פספס.';
+
 export function renderPromptTemplate(template: string, vars: Record<PromptPlaceholder, string>): string {
   return renderTemplate(template, vars);
 }
@@ -109,7 +119,8 @@ export function buildSystemPrompt(
     upcoming_dates: formatUpcomingDates(now, env.ACCOUNTANT_TIMEZONE),
     tax_year: String(taxYear ?? now.getFullYear() - 1),
   });
-  return fenceToken ? `${rendered}\n\n${buildUntrustedDataDoctrine(fenceToken, true)}` : rendered;
+  const withContract = `${rendered}\n\n${KEEPALIVE_CONTRACT}`;
+  return fenceToken ? `${withContract}\n\n${buildUntrustedDataDoctrine(fenceToken, true)}` : withContract;
 }
 
 /** Lives in `contents` (like the documents section) so custom system prompts still see current channel state. */

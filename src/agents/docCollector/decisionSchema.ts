@@ -227,6 +227,24 @@ function validateTaxFetch(raw: DecisionResponse, ctx: DecisionContext): TaxFetch
   return { action, provider: providerId, documentKeys };
 }
 
+/**
+ * Appended to the original contents for decide()'s corrective pass: the model's
+ * own rejected answer plus the exact validation error, so it can repair any
+ * contract violation (null message/send_at, unknown template, disallowed
+ * tax-fetch action, ...) instead of the whole planning cycle dying on it.
+ */
+export function correctionSuffix(invalidAnswer: string, err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  return [
+    '',
+    'SYSTEM NOTE: your previous answer was rejected by schema validation and was NOT executed.',
+    'Your rejected answer:',
+    invalidAnswer,
+    `Validation error: ${message}`,
+    'Return a corrected, complete JSON decision now. Remember: every follow_up decision MUST include exactly one full message (the chosen channel\'s fields) and a future send_at — "no message needed" is never a valid state; when there is nothing new to say, schedule a gentle reminder instead.',
+  ].join('\n');
+}
+
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {
   const taxFetch = validateTaxFetch(raw, ctx);
   if (raw.decision === 'goal_complete') {

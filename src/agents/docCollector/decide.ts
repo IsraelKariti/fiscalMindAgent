@@ -3,6 +3,7 @@ import { logger } from '../../util/logger.js';
 import { getGeminiModel } from '../../gemini/modelSettings.js';
 import { generateWithRetry, usageFromResponse, type GeminiUsage } from '../../gemini/generate.js';
 import {
+  correctionSuffix,
   DecisionResponseSchema,
   EMAIL_ONLY_CONTEXT,
   normalizeDecision,
@@ -22,30 +23,52 @@ export interface DecideResult {
   model: string;
 }
 
+/** First answer + one corrective pass; the second rejection propagates. */
+const MAX_DECISION_ATTEMPTS = 2;
+
 export async function decide(
   systemInstruction: string,
   contents: string,
   ctx: DecisionContext = EMAIL_ONLY_CONTEXT,
 ): Promise<DecideResult> {
   const model = await getGeminiModel();
-  const response = await generateWithRetry({
-    model,
-    contents,
-    config: {
-      systemInstruction,
-      responseMimeType: 'application/json',
-      responseJsonSchema: decisionJsonSchema,
-      temperature: 0.3,
-    },
-  });
+  const usage: GeminiUsage = { inputTokens: 0, outputTokens: 0, thinkingTokens: 0 };
+  let requestContents = contents;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_DECISION_ATTEMPTS; attempt++) {
+    const response = await generateWithRetry({
+      model,
+      contents: requestContents,
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseJsonSchema: decisionJsonSchema,
+        temperature: 0.3,
+      },
+    });
 
-  const usage = usageFromResponse(response);
-  logger.info('gemini tokens used', { model, ...usage });
+    const callUsage = usageFromResponse(response);
+    usage.inputTokens += callUsage.inputTokens;
+    usage.outputTokens += callUsage.outputTokens;
+    usage.thinkingTokens += callUsage.thinkingTokens;
+    logger.info('gemini tokens used', { model, ...callUsage });
 
-  const text = response.text;
-  if (!text) {
-    throw new Error(`Gemini returned no text output (refusal or empty response): ${JSON.stringify(response)}`);
+    const text = response.text;
+    if (!text) {
+      throw new Error(`Gemini returned no text output (refusal or empty response): ${JSON.stringify(response)}`);
+    }
+    try {
+      const raw = DecisionResponseSchema.parse(JSON.parse(text));
+      return { decision: normalizeDecision(raw, ctx), usage, model };
+    } catch (err) {
+      lastError = err;
+      if (attempt < MAX_DECISION_ATTEMPTS) {
+        logger.warn('decision rejected by validation; retrying once with corrective feedback', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        requestContents = `${contents}${correctionSuffix(text, err)}`;
+      }
+    }
   }
-  const raw = DecisionResponseSchema.parse(JSON.parse(text));
-  return { decision: normalizeDecision(raw, ctx), usage, model };
+  throw lastError;
 }

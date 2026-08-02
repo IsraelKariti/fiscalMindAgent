@@ -88,8 +88,10 @@ export const harelProvider: DocumentFetchProvider = {
     // Desktop layout is a hard requirement (see DESKTOP_VIEWPORT).
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 120_000 });
-    // isshowlogin=true opens the OTP login modal on load.
-    await page.waitForSelector('#uid', { state: 'visible', timeout: 45_000 });
+    // isshowlogin=true opens the OTP login modal on load. The SharePoint page
+    // can take well over a minute to render it (observed 2026-08-02, ~40s+ in a
+    // regular browser too), so this gets the same budget as the goto.
+    await page.waitForSelector('#uid', { state: 'visible', timeout: 120_000 });
     await debugShot(page, 'harel-01-page-loaded');
 
     await typeHuman(page, page.locator('#uid'), idNumber);

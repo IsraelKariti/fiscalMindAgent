@@ -110,7 +110,10 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
     const linkCss = `a[role="button"][aria-label*="${year}"]`;
     type LinkInfo = { kind: 'form106' | 'salary_summary'; employerName: string | null; deductionFile: string };
     // (tsconfig has no `dom` lib — the callback runs in the browser, so DOM
-    // globals are reached through an untyped handle.)
+    // globals are reached through an untyped handle. No named function bindings
+    // inside the callback either: under tsx, esbuild's keepNames rewrites them
+    // as __name(fn, ...) with the helper defined at module level, which doesn't
+    // exist in the serialized callback the page evals — ReferenceError.)
     const links = (await page.evaluate((sel) => {
       const doc = (globalThis as { document?: any }).document;
       return Array.from(doc.querySelectorAll(sel) as ArrayLike<any>).map((a: any) => {
@@ -120,11 +123,12 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
         if (!row || row.querySelectorAll(sel).length !== 1) {
           return { kind: 'salary_summary', employerName: null, deductionFile: '' };
         }
-        const strongs = row.querySelectorAll('strong');
-        const text = (el: any) => (el && el.textContent ? String(el.textContent).trim() : '');
         // strong order within the row: employer name, deduction-file number,
         // then the one wrapping the link itself.
-        return { kind: 'form106', employerName: text(strongs[0]) || null, deductionFile: text(strongs[1]) };
+        const strongs = row.querySelectorAll('strong');
+        const employerName = strongs[0]?.textContent ? String(strongs[0].textContent).trim() : '';
+        const deductionFile = strongs[1]?.textContent ? String(strongs[1].textContent).trim() : '';
+        return { kind: 'form106', employerName: employerName || null, deductionFile };
       });
     }, linkCss)) as LinkInfo[];
     if (links.length === 0) throw new Error(`no Form 106 links found for year ${year}`);

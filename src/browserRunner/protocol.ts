@@ -8,6 +8,9 @@
  * response shapes (src/browserRunner/server.ts ↔ taxFetch/fetchClient.ts).
  * History: 1 = flat idNumber/userCode login body (images v1/v2); 2 = nested
  * provider-keyed `credentials` record (2026-07-26, commit a578dad) — the
- * unversioned skew that broke prod fetches on 2026-08-01.
+ * unversioned skew that broke prod fetches on 2026-08-01; 3 = 502 error bodies
+ * carry `code` ('no_documents') + `screenshotBase64` failure evidence
+ * (2026-08-02) — additive, but versioned so the worker never diagnoses against
+ * a runner that can't produce the evidence.
  */
-export const RUNNER_PROTOCOL_VERSION = 2;
+export const RUNNER_PROTOCOL_VERSION = 3;

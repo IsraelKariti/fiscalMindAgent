@@ -3,6 +3,7 @@ import { debugShot, typeHuman } from './launch.js';
 import { logger } from '../util/logger.js';
 import { captureNextPdf } from './pdfCapture.js';
 import {
+  NoDocumentsOnSiteError,
   OtpRejectedError,
   requireCredential,
   type DocumentFetchProvider,
@@ -28,6 +29,9 @@ const ANNUAL_PERIOD_LABEL = 'שנתי';
 
 /** Hard cap on result pages walked, against a pager that never disables. */
 const MAX_RESULT_PAGES = 30;
+
+/** How long the table gets to reflect a filter/pagination round-trip. */
+const FILTER_SETTLE_MS = 30_000;
 
 /** One row of the reports table, keyed by the site's own per-document id. */
 interface ReportRow {
@@ -171,10 +175,25 @@ export const harelProvider: DocumentFetchProvider = {
     await reports.locator('#madorCurrentValue').selectOption({ label: SECTOR_OPTION_LABEL });
     await reports.locator('#repType').selectOption({ label: ANNUAL_PERIOD_LABEL });
     await reports.locator('#repYear').selectOption({ label: year });
+    // Snapshot before filtering: whether the table held anything pre-Enter is
+    // what tells a genuinely-empty result apart from a filter that never ran
+    // (the ACI container's logs die with it, so this also rides the error text).
+    const preFilterRows = await readRows(reports).catch(() => [] as ReportRow[]);
+    logger.info('harel fetch: pre-filter table state', {
+      year,
+      rows: preFilterRows.length,
+      sample: preFilterRows.slice(0, 3).map((r) => `${r.sector}|${r.yearText}`),
+    });
     // No change handlers on the selects — the app filters server-side on Enter
-    // (document-level keyCode-13 handler → getDimutTable AJAX).
+    // (document-level keyCode-13 handler → getDimutTable AJAX). The watcher is
+    // armed BEFORE Enter so the round-trip can't slip past it.
+    let filterAnswered = watchFilterRoundTrip(page);
     await reports.locator('#repYear').press('Enter');
-    await waitForFilteredRows(page, reports, year);
+    await waitForFilteredRows(page, reports, year, {
+      filterAnswered,
+      preFilterRowCount: preFilterRows.length,
+      initialFilter: true,
+    });
     await debugShot(page, 'harel-08-filtered');
 
     // Walk every result page, downloading every row; docId dedups across pages.
@@ -213,8 +232,13 @@ export const harelProvider: DocumentFetchProvider = {
       // li.next carries class "disable" on the last page.
       const next = reports.locator('#pagination_holder li.next:not(.disable) a').first();
       if (!(await next.isVisible().catch(() => false))) break;
+      filterAnswered = watchFilterRoundTrip(page);
       await next.click();
-      await waitForFilteredRows(page, reports, year);
+      await waitForFilteredRows(page, reports, year, {
+        filterAnswered,
+        preFilterRowCount: rows.length,
+        initialFilter: false,
+      });
     }
 
     if (docs.length === 0) {
@@ -267,28 +291,62 @@ async function readRows(reports: FrameLocator): Promise<ReportRow[]> {
 }
 
 /**
+ * Resolves with the HTTP status of the reports app's next answer (the
+ * getDimutTable AJAX lives on the iframe's www.hrl.co.il origin), or null when
+ * nothing answered within the settle window. Arm BEFORE the Enter/click that
+ * triggers the round-trip.
+ */
+function watchFilterRoundTrip(page: Page): Promise<number | null> {
+  return page
+    .waitForResponse((res) => /hrl\.co\.il/i.test(res.url()) || /dimut/i.test(res.url()), { timeout: FILTER_SETTLE_MS })
+    .then((res) => res.status())
+    .catch(() => null);
+}
+
+/**
  * Waits for the AJAX-rendered table to show only rows matching the requested
  * sector + year. This doubles as the filter's success check: if the Enter
  * round-trip failed, this throws instead of letting the caller download
- * whatever mix the table happened to hold.
+ * whatever mix the table happened to hold. An empty table is ambiguous on its
+ * own — the round-trip watcher disambiguates: query answered + still empty
+ * means the client genuinely has no matching documents (NoDocumentsOnSiteError,
+ * only on the initial filter — mid-pagination emptiness is a site bug), while
+ * no answer at all means the Enter never triggered the search.
  */
-async function waitForFilteredRows(page: Page, reports: FrameLocator, year: string): Promise<void> {
-  const deadline = Date.now() + 30_000;
-  let lastState = 'no rows yet';
+async function waitForFilteredRows(
+  page: Page,
+  reports: FrameLocator,
+  year: string,
+  diag: { filterAnswered: Promise<number | null>; preFilterRowCount: number; initialFilter: boolean },
+): Promise<void> {
+  const deadline = Date.now() + FILTER_SETTLE_MS;
+  let lastRows: ReportRow[] = [];
   for (;;) {
-    const rows = await readRows(reports).catch(() => [] as ReportRow[]);
-    if (rows.length > 0 && rows.every((r) => r.yearText.includes(year) && r.sector.includes(SECTOR_OPTION_LABEL))) {
+    lastRows = await readRows(reports).catch(() => [] as ReportRow[]);
+    if (
+      lastRows.length > 0 &&
+      lastRows.every((r) => r.yearText.includes(year) && r.sector.includes(SECTOR_OPTION_LABEL))
+    ) {
       return;
     }
-    lastState =
-      rows.length === 0
-        ? 'no rows'
-        : `rows: ${rows.map((r) => `${r.sector}|${r.yearText}`).slice(0, 5).join(', ')}`;
-    if (Date.now() > deadline) {
-      throw new Error(`reports table did not settle on ${SECTOR_OPTION_LABEL}/${year} within 30s (${lastState})`);
-    }
+    if (Date.now() > deadline) break;
     await page.waitForTimeout(1_000);
   }
+  // The watcher's timeout equals the loop's, so it has settled by now.
+  const answered = await diag.filterAnswered;
+  const context = `pre-filter rows: ${diag.preFilterRowCount}, filter response: ${answered === null ? 'none' : `HTTP ${answered}`}`;
+  if (lastRows.length === 0 && diag.initialFilter && answered !== null && answered < 400) {
+    throw new NoDocumentsOnSiteError(
+      `the site lists no documents under ${SECTOR_OPTION_LABEL}/${ANNUAL_PERIOD_LABEL}/${year} — the filter query was answered and the table stayed empty (${context})`,
+    );
+  }
+  const lastState =
+    lastRows.length === 0
+      ? answered === null
+        ? 'no rows and the filter query never fired'
+        : 'no rows'
+      : `rows: ${lastRows.map((r) => `${r.sector}|${r.yearText}`).slice(0, 5).join(', ')}`;
+  throw new Error(`reports table did not settle on ${SECTOR_OPTION_LABEL}/${year} within 30s (${lastState}; ${context})`);
 }
 
 /** A filename-safe slug of a Hebrew document-type cell. */

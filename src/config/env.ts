@@ -158,6 +158,9 @@ const EnvSchema = z.object({
   // small runner), 100 in aci mode (each session is its own container; the
   // effective bound is the ACI container-group quota).
   TAX_FETCH_MAX_LIVE_SESSIONS: z.coerce.number().int().positive().optional(),
+  // How long failed-fetch evidence screenshots (debug/taxfetch/ blobs) are
+  // kept before the daily cleanup job deletes them. Default 14 days.
+  TAX_FETCH_DEBUG_RETENTION_DAYS: z.coerce.number().int().positive().default(14),
 });
 
 export const env = EnvSchema.parse(process.env);

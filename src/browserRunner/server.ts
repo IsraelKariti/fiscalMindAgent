@@ -7,7 +7,7 @@ import { launchInteractivePage } from './launch.js';
 import { israelTaxAuthorityProvider } from './israelTaxAuthority.js';
 import { altshulerShahamProvider } from './altshulerShaham.js';
 import { harelProvider } from './harel.js';
-import { OtpRejectedError, type DocumentFetchProvider } from './providerTypes.js';
+import { NoDocumentsOnSiteError, OtpRejectedError, type DocumentFetchProvider } from './providerTypes.js';
 import { RUNNER_PROTOCOL_VERSION } from './protocol.js';
 import { logger } from '../util/logger.js';
 
@@ -90,6 +90,35 @@ const DownloadBody = z.object({
 
 const errText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
+// Failure screenshots larger than this are dropped rather than bloating the
+// error response (the worker caps what it accepts too).
+const MAX_FAILURE_SHOT_BYTES = 8 * 1024 * 1024;
+
+/**
+ * What the page looked like when a step failed, for the 502 body — the only
+ * post-mortem evidence that survives an ACI container teardown (the runner's
+ * own logs and TAX_FETCH_DEBUG_DIR die with it). Best-effort; never throws.
+ */
+async function captureFailureShot(page: Page | null): Promise<string | undefined> {
+  if (!page) return undefined;
+  try {
+    const shot = await page.screenshot({ fullPage: true, timeout: 10_000 });
+    if (shot.length > MAX_FAILURE_SHOT_BYTES) return undefined;
+    return shot.toString('base64');
+  } catch {
+    return undefined;
+  }
+}
+
+/** The 502 error body for a failed step: message, machine-readable code, evidence screenshot. */
+async function failureBody(err: unknown, page: Page | null): Promise<Record<string, unknown>> {
+  return {
+    error: errText(err),
+    ...(err instanceof NoDocumentsOnSiteError ? { code: 'no_documents' } : {}),
+    ...(await captureFailureShot(page).then((shot) => (shot ? { screenshotBase64: shot } : {}))),
+  };
+}
+
 export function createRunnerApp(): Express {
   const app = express();
   app.use(express.json({ limit: '16kb' }));
@@ -122,16 +151,19 @@ export function createRunnerApp(): Express {
     }
     await closeSession(sessionId); // replace any prior browser for this id
     let browser: Browser | null = null;
+    let page: Page | null = null;
     try {
       const launched = await launchInteractivePage();
       browser = launched.browser;
+      page = launched.page;
       await provider.startLogin(launched.page, credentials);
       sessions.set(sessionId, { browser, page: launched.page, providerId, timer: armBackstop(sessionId) });
       res.status(201).json({ ok: true });
     } catch (err) {
       logger.error('browser runner: start login failed', err, { sessionId });
+      const body = await failureBody(err, page);
       if (browser) await browser.close().catch(() => undefined);
-      res.status(502).json({ error: errText(err) });
+      res.status(502).json(body);
     }
   });
 
@@ -162,8 +194,9 @@ export function createRunnerApp(): Express {
         return;
       }
       logger.error('browser runner: otp submit failed', err, { sessionId });
+      const body = await failureBody(err, session.page);
       await closeSession(sessionId);
-      res.status(502).json({ error: errText(err) });
+      res.status(502).json(body);
     }
   });
 
@@ -199,7 +232,7 @@ export function createRunnerApp(): Express {
       });
     } catch (err) {
       logger.error('browser runner: download failed', err, { sessionId });
-      res.status(502).json({ error: errText(err) });
+      res.status(502).json(await failureBody(err, session.page));
     } finally {
       await closeSession(sessionId);
     }

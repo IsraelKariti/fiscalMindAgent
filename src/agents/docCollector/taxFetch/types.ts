@@ -47,6 +47,42 @@ export class SessionGoneError extends Error {
   }
 }
 
+/**
+ * A runner step failed (login/OTP/download). Carries the runner's failure
+ * evidence when it sent any — a screenshot of the page at the moment of
+ * failure, the only post-mortem that survives an ACI container teardown.
+ */
+export class RunnerStepError extends Error {
+  constructor(
+    message: string,
+    /** PNG of the page when the step failed, already size-capped by fetchClient. */
+    readonly screenshotPng: Buffer | null = null,
+  ) {
+    super(message);
+    this.name = 'RunnerStepError';
+  }
+}
+
+/**
+ * Session-error marker for the no-documents outcome. flow.ts derives the
+ * `failed_no_documents` prompt state from it, so it must prefix the stored
+ * error text (NoDocumentsOnSiteError's message is built with it).
+ */
+export const NO_DOCUMENTS_ERROR_PREFIX = 'no documents found on the site';
+
+/**
+ * Login succeeded and the site answered the document query, but its filtered
+ * list was empty — the client has no matching documents there. Terminal in a
+ * way a transient failure isn't: a blind retry fails identically, so the agent
+ * is told to check with the client instead.
+ */
+export class NoDocumentsOnSiteError extends RunnerStepError {
+  constructor(message: string, screenshotPng: Buffer | null = null) {
+    super(message, screenshotPng);
+    this.name = 'NoDocumentsOnSiteError';
+  }
+}
+
 /** The runner is already driving its maximum number of browsers. */
 export class FetchAtCapacityError extends Error {
   constructor(message = 'the browser runner is at capacity') {

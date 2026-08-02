@@ -255,6 +255,19 @@ capability** — there is no accountant button.
   period later; a worker-boot sweep marks orphaned DB rows `expired`. Keep
   `src/browserRunner/` free of imports from worker/web code — pulling in
   `config/env.ts` would defeat the isolation.
+- **Failure diagnostics**: a failed runner step (login/OTP/download) answers
+  its 502 with a full-page screenshot of the moment of failure plus an optional
+  machine-readable `code` — the only evidence that survives an ACI container
+  teardown. The worker stores the screenshot under `debug/taxfetch/<day>/` in
+  the documents blob container (`taxFetch/failureShots.ts`; blob key logged and
+  recorded on the `tax_fetch.failed` audit event) and the daily `debug_cleanup`
+  job (03:20 local) deletes shots older than `TAX_FETCH_DEBUG_RETENTION_DAYS`
+  (default 14). `code: 'no_documents'` marks the login-worked-but-the-site-
+  listed-nothing outcome (e.g. Harel's filter query answered with an empty
+  table): the session still ends `failed`, but with a marker error prefix that
+  becomes the `failed_no_documents` prompt state — the client hears "the
+  document isn't there" (`messages.noDocumentsOnSite`) and the planner is told
+  to check with the client rather than blindly retry.
 - **Providers**: `src/browserRunner/` is provider-structured
   (`DocumentFetchProvider` in `providerTypes.ts`) so other sites can be added;
   today `israel_tax_authority` (Form 106), `altshuler_shaham` (pension/study-fund

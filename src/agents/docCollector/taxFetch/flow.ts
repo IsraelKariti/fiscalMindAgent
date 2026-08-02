@@ -7,6 +7,7 @@ import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js
 import type { WaChannelState } from '../prompt.js';
 import type { TaxFetchAction } from '../decisionSchema.js';
 import { listProviderSpecs, type FetchDocumentType, type FetchProviderSpec } from './providers.js';
+import { NO_DOCUMENTS_ERROR_PREFIX } from './types.js';
 
 /** The fetch's state as the prompt/decision layer sees it (collapses the worker's finer statuses). */
 export type TaxFetchPromptState =
@@ -16,7 +17,9 @@ export type TaxFetchPromptState =
   | 'awaiting_otp'
   | 'in_progress'
   | 'delivered'
-  | 'failed';
+  | 'failed'
+  /** Login worked but the site listed no documents for the year — a blind retry fails identically. */
+  | 'failed_no_documents';
 
 /** One fetchable document type's situation for a client (pending vs already collected). */
 export interface TaxFetchDocumentTypeState {
@@ -48,8 +51,8 @@ export function pendingKeys(ctx: TaxFetchContext): string[] {
   return ctx.documentTypes.filter((t) => t.pendingDocumentId).map((t) => t.key);
 }
 
-function promptStateFor(status: TaxFetchSessionRow['status']): TaxFetchPromptState {
-  switch (status) {
+function promptStateFor(session: TaxFetchSessionRow): TaxFetchPromptState {
+  switch (session.status) {
     case 'agreed':
       return 'agreed';
     case 'wa_intro_sent':
@@ -63,7 +66,10 @@ function promptStateFor(status: TaxFetchSessionRow['status']): TaxFetchPromptSta
     case 'delivered':
       return 'delivered';
     case 'failed':
-      return 'failed';
+      // The no-documents outcome (runner.ts stores it with this marker prefix)
+      // gets its own prompt state: the guidance is "check with the client",
+      // not "retry later".
+      return session.error?.startsWith(NO_DOCUMENTS_ERROR_PREFIX) ? 'failed_no_documents' : 'failed';
     default:
       // expired / cancelled — a fresh offer is allowed.
       return 'none';
@@ -97,12 +103,12 @@ async function loadContextForProvider(
 
   const active = await taxFetchSessions.getActiveForClientAndProvider(client.id, spec.id);
   let session = active;
-  let state: TaxFetchPromptState = active ? promptStateFor(active.status) : 'none';
+  let state: TaxFetchPromptState = active ? promptStateFor(active) : 'none';
   if (!active) {
     const latest = await taxFetchSessions.getLatestForClientAndProvider(client.id, spec.id);
     if (latest && (latest.status === 'delivered' || latest.status === 'failed')) {
       session = latest;
-      state = promptStateFor(latest.status);
+      state = promptStateFor(latest);
     }
   }
 

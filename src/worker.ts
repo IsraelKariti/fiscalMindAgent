@@ -6,6 +6,7 @@ import { createDebtScanWorker, ensureDebtScanScheduler } from './queue/debtScanW
 import { createClientImportScanWorker, ensureClientImportScanScheduler } from './queue/clientImportScanWorker.js';
 import { createTaxFetchWorker, sweepOrphanedTaxFetchSessions } from './queue/taxFetchWorker.js';
 import { createAnomalyScanWorker, ensureAnomalyScanScheduler } from './queue/anomalyScanWorker.js';
+import { createDebugCleanupWorker, ensureDebugCleanupScheduler } from './queue/debugCleanupWorker.js';
 import { env } from './config/env.js';
 import { runOverdueScan } from './agents/docCollector/overdueScan.js';
 import { runDebtScan } from './agents/debtCollector/dailyScan.js';
@@ -57,6 +58,10 @@ await ensureAnomalyScanScheduler();
 const anomalyScanWorker = createAnomalyScanWorker();
 logger.info('anomaly_scan worker started');
 
+await ensureDebugCleanupScheduler();
+const debugCleanupWorker = createDebugCleanupWorker();
+logger.info('debug_cleanup worker started');
+
 const taxFetchWorker = createTaxFetchWorker();
 logger.info('tax_fetch worker started');
 // Any live-browser session in the DB was orphaned by the last restart (pages are in-memory).
@@ -70,6 +75,7 @@ async function shutdown(): Promise<void> {
     debtScanWorker.close(),
     clientImportScanWorker.close(),
     anomalyScanWorker.close(),
+    debugCleanupWorker.close(),
     taxFetchWorker.close(),
   ]);
   process.exit(0);

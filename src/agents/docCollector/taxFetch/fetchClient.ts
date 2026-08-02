@@ -5,7 +5,10 @@ import { logger } from '../../../util/logger.js';
 import { provisionSessionContainer, resolveSessionBaseUrl, teardownSessionContainer } from './aciSessionPool.js';
 import {
   FetchAtCapacityError,
+  NO_DOCUMENTS_ERROR_PREFIX,
+  NoDocumentsOnSiteError,
   OtpRejectedError,
+  RunnerStepError,
   SessionGoneError,
   sanitizeFilename,
   type FetchedDocument,
@@ -32,6 +35,7 @@ export interface TaxFetchClient {
 // The runner's response crosses a trust boundary (its content originates on the
 // external site) — cap and allowlist before the bytes reach blob storage.
 const MAX_DOWNLOAD_BYTES = 15 * 1024 * 1024;
+const MAX_FAILURE_SHOT_BYTES = 8 * 1024 * 1024;
 const MAX_DOCUMENTS_PER_FETCH = 20;
 const MAX_EMPLOYER_NAME_CHARS = 200;
 const MAX_TITLE_CHARS = 200;
@@ -99,8 +103,20 @@ class HttpTaxFetchClient implements TaxFetchClient {
   }
 
   private async errorFrom(res: globalThis.Response): Promise<Error> {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return new Error(`browser runner responded ${res.status}: ${body?.error ?? 'unknown error'}`);
+    const body = (await res.json().catch(() => null)) as
+      | { error?: string; code?: string; screenshotBase64?: string }
+      | null;
+    // The screenshot crosses the same trust boundary as documents — bound the
+    // base64 length before decoding a byte.
+    const screenshot =
+      typeof body?.screenshotBase64 === 'string' && body.screenshotBase64.length <= (MAX_FAILURE_SHOT_BYTES * 4) / 3 + 4
+        ? Buffer.from(body.screenshotBase64, 'base64')
+        : null;
+    const message = `browser runner responded ${res.status}: ${body?.error ?? 'unknown error'}`;
+    if (body?.code === 'no_documents') {
+      return new NoDocumentsOnSiteError(`${NO_DOCUMENTS_ERROR_PREFIX}: ${message}`, screenshot);
+    }
+    return new RunnerStepError(message, screenshot);
   }
 
   async startLogin(sessionId: string, provider: string, credentials: PortalCredentials): Promise<void> {

@@ -34,6 +34,16 @@ export async function deleteBlob(key: string): Promise<void> {
   await container.getBlockBlobClient(key).deleteIfExists();
 }
 
+/** Every blob under a prefix with its creation time — retention sweeps over small namespaces (debug artifacts). */
+export async function listBlobs(prefix: string): Promise<Array<{ key: string; createdOn: Date | null }>> {
+  const container = await getContainer();
+  const blobs: Array<{ key: string; createdOn: Date | null }> = [];
+  for await (const item of container.listBlobsFlat({ prefix })) {
+    blobs.push({ key: item.name, createdOn: item.properties.createdOn ?? null });
+  }
+  return blobs;
+}
+
 export interface BlobDownload {
   stream: Readable;
   contentType: string | undefined;

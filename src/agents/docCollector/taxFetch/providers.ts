@@ -51,6 +51,8 @@ export interface FetchProviderSpec {
     otpRejected: string;
     otpGaveUp: string;
     downloadFailed: string;
+    /** Login worked but the site listed no matching documents for the year — a retry won't help (NoDocumentsOnSiteError). */
+    noDocumentsOnSite: string;
   };
   /** Client-facing wording for a successful delivery. */
   delivery: {
@@ -120,6 +122,8 @@ const israelTaxAuthoritySpec: FetchProviderSpec = {
     otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת באימייל מרשות המסים.',
     otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
     downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הטופס כרגע. נוכל לנסות שוב מאוחר יותר.',
+    noDocumentsOnSite:
+      'הזדהיתי בהצלחה באתר רשות המסים, אך לא נמצאו שם טפסים זמינים לשנה המבוקשת. ייתכן שהטופס טרם פורסם באתר — נבדוק את זה מול המשרד ונעדכן אותך.',
   },
 
   delivery: {
@@ -218,6 +222,8 @@ const altshulerShahamSpec: FetchProviderSpec = {
     otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS מאלטשולר שחם.',
     otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
     downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
+    noDocumentsOnSite:
+      'הזדהיתי בהצלחה באתר אלטשולר שחם, אך לא נמצאו שם דוחות לשנה המבוקשת. ייתכן שהדוח טרם פורסם או שהחשבון מתנהל בחברה אחרת — נבדוק את זה מול המשרד ונעדכן אותך.',
   },
 
   delivery: {
@@ -306,6 +312,8 @@ const harelSpec: FetchProviderSpec = {
     otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS מהראל.',
     otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
     downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
+    noDocumentsOnSite:
+      'הזדהיתי בהצלחה באתר הראל, אך לא נמצאו שם דוחות קרן השתלמות לשנה המבוקשת. ייתכן שהדוח טרם פורסם או שהקרן מתנהלת בחברה אחרת — נבדוק את זה מול המשרד ונעדכן אותך.',
   },
 
   delivery: {

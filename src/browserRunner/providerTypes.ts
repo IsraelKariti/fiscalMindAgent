@@ -69,3 +69,16 @@ export class OtpRejectedError extends Error {
     this.name = 'OtpRejectedError';
   }
 }
+
+/**
+ * Login succeeded and the site answered the document query, but the list came
+ * back empty — the client simply has no matching documents there. A retry will
+ * fail the same way; the worker relays this as its own terminal outcome
+ * (error code 'no_documents') instead of a transient download failure.
+ */
+export class NoDocumentsOnSiteError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NoDocumentsOnSiteError';
+  }
+}

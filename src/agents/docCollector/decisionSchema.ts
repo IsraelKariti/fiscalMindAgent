@@ -140,6 +140,9 @@ export function allowedTaxFetchActions(state: string, available: boolean, client
       return ['cancel']; // a live browser session exists; only stopping it makes sense
     case 'none':
     case 'failed':
+    // no-documents keeps the same mechanics (a retry is possible when there's
+    // reason to believe the site changed); the prompt guidance is what differs.
+    case 'failed_no_documents':
       return available ? ['client_agreed', ...start] : [];
     case 'agreed':
     case 'wa_intro_sent':

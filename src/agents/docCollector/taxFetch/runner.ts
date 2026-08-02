@@ -7,8 +7,9 @@ import { publishClientUpdated } from '../../../events/clientEvents.js';
 import { removeFutureEmail } from '../../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../../orchestration/setFutureEmail.js';
 import { getFetchClient } from './fetchClient.js';
+import { persistFailureShot } from './failureShots.js';
 import { getProviderSpec, type FetchProviderSpec } from './providers.js';
-import { FetchAtCapacityError, OtpRejectedError, SessionGoneError } from './types.js';
+import { FetchAtCapacityError, NoDocumentsOnSiteError, OtpRejectedError, SessionGoneError } from './types.js';
 import { sessionTracker } from './sessionTracker.js';
 import { agentWorkBlocked } from '../../killSwitch.js';
 import { recordAudit } from '../../../audit/audit.js';
@@ -192,10 +193,11 @@ async function runStartLogin(job: Extract<TaxFetchJob, { kind: 'start_login' }>)
       return;
     }
     logger.error('tax fetch: login failed', err, { sessionId, clientId: client.id });
+    const screenshotKey = await persistFailureShot(sessionId, 'login', err);
     sessionTracker.discard(sessionId);
     await fetchClient.close(sessionId);
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
-    recordTaxFetchFailure(client, sessionId, 'login', errText(err));
+    recordTaxFetchFailure(client, sessionId, 'login', errText(err), screenshotKey);
     await sendCanned(client, spec.messages.loginFailed);
     publishClientUpdated(client.id);
     await replanAfterFetchEnd(client.id);
@@ -286,9 +288,10 @@ async function runSubmitOtp(job: Extract<TaxFetchJob, { kind: 'submit_otp' }>): 
       return;
     }
     logger.error('tax fetch: otp verification failed', err, { sessionId, clientId: client.id });
+    const screenshotKey = await persistFailureShot(sessionId, 'otp', err);
     await fetchClient.close(sessionId);
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
-    recordTaxFetchFailure(client, sessionId, 'otp', errText(err));
+    recordTaxFetchFailure(client, sessionId, 'otp', errText(err), screenshotKey);
     await sendCanned(client, spec.messages.loginFailed);
     publishClientUpdated(client.id);
     await replanAfterFetchEnd(client.id);
@@ -317,9 +320,16 @@ async function runSubmitOtp(job: Extract<TaxFetchJob, { kind: 'submit_otp' }>): 
     await deliver(session, client, docs);
   } catch (err) {
     logger.error('tax fetch: download/deliver failed', err, { sessionId, clientId: client.id });
+    const screenshotKey = await persistFailureShot(sessionId, 'download', err);
+    // The no-documents outcome is terminal knowledge, not a transient failure:
+    // the login worked and the site answered with an empty list, so a retry
+    // fails identically. Its error text (NO_DOCUMENTS_ERROR_PREFIX) drives the
+    // failed_no_documents prompt state, and the client hears what actually
+    // happened instead of "try again later".
+    const noDocs = err instanceof NoDocumentsOnSiteError;
     await taxFetchSessions.updateStatus(sessionId, 'failed', { error: errText(err) });
-    recordTaxFetchFailure(client, sessionId, 'download', errText(err));
-    await sendCanned(client, spec.messages.downloadFailed);
+    recordTaxFetchFailure(client, sessionId, 'download', errText(err), screenshotKey);
+    await sendCanned(client, noDocs ? spec.messages.noDocumentsOnSite : spec.messages.downloadFailed);
     publishClientUpdated(client.id);
     await replanAfterFetchEnd(client.id);
   } finally {
@@ -379,7 +389,14 @@ function errText(err: unknown): string {
 }
 
 /** One audit row per failed fetch — the anomaly scanner counts these ('tax_fetch.failed' spikes). */
-function recordTaxFetchFailure(client: ClientRow, sessionId: string, stage: string, error: string): void {
+function recordTaxFetchFailure(
+  client: ClientRow,
+  sessionId: string,
+  stage: string,
+  error: string,
+  /** Blob key of the runner's failure screenshot, when one was stored (failureShots.ts). */
+  screenshotBlobKey: string | null = null,
+): void {
   recordAudit({
     actorType: 'agent',
     action: 'tax_fetch.failed',
@@ -388,6 +405,6 @@ function recordTaxFetchFailure(client: ClientRow, sessionId: string, stage: stri
     targetType: 'tax_fetch_session',
     targetId: sessionId,
     severity: 'warning',
-    detail: { clientName: client.name, stage, error },
+    detail: { clientName: client.name, stage, error, ...(screenshotBlobKey ? { screenshotBlobKey } : {}) },
   });
 }

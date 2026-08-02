@@ -18,7 +18,9 @@ export function createApp(): Express {
   app.use(resendRoute);
   app.use(twilioRoute);
   app.use(express.json());
-  app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+  // The sha lets the deploy workflow wait for THIS build to answer — during
+  // a container swap the old build keeps serving 200s.
+  app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, sha: process.env.GIT_SHA ?? 'dev' }));
   // Signed, expiring public file links (Twilio media fetches) — before the SPA fallback.
   app.use(mediaRoute);
   app.use('/api', apiRouter);

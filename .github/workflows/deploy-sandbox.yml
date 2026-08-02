@@ -59,7 +59,7 @@ jobs:
           if az acr repository show --name $ACR --image fiscalmind-agent:${{ steps.sha.outputs.sha }} > /dev/null 2>&1; then
             echo "tag already in ACR — skipping build"
           else
-            docker build -t $IMAGE:${{ steps.sha.outputs.sha }} .
+            docker build --build-arg GIT_SHA=${{ steps.sha.outputs.sha }} -t $IMAGE:${{ steps.sha.outputs.sha }} .
             docker push $IMAGE:${{ steps.sha.outputs.sha }}
           fi
 
@@ -70,15 +70,19 @@ jobs:
             --container-registry-url https://fiscalmindacr.azurecr.io
           az webapp restart -n sandbox-il-worker -g $RG --subscription $SANDBOX_SUB
 
-      - name: Wait for worker health (implies migrations + seed succeeded)
+      # /healthz reports the build's git sha: waiting for THIS sha (not any
+      # 200) is what proves the NEW container booted — during the swap the old
+      # build keeps serving 200s, which used to pass this check spuriously.
+      - name: Wait for worker health (this sha answering implies migrations + seed succeeded)
         run: |
-          for i in $(seq 1 30); do
-            if curl -fsS "https://sandbox-il-worker.azurewebsites.net/healthz" > /dev/null 2>&1; then
-              echo "worker healthy"; exit 0
+          for i in $(seq 1 60); do
+            got=$(curl -fsS "https://sandbox-il-worker.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null)
+            if [ "$got" = "${{ steps.sha.outputs.sha }}" ]; then
+              echo "worker healthy on ${{ steps.sha.outputs.sha }}"; exit 0
             fi
-            sleep 10
+            echo "waiting (serving: ${got:-none})"; sleep 10
           done
-          echo "worker never became healthy"; exit 1
+          echo "worker never came up on ${{ steps.sha.outputs.sha }}"; exit 1
 
       - name: Update web
         run: |
@@ -89,10 +93,11 @@ jobs:
 
       - name: Health check
         run: |
-          for i in $(seq 1 30); do
-            if curl -fsS "https://sandbox-il-web.azurewebsites.net/healthz" > /dev/null 2>&1; then
-              echo "web healthy"; exit 0
+          for i in $(seq 1 60); do
+            got=$(curl -fsS "https://sandbox-il-web.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null)
+            if [ "$got" = "${{ steps.sha.outputs.sha }}" ]; then
+              echo "web healthy on ${{ steps.sha.outputs.sha }}"; exit 0
             fi
-            sleep 10
+            echo "waiting (serving: ${got:-none})"; sleep 10
           done
-          echo "web never became healthy"; exit 1
+          echo "web never came up on ${{ steps.sha.outputs.sha }}"; exit 1

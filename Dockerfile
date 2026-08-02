@@ -24,6 +24,10 @@ RUN npm run build
 # --- Runtime ---
 FROM node:22-alpine
 ENV NODE_ENV=production
+# Stamped by the deploy workflows; /healthz reports it so a deploy can tell
+# the new container apart from the old one still draining during the swap.
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev

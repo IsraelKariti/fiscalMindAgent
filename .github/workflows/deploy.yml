@@ -44,7 +44,7 @@ jobs:
           if az acr repository show --name $ACR --image fiscalmind-agent:${{ github.sha }} > /dev/null 2>&1; then
             echo "tag already in ACR — skipping build"
           else
-            docker build -t $IMAGE:${{ github.sha }} .
+            docker build --build-arg GIT_SHA=${{ github.sha }} -t $IMAGE:${{ github.sha }} .
             docker push $IMAGE:${{ github.sha }}
           fi
 
@@ -71,15 +71,19 @@ jobs:
             --container-registry-url https://fiscalmindacr.azurecr.io
           az webapp restart -n fiscalmind-il-worker -g $RG
 
-      - name: Wait for worker health (implies migrations succeeded)
+      # /healthz reports the build's git sha: waiting for THIS sha (not any
+      # 200) is what proves the NEW container booted — during the swap the old
+      # build keeps serving 200s, which used to pass this check spuriously.
+      - name: Wait for worker health (this sha answering implies migrations succeeded)
         run: |
-          for i in $(seq 1 30); do
-            if curl -fsS "https://fiscalmind-il-worker.azurewebsites.net/healthz" > /dev/null 2>&1; then
-              echo "worker healthy"; exit 0
+          for i in $(seq 1 60); do
+            got=$(curl -fsS "https://fiscalmind-il-worker.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null)
+            if [ "$got" = "${{ github.sha }}" ]; then
+              echo "worker healthy on ${{ github.sha }}"; exit 0
             fi
-            sleep 10
+            echo "waiting (serving: ${got:-none})"; sleep 10
           done
-          echo "worker never became healthy"; exit 1
+          echo "worker never came up on ${{ github.sha }}"; exit 1
 
       - name: Update web
         run: |
@@ -90,10 +94,11 @@ jobs:
 
       - name: Health check
         run: |
-          for i in $(seq 1 30); do
-            if curl -fsS "https://fiscalmind-il-web.azurewebsites.net/healthz" > /dev/null 2>&1; then
-              echo "web healthy"; exit 0
+          for i in $(seq 1 60); do
+            got=$(curl -fsS "https://fiscalmind-il-web.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null)
+            if [ "$got" = "${{ github.sha }}" ]; then
+              echo "web healthy on ${{ github.sha }}"; exit 0
             fi
-            sleep 10
+            echo "waiting (serving: ${got:-none})"; sleep 10
           done
-          echo "web never became healthy"; exit 1
+          echo "web never came up on ${{ github.sha }}"; exit 1

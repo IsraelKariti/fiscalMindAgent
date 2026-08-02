@@ -18,7 +18,14 @@ import { logger } from './util/logger.js';
 if (env.WORKER_HEALTH_PORT) {
   http
     .createServer((req, res) => {
-      res.writeHead(req.url === '/healthz' || req.url === '/' ? 200 : 404);
+      if (req.url === '/healthz' || req.url === '/') {
+        // The sha lets the deploy workflow wait for THIS build to answer —
+        // during a container swap the old build keeps serving 200s.
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, sha: process.env.GIT_SHA ?? 'dev' }));
+        return;
+      }
+      res.writeHead(404);
       res.end();
     })
     .listen(env.WORKER_HEALTH_PORT, () => logger.info('worker health listener up', { port: env.WORKER_HEALTH_PORT }));

@@ -108,8 +108,28 @@ export const harelProvider: DocumentFetchProvider = {
     // this must be checked explicitly. Harel sends to the address already on
     // file for that ת"ז — selecting מייל adds no field, and #phone stays
     // required, so the phone below is still filled either way.
+    //
+    // The radio may be a styled control whose real <input> fails Playwright's
+    // actionability checks, so after a plain check() the label and a DOM-level
+    // click are tried too. If none of them stick, the login is aborted: the
+    // client-facing copy promises an email, so silently falling through to the
+    // SMS default (which a swallowed check() failure used to do) is worse than
+    // failing the fetch.
     const emailRadio = page.locator('#otp-channel-email');
-    if (!(await emailRadio.isChecked().catch(() => false))) await emailRadio.check().catch(() => undefined);
+    const emailChecked = (): Promise<boolean> => emailRadio.isChecked().catch(() => false);
+    if (!(await emailChecked())) {
+      await emailRadio.check({ timeout: 5_000 }).catch(() => undefined);
+    }
+    if (!(await emailChecked())) {
+      await page.locator('label[for="otp-channel-email"]').click({ timeout: 5_000 }).catch(() => undefined);
+    }
+    if (!(await emailChecked())) {
+      await emailRadio.evaluate((el) => (el as { click(): void }).click()).catch(() => undefined);
+    }
+    if (!(await emailChecked())) {
+      await debugShot(page, 'harel-02-email-channel-failed');
+      throw new Error('Harel: could not select the email OTP channel (מייל radio) — aborting instead of letting the code go out by SMS');
+    }
     await typeHuman(page, page.locator('#phone'), phoneNumber);
     await page.keyboard.press('Tab');
     await debugShot(page, 'harel-02-credentials-filled');

@@ -1,7 +1,6 @@
 import type { FrameLocator, Page } from 'playwright';
 import { debugShot, humanPause, typeHuman } from './launch.js';
 import { logger } from '../util/logger.js';
-import { captureNextPdf } from './pdfCapture.js';
 import {
   NoDocumentsOnSiteError,
   OtpRejectedError,
@@ -37,6 +36,8 @@ const FILTER_SETTLE_MS = 30_000;
 interface ReportRow {
   /** showFile(<docId>, …) argument — unique per document in the session. */
   docId: string;
+  /** showFile(<docId>, '<sessionId>') second argument — the DimutWebDocs jsessionid the retrieval URL is built from. */
+  sessionId: string;
   sector: string;
   yearText: string;
   docType: string;
@@ -67,10 +68,14 @@ interface ReportRow {
  *    handler as fallback). The values are set, the search is triggered, and the
  *    table is polled until every row matches the requested sector+year (a
  *    failed filter must never silently download another year's documents).
- * 5. Rows/downloads: table#results, one `a[onclick="showFile(docId, …)"]` per
- *    row. Clicking fires a plain browser download — ALWAYS named dimutWeb.PDF —
- *    plus a blank popup (closed by the capture helper). Filenames are therefore
- *    synthesized from row metadata. docId dedups rows across pages.
+ * 5. Rows/downloads: table#results, one `a[onclick="showFile(docId,'sid')"]`
+ *    per row. The document is NOT taken by clicking the link: showFile opens a
+ *    top-level popup navigation, and Harel's server answers those with HTTP 500
+ *    in an automated browser (bot-defense on the navigation path; diagnosed
+ *    2026-08-03). The identical URL fetched as a same-origin XHR from inside the
+ *    reports iframe returns 200 application/pdf, so each document is pulled that
+ *    way (see fetchDocumentPdf). The site names every file dimutWeb.PDF, so
+ *    filenames are synthesized from row metadata. docId dedups rows across pages.
  * 6. Pagination: #pagination_holder, li.next → AJAX page flip; the li gains
  *    class "disable" on the last page. 10 rows per page.
  *
@@ -222,14 +227,13 @@ export const harelProvider: DocumentFetchProvider = {
         if (seenDocIds.has(row.docId)) continue;
         seenDocIds.add(row.docId);
 
-        const link = reports.locator(`#results tbody tr a[onclick*="showFile(${row.docId},"]`).first();
         // The site names every download dimutWeb.PDF, so the filename is
         // synthesized from the row: document type + account + year.
         const filename = `${slug(row.docType) || 'report'}_${row.accountNumber || row.docId}_${year}.pdf`;
-        await humanPause(page, 5_000, 15_000); // human cadence between row downloads
-        const captured = await captureNextPdf(page, () => link.click(), filename);
+        await humanPause(page, 2_000, 6_000); // brief cadence between XHR retrievals
+        const buffer = await fetchDocumentPdf(reports, row.docId, row.sessionId);
         docs.push({
-          buffer: captured.buffer,
+          buffer,
           filename,
           contentType: 'application/pdf',
           title: [row.docType, row.accountNumber ? `חשבון ${row.accountNumber}` : null].filter(Boolean).join(' — ') || null,
@@ -240,7 +244,7 @@ export const harelProvider: DocumentFetchProvider = {
           docId: row.docId,
           docType: row.docType,
           accountNumber: row.accountNumber,
-          bytes: captured.buffer.length,
+          bytes: buffer.length,
         });
       }
       await debugShot(page, `harel-09-page-${resultPage}-done`);
@@ -293,18 +297,54 @@ async function readRows(reports: FrameLocator): Promise<ReportRow[]> {
         String(td.textContent ?? '').replace(/\s+/g, ' ').trim(),
       );
       const onclick = tr.querySelector('a[onclick]')?.getAttribute('onclick') ?? '';
-      const docId = /showFile\((\d+)/.exec(onclick)?.[1] ?? null;
+      // onclick is `javascript:showFile(<docId>,'<sessionId>')`.
+      const call = /showFile\((\d+)\s*,\s*['"]([^'"]+)['"]/.exec(onclick);
+      const docId = call?.[1] ?? null;
+      const sessionId = call?.[2] ?? null;
       // Column order (verified live): תחום, שנה, סוג דוח, ת"ז, שם מבוטח, פוליסה/חשבון, צפייה.
       return {
         docId,
+        sessionId,
         sector: cells[0] ?? '',
         yearText: cells[1] ?? '',
         docType: cells[2] ?? '',
         accountNumber: cells[5] ?? '',
       };
     }),
-  )) as Array<ReportRow & { docId: string | null }>;
-  return rows.filter((r): r is ReportRow => r.docId !== null);
+  )) as Array<ReportRow & { docId: string | null; sessionId: string | null }>;
+  return rows.filter((r): r is ReportRow => r.docId !== null && r.sessionId !== null);
+}
+
+/**
+ * Retrieves one document's PDF bytes. showFile is NOT clicked: its top-level
+ * popup navigation is answered with HTTP 500 by Harel's bot-defense in an
+ * automated browser, while the same URL fetched as a same-origin XHR from inside
+ * the reports iframe returns 200 application/pdf (diagnosed live 2026-08-03).
+ * The fetch runs in the iframe's www.hrl.co.il context so the relative URL,
+ * cookies, and the page's `csrftoken` global all resolve exactly as the site's
+ * own showFile() would build them.
+ */
+async function fetchDocumentPdf(reports: FrameLocator, docId: string, sessionId: string): Promise<Buffer> {
+  const result = (await reports.locator('body').evaluate(
+    async (_el, args: { docId: string; sessionId: string }) => {
+      const g = globalThis as unknown as { csrftoken?: unknown };
+      const token = typeof g.csrftoken !== 'undefined' ? String(g.csrftoken) : '';
+      const url = `showFile;jsessionid=${args.sessionId}?docId=${args.docId}&csrfkey=${token}`;
+      const res = await fetch(url, { credentials: 'include' });
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) {
+        bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      }
+      return { status: res.status, contentType: res.headers.get('content-type') ?? '', base64: btoa(bin) };
+    },
+    { docId, sessionId },
+  )) as { status: number; contentType: string; base64: string };
+
+  if (result.status !== 200 || !result.contentType.includes('application/pdf')) {
+    throw new Error(`harel showFile returned ${result.status} ${result.contentType || '(no content-type)'} for docId ${docId}`);
+  }
+  return Buffer.from(result.base64, 'base64');
 }
 
 /**

@@ -62,11 +62,11 @@ interface ReportRow {
  * 4. Filters: native selects #madorCurrentValue (תחום; גמל והשתלמות),
  *    #repType (תקופה; שנתי = value '31/12/'), #repYear (שנה; value = the year
  *    string) — options picked by their visible label, NEVER by position. The
- *    selects have no change handlers: filtering runs server-side via a
- *    document-level Enter-key handler (getDimutTable AJAX), so the values are
- *    set and then Enter is pressed, and the table is polled until every row
- *    matches the requested sector+year (a failed filter must never silently
- *    download another year's documents).
+ *    selects have no change handlers: filtering runs server-side (getDimutTable
+ *    AJAX), triggered by the app's חפש button (or its document-level Enter-key
+ *    handler as fallback). The values are set, the search is triggered, and the
+ *    table is polled until every row matches the requested sector+year (a
+ *    failed filter must never silently download another year's documents).
  * 5. Rows/downloads: table#results, one `a[onclick="showFile(docId, …)"]` per
  *    row. Clicking fires a plain browser download — ALWAYS named dimutWeb.PDF —
  *    plus a blank popup (closed by the capture helper). Filenames are therefore
@@ -196,12 +196,14 @@ export const harelProvider: DocumentFetchProvider = {
       rows: preFilterRows.length,
       sample: preFilterRows.slice(0, 3).map((r) => `${r.sector}|${r.yearText}`),
     });
-    // No change handlers on the selects — the app filters server-side on Enter
-    // (document-level keyCode-13 handler → getDimutTable AJAX). The watcher is
-    // armed BEFORE Enter so the round-trip can't slip past it.
+    // No change handlers on the selects — the search runs server-side
+    // (getDimutTable AJAX). Prefer the app's dedicated חפש button, clicked like
+    // a person would; the document-level Enter handler (keyCode 13) stays as a
+    // fallback if the button's markup shifts. The watcher is armed BEFORE the
+    // trigger so the round-trip can't slip past it.
     await humanPause(page, 2_000, 8_000);
     let filterAnswered = watchFilterRoundTrip(page);
-    await reports.locator('#repYear').press('Enter');
+    await triggerSearch(reports);
     await waitForFilteredRows(page, reports, year, {
       filterAnswered,
       preFilterRowCount: preFilterRows.length,
@@ -306,6 +308,25 @@ async function readRows(reports: FrameLocator): Promise<ReportRow[]> {
 }
 
 /**
+ * Runs the filter search: clicks the reports app's חפש button when it's
+ * visible, otherwise falls back to the document-level Enter handler on
+ * #repYear (both trigger the same getDimutTable AJAX; the Enter path is the
+ * one verified live 2026-07-27, the button preferred since 2026-08-03).
+ */
+async function triggerSearch(reports: FrameLocator): Promise<void> {
+  const searchButton = reports
+    .locator('button:has-text("חפש"), input[type="button"][value*="חפש"], input[type="submit"][value*="חפש"], a:has-text("חפש")')
+    .filter({ visible: true })
+    .first();
+  if (await searchButton.isVisible().catch(() => false)) {
+    await searchButton.click();
+    return;
+  }
+  logger.warn('harel fetch: no visible search button, falling back to Enter on #repYear');
+  await reports.locator('#repYear').press('Enter');
+}
+
+/**
  * Resolves with the HTTP status of the reports app's next answer (the
  * getDimutTable AJAX lives on the iframe's www.hrl.co.il origin), or null when
  * nothing answered within the settle window. Arm BEFORE the Enter/click that
@@ -326,7 +347,7 @@ function watchFilterRoundTrip(page: Page): Promise<number | null> {
  * own — the round-trip watcher disambiguates: query answered + still empty
  * means the client genuinely has no matching documents (NoDocumentsOnSiteError,
  * only on the initial filter — mid-pagination emptiness is a site bug), while
- * no answer at all means the Enter never triggered the search.
+ * no answer at all means the search was never triggered.
  */
 async function waitForFilteredRows(
   page: Page,
@@ -358,7 +379,7 @@ async function waitForFilteredRows(
   const lastState =
     lastRows.length === 0
       ? answered === null
-        ? 'no rows and the filter query never fired'
+        ? 'no rows and the search query never fired'
         : 'no rows'
       : `rows: ${lastRows.map((r) => `${r.sector}|${r.yearText}`).slice(0, 5).join(', ')}`;
   throw new Error(`reports table did not settle on ${SECTOR_OPTION_LABEL}/${year} within 30s (${lastState}; ${context})`);

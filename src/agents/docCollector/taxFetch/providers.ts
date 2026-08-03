@@ -268,7 +268,7 @@ function harelDocName(doc: FetchedDocument): string {
 }
 
 /**
- * Harel (הראל ביטוח ופיננסים). One SMS-OTP login pulls the previous year's
+ * Harel (הראל ביטוח ופיננסים). One email-OTP login pulls the previous year's
  * annual documents for EVERY study fund the client holds there (the personal
  * area's דוחות תקופתיים list filtered to תחום גמל והשתלמות + שנתי + the year) —
  * a client can hold several funds/accounts and Harel names the report documents
@@ -280,7 +280,9 @@ function harelDocName(doc: FetchedDocument): string {
 const harelSpec: FetchProviderSpec = {
   id: 'harel',
   siteNameHe: 'הראל',
-  otpChannel: 'sms',
+  // The login modal offers נייד/SMS (its default) or מייל; the runner selects
+  // מייל, so the code goes to the address Harel holds for that ת"ז.
+  otpChannel: 'email',
 
   documents: [
     {
@@ -305,11 +307,11 @@ const harelSpec: FetchProviderSpec = {
   },
 
   messages: {
-    otpSent: 'הקוד נשלח אליך הרגע מהראל ב-SMS 📱 הוא תקף לדקות ספורות — אנא שלח/י לי אותו כאן ברגע שהוא מגיע.',
+    otpSent: 'הקוד נשלח אליך הרגע מהראל לתיבת האימייל שלך 📧 הוא תקף לדקות ספורות — אנא שלח/י לי אותו כאן ברגע שהוא מגיע.',
     loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר הראל כרגע. נוכל לנסות שוב מאוחר יותר.',
     busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
     otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
-    otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS מהראל.',
+    otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת באימייל מהראל.',
     otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
     downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
     noDocumentsOnSite:

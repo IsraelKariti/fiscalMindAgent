@@ -49,9 +49,10 @@ interface ReportRow {
  * Whole flow verified LIVE 2026-07-27 with the user driving the OTP:
  *
  * 1. Login: harel-group.co.il PortalOTP page auto-opens an `.otp-login` modal —
- *    #uid (ת"ז), #phone, #otp-channel-sms radio, המשך button. Submitting sends
- *    the SMS and swaps the modal to a single #otp field (autocomplete
- *    one-time-code) + המשך. Success navigates to
+ *    #uid (ת"ז), #phone, an otpChannel radio pair (#otp-channel-sms = נייד, the
+ *    site default; #otp-channel-email = מייל, what we select), המשך button.
+ *    Submitting sends the code and swaps the modal to a single #otp field
+ *    (autocomplete one-time-code) + המשך. Success navigates to
  *    /personal-info/my-harel/Pages/client-view.aspx.
  * 2. Overlays: a privacy-policy dialog (ZA_CAMP campaign, button "הבנתי, תודה")
  *    and a bottom cookie bar can cover the page — both must be dismissed.
@@ -103,14 +104,17 @@ export const harelProvider: DocumentFetchProvider = {
     await typeHuman(page, page.locator('#uid'), idNumber);
     await page.keyboard.press('Tab');
 
-    // Code channel: SMS to the client's mobile (the נייד radio, the default).
-    const smsRadio = page.locator('#otp-channel-sms');
-    if (!(await smsRadio.isChecked().catch(() => false))) await smsRadio.check().catch(() => undefined);
+    // Code channel: email (the מייל radio). The site defaults to נייד/SMS, so
+    // this must be checked explicitly. Harel sends to the address already on
+    // file for that ת"ז — selecting מייל adds no field, and #phone stays
+    // required, so the phone below is still filled either way.
+    const emailRadio = page.locator('#otp-channel-email');
+    if (!(await emailRadio.isChecked().catch(() => false))) await emailRadio.check().catch(() => undefined);
     await typeHuman(page, page.locator('#phone'), phoneNumber);
     await page.keyboard.press('Tab');
     await debugShot(page, 'harel-02-credentials-filled');
 
-    // המשך sends the SMS and swaps the modal to the code-entry step (#otp).
+    // המשך sends the code and swaps the modal to the code-entry step (#otp).
     await humanPause(page);
     await page.locator('.otp-login button', { hasText: 'המשך' }).first().click();
     await page.waitForSelector('#otp', { state: 'visible', timeout: 45_000 });
@@ -121,8 +125,8 @@ export const harelProvider: DocumentFetchProvider = {
     await typeHuman(page, page.locator('#otp'), otp);
     await debugShot(page, 'harel-04-otp-filled');
 
-    // Short pause only: the SMS code expires within minutes, so the submit
-    // must not sit behind a long human-cadence delay.
+    // Short pause only: the code expires within minutes, so the submit must not
+    // sit behind a long human-cadence delay.
     await humanPause(page, 1_000, 3_000);
     await page.locator('button.contained.primary', { hasText: 'המשך' }).first().click();
 

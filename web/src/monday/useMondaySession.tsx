@@ -54,7 +54,9 @@ export function useMondaySession() {
 
   useEffect(() => {
     const onFocus = () => {
-      if (phase.kind === 'link' || phase.kind === 'error') boot();
+      // 'pending' rechecks too: once an admin whitelists the user, returning
+      // to the tab picks it up without a manual reload.
+      if (phase.kind === 'link' || phase.kind === 'error' || phase.kind === 'pending') boot();
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);

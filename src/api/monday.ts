@@ -25,7 +25,7 @@ function wrap(handler: RequestHandler): RequestHandler {
 
 const SessionSchema = z
   .object({
-    // Reported by the widget from monday's `me` query. Display/whitelist only —
+    // Reported by the widget from monday's `me` query. Display only —
     // it is not Google-verified, so it never auto-links to an existing user.
     email: z.string().email(),
     name: z.string().max(200).nullable().optional(),
@@ -136,11 +136,9 @@ mondayRouter.post(
       }
       throw err;
     }
-    // monday installs are self-serve: whitelist on provision
-    // (no-op when an admin already whitelisted the email).
-    // Self-serve installs have no admin in the loop, so no Hebrew name yet —
-    // agents fall back to the profile name until an admin fills it in.
-    await whitelist.add(email, name ?? null, null);
+    // Provisioning is NOT activation: monday users get an account row (so the
+    // link/identity survives) but stay off the whitelist until an admin adds
+    // them — the surfaces show the access-pending screen meanwhile.
     await mondayAccounts.upsert({
       mondayAccountId: req.monday!.accountId,
       mondayUserId: req.monday!.userId,

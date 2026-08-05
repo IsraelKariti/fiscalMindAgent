@@ -25,6 +25,7 @@ export function DebtCollectorSettings() {
       boardsDescKey="dcBoardsDesc"
       sheetsDescKey="dcSheetsDesc"
       sheetMappingDescKey="dcSheetMappingDesc"
+      boardMappingDescKey="dcBoardMappingDesc"
     />
   );
 }

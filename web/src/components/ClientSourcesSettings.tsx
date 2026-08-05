@@ -13,6 +13,7 @@ import {
 import { useClientsRefresh, useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
 import { useT } from '../i18n';
+import { BoardMappingModal, type BoardMapping } from './BoardMappingModal';
 import { SettingsGroup, SettingsRow } from './SettingsUI';
 import { SheetMappingModal, type SheetMapping } from './SheetMappingModal';
 import { SourcePickerModal, type PickerSelection } from './SourcePickerModal';
@@ -38,6 +39,7 @@ interface Props {
   boardsDescKey: MessageStringKey;
   sheetsDescKey: MessageStringKey;
   sheetMappingDescKey: MessageStringKey;
+  boardMappingDescKey: MessageStringKey;
   /** Maps a required-documents column on each source (doc collector: the cell is the imported client's checklist). */
   withDocuments?: boolean;
   /** Maps the tax-portal credential columns (ת"ז + permanent user code) — doc collector only. */
@@ -47,12 +49,13 @@ interface Props {
 /**
  * Shared settings sections for agents that read client rows from the
  * accountant's monday boards / Google Sheets: connect the account-level
- * monday/Google OAuth, pick boards and sheets (each mapped by its email
- * column, plus an optional name column), and — for client-import agents —
- * trigger an immediate import. Rendered inside the workspace Settings view via
- * AgentTypeUI.settingsPanel; the debt collector wraps it too.
+ * monday/Google OAuth, pick boards and sheets (each continues into a column
+ * mapping modal — email column plus the optional extras), and — for
+ * client-import agents — trigger an immediate import. Rendered inside the
+ * workspace Settings view via AgentTypeUI.settingsPanel; the debt collector
+ * wraps it too.
  */
-export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDescKey, sheetMappingDescKey, withDocuments = false, withPortalCredentials = false }: Props) {
+export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDescKey, sheetMappingDescKey, boardMappingDescKey, withDocuments = false, withPortalCredentials = false }: Props) {
   const { t } = useT();
   const refreshClients = useClientsRefresh();
   const [connection, setConnection] = useState<MondayConnection | null>(null);
@@ -63,6 +66,8 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [pickingBoards, setPickingBoards] = useState(false);
+  /** Boards just checked in the picker, awaiting their column mapping (processed head-first). */
+  const [mappingBoards, setMappingBoards] = useState<MondayBoardMeta[]>([]);
   /** Spreadsheet just picked in the Google Picker, awaiting its tab/column mapping. */
   const [mapping, setMapping] = useState<{ spreadsheetId: string; name: string; meta: SpreadsheetMeta | null } | null>(
     null,
@@ -190,62 +195,50 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     }
   };
 
+  /**
+   * The picker confirms which boards are wanted: unchecked boards are removed
+   * right away, already-configured boards keep their mapping, and each newly
+   * checked board continues into the column-mapping modal (like a sheet pick
+   * continues into SheetMappingModal) before it is saved.
+   */
   const applyBoardSelection = (selection: PickerSelection[]) => {
     setPickingBoards(false);
     if (!settings || !boards) return;
+    const selectedIds = new Set(selection.map((s) => s.id));
+    const kept = settings.boards.filter((b) => selectedIds.has(b.boardId));
+    setMappingBoards(
+      selection
+        .filter((s) => !settings.boards.some((b) => b.boardId === s.id))
+        .flatMap((s) => boards.find((b) => b.id === s.id) ?? []),
+    );
+    if (kept.length !== settings.boards.length) {
+      save({ ...settings, boards: kept }).catch(console.error);
+    }
+  };
+
+  /** A mapped board is saved and the queue advances to the next new board. */
+  const applyBoardMapping = (board: MondayBoardMeta, mapping: BoardMapping) => {
+    setMappingBoards((queue) => queue.slice(1));
+    const current = settingsRef.current;
+    if (!current) return;
     save({
-      ...settings,
-      boards: selection.flatMap(({ id, columnId }) => {
-        const board = boards.find((b) => b.id === id);
-        if (!board || !columnId) return [];
-        // Re-confirming the picker must not reset previously chosen extra columns.
-        const existing = settings.boards.find((b) => b.boardId === id);
-        return [
-          {
-            boardId: id,
-            emailColumnId: columnId,
-            nameColumnId: existing?.nameColumnId,
-            phoneColumnId: existing?.phoneColumnId,
-            idNumberColumnId: existing?.idNumberColumnId,
-            taxUserCodeColumnId: existing?.taxUserCodeColumnId,
-            documentsColumnId: existing?.documentsColumnId,
-            boardName: board.name,
-            // New boards prompt "import now" until a scan runs (client-import agents only).
-            pendingImport: existing ? existing.pendingImport : panelApi.scanNow ? true : undefined,
-          },
-        ];
-      }),
+      ...current,
+      boards: [
+        ...current.boards.filter((b) => b.boardId !== board.id),
+        {
+          boardId: board.id,
+          boardName: board.name,
+          ...mapping,
+          // The new board prompts "import now" until a scan runs (client-import agents only).
+          pendingImport: panelApi.scanNow ? true : undefined,
+        },
+      ],
     }).catch(console.error);
   };
 
   const removeBoard = (boardId: string) => {
     if (!settings) return;
     save({ ...settings, boards: settings.boards.filter((b) => b.boardId !== boardId) }).catch(console.error);
-  };
-
-  const setEmailColumn = (boardId: string, emailColumnId: string) => {
-    if (!settings) return;
-    save({
-      ...settings,
-      boards: settings.boards.map((b) => (b.boardId === boardId ? { ...b, emailColumnId } : b)),
-    }).catch(console.error);
-  };
-
-  // '' = the default (monday item name); undefined keeps the stored settings free of the key.
-  const setNameColumn = (boardId: string, nameColumnId: string) => {
-    if (!settings) return;
-    save({
-      ...settings,
-      boards: settings.boards.map((b) => (b.boardId === boardId ? { ...b, nameColumnId: nameColumnId || undefined } : b)),
-    }).catch(console.error);
-  };
-
-  const setBoardOptionalColumn = (boardId: string, key: 'phoneColumnId' | 'idNumberColumnId' | 'taxUserCodeColumnId' | 'documentsColumnId', columnId: string) => {
-    if (!settings) return;
-    save({
-      ...settings,
-      boards: settings.boards.map((b) => (b.boardId === boardId ? { ...b, [key]: columnId || undefined } : b)),
-    }).catch(console.error);
   };
 
   /**
@@ -441,12 +434,6 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     );
   }
 
-  const emailColumnCandidates = (board: MondayBoardMeta) =>
-    board.columns.filter((c) => c.type === 'email' || c.type === 'text' || c.type === 'long_text');
-
-  // Any column can hold the display name; the built-in item-name column is the dropdown's default option.
-  const nameColumnCandidates = (board: MondayBoardMeta) => board.columns.filter((c) => c.type !== 'name');
-
   const savedAside = saving ? (
     <span className="settings-group-status">{t.loading}</span>
   ) : saved ? (
@@ -504,120 +491,36 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                 <ul className="settings-list">
                   {settings.boards.map((chosen) => {
                     const board = boards?.find((b) => b.id === chosen.boardId);
+                    const columnTitle = (id: string) => board?.columns.find((c) => c.id === id)?.title ?? id;
                     const boardOrigin = `board:${chosen.boardId}`;
                     const boardSource = { boardId: chosen.boardId };
                     const promptShown = Boolean(chosen.pendingImport) || scanOrigin === boardOrigin;
-                    // The pending prompt carries its own button; otherwise the row button
+                    // The pending prompt carries its own button; otherwise the head button
                     // stays (it returns right after a scan, next to the result bar).
                     const buttonShown = !chosen.pendingImport && !(scanOrigin === boardOrigin && scanBusy);
                     return (
-                      <li key={chosen.boardId} className="settings-list-row">
-                        <span className="settings-list-name">{board?.name ?? chosen.boardName ?? chosen.boardId}</span>
-                        {board && (
-                          <>
-                            <label className="settings-list-field">
-                              <span className="muted">{t.csNameColumn}</span>
-                              <select
-                                value={chosen.nameColumnId ?? ''}
-                                onChange={(e) => setNameColumn(chosen.boardId, e.target.value)}
-                              >
-                                <option value="">{t.csNameColumnDefault}</option>
-                                {nameColumnCandidates(board).map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.title}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            {withPortalCredentials && (
-                              <label className="settings-list-field">
-                                <span className="muted">{t.sourcesIdNumberColumn}</span>
-                                <select
-                                  value={chosen.idNumberColumnId ?? ''}
-                                  onChange={(e) => setBoardOptionalColumn(chosen.boardId, 'idNumberColumnId', e.target.value)}
-                                >
-                                  <option value="">{t.csSheetNameColumnNone}</option>
-                                  {nameColumnCandidates(board).map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.title}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            )}
-                            <label className="settings-list-field">
-                              <span className="muted">{t.dcEmailColumn}</span>
-                              <select
-                                value={chosen.emailColumnId}
-                                onChange={(e) => setEmailColumn(chosen.boardId, e.target.value)}
-                              >
-                                {emailColumnCandidates(board).map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.title}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="settings-list-field">
-                              <span className="muted">{t.csPhoneColumn}</span>
-                              <select
-                                value={chosen.phoneColumnId ?? ''}
-                                onChange={(e) => setBoardOptionalColumn(chosen.boardId, 'phoneColumnId', e.target.value)}
-                              >
-                                <option value="">{t.csSheetNameColumnNone}</option>
-                                {nameColumnCandidates(board).map((c) => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.title}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            {withPortalCredentials && (
-                              <label className="settings-list-field">
-                                <span className="muted">{t.sourcesTaxCodeColumn}</span>
-                                <select
-                                  value={chosen.taxUserCodeColumnId ?? ''}
-                                  onChange={(e) => setBoardOptionalColumn(chosen.boardId, 'taxUserCodeColumnId', e.target.value)}
-                                >
-                                  <option value="">{t.csSheetNameColumnNone}</option>
-                                  {nameColumnCandidates(board).map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.title}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            )}
-                            {withDocuments && (
-                              <label className="settings-list-field">
-                                <span className="muted">{t.sourcesDocumentsColumn}</span>
-                                <select
-                                  value={chosen.documentsColumnId ?? ''}
-                                  onChange={(e) => setBoardOptionalColumn(chosen.boardId, 'documentsColumnId', e.target.value)}
-                                >
-                                  <option value="">{t.csSheetNameColumnNone}</option>
-                                  {nameColumnCandidates(board).map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.title}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            )}
-                          </>
-                        )}
-                        {panelApi.scanNow && buttonShown && importNowButton(boardOrigin, boardSource)}
-                        <button
-                          type="button"
-                          className="icon-btn"
-                          title={t.csRemove}
-                          aria-label={t.csRemove}
-                          onClick={() => removeBoard(chosen.boardId)}
-                        >
-                          {removeIcon}
-                        </button>
+                      <li key={chosen.boardId} className="settings-source-card">
+                        <div className="settings-source-head">
+                          <span className="settings-list-name">{board?.name ?? chosen.boardName ?? chosen.boardId}</span>
+                          {panelApi.scanNow && buttonShown && importNowButton(boardOrigin, boardSource)}
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-small"
+                            onClick={() => removeBoard(chosen.boardId)}
+                          >
+                            {t.csRemove}
+                          </button>
+                        </div>
+                        <span className="muted settings-source-meta">
+                          {t.dcEmailColumn}: {columnTitle(chosen.emailColumnId)}
+                          {` · ${t.csNameColumn}: ${chosen.nameColumnId ? columnTitle(chosen.nameColumnId) : t.csNameColumnDefault}`}
+                          {chosen.phoneColumnId ? ` · ${t.csPhoneColumn}: ${columnTitle(chosen.phoneColumnId)}` : ''}
+                          {chosen.idNumberColumnId ? ` · ${t.sourcesIdNumberColumn}: ${columnTitle(chosen.idNumberColumnId)}` : ''}
+                          {chosen.taxUserCodeColumnId ? ` · ${t.sourcesTaxCodeColumn}: ${columnTitle(chosen.taxUserCodeColumnId)}` : ''}
+                          {chosen.documentsColumnId ? ` · ${t.sourcesDocumentsColumn}: ${columnTitle(chosen.documentsColumnId)}` : ''}
+                        </span>
                         {panelApi.scanNow && promptShown && (
-                          <div className="settings-row-prompt">
+                          <div className="settings-source-prompt">
                             {importPromptContent(boardOrigin, boardSource, t.sourcesImportPromptBoard)}
                           </div>
                         )}
@@ -731,21 +634,22 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
       {pickingBoards && boards && (
         <SourcePickerModal
           title={t.csChooseBoards}
-          columnLabel={t.dcEmailColumn}
-          items={boards.map((board) => {
-            const candidates = emailColumnCandidates(board);
-            // Preselect the most likely email column: a real email column first, else the first text column.
-            const preferred = candidates.find((c) => c.type === 'email') ?? candidates[0];
-            return {
-              id: board.id,
-              name: board.name,
-              columns: candidates.map((c) => ({ id: c.id, title: c.title })),
-              defaultColumnId: preferred?.id,
-            };
-          })}
-          initial={settings.boards.map((b) => ({ id: b.boardId, columnId: b.emailColumnId }))}
+          items={boards.map((board) => ({ id: board.id, name: board.name }))}
+          initial={settings.boards.map((b) => ({ id: b.boardId }))}
           onConfirm={applyBoardSelection}
           onClose={() => setPickingBoards(false)}
+        />
+      )}
+
+      {mappingBoards[0] && (
+        <BoardMappingModal
+          key={mappingBoards[0].id}
+          board={mappingBoards[0]}
+          description={t[boardMappingDescKey]}
+          withPortalCredentials={withPortalCredentials}
+          withDocumentsColumn={withDocuments}
+          onConfirm={(mapping) => applyBoardMapping(mappingBoards[0]!, mapping)}
+          onClose={() => setMappingBoards((queue) => queue.slice(1))}
         />
       )}
     </>
@@ -777,6 +681,7 @@ export function ClientImportSettings({
       boardsDescKey="sourcesBoardsDesc"
       sheetsDescKey="sourcesSheetsDesc"
       sheetMappingDescKey="sourcesSheetMappingDesc"
+      boardMappingDescKey="sourcesBoardMappingDesc"
       withDocuments={withDocuments}
       withPortalCredentials={withPortalCredentials}
     />

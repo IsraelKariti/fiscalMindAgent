@@ -39,6 +39,7 @@ const he = {
   dcEmailColumn: 'עמודת אימייל',
   dcNoBoards: 'לא נמצאו לוחות מתאימים (נדרש לוח עם עמודת אימייל או טקסט).',
   dcSheetMappingDesc: 'בחרו את הלשונית שבה נמצאות שורות הלקוחות ואת עמודת האימייל המזהה אותם.',
+  dcBoardMappingDesc: 'בחרו את עמודת האימייל המזהה את שורות הלקוחות בלוח.',
   // DebtCard
   tabDebt: 'חוב',
   dcCardTitle: 'תמונת החוב',
@@ -69,6 +70,8 @@ const he = {
   sourcesBoardsDesc: 'לקוחות חדשים מהלוח נרשמים אוטומטית — בייבוא מיידי או בסריקה היומית.',
   sourcesSheetsDesc: 'לקוחות חדשים מהגיליון נרשמים אוטומטית — בייבוא מיידי או בסריקה היומית.',
   sourcesSheetMappingDesc: 'בחרו את הלשונית שבה נמצאות שורות הלקוחות ואת עמודת האימייל שלהם.',
+  sourcesBoardMappingTitle: 'הגדרת לוח',
+  sourcesBoardMappingDesc: 'בחרו את עמודת האימייל של הלקוחות ואת שאר העמודות שמהן ייקראו פרטי הלקוח.',
   sourcesImportNow: 'ייבוא עכשיו',
   sourcesImporting: 'מייבא…',
   sourcesImportResult: (enrolled: number, skipped: number) =>

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { SpreadsheetMeta } from '../api';
 import { useT } from '../i18n';
 import { Dropdown } from './Dropdown';
+import { autoMapColumns, SourceMappingForm, type ColumnMapping, type MappingOption } from './SourceMappingForm';
 
 export interface SheetMapping {
   sheetTitle: string;
@@ -18,8 +19,8 @@ export interface SheetMapping {
 /**
  * After picking a spreadsheet in the Google Picker: choose the tab the client
  * rows live in and the key (+ optional extra) columns, from the sheet's header
- * row. The monday boards get this mapping inline in SourcePickerModal; sheets
- * get it here because the tab/columns are only known after the pick.
+ * row. The column fields themselves are the shared SourceMappingForm — monday
+ * boards get the identical form in BoardMappingModal.
  *
  * Opens immediately after the pick with meta=null (loading state) so the user
  * sees feedback while the tab/header fetch is in flight.
@@ -87,43 +88,6 @@ export function SheetMappingModal({
   );
 }
 
-const HEADER_PATTERNS = {
-  email: /mail|אימייל|דוא/i,
-  phone: /phone|mobile|cell|טלפון|נייד/i,
-  name: /name|שם/i,
-  // ת"ז variants must be the whole header — a substring match would grab e.g. תזרים.
-  idNumber: /^ת\.?["”״׳']?ז\.?$|תעודת זהות|\bid\b/i,
-  taxUserCode: /קוד משתמש|user\s*code/i,
-  documents: /document|מסמכ/i,
-};
-
-/**
- * Pre-select columns whose headers obviously match a field (EMAIL → email,
- * טלפון → phone, …) so the common case is confirming a pre-filled mapping
- * instead of picking every column by hand. Each header is used at most once,
- * and only fields the modal actually shows get filled.
- */
-function autoMapColumns(
-  headers: string[],
-  keyKind: 'email' | 'phone',
-  show: { phone: boolean; portalCredentials: boolean; documents: boolean },
-) {
-  const taken = new Set<string>();
-  const find = (re: RegExp) => {
-    const header = headers.find((h) => !taken.has(h) && re.test(h.trim()));
-    if (header) taken.add(header);
-    return header ?? '';
-  };
-  return {
-    keyColumn: find(HEADER_PATTERNS[keyKind]),
-    nameColumn: find(HEADER_PATTERNS.name),
-    idNumberColumn: show.portalCredentials ? find(HEADER_PATTERNS.idNumber) : '',
-    phoneColumn: show.phone ? find(HEADER_PATTERNS.phone) : '',
-    taxUserCodeColumn: show.portalCredentials ? find(HEADER_PATTERNS.taxUserCode) : '',
-    documentsColumn: show.documents ? find(HEADER_PATTERNS.documents) : '',
-  };
-}
-
 /** Split out so its useState initializers run when meta arrives, not before. */
 function SheetMappingForm({
   meta,
@@ -146,46 +110,9 @@ function SheetMappingForm({
   // Client-import agents key rows by email (and map phone separately); the
   // customer-service agent keys by phone — see the withPhoneColumn prop doc.
   const keyKind: 'email' | 'phone' = withPhoneColumn ? 'email' : 'phone';
-  const show = { phone: withPhoneColumn, portalCredentials: withPortalCredentials, documents: withDocumentsColumn };
   const [sheetTitle, setSheetTitle] = useState(meta.sheets[0]?.title ?? '');
   const headers = meta.sheets.find((s) => s.title === sheetTitle)?.headers ?? [];
-  const initial = autoMapColumns(meta.sheets[0]?.headers ?? [], keyKind, show);
-  const [keyColumn, setKeyColumn] = useState(initial.keyColumn);
-  const [nameColumn, setNameColumn] = useState(initial.nameColumn);
-  const [phoneColumn, setPhoneColumn] = useState(initial.phoneColumn);
-  const [idNumberColumn, setIdNumberColumn] = useState(initial.idNumberColumn);
-  const [taxUserCodeColumn, setTaxUserCodeColumn] = useState(initial.taxUserCodeColumn);
-  const [documentsColumn, setDocumentsColumn] = useState(initial.documentsColumn);
-
-  const selectTab = (title: string) => {
-    setSheetTitle(title);
-    const tabHeaders = meta.sheets.find((s) => s.title === title)?.headers ?? [];
-    const mapped = autoMapColumns(tabHeaders, keyKind, show);
-    setKeyColumn(mapped.keyColumn);
-    setNameColumn(mapped.nameColumn);
-    setPhoneColumn(mapped.phoneColumn);
-    setIdNumberColumn(mapped.idNumberColumn);
-    setTaxUserCodeColumn(mapped.taxUserCodeColumn);
-    setDocumentsColumn(mapped.documentsColumn);
-  };
-
-  const confirm = () => {
-    if (!sheetTitle || !keyColumn) return;
-    onConfirm({
-      sheetTitle,
-      keyColumn,
-      nameColumn: nameColumn || undefined,
-      phoneColumn: phoneColumn || undefined,
-      idNumberColumn: idNumberColumn || undefined,
-      taxUserCodeColumn: taxUserCodeColumn || undefined,
-      documentsColumn: documentsColumn || undefined,
-    });
-  };
-
-  const optionalColumnOptions = [
-    { value: '', label: t.csSheetNameColumnNone },
-    ...headers.filter((h) => h !== keyColumn).map((h) => ({ value: h, label: h })),
-  ];
+  const options: MappingOption[] = headers.map((h) => ({ value: h, label: h }));
 
   return (
     <>
@@ -193,61 +120,38 @@ function SheetMappingForm({
         <span>{t.csSheetTab}</span>
         <Dropdown
           value={sheetTitle}
-          onChange={selectTab}
+          onChange={setSheetTitle}
           options={meta.sheets.map((s) => ({ value: s.title, label: s.title }))}
         />
       </label>
       {headers.length === 0 ? (
-        <p className="muted">{t.csSheetNoHeaders}</p>
-      ) : (
         <>
-          <label className="field">
-            <span>{t.csNameColumn}</span>
-            <Dropdown value={nameColumn} onChange={setNameColumn} options={optionalColumnOptions} />
-          </label>
-          {withPortalCredentials && (
-            <label className="field">
-              <span>{t.sourcesIdNumberColumn}</span>
-              <Dropdown value={idNumberColumn} onChange={setIdNumberColumn} options={optionalColumnOptions} />
-            </label>
-          )}
-          <label className="field">
-            <span>{columnLabel ?? t.csPhoneColumn}</span>
-            <Dropdown
-              value={keyColumn}
-              onChange={setKeyColumn}
-              options={headers.map((h) => ({ value: h, label: h }))}
-              placeholder={t.csSheetChooseColumn}
-            />
-          </label>
-          {withPhoneColumn && (
-            <label className="field">
-              <span>{t.csPhoneColumn}</span>
-              <Dropdown value={phoneColumn} onChange={setPhoneColumn} options={optionalColumnOptions} />
-            </label>
-          )}
-          {withPortalCredentials && (
-            <label className="field">
-              <span>{t.sourcesTaxCodeColumn}</span>
-              <Dropdown value={taxUserCodeColumn} onChange={setTaxUserCodeColumn} options={optionalColumnOptions} />
-            </label>
-          )}
-          {withDocumentsColumn && (
-            <label className="field">
-              <span>{t.sourcesDocumentsColumn}</span>
-              <Dropdown value={documentsColumn} onChange={setDocumentsColumn} options={optionalColumnOptions} />
-            </label>
-          )}
+          <p className="muted">{t.csSheetNoHeaders}</p>
+          <div className="btn-row modal-actions">
+            <button className="btn btn-ghost" type="button" onClick={onClose}>
+              {t.cancel}
+            </button>
+          </div>
         </>
+      ) : (
+        // Keyed by tab: switching tabs re-runs the auto-mapping over the new headers.
+        <SourceMappingForm
+          key={sheetTitle}
+          keyLabel={columnLabel ?? t.csPhoneColumn}
+          keyOptions={options}
+          options={options}
+          initial={autoMapColumns(options, keyKind, {
+            phone: withPhoneColumn,
+            portalCredentials: withPortalCredentials,
+            documents: withDocumentsColumn,
+          })}
+          withPhoneColumn={withPhoneColumn}
+          withPortalCredentials={withPortalCredentials}
+          withDocumentsColumn={withDocumentsColumn}
+          onConfirm={(mapping: ColumnMapping) => onConfirm({ sheetTitle, ...mapping })}
+          onClose={onClose}
+        />
       )}
-      <div className="btn-row modal-actions">
-        <button className="btn btn-ghost" type="button" onClick={onClose}>
-          {t.cancel}
-        </button>
-        <button className="btn btn-primary" type="button" onClick={confirm} disabled={!sheetTitle || !keyColumn}>
-          {t.csAdd}
-        </button>
-      </div>
     </>
   );
 }

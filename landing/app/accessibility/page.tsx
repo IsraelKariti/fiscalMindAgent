@@ -6,10 +6,10 @@ export const metadata: Metadata = {
     'הצהרת הנגישות של אתר FiscalMind בהתאם לתקן הישראלי ת״י 5568 ולהנחיות WCAG 2.1 ברמה AA.',
 }
 
-const COORDINATOR_NAME = 'עידו פרלמוטר'
+const COORDINATOR_NAME = 'ישראל קריתי'
 const CONTACT_EMAIL = 'admin@fiscalmind.app'
-const CONTACT_PHONE_DISPLAY = '054-968-6540'
-const CONTACT_PHONE_TEL = '+972549686540'
+const CONTACT_PHONE_DISPLAY = '050-683-9593'
+const CONTACT_PHONE_TEL = '+972506839593'
 
 export default function AccessibilityStatement() {
   return (
@@ -93,7 +93,7 @@ export default function AccessibilityStatement() {
             להשיב לכל פנייה בנושא נגישות בתוך 14 ימי עסקים.
           </p>
 
-          <p className="text-[#7E8CA0] text-sm mt-12">הצהרת הנגישות עודכנה לאחרונה בתאריך: 11 ביולי 2026.</p>
+          <p className="text-[#7E8CA0] text-sm mt-12">הצהרת הנגישות עודכנה לאחרונה בתאריך: 16 באוגוסט 2026.</p>
         </article>
       </main>
     </>

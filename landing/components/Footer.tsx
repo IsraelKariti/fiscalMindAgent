@@ -82,6 +82,17 @@ export default function Footer() {
             נבנה עבור רואי חשבון, על ידי אנשים שמבינים מספרים.
           </p>
         </div>
+
+        <p className="text-[#4B5563] text-[11px] text-center mt-6">
+          ישראל קריטי · דרך ההר 251, יבנאל ·{' '}
+          <a href="tel:+972506839593" dir="ltr" className="hover:text-[#7E8CA0] transition-colors">
+            050-683-9593
+          </a>{' '}
+          ·{' '}
+          <a href="mailto:admin@fiscalmind.app" className="hover:text-[#7E8CA0] transition-colors">
+            admin@fiscalmind.app
+          </a>
+        </p>
       </div>
     </footer>
   )

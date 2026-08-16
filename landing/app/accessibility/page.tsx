@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     'הצהרת הנגישות של אתר FiscalMind בהתאם לתקן הישראלי ת״י 5568 ולהנחיות WCAG 2.1 ברמה AA.',
 }
 
-const COORDINATOR_NAME = 'ישראל קריתי'
+const COORDINATOR_NAME = 'ישראל קריטי'
 const CONTACT_EMAIL = 'admin@fiscalmind.app'
 const CONTACT_PHONE_DISPLAY = '050-683-9593'
 const CONTACT_PHONE_TEL = '+972506839593'

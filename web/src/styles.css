@@ -3622,6 +3622,84 @@ button.meta-chip:hover {
   color: #c4b5fd;
 }
 
+/* Agent-switch dropdown (multi-agent accounts): the identity header becomes the trigger */
+.agent-switch-wrap {
+  position: relative;
+}
+
+.agent-identity-btn {
+  width: 100%;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  border-radius: 10px 10px 0 0;
+  transition: background var(--speed) ease;
+}
+
+.agent-identity-btn:focus {
+  outline: none;
+}
+
+.agent-identity-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.agent-identity-btn:hover,
+.agent-identity-btn[aria-expanded='true'] {
+  background: rgba(148, 163, 216, 0.08);
+}
+
+.agent-switch-chevron {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  transition: transform var(--speed) ease;
+}
+
+.agent-identity-btn[aria-expanded='true'] .agent-switch-chevron {
+  transform: rotate(180deg);
+}
+
+/* Anchored below the identity header, unlike the footer menu which opens upward.
+   Compound selector: .account-menu's own `bottom` is declared later in this file
+   and would otherwise win the tie, leaving the menu over-constrained (0 height). */
+.account-menu.agent-switch-menu {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+.agent-menu-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--primary-soft);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #c4b5fd;
+}
+
+.agent-menu-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.agent-menu-check {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: #a78bfa;
+}
+
 /* Sidebar footer account menu (anchored above the account row) */
 .account-menu-wrap {
   position: relative;

@@ -211,6 +211,17 @@ export function Workspace({
         <Sidebar
           agentName={agent.name}
           agentIcon={agentUI.icon}
+          // Pinned surfaces are locked to one type; single-agent accounts have nothing to switch to.
+          agentOptions={
+            !pinnedAgentType && agents.length > 1
+              ? agents.map((a) => ({ id: a.id, name: a.name, icon: getAgentUI(a.agentType).icon }))
+              : undefined
+          }
+          activeAgentId={agent.id}
+          onSwitchAgent={(agentId) => {
+            const next = agents.find((a) => a.id === agentId);
+            if (next) enterAgent(next);
+          }}
           clients={clients}
           selectedClientId={view.kind === 'client' ? view.clientId : null}
           dashboardSelected={view.kind === 'overview'}

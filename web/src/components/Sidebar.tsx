@@ -3,11 +3,24 @@ import type { Client } from '../api';
 import { contactLabel, displayClientName, isOverdueStopped } from '../format';
 import { useT } from '../i18n';
 
+export interface AgentOption {
+  id: string;
+  name: string;
+  icon: ReactNode;
+}
+
 interface Props {
   /** The active agent's display name, shown in the identity header. */
   agentName?: string | null;
   /** The active agent type's icon, shown next to the name in the identity header. */
   agentIcon?: ReactNode;
+  /**
+   * Multi-agent accounts only: every enabled agent, shown in a dropdown opened
+   * from the identity header. The header stays a plain label when absent.
+   */
+  agentOptions?: AgentOption[];
+  activeAgentId?: string;
+  onSwitchAgent?: (agentId: string) => void;
   /** Multi-agent accounts only: navigates back to the agents-home page; the account-menu item hides when absent. */
   onShowAgents?: () => void;
   clients: Client[];
@@ -104,11 +117,24 @@ const icon = {
       <path d="m7 9 5-5 5 5" />
     </svg>
   ),
+  chevronDown: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  ),
+  check: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
 };
 
 export function Sidebar({
   agentName,
   agentIcon,
+  agentOptions,
+  activeAgentId,
+  onSwitchAgent,
   onShowAgents,
   clients,
   selectedClientId,
@@ -131,14 +157,21 @@ export function Sidebar({
   const { t } = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const switcherWrapRef = useRef<HTMLDivElement>(null);
   const hasAccountMenu = Boolean(onShowAgents);
+  const canSwitchAgent = Boolean(onSwitchAgent && agentOptions && agentOptions.length > 1);
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !switcherOpen) return;
     const onPointerDown = (e: PointerEvent) => {
       if (!menuWrapRef.current?.contains(e.target as Node)) setMenuOpen(false);
+      if (!switcherWrapRef.current?.contains(e.target as Node)) setSwitcherOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        setSwitcherOpen(false);
+      }
     };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -146,7 +179,7 @@ export function Sidebar({
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [menuOpen]);
+  }, [menuOpen, switcherOpen]);
   const dotFor = (client: Client) =>
     muteDots
       ? client.wa_enabled
@@ -166,11 +199,49 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-scroll">
-        {/* Identity label only — switching agents lives in the footer account menu. */}
+        {/* Identity header — on multi-agent accounts it opens the agent-switch dropdown. */}
         {agentName && (
-          <div className="agent-identity">
-            <span className="agent-identity-icon">{agentIcon}</span>
-            <span className="client-item-name">{agentName}</span>
+          <div className="agent-switch-wrap" ref={switcherWrapRef}>
+            {canSwitchAgent ? (
+              <button
+                className="agent-identity agent-identity-btn"
+                title={t.switchAgentTitle}
+                aria-haspopup="menu"
+                aria-expanded={switcherOpen}
+                onClick={() => setSwitcherOpen((open) => !open)}
+              >
+                <span className="agent-identity-icon">{agentIcon}</span>
+                <span className="client-item-name">{agentName}</span>
+                <span className="agent-switch-chevron">{icon.chevronDown}</span>
+              </button>
+            ) : (
+              <div className="agent-identity">
+                <span className="agent-identity-icon">{agentIcon}</span>
+                <span className="client-item-name">{agentName}</span>
+              </div>
+            )}
+            {switcherOpen && (
+              <div className="account-menu agent-switch-menu" role="menu">
+                {agentOptions!.map((option) => (
+                  <button
+                    key={option.id}
+                    className="account-menu-item"
+                    role="menuitemradio"
+                    aria-checked={option.id === activeAgentId}
+                    onClick={() => {
+                      setSwitcherOpen(false);
+                      if (option.id !== activeAgentId) onSwitchAgent!(option.id);
+                    }}
+                  >
+                    <span className="agent-menu-icon">{option.icon}</span>
+                    <span className="client-item-name">{option.name}</span>
+                    {option.id === activeAgentId && (
+                      <span className="agent-menu-check">{icon.check}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         <button

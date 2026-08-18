@@ -29,6 +29,7 @@ const he = {
 
   // Agents
   agentsHomeTitle: 'הסוכנים שלי',
+  switchAgentTitle: 'החלפת סוכן',
   agentsHomeHint: 'בחרו סוכן כדי להיכנס לסביבת העבודה שלו.',
   agentsNoneEnabled: 'אין סוכנים פעילים בחשבון זה.',
   agentDocCollectorName: 'איסוף מסמכים',

@@ -7,6 +7,7 @@ import { recordAudit } from '../../audit/audit.js';
 import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { resolveSenderMailbox } from '../instanceEmail.js';
 import { isKillSwitchOn } from '../killSwitch.js';
+import { getAgentTypeIfKnown } from '../registry.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
@@ -207,6 +208,11 @@ export async function scanClientImportInstance(
     fresh.length = MAX_ENROLL;
   }
 
+  // Manual-kickoff agents (declaration of capital) enroll paused with no
+  // first draft: outreach starts only on the accountant's explicit trigger
+  // (monday kickoff webhook or the workspace resume toggle).
+  const manualKickoff = getAgentTypeIfKnown(instance.agent_type)?.manualKickoff === true;
+
   for (const candidate of fresh) {
     const name = candidate.name || candidate.email.split('@')[0] || candidate.email;
     const documents = resolveDocuments(config, candidate);
@@ -224,6 +230,7 @@ export async function scanClientImportInstance(
         name,
         emailAddress: candidate.email,
         phone: candidate.phone || null,
+        paused: manualKickoff,
       });
       for (const doc of documents) {
         await clientDocuments.insert({ clientId: client.id, name: doc.name, description: null });
@@ -231,7 +238,7 @@ export async function scanClientImportInstance(
       await syncCredentials(client.id, candidate.credentials);
       // Same fire-and-forget first-draft path as manual client creation,
       // staggered so a big import doesn't fire hundreds of concurrent Gemini calls.
-      setTimeout(() => draftFirstEmail(client.id), result.enrolled * DRAFT_STAGGER_MS);
+      if (!manualKickoff) setTimeout(() => draftFirstEmail(client.id), result.enrolled * DRAFT_STAGGER_MS);
       result.enrolled += 1;
       logger.info('client import: client enrolled', { instanceId: instance.id, clientId: client.id, email: candidate.email });
       recordAudit({

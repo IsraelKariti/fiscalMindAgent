@@ -4,6 +4,7 @@ import express, { type Express } from 'express';
 import { resendRoute } from './resendRoute.js';
 import { twilioRoute } from './twilioRoute.js';
 import { mediaRoute } from './mediaRoute.js';
+import { mondayKickoffRoute } from './mondayKickoffRoute.js';
 import { apiRouter } from '../api/router.js';
 
 // Built dashboard SPA (web/dist), resolved from the process cwd — both `npm run
@@ -18,6 +19,8 @@ export function createApp(): Express {
   app.use(resendRoute);
   app.use(twilioRoute);
   app.use(express.json());
+  // monday kickoff webhook (JSON body, token in the URL) — needs express.json().
+  app.use(mondayKickoffRoute);
   // The sha lets the deploy workflow wait for THIS build to answer — during
   // a container swap the old build keeps serving 200s.
   app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, sha: process.env.GIT_SHA ?? 'dev' }));

@@ -86,6 +86,11 @@ const he = {
   sourcesImportPromptSheet: 'הגיליון טרם יובא — לייבא ממנו לקוחות עכשיו?',
   sourcesImportPromptBoard: 'הלוח טרם יובא — לייבא ממנו לקוחות עכשיו?',
   sourcesImportPromptClose: 'סגירה',
+  sourcesKickoffTitle: 'הפעלה מתוך הלוח',
+  sourcesKickoffDesc:
+    'לקוחות מיובאים נוצרים במצב מושהה — הסוכן פונה אליהם רק לאחר הפעלה מהלוח. הוסיפו בלוח אינטגרציית Webhooks (למשל: When button clicked, send a webhook) והדביקו בה את הכתובת הזו; לחיצה על הכפתור בשורת הלקוח תפעיל את הפנייה הראשונה.',
+  sourcesKickoffCopy: 'העתקת כתובת',
+  sourcesKickoffCopied: 'הועתקה',
   sourcesIdNumberColumn: 'עמודת ת"ז',
   sourcesTaxCodeColumn: 'עמודת קוד משתמש (רשות המסים)',
   sourcesDocumentsColumn: 'עמודת מסמכים נדרשים',

@@ -6,7 +6,9 @@ import * as googleOauthTokens from '../../db/queries/googleOauthTokens.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { getSpreadsheetMeta } from '../customerService/googleData.js';
 import { EMAIL_CAPABLE, listBoards } from '../customerService/mondayData.js';
+import { getAgentTypeIfKnown } from '../registry.js';
 import { scanClientImportInstance } from './clientImportScan.js';
+import { kickoffWebhookUrl } from './kickoffWebhook.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -49,6 +51,11 @@ export function registerClientSourceRoutes(
         settings: opts.parse(req.agentInstance!.settings),
         mondayConnected: mondayToken !== null,
         googleConnected: googleToken !== null,
+        // Manual-kickoff agents: the per-instance webhook URL the accountant
+        // pastes into a monday Webhooks recipe to start a row's conversation.
+        ...(getAgentTypeIfKnown(req.agentInstance!.agent_type)?.manualKickoff
+          ? { kickoffWebhookUrl: kickoffWebhookUrl(req.agentInstance!.id) }
+          : {}),
       });
     }),
   );

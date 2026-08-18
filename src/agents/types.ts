@@ -53,6 +53,13 @@ export interface AgentTypeDefinition {
    */
   collectsTaxYear?: boolean;
   /**
+   * The agent never contacts a client on its own initiative: imported clients
+   * are created paused with no first draft, and outreach starts only on an
+   * explicit accountant trigger — the monday kickoff webhook
+   * (src/webhook/mondayKickoffRoute.ts) or the workspace resume toggle.
+   */
+  manualKickoff?: boolean;
+  /**
    * One planning step for one client — decide, act on goal state, and (for
    * conversational agents) schedule the next message. Runs inside
    * setFutureEmail's drafting-state wrapper (paused/complete guards, drafting

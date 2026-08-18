@@ -609,9 +609,13 @@ function makeWorkspaceApi(prefix: string) {
       ),
     // Client-import sources (routes exist only on doc_collector instances).
     sourcesGetSettings: () =>
-      request<{ settings: ClientSourcesConfig; mondayConnected: boolean; googleConnected: boolean }>(
-        `${prefix}/client-sources/settings`,
-      ),
+      request<{
+        settings: ClientSourcesConfig;
+        mondayConnected: boolean;
+        googleConnected: boolean;
+        /** Manual-kickoff agents only: the monday webhook URL that starts a board row's conversation. */
+        kickoffWebhookUrl?: string;
+      }>(`${prefix}/client-sources/settings`),
     sourcesSaveSettings: (settings: ClientSourcesConfig) =>
       request<{ settings: ClientSourcesConfig }>(`${prefix}/client-sources/settings`, {
         method: 'PUT',

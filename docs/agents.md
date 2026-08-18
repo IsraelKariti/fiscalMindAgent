@@ -15,6 +15,20 @@ agent type in `docCollector/plan.ts`), the analyzer's valuation-date framing
 UI defaults (add-client checklist, no monday board import). The
 accountant-editable prompt template (legacy setting key) applies to
 `doc_collector` only.
+It is also the first **manual-kickoff** type (`AgentTypeDefinition.manualKickoff`):
+the client-import scan enrolls its clients *paused* with no first draft, and
+the first message is drafted+scheduled only on an explicit accountant trigger —
+either the **monday kickoff webhook** (`src/webhook/mondayKickoffRoute.ts`:
+`POST /webhooks/monday-kickoff/:instanceId/:token`, token HMAC-derived from
+`SECRET_ENC_KEY` so nothing is stored in the wholesale-replaced settings JSONB;
+the URL shows in the client-sources settings panel and the accountant pastes it
+into a monday Webhooks-integration recipe, e.g. "when button clicked, send a
+webhook" on the client board) or the workspace resume toggle. The webhook is
+event-type-agnostic (any event with a `pulseId` works), resolves the row's
+email via the board's configured email column, enrolls a not-yet-imported row
+on the spot (narrowed scan), and only starts a paused, never-contacted,
+goal-open client — repeat fires are acknowledged (200) and ignored. Each start
+is audited as `client.kickoff_triggered`.
 `annual_report_assistant` was retired 2026-07-31 — migration 041 disabled its
 instances; the rows survive, hidden, because instance rows are never deleted.
 Industry pattern followed: one app with an agent registry

@@ -27,7 +27,13 @@ const removeIcon = (
 
 /** The per-agent transport: each consumer binds its own settings/boards/meta routes. */
 export interface ClientSourcesPanelApi {
-  getSettings: () => Promise<{ settings: ClientSourcesConfig; mondayConnected: boolean; googleConnected: boolean }>;
+  getSettings: () => Promise<{
+    settings: ClientSourcesConfig;
+    mondayConnected: boolean;
+    googleConnected: boolean;
+    /** Manual-kickoff agents only: the monday webhook URL that starts a board row's conversation. */
+    kickoffWebhookUrl?: string;
+  }>;
   saveSettings: (settings: ClientSourcesConfig) => Promise<{ settings: ClientSourcesConfig }>;
   listBoards: () => Promise<{ boards: MondayBoardMeta[] }>;
   spreadsheetMeta: (spreadsheetId: string) => Promise<{ meta: SpreadsheetMeta }>;
@@ -62,6 +68,8 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
   const [connection, setConnection] = useState<MondayConnection | null>(null);
   const [gConnection, setGConnection] = useState<GoogleConnection | null>(null);
   const [settings, setSettings] = useState<ClientSourcesConfig | null>(null);
+  const [kickoffUrl, setKickoffUrl] = useState<string | null>(null);
+  const [kickoffCopied, setKickoffCopied] = useState(false);
   const [boards, setBoards] = useState<MondayBoardMeta[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -80,6 +88,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
   /** Which source's "import now" triggered the running/last scan: a board key or a sheet key. */
   const [scanOrigin, setScanOrigin] = useState<string | null>(null);
   const savedResetTimer = useRef<ReturnType<typeof setTimeout>>();
+  const kickoffCopyTimer = useRef<ReturnType<typeof setTimeout>>();
   const connectPoll = useRef<ReturnType<typeof setInterval>>();
   // The Google Picker message listener outlives renders; read settings through
   // a ref so a pick applied late still starts from the current state.
@@ -98,7 +107,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
 
   const load = useCallback(async () => {
     try {
-      const [conn, gConn, { settings: current }] = await Promise.all([
+      const [conn, gConn, { settings: current, kickoffWebhookUrl }] = await Promise.all([
         api.mondayConnection(),
         api.googleConnection(),
         panelApi.getSettings(),
@@ -106,6 +115,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
       setConnection(conn);
       setGConnection(gConn);
       setSettings(current);
+      setKickoffUrl(kickoffWebhookUrl ?? null);
       if (conn.connected) await loadBoards();
     } catch {
       setLoadFailed(true);
@@ -117,6 +127,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     return () => {
       clearInterval(connectPoll.current);
       clearTimeout(savedResetTimer.current);
+      clearTimeout(kickoffCopyTimer.current);
     };
   }, [load]);
 
@@ -161,6 +172,18 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
         load().catch(() => setLoadFailed(true));
       }
     }, 2000);
+  };
+
+  const copyKickoffUrl = async () => {
+    if (!kickoffUrl) return;
+    try {
+      await navigator.clipboard.writeText(kickoffUrl);
+      setKickoffCopied(true);
+      clearTimeout(kickoffCopyTimer.current);
+      kickoffCopyTimer.current = setTimeout(() => setKickoffCopied(false), 1600);
+    } catch {
+      /* clipboard unavailable — the URL is selectable in place */
+    }
   };
 
   const connect = () => openConnectPopup(api.mondayConnectUrl, api.mondayConnection, 'fm-monday-connected');
@@ -530,6 +553,16 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                   })}
                 </ul>
               )
+            )}
+            {kickoffUrl && settings.boards.length > 0 && (
+              <SettingsRow title={t.sourcesKickoffTitle} description={t.sourcesKickoffDesc} stack>
+                <div className="settings-kickoff-url">
+                  <code>{kickoffUrl}</code>
+                  <button type="button" className="btn btn-ghost btn-small" onClick={copyKickoffUrl}>
+                    {kickoffCopied ? t.sourcesKickoffCopied : t.sourcesKickoffCopy}
+                  </button>
+                </div>
+              </SettingsRow>
             )}
           </div>
         )}

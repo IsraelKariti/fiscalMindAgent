@@ -314,6 +314,27 @@ export interface BoardScanRow {
  * whole-board sweeps like the debt collector's daily scan. Callers own the
  * privacy question: the entire board content leaves this module.
  */
+/**
+ * One board item's cell text keyed by column id (same extraction as the board
+ * sweeps), or null when the item is gone / not visible to the token. Powers
+ * the monday kickoff webhook's row → client-email resolution.
+ */
+export async function fetchBoardItemCells(accessToken: string, itemId: string): Promise<Record<string, string> | null> {
+  const data = await mondayGraphQL<{ items: (RawItem | null)[] | null }>(
+    accessToken,
+    'query ($ids: [ID!]) { items (ids: $ids) { name column_values { id text ... on PhoneValue { phone } } } }',
+    { ids: [itemId] },
+  );
+  const item = data.items?.[0];
+  if (!item) return null;
+  const cells: Record<string, string> = {};
+  for (const cv of item.column_values) {
+    const text = (cv.phone ?? cv.text ?? '').trim();
+    if (text) cells[cv.id] = text;
+  }
+  return cells;
+}
+
 export async function fetchAllBoardRows(
   accessToken: string,
   boardId: string,

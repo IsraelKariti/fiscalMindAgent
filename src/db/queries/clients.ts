@@ -48,12 +48,14 @@ export async function insert(args: {
   phone?: string | null;
   /** Per-agent scalar fields (agent_fields JSONB), e.g. the doc collector's due_date. */
   agentFields?: Record<string, unknown>;
+  /** Created paused (manual-kickoff agents): the agent stays quiet until an explicit accountant trigger. */
+  paused?: boolean;
 }): Promise<ClientRow> {
   const insertRow = async (waPhone: string | null): Promise<ClientRow> => {
     const { rows } = await pool.query<ClientRow>(
-      `INSERT INTO clients (user_id, agent_instance_id, name, email_address, phone, goal_status, agent_fields,
+      `INSERT INTO clients (user_id, agent_instance_id, name, email_address, phone, goal_status, agent_fields, paused,
                             wa_phone, wa_enabled, wa_opted_in_at, wa_opted_in_by)
-       VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, $5, 'pending', COALESCE($6::jsonb, '{}'::jsonb),
+       VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, $5, 'pending', COALESCE($6::jsonb, '{}'::jsonb), $8,
                $7::text, $7 IS NOT NULL, CASE WHEN $7 IS NOT NULL THEN now() END, CASE WHEN $7 IS NOT NULL THEN $1::uuid END)
        RETURNING *`,
       // Stored lowercased — inbound routing and the import dedupe match on it.
@@ -65,6 +67,7 @@ export async function insert(args: {
         args.phone ?? null,
         args.agentFields ? JSON.stringify(args.agentFields) : null,
         waPhone,
+        args.paused ?? false,
       ],
     );
     const row = rows[0];

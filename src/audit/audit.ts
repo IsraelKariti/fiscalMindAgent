@@ -29,6 +29,7 @@ export type AuditAction =
   | 'debt.confirmed_paid'
   | 'injection.cycle_suppressed'
   | 'client.auto_enrolled'
+  | 'client.kickoff_triggered'
   | 'agent.auto_provisioned'
   | 'wa_business.connected'
   | 'wa_business.disconnected'

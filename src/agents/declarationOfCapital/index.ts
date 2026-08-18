@@ -16,4 +16,8 @@ export const declarationOfCapitalAgent: AgentTypeDefinition = {
   ...docCollectorAgent,
   id: 'declaration_of_capital',
   emailSuffix: 'capital',
+  // A הצהרת הון demand is accountant-initiated: imported clients wait paused
+  // until the accountant fires the monday kickoff webhook (button on the board
+  // row) or resumes them in the workspace.
+  manualKickoff: true,
 };

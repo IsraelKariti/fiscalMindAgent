@@ -56,6 +56,14 @@ export interface WaSenderRow {
   created_at: Date;
 }
 
+/** Per-accountant WhatsApp Business Account (WABA), connected in Settings → Integrations. */
+export interface WaBusinessAccountRow {
+  user_id: string;
+  waba_id: string;
+  source: 'embedded_signup' | 'manual';
+  connected_at: Date;
+}
+
 /** Pre-approved Twilio Content Template (utility category), platform-global. */
 export interface WaTemplateRow {
   id: string;

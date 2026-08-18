@@ -104,6 +104,12 @@ const EnvSchema = z.object({
   // Display name auto-provisioned senders register with on WhatsApp — must
   // follow Meta's display-name guidelines and match the WABA's business.
   TWILIO_WA_SENDER_NAME: z.string().min(1).default('FiscalMind'),
+  // Meta app + Embedded Signup configuration id (Meta developer console ->
+  // your app -> WhatsApp -> Embedded Signup). Powers the "connect your own
+  // WABA" popup in Settings -> Integrations; without them the card still
+  // offers manual WABA-id entry.
+  META_APP_ID: z.string().min(1).optional(),
+  META_ES_CONFIG_ID: z.string().min(1).optional(),
   // monday.com app (Developer Center -> your app -> Basic Information): the
   // Client Secret that signs the widget iframe's sessionToken JWTs. Optional —
   // the /api/monday endpoints return 503 until it is set.

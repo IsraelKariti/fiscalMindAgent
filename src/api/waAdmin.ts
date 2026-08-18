@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import * as agentInstances from '../db/queries/agentInstances.js';
+import * as waBusinessAccounts from '../db/queries/waBusinessAccounts.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
 import {
@@ -108,16 +109,18 @@ export const adminProvisionWaSender: RequestHandler = async (req, res) => {
     res.status(400).json({ error: 'Expected { agentInstanceId }.', details: parsed.error.flatten() });
     return;
   }
-  if (!isProvisioningConfigured()) {
-    res.status(503).json({
-      error:
-        'Number provisioning is not configured: set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WEBHOOK_URL and TWILIO_WABA_ID.',
-    });
-    return;
-  }
   const instance = await agentInstances.getById(parsed.data.agentInstanceId);
   if (!instance) {
     res.status(404).json({ error: 'Agent instance not found.' });
+    return;
+  }
+  // The accountant's own WABA (Settings → Integrations) wins over the platform one.
+  const ownWaba = await waBusinessAccounts.getByUserId(instance.user_id);
+  if (!isProvisioningConfigured(ownWaba !== null)) {
+    res.status(503).json({
+      error:
+        'Number provisioning is not configured: set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WEBHOOK_URL and TWILIO_WABA_ID (or connect the accountant’s own WABA).',
+    });
     return;
   }
   if (await waSenders.getByInstanceId(instance.id)) {
@@ -126,7 +129,7 @@ export const adminProvisionWaSender: RequestHandler = async (req, res) => {
   }
   let provisioned;
   try {
-    provisioned = await provisionWhatsAppNumber(`fiscalmind ${instance.agent_type} ${instance.id}`);
+    provisioned = await provisionWhatsAppNumber(`fiscalmind ${instance.agent_type} ${instance.id}`, ownWaba?.waba_id);
   } catch (err) {
     logger.error('wa number provisioning failed', err);
     res.status(502).json({ error: err instanceof Error ? err.message : 'Buying the number from Twilio failed.' });
@@ -138,6 +141,7 @@ export const adminProvisionWaSender: RequestHandler = async (req, res) => {
     agentInstanceId: instance.id,
     phoneNumber: provisioned.phoneNumber,
     senderStatus: provisioned.senderStatus,
+    waba: ownWaba ? ownWaba.waba_id : 'platform',
   });
   res.status(201).json({
     sender: { agentInstanceId: sender.agent_instance_id, phoneNumber: sender.phone_number },

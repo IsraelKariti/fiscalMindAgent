@@ -48,6 +48,15 @@ Industry pattern followed: one app with an agent registry
   purchases a US number and registers it as a WhatsApp sender under
   `TWILIO_WABA_ID` — no Twilio-console step. Inbound routing is by the `To`
   number → instance; outbound `from` is the client's instance's number.
+  Since migration 046 an accountant can connect **their own WABA**
+  (`wa_business_accounts`, one per user) from the workspace Settings →
+  Integrations tab (`web/src/components/WhatsAppBusinessSettings.tsx`;
+  account-level routes `GET/POST/DELETE /api/wa-business`): via Meta's
+  Embedded Signup popup (`META_APP_ID` + `META_ES_CONFIG_ID`) or by pasting a
+  WABA id already shared with Twilio. When present, `provision.ts` registers
+  that accountant's new senders under their WABA instead of the platform one —
+  their display name, their messaging limits, no platform WABA slot used.
+  Existing senders are not migrated; the WABA applies to provisioning only.
 
 ## Backend (`src/agents/`)
 

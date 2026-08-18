@@ -30,6 +30,8 @@ export type AuditAction =
   | 'injection.cycle_suppressed'
   | 'client.auto_enrolled'
   | 'agent.auto_provisioned'
+  | 'wa_business.connected'
+  | 'wa_business.disconnected'
   | `admin.${string}`;
 
 export interface AuditEvent {

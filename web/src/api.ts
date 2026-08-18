@@ -359,6 +359,16 @@ export interface WaSenderStatus {
   phoneNumber: string | null;
 }
 
+/** The accountant's own WhatsApp Business Account (Settings → Integrations). */
+export interface WaBusinessStatus {
+  connected: boolean;
+  wabaId: string | null;
+  source: 'embedded_signup' | 'manual' | null;
+  connectedAt: string | null;
+  /** Meta Embedded Signup popup config; { configured: false } means manual entry only. */
+  embeddedSignup: { configured: true; appId: string; configId: string } | { configured: false };
+}
+
 /** Admin view: the assigned number's live WhatsApp registration state on Twilio. */
 export interface AdminWaSenderStatus {
   phoneNumber: string;
@@ -636,6 +646,13 @@ export const api = {
   mondayConnection: () => request<MondayConnection>('/monday-connection'),
   mondayConnectUrl: () => request<{ url: string }>('/monday-connection/url'),
   mondayDisconnect: () => request<{ ok: true }>('/monday-connection', { method: 'DELETE' }),
+  waBusiness: () => request<WaBusinessStatus>('/wa-business'),
+  waBusinessConnect: (wabaId: string, source: 'embedded_signup' | 'manual') =>
+    request<{ connected: true; wabaId: string }>('/wa-business', {
+      method: 'POST',
+      body: JSON.stringify({ wabaId, source }),
+    }),
+  waBusinessDisconnect: () => request<{ ok: true }>('/wa-business', { method: 'DELETE' }),
   googleConnection: () => request<GoogleConnection>('/google-connection'),
   googleConnectUrl: () => request<{ url: string }>('/google-connection/url'),
   googleDisconnect: () => request<{ ok: true }>('/google-connection', { method: 'DELETE' }),

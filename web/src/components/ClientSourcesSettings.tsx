@@ -17,6 +17,7 @@ import { BoardMappingModal, type BoardMapping } from './BoardMappingModal';
 import { SettingsGroup, SettingsRow } from './SettingsUI';
 import { SheetMappingModal, type SheetMapping } from './SheetMappingModal';
 import { SourcePickerModal, type PickerSelection } from './SourcePickerModal';
+import { WhatsAppBusinessSettings } from './WhatsAppBusinessSettings';
 
 const removeIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -676,14 +677,17 @@ export function ClientImportSettings({
     [wsApi],
   );
   return (
-    <ClientSourcesSettings
-      api={panelApi}
-      boardsDescKey="sourcesBoardsDesc"
-      sheetsDescKey="sourcesSheetsDesc"
-      sheetMappingDescKey="sourcesSheetMappingDesc"
-      boardMappingDescKey="sourcesBoardMappingDesc"
-      withDocuments={withDocuments}
-      withPortalCredentials={withPortalCredentials}
-    />
+    <>
+      <ClientSourcesSettings
+        api={panelApi}
+        boardsDescKey="sourcesBoardsDesc"
+        sheetsDescKey="sourcesSheetsDesc"
+        sheetMappingDescKey="sourcesSheetMappingDesc"
+        boardMappingDescKey="sourcesBoardMappingDesc"
+        withDocuments={withDocuments}
+        withPortalCredentials={withPortalCredentials}
+      />
+      <WhatsAppBusinessSettings />
+    </>
   );
 }

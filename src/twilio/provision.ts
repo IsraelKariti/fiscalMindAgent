@@ -4,10 +4,11 @@ import { isTwilioConfigured, twilioClient } from './client.js';
 
 /**
  * The admin "buy number" flow needs, on top of the base Twilio credentials,
- * the WABA to register new senders under and the webhook URL to point them at.
+ * a WABA to register new senders under (the accountant's own connected WABA
+ * counts) and the webhook URL to point them at.
  */
-export function isProvisioningConfigured(): boolean {
-  return isTwilioConfigured() && Boolean(env.TWILIO_WABA_ID) && Boolean(env.TWILIO_WEBHOOK_URL);
+export function isProvisioningConfigured(hasOwnWaba = false): boolean {
+  return isTwilioConfigured() && (hasOwnWaba || Boolean(env.TWILIO_WABA_ID)) && Boolean(env.TWILIO_WEBHOOK_URL);
 }
 
 const POLL_INTERVAL_MS = 3_000;
@@ -28,11 +29,15 @@ export interface ProvisionedSender {
 
 /**
  * Buys a US local SMS-capable Twilio number and registers it as a WhatsApp
- * sender under the platform WABA. Ownership verification is automatic for
- * Twilio-hosted numbers, so there is no OTP step. If sender registration
- * fails, the just-purchased number is released so it isn't billed.
+ * sender under the given WABA — the accountant's own connected WABA
+ * (wa_business_accounts) when they have one, else the platform WABA
+ * (TWILIO_WABA_ID). Ownership verification is automatic for Twilio-hosted
+ * numbers, so there is no OTP step. If sender registration fails, the
+ * just-purchased number is released so it isn't billed.
  */
-export async function provisionWhatsAppNumber(friendlyName: string): Promise<ProvisionedSender> {
+export async function provisionWhatsAppNumber(friendlyName: string, wabaId?: string): Promise<ProvisionedSender> {
+  const targetWabaId = wabaId ?? env.TWILIO_WABA_ID;
+  if (!targetWabaId) throw new Error('No WABA to register the sender under (connect one or set TWILIO_WABA_ID).');
   const client = twilioClient();
 
   const [candidate] = await client.availablePhoneNumbers('US').local.list({ smsEnabled: true, limit: 1 });
@@ -50,7 +55,7 @@ export async function provisionWhatsAppNumber(friendlyName: string): Promise<Pro
     // match what the endpoint accepts).
     const body = {
       sender_id: `whatsapp:${purchased.phoneNumber}`,
-      configuration: { waba_id: env.TWILIO_WABA_ID },
+      configuration: { waba_id: targetWabaId },
       webhook: { callback_url: env.TWILIO_WEBHOOK_URL, callback_method: 'POST' },
       profile: { name: env.TWILIO_WA_SENDER_NAME },
     };

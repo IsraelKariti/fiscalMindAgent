@@ -278,6 +278,22 @@ const he = {
   logoutNote: 'כדי לחזור, תצטרכו להתחבר שוב עם חשבון Google.',
   loggingOut: 'מתנתק…',
 
+  // WhatsApp Business (WABA) integration
+  waBizTitle: 'WhatsApp Business',
+  waBizAccount: 'חשבון WhatsApp Business‏ (WABA)',
+  waBizDesc:
+    'חברו חשבון WhatsApp Business משלכם: מספרי הסוכנים יירשמו תחת העסק שלכם — השם שלכם מוצג ללקוחות, ומגבלות השליחה גדלות עם השימוש שלכם.',
+  waBizConnectedDesc: 'מספרים חדשים לסוכנים שלכם נרשמים תחת החשבון העסקי המחובר.',
+  waBizConnected: 'מחובר',
+  waBizConnectFb: 'חיבור דרך פייסבוק',
+  waBizDisconnect: 'ניתוק',
+  waBizManualLabel: 'יש לכם כבר מזהה WABA?',
+  waBizManualPlaceholder: 'מזהה WABA (ספרות בלבד)',
+  waBizSave: 'שמירה',
+  waBizNotConfiguredHint: 'חלונית ההרשמה של Meta אינה זמינה בסביבה זו — הזינו מזהה WABA ידנית לאחר שיתופו עם Twilio.',
+  waBizError: 'החיבור נכשל. בדקו את המזהה ונסו שוב.',
+  waBizEsFailed: 'ההרשמה דרך פייסבוק לא הושלמה. נסו שוב או הזינו מזהה ידנית.',
+
   // Settings
   settingsTitle: 'הגדרות',
   settingsGroupChannels: 'ערוצי הסוכן',

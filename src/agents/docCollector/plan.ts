@@ -8,7 +8,7 @@ import * as waTemplates from '../../db/queries/waTemplates.js';
 import { buildPrompt, type WaChannelState } from './prompt.js';
 import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccountant.js';
 import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
-import { lastInboundMessageAt, rollWeekendSendAt } from '../shared/sendAtGuard.js';
+import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
 import { resolveTaxYear } from '../shared/taxYear.js';
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
@@ -266,18 +266,18 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   }
 
   // The LLM answers with a wall-clock datetime in the accountant's timezone.
-  const weekendGuard = rollWeekendSendAt(decision.send_at, lastInboundMessageAt(history), now);
-  if (weekendGuard.rolled) {
-    logger.warn('proactive send_at fell on the Israeli weekend; rolled to Sunday', {
+  const sendAtGuard = rollBlockedSendAt(decision.send_at, lastInboundMessageAt(history), now);
+  if (sendAtGuard.rolled) {
+    logger.warn('proactive send_at fell on a weekend or chag; rolled forward', {
       clientId,
       requested: decision.send_at,
-      send_at: weekendGuard.sendAt,
+      send_at: sendAtGuard.sendAt,
     });
   }
-  const sendAtUtc = zonedTimeToUtc(weekendGuard.sendAt, env.ACCOUNTANT_TIMEZONE);
+  const sendAtUtc = zonedTimeToUtc(sendAtGuard.sendAt, env.ACCOUNTANT_TIMEZONE);
   const delayMs = sendAtUtc.getTime() - Date.now();
   if (delayMs < 0) {
-    logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: weekendGuard.sendAt });
+    logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: sendAtGuard.sendAt });
   }
   const message = decision.message;
   const { emailId } = await scheduleDraftMessage(clientId, {
@@ -301,7 +301,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     clientId,
     channel: message.channel,
     kind: message.channel === 'whatsapp' ? message.kind : 'email',
-    send_at: weekendGuard.sendAt,
+    send_at: sendAtGuard.sendAt,
     send_at_utc: sendAtUtc.toISOString(),
     reasoning: decision.reasoning,
   });

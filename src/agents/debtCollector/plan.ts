@@ -15,7 +15,7 @@ import { readDebtSnapshot, type DebtExtraction, type DebtSnapshot } from './deci
 import { sendDebtClaimEmail, sendDebtCollectedEmail } from './notifyAccountant.js';
 import { buildPrompt } from './prompt.js';
 import { parseSettings } from './settings.js';
-import { lastInboundMessageAt, rollWeekendSendAt } from '../shared/sendAtGuard.js';
+import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
 
 function snapshotFrom(
   status: DebtSnapshot['status'],
@@ -189,18 +189,18 @@ export async function planDebtCollection(ctx: AgentContext): Promise<void> {
   publishClientUpdated(clientId);
 
   // The LLM answers with a wall-clock datetime in the accountant's timezone.
-  const weekendGuard = rollWeekendSendAt(decision.send_at, lastInboundMessageAt(history), now);
-  if (weekendGuard.rolled) {
-    logger.warn('proactive send_at fell on the Israeli weekend; rolled to Sunday', {
+  const sendAtGuard = rollBlockedSendAt(decision.send_at, lastInboundMessageAt(history), now);
+  if (sendAtGuard.rolled) {
+    logger.warn('proactive send_at fell on a weekend or chag; rolled forward', {
       clientId,
       requested: decision.send_at,
-      send_at: weekendGuard.sendAt,
+      send_at: sendAtGuard.sendAt,
     });
   }
-  const sendAtUtc = zonedTimeToUtc(weekendGuard.sendAt, env.ACCOUNTANT_TIMEZONE);
+  const sendAtUtc = zonedTimeToUtc(sendAtGuard.sendAt, env.ACCOUNTANT_TIMEZONE);
   const delayMs = sendAtUtc.getTime() - Date.now();
   if (delayMs < 0) {
-    logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: weekendGuard.sendAt });
+    logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: sendAtGuard.sendAt });
   }
   await scheduleDraftMessage(clientId, {
     channel: 'email',
@@ -211,7 +211,7 @@ export async function planDebtCollection(ctx: AgentContext): Promise<void> {
   });
   logger.info('debt follow-up scheduled', {
     clientId,
-    send_at: weekendGuard.sendAt,
+    send_at: sendAtGuard.sendAt,
     send_at_utc: sendAtUtc.toISOString(),
     reasoning: decision.reasoning,
   });

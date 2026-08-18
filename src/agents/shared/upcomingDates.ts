@@ -1,3 +1,5 @@
+import { chagLabel } from './jewishHolidays.js';
+
 const HEBREW_WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 /** Israel's weekend, in JS Date.getUTCDay() terms (matches sendAtGuard). */
@@ -39,6 +41,8 @@ export function formatUpcomingDates(now: Date, timeZone: string, days = 42): str
     const marks: string[] = [];
     if (i === 0) marks.push('היום');
     if (weekday === FRIDAY || weekday === SATURDAY) marks.push('סוף שבוע');
+    const chag = chagLabel(iso);
+    if (chag) marks.push(chag);
     lines.push(`${iso} יום ${HEBREW_WEEKDAYS[weekday]}${marks.length > 0 ? ` — ${marks.join(', ')}` : ''}`);
   }
   return lines.join('\n');

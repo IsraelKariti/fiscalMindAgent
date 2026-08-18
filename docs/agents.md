@@ -75,13 +75,18 @@ at module init by `src/agents/shared/promptFile.ts` (`loadPrompt` /
 `scripts/copyPromptAssets.mjs` to place them in `dist/src`; keep new prompt
 text in .md files, never in template literals.
 
-**Weekend send guard**: the prompts tell the scheduling agents not to send
-proactive messages on the Israeli weekend, but that is enforced in code, not
-trusted to the LLM: every planner passes the decision's `send_at` through
-`rollWeekendSendAt` (`src/agents/shared/sendAtGuard.ts`) — when the client has
-been silent for over 24h (i.e. the message is proactive, not a reply in an
-active conversation), a Friday/Saturday send rolls to Sunday at the same
-wall-clock time. New scheduling planners must apply the same guard.
+**Blocked-day send guard**: the prompts tell the scheduling agents not to send
+proactive messages on the Israeli weekend or on chag/erev chag, but that is
+enforced in code, not trusted to the LLM: every planner passes the decision's
+`send_at` through `rollBlockedSendAt` (`src/agents/shared/sendAtGuard.ts`) —
+when the client has been silent for over 24h (i.e. the message is proactive,
+not a reply in an active conversation), a send landing on Friday, Saturday, a
+chag, or an erev chag rolls forward day by day to the first allowed day at
+the same wall-clock time. Chag days come from `@hebcal/core` (Israel
+calendar, yom tov only — chol hamoed/Chanukah/Purim stay open) via
+`src/agents/shared/jewishHolidays.ts`, which also feeds the חג/ערב חג marks
+in the `{{upcoming_dates}}` prompt calendar. New scheduling planners must
+apply the same guard.
 
 Dispatch seams: `src/orchestration/setFutureEmail.ts` (generic dispatcher),
 `src/webhook/onInbound{Email,WhatsApp}.ts` (reaction half),

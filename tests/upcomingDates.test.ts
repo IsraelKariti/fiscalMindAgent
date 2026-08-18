@@ -37,4 +37,19 @@ describe('formatUpcomingDates', () => {
   it('honors a custom horizon', () => {
     assert.equal(formatUpcomingDates(now, TZ, 7).split('\n').length, 7);
   });
+
+  it('marks chag and erev chag days', () => {
+    // Window covering Yom Kippur 2026: Monday 2026-09-21, erev on Sunday 2026-09-20.
+    const lines = formatUpcomingDates(new Date('2026-09-09T08:00:00Z'), TZ).split('\n');
+    const erev = lines.find((l) => l.startsWith('2026-09-20'));
+    const chag = lines.find((l) => l.startsWith('2026-09-21'));
+    assert.match(erev!, /ערב חג — /);
+    assert.match(chag!, /— חג — /);
+  });
+
+  it('does not mark chol hamoed or minor holidays', () => {
+    const lines = formatUpcomingDates(new Date('2026-09-09T08:00:00Z'), TZ).split('\n');
+    const cholHamoed = lines.find((l) => l.startsWith('2026-09-28'));
+    assert.doesNotMatch(cholHamoed!, /חג/);
+  });
 });

@@ -10,6 +10,7 @@ import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { DueDateSchema } from '../../api/schemas.js';
 import { registerClientSourceRoutes } from '../shared/clientSourcesRoutes.js';
+import { isDocCollectorFamily } from './family.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { DocCollectorSettingsSchema, parseSettings } from './settings.js';
 import { logger } from '../../util/logger.js';
@@ -71,9 +72,10 @@ export function buildRouter(): Router {
   const router = Router();
 
   // Composed into the shared workspace router alongside other agent types'
-  // routes — bail out to it when the active agent isn't the doc collector.
+  // routes — bail out to it when the active agent isn't a doc-collector-family
+  // type (the declaration-of-capital collector shares these routes wholesale).
   router.use((req, _res, next) => {
-    if (req.agentInstance && req.agentInstance.agent_type !== 'doc_collector') {
+    if (req.agentInstance && !isDocCollectorFamily(req.agentInstance.agent_type)) {
       next('router');
       return;
     }

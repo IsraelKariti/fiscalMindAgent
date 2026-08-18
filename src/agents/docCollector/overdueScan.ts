@@ -3,6 +3,7 @@ import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import { withClientLock } from '../../db/withClientLock.js';
 import { pauseFutureEmail } from '../../orchestration/pauseFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
+import { DOC_COLLECTOR_FAMILY } from './family.js';
 import { sendOverdueEmail } from './notifyAccountant.js';
 import { isKillSwitchOn } from '../killSwitch.js';
 import { env } from '../../config/env.js';
@@ -25,7 +26,7 @@ export async function runOverdueScan(): Promise<void> {
     logger.warn('platform kill switch on, skipping overdue scan');
     return;
   }
-  const candidates = await clients.listOverdueForAgentTypes(todayLocal(), ['doc_collector']);
+  const candidates = await clients.listOverdueForAgentTypes(todayLocal(), [...DOC_COLLECTOR_FAMILY]);
   let stopped = 0;
   for (const candidate of candidates) {
     await withClientLock(candidate.id, async () => {

@@ -9,6 +9,7 @@ import type {
   WorkspaceApi,
 } from '../api';
 import type { Messages } from '../i18n';
+import type { DocumentDraft } from '../defaultDocuments';
 
 /** Everything a client tab needs, loaded and kept fresh by the generic ClientView. */
 export interface ClientTabContext {
@@ -92,6 +93,12 @@ export interface AgentTypeUI {
    * differs; defaults to the debt collector's copy for back-compat.
    */
   addClientLeadKey?: MessageStringKey;
+  /**
+   * Checklist prefilled in the manual add-client form. Only meaningful for
+   * agent types with the full (non-simple) form; unset falls back to the doc
+   * collector's annual-tax-return list (DEFAULT_DOCUMENTS).
+   */
+  defaultDocuments?: DocumentDraft[];
   /**
    * The channels this agent type communicates over. Drives every
    * channel-conditional surface: single-channel agents get no channel filter

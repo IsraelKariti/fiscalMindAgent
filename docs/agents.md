@@ -3,9 +3,20 @@
 Since 2026-07-11 (prod v11, migration 019) fiscalMind is a multi-agent
 platform: one app hosting several developer-built agent types, each enabled
 per accountant and owning its own client list. The document collector is
-agent #1; `debt_collector` and `customer_service` are live too
-(`annual_report_assistant` was retired 2026-07-31 — migration 041 disabled its
-instances; the rows survive, hidden, because instance rows are never deleted).
+agent #1; `debt_collector`, `customer_service` and `declaration_of_capital`
+are live too. `declaration_of_capital` (2026-08-18) is a second
+**doc-collector-family** type (`src/agents/docCollector/family.ts`): it reuses
+the doc collector's behavior wholesale (definition spread, shared router,
+client-import scan, overdue scan, tax-year gating) and differs only in what
+the documents are for — a הצהרת הון as of the 31.12.tax_year valuation date —
+via its own prompt template (`declarationOfCapital/prompt.md`, selected per
+agent type in `docCollector/plan.ts`), the analyzer's valuation-date framing
+(`AnalysisPurpose` in `analyzeFile.ts`), email suffix `capital`, and its own
+UI defaults (add-client checklist, no monday board import). The
+accountant-editable prompt template (legacy setting key) applies to
+`doc_collector` only.
+`annual_report_assistant` was retired 2026-07-31 — migration 041 disabled its
+instances; the rows survive, hidden, because instance rows are never deleted.
 Industry pattern followed: one app with an agent registry
 (HubSpot Breeze / Salesforce Agentforce model) — never one app per agent.
 

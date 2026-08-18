@@ -10,6 +10,7 @@ import { isKillSwitchOn } from '../killSwitch.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
+import { DOC_COLLECTOR_FAMILY, isDocCollectorFamily } from '../docCollector/family.js';
 import { parseSettings as parseDocCollectorSettings } from '../docCollector/settings.js';
 import {
   collectCandidates,
@@ -23,7 +24,7 @@ import {
 } from './clientSources.js';
 
 /** Agent types whose clients are auto-enrolled from the configured sources (every row, no screening). */
-export const CLIENT_IMPORT_AGENT_TYPES = ['doc_collector'] as const;
+export const CLIENT_IMPORT_AGENT_TYPES = [...DOC_COLLECTOR_FAMILY] as const;
 
 /** New clients enrolled per instance per run — keeps a huge board from flooding the send pipeline. */
 const MAX_ENROLL = 500;
@@ -59,7 +60,7 @@ function filterSources(sources: ClientSources, filter: ScanSourceFilter): Client
 
 interface InstanceImportConfig {
   sources: ClientSources;
-  /** Doc collector only: a mapped documents column supplies each client's checklist. */
+  /** Doc-collector family only: a mapped documents column supplies each client's checklist. */
   perRowDocuments: boolean;
   /** Config gap that must block enrollment (beyond having no sources). */
   notReady: 'no_documents' | null;
@@ -115,10 +116,10 @@ async function clearPendingImportFlags(instance: AgentInstanceRow, filter?: Scan
 }
 
 function importConfig(instance: AgentInstanceRow, filter?: ScanSourceFilter): InstanceImportConfig {
-  if (instance.agent_type === 'doc_collector') {
+  if (isDocCollectorFamily(instance.agent_type)) {
     const settings = parseDocCollectorSettings(instance.settings);
     const sources = filter ? filterSources(settings, filter) : settings;
-    // A doc-collector client without documents completes trivially and never
+    // A doc-collector-family client without documents completes trivially and never
     // gets emailed — refuse to mass-create useless clients. The mapped
     // documents column (of the scanned sources) is the only supply of a
     // client's checklist.
@@ -131,7 +132,7 @@ function importConfig(instance: AgentInstanceRow, filter?: ScanSourceFilter): In
 
 /**
  * The checklist an enrolled client starts with: the row's documents cell
- * (doc collector only — other client-import agents track no documents).
+ * (doc-collector family only — other client-import agents track no documents).
  */
 function resolveDocuments(config: InstanceImportConfig, candidate: Candidate): { name: string }[] {
   if (!config.perRowDocuments) return [];

@@ -32,6 +32,8 @@ const he = {
   agentsNoneEnabled: 'אין סוכנים פעילים בחשבון זה.',
   agentDocCollectorName: 'איסוף מסמכים',
   agentDocCollectorDesc: 'אוסף מהלקוחות את המסמכים הנדרשים באימייל ובוואטסאפ, עם תזכורות אוטומטיות.',
+  agentDeclarationOfCapitalName: 'הצהרת הון',
+  agentDeclarationOfCapitalDesc: 'אוסף מהלקוחות את המסמכים הנדרשים להכנת הצהרת ההון באימייל ובוואטסאפ, עם תזכורות אוטומטיות.',
   agentDebtCollectorName: 'גביית חובות',
   agentDebtCollectorDesc: 'מנתח חובות פתוחים מתוך הגיליונות והלוחות של המשרד, גובה אותם באימייל ומעדכן אותך כשהחוב נגבה.',
   dcBoardsDesc: 'הסוכן מאתר בכל לוח את שורת הלקוח לפי עמודת האימייל ומנתח מתוכה את החוב.',

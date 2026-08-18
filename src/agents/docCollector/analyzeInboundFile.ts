@@ -28,7 +28,8 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
   try {
     const requiredDocuments = await clientDocuments.listForClient(clientId);
     const taxYear = resolveTaxYear(ctx.instance, new Date());
-    const { analysis, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear);
+    const purpose = ctx.instance?.agent_type === 'declaration_of_capital' ? 'capital_declaration' : 'annual_report';
+    const { analysis, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear, purpose);
     await documentFiles.setAnalysis(file.id, 'done', analysis);
     if (ctx.client.user_id) {
       await llmUsage.add(ctx.client.user_id, ctx.client.agent_instance_id, model, usage);

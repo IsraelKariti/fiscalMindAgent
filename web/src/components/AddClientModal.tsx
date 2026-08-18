@@ -13,16 +13,18 @@ interface Props {
   simple?: boolean;
   /** Lead paragraph for the simple form (AgentTypeUI.addClientLeadKey); defaults to the debt collector's copy. */
   leadKey?: MessageStringKey;
+  /** Prefilled checklist (AgentTypeUI.defaultDocuments); defaults to the doc collector's annual-return list. */
+  defaultDocuments?: DocumentDraft[];
 }
 
-export function AddClientModal({ onCreated, onClose, simple = false, leadKey }: Props) {
+export function AddClientModal({ onCreated, onClose, simple = false, leadKey, defaultDocuments }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [documents, setDocuments] = useState<DocumentDraft[]>(simple ? [] : DEFAULT_DOCUMENTS);
+  const [documents, setDocuments] = useState<DocumentDraft[]>(simple ? [] : (defaultDocuments ?? DEFAULT_DOCUMENTS));
   const [docDraft, setDocDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

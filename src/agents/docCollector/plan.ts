@@ -10,6 +10,7 @@ import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccoun
 import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
 import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
 import { resolveTaxYear } from '../shared/taxYear.js';
+import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../declarationOfCapital/prompt.js';
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext } from './decisionSchema.js';
@@ -99,7 +100,14 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       })),
     };
   });
-  const { template } = await getPromptTemplate(client.user_id);
+  // The accountant-editable template (legacy setting key) applies to the doc
+  // collector only; the declaration-of-capital collector always uses its own
+  // built-in template. Per-agent custom-template keys are deferred work.
+  const agentType = ctx.instance?.agent_type ?? 'doc_collector';
+  const template =
+    agentType === 'declaration_of_capital'
+      ? DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE
+      : (await getPromptTemplate(client.user_id)).template;
   const { systemInstruction, contents } = buildPrompt(
     client,
     accountant,
@@ -144,7 +152,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       clientId,
       severity: 'critical',
       suspectedInjection: true,
-      detail: { agent: 'doc_collector', clientName: client.name, reasoning: decision.reasoning },
+      detail: { agent: agentType, clientName: client.name, reasoning: decision.reasoning },
     });
   }
 
@@ -247,7 +255,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       action: 'goal.completed',
       agentInstanceId: client.agent_instance_id,
       clientId,
-      detail: { agent: 'doc_collector', clientName: client.name },
+      detail: { agent: agentType, clientName: client.name },
     });
     // Fire-and-forget; skipped for document-less clients (trivially "complete"
     // on arrival, e.g. monday imports) where the email would be nonsense.

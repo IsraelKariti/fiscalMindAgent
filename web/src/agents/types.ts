@@ -82,6 +82,13 @@ export interface AgentTypeUI {
    */
   inboundOnlyClients?: boolean;
   /**
+   * Clients come only from the configured import sources (monday boards /
+   * Google Sheets) — the shell hides the manual add-client button and shows an
+   * import-oriented empty state instead. Used by manual-kickoff agents
+   * (declaration of capital), whose whole flow lives on the monday board.
+   */
+  importOnlyClients?: boolean;
+  /**
    * The manual add-client form collects only name + email — no required
    * documents or due date (doc-collector concepts). Used by agents whose
    * per-client data comes from elsewhere (debt collector: the sheets/boards).

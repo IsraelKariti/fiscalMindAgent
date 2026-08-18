@@ -13,6 +13,9 @@ export const declarationOfCapitalUI: AgentTypeUI = {
   ...docCollectorUI,
   agentType: 'declaration_of_capital',
   supportsBoardImport: false,
+  // The whole flow lives on the monday board (import sources + kickoff
+  // webhook) — no manual add-client button.
+  importOnlyClients: true,
   nameKey: 'agentDeclarationOfCapitalName',
   descriptionKey: 'agentDeclarationOfCapitalDesc',
   defaultDocuments: DECLARATION_OF_CAPITAL_DOCUMENTS,

@@ -220,7 +220,7 @@ export function Workspace({
           onSelectDashboard={() => setView({ kind: 'overview' })}
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onSelectSettings={() => setView({ kind: 'settings' })}
-          onAddClient={agentUI.inboundOnlyClients ? undefined : () => setAdding(true)}
+          onAddClient={agentUI.inboundOnlyClients || agentUI.importOnlyClients ? undefined : () => setAdding(true)}
           // Inbound-only agents are goal-less; their client dot shows the mute state instead.
           muteDots={agentUI.inboundOnlyClients}
           // The board→clients import is doc-collector behavior — agents that
@@ -256,7 +256,11 @@ export function Workspace({
           )}
           {view.kind === 'empty' && (
             <div className="screen-center muted">
-              {agentUI.inboundOnlyClients ? t.noClientsInboundWa : t.noClientsUseAdd}
+              {agentUI.inboundOnlyClients
+                ? t.noClientsInboundWa
+                : agentUI.importOnlyClients
+                  ? t.noClientsImportOnly
+                  : t.noClientsUseAdd}
             </div>
           )}
         </main>

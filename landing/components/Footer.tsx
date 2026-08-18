@@ -11,9 +11,9 @@ const LINKS = {
     { label: 'צור קשר', href: 'mailto:admin@fiscalmind.app' },
   ],
   משפטי: [
-    { label: 'מדיניות פרטיות', href: '#' },
-    { label: 'תנאי שימוש', href: '#' },
-    { label: 'מדיניות עוגיות', href: '#' },
+    { label: 'מדיניות פרטיות', href: '/privacy' },
+    { label: 'תנאי שימוש', href: '/terms' },
+    { label: 'מדיניות עוגיות', href: '/privacy' },
     { label: 'הצהרת נגישות', href: '/accessibility' },
   ],
 }

@@ -3153,6 +3153,11 @@ button.meta-chip:hover {
   align-items: stretch;
 }
 
+/* In the column direction the text's 240px flex-basis would become a forced height. */
+.settings-row-stack .settings-row-text {
+  flex: 0 0 auto;
+}
+
 /* Read-only values (mailbox address, WhatsApp number) */
 .settings-value {
   display: inline-flex;

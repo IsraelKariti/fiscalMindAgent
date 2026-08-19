@@ -14,6 +14,7 @@ import { isDocCollectorFamily } from './family.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { DocCollectorSettingsSchema, parseSettings } from './settings.js';
 import { logger } from '../../util/logger.js';
+import type { DocumentStatus } from '../../db/types.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -31,21 +32,54 @@ const DocumentPatchSchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
     description: z.string().max(2000).nullable().optional(),
-    status: z.enum(['pending', 'collected']).optional(),
+    status: z.enum(['pending', 'collected', 'not_required', 'approved']).optional(),
   })
   .strict();
 
+/** Statuses only the capital-declaration flow uses; other family types reject them. */
+const CAPITAL_ONLY_STATUSES = new Set<DocumentStatus>(['not_required', 'approved']);
+
+/**
+ * Which statuses an accountant may move a row FROM, per requested status.
+ * 'unresolved' and 'claimed' are never set by hand (seeding / the agent own
+ * them); 'approved' by hand exists only as the dead-end override — a document
+ * that was actually received (collected, or claimed physical delivery the
+ * accountant vouches for).
+ */
+const MANUAL_TRANSITIONS: Record<string, DocumentStatus[]> = {
+  pending: ['unresolved', 'not_required', 'claimed', 'collected', 'approved'],
+  collected: ['pending', 'claimed'],
+  not_required: ['unresolved', 'pending', 'claimed'],
+  approved: ['collected', 'claimed'],
+};
+
 /**
  * Re-derives goal_status from the documents list after a manual change and keeps the follow-up
- * loop consistent: all collected -> mark complete and cancel any pending send; a document (re)opened
+ * loop consistent: goal done -> mark complete and cancel any pending send; a document (re)opened
  * on a complete client -> reopen the goal and have the agent draft the next chase email.
  * While the goal stays pending, an already-scheduled email is left alone — the updated list is
  * picked up when the next email is drafted.
+ *
+ * Doc collector: done = every document collected. Declaration of capital:
+ * done = every row approved/not_required AND the client's attestation stands —
+ * and a manual change that reopens a settled list voids any earlier
+ * attestation (a stale confirmation must not complete the goal later).
  */
-async function onDocumentsChanged(clientId: string): Promise<void> {
+async function onDocumentsChanged(clientId: string, agentType: string): Promise<void> {
   const [client, docs] = await Promise.all([clients.getById(clientId), clientDocuments.listForClient(clientId)]);
   if (!client) return;
-  const allCollected = docs.length > 0 && docs.every((d) => d.status === 'collected');
+  const isCapital = agentType === 'declaration_of_capital';
+  let allCollected: boolean;
+  if (isCapital) {
+    const settled = docs.length > 0 && docs.every((d) => d.status === 'approved' || d.status === 'not_required');
+    const attestationTouched =
+      typeof client.agent_fields['attestation_confirmed_at'] === 'string' ||
+      typeof client.agent_fields['attestation_request_email_id'] === 'string';
+    if (!settled && attestationTouched) await clients.clearAttestation(clientId);
+    allCollected = settled && typeof client.agent_fields['attestation_confirmed_at'] === 'string';
+  } else {
+    allCollected = docs.length > 0 && docs.every((d) => d.status === 'collected');
+  }
 
   if (allCollected && client.goal_status === 'pending') {
     await clients.updateGoalStatus(clientId, 'complete');
@@ -150,7 +184,7 @@ export function buildRouter(): Router {
         name: parsed.data.name,
         description: parsed.data.description ?? null,
       });
-      await onDocumentsChanged(client.id);
+      await onDocumentsChanged(client.id, req.agentInstance!.agent_type);
       res.status(201).json({ document });
     }),
   );
@@ -166,7 +200,24 @@ export function buildRouter(): Router {
       const id = uuidParam(req.params.id);
       const docId = uuidParam(req.params.docId);
       const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
-      const document = client && docId ? await clientDocuments.updateForClient(docId, client.id, parsed.data) : null;
+      const current = client && docId ? await clientDocuments.getForClient(docId, client.id) : null;
+      if (!current) {
+        res.status(404).json({ error: 'Document not found.' });
+        return;
+      }
+      const requested = parsed.data.status;
+      if (requested && requested !== current.status) {
+        const isCapital = req.agentInstance!.agent_type === 'declaration_of_capital';
+        if (!isCapital && CAPITAL_ONLY_STATUSES.has(requested)) {
+          res.status(400).json({ error: `Status "${requested}" does not apply to this agent type.` });
+          return;
+        }
+        if (!MANUAL_TRANSITIONS[requested]?.includes(current.status)) {
+          res.status(400).json({ error: `Cannot change a "${current.status}" document to "${requested}".` });
+          return;
+        }
+      }
+      const document = await clientDocuments.updateForClient(current.id, client!.id, parsed.data);
       if (!document) {
         res.status(404).json({ error: 'Document not found.' });
         return;
@@ -186,7 +237,7 @@ export function buildRouter(): Router {
           detail: { clientName: client!.name, name: document.name, status: parsed.data.status },
         });
       }
-      await onDocumentsChanged(client!.id);
+      await onDocumentsChanged(client!.id, req.agentInstance!.agent_type);
       res.json({ document });
     }),
   );
@@ -202,7 +253,7 @@ export function buildRouter(): Router {
         res.status(404).json({ error: 'Document not found.' });
         return;
       }
-      await onDocumentsChanged(client!.id);
+      await onDocumentsChanged(client!.id, req.agentInstance!.agent_type);
       res.json({ ok: true });
     }),
   );

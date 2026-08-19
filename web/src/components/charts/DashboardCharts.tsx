@@ -95,7 +95,7 @@ export function DashboardCharts({ documents, emails, files, nextScheduled }: Pro
   }, [files, documents, t]);
 
   const sankey = useMemo(() => {
-    const collectedDocs = documents.filter((d) => d.status === 'collected');
+    const collectedDocs = documents.filter((d) => d.status === 'collected' || d.status === 'approved');
     const linkedDocIds = new Set(files.map((f) => f.client_document_id).filter(Boolean));
     const viaAttachment = collectedDocs.filter((d) => linkedDocIds.has(d.id)).length;
     const outstanding = documents.length - collectedDocs.length;

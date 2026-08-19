@@ -19,6 +19,12 @@ export interface DebtSnapshot {
 export interface ClientAgentFields {
   /** The doc collector's optional collection deadline ("YYYY-MM-DD"). */
   due_date?: string | null;
+  /** Capital declaration: the scheduled draft that is the attestation summary (trusted once sent). */
+  attestation_request_email_id?: string;
+  /** Capital declaration: the client confirmed the closing summary. */
+  attestation_confirmed_at?: string;
+  /** Capital declaration: the confirming message quote. */
+  attestation_evidence?: { message_id: string; quote: string };
   /** Set when the accountant was emailed that the due date passed (idempotency key). */
   overdue_notified_at?: string;
   /** Set while the agent is stopped because the due date passed — the "handed off" UI state. */
@@ -52,8 +58,32 @@ export interface Client {
   updated_at: string;
 }
 
-/** 'claimed' = the client says they delivered it outside email; awaits the accountant's confirmation. */
-export type DocumentStatus = 'pending' | 'claimed' | 'collected';
+/**
+ * Doc collector rows use pending/claimed/collected. The capital-declaration
+ * intake adds: 'unresolved' (catalog-seeded, interview pending),
+ * 'not_required' (client said the asset doesn't apply), 'approved' (the
+ * automatic verification pipeline accepted the file). 'claimed' = the client
+ * says they delivered it outside email; awaits the accountant's confirmation.
+ */
+export type DocumentStatus = 'unresolved' | 'not_required' | 'pending' | 'claimed' | 'collected' | 'approved';
+
+/** The verification pipeline's latest verdict for a row (subset the UI renders). */
+export interface DocumentVerification {
+  passed?: boolean;
+  /** Could not be auto-verified (unsupported type, quarantined file). */
+  unavailable?: boolean;
+  /** Dead-ended (3 failed attempts / unverifiable) — the accountant owns it. */
+  stalled?: boolean;
+  attempts?: number;
+  /** Hebrew failure reasons. */
+  reasons?: string[];
+  extracted?: {
+    issuer?: string | null;
+    subject_name?: string | null;
+    as_of_date?: string | null;
+    amounts?: { label: string; value: number; currency: string }[];
+  };
+}
 
 export interface ClientDocument {
   id: string;
@@ -61,6 +91,11 @@ export interface ClientDocument {
   name: string;
   description: string | null;
   status: DocumentStatus;
+  /** Capital-declaration catalog type key; null for doc-collector/ad-hoc rows. */
+  type_key: string | null;
+  verification: DocumentVerification | null;
+  /** The client quote behind an agent-made 'not_required'. */
+  resolution_evidence: { message_id: string; quote: string } | null;
   created_at: string;
   updated_at: string;
 }

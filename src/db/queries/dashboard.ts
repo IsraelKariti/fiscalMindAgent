@@ -31,8 +31,9 @@ export async function listClientSummaries(userId: string): Promise<ClientSummary
      FROM clients c
      LEFT JOIN (
        SELECT client_id,
-              count(*) AS total,
-              count(*) FILTER (WHERE status = 'collected') AS collected
+              -- 'not_required' rows (capital-declaration intake) are not part of the goal.
+              count(*) FILTER (WHERE status <> 'not_required') AS total,
+              count(*) FILTER (WHERE status IN ('collected', 'approved')) AS collected
        FROM client_documents
        GROUP BY client_id
      ) d ON d.client_id = c.id
@@ -67,8 +68,9 @@ export async function listClientSummariesForInstance(agentInstanceId: string): P
      FROM clients c
      LEFT JOIN (
        SELECT client_id,
-              count(*) AS total,
-              count(*) FILTER (WHERE status = 'collected') AS collected
+              -- 'not_required' rows (capital-declaration intake) are not part of the goal.
+              count(*) FILTER (WHERE status <> 'not_required') AS total,
+              count(*) FILTER (WHERE status IN ('collected', 'approved')) AS collected
        FROM client_documents
        GROUP BY client_id
      ) d ON d.client_id = c.id

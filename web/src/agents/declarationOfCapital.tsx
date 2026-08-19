@@ -1,13 +1,14 @@
-import { DECLARATION_OF_CAPITAL_DOCUMENTS } from '../defaultDocuments';
+import { DocumentsCard } from '../components/DocumentsCard';
+import { FilesCard } from '../components/FilesCard';
 import { docCollectorUI } from './docCollector';
 import type { AgentTypeUI } from './types';
 
 /**
- * The declaration-of-capital collector's workspace UI: identical to the doc
- * collector's (same tabs, same settings panel) — the server-side behavior is
- * shared too (doc-collector family). Differences: its own name/description,
- * icon, add-client default checklist, and no monday board import (that
- * endpoint creates doc_collector clients specifically).
+ * The declaration-of-capital collector's workspace UI: the doc collector's
+ * tabs, with the documents tab swapped to the capital flow — status groups
+ * (intake בבירור → נדרש → באימות → אומת), verification badges/reasons, the
+ * not-required quotes, and the attestation state. The add-client checklist is
+ * gone: the server seeds every client from the hardcoded catalog.
  */
 export const declarationOfCapitalUI: AgentTypeUI = {
   ...docCollectorUI,
@@ -18,7 +19,6 @@ export const declarationOfCapitalUI: AgentTypeUI = {
   importOnlyClients: true,
   nameKey: 'agentDeclarationOfCapitalName',
   descriptionKey: 'agentDeclarationOfCapitalDesc',
-  defaultDocuments: DECLARATION_OF_CAPITAL_DOCUMENTS,
   icon: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m12 3 8.5 4.5H3.5z" />
@@ -28,5 +28,37 @@ export const declarationOfCapitalUI: AgentTypeUI = {
       <line x1="14" y1="18" x2="14" y2="11" />
       <line x1="18" y1="18" x2="18" y2="11" />
     </svg>
+  ),
+  clientTabs: docCollectorUI.clientTabs.map((tab) =>
+    tab.id !== 'documents'
+      ? tab
+      : {
+          ...tab,
+          render: (ctx) => {
+            const fields = ctx.client.agent_fields ?? {};
+            const attestation =
+              typeof fields['attestation_confirmed_at'] === 'string'
+                ? ('confirmed' as const)
+                : typeof fields['attestation_request_email_id'] === 'string'
+                  ? ('requested' as const)
+                  : ('none' as const);
+            return (
+              <div className="tab-pane panel-stack" role="tabpanel">
+                <DocumentsCard
+                  clientId={ctx.client.id}
+                  documents={ctx.documents}
+                  files={ctx.files}
+                  capital={{ attestation }}
+                  onChanged={async () => {
+                    // A document change can flip goal_status and (re)schedule emails — refresh everything.
+                    await ctx.load();
+                    await ctx.onClientUpdated();
+                  }}
+                />
+                <FilesCard clientId={ctx.client.id} files={ctx.files} documents={ctx.documents} />
+              </div>
+            );
+          },
+        },
   ),
 };

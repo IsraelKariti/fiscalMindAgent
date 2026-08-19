@@ -19,8 +19,10 @@ const STALE_REPLY_DAYS = 7;
 export function StatTiles({ documents, emails, nextScheduled, goalStatus, dueDate = null, overdueStopped = false }: Props) {
   const { t } = useT();
   const stats = useMemo(() => {
-    const collected = documents.filter((d) => d.status === 'collected').length;
-    const total = documents.length;
+    // 'approved' (capital declaration: verified) counts as done; 'not_required'
+    // rows are outside the goal. Doc-collector lists carry neither status.
+    const collected = documents.filter((d) => d.status === 'collected' || d.status === 'approved').length;
+    const total = documents.filter((d) => d.status !== 'not_required').length;
 
     const delivered = emails.filter((e) => e.status !== 'draft');
     const sent = delivered.filter((e) => e.direction === 'outbound').length;

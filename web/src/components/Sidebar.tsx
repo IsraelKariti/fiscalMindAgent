@@ -25,11 +25,9 @@ interface Props {
   onShowAgents?: () => void;
   clients: Client[];
   selectedClientId: string | null;
-  dashboardSelected: boolean;
   promptSelected: boolean;
   settingsSelected: boolean;
   onSelectClient: (clientId: string) => void;
-  onSelectDashboard: () => void;
   onSelectPrompt: () => void;
   onSelectSettings: () => void;
   /** Absent for inbound-only agents, whose clients enroll themselves — the + button hides. */
@@ -54,14 +52,6 @@ const icon = {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M5 12h14" />
       <path d="M12 5v14" />
-    </svg>
-  ),
-  dashboard: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="3" width="7" height="9" rx="1" />
-      <rect x="14" y="3" width="7" height="5" rx="1" />
-      <rect x="14" y="12" width="7" height="9" rx="1" />
-      <rect x="3" y="16" width="7" height="5" rx="1" />
     </svg>
   ),
   sliders: (
@@ -138,11 +128,9 @@ export function Sidebar({
   onShowAgents,
   clients,
   selectedClientId,
-  dashboardSelected,
   promptSelected,
   settingsSelected,
   onSelectClient,
-  onSelectDashboard,
   onSelectPrompt,
   onSelectSettings,
   onAddClient,
@@ -257,14 +245,6 @@ export function Sidebar({
             )}
           </div>
         )}
-        <button
-          className={`client-item sidebar-nav-item ${dashboardSelected ? 'selected' : ''}`}
-          onClick={onSelectDashboard}
-        >
-          <span className="nav-item-icon">{icon.dashboard}</span>
-          <span className="client-item-name">{t.navDashboard}</span>
-        </button>
-
         <div className="side-heading">
           <span className="side-heading-label">
             {t.clientsHeading}

@@ -2914,10 +2914,6 @@ button.meta-chip:hover {
   margin: 0 auto;
 }
 
-/* The sidebar dashboard button sits alone above the clients section */
-.sidebar-nav-item {
-  margin-top: 10px;
-}
 
 .overview-list {
   list-style: none;
@@ -3040,6 +3036,11 @@ button.meta-chip:hover {
 .settings-page-tabbed {
   height: 100%;
   width: 100%;
+}
+
+/* The dashboard tab hosts the full Overview grid — release the settings width cap. */
+.settings-page-dashboard {
+  max-width: 1440px;
 }
 
 .settings-page-tabbed .settings-content {

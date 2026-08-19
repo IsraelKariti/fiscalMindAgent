@@ -9,6 +9,8 @@ import { SettingsGroup, SettingsRow } from './SettingsUI';
 interface Props {
   /** Legacy account mailbox — shown as a fallback for instances that predate admin-assigned addresses. */
   mailbox: MailboxStatus | null;
+  /** The agent's dashboard (Overview), shown as the last tab. */
+  dashboard: ReactNode;
   /** The active agent type's own settings section (AgentTypeUI.settingsPanel), if it has one. */
   agentPanel?: ReactNode;
   /** When set (AgentTypeUI.settingsPanelTabKey), agentPanel gets its own tab instead of rendering inline. */
@@ -17,15 +19,26 @@ interface Props {
   hideMailbox?: boolean;
 }
 
-export function Settings({ mailbox, agentPanel, agentPanelTabKey, hideMailbox }: Props) {
+type Tab = 'general' | 'agent' | 'dashboard';
+
+export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hideMailbox }: Props) {
   const { t } = useT();
   const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
   const [emailSender, setEmailSender] = useState<EmailSenderStatus | null>(null);
-  const [activeTab, setActiveTab] = useState<'general' | 'agent'>('general');
   const wsApi = useWorkspaceApi();
 
   // The agent panel gets its own tab only when the agent type asks for one.
   const tabbed = agentPanel != null && agentPanelTabKey != null;
+  // Survives a refresh alongside fm.lastView, so the user lands back on the same tab.
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const stored = sessionStorage.getItem('fm.settingsTab');
+    if (stored === 'dashboard') return 'dashboard';
+    if (stored === 'agent' && tabbed) return 'agent';
+    return 'general';
+  });
+  useEffect(() => {
+    sessionStorage.setItem('fm.settingsTab', activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     wsApi.waSenderStatus().then(setWaSender).catch(() => setWaSender({ assigned: false, phoneNumber: null }));
@@ -39,22 +52,26 @@ export function Settings({ mailbox, agentPanel, agentPanelTabKey, hideMailbox }:
   const address = (emailSender?.assigned ? emailSender.emailAddress : null) ?? (mailbox?.claimed ? mailbox.emailAddress : null);
 
   return (
-    <div className={`client-view settings-page${tabbed ? ' settings-page-tabbed' : ''}`}>
+    <div
+      className={`client-view settings-page settings-page-tabbed${
+        activeTab === 'dashboard' ? ' settings-page-dashboard' : ''
+      }`}
+    >
       <header className="settings-header">
         <h2>{t.settingsTitle}</h2>
       </header>
 
-      {tabbed && (
-        <div className="client-tabs" role="tablist" aria-label={t.settingsTitle}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'general'}
-            className={`client-tab ${activeTab === 'general' ? 'active' : ''}`}
-            onClick={() => setActiveTab('general')}
-          >
-            {t.settingsTabGeneral}
-          </button>
+      <div className="client-tabs" role="tablist" aria-label={t.settingsTitle}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'general'}
+          className={`client-tab ${activeTab === 'general' ? 'active' : ''}`}
+          onClick={() => setActiveTab('general')}
+        >
+          {t.settingsTabGeneral}
+        </button>
+        {tabbed && (
           <button
             type="button"
             role="tab"
@@ -64,11 +81,22 @@ export function Settings({ mailbox, agentPanel, agentPanelTabKey, hideMailbox }:
           >
             {t[agentPanelTabKey!]}
           </button>
-        </div>
-      )}
+        )}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'dashboard'}
+          className={`client-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          {t.navDashboard}
+        </button>
+      </div>
 
       <div className="settings-content">
-      {tabbed && activeTab === 'agent' ? (
+      {activeTab === 'dashboard' ? (
+        dashboard
+      ) : tabbed && activeTab === 'agent' ? (
         agentPanel
       ) : (
         <>

@@ -14,7 +14,6 @@ import { Settings } from './Settings';
 import { useT } from '../i18n';
 
 type View =
-  | { kind: 'overview' }
   | { kind: 'client'; clientId: string }
   | { kind: 'prompt' }
   | { kind: 'settings' }
@@ -116,9 +115,14 @@ export function Workspace({
     setClients(list);
     setView((v) => {
       if (v.kind !== 'empty') return v;
-      // Restore the screen viewed before a refresh: the dashboard, settings, or the client if it still exists.
+      // Restore the screen viewed before a refresh: settings (which owns the
+      // dashboard tab) or the client if it still exists. 'overview' is the
+      // pre-merge name for the dashboard — map it to its new home.
       const lastView = sessionStorage.getItem('fm.lastView');
-      if (lastView === 'overview') return { kind: 'overview' };
+      if (lastView === 'overview') {
+        sessionStorage.setItem('fm.settingsTab', 'dashboard');
+        return { kind: 'settings' };
+      }
       if (lastView === 'settings') return { kind: 'settings' };
       const stored = sessionStorage.getItem(lastClientKey);
       const restored = stored && list.some((c) => c.id === stored) ? stored : list[0]?.id;
@@ -128,7 +132,7 @@ export function Workspace({
 
   useEffect(() => {
     if (view.kind === 'client' && lastClientKey) sessionStorage.setItem(lastClientKey, view.clientId);
-    if (view.kind === 'client' || view.kind === 'overview' || view.kind === 'settings')
+    if (view.kind === 'client' || view.kind === 'settings')
       sessionStorage.setItem('fm.lastView', view.kind);
   }, [view, lastClientKey]);
 
@@ -224,11 +228,9 @@ export function Workspace({
           }}
           clients={clients}
           selectedClientId={view.kind === 'client' ? view.clientId : null}
-          dashboardSelected={view.kind === 'overview'}
           promptSelected={view.kind === 'prompt'}
           settingsSelected={view.kind === 'settings'}
           onSelectClient={(clientId) => setView({ kind: 'client', clientId })}
-          onSelectDashboard={() => setView({ kind: 'overview' })}
           onSelectPrompt={() => setView({ kind: 'prompt' })}
           onSelectSettings={() => setView({ kind: 'settings' })}
           onAddClient={agentUI.inboundOnlyClients || agentUI.importOnlyClients ? undefined : () => setAdding(true)}
@@ -245,9 +247,6 @@ export function Workspace({
           onLogout={onLogout}
         />
         <main className="main">
-          {view.kind === 'overview' && (
-            <Overview onSelectClient={(clientId) => setView({ kind: 'client', clientId })} />
-          )}
           {view.kind === 'client' && (
             <ClientView
               key={view.clientId}
@@ -260,6 +259,7 @@ export function Workspace({
           {view.kind === 'settings' && (
             <Settings
               mailbox={mailbox}
+              dashboard={<Overview onSelectClient={(clientId) => setView({ kind: 'client', clientId })} />}
               agentPanel={agentUI.settingsPanel?.()}
               agentPanelTabKey={agentUI.settingsPanelTabKey}
               hideMailbox={!agentUI.channels.includes('email')}

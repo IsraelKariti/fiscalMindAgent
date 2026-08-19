@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
 import { contactLabel, displayClientName, isOverdueStopped } from '../format';
 import { useT } from '../i18n';
@@ -155,6 +155,7 @@ export function Sidebar({
   onImportClients,
 }: Props) {
   const { t } = useT();
+  const [clientQuery, setClientQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -180,6 +181,18 @@ export function Sidebar({
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [menuOpen, switcherOpen]);
+  // Matches what the accountant sees in the list: name, email, and the
+  // contact label (phone for WhatsApp-only clients with a synthetic mailbox).
+  const visibleClients = useMemo(() => {
+    const q = clientQuery.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter(
+      (client) =>
+        client.name.toLowerCase().includes(q) ||
+        client.email_address.toLowerCase().includes(q) ||
+        contactLabel(client).toLowerCase().includes(q),
+    );
+  }, [clients, clientQuery]);
   const dotFor = (client: Client) =>
     muteDots
       ? client.wa_enabled
@@ -269,8 +282,18 @@ export function Sidebar({
             </button>
           )}
         </div>
+        {clients.length > 0 && (
+          <input
+            type="search"
+            className="sidebar-search"
+            placeholder={t.sidebarSearchPlaceholder}
+            aria-label={t.sidebarSearchPlaceholder}
+            value={clientQuery}
+            onChange={(e) => setClientQuery(e.target.value)}
+          />
+        )}
         <ul className="client-list">
-          {clients.map((client) => {
+          {visibleClients.map((client) => {
             const dot = dotFor(client);
             return (
               <li key={client.id} className="client-row">
@@ -301,6 +324,9 @@ export function Sidebar({
             );
           })}
           {clients.length === 0 && <li className="muted sidebar-empty">{t.sidebarNoClients}</li>}
+          {clients.length > 0 && visibleClients.length === 0 && (
+            <li className="muted sidebar-empty">{t.sidebarNoMatches}</li>
+          )}
         </ul>
 
         {/* Prompt tuning is an admin task — surfaced only inside an impersonated workspace. */}

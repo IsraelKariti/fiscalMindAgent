@@ -272,6 +272,8 @@ const he = {
   goalOverdueTitle: 'תאריך היעד עבר — הלקוח בטיפולך',
   deleteClientAction: (name: string) => `מחיקת ${name}`,
   sidebarNoClients: 'אין עדיין לקוחות',
+  sidebarSearchPlaceholder: 'חיפוש לפי שם או אימייל',
+  sidebarNoMatches: 'לא נמצאו לקוחות תואמים',
   adminTools: 'כלי ניהול',
   systemPrompt: 'פרומפט המערכת',
   settings: 'הגדרות',

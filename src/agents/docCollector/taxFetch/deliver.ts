@@ -17,6 +17,7 @@ import { uploadBlob } from '../../../storage/blob.js';
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientRow } from '../../../db/types.js';
+import { verifyCollectedDocument } from '../../declarationOfCapital/verifyDocument.js';
 import { getProviderSpec, typeOwnsFetched } from './providers.js';
 import { sanitizeFilename, type FetchedDocument } from './types.js';
 import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js';
@@ -80,6 +81,8 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     return match?.id ?? session.client_document_id;
   };
   const collectedDocIds = new Set<string>();
+  /** Document → the file that satisfied it, for the verification pipeline (last file wins on multi-file docs). */
+  const verifyPairs = new Map<string, string>();
 
   const files = [];
   const usedNames = new Set<string>();
@@ -112,10 +115,22 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     if (targetDocId) {
       await documentFiles.linkToDocument(file.id, client.id, targetDocId);
       collectedDocIds.add(targetDocId);
+      verifyPairs.set(targetDocId, file.id);
     }
   }
   if (collectedDocIds.size > 0) {
     await clientDocuments.markCollected(client.id, [...collectedDocIds]);
+    // Verification pipeline (capital declaration): machine-fetched documents
+    // are verified like any other received file. Fire-and-forget — delivery
+    // must complete regardless.
+    const owningInstance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
+    if (owningInstance?.agent_type === 'declaration_of_capital') {
+      void (async () => {
+        for (const [docId, fileId] of verifyPairs) {
+          await verifyCollectedDocument(client, owningInstance, docId, fileId);
+        }
+      })().catch((err) => logger.error('tax-fetch verification pipeline failed', err, { clientId: client.id }));
+    }
   }
 
   // The files themselves, as email attachments on the client's collection

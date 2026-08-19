@@ -9,6 +9,16 @@
  * key orphans existing rows. Content changes (names, questions) are safe.
  */
 
+/** Which generic verification checks apply when a received file is verified (verifyDocument.ts). */
+export interface VerificationChecks {
+  /** The document must name the client (or their national id) as its subject. */
+  subjectMatch: boolean;
+  /** The document must state its balances/holdings as of 31.12.{{tax_year}} exactly. */
+  asOfDate: boolean;
+  /** The document must carry at least one sane monetary amount. */
+  amounts: boolean;
+}
+
 export interface CapitalDocumentType {
   /** Stable id, persisted in client_documents.type_key. */
   key: string;
@@ -22,6 +32,7 @@ export interface CapitalDocumentType {
   multiInstance: boolean;
   /** The document must state balances/holdings as of 31.12.{{tax_year}} (the valuation date). */
   dateDependent: boolean;
+  checks: VerificationChecks;
 }
 
 export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
@@ -33,6 +44,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'באילו בנקים מתנהלים חשבונותיך, וכמה חשבונות יש לך בכל בנק?',
     multiInstance: true,
     dateDependent: true,
+    checks: { subjectMatch: true, asOfDate: true, amounts: true },
   },
   {
     key: 'securities_portfolio',
@@ -41,6 +53,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם יש לך תיק ניירות ערך או חשבון השקעות בבנק או בבית השקעות?',
     multiInstance: true,
     dateDependent: true,
+    checks: { subjectMatch: true, asOfDate: true, amounts: true },
   },
   {
     key: 'pension_provident',
@@ -49,6 +62,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'באילו קופות גמל וקרנות פנסיה אתה חבר?',
     multiInstance: true,
     dateDependent: true,
+    checks: { subjectMatch: true, asOfDate: true, amounts: true },
   },
   {
     key: 'study_fund',
@@ -57,6 +71,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם יש לך קרן השתלמות אחת או יותר?',
     multiInstance: true,
     dateDependent: true,
+    checks: { subjectMatch: true, asOfDate: true, amounts: true },
   },
   {
     key: 'life_insurance_savings',
@@ -66,6 +81,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם יש לך פוליסות ביטוח חיים עם מרכיב חיסכון, ובאילו חברות?',
     multiInstance: true,
     dateDependent: true,
+    checks: { subjectMatch: true, asOfDate: true, amounts: true },
   },
   {
     key: 'real_estate',
@@ -74,6 +90,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'אילו נכסי נדל"ן רשומים על שמך, בארץ או בחו"ל, כולל בבעלות חלקית?',
     multiInstance: true,
     dateDependent: false,
+    checks: { subjectMatch: true, asOfDate: false, amounts: false },
   },
   {
     key: 'mortgage_balance',
@@ -82,6 +99,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם יש לך משכנתא אחת או יותר?',
     multiInstance: true,
     dateDependent: true,
+    checks: { subjectMatch: true, asOfDate: true, amounts: true },
   },
   {
     key: 'loan_taken',
@@ -91,6 +109,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם יש לך הלוואות פעילות מלבד משכנתא (בנק, כרטיס אשראי, הלוואה פרטית)?',
     multiInstance: true,
     dateDependent: true,
+    checks: { subjectMatch: true, asOfDate: true, amounts: true },
   },
   {
     key: 'loan_given',
@@ -100,6 +119,9 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם מישהו חייב לך כסף — הלוואות שנתת לאנשים פרטיים, לבני משפחה או לעסק?',
     multiInstance: true,
     dateDependent: true,
+    // Private loan agreements are free-form — the lender's name appears but an
+    // exact as-of date usually doesn't; the amount is the load-bearing field.
+    checks: { subjectMatch: true, asOfDate: false, amounts: true },
   },
   {
     key: 'vehicle',
@@ -108,6 +130,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'כמה כלי רכב רשומים על שמך, ומה הם?',
     multiInstance: true,
     dateDependent: false,
+    checks: { subjectMatch: true, asOfDate: false, amounts: false },
   },
   {
     key: 'business_ownership',
@@ -117,6 +140,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם אתה בעלים, שותף או בעל מניות בעסק או בחברה כלשהי?',
     multiInstance: true,
     dateDependent: false,
+    checks: { subjectMatch: true, asOfDate: false, amounts: false },
   },
   {
     key: 'cash_foreign_currency',
@@ -125,6 +149,8 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם החזקת סכומי מזומן או מטבע חוץ משמעותיים מחוץ לבנק בסוף השנה?',
     multiInstance: false,
     dateDependent: true,
+    // A self-written declaration: no issuer, no printed subject line to trust.
+    checks: { subjectMatch: false, asOfDate: false, amounts: true },
   },
   {
     key: 'crypto',
@@ -134,6 +160,8 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם אתה מחזיק מטבעות דיגיטליים (קריפטו), ובאילו זירות או ארנקים?',
     multiInstance: true,
     dateDependent: true,
+    // Exchange exports rarely carry the holder's legal name.
+    checks: { subjectMatch: false, asOfDate: true, amounts: true },
   },
   {
     key: 'valuables',
@@ -142,6 +170,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם ברשותך חפצי ערך משמעותיים כמו תכשיטים, יצירות אמנות או פריטי אספנות?',
     multiInstance: true,
     dateDependent: false,
+    checks: { subjectMatch: false, asOfDate: false, amounts: true },
   },
   {
     key: 'foreign_assets',
@@ -150,6 +179,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם יש לך חשבונות בנק, השקעות או נכסים פיננסיים בחו"ל?',
     multiInstance: true,
     dateDependent: true,
+    checks: { subjectMatch: true, asOfDate: true, amounts: true },
   },
   {
     key: 'prior_declaration',
@@ -158,6 +188,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם הגשת בעבר הצהרת הון לרשות המסים?',
     multiInstance: false,
     dateDependent: false,
+    checks: { subjectMatch: true, asOfDate: false, amounts: false },
   },
   {
     key: 'other_assets',
@@ -167,6 +198,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     discoveryQuestionHe: 'האם יש לך נכס או התחייבות משמעותיים נוספים שלא נשאלת עליהם?',
     multiInstance: true,
     dateDependent: false,
+    checks: { subjectMatch: false, asOfDate: false, amounts: false },
   },
 ] as const;
 
@@ -175,6 +207,9 @@ const BY_KEY = new Map(CAPITAL_DOCUMENT_CATALOG.map((t) => [t.key, t]));
 export function getCatalogType(key: string): CapitalDocumentType | undefined {
   return BY_KEY.get(key);
 }
+
+/** The checks for ad-hoc rows (type_key NULL) — the generic minimum a human-added document can be held to. */
+export const GENERIC_CHECKS: VerificationChecks = { subjectMatch: false, asOfDate: false, amounts: false };
 
 /** A checklist row to create at enrollment (status 'unresolved', type_key set). */
 export interface CatalogSeedRow {

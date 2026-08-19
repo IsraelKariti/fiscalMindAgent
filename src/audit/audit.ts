@@ -22,6 +22,8 @@ export type AuditAction =
   | 'document.collected'
   | 'document.claimed'
   | 'document.resolved'
+  | 'document.verified'
+  | 'document.verification_failed'
   | 'document.status_changed'
   | 'client.attestation_requested'
   | 'client.attestation_confirmed'

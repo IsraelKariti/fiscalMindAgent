@@ -1,6 +1,14 @@
 import { pool } from '../pool.js';
 import type { ClientDocumentRow, DocumentStatus, ResolutionEvidence } from '../types.js';
 
+export async function getForClient(id: string, clientId: string): Promise<ClientDocumentRow | null> {
+  const { rows } = await pool.query<ClientDocumentRow>(
+    'SELECT * FROM client_documents WHERE id = $1 AND client_id = $2',
+    [id, clientId],
+  );
+  return rows[0] ?? null;
+}
+
 export async function listForClient(clientId: string): Promise<ClientDocumentRow[]> {
   const { rows } = await pool.query<ClientDocumentRow>(
     'SELECT * FROM client_documents WHERE client_id = $1 ORDER BY created_at, id',
@@ -156,6 +164,24 @@ export async function resolveRequired(
   } finally {
     conn.release();
   }
+}
+
+/**
+ * Stores a verification verdict without changing status — the stalled
+ * (3-strikes) and unverifiable outcomes, where the row stays 'collected' and
+ * the accountant takes over.
+ */
+export async function setVerification(
+  id: string,
+  clientId: string,
+  verification: Record<string, unknown>,
+): Promise<ClientDocumentRow | null> {
+  const { rows } = await pool.query<ClientDocumentRow>(
+    `UPDATE client_documents SET verification = $3, updated_at = now()
+     WHERE id = $1 AND client_id = $2 RETURNING *`,
+    [id, clientId, JSON.stringify(verification)],
+  );
+  return rows[0] ?? null;
 }
 
 /**

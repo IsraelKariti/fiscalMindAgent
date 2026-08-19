@@ -13,6 +13,7 @@ import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.j
 import { resolveTaxYear } from '../shared/taxYear.js';
 import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../declarationOfCapital/prompt.js';
 import { getCatalogType } from '../declarationOfCapital/catalog.js';
+import { verifyCollectedDocument } from '../declarationOfCapital/verifyDocument.js';
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState } from './decisionSchema.js';
@@ -344,6 +345,25 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     if (!file || isQuarantined(file)) continue;
     await documentFiles.linkToDocument(match.file_id, clientId, match.document_id);
     logger.info('file linked to document', { clientId, fileId: match.file_id, documentId: match.document_id });
+  }
+
+  // Verification pipeline (capital declaration): each just-collected document
+  // is verified against the file that earned it — the analyzer's own match
+  // (tier A), else the planner's pairing (tier B). Fire-and-forget: a
+  // verification hiccup must never fail the planning cycle; the outcome
+  // (approved / reopened pending) lands before the next cycle reads statuses.
+  if (isCapitalDeclaration && newlyCollected.length > 0) {
+    const targets = newlyCollected.flatMap((id) => {
+      const tierA = files.find((f) => fileMatchesDocument(f, id));
+      const paired = proposedPairs.find((m) => m.document_id === id);
+      const fileId = tierA?.id ?? paired?.file_id;
+      return fileId ? [{ documentId: id, fileId }] : [];
+    });
+    void (async () => {
+      for (const target of targets) {
+        await verifyCollectedDocument(client, ctx.instance, target.documentId, target.fileId);
+      }
+    })().catch((err) => logger.error('document verification pipeline failed', err, { clientId }));
   }
 
   // Completion is derived from the documents, not the LLM's decision field.

@@ -66,6 +66,32 @@ export async function sendClaimedDocumentsEmail(client: ClientRow, claimedDocNam
   await sendToAccountant(client, subject, body);
 }
 
+/**
+ * A received document could not be auto-verified (3 failed attempts, an
+ * unverifiable file type, or suspected injected content) — the one point the
+ * pipeline hands a document to a human. Sent once per dead end.
+ */
+export async function sendVerificationProblemEmail(
+  client: ClientRow,
+  docName: string,
+  reasons: string[],
+): Promise<void> {
+  const reasonLines = reasons.map((r) => `• ${r}`).join('\n');
+  const subject = `מסמך של ${client.name} לא עבר אימות אוטומטי — נדרשת בדיקתך`;
+  const body = [
+    'שלום,',
+    '',
+    `המסמך "${docName}" שהתקבל מהלקוח ${client.name} לא עבר את האימות האוטומטי:`,
+    reasonLines || '• (ללא פירוט)',
+    '',
+    'הסוכן הפסיק לבקש את המסמך הזה מהלקוח. אנא בדוק את הקובץ בתיק הלקוח —',
+    'אם הוא תקין אשר אותו ידנית; אחרת בקש מהלקוח מסמך מתוקן או טפל בכך ישירות.',
+    '',
+    `לצפייה בתיק הלקוח: ${env.APP_BASE_URL}`,
+  ].join('\n');
+  await sendToAccountant(client, subject, body);
+}
+
 export async function sendOverdueEmail(client: ClientRow, missingDocNames: string[]): Promise<void> {
   const dueDate = typeof client.agent_fields['due_date'] === 'string' ? (client.agent_fields['due_date'] as string) : '';
   const missing = missingDocNames.map((name) => `• ${name}`).join('\n');

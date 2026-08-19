@@ -8,6 +8,7 @@ import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { resolveSenderMailbox } from '../instanceEmail.js';
 import { isKillSwitchOn } from '../killSwitch.js';
 import { getAgentTypeIfKnown } from '../registry.js';
+import { resolveTaxYear } from './taxYear.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
@@ -120,7 +121,13 @@ function importConfig(instance: AgentInstanceRow, filter?: ScanSourceFilter): In
   if (isDocCollectorFamily(instance.agent_type)) {
     const settings = parseDocCollectorSettings(instance.settings);
     const sources = filter ? filterSources(settings, filter) : settings;
-    // A doc-collector-family client without documents completes trivially and never
+    // Catalog-seeded types (declaration of capital) take no per-row checklist:
+    // the hardcoded catalog is the only supply, so the documents column is
+    // ignored and enrollment never blocks on it.
+    if (getAgentTypeIfKnown(instance.agent_type)?.seedClientDocuments) {
+      return { sources, perRowDocuments: false, notReady: null };
+    }
+    // A doc-collector client without documents completes trivially and never
     // gets emailed — refuse to mass-create useless clients. The mapped
     // documents column (of the scanned sources) is the only supply of a
     // client's checklist.
@@ -211,7 +218,10 @@ export async function scanClientImportInstance(
   // Manual-kickoff agents (declaration of capital) enroll paused with no
   // first draft: outreach starts only on the accountant's explicit trigger
   // (monday kickoff webhook or the workspace resume toggle).
-  const manualKickoff = getAgentTypeIfKnown(instance.agent_type)?.manualKickoff === true;
+  const definition = getAgentTypeIfKnown(instance.agent_type);
+  const manualKickoff = definition?.manualKickoff === true;
+  // Catalog-seeded checklist, rendered once per scan for the instance's tax year.
+  const seedDocuments = definition?.seedClientDocuments?.(resolveTaxYear(instance, new Date())) ?? null;
 
   for (const candidate of fresh) {
     const name = candidate.name || candidate.email.split('@')[0] || candidate.email;
@@ -232,8 +242,21 @@ export async function scanClientImportInstance(
         phone: candidate.phone || null,
         paused: manualKickoff,
       });
-      for (const doc of documents) {
-        await clientDocuments.insert({ clientId: client.id, name: doc.name, description: null });
+      if (seedDocuments) {
+        // The intake interview resolves these; nothing is requested until it does.
+        for (const doc of seedDocuments) {
+          await clientDocuments.insert({
+            clientId: client.id,
+            name: doc.name,
+            description: doc.description,
+            typeKey: doc.typeKey,
+            status: 'unresolved',
+          });
+        }
+      } else {
+        for (const doc of documents) {
+          await clientDocuments.insert({ clientId: client.id, name: doc.name, description: null });
+        }
       }
       await syncCredentials(client.id, candidate.credentials);
       // Same fire-and-forget first-draft path as manual client creation,

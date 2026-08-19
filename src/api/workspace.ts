@@ -25,6 +25,7 @@ import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
+import { resolveTaxYear } from '../agents/shared/taxYear.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { DueDateSchema } from './schemas.js';
@@ -186,8 +187,26 @@ workspaceRouter.post(
       phone: phone || null,
       agentFields: dueDate ? { due_date: dueDate } : undefined,
     });
-    for (const doc of documents) {
-      await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
+    // Catalog-seeded types (declaration of capital): the hardcoded catalog is
+    // the only checklist supply — request-body documents are ignored and every
+    // client starts with the full type list as 'unresolved' intake rows.
+    const seedDocuments = getAgentType(req.agentInstance!.agent_type).seedClientDocuments?.(
+      resolveTaxYear(req.agentInstance!, new Date()),
+    );
+    if (seedDocuments) {
+      for (const doc of seedDocuments) {
+        await clientDocuments.insert({
+          clientId: client.id,
+          name: doc.name,
+          description: doc.description,
+          typeKey: doc.typeKey,
+          status: 'unresolved',
+        });
+      }
+    } else {
+      for (const doc of documents) {
+        await clientDocuments.insert({ clientId: client.id, name: doc.name, description: doc.description ?? null });
+      }
     }
     // Respond before the LLM drafts the first email — the drafting takes seconds, and the
     // conversation tab shows a "drafting…" placeholder until the scheduled email appears.

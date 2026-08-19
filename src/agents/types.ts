@@ -60,6 +60,14 @@ export interface AgentTypeDefinition {
    */
   manualKickoff?: boolean;
   /**
+   * Fixed-catalog checklist seeding (declaration of capital): every new client
+   * of this type starts with exactly these rows as 'unresolved' — the intake
+   * interview resolves them — regardless of enrollment path. When set,
+   * per-client imported checklists don't apply: the import source's documents
+   * column is ignored and enrollment never blocks on it.
+   */
+  seedClientDocuments?(taxYear: number): { typeKey: string; name: string; description: string | null }[];
+  /**
    * One planning step for one client — decide, act on goal state, and (for
    * conversational agents) schedule the next message. Runs inside
    * setFutureEmail's drafting-state wrapper (paused/complete guards, drafting

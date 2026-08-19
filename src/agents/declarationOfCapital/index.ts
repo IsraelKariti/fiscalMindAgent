@@ -1,4 +1,5 @@
 import { docCollectorAgent } from '../docCollector/index.js';
+import { catalogSeedRows } from './catalog.js';
 import type { AgentTypeDefinition } from '../types.js';
 
 /**
@@ -20,4 +21,8 @@ export const declarationOfCapitalAgent: AgentTypeDefinition = {
   // until the accountant fires the monday kickoff webhook (button on the board
   // row) or resumes them in the workspace.
   manualKickoff: true,
+  // The hardcoded catalog is the ONLY checklist supply: every new client
+  // starts with one 'unresolved' row per document type and the intake
+  // interview resolves them — the import source's documents column is ignored.
+  seedClientDocuments: catalogSeedRows,
 };

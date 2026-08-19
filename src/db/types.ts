@@ -114,8 +114,22 @@ export interface ClientRow {
   updated_at: Date;
 }
 
-/** 'claimed' = the client says they delivered it outside email (fax/in person); awaits the accountant's confirmation. */
-export type DocumentStatus = 'pending' | 'claimed' | 'collected';
+/**
+ * Doc-collector rows use pending/claimed/collected. The capital-declaration
+ * intake (migration 047) adds the rest: 'unresolved' = catalog-seeded, the
+ * intake interview hasn't determined applicability yet; 'not_required' = the
+ * client explicitly stated the asset doesn't apply (evidence on the row);
+ * 'claimed' = the client says they delivered it outside email (fax/in person),
+ * awaits the accountant's confirmation; 'approved' = the automatic
+ * verification pipeline accepted the received file (never set by hand).
+ */
+export type DocumentStatus = 'unresolved' | 'not_required' | 'pending' | 'claimed' | 'collected' | 'approved';
+
+/** The client statement an intake resolution rests on — verbatim quote from a stored inbound message. */
+export interface ResolutionEvidence {
+  message_id: string;
+  quote: string;
+}
 
 export interface ClientDocumentRow {
   id: string;
@@ -123,6 +137,12 @@ export interface ClientDocumentRow {
   name: string;
   description: string | null;
   status: DocumentStatus;
+  /** Catalog type this row instantiates (declarationOfCapital/catalog.ts); NULL = doc-collector or ad-hoc row. */
+  type_key: string | null;
+  /** Latest verification-pipeline verdict (extracted fields + per-check results); NULL until a file is verified. */
+  verification: Record<string, unknown> | null;
+  /** Evidence behind an agent-made 'not_required' resolution; NULL otherwise. */
+  resolution_evidence: ResolutionEvidence | null;
   created_at: Date;
   updated_at: Date;
 }

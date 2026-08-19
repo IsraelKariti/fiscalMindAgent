@@ -4,6 +4,7 @@ import { logger } from '../../util/logger.js';
 import { getGeminiModel } from '../../gemini/modelSettings.js';
 import { generateWithRetry, usageFromResponse, type GeminiUsage } from '../../gemini/generate.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
+import { getCatalogType } from '../declarationOfCapital/catalog.js';
 import type { ClientDocumentRow } from '../../db/types.js';
 
 /** Verdict from reading the file's actual contents; persisted as document_files.analysis. */
@@ -99,7 +100,18 @@ export async function analyzeFile(
   const documentLines =
     requiredDocuments.length > 0
       ? requiredDocuments
-          .map((doc) => `[id: ${doc.id}] ${doc.name}${doc.description ? ` — ${doc.description}` : ''}`)
+          .map((doc) => {
+            // Catalog rows (capital declaration) carry an explicit valuation-date
+            // rule so date-dependent matching is judged per row, not only by the
+            // global year_context framing.
+            const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
+            const dateRule = catalogType
+              ? catalogType.dateDependent
+                ? ` (תלוי-תאריך: חייב לשקף את המצב ליום 31.12.${taxYear})`
+                : ' (אינו תלוי-תאריך)'
+              : '';
+            return `[id: ${doc.id}] ${doc.name}${doc.description ? ` — ${doc.description}` : ''}${dateRule}`;
+          })
           .join('\n')
       : '(אין מסמכים מוגדרים)';
   const prompt = ANALYSIS_PROMPT.replace('{{year_context}}', YEAR_CONTEXT[purpose])

@@ -113,8 +113,10 @@ export async function resolveNotRequired(
  * Intake resolution (capital declaration): one 'unresolved' catalog row becomes
  * 1..N concrete pending documents — the first instance renames the row itself,
  * extras insert sibling rows sharing its type_key — atomically, so a crash
- * can't leave half the client's cars on the checklist. Returns all resulting
- * rows, or null when the target isn't the client's unresolved row.
+ * can't leave half the client's cars on the checklist. A 'not_required' row is
+ * also a valid target (the client corrected themselves — "actually I do have a
+ * car"); its old evidence is cleared. Returns all resulting rows, or null when
+ * the target isn't the client's resolvable row.
  */
 export async function resolveRequired(
   id: string,
@@ -127,8 +129,9 @@ export async function resolveRequired(
     await conn.query('BEGIN');
     const first = instances[0]!;
     const { rows: updated } = await conn.query<ClientDocumentRow>(
-      `UPDATE client_documents SET status = 'pending', name = $3, description = $4, updated_at = now()
-       WHERE id = $1 AND client_id = $2 AND status = 'unresolved' RETURNING *`,
+      `UPDATE client_documents
+       SET status = 'pending', name = $3, description = $4, resolution_evidence = NULL, updated_at = now()
+       WHERE id = $1 AND client_id = $2 AND status IN ('unresolved', 'not_required') RETURNING *`,
       [id, clientId, first.name, first.description],
     );
     const head = updated[0];

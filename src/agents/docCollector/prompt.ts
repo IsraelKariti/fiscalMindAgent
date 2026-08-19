@@ -13,6 +13,7 @@ import {
 } from '../shared/promptSafety.js';
 import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
 import { formatUpcomingDates } from '../shared/upcomingDates.js';
+import { getCatalogType } from '../declarationOfCapital/catalog.js';
 
 /** Everything the prompt tells the LLM about the WhatsApp channel's current availability. */
 export interface WaChannelState {
@@ -244,9 +245,55 @@ export function buildDocumentsSection(token: string, documents: ClientDocumentRo
   }
   const lines = documents.map((doc) => {
     const description = doc.description ? ` — ${sanitizeInline(doc.description, 500)}` : '';
-    return `[id: ${doc.id}] ${sanitizeInline(doc.name, 200)}${description} | status: ${doc.status}`;
+    const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
+    const extras: string[] = [];
+    // Intake rows carry their own discovery question and instance rule so the
+    // model interviews from the catalog's fixed wording, not improvisation.
+    if (doc.status === 'unresolved' && catalogType) {
+      extras.push(`שאלת בירור: ${catalogType.discoveryQuestionHe}`);
+      extras.push(catalogType.multiInstance ? 'ייתכנו מופעים מרובים — בררו כמה ואילו' : 'מופע יחיד');
+    }
+    // A pending row that already failed verification tells the model exactly
+    // what to ask the client to fix (reasons are our own code's Hebrew strings).
+    const verification = doc.verification as { passed?: boolean; reasons?: unknown } | null;
+    if (doc.status === 'pending' && verification && verification.passed === false && Array.isArray(verification.reasons)) {
+      const reasons = verification.reasons
+        .filter((r): r is string => typeof r === 'string')
+        .map((r) => sanitizeInline(r, 200))
+        .join('; ');
+      if (reasons) extras.push(`קובץ קודם נפסל באימות: ${reasons} — בקש מהלקוח מסמך מתוקן`);
+    }
+    const extra = extras.length > 0 ? ` | ${extras.join(' | ')}` : '';
+    return `[id: ${doc.id}] ${sanitizeInline(doc.name, 200)}${description} | status: ${doc.status}${extra}`;
   });
   return `${fence(token, 'REQUIRED DOCUMENTS')}\n${lines.join('\n')}\n${endFence(token, 'REQUIRED DOCUMENTS')}`;
+}
+
+/** The capital-declaration attestation gate's current state, for the template's closing-summary rules. */
+export interface IntakePromptInput {
+  unresolvedCount: number;
+  /** Every row is approved / not_required — the precondition for requesting the attestation. */
+  allSettled: boolean;
+  attestation: 'none' | 'requested' | 'confirmed';
+}
+
+/** Lives in `contents` (declaration of capital only): where the intake + attestation stand right now. */
+export function buildIntakeSection(token: string, intake?: IntakePromptInput): string {
+  if (!intake) return '';
+  const attestationLine =
+    intake.attestation === 'confirmed'
+      ? 'אישור סופיות (attestation): הלקוח כבר אישר את סיכום ההצהרה — אין לבקש אישור נוסף.'
+      : intake.attestation === 'requested'
+        ? 'אישור סופיות (attestation): הודעת הסיכום נשלחה ללקוח — ממתינים לאישורו. תשובת אישור מפורשת שלו נקלטת עם attestation="confirmed" בצירוף attestation_evidence.'
+        : intake.allSettled
+          ? 'אישור סופיות (attestation): כל המסמכים הוסדרו — ההודעה הבאה צריכה להיות הודעת הסיכום (attestation="request").'
+          : 'אישור סופיות (attestation): עדיין לא רלוונטי — יש מסמכים שטרם הוסדרו.';
+  return [
+    fence(token, 'INTAKE STATUS'),
+    `שאלות בירור פתוחות (status: unresolved): ${intake.unresolvedCount}`,
+    attestationLine,
+    endFence(token, 'INTAKE STATUS'),
+  ].join('\n');
 }
 
 /**
@@ -295,7 +342,10 @@ export function buildThreadTranscript(token: string, history: EmailRow[], files:
   }
   const lines = history.map((email, i) => {
     const timestamp = (email.sent_at ?? email.created_at).toISOString();
-    const from = email.direction === 'outbound' ? 'accountant (outbound)' : `client (inbound)`;
+    // Inbound rows expose their id — it's what evidence fields (intake
+    // resolutions, attestation confirmation) must cite as message_id.
+    const from =
+      email.direction === 'outbound' ? 'accountant (outbound)' : `client (inbound) [message id: ${email.id}]`;
     const attached = (filesByEmail.get(email.id) ?? [])
       .map(
         (f) =>
@@ -346,10 +396,12 @@ export function buildPrompt(
   waState: WaChannelState = WHATSAPP_UNAVAILABLE,
   taxFetch: TaxFetchPromptInput[] = [],
   taxYear?: number,
+  intake?: IntakePromptInput,
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
     buildDocumentsSection(token, documents),
+    buildIntakeSection(token, intake),
     buildDeadlineSection(token, client, now),
     buildWhatsAppSection(token, waState),
     buildTaxFetchSection(token, taxFetch),

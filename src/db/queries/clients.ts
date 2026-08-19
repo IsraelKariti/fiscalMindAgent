@@ -374,6 +374,44 @@ export async function clearOverdueStopped(id: string): Promise<void> {
 }
 
 /**
+ * Stamps which scheduled draft is the attestation summary (declaration of
+ * capital). Overwritten when a newer request is scheduled; the confirmation
+ * validator only trusts it once that email row is actually 'sent'.
+ */
+export async function setAttestationRequest(id: string, emailId: string): Promise<void> {
+  await pool.query(
+    `UPDATE clients SET agent_fields = agent_fields || jsonb_build_object('attestation_request_email_id', $2::text) WHERE id = $1`,
+    [id, emailId],
+  );
+}
+
+/** Records the client's completeness confirmation (declaration of capital) with the message quote it rests on. */
+export async function setAttestationConfirmed(
+  id: string,
+  evidence: { message_id: string; quote: string },
+): Promise<void> {
+  await pool.query(
+    `UPDATE clients SET agent_fields = agent_fields
+       || jsonb_build_object('attestation_confirmed_at', $2::text, 'attestation_evidence', $3::jsonb)
+     WHERE id = $1`,
+    [id, new Date().toISOString(), JSON.stringify(evidence)],
+  );
+}
+
+/**
+ * Resets the attestation (declaration of capital) — called whenever the
+ * checklist reopens after the summary was requested/confirmed (a client
+ * correction, an accountant override), so a stale confirmation can never
+ * complete the goal over a changed document list.
+ */
+export async function clearAttestation(id: string): Promise<void> {
+  await pool.query(
+    `UPDATE clients SET agent_fields = agent_fields - 'attestation_request_email_id' - 'attestation_confirmed_at' - 'attestation_evidence' WHERE id = $1`,
+    [id],
+  );
+}
+
+/**
  * Overwrites the debt collector's per-client analysis snapshot
  * (agent_fields.debt). Agent-status write, so updated_at is left alone — it
  * tracks accountant edits.

@@ -26,6 +26,9 @@ const incidentAnswer = JSON.stringify({
   tax_fetch_action: 'start_login',
   tax_fetch_provider: 'altshuler_shaham',
   tax_fetch_document_keys: ['pension_annual'],
+  resolved_documents: null,
+  attestation: null,
+  attestation_evidence: null,
 });
 
 // The channel/fetch state at the time of the incident.

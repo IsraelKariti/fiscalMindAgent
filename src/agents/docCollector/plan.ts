@@ -8,12 +8,14 @@ import * as waTemplates from '../../db/queries/waTemplates.js';
 import { buildPrompt, type WaChannelState } from './prompt.js';
 import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccountant.js';
 import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
+import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
 import { resolveTaxYear } from '../shared/taxYear.js';
 import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../declarationOfCapital/prompt.js';
+import { getCatalogType } from '../declarationOfCapital/catalog.js';
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
-import { allowedTaxFetchActions, type DecisionContext } from './decisionSchema.js';
+import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState } from './decisionSchema.js';
 import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys } from './taxFetch/flow.js';
 import { getProviderSpec } from './taxFetch/providers.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
@@ -73,8 +75,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const clientId = client.id;
   const now = new Date();
   const taxYear = resolveTaxYear(ctx.instance, now);
+  const agentType = ctx.instance?.agent_type ?? 'doc_collector';
+  const isCapitalDeclaration = agentType === 'declaration_of_capital';
   const history = await emails.listForClient(clientId);
-  const documents = await clientDocuments.listForClient(clientId);
+  let documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
   const waState = await getWaChannelState(client, now);
   // The start_login readiness signal must come from the phone-verified WhatsApp
@@ -100,14 +104,53 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       })),
     };
   });
+  // Capital-declaration intake: what the validator lets the model resolve, and
+  // where the attestation gate stands. The request is trusted only once its
+  // draft actually SENT (sent_at set) — an abandoned draft is not a request —
+  // and only inbound messages after that send can confirm it.
+  let intake: IntakeDecisionState | undefined;
+  let attestationConfirmed = false;
+  if (isCapitalDeclaration) {
+    // The model quotes from the sanitized transcript it reads (bidi/zero-width
+    // chars stripped, fences defanged) — validate against that same view, or
+    // legitimate quotes of messages with invisible characters would never match.
+    const inboundTexts = new Map(
+      history
+        .filter((m) => m.direction === 'inbound')
+        .map((m) => [m.id, `${sanitizeInline(m.subject ?? '', 300)}\n${sanitizeUntrusted(m.body, 10_000)}`] as const),
+    );
+    attestationConfirmed = typeof client.agent_fields['attestation_confirmed_at'] === 'string';
+    const requestEmailId = client.agent_fields['attestation_request_email_id'];
+    const requestEmail = typeof requestEmailId === 'string' ? await emails.getById(requestEmailId) : null;
+    const requestSentAt = requestEmail?.sent_at ?? null;
+    intake = {
+      resolvable: documents
+        .filter((d) => d.status === 'unresolved' || d.status === 'not_required')
+        .map((d) => ({
+          id: d.id,
+          status: d.status as 'unresolved' | 'not_required',
+          multiInstance: (d.type_key ? getCatalogType(d.type_key)?.multiInstance : undefined) ?? false,
+        })),
+      inboundTexts,
+      allSettled: documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'not_required'),
+      attestationRequested: requestSentAt !== null,
+      confirmableMessageIds: new Set(
+        requestSentAt === null
+          ? []
+          : history
+              .filter((m) => m.direction === 'inbound' && (m.sent_at ?? m.created_at) > requestSentAt)
+              .map((m) => m.id),
+      ),
+      attestationConfirmed,
+    };
+  }
+
   // The accountant-editable template (legacy setting key) applies to the doc
   // collector only; the declaration-of-capital collector always uses its own
   // built-in template. Per-agent custom-template keys are deferred work.
-  const agentType = ctx.instance?.agent_type ?? 'doc_collector';
-  const template =
-    agentType === 'declaration_of_capital'
-      ? DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE
-      : (await getPromptTemplate(client.user_id)).template;
+  const template = isCapitalDeclaration
+    ? DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE
+    : (await getPromptTemplate(client.user_id)).template;
   const { systemInstruction, contents } = buildPrompt(
     client,
     accountant,
@@ -119,6 +162,13 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     waState,
     taxFetchPromptInputs,
     taxYear,
+    intake
+      ? {
+          unresolvedCount: intake.resolvable.filter((r) => r.status === 'unresolved').length,
+          allSettled: intake.allSettled,
+          attestation: intake.attestationConfirmed ? 'confirmed' : intake.attestationRequested ? 'requested' : 'none',
+        }
+      : undefined,
   );
   const decisionCtx: DecisionContext = {
     whatsappAllowed: waState.allowed,
@@ -131,6 +181,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       clientOnWhatsapp: c.clientOnWhatsapp,
       documentKeys: pendingKeys(c),
     })),
+    intake,
   };
   const { decision, usage, model } = await decide(systemInstruction, contents, decisionCtx);
 
@@ -153,6 +204,79 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       severity: 'critical',
       suspectedInjection: true,
       detail: { agent: agentType, clientName: client.name, reasoning: decision.reasoning },
+    });
+  }
+
+  // Intake resolutions (capital declaration): already validated against the
+  // resolvable rows and the evidence quotes (decisionSchema); the DB guards
+  // re-check the statuses. Suppressed wholesale under suspected injection —
+  // a hostile message must not be able to shrink the declaration.
+  if (!decision.suspected_injection && decision.resolutions.length > 0) {
+    let applied = 0;
+    for (const resolution of decision.resolutions) {
+      if (resolution.resolution === 'not_required') {
+        const row = await clientDocuments.resolveNotRequired(resolution.documentId, clientId, resolution.evidence);
+        if (!row) continue;
+        applied += 1;
+        recordAudit({
+          actorType: 'agent',
+          action: 'document.resolved',
+          agentInstanceId: client.agent_instance_id,
+          clientId,
+          targetType: 'client_document',
+          targetId: row.id,
+          detail: {
+            clientName: client.name,
+            name: row.name,
+            typeKey: row.type_key,
+            resolution: 'not_required',
+            evidence: resolution.evidence,
+          },
+        });
+      } else {
+        const rows = await clientDocuments.resolveRequired(resolution.documentId, clientId, resolution.instances);
+        if (!rows) continue;
+        applied += 1;
+        recordAudit({
+          actorType: 'agent',
+          action: 'document.resolved',
+          agentInstanceId: client.agent_instance_id,
+          clientId,
+          targetType: 'client_document',
+          targetId: resolution.documentId,
+          detail: {
+            clientName: client.name,
+            typeKey: rows[0]?.type_key ?? null,
+            resolution: 'required',
+            instances: rows.map((r) => r.name),
+          },
+        });
+      }
+    }
+    if (applied > 0) {
+      // A reopened checklist voids any earlier attestation — a stale
+      // confirmation must never complete the goal over a changed list.
+      if (intake && (intake.attestationRequested || intake.attestationConfirmed)) {
+        await clients.clearAttestation(clientId);
+        attestationConfirmed = false;
+      }
+      documents = await clientDocuments.listForClient(clientId);
+      publishClientUpdated(clientId);
+      logger.info('intake resolutions applied', { clientId, count: applied });
+    }
+  }
+
+  // Attestation confirmation (capital declaration): validated to cite a real
+  // post-summary inbound message; record it with its evidence.
+  if (!decision.suspected_injection && decision.attestation?.action === 'confirmed') {
+    await clients.setAttestationConfirmed(clientId, decision.attestation.evidence);
+    attestationConfirmed = true;
+    recordAudit({
+      actorType: 'agent',
+      action: 'client.attestation_confirmed',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      detail: { clientName: client.name, evidence: decision.attestation.evidence },
     });
   }
 
@@ -222,15 +346,22 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     logger.info('file linked to document', { clientId, fileId: match.file_id, documentId: match.document_id });
   }
 
-  // Completion is derived from the documents, not the LLM's decision field: complete iff
-  // every required document is collected — 'claimed' rows still need the accountant's
-  // confirmation. Clients with no configured documents fall back to trusting the
-  // decision field (legacy behavior).
+  // Completion is derived from the documents, not the LLM's decision field.
+  // Doc collector: complete iff every required document is collected —
+  // 'claimed' rows still need the accountant's confirmation. Declaration of
+  // capital: complete iff every row is settled (approved / not_required — the
+  // verification pipeline, not receipt, is what closes a document) AND the
+  // client confirmed the attestation summary. Clients with no configured
+  // documents fall back to trusting the decision field (legacy behavior).
   const collectedCount = documents.filter((d) => d.status === 'collected').length + newlyCollected.length;
   const stillPending = documents.length - collectedCount;
+  const allSettled =
+    documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'not_required');
   const allCollected =
     documents.length > 0
-      ? stillPending === 0
+      ? isCapitalDeclaration
+        ? allSettled && attestationConfirmed
+        : stillPending === 0
       : decision.decision === 'goal_complete' && !decision.suspected_injection;
 
   // Under suspected injection the fetch may only be cancelled — an injected
@@ -266,11 +397,15 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   }
 
   if (decision.decision === 'goal_complete') {
-    // Contract violation (prompt forbids goal_complete with pending documents): there is no
-    // drafted email to schedule, so fail loudly and let the caller's retry path re-ask.
-    throw new Error(
-      `setFutureEmail: LLM returned goal_complete but ${stillPending} document(s) still pending for client ${clientId}`,
-    );
+    // Contract violation (prompt forbids goal_complete before the goal is actually
+    // done): there is no drafted email to schedule, so fail loudly and let the
+    // caller's retry path re-ask.
+    const why = isCapitalDeclaration
+      ? allSettled
+        ? 'the attestation is not confirmed'
+        : 'documents are still unsettled'
+      : `${stillPending} document(s) still pending`;
+    throw new Error(`setFutureEmail: LLM returned goal_complete but ${why} for client ${clientId}`);
   }
 
   // The LLM answers with a wall-clock datetime in the accountant's timezone.
@@ -297,6 +432,19 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     delayMs: Math.max(0, delayMs),
     reasoning: decision.reasoning,
   });
+  // Attestation request (capital declaration): this very draft is the closing
+  // summary. Stamped by email id — the confirmation validator only trusts it
+  // once the row actually sent, so an abandoned draft never becomes a request.
+  if (!decision.suspected_injection && decision.attestation?.action === 'request') {
+    await clients.setAttestationRequest(clientId, emailId);
+    recordAudit({
+      actorType: 'agent',
+      action: 'client.attestation_requested',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      detail: { clientName: client.name, emailId, send_at: sendAtGuard.sendAt },
+    });
+  }
   // Act on the document-fetch step (client agreed / start login / cancel)
   // after the draft exists: start_login is enqueued against the heads-up draft
   // so the browser login — and the OTP it triggers — can only run after that

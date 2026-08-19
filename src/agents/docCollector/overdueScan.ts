@@ -37,7 +37,11 @@ export async function runOverdueScan(): Promise<void> {
       await pauseFutureEmail(candidate.id);
       try {
         const documents = await clientDocuments.listForClient(candidate.id);
-        const missing = documents.filter((d) => d.status === 'pending').map((d) => d.name);
+        // 'unresolved' (capital-declaration intake questions never answered) is
+        // just as missing as an unreceived pending document.
+        const missing = documents
+          .filter((d) => d.status === 'pending' || d.status === 'unresolved')
+          .map((d) => d.name);
         await sendOverdueEmail(claimed, missing);
       } catch (err) {
         // The stop stands either way — the UI shows the handed-off state.

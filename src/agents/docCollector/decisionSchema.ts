@@ -46,6 +46,33 @@ export const DecisionResponseSchema = z.object({
    * means "all of that provider's pending documents".
    */
   tax_fetch_document_keys: z.array(z.string()).nullable(),
+  /**
+   * Capital-declaration intake resolutions (null/empty for other agents): each
+   * entry settles one catalog row based on an explicit client statement.
+   * 'not_required' requires evidence (a verbatim quote from a stored inbound
+   * message); 'required' turns the row into 1..N concrete pending documents.
+   */
+  resolved_documents: z
+    .array(
+      z.object({
+        document_id: z.string(),
+        resolution: z.enum(['required', 'not_required']),
+        /** For 'required' only: the concrete instances the client described ("two cars" → two entries). */
+        instances: z.array(z.object({ name: z.string(), description: z.string().nullable() })).nullable(),
+        /** For 'not_required': the client statement this rests on — a real inbound message_id + verbatim quote. */
+        evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
+      }),
+    )
+    .nullable(),
+  /**
+   * Capital-declaration attestation gate (null for other agents): 'request' —
+   * this decision's message IS the closing completeness summary (valid only
+   * when every row is settled); 'confirmed' — the client explicitly confirmed
+   * the summary (requires attestation_evidence citing a post-request inbound
+   * message).
+   */
+  attestation: z.enum(['request', 'confirmed']).nullable(),
+  attestation_evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
 });
 
 export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
@@ -70,6 +97,20 @@ export interface TaxFetchDecision {
   documentKeys: string[];
 }
 
+/** A verbatim client statement (message id + quote) an intake decision rests on. */
+export interface EvidenceRef {
+  message_id: string;
+  quote: string;
+}
+
+/** One validated intake resolution (capital declaration). */
+export type DocumentResolution =
+  | { documentId: string; resolution: 'not_required'; evidence: EvidenceRef }
+  | { documentId: string; resolution: 'required'; instances: { name: string; description: string | null }[] };
+
+/** A validated attestation step (capital declaration). */
+export type AttestationDecision = { action: 'request' } | { action: 'confirmed'; evidence: EvidenceRef };
+
 export type NormalizedDecision =
   | {
       decision: 'goal_complete';
@@ -78,6 +119,8 @@ export type NormalizedDecision =
       collected_document_ids: string[];
       matched_files: MatchedFile[];
       tax_fetch: TaxFetchDecision | null;
+      resolutions: DocumentResolution[];
+      attestation: AttestationDecision | null;
     }
   | {
       decision: 'follow_up';
@@ -89,6 +132,8 @@ export type NormalizedDecision =
       /** Validated wall-clock datetime in the accountant's timezone. */
       send_at: string;
       tax_fetch: TaxFetchDecision | null;
+      resolutions: DocumentResolution[];
+      attestation: AttestationDecision | null;
     };
 
 /** One provider's fetch situation the validator needs: its state, availability, and pending document types. */
@@ -102,6 +147,34 @@ export interface TaxFetchDecisionState {
   documentKeys: string[];
 }
 
+/** One checklist row the intake may resolve, and what the catalog allows for it. */
+export interface ResolvableRow {
+  id: string;
+  /** 'unresolved' may go either way; 'not_required' may only be reopened to required (a client correction). */
+  status: 'unresolved' | 'not_required';
+  /** The catalog type allows more than one concrete instance (cars, accounts…). */
+  multiInstance: boolean;
+}
+
+/**
+ * The capital-declaration intake state the validator needs. Absent for other
+ * agent types — any intake field the model sets is then rejected outright.
+ */
+export interface IntakeDecisionState {
+  /** Rows an intake resolution may target. */
+  resolvable: ResolvableRow[];
+  /** Inbound message texts by id — the only pool evidence quotes may cite. */
+  inboundTexts: Map<string, string>;
+  /** Every checklist row is settled (approved / not_required) — precondition for attestation 'request'. */
+  allSettled: boolean;
+  /** The attestation summary was actually SENT (not merely drafted). */
+  attestationRequested: boolean;
+  /** Ids of inbound messages received after the sent request — the only valid confirmation sources. */
+  confirmableMessageIds: Set<string>;
+  /** Confirmation already recorded — no further attestation action is valid. */
+  attestationConfirmed: boolean;
+}
+
 /** What the surrounding code knows about the WhatsApp channel when validating the LLM's choice. */
 export interface DecisionContext {
   /** Client opted in + sender number assigned + something is actually sendable. */
@@ -112,6 +185,8 @@ export interface DecisionContext {
   templates: WaTemplateRow[];
   /** Per-provider fetch state; empty/absent when no fetch applies to this client. */
   taxFetch?: TaxFetchDecisionState[];
+  /** Capital-declaration intake state; absent for other agent types. */
+  intake?: IntakeDecisionState;
 }
 
 export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, windowOpen: false, templates: [] };
@@ -230,6 +305,115 @@ function validateTaxFetch(raw: DecisionResponse, ctx: DecisionContext): TaxFetch
   return { action, provider: providerId, documentKeys };
 }
 
+/** Hard cap on concrete instances one resolution may create (the checklist is not a spreadsheet). */
+const MAX_RESOLUTION_INSTANCES = 10;
+
+/** Whitespace-insensitive containment — the transcript the model quotes from collapses whitespace differently than the raw body. */
+function quoteAppearsIn(quote: string, text: string): boolean {
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const q = norm(quote);
+  return q.length > 0 && norm(text).includes(q);
+}
+
+/** Validates one evidence ref against the stored inbound messages; returns it normalized. */
+function validateEvidence(
+  evidence: { message_id: string; quote: string } | null,
+  inboundTexts: Map<string, string>,
+  what: string,
+): EvidenceRef {
+  if (!evidence) throw new Error(`${what} requires evidence ({message_id, quote}) and none was given`);
+  const text = inboundTexts.get(evidence.message_id);
+  if (text === undefined) {
+    throw new Error(`${what}: evidence message_id "${evidence.message_id}" is not a stored inbound message of this client`);
+  }
+  if (!quoteAppearsIn(evidence.quote, text)) {
+    throw new Error(`${what}: evidence quote is not contained verbatim in message ${evidence.message_id}`);
+  }
+  return { message_id: evidence.message_id, quote: evidence.quote };
+}
+
+/**
+ * Validates the intake resolutions (capital declaration): only resolvable rows
+ * move, 'not_required' never without a verbatim client quote, instance counts
+ * only where the catalog allows them. The LLM proposes, this decides.
+ */
+function validateResolutions(raw: DecisionResponse, ctx: DecisionContext): DocumentResolution[] {
+  const entries = raw.resolved_documents ?? [];
+  if (entries.length === 0) return [];
+  const intake = ctx.intake;
+  if (!intake) throw new Error('resolved_documents is not applicable to this agent — leave it null');
+
+  const byId = new Map(intake.resolvable.map((r) => [r.id, r]));
+  const seen = new Set<string>();
+  const result: DocumentResolution[] = [];
+  for (const entry of entries) {
+    if (seen.has(entry.document_id)) throw new Error(`resolved_documents targets document ${entry.document_id} twice`);
+    seen.add(entry.document_id);
+    const row = byId.get(entry.document_id);
+    if (!row) {
+      throw new Error(`resolved_documents: document ${entry.document_id} is not a resolvable (unresolved/not_required) row of this client`);
+    }
+    if (entry.resolution === 'not_required') {
+      if (row.status !== 'unresolved') {
+        throw new Error(`resolved_documents: document ${entry.document_id} is already not_required`);
+      }
+      const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `not_required resolution of ${entry.document_id}`);
+      result.push({ documentId: entry.document_id, resolution: 'not_required', evidence });
+      continue;
+    }
+    const instances = (entry.instances ?? []).map((i) => ({
+      name: i.name.trim(),
+      description: i.description?.trim() || null,
+    }));
+    if (instances.length === 0) {
+      throw new Error(`required resolution of ${entry.document_id} needs at least one instance ({name, description})`);
+    }
+    if (instances.some((i) => i.name.length === 0 || i.name.length > 200)) {
+      throw new Error(`required resolution of ${entry.document_id}: every instance needs a name of 1-200 characters`);
+    }
+    if (instances.length > 1 && !row.multiInstance) {
+      throw new Error(`required resolution of ${entry.document_id}: this document type allows a single instance only`);
+    }
+    if (instances.length > MAX_RESOLUTION_INSTANCES) {
+      throw new Error(`required resolution of ${entry.document_id}: at most ${MAX_RESOLUTION_INSTANCES} instances`);
+    }
+    result.push({ documentId: entry.document_id, resolution: 'required', instances });
+  }
+  return result;
+}
+
+/**
+ * Validates the attestation step (capital declaration): 'request' only once
+ * every row is settled (this decision's message is the summary, so follow_up
+ * only); 'confirmed' only for a sent request, citing a post-request inbound
+ * message verbatim.
+ */
+function validateAttestation(raw: DecisionResponse, ctx: DecisionContext): AttestationDecision | null {
+  if (!raw.attestation) return null;
+  const intake = ctx.intake;
+  if (!intake) throw new Error('attestation is not applicable to this agent — leave it null');
+  if (intake.attestationConfirmed) {
+    throw new Error('attestation is already confirmed for this client — leave the field null');
+  }
+  if (raw.attestation === 'request') {
+    if (raw.decision !== 'follow_up') {
+      throw new Error("attestation 'request' must come with a follow_up decision — the scheduled message IS the summary");
+    }
+    if (!intake.allSettled || (raw.resolved_documents ?? []).length > 0) {
+      throw new Error("attestation 'request' is valid only when every document is already settled (approved / not_required) and no new resolutions are being made");
+    }
+    return { action: 'request' };
+  }
+  if (!intake.attestationRequested) {
+    throw new Error("attestation 'confirmed' is invalid — no attestation summary has been sent to the client yet");
+  }
+  const evidence = validateEvidence(raw.attestation_evidence, intake.inboundTexts, "attestation 'confirmed'");
+  if (!intake.confirmableMessageIds.has(evidence.message_id)) {
+    throw new Error("attestation 'confirmed': the cited message predates the attestation summary — only a reply to the summary can confirm it");
+  }
+  return { action: 'confirmed', evidence };
+}
+
 /**
  * Appended to the original contents for decide()'s corrective pass: the model's
  * own rejected answer plus the exact validation error, so it can repair any
@@ -250,6 +434,8 @@ export function correctionSuffix(invalidAnswer: string, err: unknown): string {
 
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {
   const taxFetch = validateTaxFetch(raw, ctx);
+  const resolutions = validateResolutions(raw, ctx);
+  const attestation = validateAttestation(raw, ctx);
   if (raw.decision === 'goal_complete') {
     return {
       decision: 'goal_complete',
@@ -258,6 +444,8 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
       collected_document_ids: raw.collected_document_ids,
       matched_files: raw.matched_files,
       tax_fetch: taxFetch,
+      resolutions,
+      attestation,
     };
   }
   if (raw.send_at == null || !isWallClockDateTime(raw.send_at)) {
@@ -272,5 +460,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
     message: normalizeFollowUpMessage(raw, ctx),
     send_at: raw.send_at.trim(),
     tax_fetch: taxFetch,
+    resolutions,
+    attestation,
   };
 }

@@ -7,6 +7,7 @@ export interface LlmModelUsageListRow {
   input_tokens: number;
   output_tokens: number;
   thinking_tokens: number;
+  cached_tokens: number;
 }
 
 /** One day×accountant×instance×model bucket of the admin spend time series. */
@@ -21,6 +22,7 @@ export interface LlmDailyUsageRow {
   input_tokens: number;
   output_tokens: number;
   thinking_tokens: number;
+  cached_tokens: number;
 }
 
 /** Today's date ("YYYY-MM-DD") on the accountants' wall clock — the daily-usage bucket key. */
@@ -38,27 +40,30 @@ export async function add(
   userId: string,
   agentInstanceId: string | null,
   model: string,
-  usage: { inputTokens: number; outputTokens: number; thinkingTokens: number },
+  usage: { inputTokens: number; outputTokens: number; thinkingTokens: number; cachedTokens?: number },
 ): Promise<void> {
+  const cachedTokens = usage.cachedTokens ?? 0;
   await pool.query(
-    `INSERT INTO llm_model_usage (user_id, model, input_tokens, output_tokens, thinking_tokens)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO llm_model_usage (user_id, model, input_tokens, output_tokens, thinking_tokens, cached_tokens)
+     VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (user_id, model) DO UPDATE
        SET input_tokens    = llm_model_usage.input_tokens + EXCLUDED.input_tokens,
            output_tokens   = llm_model_usage.output_tokens + EXCLUDED.output_tokens,
            thinking_tokens = llm_model_usage.thinking_tokens + EXCLUDED.thinking_tokens,
+           cached_tokens   = llm_model_usage.cached_tokens + EXCLUDED.cached_tokens,
            updated_at = now()`,
-    [userId, model, usage.inputTokens, usage.outputTokens, usage.thinkingTokens],
+    [userId, model, usage.inputTokens, usage.outputTokens, usage.thinkingTokens, cachedTokens],
   );
   await pool.query(
-    `INSERT INTO llm_usage_daily (day, user_id, agent_instance_id, model, input_tokens, output_tokens, thinking_tokens)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO llm_usage_daily (day, user_id, agent_instance_id, model, input_tokens, output_tokens, thinking_tokens, cached_tokens)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (day, user_id, agent_instance_id, model) DO UPDATE
        SET input_tokens    = llm_usage_daily.input_tokens + EXCLUDED.input_tokens,
            output_tokens   = llm_usage_daily.output_tokens + EXCLUDED.output_tokens,
            thinking_tokens = llm_usage_daily.thinking_tokens + EXCLUDED.thinking_tokens,
+           cached_tokens   = llm_usage_daily.cached_tokens + EXCLUDED.cached_tokens,
            updated_at = now()`,
-    [usageDay(), userId, agentInstanceId, model, usage.inputTokens, usage.outputTokens, usage.thinkingTokens],
+    [usageDay(), userId, agentInstanceId, model, usage.inputTokens, usage.outputTokens, usage.thinkingTokens, cachedTokens],
   );
 }
 
@@ -71,7 +76,8 @@ export async function listAll(): Promise<LlmModelUsageListRow[]> {
     `SELECT user_id, model,
             input_tokens::float8 AS input_tokens,
             output_tokens::float8 AS output_tokens,
-            thinking_tokens::float8 AS thinking_tokens
+            thinking_tokens::float8 AS thinking_tokens,
+            cached_tokens::float8 AS cached_tokens
      FROM llm_model_usage
      ORDER BY model`,
   );
@@ -91,7 +97,8 @@ export async function listDaily(sinceDay: string): Promise<LlmDailyUsageRow[]> {
             d.model,
             d.input_tokens::float8 AS input_tokens,
             d.output_tokens::float8 AS output_tokens,
-            d.thinking_tokens::float8 AS thinking_tokens
+            d.thinking_tokens::float8 AS thinking_tokens,
+            d.cached_tokens::float8 AS cached_tokens
      FROM llm_usage_daily d
      LEFT JOIN agent_instances ai ON ai.id = d.agent_instance_id
      WHERE d.day >= $1

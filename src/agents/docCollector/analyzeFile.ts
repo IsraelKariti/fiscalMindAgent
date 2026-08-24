@@ -2,7 +2,12 @@ import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { logger } from '../../util/logger.js';
 import { getGeminiModel } from '../../gemini/modelSettings.js';
-import { generateWithRetry, usageFromResponse, type GeminiUsage } from '../../gemini/generate.js';
+import {
+  generateWithRetry,
+  usageFromResponse,
+  type GeminiUsage,
+  type LlmCallLogContext,
+} from '../../gemini/generate.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
 import { getCatalogType } from '../declarationOfCapital/catalog.js';
 import type { ClientDocumentRow } from '../../db/types.js';
@@ -96,6 +101,12 @@ export async function analyzeFile(
   /** The instance's configured tax year (resolveTaxYear) — year-mismatched annual documents must not match. */
   taxYear: number,
   purpose: AnalysisPurpose = 'annual_report',
+  opts: {
+    /** Experiment-arm model override (049); default = the global admin-picked model. */
+    model?: string;
+    /** Per-call llm_calls attribution. */
+    log?: LlmCallLogContext;
+  } = {},
 ): Promise<AnalyzeFileResult> {
   const documentLines =
     requiredDocuments.length > 0
@@ -119,24 +130,27 @@ export async function analyzeFile(
     .replace('{{tax_year}}', String(taxYear))
     .replace('{{filename}}', sanitizeInline(filename, 150));
 
-  const model = await getGeminiModel();
-  const response = await generateWithRetry({
-    model,
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { inlineData: { mimeType: contentType, data: bytes.toString('base64') } },
-          { text: prompt },
-        ],
+  const model = opts.model ?? (await getGeminiModel());
+  const response = await generateWithRetry(
+    {
+      model,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: { mimeType: contentType, data: bytes.toString('base64') } },
+            { text: prompt },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseJsonSchema: analysisJsonSchema,
+        temperature: 0.1,
       },
-    ],
-    config: {
-      responseMimeType: 'application/json',
-      responseJsonSchema: analysisJsonSchema,
-      temperature: 0.1,
     },
-  });
+    opts.log,
+  );
 
   const usage = usageFromResponse(response);
   logger.info('gemini tokens used (file analysis)', { model, filename, ...usage });

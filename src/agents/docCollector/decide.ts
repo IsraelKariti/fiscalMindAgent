@@ -1,7 +1,12 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { logger } from '../../util/logger.js';
 import { getGeminiModel } from '../../gemini/modelSettings.js';
-import { generateWithRetry, usageFromResponse, type GeminiUsage } from '../../gemini/generate.js';
+import {
+  generateWithRetry,
+  usageFromResponse,
+  type GeminiUsage,
+  type LlmCallLogContext,
+} from '../../gemini/generate.js';
 import {
   correctionSuffix,
   DecisionResponseSchema,
@@ -30,27 +35,37 @@ export async function decide(
   systemInstruction: string,
   contents: string,
   ctx: DecisionContext = EMAIL_ONLY_CONTEXT,
+  opts: {
+    /** Experiment-arm model override (049); default = the global admin-picked model. */
+    model?: string;
+    /** Per-call llm_calls attribution; each validation attempt logs its own row. */
+    log?: LlmCallLogContext;
+  } = {},
 ): Promise<DecideResult> {
-  const model = await getGeminiModel();
-  const usage: GeminiUsage = { inputTokens: 0, outputTokens: 0, thinkingTokens: 0 };
+  const model = opts.model ?? (await getGeminiModel());
+  const usage: GeminiUsage = { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, cachedTokens: 0 };
   let requestContents = contents;
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_DECISION_ATTEMPTS; attempt++) {
-    const response = await generateWithRetry({
-      model,
-      contents: requestContents,
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        responseJsonSchema: decisionJsonSchema,
-        temperature: 0.3,
+    const response = await generateWithRetry(
+      {
+        model,
+        contents: requestContents,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseJsonSchema: decisionJsonSchema,
+          temperature: 0.3,
+        },
       },
-    });
+      opts.log,
+    );
 
     const callUsage = usageFromResponse(response);
     usage.inputTokens += callUsage.inputTokens;
     usage.outputTokens += callUsage.outputTokens;
     usage.thinkingTokens += callUsage.thinkingTokens;
+    usage.cachedTokens += callUsage.cachedTokens;
     logger.info('gemini tokens used', { model, ...callUsage });
 
     const text = response.text;

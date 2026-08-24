@@ -13,7 +13,7 @@ import { getKillSwitchState, setKillSwitch } from '../agents/killSwitch.js';
 import { defaultTaxYear } from '../agents/shared/taxYear.js';
 import { RESERVED } from './mailbox.js';
 import { env } from '../config/env.js';
-import { getPricingForModel } from '../gemini/pricing.js';
+import { computeCost, getPricingForModel } from '../gemini/pricing.js';
 import {
   LLM_MODEL_OPTIONS,
   availableModelOptions,
@@ -109,10 +109,14 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
       inputTokens: row.input_tokens,
       outputTokens: row.output_tokens,
       thinkingTokens: row.thinking_tokens,
+      cachedTokens: row.cached_tokens,
       cost: pricing
-        ? row.input_tokens * pricing.inputCostPerToken +
-          row.output_tokens * pricing.outputCostPerToken +
-          row.thinking_tokens * pricing.thinkingCostPerToken
+        ? computeCost(pricing, {
+            inputTokens: row.input_tokens,
+            outputTokens: row.output_tokens,
+            thinkingTokens: row.thinking_tokens,
+            cachedTokens: row.cached_tokens,
+          })
         : null,
     });
     usageByUser.set(row.user_id, entries);
@@ -175,10 +179,14 @@ export const adminLlmUsageDaily: RequestHandler = async (req, res) => {
         inputTokens: r.input_tokens,
         outputTokens: r.output_tokens,
         thinkingTokens: r.thinking_tokens,
+        cachedTokens: r.cached_tokens,
         cost: pricing
-          ? r.input_tokens * pricing.inputCostPerToken +
-            r.output_tokens * pricing.outputCostPerToken +
-            r.thinking_tokens * pricing.thinkingCostPerToken
+          ? computeCost(pricing, {
+              inputTokens: r.input_tokens,
+              outputTokens: r.output_tokens,
+              thinkingTokens: r.thinking_tokens,
+              cachedTokens: r.cached_tokens,
+            })
           : null,
       };
     }),

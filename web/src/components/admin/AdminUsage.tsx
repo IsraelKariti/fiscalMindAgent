@@ -164,12 +164,15 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
 
   const { series, groupTable } = useMemo(() => {
     const dayIndex = new Map(dayKeys.map((k, i) => [k, i]));
-    const byGroup = new Map<string, { values: number[]; cost: number; input: number; output: number; thinking: number }>();
+    const byGroup = new Map<
+      string,
+      { values: number[]; cost: number; input: number; output: number; thinking: number; cached: number }
+    >();
     for (const r of filtered) {
       const key = groupKeyOf(r);
       let g = byGroup.get(key);
       if (!g) {
-        g = { values: new Array<number>(dayKeys.length).fill(0), cost: 0, input: 0, output: 0, thinking: 0 };
+        g = { values: new Array<number>(dayKeys.length).fill(0), cost: 0, input: 0, output: 0, thinking: 0, cached: 0 };
         byGroup.set(key, g);
       }
       const i = dayIndex.get(r.day);
@@ -178,6 +181,7 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
       g.input += r.inputTokens;
       g.output += r.outputTokens;
       g.thinking += r.thinkingTokens;
+      g.cached += r.cachedTokens;
     }
 
     // Chart series: slotted groups keep their color; the rest sum into "Other".
@@ -208,6 +212,7 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
         input: g.input,
         output: g.output,
         thinking: g.thinking,
+        cached: g.cached,
       }))
       .sort((a, b) => b.total - a.total)
       .map((row) => ({ ...row, share: totalMetric > 0 ? row.total / totalMetric : 0 }));
@@ -386,6 +391,7 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
                   <th>{t.usageColInputTokens}</th>
                   <th>{t.usageColOutputTokens}</th>
                   <th>{t.usageColThinkingTokens}</th>
+                  <th>{t.usageColCachedTokens}</th>
                   <th>{t.usageColShare}</th>
                 </tr>
               </thead>
@@ -400,6 +406,7 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
                     <td dir="ltr">{row.input.toLocaleString(LOCALE)}</td>
                     <td dir="ltr">{row.output.toLocaleString(LOCALE)}</td>
                     <td dir="ltr">{row.thinking.toLocaleString(LOCALE)}</td>
+                    <td dir="ltr">{row.cached.toLocaleString(LOCALE)}</td>
                     <td dir="ltr">{`${Math.round(row.share * 100)}%`}</td>
                   </tr>
                 ))}

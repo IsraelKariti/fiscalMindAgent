@@ -40,6 +40,7 @@ export type AuditAction =
   | 'wa_business.disconnected'
   | 'review.message_pending'
   | 'review.message_held'
+  | 'client.llm_variant_assigned'
   | `admin.${string}`;
 
 export interface AuditEvent {

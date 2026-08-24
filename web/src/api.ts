@@ -257,6 +257,8 @@ export interface AccountantModelUsage {
   inputTokens: number;
   outputTokens: number;
   thinkingTokens: number;
+  /** Prompt-cache read tokens — a subset of inputTokens, billed at the cached rate. */
+  cachedTokens: number;
   /** USD; null while the pricing registry has no entry for this model. */
   cost: number | null;
 }
@@ -303,8 +305,139 @@ export interface LlmDailyUsage {
   inputTokens: number;
   outputTokens: number;
   thinkingTokens: number;
+  /** Prompt-cache read tokens — a subset of inputTokens, billed at the cached rate. */
+  cachedTokens: number;
   /** USD; null while the pricing registry has no entry for this model. */
   cost: number | null;
+}
+
+/** One arm of an admin LLM A/B experiment: a model plus its own prompt (null = the built-in template). */
+export interface LlmExperimentArm {
+  key: string;
+  model: string;
+  promptTemplate: string | null;
+}
+
+export interface LlmExperiment {
+  enabled: boolean;
+  arms: LlmExperimentArm[];
+}
+
+/** Per-(arm, model) totals from the per-call log — the experiment scoreboard. */
+export interface LlmVariantStats {
+  variant: string | null;
+  model: string;
+  calls: number;
+  errorCalls: number;
+  clients: number;
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+  cachedTokens: number;
+  /** USD summed from call-time prices; null when no call in the group was priced. */
+  cost: number | null;
+  unpricedCalls: number;
+}
+
+export interface LlmExperimentState {
+  experiment: LlmExperiment | null;
+  /** Model ids currently selectable (providers with API keys configured). */
+  options: string[];
+  /** The built-in prompt template — the starting point for arm overrides. */
+  defaultPromptTemplate: string;
+  /** Clients currently assigned to each arm key. */
+  clientCounts: Record<string, number>;
+  stats: LlmVariantStats[];
+}
+
+/** One client as the admin panel sees it (experiment fields included). */
+export interface AdminClient {
+  id: string;
+  name: string;
+  emailAddress: string;
+  waPhone: string | null;
+  goalStatus: 'pending' | 'complete';
+  paused: boolean;
+  adminPaused: boolean;
+  llmVariant: string | null;
+  createdAt: string;
+  lastMessageAt?: string | null;
+}
+
+export interface AdminConversationMessage {
+  id: string;
+  direction: 'inbound' | 'outbound';
+  status: string;
+  channel: 'email' | 'whatsapp';
+  subject: string;
+  body: string;
+  isTemplate: boolean;
+  reasoning: string | null;
+  reviewStatus: string | null;
+  heldAt: string | null;
+  sentAt: string | null;
+  createdAt: string;
+}
+
+/** The full thread the agent is having with one client (GET /admin/clients/:id/conversation). */
+export interface AdminConversation {
+  client: AdminClient;
+  agentInstanceId: string | null;
+  agentType: string | null;
+  instanceName: string | null;
+  accountantEmail: string | null;
+  accountantName: string | null;
+  messages: AdminConversationMessage[];
+}
+
+/** One LLM API call (payloads excluded — the list view). */
+export interface LlmCallSummary {
+  id: string;
+  createdAt: string;
+  userId: string | null;
+  agentInstanceId: string | null;
+  clientId: string | null;
+  clientName: string | null;
+  variant: string | null;
+  purpose: string;
+  provider: string;
+  model: string;
+  status: 'ok' | 'error';
+  error: string | null;
+  attempts: number;
+  durationMs: number | null;
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+  cachedTokens: number;
+  /** USD per single token at call time; null when the pricing feed had no entry. */
+  inputPricePerToken: number | null;
+  outputPricePerToken: number | null;
+  thinkingPricePerToken: number | null;
+  cachedPricePerToken: number | null;
+  cost: number | null;
+}
+
+/** One call with the exact request payload and the raw response (GET /admin/llm-calls/:id). */
+export interface LlmCallDetail extends LlmCallSummary {
+  request: {
+    model?: string;
+    systemInstruction?: string;
+    contents?: unknown;
+    config?: Record<string, unknown>;
+  };
+  response: string | null;
+}
+
+export interface LlmCallFilters {
+  agentInstanceId?: string;
+  clientId?: string;
+  variant?: string;
+  purpose?: string;
+  model?: string;
+  /** ISO instant — return calls strictly before it (keyset pagination). */
+  before?: string;
+  limit?: number;
 }
 
 /**
@@ -779,6 +912,31 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ paused }),
     }),
+  adminGetLlmExperiment: (agentInstanceId: string) =>
+    request<LlmExperimentState>(`/admin/agents/${agentInstanceId}/llm-experiment`),
+  adminSetLlmExperiment: (agentInstanceId: string, experiment: LlmExperiment | null) =>
+    request<{ experiment: LlmExperiment | null }>(`/admin/agents/${agentInstanceId}/llm-experiment`, {
+      method: 'PUT',
+      body: JSON.stringify({ experiment }),
+    }),
+  adminListInstanceClients: (agentInstanceId: string) =>
+    request<{ clients: AdminClient[] }>(`/admin/agents/${agentInstanceId}/clients`),
+  adminSetClientLlmVariant: (clientId: string, variant: string | null) =>
+    request<{ llmVariant: string | null }>(`/admin/clients/${clientId}/llm-variant`, {
+      method: 'POST',
+      body: JSON.stringify({ variant }),
+    }),
+  adminGetClientConversation: (clientId: string) =>
+    request<AdminConversation>(`/admin/clients/${clientId}/conversation`),
+  adminListLlmCalls: (filters: LlmCallFilters) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== '') params.set(key, String(value));
+    }
+    const qs = params.toString();
+    return request<{ calls: LlmCallSummary[]; nextBefore: string | null }>(`/admin/llm-calls${qs ? `?${qs}` : ''}`);
+  },
+  adminGetLlmCall: (id: string) => request<{ call: LlmCallDetail }>(`/admin/llm-calls/${id}`),
   adminEnableAgent: (userId: string, agentType: string, emailLocalPart?: string, taxYear?: number) =>
     request<{ agent: AgentInstance }>(`/admin/accountants/${userId}/agents`, {
       method: 'POST',

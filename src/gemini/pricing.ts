@@ -1,6 +1,10 @@
 import { providerForModel } from './modelSettings.js';
 import { logger } from '../util/logger.js';
 
+// The arithmetic lives in cost.ts (pure, tested); re-exported here so call
+// sites import prices and cost math from one place.
+export { computeCost } from './cost.js';
+
 // Google publishes Gemini prices only as an HTML docs page, so we read them from
 // LiteLLM's community-maintained registry instead — the de-facto standard pricing
 // JSON that mirrors the official per-model rates.
@@ -15,6 +19,8 @@ export interface LlmPricing {
   inputCostPerToken: number;
   outputCostPerToken: number;
   thinkingCostPerToken: number;
+  /** Rate for prompt-cache READ tokens (a subset of input tokens, discounted). */
+  cachedCostPerToken: number;
 }
 
 // The whole registry is cached (not one model's entry) because the admin can
@@ -63,11 +69,14 @@ export async function getPricingForModel(model: string): Promise<LlmPricing | nu
     return null;
   }
   const reasoning = entry?.output_cost_per_reasoning_token;
+  const cached = entry?.cache_read_input_token_cost;
   return {
     model,
     inputCostPerToken: input,
     outputCostPerToken: output,
     // Both providers bill thinking tokens at the output rate unless listed separately.
     thinkingCostPerToken: typeof reasoning === 'number' ? reasoning : output,
+    // Cache reads bill at a discount where offered; the input rate otherwise.
+    cachedCostPerToken: typeof cached === 'number' ? cached : input,
   };
 }

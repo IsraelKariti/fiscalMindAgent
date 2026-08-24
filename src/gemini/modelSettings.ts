@@ -1,37 +1,14 @@
 import * as appSettings from '../db/queries/appSettings.js';
 import { env } from '../config/env.js';
+import { LLM_MODEL_OPTIONS, providerForModel, type LlmModelOption } from './modelCatalog.js';
+
+// The static catalog itself is pure and lives in modelCatalog.ts (schemas and
+// tests import it without dragging in env/DB); re-exported here so existing
+// import sites keep working.
+export { LLM_MODEL_OPTIONS, providerForModel } from './modelCatalog.js';
+export type { LlmModelOption, LlmProvider } from './modelCatalog.js';
 
 export const GEMINI_MODEL_SETTING_KEY = 'gemini_model';
-
-/**
- * Models the admin can pick from. Each id must exist in LiteLLM's pricing
- * registry — as `gemini/<id>` for Gemini models, bare `<id>` for OpenAI and
- * Anthropic — or cost tracking goes dark (see pricing.ts).
- */
-export const LLM_MODEL_OPTIONS = [
-  'gemini-2.5-flash',
-  'gemini-3-flash-preview',
-  'gemini-3.5-flash',
-  'gemini-3.7-flash',
-  'gemini-3.1-pro-preview',
-  'gpt-5.6-sol',
-  'gpt-5.6-terra',
-  'gpt-5.6-luna',
-  'claude-opus-5',
-  'claude-sonnet-5',
-  'claude-haiku-4-5',
-] as const;
-
-export type LlmModelOption = (typeof LLM_MODEL_OPTIONS)[number];
-
-export type LlmProvider = 'gemini' | 'openai' | 'anthropic';
-
-/** Which API a model id is served by (generate.ts routes on this). */
-export function providerForModel(model: string): LlmProvider {
-  if (model.startsWith('gpt-')) return 'openai';
-  if (model.startsWith('claude-')) return 'anthropic';
-  return 'gemini';
-}
 
 /**
  * The options actually selectable right now: OpenAI/Anthropic models only

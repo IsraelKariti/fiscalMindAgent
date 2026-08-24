@@ -13,7 +13,11 @@ via its own prompt template (`declarationOfCapital/prompt.md`, selected per
 agent type in `docCollector/plan.ts`), the analyzer's valuation-date framing
 (`AnalysisPurpose` in `analyzeFile.ts`), and its own UI defaults (add-client
 checklist, no monday board import). The accountant-editable prompt template
-(legacy setting key) applies to `doc_collector` only.
+(legacy setting key) applies to `doc_collector` only. Since migration 049 a
+DoC client can instead run on an **admin LLM-experiment arm**
+(`declarationOfCapital/experiment.ts`, see "Admin LLM A/B experiments" below):
+the arm's model overrides the global model and its optional prompt override
+replaces `prompt.md` for that client's whole conversation.
 Since 2026-08-23 it is also the first **WhatsApp-only** type
 (`AgentTypeDefinition.whatsappOnly`; it has no `emailSuffix` anymore, so
 activation is not email-gated and no mailbox is required — the instance's
@@ -255,6 +259,15 @@ tenancy / admin impersonation / monday token auth.
   is the only other way an instance gets or changes its address;
   `GET/POST /api/admin/wa-senders`, `DELETE /api/admin/wa-senders/:agentInstanceId`
   (per-instance number assignment).
+  LLM experiments + per-call observability (049, `src/api/llmAdmin.ts`):
+  `GET/PUT /api/admin/agents/:agentInstanceId/llm-experiment` (config +
+  per-arm scoreboard; DoC-gated via `isSupervisedInstance`),
+  `GET /api/admin/agents/:agentInstanceId/clients` (instance roster with arm),
+  `POST /api/admin/clients/:clientId/llm-variant` (reassign an arm),
+  `GET /api/admin/clients/:clientId/conversation` (the full thread, drafts and
+  held rows included — the admin conversation viewer),
+  `GET /api/admin/llm-calls` + `GET /api/admin/llm-calls/:id` (the per-call
+  log browser, payloads only on the detail route).
 
 ## Frontend (`web/src/agents/`)
 
@@ -532,7 +545,9 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   import-now); `DebtCollectorSettings.tsx` is now a thin wrapper around it.
 - Deferred (unblocked by design, not built): removal of the legacy unprefixed
   mounts; per-agent prompt-template keys (`prompt_template.<agent_type>`,
-  today the admin prompt editor edits the doc collector via the legacy key);
+  today the admin prompt editor edits the doc collector via the legacy key —
+  the 049 experiment arms cover the DoC per-client case but not a general
+  per-agent template);
   inbound **email** fan-out when one accountant has the same client email in
   two agents (the 019 uniqueness relaxation to `(client_id, message_id)`
   already allows it — today routing picks the user-scoped match). The
@@ -543,10 +558,33 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
 - Per-agent LLM cost attribution shipped with migration 023: `llmUsage.add`
   writes both the lifetime `llm_model_usage` counters and a daily
   `llm_usage_daily` bucket per (day, accountant, agent instance, model), days
-  bucketed in `ACCOUNTANT_TIMEZONE`. `GET /api/admin/llm-usage/daily?days=N`
+  bucketed in `ACCOUNTANT_TIMEZONE`; both carry `cached_tokens` since 049
+  (prompt-cache reads, a subset of input, billed at the discounted
+  `cache_read_input_token_cost` rate — `computeCost` in `src/gemini/pricing.ts`
+  is the single arithmetic path). `GET /api/admin/llm-usage/daily?days=N`
   returns the priced cube; the admin `#/usage` page (AdminUsage.tsx) charts it
   with client-side grouping (accountants / agent types) and filters. Every new
   Gemini call site must pass its agent instance id to `llmUsage.add`.
+- **Admin LLM A/B experiments + per-call log** (migration 049, admin-only,
+  invisible to the accountant — `workspaceSerialize.toWorkspaceClient` strips
+  `clients.llm_variant` exactly as it strips the 048 supervision fields, and
+  `agent_instances.llm_experiment` is a column, not `settings`, because the
+  accountant settings PUT replaces that JSONB wholesale). The admin defines
+  arms (model + optional prompt override) on a DoC instance; each client is
+  assigned an arm round-robin at first LLM use
+  (`resolveClientLlmVariant` in `declarationOfCapital/experiment.ts` — sticky,
+  audited as `client.llm_variant_assigned`, admin-reassignable) and ALL of
+  that client's DoC calls (decide, form intake, verification, file analysis)
+  run on the arm's model. `llm_calls` is the per-call record: the exact
+  request (binary parts reduced to `{mimeType, sizeBytes}` placeholders —
+  never bytes), the response text, tokens by kind incl. cached, and the four
+  per-token USD prices **at call time** plus the computed cost. It is written
+  centrally from `generateWithRetry` for every call site that passes an
+  `LlmCallLogContext` (fire-and-forget; logging never fails the call). **Every
+  new LLM call site should pass a `LlmCallLogContext` to `generateWithRetry`**
+  alongside the existing `llmUsage.add` obligation (today wired: the
+  doc-collector family's four sites; debt collector / CS are counters-only).
+  Like `audit_events`, `llm_calls` has no FKs — call history outlives clients.
 - **Audit trail + anomaly detection** (migrations 031-032): `audit_events` is
   the per-action forensic record — one row per outbound email/WhatsApp,
   tax-authority login/OTP/delivery, LLM-driven status change

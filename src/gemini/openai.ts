@@ -118,7 +118,12 @@ export async function generateContentOpenAI(request: GeminiRequest): Promise<Gen
 
   const data = (await res.json()) as {
     output?: unknown;
-    usage?: { input_tokens?: number; output_tokens?: number; output_tokens_details?: { reasoning_tokens?: number } };
+    usage?: {
+      input_tokens?: number;
+      output_tokens?: number;
+      input_tokens_details?: { cached_tokens?: number };
+      output_tokens_details?: { reasoning_tokens?: number };
+    };
   };
   const text = extractText(data.output);
   const reasoningTokens = data.usage?.output_tokens_details?.reasoning_tokens ?? 0;
@@ -130,6 +135,9 @@ export async function generateContentOpenAI(request: GeminiRequest): Promise<Gen
       // and usageFromResponse/pricing assume the disjoint convention.
       candidatesTokenCount: Math.max(0, (data.usage?.output_tokens ?? 0) - reasoningTokens),
       thoughtsTokenCount: reasoningTokens,
+      // Like Gemini's cachedContentTokenCount, OpenAI's cached_tokens are a
+      // subset of input_tokens — the convention usageFromResponse assumes.
+      cachedContentTokenCount: data.usage?.input_tokens_details?.cached_tokens ?? 0,
     },
   } as GenerateContentResponse;
 }

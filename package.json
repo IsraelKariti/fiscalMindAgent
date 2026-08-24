@@ -25,7 +25,7 @@
     "cli:bootstrap": "tsx src/cli/bootstrapClient.ts",
     "ship": "node scripts/ship.mjs",
     "sync": "node scripts/sync.mjs",
-    "test": "node --import tsx --test tests/promptSafety.test.ts tests/fileEvidence.test.ts tests/audit.test.ts tests/anomalyRules.test.ts tests/twilioMediaUrl.test.ts tests/sendAtGuard.test.ts tests/upcomingDates.test.ts tests/decisionKeepalive.test.ts tests/verifyChecks.test.ts tests/intakeDecision.test.ts tests/capitalCatalog.test.ts tests/waOnlyChannel.test.ts tests/formIntake.test.ts",
+    "test": "node --import tsx --test tests/promptSafety.test.ts tests/fileEvidence.test.ts tests/audit.test.ts tests/anomalyRules.test.ts tests/twilioMediaUrl.test.ts tests/sendAtGuard.test.ts tests/upcomingDates.test.ts tests/decisionKeepalive.test.ts tests/verifyChecks.test.ts tests/intakeDecision.test.ts tests/capitalCatalog.test.ts tests/waOnlyChannel.test.ts tests/formIntake.test.ts tests/llmExperiment.test.ts",
     "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": {

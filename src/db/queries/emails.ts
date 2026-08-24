@@ -17,6 +17,28 @@ export async function getById(id: string): Promise<EmailRow | null> {
   return rows[0] ?? null;
 }
 
+/** The full thread — every status, drafts and held rows included. Admin conversation viewer only. */
+export async function listFullThreadForClient(clientId: string): Promise<EmailRow[]> {
+  const { rows } = await pool.query<EmailRow>(
+    `SELECT * FROM emails WHERE client_id = $1 ORDER BY COALESCE(sent_at, created_at) ASC`,
+    [clientId],
+  );
+  return rows;
+}
+
+/** Latest message instant per client (sent/received only) — the admin client list's activity column. */
+export async function lastMessageAtByClient(clientIds: string[]): Promise<Map<string, Date>> {
+  if (clientIds.length === 0) return new Map();
+  const { rows } = await pool.query<{ client_id: string; last_at: Date }>(
+    `SELECT client_id, MAX(COALESCE(sent_at, created_at)) AS last_at
+     FROM emails
+     WHERE client_id = ANY($1) AND status IN ('sent', 'received')
+     GROUP BY client_id`,
+    [clientIds],
+  );
+  return new Map(rows.map((r) => [r.client_id, r.last_at]));
+}
+
 export async function insertDraft(
   clientId: string,
   args: {

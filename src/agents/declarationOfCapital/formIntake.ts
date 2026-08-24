@@ -1,8 +1,10 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { getGeminiModel } from '../../gemini/modelSettings.js';
 import { generateWithRetry, usageFromResponse } from '../../gemini/generate.js';
+import { resolveClientLlmVariant } from './experiment.js';
 import { recordAudit } from '../../audit/audit.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
@@ -109,12 +111,25 @@ export async function applyFormIntake(
     .replace('{{catalog}}', catalogLines(rows))
     .replace('{{answers}}', answers.map((a) => `שאלה: ${a.question}\nתשובה: ${a.answer}`).join('\n\n'));
 
-  const model = await getGeminiModel();
-  const response = await generateWithRetry({
-    model,
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    config: { responseMimeType: 'application/json', responseJsonSchema: formIntakeJsonSchema, temperature: 0 },
-  });
+  // The client's experiment arm (049) also serves this isolated read, so a
+  // model comparison covers the whole pipeline, not just the conversation.
+  const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
+  const variantArm = await resolveClientLlmVariant(client, instance);
+  const model = variantArm?.model ?? (await getGeminiModel());
+  const response = await generateWithRetry(
+    {
+      model,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { responseMimeType: 'application/json', responseJsonSchema: formIntakeJsonSchema, temperature: 0 },
+    },
+    {
+      userId: client.user_id,
+      agentInstanceId: client.agent_instance_id,
+      clientId: client.id,
+      variant: variantArm?.key ?? null,
+      purpose: 'form_intake',
+    },
+  );
   if (client.user_id) {
     await llmUsage.add(client.user_id, client.agent_instance_id, model, usageFromResponse(response));
   }

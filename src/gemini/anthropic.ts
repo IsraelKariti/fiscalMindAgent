@@ -131,14 +131,21 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')
     .map((block) => block.text)
     .join('');
+  // Anthropic's input_tokens EXCLUDES cache reads/writes; Gemini's
+  // promptTokenCount includes cached tokens. Normalize to the Gemini
+  // convention (cached ⊂ input). Cache-creation tokens (1.25× input rate) are
+  // folded into plain input — we never set cache_control, so they are 0.
+  const cacheRead = response.usage.cache_read_input_tokens ?? 0;
+  const cacheCreation = response.usage.cache_creation_input_tokens ?? 0;
   return {
     text: text || undefined,
     usageMetadata: {
-      promptTokenCount: response.usage.input_tokens,
+      promptTokenCount: response.usage.input_tokens + cacheRead + cacheCreation,
       // Anthropic folds thinking tokens into output_tokens and bills them at
       // the output rate, so reporting them all as output keeps costs right.
       candidatesTokenCount: response.usage.output_tokens,
       thoughtsTokenCount: 0,
+      cachedContentTokenCount: cacheRead,
     },
   } as GenerateContentResponse;
 }

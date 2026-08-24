@@ -127,6 +127,18 @@ export async function setAdminPaused(id: string, on: boolean): Promise<AgentInst
   return rows[0] ?? null;
 }
 
+/** Admin-owned LLM A/B experiment config (049); NULL clears it. Only effective on declaration_of_capital. */
+export async function setLlmExperiment(
+  id: string,
+  experiment: Record<string, unknown> | null,
+): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'UPDATE agent_instances SET llm_experiment = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, experiment === null ? null : JSON.stringify(experiment)],
+  );
+  return rows[0] ?? null;
+}
+
 /** Replaces the instance's settings JSONB — shape owned by the agent type's Zod schema. */
 export async function updateSettings(id: string, settings: Record<string, unknown>): Promise<AgentInstanceRow | null> {
   const { rows } = await pool.query<AgentInstanceRow>(

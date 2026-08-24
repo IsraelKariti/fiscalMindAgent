@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
  *   #/usage                              LLM spend analytics
  *   #/audit                              audit trail + anomaly alerts
  *   #/review                             pilot message review queue
+ *   #/llm-calls                          per-call LLM log browser
  *   #/settings                           platform settings
  */
 export type AdminRoute =
@@ -22,6 +23,7 @@ export type AdminRoute =
   | { screen: 'usage' }
   | { screen: 'audit' }
   | { screen: 'review' }
+  | { screen: 'llmCalls' }
   | { screen: 'settings' };
 
 export function routeHash(route: AdminRoute): string {
@@ -42,6 +44,8 @@ export function routeHash(route: AdminRoute): string {
       return '#/audit';
     case 'review':
       return '#/review';
+    case 'llmCalls':
+      return '#/llm-calls';
     case 'settings':
       return '#/settings';
   }
@@ -57,6 +61,7 @@ function parseHash(hash: string): AdminRoute {
   if (parts[0] === 'usage') return { screen: 'usage' };
   if (parts[0] === 'audit') return { screen: 'audit' };
   if (parts[0] === 'review') return { screen: 'review' };
+  if (parts[0] === 'llm-calls') return { screen: 'llmCalls' };
   if (parts[0] === 'agents') return { screen: 'agents' };
   if (parts[0] === 'accountants') {
     const email = parts[1];

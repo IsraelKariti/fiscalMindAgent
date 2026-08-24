@@ -18,6 +18,7 @@ import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
 import { logger } from '../../util/logger.js';
 import { getCatalogType, GENERIC_CHECKS } from './catalog.js';
+import { resolveClientLlmVariant } from './experiment.js';
 import { runChecks, type ExtractedFields } from './verifyChecks.js';
 import type { AgentInstanceRow, ClientRow, ClientDocumentRow } from '../../db/types.js';
 import type { Readable } from 'node:stream';
@@ -192,17 +193,28 @@ export async function verifyCollectedDocument(
           : '',
       )
       .replace('{{filename}}', sanitizeInline(file.filename, 150));
-    const model = await getGeminiModel();
-    const response = await generateWithRetry({
-      model,
-      contents: [
-        {
-          role: 'user',
-          parts: [{ inlineData: { mimeType: file.content_type, data: bytes.toString('base64') } }, { text: prompt }],
-        },
-      ],
-      config: { responseMimeType: 'application/json', responseJsonSchema: extractionJsonSchema, temperature: 0 },
-    });
+    // The client's experiment arm (049) also serves the extraction read.
+    const variantArm = await resolveClientLlmVariant(client, instance);
+    const model = variantArm?.model ?? (await getGeminiModel());
+    const response = await generateWithRetry(
+      {
+        model,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ inlineData: { mimeType: file.content_type, data: bytes.toString('base64') } }, { text: prompt }],
+          },
+        ],
+        config: { responseMimeType: 'application/json', responseJsonSchema: extractionJsonSchema, temperature: 0 },
+      },
+      {
+        userId: client.user_id,
+        agentInstanceId: client.agent_instance_id,
+        clientId: client.id,
+        variant: variantArm?.key ?? null,
+        purpose: 'verify_document',
+      },
+    );
     if (client.user_id) {
       await llmUsage.add(client.user_id, client.agent_instance_id, model, usageFromResponse(response));
     }

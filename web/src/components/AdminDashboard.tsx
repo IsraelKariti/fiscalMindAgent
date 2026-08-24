@@ -5,6 +5,7 @@ import { AccountantPage } from './admin/AccountantPage';
 import { AccountantsTable } from './admin/AccountantsTable';
 import { AdminAgents } from './admin/AdminAgents';
 import { AdminAudit } from './admin/AdminAudit';
+import { AdminLlmCalls } from './admin/AdminLlmCalls';
 import { AdminOverview } from './admin/AdminOverview';
 import { AdminReview } from './admin/AdminReview';
 import { AdminSettings } from './admin/AdminSettings';
@@ -73,6 +74,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     route.screen === 'usage' ||
     route.screen === 'audit' ||
     route.screen === 'review' ||
+    route.screen === 'llmCalls' ||
     route.screen === 'overview' ||
     route.screen === 'agents'
       ? route.screen
@@ -147,6 +149,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             {pendingReviews > 0 && <span className="badge badge-danger">{pendingReviews}</span>}
           </button>
           <button
+            className={`client-tab ${activeTab === 'llmCalls' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === 'llmCalls'}
+            onClick={() => navigate({ screen: 'llmCalls' })}
+          >
+            {t.adminLlmCallsTab}
+          </button>
+          <button
             className={`client-tab ${activeTab === 'settings' ? 'active' : ''}`}
             role="tab"
             aria-selected={activeTab === 'settings'}
@@ -194,6 +204,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
         {route.screen === 'audit' && <AdminAudit />}
 
         {route.screen === 'review' && <AdminReview onCountChanged={setPendingReviews} />}
+
+        {route.screen === 'llmCalls' && accountants && <AdminLlmCalls accountants={accountants} />}
 
         {route.screen === 'settings' && <AdminSettings userEmail={userEmail} />}
       </main>

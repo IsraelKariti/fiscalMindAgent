@@ -1,6 +1,12 @@
 import * as clients from '../../db/queries/clients.js';
 import { availableModelOptions } from '../../gemini/modelSettings.js';
-import { parseExperimentValue, type LlmExperimentConfig } from './experimentConfig.js';
+import {
+  armModelFor,
+  LLM_CALL_PURPOSES,
+  parseExperimentValue,
+  type LlmCallPurpose,
+  type LlmExperimentConfig,
+} from './experimentConfig.js';
 import { recordAudit } from '../../audit/audit.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow, ClientRow } from '../../db/types.js';
@@ -21,7 +27,13 @@ import type { AgentInstanceRow, ClientRow } from '../../db/types.js';
 
 // The schema itself is pure and lives in experimentConfig.ts (tested);
 // re-exported here so the admin API imports everything from one place.
-export { LlmExperimentSchema, type LlmExperimentConfig } from './experimentConfig.js';
+export {
+  LlmExperimentSchema,
+  LLM_CALL_PURPOSES,
+  armModels,
+  type LlmCallPurpose,
+  type LlmExperimentConfig,
+} from './experimentConfig.js';
 
 /** The stored config, or null when absent/invalid (an old shape logs and disables). */
 export function parseExperiment(instance: AgentInstanceRow | null): LlmExperimentConfig | null {
@@ -38,8 +50,12 @@ export function parseExperiment(instance: AgentInstanceRow | null): LlmExperimen
 
 export interface ResolvedVariant {
   key: string;
-  /** The arm's model, or null when its provider became unavailable (caller falls back to the global model). */
-  model: string | null;
+  /**
+   * The model per call site (the arm's pin for that purpose, else its default),
+   * or null when that model's provider became unavailable — the caller then
+   * falls back to the global model.
+   */
+  models: Record<LlmCallPurpose, string | null>;
   /** The arm's prompt override, or null for the built-in template. */
   promptTemplate: string | null;
 }
@@ -71,7 +87,7 @@ export async function resolveClientLlmVariant(
       action: 'client.llm_variant_assigned',
       agentInstanceId: instance.id,
       clientId: client.id,
-      detail: { clientName: client.name, variant: arm.key, model: arm.model },
+      detail: { clientName: client.name, variant: arm.key, model: arm.model, models: arm.models ?? null },
     });
     logger.info('llm experiment: variant assigned', { clientId: client.id, variant: arm.key, model: arm.model });
   }
@@ -79,13 +95,21 @@ export async function resolveClientLlmVariant(
   // An arm whose provider key was removed must not silently call an
   // unreachable model — fall back to the global model but keep the arm's
   // prompt and attribution.
-  const modelAvailable = (availableModelOptions() as readonly string[]).includes(arm.model);
-  if (!modelAvailable) {
-    logger.warn('llm experiment: arm model unavailable, falling back to the global model', {
-      clientId: client.id,
-      variant: arm.key,
-      model: arm.model,
-    });
+  const available = availableModelOptions() as readonly string[];
+  const models = {} as Record<LlmCallPurpose, string | null>;
+  for (const purpose of LLM_CALL_PURPOSES) {
+    const model = armModelFor(arm, purpose);
+    if (available.includes(model)) {
+      models[purpose] = model;
+    } else {
+      models[purpose] = null;
+      logger.warn('llm experiment: arm model unavailable, falling back to the global model', {
+        clientId: client.id,
+        variant: arm.key,
+        purpose,
+        model,
+      });
+    }
   }
-  return { key: arm.key, model: modelAvailable ? arm.model : null, promptTemplate: arm.promptTemplate };
+  return { key: arm.key, models, promptTemplate: arm.promptTemplate };
 }

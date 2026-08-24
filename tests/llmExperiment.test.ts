@@ -2,6 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   LlmExperimentSchema,
+  armModelFor,
+  armModels,
   parseExperimentValue,
 } from '../src/agents/declarationOfCapital/experimentConfig.js';
 import { computeCost } from '../src/gemini/cost.js';
@@ -41,6 +43,40 @@ describe('LlmExperimentSchema', () => {
   it('rejects an empty prompt override (null means "use the built-in")', () => {
     assert.equal(
       LlmExperimentSchema.safeParse({ enabled: true, arms: [{ ...arm('A'), promptTemplate: '' }] }).success,
+      false,
+    );
+  });
+});
+
+describe('per-call-site models', () => {
+  const base = { key: 'A', model: 'claude-opus-5', promptTemplate: null };
+
+  it('an arm without pins (older stored shape) runs every call site on its default model', () => {
+    const arm = LlmExperimentSchema.parse({ enabled: true, arms: [base] }).arms[0]!;
+    assert.equal(armModelFor(arm, 'conversation_decide'), 'claude-opus-5');
+    assert.equal(armModelFor(arm, 'verify_document'), 'claude-opus-5');
+    assert.deepEqual(armModels(arm), ['claude-opus-5']);
+  });
+
+  it('pins override only their own call site', () => {
+    const arm = LlmExperimentSchema.parse({
+      enabled: true,
+      arms: [{ ...base, models: { analyze_file: 'gemini-3.7-flash', verify_document: 'gemini-3.7-flash' } }],
+    }).arms[0]!;
+    assert.equal(armModelFor(arm, 'conversation_decide'), 'claude-opus-5');
+    assert.equal(armModelFor(arm, 'form_intake'), 'claude-opus-5');
+    assert.equal(armModelFor(arm, 'analyze_file'), 'gemini-3.7-flash');
+    assert.equal(armModelFor(arm, 'verify_document'), 'gemini-3.7-flash');
+    assert.deepEqual(armModels(arm).sort(), ['claude-opus-5', 'gemini-3.7-flash']);
+  });
+
+  it('rejects unknown call sites and unknown models in pins', () => {
+    assert.equal(
+      LlmExperimentSchema.safeParse({ enabled: true, arms: [{ ...base, models: { summarize: 'claude-opus-5' } }] }).success,
+      false,
+    );
+    assert.equal(
+      LlmExperimentSchema.safeParse({ enabled: true, arms: [{ ...base, models: { form_intake: 'gpt-9' } }] }).success,
       false,
     );
   });

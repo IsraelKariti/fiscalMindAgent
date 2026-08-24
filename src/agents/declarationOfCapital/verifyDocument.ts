@@ -195,7 +195,7 @@ export async function verifyCollectedDocument(
       .replace('{{filename}}', sanitizeInline(file.filename, 150));
     // The client's experiment arm (049) also serves the extraction read.
     const variantArm = await resolveClientLlmVariant(client, instance);
-    const model = variantArm?.model ?? (await getGeminiModel());
+    const model = variantArm?.models.verify_document ?? (await getGeminiModel());
     const response = await generateWithRetry(
       {
         model,

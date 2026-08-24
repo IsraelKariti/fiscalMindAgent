@@ -204,7 +204,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     intake,
   };
   const { decision, usage, model } = await decide(systemInstruction, contents, decisionCtx, {
-    model: variantArm?.model ?? undefined,
+    model: variantArm?.models.conversation_decide ?? undefined,
     log: {
       userId: client.user_id,
       agentInstanceId: client.agent_instance_id,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, ApiError, type LlmExperiment, type LlmExperimentState } from '../../api';
+import { api, ApiError, LLM_CALL_PURPOSES, type LlmCallPurpose, type LlmExperiment, type LlmExperimentState } from '../../api';
 import { formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { Dropdown } from '../Dropdown';
@@ -94,6 +94,24 @@ export function LlmExperimentCard({
     return all.map((m) => ({ value: m, label: MODEL_LABELS[m] ?? m }));
   };
 
+  // Per-call-site pin: '' = follow the arm's default model.
+  const pinArmModel = (index: number, purpose: LlmCallPurpose, value: string) => {
+    setDraft((d) => {
+      if (!d) return d;
+      return {
+        ...d,
+        arms: d.arms.map((a, i) => {
+          if (i !== index) return a;
+          const models = { ...(a.models ?? {}) };
+          if (value) models[purpose] = value;
+          else delete models[purpose];
+          return { ...a, models: Object.keys(models).length > 0 ? models : undefined };
+        }),
+      };
+    });
+    setSaved(false);
+  };
+
   const variantLabel = (v: string | null) => (v === null ? t.adminLlmExperimentNoVariant : v);
 
   return (
@@ -151,6 +169,27 @@ export function LlmExperimentCard({
                   {t.adminLlmExperimentRemoveArm}
                 </button>
               )}
+            </div>
+            <div style={{ width: '100%' }}>
+              <span className="doc-desc">{t.adminLlmExperimentModelsTitle}</span>
+              <span className="doc-desc muted"> — {t.adminLlmExperimentModelsDesc}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 8, marginTop: 6 }}>
+                {LLM_CALL_PURPOSES.map((purpose) => (
+                  <label key={purpose} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span className="doc-desc muted">{t.adminLlmExperimentPurposeLabel[purpose] ?? purpose}</span>
+                    <span className="tax-year-dropdown">
+                      <Dropdown
+                        value={arm.models?.[purpose] ?? ''}
+                        options={[
+                          { value: '', label: `${t.adminLlmExperimentModelSameAsArm} (${MODEL_LABELS[arm.model] ?? arm.model})` },
+                          ...modelOptions(arm.models?.[purpose] ?? ''),
+                        ]}
+                        onChange={(v) => pinArmModel(i, purpose, v)}
+                      />
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
             {arm.promptTemplate === null ? (
               <span className="doc-desc muted">{t.adminLlmExperimentPromptDefaultNote}</span>

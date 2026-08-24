@@ -311,10 +311,18 @@ export interface LlmDailyUsage {
   cost: number | null;
 }
 
-/** One arm of an admin LLM A/B experiment: a model plus its own prompt (null = the built-in template). */
+/** The four LLM call sites an arm can pin a model to (llm_calls.purpose values). */
+export const LLM_CALL_PURPOSES = ['conversation_decide', 'form_intake', 'analyze_file', 'verify_document'] as const;
+export type LlmCallPurpose = (typeof LLM_CALL_PURPOSES)[number];
+
+/**
+ * One arm of an admin LLM A/B experiment: a default model, optional per-call-site
+ * model pins, and its own prompt (null = the built-in template).
+ */
 export interface LlmExperimentArm {
   key: string;
   model: string;
+  models?: Partial<Record<LlmCallPurpose, string>>;
   promptTemplate: string | null;
 }
 

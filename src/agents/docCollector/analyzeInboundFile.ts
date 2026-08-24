@@ -33,7 +33,7 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
     // Experiment arm (049): a null result (non-DoC / no experiment) leaves the global model.
     const variantArm = await resolveClientLlmVariant(ctx.client, ctx.instance);
     const { analysis, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear, purpose, {
-      model: variantArm?.model ?? undefined,
+      model: variantArm?.models.analyze_file ?? undefined,
       log: {
         userId: ctx.client.user_id,
         agentInstanceId: ctx.client.agent_instance_id,

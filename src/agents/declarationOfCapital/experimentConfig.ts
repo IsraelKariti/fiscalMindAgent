@@ -7,6 +7,23 @@ import { LLM_MODEL_OPTIONS } from '../../gemini/modelCatalog.js';
  * testable; the runtime behavior around it lives in experiment.ts.
  */
 
+/**
+ * The four LLM call sites of the pipeline, by their llm_calls.purpose value.
+ * An arm may pin a different model to each; unpinned purposes use the arm's
+ * default `model`.
+ */
+export const LLM_CALL_PURPOSES = ['conversation_decide', 'form_intake', 'analyze_file', 'verify_document'] as const;
+export type LlmCallPurpose = (typeof LLM_CALL_PURPOSES)[number];
+
+const PurposeModelsSchema = z
+  .object({
+    conversation_decide: z.enum(LLM_MODEL_OPTIONS).optional(),
+    form_intake: z.enum(LLM_MODEL_OPTIONS).optional(),
+    analyze_file: z.enum(LLM_MODEL_OPTIONS).optional(),
+    verify_document: z.enum(LLM_MODEL_OPTIONS).optional(),
+  })
+  .strict();
+
 export const LlmExperimentSchema = z
   .object({
     enabled: z.boolean(),
@@ -15,7 +32,10 @@ export const LlmExperimentSchema = z
         z
           .object({
             key: z.string().regex(/^[A-Za-z0-9_-]{1,20}$/),
+            /** The arm's default model — used by every call site not pinned in `models`. */
             model: z.enum(LLM_MODEL_OPTIONS),
+            /** Per-call-site overrides; absent (older stored configs) = all on `model`. */
+            models: PurposeModelsSchema.optional(),
             /** NULL = the built-in prompt.md template. Same placeholders as the built-in. */
             promptTemplate: z.string().min(1).max(100_000).nullable(),
           })
@@ -38,4 +58,16 @@ export function parseExperimentValue(
   if (value === null || value === undefined) return { config: null, error: null };
   const parsed = LlmExperimentSchema.safeParse(value);
   return parsed.success ? { config: parsed.data, error: null } : { config: null, error: parsed.error.message };
+}
+
+export type LlmExperimentArm = LlmExperimentConfig['arms'][number];
+
+/** The model an arm runs a given call site on: the pinned one, else the arm default. */
+export function armModelFor(arm: LlmExperimentArm, purpose: LlmCallPurpose): string {
+  return arm.models?.[purpose] ?? arm.model;
+}
+
+/** Every distinct model an arm can call (default + pins), for availability checks. */
+export function armModels(arm: LlmExperimentArm): string[] {
+  return [...new Set([arm.model, ...LLM_CALL_PURPOSES.map((p) => armModelFor(arm, p))])];
 }

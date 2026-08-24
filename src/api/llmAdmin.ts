@@ -6,7 +6,7 @@ import * as emails from '../db/queries/emails.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
 import * as users from '../db/queries/users.js';
 import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../agents/declarationOfCapital/prompt.js';
-import { LlmExperimentSchema, parseExperiment } from '../agents/declarationOfCapital/experiment.js';
+import { LlmExperimentSchema, armModels, parseExperiment } from '../agents/declarationOfCapital/experiment.js';
 import { isSupervisedInstance } from '../orchestration/adminPause.js';
 import { availableModelOptions } from '../gemini/modelSettings.js';
 import { logger } from '../util/logger.js';
@@ -118,7 +118,7 @@ export const adminSetLlmExperiment: RequestHandler = async (req, res) => {
   const experiment = parsed.data.experiment;
   if (experiment?.enabled) {
     const available = availableModelOptions() as readonly string[];
-    const missing = experiment.arms.filter((a) => !available.includes(a.model)).map((a) => a.model);
+    const missing = [...new Set(experiment.arms.flatMap(armModels).filter((m) => !available.includes(m)))];
     if (missing.length > 0) {
       res.status(400).json({ error: `Model not available (missing API key?): ${missing.join(', ')}` });
       return;
@@ -129,7 +129,12 @@ export const adminSetLlmExperiment: RequestHandler = async (req, res) => {
     adminUserId: req.realUserId,
     instanceId: instance.id,
     enabled: experiment?.enabled ?? false,
-    arms: experiment?.arms.map((a) => ({ key: a.key, model: a.model, customPrompt: a.promptTemplate !== null })),
+    arms: experiment?.arms.map((a) => ({
+      key: a.key,
+      model: a.model,
+      models: a.models ?? null,
+      customPrompt: a.promptTemplate !== null,
+    })),
   });
   res.json({ experiment });
 };

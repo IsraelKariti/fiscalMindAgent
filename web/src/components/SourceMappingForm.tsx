@@ -212,16 +212,13 @@ export function SourceMappingForm({
           </label>
         </>
       )}
-      <label className="field">
-        <span>{keyLabel}</span>
-        <Dropdown
-          value={keyColumn}
-          onChange={setKeyColumn}
-          // Declaration boards resolve the phone through the CRM link — their own key column is optional.
-          options={declaration ? [{ value: '', label: t.csSheetNameColumnNone }, ...keyOptions] : keyOptions}
-          placeholder={declaration ? undefined : t.csSheetChooseColumn}
-        />
-      </label>
+      {/* Declaration boards resolve the phone through the CRM link — no key column of their own. */}
+      {!declaration && (
+        <label className="field">
+          <span>{keyLabel}</span>
+          <Dropdown value={keyColumn} onChange={setKeyColumn} options={keyOptions} placeholder={t.csSheetChooseColumn} />
+        </label>
+      )}
       {withPhoneColumn && (
         <label className="field">
           <span>{t.csPhoneColumn}</span>

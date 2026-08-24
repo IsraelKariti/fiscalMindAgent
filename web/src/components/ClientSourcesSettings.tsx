@@ -57,6 +57,8 @@ interface Props {
   withStatusColumn?: boolean;
   /** Maps the declaration-flow board columns: CRM link, questionnaire link, file number, year (declaration of capital). */
   withDeclarationColumns?: boolean;
+  /** Show the Google Sheets source section; off for agents that enroll from monday links only (declaration of capital). */
+  withSheets?: boolean;
 }
 
 /**
@@ -68,7 +70,7 @@ interface Props {
  * workspace Settings view via AgentTypeUI.settingsPanel; the debt collector
  * wraps it too.
  */
-export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDescKey, sheetMappingDescKey, boardMappingDescKey, keyKind = 'email', withDocuments = false, withPortalCredentials = false, withStatusColumn = false, withDeclarationColumns = false }: Props) {
+export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDescKey, sheetMappingDescKey, boardMappingDescKey, keyKind = 'email', withDocuments = false, withPortalCredentials = false, withStatusColumn = false, withDeclarationColumns = false, withSheets = true }: Props) {
   const { t } = useT();
   const refreshClients = useClientsRefresh();
   const [connection, setConnection] = useState<MondayConnection | null>(null);
@@ -591,7 +593,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
         )}
       </SettingsGroup>
 
-      {gConnection && (
+      {withSheets && gConnection && (
         <SettingsGroup title={t.csGoogleSettingsTitle} aside={savedAside}>
           <SettingsRow
             title={t.csGoogleAccount}
@@ -677,7 +679,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
         </SettingsGroup>
       )}
 
-      {mapping && (
+      {withSheets && mapping && (
         <SheetMappingModal
           spreadsheetName={mapping.name}
           meta={mapping.meta}
@@ -727,6 +729,7 @@ export function ClientImportSettings({
   withPortalCredentials = false,
   withStatusColumn = false,
   withDeclarationColumns = false,
+  withSheets = true,
 }: {
   /** 'phone' for WhatsApp-only agents (declaration of capital): rows are keyed by their phone column. */
   keyKind?: 'email' | 'phone';
@@ -734,6 +737,7 @@ export function ClientImportSettings({
   withPortalCredentials?: boolean;
   withStatusColumn?: boolean;
   withDeclarationColumns?: boolean;
+  withSheets?: boolean;
 }) {
   const wsApi = useWorkspaceApi();
   const panelApi = useMemo<ClientSourcesPanelApi>(
@@ -759,6 +763,7 @@ export function ClientImportSettings({
         withPortalCredentials={withPortalCredentials}
         withStatusColumn={withStatusColumn}
         withDeclarationColumns={withDeclarationColumns}
+        withSheets={withSheets}
       />
       <WhatsAppBusinessSettings />
     </>

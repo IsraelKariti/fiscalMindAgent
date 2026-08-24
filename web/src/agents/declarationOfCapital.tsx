@@ -24,7 +24,9 @@ export const declarationOfCapitalUI: AgentTypeUI = {
   // webhook) — no manual add-client button.
   importOnlyClients: true,
   channels: CHANNELS,
-  settingsPanel: () => <ClientImportSettings keyKind="phone" withPortalCredentials withStatusColumn withDeclarationColumns />,
+  settingsPanel: () => (
+    <ClientImportSettings keyKind="phone" withPortalCredentials withStatusColumn withDeclarationColumns withSheets={false} />
+  ),
   nameKey: 'agentDeclarationOfCapitalName',
   descriptionKey: 'agentDeclarationOfCapitalDesc',
   icon: (

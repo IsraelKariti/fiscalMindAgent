@@ -730,6 +730,7 @@ export function ClientImportSettings({
   withStatusColumn = false,
   withDeclarationColumns = false,
   withSheets = true,
+  withImportScan = true,
 }: {
   /** 'phone' for WhatsApp-only agents (declaration of capital): rows are keyed by their phone column. */
   keyKind?: 'email' | 'phone';
@@ -738,6 +739,12 @@ export function ClientImportSettings({
   withStatusColumn?: boolean;
   withDeclarationColumns?: boolean;
   withSheets?: boolean;
+  /**
+   * Off for kickoff-only agents (declaration of capital): the sweep refuses
+   * their rows (enrollment happens in the kickoff webhook), so the "import
+   * now" affordances could only ever report 0.
+   */
+  withImportScan?: boolean;
 }) {
   const wsApi = useWorkspaceApi();
   const panelApi = useMemo<ClientSourcesPanelApi>(
@@ -746,15 +753,15 @@ export function ClientImportSettings({
       saveSettings: wsApi.sourcesSaveSettings,
       listBoards: wsApi.sourcesListMondayBoards,
       spreadsheetMeta: wsApi.sourcesSpreadsheetMeta,
-      scanNow: wsApi.sourcesScanNow,
+      scanNow: withImportScan ? wsApi.sourcesScanNow : undefined,
     }),
-    [wsApi],
+    [wsApi, withImportScan],
   );
   return (
     <>
       <ClientSourcesSettings
         api={panelApi}
-        boardsDescKey="sourcesBoardsDesc"
+        boardsDescKey={withImportScan ? 'sourcesBoardsDesc' : 'sourcesBoardsDescKickoff'}
         sheetsDescKey="sourcesSheetsDesc"
         sheetMappingDescKey="sourcesSheetMappingDesc"
         boardMappingDescKey="sourcesBoardMappingDesc"

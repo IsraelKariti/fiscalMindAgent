@@ -28,7 +28,7 @@ export const declarationOfCapitalUI: AgentTypeUI = {
   // carries links, not identity — the ת"ז comes off the linked CRM card at
   // kickoff (agent_fields.id_number).
   settingsPanel: () => (
-    <ClientImportSettings keyKind="phone" withStatusColumn withDeclarationColumns withSheets={false} />
+    <ClientImportSettings keyKind="phone" withStatusColumn withDeclarationColumns withSheets={false} withImportScan={false} />
   ),
   nameKey: 'agentDeclarationOfCapitalName',
   descriptionKey: 'agentDeclarationOfCapitalDesc',

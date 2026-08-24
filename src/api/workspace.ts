@@ -30,6 +30,7 @@ import { defaultTaxYear } from '../agents/shared/taxYear.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { DueDateSchema } from './schemas.js';
+import { toWorkspaceClient, toWorkspaceEmail } from './workspaceSerialize.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -110,7 +111,7 @@ workspaceRouter.get(
 workspaceRouter.get(
   '/clients',
   wrap(async (req, res) => {
-    res.json({ clients: await clients.listForInstance(req.agentInstance!.id) });
+    res.json({ clients: (await clients.listForInstance(req.agentInstance!.id)).map(toWorkspaceClient) });
   }),
 );
 
@@ -238,7 +239,7 @@ workspaceRouter.post(
       draftFirstEmail(client.id);
     }
     publishInstanceClientsUpdated(req.agentInstance!.id);
-    res.status(201).json({ client });
+    res.status(201).json({ client: toWorkspaceClient(client) });
   }),
 );
 
@@ -268,7 +269,7 @@ workspaceRouter.get(
       };
     }
 
-    res.json({ client, nextScheduled, documents: await clientDocuments.listForClient(client.id) });
+    res.json({ client: toWorkspaceClient(client), nextScheduled, documents: await clientDocuments.listForClient(client.id) });
   }),
 );
 
@@ -331,7 +332,7 @@ workspaceRouter.patch(
         }
       }
     }
-    res.json({ client });
+    res.json({ client: toWorkspaceClient(client) });
   }),
 );
 
@@ -392,7 +393,7 @@ workspaceRouter.put(
         await setFutureEmail(updated.id);
       });
     }
-    res.json({ client: updated });
+    res.json({ client: toWorkspaceClient(updated) });
   }),
 );
 
@@ -479,7 +480,7 @@ workspaceRouter.get(
       res.status(404).json({ error: 'Client not found.' });
       return;
     }
-    res.json({ emails: await emails.listForClient(client.id) });
+    res.json({ emails: (await emails.listForClient(client.id)).map(toWorkspaceEmail) });
   }),
 );
 
@@ -533,7 +534,7 @@ workspaceRouter.put(
       }
       await withClientLock(client.id, () => resumeFutureEmail(client.id));
     }
-    res.json({ client: updated });
+    res.json({ client: toWorkspaceClient(updated) });
   }),
 );
 

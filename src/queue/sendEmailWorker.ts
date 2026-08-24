@@ -16,6 +16,8 @@ import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { isWhatsAppWindowOpen } from '../orchestration/whatsappWindow.js';
 import { agentWorkBlocked } from '../agents/killSwitch.js';
+import { adminCommsPaused, isSupervisedInstance } from '../orchestration/adminPause.js';
+import { sendReviewReminderEmail } from '../orchestration/reviewAlert.js';
 import { recordAudit } from '../audit/audit.js';
 import { logger } from '../util/logger.js';
 import type { ClientRow, EmailRow } from '../db/types.js';
@@ -47,12 +49,43 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       logger.warn('agent disabled, dropping queued send', { clientId, emailId, reason: blocked });
       return;
     }
+    const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
+    if (await adminCommsPaused(client, instance)) {
+      // Admin emergency brake (048): swallow the due send silently. The draft
+      // and the scheduled_jobs mirror stay, so the accountant's timeline keeps
+      // showing a normal "scheduled" bubble; the admin unpause replans.
+      logger.info('client admin-paused, swallowing queued send', { clientId, emailId });
+      return;
+    }
 
     const draft = await emails.getById(emailId);
     if (!draft || draft.status !== 'draft') {
       // Idempotency: BullMQ retried this job (e.g. after a crash) after it already sent once.
+      // Also parks stay parked: 'held' drafts (048) hit this on resyncs/retries.
       logger.warn('draft missing or already sent, skipping (retry/duplicate)', { clientId, emailId });
       return;
+    }
+    if (isSupervisedInstance(instance) && instance.review_mode && draft.review_status !== 'approved') {
+      // Admin review gate (048): the send time arrived but the admin hasn't
+      // approved the draft — park it instead of sending. Checked at act time
+      // like the kill switch, so every enqueue path (plan, resync, send-now,
+      // kickoff) is covered. Approval flips it back to 'draft' and re-enqueues.
+      const held = await emails.markHeld(draft.id);
+      if (held) {
+        recordAudit({
+          actorType: 'agent',
+          action: 'review.message_held',
+          agentInstanceId: client.agent_instance_id,
+          clientId: client.id,
+          targetType: draft.channel === 'whatsapp' ? 'wa_message' : 'email',
+          targetId: draft.id,
+          detail: { clientName: client.name, channel: draft.channel },
+        });
+        sendReviewReminderEmail(client, instance, held).catch((err) => {
+          logger.error('review reminder email failed', err, { clientId, draftId: draft.id });
+        });
+      }
+      return; // no replan — the plan stays parked on this draft
     }
 
     let sent: SendOutcome;

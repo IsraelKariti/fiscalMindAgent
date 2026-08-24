@@ -31,6 +31,11 @@ const KNOWN_ROUTES: Record<string, { action: `admin.${string}`; severity: AuditS
   'PUT /prompt-template': { action: 'admin.prompt_template_changed', severity: 'warning' },
   'POST /prompt-template/reset': { action: 'admin.prompt_template_reset', severity: 'info' },
   'POST /admin/alerts/:id/ack': { action: 'admin.alert_acked', severity: 'info' },
+  'POST /admin/review/messages/:emailId/approve': { action: 'admin.review_message_approved', severity: 'info' },
+  'POST /admin/review/messages/:emailId/regenerate': { action: 'admin.review_message_regenerated', severity: 'info' },
+  'POST /admin/agent-review-mode': { action: 'admin.agent_review_mode_set', severity: 'warning' },
+  'POST /admin/agent-admin-pause': { action: 'admin.agent_admin_pause_set', severity: 'warning' },
+  'POST /admin/clients/:clientId/admin-pause': { action: 'admin.client_admin_pause_set', severity: 'warning' },
 };
 
 /**

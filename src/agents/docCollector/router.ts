@@ -9,6 +9,7 @@ import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { DueDateSchema } from '../../api/schemas.js';
+import { toWorkspaceClient } from '../../api/workspaceSerialize.js';
 import { registerClientSourceRoutes } from '../shared/clientSourcesRoutes.js';
 import {
   MONDAY_STATUS_AGENT_WORKING,
@@ -157,7 +158,7 @@ export function buildRouter(): Router {
         await withClientLock(client.id, () => resumeFutureEmail(client.id));
       }
       publishClientUpdated(client.id);
-      res.json({ client: updated });
+      res.json({ client: toWorkspaceClient(updated) });
     }),
   );
 

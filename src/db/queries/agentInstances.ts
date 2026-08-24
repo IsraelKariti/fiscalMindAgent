@@ -109,6 +109,24 @@ export async function setTaxYear(id: string, taxYear: number): Promise<AgentInst
   return rows[0] ?? null;
 }
 
+/** Admin-owned pilot supervision flag (048): outbound messages need admin approval before sending. */
+export async function setReviewMode(id: string, on: boolean): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'UPDATE agent_instances SET review_mode = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, on],
+  );
+  return rows[0] ?? null;
+}
+
+/** Admin-owned emergency brake (048): silently stops planning + sending for all the instance's clients. */
+export async function setAdminPaused(id: string, on: boolean): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'UPDATE agent_instances SET admin_paused = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, on],
+  );
+  return rows[0] ?? null;
+}
+
 /** Replaces the instance's settings JSONB — shape owned by the agent type's Zod schema. */
 export async function updateSettings(id: string, settings: Record<string, unknown>): Promise<AgentInstanceRow | null> {
   const { rows } = await pool.query<AgentInstanceRow>(

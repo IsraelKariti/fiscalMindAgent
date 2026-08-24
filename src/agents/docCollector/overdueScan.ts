@@ -1,6 +1,7 @@
 import * as clients from '../../db/queries/clients.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import { withClientLock } from '../../db/withClientLock.js';
+import { adminCommsPaused } from '../../orchestration/adminPause.js';
 import { pauseFutureEmail } from '../../orchestration/pauseFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { DOC_COLLECTOR_FAMILY } from './family.js';
@@ -29,6 +30,10 @@ export async function runOverdueScan(): Promise<void> {
   const candidates = await clients.listOverdueForAgentTypes(todayLocal(), [...DOC_COLLECTOR_FAMILY]);
   let stopped = 0;
   for (const candidate of candidates) {
+    // Admin-paused clients (048) aren't ignoring the agent — the agent is
+    // muted. Overdue-stopping them would email the accountant a confusing
+    // "client stopped responding" while the silence is admin-made.
+    if (await adminCommsPaused(candidate)) continue;
     await withClientLock(candidate.id, async () => {
       const claimed = await clients.markOverdueStopped(candidate.id);
       if (!claimed) return; // another run got it, or the state changed since listing

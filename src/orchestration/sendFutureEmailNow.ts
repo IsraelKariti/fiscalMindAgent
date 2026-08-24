@@ -1,3 +1,4 @@
+import * as emails from '../db/queries/emails.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { sendEmailQueue } from '../queue/sendEmailQueue.js';
@@ -43,8 +44,18 @@ export async function sendFutureEmailNow(clientId: string): Promise<SendNowResul
     return 'send_failed';
   }
   if (state !== 'delayed') {
-    // completed: the send happened but the post-send cleanup died — drop the
-    // stale row so the timeline stops showing a phantom scheduled message.
+    // completed: usually the send happened but the post-send cleanup died.
+    // Exception (048): the worker consumed the job without sending because the
+    // draft is parked awaiting admin review — keep the row (the accountant's
+    // "scheduled" bubble must not vanish) and report ok; the admin's approval
+    // will re-enqueue the actual send.
+    const [, , heldEmailId] = row.bullmq_job_id.split(':');
+    if (heldEmailId) {
+      const draft = await emails.getById(heldEmailId);
+      if (draft?.status === 'held') return 'already_sending';
+    }
+    // Otherwise drop the stale row so the timeline stops showing a phantom
+    // scheduled message.
     logger.warn('clearing stale scheduled_jobs row for finished job', { clientId, jobId: row.bullmq_job_id, state });
     await scheduledJobs.deleteForClient(clientId);
     publishClientUpdated(clientId);

@@ -273,6 +273,15 @@ export async function setPaused(id: string, paused: boolean): Promise<ClientRow 
   return rows[0] ?? null;
 }
 
+/** Admin-owned emergency brake (048), separate from the accountant-visible `paused`. updated_at is left alone — the accountant didn't edit anything. */
+export async function setAdminPaused(id: string, on: boolean): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>('UPDATE clients SET admin_paused = $2 WHERE id = $1 RETURNING *', [
+    id,
+    on,
+  ]);
+  return rows[0] ?? null;
+}
+
 /**
  * Stamps the start of a planning attempt (and clears any earlier failure).
  * Agent-status fields only, so updated_at is left alone — it tracks accountant edits.

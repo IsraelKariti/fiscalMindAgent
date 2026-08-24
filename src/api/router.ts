@@ -38,6 +38,15 @@ import {
   stopImpersonation,
 } from './admin.js';
 import {
+  adminApproveReviewMessage,
+  adminListReviewMessages,
+  adminRegenerateReviewMessage,
+  adminReviewCount,
+  adminSetAgentAdminPause,
+  adminSetAgentReviewMode,
+  adminSetClientAdminPause,
+} from './reviewAdmin.js';
+import {
   adminCreateWaTemplate,
   adminDeleteWaSender,
   adminDeleteWaTemplate,
@@ -108,6 +117,14 @@ apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemove
 
 apiRouter.post('/admin/agent-emails', wrap(requireAdmin), wrap(adminSetAgentEmail));
 apiRouter.post('/admin/agent-tax-year', wrap(requireAdmin), wrap(adminSetAgentTaxYear));
+// Pilot supervision (048): declaration_of_capital message review + hidden pauses.
+apiRouter.get('/admin/review/messages', wrap(requireAdmin), wrap(adminListReviewMessages));
+apiRouter.get('/admin/review/count', wrap(requireAdmin), wrap(adminReviewCount));
+apiRouter.post('/admin/review/messages/:emailId/approve', wrap(requireAdmin), wrap(adminApproveReviewMessage));
+apiRouter.post('/admin/review/messages/:emailId/regenerate', wrap(requireAdmin), wrap(adminRegenerateReviewMessage));
+apiRouter.post('/admin/agent-review-mode', wrap(requireAdmin), wrap(adminSetAgentReviewMode));
+apiRouter.post('/admin/agent-admin-pause', wrap(requireAdmin), wrap(adminSetAgentAdminPause));
+apiRouter.post('/admin/clients/:clientId/admin-pause', wrap(requireAdmin), wrap(adminSetClientAdminPause));
 apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));
 apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender));
 apiRouter.post('/admin/wa-senders/provision', wrap(requireAdmin), wrap(adminProvisionWaSender));

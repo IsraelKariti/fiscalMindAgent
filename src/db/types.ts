@@ -15,6 +15,10 @@ export interface AgentInstanceRow {
   settings: Record<string, unknown>;
   /** The tax year documents are collected for (admin-set; NULL = default to the last concluded year). */
   tax_year: number | null;
+  /** Admin-owned pilot supervision (048): outbound messages need admin approval. Only effective on declaration_of_capital. */
+  review_mode: boolean;
+  /** Admin-owned emergency brake (048): silently stops planning + sending for all this instance's clients. Only effective on declaration_of_capital. Invisible to the accountant. */
+  admin_paused: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -106,6 +110,8 @@ export interface ClientRow {
   wa_opted_out_at: Date | null;
   /** True while the accountant has paused the agent's outreach to this client. */
   paused: boolean;
+  /** Admin-owned emergency brake (048), separate from the accountant-visible `paused`. Only effective on declaration_of_capital clients. Never serialized to the workspace. */
+  admin_paused: boolean;
   /** Set while a planning attempt (setFutureEmail) is in flight; stale = attempt died mid-flight. */
   drafting_since: Date | null;
   /** Set when the last planning attempt threw; the UI shows a Retry button. */
@@ -187,8 +193,16 @@ export interface DocumentFileRow {
 }
 
 export type EmailDirection = 'inbound' | 'outbound';
-export type EmailStatus = 'draft' | 'sent' | 'received';
+/** 'held' (048): the send time arrived while the draft awaited admin review; parked, sends on approval. */
+export type EmailStatus = 'draft' | 'held' | 'sent' | 'received';
 export type MessageChannel = 'email' | 'whatsapp';
+
+/**
+ * Admin review lifecycle of an outbound draft (048). NULL = not subject to
+ * review; 'pending' = awaits the admin; 'approved' = the worker may send it;
+ * 'superseded' = a replan discarded it while it was still pending.
+ */
+export type ReviewStatus = 'pending' | 'approved' | 'superseded';
 
 export interface EmailRow {
   id: string;
@@ -209,6 +223,10 @@ export interface EmailRow {
   wa_content_variables: string[] | null;
   /** LLM's internal explanation for the follow-up decision (send time etc.); outbound drafts only. */
   reasoning: string | null;
+  /** Admin review lifecycle (048); NULL on everything outside review mode. */
+  review_status: ReviewStatus | null;
+  /** When the worker parked this draft unapproved at its send time (048). */
+  held_at: Date | null;
   sent_at: Date | null;
   created_at: Date;
 }

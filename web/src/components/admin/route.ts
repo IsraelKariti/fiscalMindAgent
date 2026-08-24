@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
  *   #/agents                             all agent instances across accountants
  *   #/usage                              LLM spend analytics
  *   #/audit                              audit trail + anomaly alerts
+ *   #/review                             pilot message review queue
  *   #/settings                           platform settings
  */
 export type AdminRoute =
@@ -20,6 +21,7 @@ export type AdminRoute =
   | { screen: 'agents' }
   | { screen: 'usage' }
   | { screen: 'audit' }
+  | { screen: 'review' }
   | { screen: 'settings' };
 
 export function routeHash(route: AdminRoute): string {
@@ -38,6 +40,8 @@ export function routeHash(route: AdminRoute): string {
       return '#/usage';
     case 'audit':
       return '#/audit';
+    case 'review':
+      return '#/review';
     case 'settings':
       return '#/settings';
   }
@@ -52,6 +56,7 @@ function parseHash(hash: string): AdminRoute {
   if (parts[0] === 'settings') return { screen: 'settings' };
   if (parts[0] === 'usage') return { screen: 'usage' };
   if (parts[0] === 'audit') return { screen: 'audit' };
+  if (parts[0] === 'review') return { screen: 'review' };
   if (parts[0] === 'agents') return { screen: 'agents' };
   if (parts[0] === 'accountants') {
     const email = parts[1];

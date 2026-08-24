@@ -6,6 +6,7 @@ import { AccountantsTable } from './admin/AccountantsTable';
 import { AdminAgents } from './admin/AdminAgents';
 import { AdminAudit } from './admin/AdminAudit';
 import { AdminOverview } from './admin/AdminOverview';
+import { AdminReview } from './admin/AdminReview';
 import { AdminSettings } from './admin/AdminSettings';
 import { AdminUsage } from './admin/AdminUsage';
 import { AgentPage } from './admin/AgentPage';
@@ -30,7 +31,17 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   const [accountants, setAccountants] = useState<Accountant[] | null>(null);
   const [whitelist, setWhitelist] = useState<WhitelistEntry[] | null>(null);
   const [openAlerts, setOpenAlerts] = useState(0);
+  const [pendingReviews, setPendingReviews] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // The review queue is time-critical (a held message delays a client reply),
+  // so unlike the load-once alert badge this one polls while the admin is here.
+  useEffect(() => {
+    const check = () => api.adminReviewCount().then(({ pendingCount }) => setPendingReviews(pendingCount)).catch(() => {});
+    check();
+    const timer = window.setInterval(check, 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const refresh = useCallback(async () => {
     const [{ accountants: users }, { entries }] = await Promise.all([
@@ -61,6 +72,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     route.screen === 'settings' ||
     route.screen === 'usage' ||
     route.screen === 'audit' ||
+    route.screen === 'review' ||
     route.screen === 'overview' ||
     route.screen === 'agents'
       ? route.screen
@@ -126,6 +138,15 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             {openAlerts > 0 && <span className="badge badge-danger">{openAlerts}</span>}
           </button>
           <button
+            className={`client-tab ${activeTab === 'review' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === 'review'}
+            onClick={() => navigate({ screen: 'review' })}
+          >
+            {t.adminReviewTab}
+            {pendingReviews > 0 && <span className="badge badge-danger">{pendingReviews}</span>}
+          </button>
+          <button
             className={`client-tab ${activeTab === 'settings' ? 'active' : ''}`}
             role="tab"
             aria-selected={activeTab === 'settings'}
@@ -171,6 +192,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
         {route.screen === 'usage' && accountants && <AdminUsage accountants={accountants} />}
 
         {route.screen === 'audit' && <AdminAudit />}
+
+        {route.screen === 'review' && <AdminReview onCountChanged={setPendingReviews} />}
 
         {route.screen === 'settings' && <AdminSettings userEmail={userEmail} />}
       </main>

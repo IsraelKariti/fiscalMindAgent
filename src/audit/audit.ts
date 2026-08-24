@@ -38,6 +38,8 @@ export type AuditAction =
   | 'agent.auto_provisioned'
   | 'wa_business.connected'
   | 'wa_business.disconnected'
+  | 'review.message_pending'
+  | 'review.message_held'
   | `admin.${string}`;
 
 export interface AuditEvent {

@@ -226,6 +226,9 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
         emailCapable: Boolean(suffix),
         taxYearCapable: Boolean(def.collectsTaxYear),
         taxYear: i.tax_year,
+        // Pilot supervision (048) — admin-only, never exposed to the workspace.
+        reviewMode: i.review_mode,
+        adminPaused: i.admin_paused,
       };
     }),
     availableTypes: [...knownAgentTypes()],

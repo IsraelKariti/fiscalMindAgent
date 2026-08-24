@@ -9,6 +9,7 @@ import { withClientLock } from '../../db/withClientLock.js';
 import { recordAudit } from '../../audit/audit.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
+import { toWorkspaceClient } from '../../api/workspaceSerialize.js';
 import { getSpreadsheetMeta } from '../customerService/googleData.js';
 import { EMAIL_CAPABLE, listBoards } from '../customerService/mondayData.js';
 import { readDebtSnapshot, type DebtSnapshot } from './decisionSchema.js';
@@ -109,7 +110,8 @@ export function buildRouter(): Router {
         clientId: client.id,
         detail: { clientName: client.name, amount: confirmed.amount },
       });
-      res.json({ client: await clients.getById(client.id) });
+      const confirmedClient = await clients.getById(client.id);
+      res.json({ client: confirmedClient && toWorkspaceClient(confirmedClient) });
     }),
   );
 

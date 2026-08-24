@@ -187,6 +187,11 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
     void loadOrphans();
   }, [loadOrphans]);
 
+  // Pilot supervision (declaration_of_capital only): review mode + the hidden
+  // admin pause. Both invisible to the accountant.
+  const [confirmingReviewMode, setConfirmingReviewMode] = useState(false);
+  const [confirmingAdminPause, setConfirmingAdminPause] = useState(false);
+
   const [manualNumber, setManualNumber] = useState('');
   const [poolPicking, setPoolPicking] = useState(false);
   const [confirmingBuy, setConfirmingBuy] = useState(false);
@@ -416,6 +421,49 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
         </section>
       )}
 
+      {instance && agentType === 'declaration_of_capital' && (
+        <section className="card">
+          <div className="settings-section">
+            <h3>{t.adminSupervisionTitle}</h3>
+            <p className="muted">{t.adminSupervisionDesc}</p>
+
+            <div className="wa-action-row">
+              <span className="doc-text">
+                <span className="doc-name">
+                  {t.adminReviewModeLabel}
+                  {instance.reviewMode && <span className="badge badge-pending">{t.adminReviewModeOnBadge}</span>}
+                </span>
+                <span className="doc-desc muted">{t.adminReviewModeDesc}</span>
+              </span>
+              <button
+                className="btn btn-ghost btn-small"
+                disabled={busy}
+                onClick={() => setConfirmingReviewMode(true)}
+              >
+                {instance.reviewMode ? t.adminReviewModeDisable : t.adminReviewModeEnable}
+              </button>
+            </div>
+
+            <div className="wa-action-row danger">
+              <span className="doc-text">
+                <span className="doc-name">
+                  {t.adminAgentPauseLabel}
+                  {instance.adminPaused && <span className="badge badge-danger">{t.adminAgentPausedBadge}</span>}
+                </span>
+                <span className="doc-desc muted">{t.adminAgentPauseDesc}</span>
+              </span>
+              <button
+                className={`btn btn-ghost btn-small ${instance.adminPaused ? '' : 'danger-action'}`}
+                disabled={busy}
+                onClick={() => setConfirmingAdminPause(true)}
+              >
+                {instance.adminPaused ? t.adminAgentResume : t.adminAgentPause}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {instance && (
         <section className="card">
           <div className="settings-section">
@@ -627,6 +675,40 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
             void saveAgentEmail();
           }}
           onClose={() => setConfirmingEmailChange(false)}
+        />
+      )}
+
+      {confirmingReviewMode && instance && (
+        <ConfirmModal
+          title={t.adminReviewModeLabel}
+          note={instance.reviewMode ? t.adminReviewModeDisableConfirm : t.adminReviewModeEnableConfirm}
+          confirmLabel={instance.reviewMode ? t.adminReviewModeDisable : t.adminReviewModeEnable}
+          danger={instance.reviewMode}
+          onConfirm={() => {
+            setConfirmingReviewMode(false);
+            void run(
+              () => api.adminSetAgentReviewMode(instance.id, !instance.reviewMode),
+              t.adminSupervisionSaveFailed,
+            );
+          }}
+          onClose={() => setConfirmingReviewMode(false)}
+        />
+      )}
+
+      {confirmingAdminPause && instance && (
+        <ConfirmModal
+          title={t.adminAgentPauseLabel}
+          note={instance.adminPaused ? t.adminAgentResumeConfirm : t.adminAgentPauseConfirm}
+          confirmLabel={instance.adminPaused ? t.adminAgentResume : t.adminAgentPause}
+          danger={!instance.adminPaused}
+          onConfirm={() => {
+            setConfirmingAdminPause(false);
+            void run(
+              () => api.adminSetAgentAdminPause(instance.id, !instance.adminPaused),
+              t.adminSupervisionSaveFailed,
+            );
+          }}
+          onClose={() => setConfirmingAdminPause(false)}
         />
       )}
 

@@ -677,6 +677,56 @@ const he = {
   auditColAgent: 'סוכן',
   auditColSeverity: 'חומרה',
   auditColDetail: 'פרטים',
+
+  // Admin pilot message review (#/review) + supervision card
+  adminReviewTab: 'אישור הודעות',
+  reviewTitle: 'הודעות ממתינות לאישור',
+  reviewLead: 'כל הודעה שהסוכן מנסח נעצרת כאן עד לאישורך. הודעה שאושרה לפני מועד השליחה נשלחת בזמן המקורי.',
+  reviewLoadFailed: 'טעינת ההודעות הממתינות נכשלה.',
+  reviewEmpty: 'אין הודעות הממתינות לאישור.',
+  reviewAccountantLabel: 'רואה חשבון',
+  reviewTemplateBadge: 'הודעת תבנית',
+  reviewFreeformBadge: 'הודעה חופשית',
+  reviewScheduledFor: (when: string) => `מועד שליחה מתוכנן: ${when}`,
+  reviewPastDue: 'מועד השליחה עבר — ההודעה תישלח מיד עם האישור',
+  reviewReasoningLabel: 'נימוק הסוכן',
+  reviewApprove: 'אישור ההודעה',
+  reviewApproveConfirm: (client: string) => `לאשר את שליחת ההודעה ללקוח ${client}?`,
+  reviewApproveConfirmPastDue: (client: string) => `לאשר את שליחת ההודעה ללקוח ${client}? מועד השליחה כבר עבר, ולכן היא תישלח מיד.`,
+  reviewRegenerate: 'ניסוח מחדש',
+  reviewRegenerateConfirm: (client: string) =>
+    `לפסול את ההודעה ללקוח ${client}? הסוכן ינסח הודעה חדשה, והיא תמתין לאישורך.`,
+  reviewActionFailed: 'הפעולה נכשלה.',
+  reviewActionConflict: 'ההודעה כבר לא ממתינה לאישור — הרשימה רועננה.',
+  reviewClientPausedBadge: 'הלקוח מושהה',
+  reviewPauseClient: 'השהיית הלקוח',
+  reviewPauseClientDesc: 'עצירה מיידית של כל התקשורת עם הלקוח הזה (בלתי נראית לרואה החשבון).',
+  reviewPauseClientConfirm: (client: string) =>
+    `להשהות את התקשורת עם ${client}? הסוכן יפסיק לשלוח הודעות ולענות ללקוח עד לביטול ההשהיה. רואה החשבון לא יראה סימן לכך.`,
+  reviewResumeClient: 'ביטול השהיית הלקוח',
+  reviewResumeClientConfirm: (client: string) =>
+    `לבטל את השהיית ${client}? הסוכן יתכנן מחדש את ההודעה הבאה (והיא תמתין לאישור אם מצב האישור פעיל).`,
+  adminSupervisionTitle: 'פיקוח פיילוט',
+  adminSupervisionDesc: 'כלי פיקוח לניסוי החי — בלתי נראים לרואה החשבון.',
+  adminReviewModeLabel: 'אישור ידני של הודעות',
+  adminReviewModeDesc: 'כשמופעל, כל הודעה יוצאת ממתינה לאישורך במסך "אישור הודעות" לפני שליחה.',
+  adminReviewModeOnBadge: 'אישור ידני פעיל',
+  adminReviewModeEnable: 'הפעלה',
+  adminReviewModeDisable: 'כיבוי',
+  adminReviewModeEnableConfirm: 'להפעיל אישור ידני? כל הודעה חדשה של הסוכן תמתין לאישורך לפני שליחה.',
+  adminReviewModeDisableConfirm:
+    'לכבות את האישור הידני? הודעות חדשות יישלחו אוטומטית. הודעות שכבר ממתינות לאישור יישארו במסך האישור עד לטיפול.',
+  adminAgentPauseLabel: 'השהיית הסוכן',
+  adminAgentPauseDesc: 'בלם חירום: עצירה מיידית של כל שליחת ההודעות לכל לקוחות הסוכן, כולל לקוחות חדשים שנרשמים.',
+  adminAgentPausedBadge: 'הסוכן מושהה',
+  adminAgentPause: 'השהיה',
+  adminAgentResume: 'ביטול ההשהיה',
+  adminAgentPauseConfirm:
+    'להשהות את הסוכן? שום הודעה לא תישלח לאף לקוח עד לביטול ההשהיה. רואה החשבון לא יראה סימן לכך.',
+  adminAgentResumeConfirm:
+    'לבטל את השהיית הסוכן? הסוכן יתכנן מחדש את ההודעות לכל הלקוחות (והן ימתינו לאישור אם מצב האישור פעיל).',
+  adminSupervisionSaveFailed: 'עדכון הגדרות הפיקוח נכשל.',
+
   adminDangerZone: 'פעולות מסוכנות',
   deleteAccountTitle: 'מחיקת חשבון',
   deleteAccountConfirm: (email: string) =>

@@ -543,6 +543,32 @@ export interface AgentInstance {
   taxYearCapable?: boolean;
   /** Admin listing only: the configured tax year, null until an admin sets one (code falls back to the last concluded year). */
   taxYear?: number | null;
+  /** Admin listing only: pilot supervision — outbound messages need admin approval (declaration_of_capital). */
+  reviewMode?: boolean;
+  /** Admin listing only: the hidden admin emergency brake (declaration_of_capital). */
+  adminPaused?: boolean;
+}
+
+/** One draft awaiting admin approval (GET /admin/review/messages). */
+export interface ReviewMessage {
+  id: string;
+  clientId: string;
+  clientName: string;
+  clientAdminPaused: boolean;
+  agentInstanceId: string | null;
+  agentType: string | null;
+  instanceName: string | null;
+  accountantEmail: string | null;
+  accountantName: string | null;
+  channel: 'email' | 'whatsapp';
+  isTemplate: boolean;
+  body: string;
+  reasoning: string | null;
+  createdAt: string;
+  heldAt: string | null;
+  scheduledFor: string | null;
+  /** The send time passed unapproved — approval now sends immediately. */
+  pastDue: boolean;
 }
 
 /** Per-type email facts for the admin agent page — covers types with no instance yet. */
@@ -731,6 +757,27 @@ export const api = {
     request<{ taxYear: number }>('/admin/agent-tax-year', {
       method: 'POST',
       body: JSON.stringify({ agentInstanceId, taxYear }),
+    }),
+  adminListReviewMessages: () => request<{ messages: ReviewMessage[] }>('/admin/review/messages'),
+  adminReviewCount: () => request<{ pendingCount: number }>('/admin/review/count'),
+  adminApproveReviewMessage: (emailId: string) =>
+    request<{ ok: true; sentImmediately: boolean }>(`/admin/review/messages/${emailId}/approve`, { method: 'POST' }),
+  adminRegenerateReviewMessage: (emailId: string) =>
+    request<{ ok: true }>(`/admin/review/messages/${emailId}/regenerate`, { method: 'POST' }),
+  adminSetAgentReviewMode: (agentInstanceId: string, reviewMode: boolean) =>
+    request<{ reviewMode: boolean }>('/admin/agent-review-mode', {
+      method: 'POST',
+      body: JSON.stringify({ agentInstanceId, reviewMode }),
+    }),
+  adminSetAgentAdminPause: (agentInstanceId: string, paused: boolean) =>
+    request<{ paused: boolean }>('/admin/agent-admin-pause', {
+      method: 'POST',
+      body: JSON.stringify({ agentInstanceId, paused }),
+    }),
+  adminSetClientAdminPause: (clientId: string, paused: boolean) =>
+    request<{ paused: boolean }>(`/admin/clients/${clientId}/admin-pause`, {
+      method: 'POST',
+      body: JSON.stringify({ paused }),
     }),
   adminEnableAgent: (userId: string, agentType: string, emailLocalPart?: string, taxYear?: number) =>
     request<{ agent: AgentInstance }>(`/admin/accountants/${userId}/agents`, {

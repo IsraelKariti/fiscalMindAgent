@@ -76,6 +76,10 @@ const EnvSchema = z.object({
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean),
     ),
+  // Recipient of admin review alerts (048): "a message awaits your approval"
+  // emails for review-mode agent instances. Unset = alerts are skipped (the
+  // review hold itself never depends on it).
+  ADMIN_ALERT_EMAIL: z.string().email().optional(),
   // Resend (resend.com): sends agent mail and delivers inbound mail for
   // AGENT_EMAIL_DOMAIN to /webhooks/resend.
   RESEND_API_KEY: z.string().min(1),

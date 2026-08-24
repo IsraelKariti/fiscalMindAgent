@@ -1,5 +1,6 @@
 import * as clients from '../db/queries/clients.js';
 import { loadAgentContext } from '../agents/resolve.js';
+import { adminCommsPaused } from './adminPause.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { logger } from '../util/logger.js';
 
@@ -16,6 +17,13 @@ export async function setFutureEmail(clientId: string): Promise<void> {
     // Replies/attachments still land and reach this re-plan path; while paused
     // the agent just never schedules the next send. Resuming re-plans.
     logger.info('client paused, not scheduling a follow-up', { clientId });
+    return;
+  }
+  if (await adminCommsPaused(client)) {
+    // Admin emergency brake (048): also covers freshly webhook-enrolled clients
+    // of a paused instance — they enroll normally but get no first contact.
+    // The admin unpause replans every affected client.
+    logger.info('client admin-paused, not scheduling a follow-up', { clientId });
     return;
   }
 

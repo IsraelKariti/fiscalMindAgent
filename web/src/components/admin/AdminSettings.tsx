@@ -57,27 +57,12 @@ export function AdminSettings({ userEmail }: Props) {
     return () => clearTimeout(modelNoticeTimer.current);
   }, []);
 
-  const changePurposeModel = async (purpose: LlmCallPurpose, model: string | null) => {
+  const changePurposeModel = async (purpose: LlmCallPurpose, model: string) => {
     setModelSaving(true);
     setModelNotice(null);
     if (modelNoticeTimer.current) clearTimeout(modelNoticeTimer.current);
     try {
       setModelState(await api.adminSetPurposeModel(purpose, model));
-      setModelNotice('saved');
-      modelNoticeTimer.current = setTimeout(() => setModelNotice(null), 3000);
-    } catch {
-      setModelNotice('save_failed');
-    } finally {
-      setModelSaving(false);
-    }
-  };
-
-  const changeModel = async (model: string) => {
-    setModelSaving(true);
-    setModelNotice(null);
-    clearTimeout(modelNoticeTimer.current);
-    try {
-      setModelState(await api.adminSetModel(model));
       setModelNotice('saved');
       modelNoticeTimer.current = setTimeout(() => setModelNotice(null), 3000);
     } catch {
@@ -267,45 +252,23 @@ export function AdminSettings({ userEmail }: Props) {
           )
         ) : (
           <>
-            <div className="model-picker" dir="ltr">
-              <select
-                value={modelState.model}
-                disabled={modelSaving}
-                aria-label={t.llmModelTitle}
-                onChange={(e) => changeModel(e.target.value)}
-              >
-                {/* The env-default model may predate the options list; keep it selectable. */}
-                {!modelState.options.includes(modelState.model) && (
-                  <option value={modelState.model}>{modelState.model}</option>
-                )}
-                {modelState.options.map((m) => (
-                  <option key={m} value={m}>
-                    {MODEL_LABELS[m] ?? m}
-                  </option>
-                ))}
-              </select>
-              {modelSaving && <span className="muted">{t.saving}</span>}
-            </div>
-            {!modelState.isCustom && (
-              <p className="muted">
-                {t.llmModelEnvDefault}: <span dir="ltr">{modelState.model}</span>
-              </p>
-            )}
-            <h4>{t.llmModelPerCallTitle}</h4>
-            <p className="muted">{t.llmModelPerCallDesc}</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
               {LLM_CALL_PURPOSES.map((purpose) => (
                 <label key={purpose} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span>{t.adminLlmExperimentPurposeLabel[purpose] ?? purpose}</span>
                   <div className="model-picker" dir="ltr">
                     <select
-                      value={modelState.purposes[purpose] ?? ''}
+                      value={modelState.purposes[purpose] ?? modelState.model}
                       disabled={modelSaving}
-                      onChange={(e) => changePurposeModel(purpose, e.target.value || null)}
+                      aria-label={t.adminLlmExperimentPurposeLabel[purpose] ?? purpose}
+                      onChange={(e) => changePurposeModel(purpose, e.target.value)}
                     >
-                      <option value="">
-                        {t.llmModelSameAsGlobal} ({MODEL_LABELS[modelState.model] ?? modelState.model})
-                      </option>
+                      {/* The env-default model may predate the options list; keep it selectable. */}
+                      {!modelState.options.includes(modelState.purposes[purpose] ?? modelState.model) && (
+                        <option value={modelState.purposes[purpose] ?? modelState.model}>
+                          {modelState.purposes[purpose] ?? modelState.model}
+                        </option>
+                      )}
                       {modelState.options.map((m) => (
                         <option key={m} value={m}>
                           {MODEL_LABELS[m] ?? m}
@@ -316,6 +279,7 @@ export function AdminSettings({ userEmail }: Props) {
                 </label>
               ))}
             </div>
+            {modelSaving && <span className="muted">{t.saving}</span>}
             {modelNotice === 'saved' && <div className="ok-banner">{t.llmModelSaved}</div>}
             {modelNotice === 'save_failed' && <div className="error-banner">{t.llmModelSaveFailed}</div>}
           </>

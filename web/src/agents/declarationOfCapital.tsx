@@ -24,8 +24,11 @@ export const declarationOfCapitalUI: AgentTypeUI = {
   // webhook) — no manual add-client button.
   importOnlyClients: true,
   channels: CHANNELS,
+  // No portal-credential columns (ת"ז / user code): the declarations board
+  // carries links, not identity — the ת"ז comes off the linked CRM card at
+  // kickoff (agent_fields.id_number).
   settingsPanel: () => (
-    <ClientImportSettings keyKind="phone" withPortalCredentials withStatusColumn withDeclarationColumns withSheets={false} />
+    <ClientImportSettings keyKind="phone" withStatusColumn withDeclarationColumns withSheets={false} />
   ),
   nameKey: 'agentDeclarationOfCapitalName',
   descriptionKey: 'agentDeclarationOfCapitalDesc',

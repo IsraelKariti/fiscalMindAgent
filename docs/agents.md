@@ -74,10 +74,13 @@ monday WorkForm is the only source of which documents a declaration needs):
   engagement identity — **file number + declaration year** — plus the linked
   item ids into `agent_fields` (`file_number`, `tax_year`,
   `monday_crm_item_id`, `monday_form_item_id`).
-- **Per-client tax year**: the year comes from the board row (`yearColumnId`),
-  not the instance; `resolveClientTaxYear` (shared/taxYear.ts) prefers
-  `agent_fields.tax_year` everywhere (checklist seeding, prompts,
-  verification's 31.12 check), with the admin-set instance year as fallback.
+- **Per-client tax year, no instance fallback**: the year comes exclusively
+  from the board row (`yearColumnId`) — `capitalClientTaxYear`
+  (shared/taxYear.ts) reads `agent_fields.tax_year` everywhere (checklist
+  seeding, prompts, verification's 31.12 check). `collectsTaxYear=false` hides
+  the admin field for this type; a row without a parseable year is not started
+  by the kickoff, and the daily import scan no longer enrolls catalog-seeded
+  types at all (kickoff-only enrollment — the scan cannot know a row's year).
 - **Form pre-resolution** (`declarationOfCapital/formIntake.ts`, rules in
   `formIntakeRules.ts`): before the first draft is planned, one isolated
   Gemini read maps the form's question/answer pairs onto the seeded

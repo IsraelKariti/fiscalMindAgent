@@ -28,4 +28,9 @@ export const declarationOfCapitalAgent: AgentTypeDefinition = {
   // starts with one 'unresolved' row per document type and the intake
   // interview resolves them — the import source's documents column is ignored.
   seedClientDocuments: catalogSeedRows,
+  // The declaration year is PER CLIENT — read from the monday board row's
+  // year column at kickoff (agent_fields.tax_year). There is no instance-wide
+  // year: the admin field is hidden and a row without a parseable year is not
+  // started.
+  collectsTaxYear: false,
 };

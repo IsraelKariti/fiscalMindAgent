@@ -11,7 +11,7 @@ import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../sh
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
 import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/mondayStatusSync.js';
-import { resolveClientTaxYear } from '../shared/taxYear.js';
+import { capitalClientTaxYear, resolveTaxYear } from '../shared/taxYear.js';
 import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../declarationOfCapital/prompt.js';
 import { getCatalogType } from '../declarationOfCapital/catalog.js';
 import { verifyCollectedDocument } from '../declarationOfCapital/verifyDocument.js';
@@ -77,11 +77,11 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const { client, accountant } = ctx;
   const clientId = client.id;
   const now = new Date();
-  // Per-client first (declaration-of-capital rows carry their own declaration
-  // year from the monday board), instance default otherwise.
-  const taxYear = resolveClientTaxYear(client, ctx.instance, now);
   const agentType = ctx.instance?.agent_type ?? 'doc_collector';
   const isCapitalDeclaration = agentType === 'declaration_of_capital';
+  // Capital declaration: the year is per client (from the monday board row) —
+  // the instance has no year. Doc collector: the admin-set instance year.
+  const taxYear = isCapitalDeclaration ? capitalClientTaxYear(client, now) : resolveTaxYear(ctx.instance, now);
   const whatsappOnly = getAgentTypeIfKnown(agentType)?.whatsappOnly === true;
   const history = await emails.listForClient(clientId);
   let documents = await clientDocuments.listForClient(clientId);

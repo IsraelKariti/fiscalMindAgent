@@ -19,17 +19,14 @@ export function parseTaxYearCell(cell: string | undefined): number | null {
 }
 
 /**
- * The tax year one client's documents are collected for: the per-client year
- * (declaration-of-capital clients get it from their monday board row at
- * enrollment, stored in agent_fields.tax_year), falling back to the instance's
- * admin-configured year and then to the last concluded year.
+ * The declaration year of one capital-declaration client — per client ONLY,
+ * read from the monday board row at kickoff and stored in
+ * agent_fields.tax_year. There is deliberately no instance-level fallback
+ * (collectsTaxYear=false for this type); the last concluded year covers only
+ * legacy rows enrolled before the per-client year existed.
  */
-export function resolveClientTaxYear(
-  client: { agent_fields: Record<string, unknown> } | null,
-  instance: { tax_year: number | null } | null,
-  now: Date,
-): number {
+export function capitalClientTaxYear(client: { agent_fields: Record<string, unknown> } | null, now: Date): number {
   const perClient = client?.agent_fields['tax_year'];
   if (typeof perClient === 'number' && Number.isInteger(perClient)) return perClient;
-  return resolveTaxYear(instance, now);
+  return defaultTaxYear(now);
 }

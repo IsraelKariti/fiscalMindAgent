@@ -9,7 +9,6 @@ import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { resolveSenderMailbox } from '../instanceEmail.js';
 import { isKillSwitchOn } from '../killSwitch.js';
 import { getAgentTypeIfKnown } from '../registry.js';
-import { resolveTaxYear } from './taxYear.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { syntheticWaEmail } from '../../util/syntheticEmail.js';
 import { logger } from '../../util/logger.js';
@@ -253,9 +252,18 @@ export async function scanClientImportInstance(
   // first draft: outreach starts only on the accountant's explicit trigger
   // (monday kickoff webhook or the workspace resume toggle).
   const manualKickoff = definition?.manualKickoff === true;
-  // Catalog-seeded checklist, rendered once per scan for the instance's tax year.
-  const scanTaxYear = resolveTaxYear(instance, new Date());
-  const seedDocuments = definition?.seedClientDocuments?.(scanTaxYear) ?? null;
+  // Catalog-seeded types (declaration of capital) enroll ONLY via the monday
+  // kickoff webhook: their checklist is rendered for the board row's own
+  // declaration year (per client), which this sweep cannot see. New rows are
+  // left for the kickoff; the existing-client backfills above still ran.
+  if (definition?.seedClientDocuments && fresh.length > 0) {
+    logger.info('client import: catalog-seeded type — new rows are enrolled by the kickoff webhook, skipping', {
+      instanceId: instance.id,
+      rows: fresh.length,
+    });
+    result.skipped += fresh.length;
+    fresh.length = 0;
+  }
 
   for (const candidate of fresh) {
     // WhatsApp-only agents: the phone is the identity; email_address gets the
@@ -279,31 +287,14 @@ export async function scanClientImportInstance(
         name,
         emailAddress: waPhone ? syntheticWaEmail(waPhone) : candidate.email,
         phone: candidate.phone || null,
-        // The board-row address for the status sync's write-back; catalog-seeded
-        // clients also pin the tax year their checklist was rendered for.
-        agentFields: {
-          ...(candidate.mondayItem
-            ? { monday_board_id: candidate.mondayItem.boardId, monday_item_id: candidate.mondayItem.itemId }
-            : {}),
-          ...(seedDocuments ? { tax_year: scanTaxYear } : {}),
-        },
+        // The board-row address for the status sync's write-back.
+        agentFields: candidate.mondayItem
+          ? { monday_board_id: candidate.mondayItem.boardId, monday_item_id: candidate.mondayItem.itemId }
+          : undefined,
         paused: manualKickoff,
       });
-      if (seedDocuments) {
-        // The intake interview resolves these; nothing is requested until it does.
-        for (const doc of seedDocuments) {
-          await clientDocuments.insert({
-            clientId: client.id,
-            name: doc.name,
-            description: doc.description,
-            typeKey: doc.typeKey,
-            status: 'unresolved',
-          });
-        }
-      } else {
-        for (const doc of documents) {
-          await clientDocuments.insert({ clientId: client.id, name: doc.name, description: null });
-        }
+      for (const doc of documents) {
+        await clientDocuments.insert({ clientId: client.id, name: doc.name, description: null });
       }
       await syncCredentials(client.id, candidate.credentials);
       // Same fire-and-forget first-draft path as manual client creation,

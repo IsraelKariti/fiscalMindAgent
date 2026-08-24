@@ -1,7 +1,7 @@
 import * as clients from '../../db/queries/clients.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import { fetchItemDetails, type ItemDetails } from '../customerService/mondayData.js';
-import { parseTaxYearCell, resolveTaxYear } from '../shared/taxYear.js';
+import { parseTaxYearCell } from '../shared/taxYear.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { syntheticWaEmail } from '../../util/syntheticEmail.js';
 import { recordAudit } from '../../audit/audit.js';
@@ -92,9 +92,15 @@ export async function resolveDeclarationClient(
   const clientName = crm.itemName.trim() || row.itemName.trim() || waPhone;
   const idNumber = findIdNumber(crm);
 
-  const now = new Date();
   const fileNumber = column(board.fileNumberColumnId)?.text || undefined;
-  const taxYear = parseTaxYearCell(column(board.yearColumnId)?.text) ?? resolveTaxYear(instance, now);
+  // The declaration year is the engagement identity (file number + year) and
+  // scopes every date-dependent document — a row without a parseable year is
+  // not started; there is deliberately no instance-level fallback.
+  const taxYear = parseTaxYearCell(column(board.yearColumnId)?.text);
+  if (taxYear === null) {
+    logger.warn('declaration kickoff: row has no parseable declaration year (map the year column and fill the cell)', log);
+    return null;
+  }
 
   // The submitted questionnaire: every answerable column of the linked
   // responses-board item, as question (column title) / answer (cell text).

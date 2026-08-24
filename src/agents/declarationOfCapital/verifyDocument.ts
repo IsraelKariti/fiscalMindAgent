@@ -14,7 +14,7 @@ import { isKillSwitchOn } from '../killSwitch.js';
 import { isAnalyzable } from '../docCollector/analyzeFile.js';
 import { sendVerificationProblemEmail } from '../docCollector/notifyAccountant.js';
 import { isQuarantined } from '../shared/fileEvidence.js';
-import { resolveClientTaxYear } from '../shared/taxYear.js';
+import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
 import { logger } from '../../util/logger.js';
 import { getCatalogType, GENERIC_CHECKS } from './catalog.js';
@@ -177,7 +177,7 @@ export async function verifyCollectedDocument(
 
   const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
   const checks = catalogType?.checks ?? GENERIC_CHECKS;
-  const taxYear = resolveClientTaxYear(client, instance, now);
+  const taxYear = capitalClientTaxYear(client, now);
 
   // Extract — the isolated "OCR" read, forced through the schema.
   let extracted: ExtractedFields;

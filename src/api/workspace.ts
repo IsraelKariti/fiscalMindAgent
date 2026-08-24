@@ -26,7 +26,7 @@ import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
 import { MONDAY_STATUS_AGENT_WORKING, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
-import { resolveTaxYear } from '../agents/shared/taxYear.js';
+import { defaultTaxYear } from '../agents/shared/taxYear.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { DueDateSchema } from './schemas.js';
@@ -194,20 +194,27 @@ workspaceRouter.post(
       return;
     }
 
+    // Catalog-seeded types (declaration of capital): the year normally comes
+    // from the client's monday board row at kickoff; this manual-creation edge
+    // path (the UI hides the button for these types) has no row, so the last
+    // concluded year is stamped per client — there is no instance-level year.
+    const manualSeedYear = defaultTaxYear(new Date());
+    const catalogSeeded = getAgentType(req.agentInstance!.agent_type).seedClientDocuments !== undefined;
     const client = await clients.insert({
       userId: req.userId!,
       agentInstanceId: req.agentInstance!.id,
       name,
       emailAddress: email,
       phone: phone || null,
-      agentFields: dueDate ? { due_date: dueDate } : undefined,
+      agentFields: {
+        ...(dueDate ? { due_date: dueDate } : {}),
+        ...(catalogSeeded ? { tax_year: manualSeedYear } : {}),
+      },
     });
-    // Catalog-seeded types (declaration of capital): the hardcoded catalog is
-    // the only checklist supply — request-body documents are ignored and every
-    // client starts with the full type list as 'unresolved' intake rows.
-    const seedDocuments = getAgentType(req.agentInstance!.agent_type).seedClientDocuments?.(
-      resolveTaxYear(req.agentInstance!, new Date()),
-    );
+    // The hardcoded catalog is the only checklist supply — request-body
+    // documents are ignored and every client starts with the full type list as
+    // 'unresolved' intake rows.
+    const seedDocuments = getAgentType(req.agentInstance!.agent_type).seedClientDocuments?.(manualSeedYear);
     if (seedDocuments) {
       for (const doc of seedDocuments) {
         await clientDocuments.insert({

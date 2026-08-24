@@ -1,5 +1,6 @@
 import { pool } from '../pool.js';
 import { normalizeE164 } from '../../util/phone.js';
+import { syntheticWaEmail } from '../../util/syntheticEmail.js';
 import type { ClientRow, GoalStatus } from '../types.js';
 
 /** Matches a pg unique_violation on one specific constraint/index. */
@@ -103,7 +104,7 @@ export async function insertWhatsAppOnly(args: {
   waPhone: string;
   optedInBy: string;
 }): Promise<ClientRow | null> {
-  const syntheticEmail = `wa-${args.waPhone.replace(/\D/g, '')}@wa.invalid`;
+  const syntheticEmail = syntheticWaEmail(args.waPhone);
   const { rows } = await pool.query<ClientRow>(
     `INSERT INTO clients (user_id, agent_instance_id, name, email_address, goal_status,
                           wa_phone, wa_enabled, wa_opted_in_at, wa_opted_in_by)
@@ -421,6 +422,47 @@ export async function setDebtSnapshot(id: string, snapshot: Record<string, unkno
     `UPDATE clients SET agent_fields = agent_fields || jsonb_build_object('debt', $2::jsonb) WHERE id = $1`,
     [id, JSON.stringify(snapshot)],
   );
+}
+
+/**
+ * Remembers which monday board row the client came from (agent_fields JSONB) —
+ * the write-back address of the board status sync. Agent bookkeeping, so
+ * updated_at is left alone — it tracks accountant edits.
+ */
+export async function setMondayItem(id: string, boardId: string, itemId: string): Promise<void> {
+  await pool.query(
+    `UPDATE clients SET agent_fields = agent_fields || jsonb_build_object('monday_board_id', $2::text, 'monday_item_id', $3::text) WHERE id = $1`,
+    [id, boardId, itemId],
+  );
+}
+
+/**
+ * Stamps the declaration-of-capital engagement identity read from the monday
+ * board row at kickoff: the tax-office file number, the declaration year the
+ * checklist targets, and the linked CRM / questionnaire item ids. Merged into
+ * agent_fields (agent bookkeeping — updated_at is left alone).
+ */
+export async function setDeclarationEngagement(
+  id: string,
+  fields: {
+    taxYear?: number;
+    fileNumber?: string;
+    idNumber?: string;
+    crmItemId?: string;
+    formItemId?: string;
+  },
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (fields.taxYear !== undefined) patch['tax_year'] = fields.taxYear;
+  if (fields.fileNumber !== undefined) patch['file_number'] = fields.fileNumber;
+  if (fields.idNumber !== undefined) patch['id_number'] = fields.idNumber;
+  if (fields.crmItemId !== undefined) patch['monday_crm_item_id'] = fields.crmItemId;
+  if (fields.formItemId !== undefined) patch['monday_form_item_id'] = fields.formItemId;
+  if (Object.keys(patch).length === 0) return;
+  await pool.query(`UPDATE clients SET agent_fields = agent_fields || $2::jsonb WHERE id = $1`, [
+    id,
+    JSON.stringify(patch),
+  ]);
 }
 
 export async function updateName(id: string, name: string): Promise<void> {

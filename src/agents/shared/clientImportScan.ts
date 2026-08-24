@@ -2,6 +2,7 @@ import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as clientPortalCredentials from '../../db/queries/clientPortalCredentials.js';
 import * as clients from '../../db/queries/clients.js';
+import * as waSenders from '../../db/queries/waSenders.js';
 import { draftFirstEmail } from '../../api/draftFirstEmail.js';
 import { recordAudit } from '../../audit/audit.js';
 import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
@@ -10,13 +11,16 @@ import { isKillSwitchOn } from '../killSwitch.js';
 import { getAgentTypeIfKnown } from '../registry.js';
 import { resolveTaxYear } from './taxYear.js';
 import { normalizeE164 } from '../../util/phone.js';
+import { syntheticWaEmail } from '../../util/syntheticEmail.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
 import { DOC_COLLECTOR_FAMILY, isDocCollectorFamily } from '../docCollector/family.js';
 import { parseSettings as parseDocCollectorSettings } from '../docCollector/settings.js';
 import {
   collectCandidates,
+  hasCrmLinkColumn,
   hasDocumentsColumn,
+  hasPhoneColumn,
   loadAllRows,
   parseClientSources,
   parseDocumentsCell,
@@ -41,7 +45,7 @@ export interface SourceScanResult {
   /** Sources that were configured but could not be read this run. */
   failedSources: string[];
   /** Why enrollment could not run at all; null when the scan ran. */
-  notReady: 'no_sources' | 'no_mailbox' | 'no_documents' | null;
+  notReady: 'no_sources' | 'no_mailbox' | 'no_documents' | 'no_wa_sender' | 'no_phone_column' | null;
 }
 
 /** Narrows a scan to one configured source — the settings panel's per-source "import now". */
@@ -65,7 +69,7 @@ interface InstanceImportConfig {
   /** Doc-collector family only: a mapped documents column supplies each client's checklist. */
   perRowDocuments: boolean;
   /** Config gap that must block enrollment (beyond having no sources). */
-  notReady: 'no_documents' | null;
+  notReady: 'no_documents' | 'no_phone_column' | null;
 }
 
 /** Best-effort: a bad credentials cell must not block enrollment of the client itself. */
@@ -118,14 +122,24 @@ async function clearPendingImportFlags(instance: AgentInstanceRow, filter?: Scan
 }
 
 function importConfig(instance: AgentInstanceRow, filter?: ScanSourceFilter): InstanceImportConfig {
+  const definition = getAgentTypeIfKnown(instance.agent_type);
   if (isDocCollectorFamily(instance.agent_type)) {
     const settings = parseDocCollectorSettings(instance.settings);
     const sources = filter ? filterSources(settings, filter) : settings;
+    // WhatsApp-only agents key rows by phone — a source without a mapped phone
+    // column can only produce unreachable clients, so enrollment refuses. A
+    // board mapped by its CRM connect-boards column is exempt: its phone lives
+    // on the linked CRM item and enrollment happens at kickoff (form
+    // submission), not in this sweep.
+    const missingPhoneKey =
+      definition?.whatsappOnly === true && !hasPhoneColumn(sources) && !hasCrmLinkColumn(sources)
+        ? ('no_phone_column' as const)
+        : null;
     // Catalog-seeded types (declaration of capital) take no per-row checklist:
     // the hardcoded catalog is the only supply, so the documents column is
     // ignored and enrollment never blocks on it.
-    if (getAgentTypeIfKnown(instance.agent_type)?.seedClientDocuments) {
-      return { sources, perRowDocuments: false, notReady: null };
+    if (definition?.seedClientDocuments) {
+      return { sources, perRowDocuments: false, notReady: missingPhoneKey };
     }
     // A doc-collector client without documents completes trivially and never
     // gets emailed — refuse to mass-create useless clients. The mapped
@@ -169,7 +183,17 @@ export async function scanClientImportInstance(
     result.notReady = config.notReady;
     return result;
   }
-  if (!(await resolveSenderMailbox(instance.id, instance.user_id))) {
+  const definition = getAgentTypeIfKnown(instance.agent_type);
+  const whatsappOnly = definition?.whatsappOnly === true;
+  if (whatsappOnly) {
+    // WhatsApp-only agents send from the instance's dedicated number; without
+    // one the first message could never send — same rationale as the mailbox.
+    if (!(await waSenders.getByInstanceId(instance.id))) {
+      logger.warn('client import: instance has no WhatsApp sender, skipping', { instanceId: instance.id });
+      result.notReady = 'no_wa_sender';
+      return result;
+    }
+  } else if (!(await resolveSenderMailbox(instance.id, instance.user_id))) {
     // Without a sender address the first email could never send; skip rather
     // than enroll clients that immediately fail.
     logger.warn('client import: instance has no sender address, skipping', { instanceId: instance.id });
@@ -183,15 +207,25 @@ export async function scanClientImportInstance(
     logger.warn('client import: some sources unreadable this run', { instanceId: instance.id, failedSources });
   }
 
-  const candidates = collectCandidates(sources);
+  const candidates = collectCandidates(sources, whatsappOnly ? 'phone' : 'email');
   const fresh = [];
-  for (const candidate of candidates.values()) {
-    const existing = await clients.getByEmailAddressForInstance(instance.id, candidate.email);
+  for (const [key, candidate] of candidates.entries()) {
+    // WhatsApp-only agents: the map key IS the E.164 phone — the client identity.
+    const existing = whatsappOnly
+      ? await clients.getByWaPhoneForInstance(instance.id, key)
+      : await clients.getByEmailAddressForInstance(instance.id, candidate.email);
     if (existing) {
       result.skipped += 1;
       // Credentials/phone keep syncing for already-enrolled clients — this is
       // how a later-filled source column reaches them without re-import.
       await syncCredentials(existing.id, candidate.credentials);
+      // Backfill the board-row address of clients enrolled before the status
+      // sync existed, so their progress labels reach the board too.
+      if (candidate.mondayItem && typeof existing.agent_fields['monday_item_id'] !== 'string') {
+        await clients
+          .setMondayItem(existing.id, candidate.mondayItem.boardId, candidate.mondayItem.itemId)
+          .catch((err) => logger.error('client import: monday item backfill failed', err, { clientId: existing.id }));
+      }
       if (!existing.phone && candidate.phone) {
         await clients
           .updateDetailsForInstance(existing.id, instance.id, { phone: candidate.phone })
@@ -218,13 +252,18 @@ export async function scanClientImportInstance(
   // Manual-kickoff agents (declaration of capital) enroll paused with no
   // first draft: outreach starts only on the accountant's explicit trigger
   // (monday kickoff webhook or the workspace resume toggle).
-  const definition = getAgentTypeIfKnown(instance.agent_type);
   const manualKickoff = definition?.manualKickoff === true;
   // Catalog-seeded checklist, rendered once per scan for the instance's tax year.
-  const seedDocuments = definition?.seedClientDocuments?.(resolveTaxYear(instance, new Date())) ?? null;
+  const scanTaxYear = resolveTaxYear(instance, new Date());
+  const seedDocuments = definition?.seedClientDocuments?.(scanTaxYear) ?? null;
 
   for (const candidate of fresh) {
-    const name = candidate.name || candidate.email.split('@')[0] || candidate.email;
+    // WhatsApp-only agents: the phone is the identity; email_address gets the
+    // synthetic placeholder (the column is NOT NULL + unique per instance).
+    const waPhone = whatsappOnly ? normalizeE164(candidate.phone) : null;
+    if (whatsappOnly && !waPhone) continue; // phone-keyed candidates always normalize; defensive
+    const name =
+      candidate.name || (whatsappOnly ? (waPhone as string) : candidate.email.split('@')[0] || candidate.email);
     const documents = resolveDocuments(config, candidate);
     if (config.perRowDocuments && documents.length === 0) {
       // Empty checklist + empty cell: this client would complete trivially.
@@ -238,8 +277,16 @@ export async function scanClientImportInstance(
         userId: instance.user_id,
         agentInstanceId: instance.id,
         name,
-        emailAddress: candidate.email,
+        emailAddress: waPhone ? syntheticWaEmail(waPhone) : candidate.email,
         phone: candidate.phone || null,
+        // The board-row address for the status sync's write-back; catalog-seeded
+        // clients also pin the tax year their checklist was rendered for.
+        agentFields: {
+          ...(candidate.mondayItem
+            ? { monday_board_id: candidate.mondayItem.boardId, monday_item_id: candidate.mondayItem.itemId }
+            : {}),
+          ...(seedDocuments ? { tax_year: scanTaxYear } : {}),
+        },
         paused: manualKickoff,
       });
       if (seedDocuments) {
@@ -263,13 +310,23 @@ export async function scanClientImportInstance(
       // staggered so a big import doesn't fire hundreds of concurrent Gemini calls.
       if (!manualKickoff) setTimeout(() => draftFirstEmail(client.id), result.enrolled * DRAFT_STAGGER_MS);
       result.enrolled += 1;
-      logger.info('client import: client enrolled', { instanceId: instance.id, clientId: client.id, email: candidate.email });
+      logger.info('client import: client enrolled', {
+        instanceId: instance.id,
+        clientId: client.id,
+        email: candidate.email,
+        ...(waPhone ? { waPhone } : {}),
+      });
       recordAudit({
         actorType: 'system',
         action: 'client.auto_enrolled',
         agentInstanceId: instance.id,
         clientId: client.id,
-        detail: { clientName: name, email: candidate.email, source: 'client_import_scan' },
+        detail: {
+          clientName: name,
+          email: candidate.email,
+          ...(waPhone ? { waPhone } : {}),
+          source: 'client_import_scan',
+        },
       });
     } catch (err) {
       // 23505 = unique_violation: enrolled concurrently (webhook, another run) — fine.

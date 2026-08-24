@@ -11,10 +11,35 @@ client-import scan, overdue scan, tax-year gating) and differs only in what
 the documents are for — a הצהרת הון as of the 31.12.tax_year valuation date —
 via its own prompt template (`declarationOfCapital/prompt.md`, selected per
 agent type in `docCollector/plan.ts`), the analyzer's valuation-date framing
-(`AnalysisPurpose` in `analyzeFile.ts`), email suffix `capital`, and its own
-UI defaults (add-client checklist, no monday board import). The
-accountant-editable prompt template (legacy setting key) applies to
-`doc_collector` only.
+(`AnalysisPurpose` in `analyzeFile.ts`), and its own UI defaults (add-client
+checklist, no monday board import). The accountant-editable prompt template
+(legacy setting key) applies to `doc_collector` only.
+Since 2026-08-23 it is also the first **WhatsApp-only** type
+(`AgentTypeDefinition.whatsappOnly`; it has no `emailSuffix` anymore, so
+activation is not email-gated and no mailbox is required — the instance's
+`wa_senders` number is what it sends from):
+- Clients are keyed by **phone**, not email: the source mapping's required key
+  column is the phone column (`ClientSourcesSettings keyKind="phone"`, board
+  picker filtered by `PHONE_CAPABLE`), `collectCandidates(sources, 'phone')`
+  dedupes by the E.164 number, the import looks rows up via
+  `getByWaPhoneForInstance`, and `email_address` gets the synthetic
+  `wa-<digits>@wa.invalid` placeholder (`src/util/syntheticEmail.ts`, same
+  pattern as CS auto-enrollment; the UI hides it, tax-fetch delivery treats it
+  as "no email"). The kickoff webhook resolves the clicked row by its phone
+  cell the same way.
+- The import gate is a **WhatsApp sender**, not a mailbox
+  (`notReady: 'no_wa_sender'`), and sources without a mapped phone column
+  refuse to enroll (`'no_phone_column'`).
+- The planner may never choose email: `DecisionContext.emailAllowed=false`
+  rejects it in `normalizeFollowUpMessage`, and `planFollowUp` throws upfront
+  when the WhatsApp channel is unavailable (no opt-in / no sender / window
+  closed with zero approved templates) instead of asking the LLM. First
+  contact always goes out as an **approved template** (the 24h window is
+  closed until the client first replies); the prompt tells the model to send
+  the full intake questionnaire as its first free-form message once the
+  window opens. Operational prerequisite: at least one approved `wa_templates`
+  row must exist (admin: waAdmin routes) or the agent cannot start
+  conversations.
 It is also the first **manual-kickoff** type (`AgentTypeDefinition.manualKickoff`):
 the client-import scan enrolls its clients *paused* with no first draft, and
 the first message is drafted+scheduled only on an explicit accountant trigger —
@@ -29,6 +54,64 @@ email via the board's configured email column, enrolls a not-yet-imported row
 on the spot (narrowed scan), and only starts a paused, never-contacted,
 goal-open client — repeat fires are acknowledged (200) and ignored. Each start
 is audited as `client.kickoff_triggered`.
+Since 2026-08-24 the declaration flow is **questionnaire-driven** (the office's
+monday WorkForm is the only source of which documents a declaration needs):
+- **Board shape**: the declarations board maps four extra columns
+  (`BoardSourceSchema`: `crmLinkColumnId`, `formLinkColumnId`,
+  `fileNumberColumnId`, `yearColumnId`; settings UI
+  `withDeclarationColumns`). The two link columns are **connect-boards**
+  columns: one to the client's CRM item (phone / name / ת"ז live there — the
+  declarations row itself needs no phone column any more), one to the
+  submitted WorkForm response item (its columns ARE the form answers). The
+  webhook recipe fires on form submission (e.g. "when the questionnaire status
+  changes to התקבל מענה").
+- **Kickoff resolution** (`declarationOfCapital/kickoff.ts`,
+  `fetchItemDetails` in `customerService/mondayData.ts` reads titles/types +
+  `BoardRelationValue.linked_item_ids`): the webhook follows the CRM link for
+  the phone (first phone-typed column, title-pattern fallback; the ת"ז cell
+  feeds `agent_fields.id_number`, used by verification as a credentials
+  fallback), enrolls the phone-keyed client on the spot, and stamps the
+  engagement identity — **file number + declaration year** — plus the linked
+  item ids into `agent_fields` (`file_number`, `tax_year`,
+  `monday_crm_item_id`, `monday_form_item_id`).
+- **Per-client tax year**: the year comes from the board row (`yearColumnId`),
+  not the instance; `resolveClientTaxYear` (shared/taxYear.ts) prefers
+  `agent_fields.tax_year` everywhere (checklist seeding, prompts,
+  verification's 31.12 check), with the admin-set instance year as fallback.
+- **Form pre-resolution** (`declarationOfCapital/formIntake.ts`, rules in
+  `formIntakeRules.ts`): before the first draft is planned, one isolated
+  Gemini read maps the form's question/answer pairs onto the seeded
+  `unresolved` rows — explicit "no" answers become `not_required` with a new
+  evidence shape (`{source:'form', question, quote}`, quote validated verbatim
+  against the answers), concrete assets become 1..N `pending` rows (same
+  `resolveRequired` splitting as the interview), and empty/ambiguous answers
+  stay `unresolved` so the WhatsApp interview asks **only the gaps** (the
+  prompt tells the model the questionnaire was already processed; when nothing
+  is left unresolved it skips the interview and goes straight to collection).
+  Suspected injection in the answers suppresses all resolutions; every applied
+  resolution is audited as `document.resolved` with `source: 'form_intake'`.
+  The catalog was realigned to the form (17 types): added
+  `contents_insurance`, `poa_account`, `private_investment`; removed
+  `cash_foreign_currency`, `valuables`, `foreign_assets` (foreign
+  banks/portfolios fold into `bank_balance`/`securities_portfolio`, residual
+  assets into `other_assets`).
+Since 2026-08-23 the agent also reports its progress **back to the board**
+(`src/agents/shared/mondayStatusSync.ts`): when a board source maps a
+`statusColumnId` (settings UI: declaration-of-capital board mapping only, but
+the backend is doc-collector-family-generic), the agent writes fixed Hebrew
+labels into that status column — "agent working" on conversation start
+(kickoff webhook or first resume) and "documents collected" on goal
+completion, reverting to "agent working" if the goal reopens. The write-back
+address is remembered per client in `agent_fields.monday_board_id/monday_item_id`
+(stamped at import — `fetchAllBoardRows` now returns item ids — and re-stamped
+by every kickoff click; the import sweep backfills pre-existing clients).
+Labels are written with `create_labels_if_missing`, so boards need no
+pre-created labels. Requires the **boards:write** OAuth scope (added to
+`MONDAY_OAUTH_SCOPES` + must be enabled in the monday Developer Center);
+accountants connected before the scope change must reconnect monday. Sync is
+best-effort: failures are logged, never block the conversation, and the
+status-change events the writes fire back at the kickoff webhook are ignored
+by its startable-state guards.
 `annual_report_assistant` was retired 2026-07-31 — migration 041 disabled its
 instances; the rows survive, hidden, because instance rows are never deleted.
 Industry pattern followed: one app with an agent registry

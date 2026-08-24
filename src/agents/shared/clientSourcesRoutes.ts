@@ -5,7 +5,7 @@ import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as googleOauthTokens from '../../db/queries/googleOauthTokens.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { getSpreadsheetMeta } from '../customerService/googleData.js';
-import { EMAIL_CAPABLE, listBoards } from '../customerService/mondayData.js';
+import { EMAIL_CAPABLE, PHONE_CAPABLE, listBoards } from '../customerService/mondayData.js';
 import { getAgentTypeIfKnown } from '../registry.js';
 import { scanClientImportInstance } from './clientImportScan.js';
 import { kickoffWebhookUrl } from './kickoffWebhook.js';
@@ -80,8 +80,11 @@ export function registerClientSourceRoutes(
   router.get(
     '/client-sources/monday/boards',
     wrap(requireMondayToken),
-    wrap(async (_req, res) => {
-      res.json({ boards: await listBoards(res.locals.mondayAccessToken as string, EMAIL_CAPABLE) });
+    wrap(async (req, res) => {
+      // WhatsApp-only agents key rows by phone — the board must have a column
+      // that could hold one; everyone else needs an email-capable column.
+      const phoneKeyed = getAgentTypeIfKnown(req.agentInstance!.agent_type)?.whatsappOnly === true;
+      res.json({ boards: await listBoards(res.locals.mondayAccessToken as string, phoneKeyed ? PHONE_CAPABLE : EMAIL_CAPABLE) });
     }),
   );
 

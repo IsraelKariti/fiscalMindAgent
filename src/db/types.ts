@@ -125,11 +125,15 @@ export interface ClientRow {
  */
 export type DocumentStatus = 'unresolved' | 'not_required' | 'pending' | 'claimed' | 'collected' | 'approved';
 
-/** The client statement an intake resolution rests on — verbatim quote from a stored inbound message. */
-export interface ResolutionEvidence {
-  message_id: string;
-  quote: string;
-}
+/**
+ * The client statement an intake resolution rests on: a verbatim quote from a
+ * stored inbound message (the WhatsApp interview), or — for rows pre-resolved
+ * from the client's submitted intake questionnaire — the form question the
+ * quoted answer belongs to.
+ */
+export type ResolutionEvidence =
+  | { message_id: string; quote: string }
+  | { source: 'form'; question: string; quote: string };
 
 export interface ClientDocumentRow {
   id: string;

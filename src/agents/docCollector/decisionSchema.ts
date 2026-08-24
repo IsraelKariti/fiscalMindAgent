@@ -177,6 +177,8 @@ export interface IntakeDecisionState {
 
 /** What the surrounding code knows about the WhatsApp channel when validating the LLM's choice. */
 export interface DecisionContext {
+  /** False for WhatsApp-only agents: the email channel may never be chosen. Undefined = allowed. */
+  emailAllowed?: boolean;
   /** Client opted in + sender number assigned + something is actually sendable. */
   whatsappAllowed: boolean;
   /** The 24h customer-service window is open (free-form WhatsApp permitted). */
@@ -236,6 +238,9 @@ export type FollowUpMessageInput = Pick<
 export function normalizeFollowUpMessage(raw: FollowUpMessageInput, ctx: DecisionContext): FollowUpMessage {
   // Old-style / email answers: a missing channel means email (backward-safe).
   if (raw.channel !== 'whatsapp') {
+    if (ctx.emailAllowed === false) {
+      throw new Error(`follow_up chose email but this agent messages on WhatsApp only — set channel to "whatsapp": ${JSON.stringify(raw)}`);
+    }
     if (raw.email_body == null || raw.email_subject == null) {
       throw new Error(`follow_up email decision missing subject/body: ${JSON.stringify(raw)}`);
     }

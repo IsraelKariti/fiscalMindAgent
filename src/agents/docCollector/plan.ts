@@ -10,7 +10,8 @@ import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccoun
 import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
-import { resolveTaxYear } from '../shared/taxYear.js';
+import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/mondayStatusSync.js';
+import { resolveClientTaxYear } from '../shared/taxYear.js';
 import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../declarationOfCapital/prompt.js';
 import { getCatalogType } from '../declarationOfCapital/catalog.js';
 import { verifyCollectedDocument } from '../declarationOfCapital/verifyDocument.js';
@@ -19,6 +20,7 @@ import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState } from './decisionSchema.js';
 import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys } from './taxFetch/flow.js';
 import { getProviderSpec } from './taxFetch/providers.js';
+import { getAgentTypeIfKnown } from '../registry.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { recordAudit } from '../../audit/audit.js';
 import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js';
@@ -75,13 +77,25 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const { client, accountant } = ctx;
   const clientId = client.id;
   const now = new Date();
-  const taxYear = resolveTaxYear(ctx.instance, now);
+  // Per-client first (declaration-of-capital rows carry their own declaration
+  // year from the monday board), instance default otherwise.
+  const taxYear = resolveClientTaxYear(client, ctx.instance, now);
   const agentType = ctx.instance?.agent_type ?? 'doc_collector';
   const isCapitalDeclaration = agentType === 'declaration_of_capital';
+  const whatsappOnly = getAgentTypeIfKnown(agentType)?.whatsappOnly === true;
   const history = await emails.listForClient(clientId);
   let documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
   const waState = await getWaChannelState(client, now);
+  // A WhatsApp-only agent with nothing sendable has no possible follow-up —
+  // fail loudly (drafting-failed marker + manual retry) instead of asking the
+  // LLM for a message no channel can carry. Fix by assigning a sender number,
+  // opting the client in, or approving a template (waAdmin).
+  if (whatsappOnly && !waState.allowed) {
+    throw new Error(
+      `planFollowUp: agent ${agentType} is WhatsApp-only but the channel is unavailable for client ${clientId}: ${waState.unavailableReason}`,
+    );
+  }
   // The start_login readiness signal must come from the phone-verified WhatsApp
   // channel: email is spoof-adjacent, and a forged "I'm ready" email must never
   // be able to trigger the real OTP email. (The OTP relay is WhatsApp-only anyway.)
@@ -172,6 +186,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       : undefined,
   );
   const decisionCtx: DecisionContext = {
+    emailAllowed: !whatsappOnly,
     whatsappAllowed: waState.allowed,
     windowOpen: waState.windowOpen,
     templates: waState.templates,
@@ -399,6 +414,8 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     // pending matching document left), but cancel/agreed actions still need to land.
     await applyTaxFetchAction(client, taxFetchAction, taxFetchTargetCtx, taxFetchKeys, taxYear, { emailId: null, delayMs: 0 });
     await clients.updateGoalStatus(clientId, 'complete');
+    // Report the finished collection back to the board row's status column.
+    void syncMondayStatus(clientId, MONDAY_STATUS_DOCS_COLLECTED);
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });
     recordAudit({

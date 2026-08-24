@@ -1,0 +1,127 @@
+import { z } from 'zod';
+
+/**
+ * The pure contract of the form pre-resolution (formIntake.ts): the model's
+ * output schema and the code-side validation of its proposals. Kept free of
+ * db/LLM imports so tests can exercise the rules directly.
+ */
+
+/** One question/answer pair of the submitted form (monday column title + cell text). */
+export interface FormAnswer {
+  question: string;
+  answer: string;
+}
+
+export const FormIntakeSchema = z.object({
+  /** The answers contain instruction-like text aimed at an AI; resolutions are suppressed when set. */
+  suspected_injection: z.boolean(),
+  resolutions: z.array(
+    z.object({
+      /** Catalog type key the resolution settles (client_documents.type_key). */
+      type_key: z.string(),
+      resolution: z.enum(['required', 'not_required']),
+      /** For 'required' only: one entry per concrete document instance. */
+      instances: z.array(z.object({ name: z.string(), description: z.string().nullable() })).nullable(),
+      /** The form question the decision rests on. */
+      question: z.string(),
+      /** Verbatim quote from the client's answer to that question. */
+      quote: z.string(),
+    }),
+  ),
+});
+
+export type FormIntakeResponse = z.infer<typeof FormIntakeSchema>;
+
+/** Hard cap on concrete instances one resolution may create — same bound as the interview validator. */
+export const MAX_FORM_INSTANCES = 10;
+
+/** Whitespace-insensitive containment (the same rule the interview evidence uses). */
+function quoteAppearsIn(quote: string, text: string): boolean {
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const q = norm(quote);
+  return q.length > 0 && norm(text).includes(q);
+}
+
+/** One seeded checklist row a form resolution may settle. */
+export interface FormResolvableRow {
+  id: string;
+  typeKey: string;
+  multiInstance: boolean;
+}
+
+export type ValidatedFormResolution =
+  | {
+      documentId: string;
+      typeKey: string;
+      resolution: 'not_required';
+      evidence: { source: 'form'; question: string; quote: string };
+    }
+  | { documentId: string; typeKey: string; resolution: 'required'; instances: { name: string; description: string | null }[] };
+
+/**
+ * Validates the model's proposed resolutions against the seeded rows and the
+ * actual form answers. Invalid entries are dropped (with the reason collected)
+ * rather than failing the whole pass — a dropped row simply stays unresolved
+ * and the WhatsApp interview covers it.
+ */
+export function validateFormResolutions(
+  raw: FormIntakeResponse,
+  rows: FormResolvableRow[],
+  answers: FormAnswer[],
+): { valid: ValidatedFormResolution[]; dropped: string[] } {
+  const byTypeKey = new Map(rows.map((r) => [r.typeKey, r]));
+  const allAnswersText = answers.map((a) => a.answer).join('\n');
+  const seen = new Set<string>();
+  const valid: ValidatedFormResolution[] = [];
+  const dropped: string[] = [];
+
+  for (const entry of raw.resolutions) {
+    const row = byTypeKey.get(entry.type_key);
+    if (!row) {
+      dropped.push(`${entry.type_key}: not an unresolved catalog row of this client`);
+      continue;
+    }
+    if (seen.has(entry.type_key)) {
+      dropped.push(`${entry.type_key}: targeted twice`);
+      continue;
+    }
+    seen.add(entry.type_key);
+
+    if (entry.resolution === 'not_required') {
+      if (!quoteAppearsIn(entry.quote, allAnswersText)) {
+        dropped.push(`${entry.type_key}: quote not found verbatim in the form answers`);
+        continue;
+      }
+      valid.push({
+        documentId: row.id,
+        typeKey: row.typeKey,
+        resolution: 'not_required',
+        evidence: { source: 'form', question: entry.question.slice(0, 300), quote: entry.quote.slice(0, 500) },
+      });
+      continue;
+    }
+
+    const instances = (entry.instances ?? []).map((i) => ({
+      name: i.name.trim(),
+      description: i.description?.trim() || null,
+    }));
+    if (instances.length === 0) {
+      dropped.push(`${entry.type_key}: required without instances`);
+      continue;
+    }
+    if (instances.some((i) => i.name.length === 0 || i.name.length > 200)) {
+      dropped.push(`${entry.type_key}: instance name out of 1-200 chars`);
+      continue;
+    }
+    if (instances.length > 1 && !row.multiInstance) {
+      dropped.push(`${entry.type_key}: multiple instances on a single-instance type`);
+      continue;
+    }
+    if (instances.length > MAX_FORM_INSTANCES) {
+      dropped.push(`${entry.type_key}: more than ${MAX_FORM_INSTANCES} instances`);
+      continue;
+    }
+    valid.push({ documentId: row.id, typeKey: row.typeKey, resolution: 'required', instances });
+  }
+  return { valid, dropped };
+}

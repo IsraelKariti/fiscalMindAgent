@@ -60,6 +60,15 @@ export interface AgentTypeDefinition {
    */
   manualKickoff?: boolean;
   /**
+   * WhatsApp is this agent's ONLY client channel: clients are keyed by phone
+   * number (import sources map a phone column instead of an email column, the
+   * kickoff webhook resolves rows by phone, email_address is a synthetic
+   * placeholder), the planner may never choose the email channel, and no
+   * sender mailbox is required. Requires a wa_senders number for the instance;
+   * first contact outside the 24h window needs an approved template.
+   */
+  whatsappOnly?: boolean;
+  /**
    * Fixed-catalog checklist seeding (declaration of capital): every new client
    * of this type starts with exactly these rows as 'unresolved' — the intake
    * interview resolves them — regardless of enrollment path. When set,

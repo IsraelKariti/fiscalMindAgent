@@ -14,6 +14,7 @@ import { setFutureEmail } from '../../../orchestration/setFutureEmail.js';
 import { formatFrom, resolveSenderMailbox } from '../../instanceEmail.js';
 import { sendEmail } from '../../../resend/send.js';
 import { uploadBlob } from '../../../storage/blob.js';
+import { isSyntheticWaEmail } from '../../../util/syntheticEmail.js';
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientRow } from '../../../db/types.js';
@@ -45,7 +46,8 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     throw new Error('cannot deliver tax documents: client is not WhatsApp-reachable');
   }
   const mailbox = await resolveSenderMailbox(client.agent_instance_id, client.user_id);
-  const canEmail = Boolean(mailbox && client.email_address);
+  // Synthetic wa-*@wa.invalid placeholders (WhatsApp-only clients) are not real addresses.
+  const canEmail = Boolean(mailbox && client.email_address && !isSyntheticWaEmail(client.email_address));
   if (!canEmail) {
     logger.warn('tax fetch: client not emailable, documents stored on platform only', {
       clientId: client.id,

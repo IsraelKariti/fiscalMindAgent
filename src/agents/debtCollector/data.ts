@@ -59,8 +59,11 @@ async function loadMondayRows(
     return;
   }
 
+  // The debt collector matches rows by email — a board without a mapped email
+  // column (possible in the schema only for WhatsApp-only agents) is skipped.
+  const boards = settings.boards.filter((b): b is typeof b & { emailColumnId: string } => Boolean(b.emailColumnId));
   const results = await Promise.allSettled(
-    settings.boards.map((board) =>
+    boards.map((board) =>
       fetchRowsMatching(
         token.access_token,
         board.boardId,
@@ -74,10 +77,10 @@ async function loadMondayRows(
     if (result.status === 'fulfilled') data.boardRows.push(result.value);
     else {
       logger.warn('debt collector: board fetch failed', {
-        boardId: settings.boards[i]?.boardId,
+        boardId: boards[i]?.boardId,
         reason: String(result.reason),
       });
-      data.failedSources.push(`board ${settings.boards[i]?.boardName ?? settings.boards[i]?.boardId}`);
+      data.failedSources.push(`board ${boards[i]?.boardName ?? boards[i]?.boardId}`);
     }
   });
 }
@@ -93,8 +96,10 @@ async function loadSheetRows(
   const token = await getGoogleToken(ctx, data);
   if (!token) return;
 
+  // Same email-match contract as the boards: sheets without a mapped email column are skipped.
+  const sheets = settings.sheets.filter((s): s is typeof s & { emailColumn: string } => Boolean(s.emailColumn));
   const results = await Promise.allSettled(
-    settings.sheets.map((sheet) =>
+    sheets.map((sheet) =>
       fetchSheetRowsMatching(
         token,
         {
@@ -111,11 +116,11 @@ async function loadSheetRows(
     if (result.status === 'fulfilled') data.sheetRows.push(result.value);
     else {
       logger.warn('debt collector: sheet fetch failed', {
-        spreadsheetId: settings.sheets[i]?.spreadsheetId,
+        spreadsheetId: sheets[i]?.spreadsheetId,
         reason: String(result.reason),
       });
       data.failedSources.push(
-        `spreadsheet ${settings.sheets[i]?.spreadsheetName ?? settings.sheets[i]?.spreadsheetId}`,
+        `spreadsheet ${sheets[i]?.spreadsheetName ?? sheets[i]?.spreadsheetId}`,
       );
     }
   });

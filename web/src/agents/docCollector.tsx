@@ -8,27 +8,17 @@ import { FilesCard } from '../components/FilesCard';
 import { StatTiles } from '../components/StatTiles';
 import { Timeline } from '../components/Timeline';
 import { DashboardCharts } from '../components/charts/DashboardCharts';
-import type { AgentTypeUI } from './types';
+import type { AgentTypeUI, ClientTab } from './types';
 
 const CHANNELS: readonly MessageChannel[] = ['email', 'whatsapp'];
 
-/** The document collector's workspace UI: the four tabs the app has always had. */
-export const docCollectorUI: AgentTypeUI = {
-  agentType: 'doc_collector',
-  supportsBoardImport: true,
-  settingsPanel: () => <ClientImportSettings withDocuments withPortalCredentials />,
-  settingsPanelTabKey: 'settingsTabConnections',
-  channels: CHANNELS,
-  nameKey: 'agentDocCollectorName',
-  descriptionKey: 'agentDocCollectorDesc',
-  icon: (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <path d="m9 15 2 2 4-4" />
-    </svg>
-  ),
-  clientTabs: [
+/**
+ * The doc collector's four tabs, parameterized by the agent's channels so the
+ * declaration-of-capital collector (WhatsApp-only) reuses them without the
+ * email channel surfacing in the Timeline.
+ */
+export function docCollectorClientTabs(channels: readonly MessageChannel[]): ClientTab[] {
+  return [
     {
       id: 'conversation',
       labelKey: 'tabConversation',
@@ -37,7 +27,7 @@ export const docCollectorUI: AgentTypeUI = {
           <Timeline
             emails={ctx.emails}
             files={ctx.files}
-            channels={CHANNELS}
+            channels={channels}
             nextScheduled={ctx.nextScheduled}
             goalStatus={ctx.client.goal_status}
             paused={ctx.client.paused}
@@ -134,5 +124,24 @@ export const docCollectorUI: AgentTypeUI = {
         </div>
       ),
     },
-  ],
+  ];
+}
+
+/** The document collector's workspace UI: the four tabs the app has always had. */
+export const docCollectorUI: AgentTypeUI = {
+  agentType: 'doc_collector',
+  supportsBoardImport: true,
+  settingsPanel: () => <ClientImportSettings withDocuments withPortalCredentials />,
+  settingsPanelTabKey: 'settingsTabConnections',
+  channels: CHANNELS,
+  nameKey: 'agentDocCollectorName',
+  descriptionKey: 'agentDocCollectorDesc',
+  icon: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <path d="m9 15 2 2 4-4" />
+    </svg>
+  ),
+  clientTabs: docCollectorClientTabs(CHANNELS),
 };

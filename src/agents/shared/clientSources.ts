@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeE164 } from '../../util/phone.js';
 import { getFreshGoogleAccessToken } from '../../api/googleOauth.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { fetchAllSheetRows } from '../customerService/googleData.js';
@@ -14,8 +15,8 @@ import { logger } from '../../util/logger.js';
 export const BoardSourceSchema = z
   .object({
     boardId: z.string().min(1),
-    /** Column holding the client's email address — the row key. */
-    emailColumnId: z.string().min(1),
+    /** Column holding the client's email address — the row key (email-keyed agents; optional for WhatsApp-only agents, which key by phone). */
+    emailColumnId: z.string().min(1).optional(),
     /** Column holding the client's display name; unset = the monday item name. */
     nameColumnId: z.string().min(1).optional(),
     /** Column holding the client's phone number — optional, free text. */
@@ -26,6 +27,16 @@ export const BoardSourceSchema = z
     taxUserCodeColumnId: z.string().min(1).optional(),
     /** Column listing the client's required documents (doc collector) — optional. */
     documentsColumnId: z.string().min(1).optional(),
+    /** Status column the agent writes its progress labels to (mondayStatusSync) — optional. */
+    statusColumnId: z.string().min(1).optional(),
+    /** Connect-boards column linking to the client's CRM item (phone/name/ID live there) — declaration of capital. */
+    crmLinkColumnId: z.string().min(1).optional(),
+    /** Connect-boards column linking to the client's submitted intake-questionnaire item — declaration of capital. */
+    formLinkColumnId: z.string().min(1).optional(),
+    /** Column holding the client's tax-office file number (מס' תיק) — declaration of capital. */
+    fileNumberColumnId: z.string().min(1).optional(),
+    /** Column holding the row's declaration year (שנת הצהרת הון) — declaration of capital. */
+    yearColumnId: z.string().min(1).optional(),
     /** Display cache for the settings UI; the live fetch re-reads the real name. */
     boardName: z.string().optional(),
     /** Set by the settings UI on add; the UI shows "import now" until a scan clears it. */
@@ -41,8 +52,8 @@ export const SheetSourceSchema = z
     spreadsheetName: z.string().optional(),
     /** The tab the client rows live in. */
     sheetTitle: z.string().min(1),
-    /** Header text of the column holding client email addresses. */
-    emailColumn: z.string().min(1),
+    /** Header text of the column holding client email addresses — the row key (optional for WhatsApp-only agents, which key by phone). */
+    emailColumn: z.string().min(1).optional(),
     /** Header text of the column holding the client's display name. */
     nameColumn: z.string().min(1).optional(),
     /** Header text of the column holding the client's phone number — optional. */
@@ -66,6 +77,7 @@ export const ClientSourcesSchema = z
   .strict();
 
 export type ClientSources = z.infer<typeof ClientSourcesSchema>;
+export type BoardSource = z.infer<typeof BoardSourceSchema>;
 
 /** Tolerant read of the stored JSONB: unknown/invalid shapes fall back to empty config. */
 export function parseClientSources(raw: Record<string, unknown>): ClientSources {
@@ -89,6 +101,8 @@ export interface ScanSourceRows {
     /** Raw text of the mapped documents column; '' when unmapped or empty. */
     documentsCell: string;
     credentials: PortalCredentials | null;
+    /** The monday row's identity — null for sheet rows; persisted so the agent can write back (status sync). */
+    mondayItem: { boardId: string; itemId: string } | null;
     row: Record<string, string>;
   }[];
 }
@@ -96,6 +110,20 @@ export interface ScanSourceRows {
 /** Any configured source maps a per-row documents column. */
 export function hasDocumentsColumn(settings: ClientSources): boolean {
   return settings.boards.some((b) => b.documentsColumnId) || settings.sheets.some((s) => s.documentsColumn);
+}
+
+/** Any configured source maps a phone column — the row key of WhatsApp-only agents. */
+export function hasPhoneColumn(settings: ClientSources): boolean {
+  return settings.boards.some((b) => b.phoneColumnId) || settings.sheets.some((s) => s.phoneColumn);
+}
+
+/**
+ * Any configured board maps a CRM connect-boards column (declaration of
+ * capital): the client's phone arrives by following that link at kickoff time,
+ * so such a config is enrollable even without a phone column of its own.
+ */
+export function hasCrmLinkColumn(settings: ClientSources): boolean {
+  return settings.boards.some((b) => b.crmLinkColumnId);
 }
 
 /**
@@ -121,10 +149,11 @@ function extractCredentials(idNumber: string | undefined, userCode: string | und
 }
 
 /**
- * Every row (with a non-empty email cell) of every configured source — the
- * scans' sweep for rows that have no client yet. Rows without an email can
- * never be contacted, so they are dropped here. Each source fails
- * independently into failedSources.
+ * Every row (with a non-empty email or phone cell) of every configured source —
+ * the scans' sweep for rows that have no client yet. Rows carrying neither key
+ * can never be contacted on any channel, so they are dropped here; which key
+ * actually matters is the caller's choice (collectCandidates keyKind). Each
+ * source fails independently into failedSources.
  */
 export async function loadAllRows(
   accountantId: string,
@@ -151,7 +180,7 @@ export async function loadAllRows(
           sourceName: `monday board "${result.value.boardName}"`,
           rows: result.value.rows
             .map((item) => ({
-              email: (item.cells[board.emailColumnId] ?? '').trim().toLowerCase(),
+              email: (board.emailColumnId ? (item.cells[board.emailColumnId] ?? '') : '').trim().toLowerCase(),
               name: (board.nameColumnId ? (item.cells[board.nameColumnId] ?? '') : '').trim() || item.itemName.trim(),
               phone: (board.phoneColumnId ? (item.cells[board.phoneColumnId] ?? '') : '').trim(),
               documentsCell: (board.documentsColumnId ? (item.cells[board.documentsColumnId] ?? '') : '').trim(),
@@ -159,9 +188,10 @@ export async function loadAllRows(
                 board.idNumberColumnId ? item.cells[board.idNumberColumnId] : undefined,
                 board.taxUserCodeColumnId ? item.cells[board.taxUserCodeColumnId] : undefined,
               ),
+              mondayItem: { boardId: board.boardId, itemId: item.itemId },
               row: item.row,
             }))
-            .filter((r) => r.email !== ''),
+            .filter((r) => r.email !== '' || r.phone !== ''),
         });
       });
     }
@@ -196,7 +226,7 @@ export async function loadAllRows(
           sourceName: `spreadsheet "${sheet.spreadsheetName ?? result.value.sheetName}" / tab "${result.value.sheetName}"`,
           rows: result.value.rows
             .map((row) => ({
-              email: (row[sheet.emailColumn] ?? '').trim().toLowerCase(),
+              email: (sheet.emailColumn ? (row[sheet.emailColumn] ?? '') : '').trim().toLowerCase(),
               name: (sheet.nameColumn ? (row[sheet.nameColumn] ?? '') : '').trim(),
               phone: (sheet.phoneColumn ? (row[sheet.phoneColumn] ?? '') : '').trim(),
               documentsCell: (sheet.documentsColumn ? (row[sheet.documentsColumn] ?? '') : '').trim(),
@@ -204,9 +234,10 @@ export async function loadAllRows(
                 sheet.idNumberColumn ? row[sheet.idNumberColumn] : undefined,
                 sheet.taxUserCodeColumn ? row[sheet.taxUserCodeColumn] : undefined,
               ),
+              mondayItem: null,
               row,
             }))
-            .filter((r) => r.email !== ''),
+            .filter((r) => r.email !== '' || r.phone !== ''),
         });
       });
     }
@@ -226,33 +257,52 @@ export interface Candidate {
   documentsCell: string;
   /** Tax-portal login pair; null when no source row carried both cells. */
   credentials: PortalCredentials | null;
+  /** The candidate's monday row (first board row that carried the key); null for sheet-only candidates. */
+  mondayItem: { boardId: string; itemId: string } | null;
   /** One "[source] header: value | …" line per row the email appeared in (LLM screening / logs). */
   lines: string[];
 }
 
-/** Rows keyed by (valid, lowercased) email, merged across sources; first non-empty name/phone/credentials win. */
-export function collectCandidates(sources: ScanSourceRows[]): Map<string, Candidate> {
+/**
+ * Rows merged across sources into one candidate per key; first non-empty
+ * name/phone/credentials win. The key is the map key AND the dedupe identity:
+ * - 'email' (default): a valid, lowercased email address.
+ * - 'phone' (WhatsApp-only agents): the E.164-normalized phone number — rows
+ *   whose phone cell doesn't normalize are dropped (they can't be messaged).
+ */
+export function collectCandidates(sources: ScanSourceRows[], keyKind: 'email' | 'phone' = 'email'): Map<string, Candidate> {
   const candidates = new Map<string, Candidate>();
   for (const source of sources) {
     for (const row of source.rows) {
-      if (!EMAIL_SHAPE.test(row.email)) continue;
+      let key: string;
+      if (keyKind === 'phone') {
+        const normalized = normalizeE164(row.phone);
+        if (!normalized) continue;
+        key = normalized;
+      } else {
+        if (!EMAIL_SHAPE.test(row.email)) continue;
+        key = row.email;
+      }
       const line = `[${source.sourceName}] ${Object.entries(row.row)
         .map(([header, value]) => `${header}: ${value}`)
         .join(' | ')}`;
-      const existing = candidates.get(row.email);
+      const existing = candidates.get(key);
       if (existing) {
         existing.lines.push(line);
         if (!existing.name) existing.name = row.name;
+        if (!existing.email) existing.email = row.email;
         if (!existing.phone) existing.phone = row.phone;
         if (!existing.documentsCell) existing.documentsCell = row.documentsCell;
         if (!existing.credentials) existing.credentials = row.credentials;
+        if (!existing.mondayItem) existing.mondayItem = row.mondayItem;
       } else {
-        candidates.set(row.email, {
+        candidates.set(key, {
           email: row.email,
           name: row.name,
           phone: row.phone,
           documentsCell: row.documentsCell,
           credentials: row.credentials,
+          mondayItem: row.mondayItem,
           lines: [line],
         });
       }

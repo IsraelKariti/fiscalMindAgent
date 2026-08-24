@@ -94,8 +94,8 @@ export interface ClientDocument {
   /** Capital-declaration catalog type key; null for doc-collector/ad-hoc rows. */
   type_key: string | null;
   verification: DocumentVerification | null;
-  /** The client quote behind an agent-made 'not_required'. */
-  resolution_evidence: { message_id: string; quote: string } | null;
+  /** The client quote behind an agent-made 'not_required' — from a stored inbound message or the intake questionnaire. */
+  resolution_evidence: { message_id?: string; source?: 'form'; question?: string; quote: string } | null;
   created_at: string;
   updated_at: string;
 }
@@ -458,20 +458,31 @@ export interface CustomerServiceSettings {
 
 /** The debt collector's per-instance config (agent_instances.settings). */
 export interface DebtCollectorSettings {
-  boards: { boardId: string; emailColumnId: string; nameColumnId?: string; boardName?: string }[];
-  sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; emailColumn: string; nameColumn?: string }[];
+  boards: { boardId: string; emailColumnId?: string; nameColumnId?: string; boardName?: string }[];
+  sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; emailColumn?: string; nameColumn?: string }[];
 }
 
 /** Client-import sources config (doc collector; agent_instances.settings). */
 export interface ClientSourcesConfig {
   boards: {
     boardId: string;
-    emailColumnId: string;
+    /** Row key of email-keyed agents; WhatsApp-only agents key by phoneColumnId instead. */
+    emailColumnId?: string;
     nameColumnId?: string;
     phoneColumnId?: string;
     idNumberColumnId?: string;
     taxUserCodeColumnId?: string;
     documentsColumnId?: string;
+    /** Status column the agent writes its progress labels to. */
+    statusColumnId?: string;
+    /** Declaration of capital: connect-boards link to the client's CRM item. */
+    crmLinkColumnId?: string;
+    /** Declaration of capital: connect-boards link to the submitted questionnaire item. */
+    formLinkColumnId?: string;
+    /** Declaration of capital: the tax-office file number column. */
+    fileNumberColumnId?: string;
+    /** Declaration of capital: the declaration-year column. */
+    yearColumnId?: string;
     boardName?: string;
     /** Set when the source is added; the server clears it after a clean import scan. */
     pendingImport?: boolean;
@@ -480,7 +491,8 @@ export interface ClientSourcesConfig {
     spreadsheetId: string;
     spreadsheetName?: string;
     sheetTitle: string;
-    emailColumn: string;
+    /** Row key of email-keyed agents; WhatsApp-only agents key by phoneColumn instead. */
+    emailColumn?: string;
     nameColumn?: string;
     phoneColumn?: string;
     idNumberColumn?: string;
@@ -496,7 +508,7 @@ export interface ClientImportScanResult {
   enrolled: number;
   skipped: number;
   failedSources: string[];
-  notReady: 'no_sources' | 'no_mailbox' | 'no_documents' | null;
+  notReady: 'no_sources' | 'no_mailbox' | 'no_documents' | 'no_wa_sender' | 'no_phone_column' | null;
 }
 
 /** Narrows an "import now" scan to one configured source; omit to scan everything. */

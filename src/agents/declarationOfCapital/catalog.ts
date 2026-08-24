@@ -7,6 +7,11 @@
  *
  * Keys are persisted on rows — treat them as frozen once shipped; renaming a
  * key orphans existing rows. Content changes (names, questions) are safe.
+ *
+ * The types mirror the office's intake questionnaire (the monday WorkForm the
+ * client fills before kickoff) — every type corresponds to a form question, so
+ * the form answers can pre-resolve the checklist (formIntake.ts) and the
+ * WhatsApp interview only covers what the form left open.
  */
 
 /** Which generic verification checks apply when a received file is verified (verifyDocument.ts). */
@@ -58,7 +63,8 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'pension_provident',
     nameHe: 'אישור יתרות קופות גמל ופנסיה ליום 31.12.{{tax_year}}',
-    descriptionHe: 'דוח שנתי או אישור יתרה מכל קופת גמל וקרן פנסיה, המשקף את היתרה ליום 31.12.{{tax_year}}.',
+    descriptionHe:
+      'אישור מס להצהרת הון (מופיע בדרך כלל בסוף הדוח השנתי המקוצר) או אישור יתרה מכל קופת גמל וקרן פנסיה, המשקף את היתרה ליום 31.12.{{tax_year}} — כולל קופות של בן/בת הזוג.',
     discoveryQuestionHe: 'באילו קופות גמל וקרנות פנסיה אתה חבר?',
     multiInstance: true,
     dateDependent: true,
@@ -125,12 +131,23 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'vehicle',
-    nameHe: 'רישיון רכב ומסמכי רכישה',
-    descriptionHe: 'רישיון רכב בתוקף וחוזה/חשבונית רכישה לכל כלי רכב בבעלותך (רכב, אופנוע, וכדומה).',
+    nameHe: 'מסמכי רכישת כלי רכב',
+    descriptionHe:
+      'חוזה רכישה או חשבונית מס/קבלה לכל כלי רכב בבעלותך (רכב, אופנוע, משאית וכדומה), לאימות עלות הרכישה; אם המסמך אינו בנמצא — די בציון עלות הרכישה.',
     discoveryQuestionHe: 'כמה כלי רכב רשומים על שמך, ומה הם?',
     multiInstance: true,
     dateDependent: false,
     checks: { subjectMatch: true, asOfDate: false, amounts: false },
+  },
+  {
+    key: 'contents_insurance',
+    nameHe: 'פוליסת ביטוח תכולה',
+    descriptionHe:
+      'עמוד הפוליסה המציג את סכום ביטוח התכולה שהיה בתוקף ביום 31.12.{{tax_year}}. אם אין פוליסת תכולה — התכולה נרשמת בערך סמלי ואין צורך במסמך.',
+    discoveryQuestionHe: 'האם ביום הדוח הייתה ברשותך פוליסת ביטוח תכולה לדירה?',
+    multiInstance: false,
+    dateDependent: false,
+    checks: { subjectMatch: true, asOfDate: false, amounts: true },
   },
   {
     key: 'business_ownership',
@@ -141,16 +158,6 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     multiInstance: true,
     dateDependent: false,
     checks: { subjectMatch: true, asOfDate: false, amounts: false },
-  },
-  {
-    key: 'cash_foreign_currency',
-    nameHe: 'הצהרת מזומנים ומטבע חוץ ליום 31.12.{{tax_year}}',
-    descriptionHe: 'פירוט סכומי מזומן ומטבע חוץ שהוחזקו מחוץ לחשבונות בנק ליום 31.12.{{tax_year}}.',
-    discoveryQuestionHe: 'האם החזקת סכומי מזומן או מטבע חוץ משמעותיים מחוץ לבנק בסוף השנה?',
-    multiInstance: false,
-    dateDependent: true,
-    // A self-written declaration: no issuer, no printed subject line to trust.
-    checks: { subjectMatch: false, asOfDate: false, amounts: true },
   },
   {
     key: 'crypto',
@@ -164,22 +171,26 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     checks: { subjectMatch: false, asOfDate: true, amounts: true },
   },
   {
-    key: 'valuables',
-    nameHe: 'אסמכתאות לחפצי ערך',
-    descriptionHe: 'חשבונית רכישה או הערכת שמאי לחפצי ערך משמעותיים (תכשיטים, אמנות, אספנות).',
-    discoveryQuestionHe: 'האם ברשותך חפצי ערך משמעותיים כמו תכשיטים, יצירות אמנות או פריטי אספנות?',
+    key: 'private_investment',
+    nameHe: 'אסמכתת השקעה פרטית',
+    descriptionHe:
+      'הסכם השקעה או כרטיס חו"ז לכל השקעה פרטית (שאינה ניירות ערך) בחברה או בתאגיד, בארץ או בחו"ל.',
+    discoveryQuestionHe: 'האם יש לך השקעה פרטית (שאינה ניירות ערך) בחברה או בתאגיד, בארץ או בחו"ל?',
     multiInstance: true,
     dateDependent: false,
-    checks: { subjectMatch: false, asOfDate: false, amounts: true },
+    checks: { subjectMatch: true, asOfDate: false, amounts: false },
   },
   {
-    key: 'foreign_assets',
-    nameHe: 'אישור יתרות נכסים בחו"ל ליום 31.12.{{tax_year}}',
-    descriptionHe: 'אישור יתרה או דוח אחזקות לכל חשבון בנק או נכס פיננסי המוחזק בחו"ל, ליום 31.12.{{tax_year}}.',
-    discoveryQuestionHe: 'האם יש לך חשבונות בנק, השקעות או נכסים פיננסיים בחו"ל?',
+    key: 'poa_account',
+    nameHe: 'אישור ניהול חשבון — יפוי כוח',
+    descriptionHe:
+      'אישור ניהול חשבון לכל חשבון בנק של אדם אחר שבו הינך מורשה חתימה, מיופה כוח או אפוטרופוס — מבהיר מול רשות המסים שהכסף אינו שלך.',
+    discoveryQuestionHe: 'האם אתה מורשה חתימה, מיופה כוח או אפוטרופוס בחשבון בנק של אדם אחר?',
     multiInstance: true,
-    dateDependent: true,
-    checks: { subjectMatch: true, asOfDate: true, amounts: true },
+    dateDependent: false,
+    // The account belongs to someone else — the client's name is exactly what
+    // wouldn't appear as the owner; no generic check is safe here.
+    checks: { subjectMatch: false, asOfDate: false, amounts: false },
   },
   {
     key: 'prior_declaration',

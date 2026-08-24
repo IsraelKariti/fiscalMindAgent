@@ -62,6 +62,7 @@ function formatLocalDateTime(d: Date, timeZone: string): string {
 export const PROMPT_PLACEHOLDERS = [
   'client_name',
   'client_email',
+  'client_phone',
   'engagement_start_date',
   'current_datetime_utc',
   'current_datetime_local',
@@ -110,6 +111,7 @@ export function buildSystemPrompt(
   const rendered = renderPromptTemplate(template, {
     client_name: sanitizeInline(client.name, 200),
     client_email: sanitizeInline(client.email_address, 200),
+    client_phone: sanitizeInline(client.wa_phone ?? client.phone ?? '', 50),
     engagement_start_date: formatDate(client.created_at),
     current_datetime_utc: now.toISOString(),
     current_datetime_local: formatLocalDateTime(now, env.ACCOUNTANT_TIMEZONE),

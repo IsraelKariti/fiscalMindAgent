@@ -1,14 +1,20 @@
+import type { MessageChannel } from '../api';
+import { ClientImportSettings } from '../components/ClientSourcesSettings';
 import { DocumentsCard } from '../components/DocumentsCard';
 import { FilesCard } from '../components/FilesCard';
-import { docCollectorUI } from './docCollector';
+import { docCollectorClientTabs, docCollectorUI } from './docCollector';
 import type { AgentTypeUI } from './types';
+
+const CHANNELS: readonly MessageChannel[] = ['whatsapp'];
 
 /**
  * The declaration-of-capital collector's workspace UI: the doc collector's
  * tabs, with the documents tab swapped to the capital flow — status groups
  * (intake בבירור → נדרש → באימות → אומת), verification badges/reasons, the
  * not-required quotes, and the attestation state. The add-client checklist is
- * gone: the server seeds every client from the hardcoded catalog.
+ * gone: the server seeds every client from the hardcoded catalog. The agent is
+ * WhatsApp-only: clients are keyed by their phone column (phone-keyed source
+ * mapping, no documents column) and no email surfaces anywhere.
  */
 export const declarationOfCapitalUI: AgentTypeUI = {
   ...docCollectorUI,
@@ -17,6 +23,8 @@ export const declarationOfCapitalUI: AgentTypeUI = {
   // The whole flow lives on the monday board (import sources + kickoff
   // webhook) — no manual add-client button.
   importOnlyClients: true,
+  channels: CHANNELS,
+  settingsPanel: () => <ClientImportSettings keyKind="phone" withPortalCredentials withStatusColumn withDeclarationColumns />,
   nameKey: 'agentDeclarationOfCapitalName',
   descriptionKey: 'agentDeclarationOfCapitalDesc',
   icon: (
@@ -29,7 +37,7 @@ export const declarationOfCapitalUI: AgentTypeUI = {
       <line x1="18" y1="18" x2="18" y2="11" />
     </svg>
   ),
-  clientTabs: docCollectorUI.clientTabs.map((tab) =>
+  clientTabs: docCollectorClientTabs(CHANNELS).map((tab) =>
     tab.id !== 'documents'
       ? tab
       : {

@@ -42,6 +42,7 @@ const he = {
   dcSheetsDesc: 'הסוכן מאתר בכל גיליון את שורת הלקוח לפי עמודת האימייל ומנתח מתוכה את החוב.',
   dcEmailColumn: 'עמודת אימייל',
   dcNoBoards: 'לא נמצאו לוחות מתאימים (נדרש לוח עם עמודת אימייל או טקסט).',
+  dcNoBoardsPhone: 'לא נמצאו לוחות מתאימים (נדרש לוח עם עמודת טלפון או טקסט).',
   dcSheetMappingDesc: 'בחרו את הלשונית שבה נמצאות שורות הלקוחות ואת עמודת האימייל המזהה אותם.',
   dcBoardMappingDesc: 'בחרו את עמודת האימייל המזהה את שורות הלקוחות בלוח.',
   // DebtCard
@@ -84,6 +85,8 @@ const he = {
   sourcesImportNoSources: 'הגדירו קודם לוח monday או גיליון Google.',
   sourcesImportNoMailbox: 'לסוכן אין עדיין כתובת אימייל לשלוח ממנה — פנו למנהל המערכת.',
   sourcesImportNoDocuments: 'מפו קודם עמודת מסמכים נדרשים באחד המקורות — הלקוחות המיובאים מקבלים את רשימת המסמכים מהעמודה הזו.',
+  sourcesImportNoWaSender: 'לסוכן אין עדיין מספר WhatsApp לשלוח ממנו — פנו למנהל המערכת.',
+  sourcesImportNoPhoneColumn: 'מפו קודם עמודת טלפון באחד המקורות — הסוכן פונה ללקוחות ב-WhatsApp לפי העמודה הזו.',
   sourcesImportFailed: 'הייבוא נכשל.',
   sourcesImportPromptSheet: 'הגיליון טרם יובא — לייבא ממנו לקוחות עכשיו?',
   sourcesImportPromptBoard: 'הלוח טרם יובא — לייבא ממנו לקוחות עכשיו?',
@@ -96,6 +99,15 @@ const he = {
   sourcesIdNumberColumn: 'עמודת ת"ז',
   sourcesTaxCodeColumn: 'עמודת קוד משתמש (רשות המסים)',
   sourcesDocumentsColumn: 'עמודת מסמכים נדרשים',
+  sourcesStatusColumn: 'עמודת סטטוס (עדכון התקדמות)',
+  sourcesCrmLinkColumn: 'עמודת קישור ללקוח ב-CRM (Connect boards)',
+  sourcesFormLinkColumn: 'עמודת קישור לשאלון (Connect boards)',
+  sourcesFileNumberColumn: "עמודת מס' תיק",
+  sourcesYearColumn: 'עמודת שנת הצהרת ההון',
+  sourcesBoardMappingDescDeclaration:
+    'מפו את עמודות הקישור של לוח ההצהרות: הקישור לכרטיס הלקוח ב-CRM (משם נלקחים הטלפון, השם והת"ז) והקישור לשאלון שמולא, וכן את עמודות מס\' התיק ושנת ההצהרה. עמודת טלפון בלוח עצמו אינה נדרשת.',
+  sourcesKickoffDescDeclaration:
+    'הסוכן יוצא לדרך כשהשאלון מוגש: הוסיפו בלוח ההצהרות אוטומציית Webhooks שנורית כשסטטוס השאלון מתעדכן (למשל: When status changes to התקבל מענה, send a webhook) והדביקו בה את הכתובת הזו. בהפעלה הסוכן עוקב אחרי קישורי השורה, רושם את הלקוח לפי הטלפון מכרטיס ה-CRM, מעבד את תשובות השאלון ופותח בשיחת ה-WhatsApp.',
   settingsTabGeneral: 'כללי',
   settingsTabConnections: 'אינטגרציות',
   agentCustomerServiceName: 'שירות לקוחות',

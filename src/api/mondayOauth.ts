@@ -16,8 +16,13 @@ import { logger } from '../util/logger.js';
  * would not survive it for monday-iframe users, who have no session cookie.
  */
 
-/** Scopes the agents need; must also be enabled on the monday app in the Developer Center. */
-const MONDAY_OAUTH_SCOPES = 'boards:read docs:read';
+/**
+ * Scopes the agents need; must also be enabled on the monday app in the
+ * Developer Center. boards:write powers the board status sync
+ * (src/agents/shared/mondayStatusSync.ts) — accountants who connected before it
+ * was added must reconnect monday for their stored token to gain it.
+ */
+const MONDAY_OAUTH_SCOPES = 'boards:read boards:write docs:read';
 const STATE_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 function oauthConfigured(): boolean {

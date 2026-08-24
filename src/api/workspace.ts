@@ -24,6 +24,7 @@ import { retryFailedSend } from '../orchestration/retryFailedSend.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
+import { MONDAY_STATUS_AGENT_WORKING, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { resolveTaxYear } from '../agents/shared/taxYear.js';
 import { logger } from '../util/logger.js';
@@ -173,6 +174,20 @@ workspaceRouter.post(
     ) {
       res.status(409).json({ error: 'This agent has no email address yet — an administrator must assign one.' });
       return;
+    }
+    // WhatsApp-only agents (declaration of capital) key clients by phone —
+    // a client without a usable number could never be contacted. The UI hides
+    // manual creation for these types; this guards direct API calls.
+    if (getAgentType(req.agentInstance!.agent_type).whatsappOnly === true) {
+      const waPhone = phone ? normalizeE164(phone) : null;
+      if (!waPhone) {
+        res.status(400).json({ error: 'This agent messages clients on WhatsApp only — a valid phone number is required.' });
+        return;
+      }
+      if (await clients.getByWaPhoneForInstance(req.agentInstance!.id, waPhone)) {
+        res.status(409).json({ error: 'A client with this phone number already exists.' });
+        return;
+      }
     }
     if (await clients.getByEmailAddressForInstance(req.agentInstance!.id, email)) {
       res.status(409).json({ error: 'A client with this email already exists.' });
@@ -499,6 +514,15 @@ workspaceRouter.put(
       if (typeof updated.agent_fields['overdue_stopped_at'] === 'string') {
         await clients.clearOverdueStopped(updated.id);
         updated = (await clients.getById(updated.id)) ?? updated;
+      }
+      // Resuming a never-contacted manual-kickoff client IS its start trigger
+      // (the workspace twin of the monday kickoff webhook) — report it to the
+      // board row's status column like the webhook does.
+      if (
+        getAgentType(req.agentInstance!.agent_type).manualKickoff === true &&
+        (await emails.listForClient(client.id)).length === 0
+      ) {
+        void syncMondayStatus(client.id, MONDAY_STATUS_AGENT_WORKING);
       }
       await withClientLock(client.id, () => resumeFutureEmail(client.id));
     }

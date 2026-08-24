@@ -1,0 +1,150 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  validateFormResolutions,
+  type FormAnswer,
+  type FormIntakeResponse,
+  type FormResolvableRow,
+} from '../src/agents/declarationOfCapital/formIntakeRules.js';
+import { CAPITAL_DOCUMENT_CATALOG } from '../src/agents/declarationOfCapital/catalog.js';
+
+const rows: FormResolvableRow[] = [
+  { id: 'doc-bank', typeKey: 'bank_balance', multiInstance: true },
+  { id: 'doc-prior', typeKey: 'prior_declaration', multiInstance: false },
+  { id: 'doc-crypto', typeKey: 'crypto', multiInstance: true },
+];
+
+const answers: FormAnswer[] = [
+  { question: 'חשבונות בנק בארץ או בחו"ל', answer: 'יש לי חשבון בלאומי וחשבון בדיסקונט' },
+  { question: 'האם הגשת בעבר הצהרת הון', answer: 'לא' },
+  { question: 'מטבעות דיגיטליים', answer: 'לא' },
+];
+
+function raw(resolutions: FormIntakeResponse['resolutions']): FormIntakeResponse {
+  return { suspected_injection: false, resolutions };
+}
+
+describe('form-intake resolution validation', () => {
+  it('accepts a required resolution with instances and a not_required with a real quote', () => {
+    const { valid, dropped } = validateFormResolutions(
+      raw([
+        {
+          type_key: 'bank_balance',
+          resolution: 'required',
+          instances: [
+            { name: 'אישור יתרות בנק לאומי ליום 31.12.2025', description: null },
+            { name: 'אישור יתרות בנק דיסקונט ליום 31.12.2025', description: null },
+          ],
+          question: 'חשבונות בנק בארץ או בחו"ל',
+          quote: 'יש לי חשבון בלאומי וחשבון בדיסקונט',
+        },
+        {
+          type_key: 'crypto',
+          resolution: 'not_required',
+          instances: null,
+          question: 'מטבעות דיגיטליים',
+          quote: 'לא',
+        },
+      ]),
+      rows,
+      answers,
+    );
+    assert.equal(dropped.length, 0);
+    assert.equal(valid.length, 2);
+    assert.equal(valid[0]!.documentId, 'doc-bank');
+    assert.equal(valid[1]!.resolution, 'not_required');
+    assert.deepEqual(
+      valid[1]!.resolution === 'not_required' ? valid[1]!.evidence : null,
+      { source: 'form', question: 'מטבעות דיגיטליים', quote: 'לא' },
+    );
+  });
+
+  it('drops a not_required whose quote is not verbatim in the answers', () => {
+    const { valid, dropped } = validateFormResolutions(
+      raw([
+        {
+          type_key: 'crypto',
+          resolution: 'not_required',
+          instances: null,
+          question: 'מטבעות דיגיטליים',
+          quote: 'אין לי שום מטבעות',
+        },
+      ]),
+      rows,
+      answers,
+    );
+    assert.equal(valid.length, 0);
+    assert.equal(dropped.length, 1);
+    assert.match(dropped[0]!, /quote not found/);
+  });
+
+  it('quote matching is whitespace-insensitive', () => {
+    const { valid } = validateFormResolutions(
+      raw([
+        {
+          type_key: 'bank_balance',
+          resolution: 'required',
+          instances: [{ name: 'אישור יתרות', description: null }],
+          question: 'חשבונות בנק',
+          quote: 'חשבון  בלאומי', // double space
+        },
+      ]),
+      rows,
+      answers,
+    );
+    assert.equal(valid.length, 1);
+  });
+
+  it('drops unknown type keys, duplicates, and instance-rule violations', () => {
+    const { valid, dropped } = validateFormResolutions(
+      raw([
+        // Not a seeded row of this client.
+        { type_key: 'no_such_type', resolution: 'not_required', instances: null, question: 'ש', quote: 'לא' },
+        // Single-instance type given two instances.
+        {
+          type_key: 'prior_declaration',
+          resolution: 'required',
+          instances: [
+            { name: 'הצהרה 2019', description: null },
+            { name: 'הצהרה 2015', description: null },
+          ],
+          question: 'האם הגשת בעבר הצהרת הון',
+          quote: 'לא',
+        },
+        // Required without instances.
+        { type_key: 'bank_balance', resolution: 'required', instances: [], question: 'בנקים', quote: 'יש' },
+        // Same row targeted twice.
+        { type_key: 'bank_balance', resolution: 'not_required', instances: null, question: 'בנקים', quote: 'לא' },
+      ]),
+      rows,
+      answers,
+    );
+    assert.equal(valid.length, 0);
+    assert.equal(dropped.length, 4);
+  });
+
+  it('the catalog carries the form-mapped keys the prompt promises', () => {
+    const keys = new Set(CAPITAL_DOCUMENT_CATALOG.map((t) => t.key));
+    for (const key of [
+      'bank_balance',
+      'securities_portfolio',
+      'pension_provident',
+      'study_fund',
+      'life_insurance_savings',
+      'real_estate',
+      'mortgage_balance',
+      'loan_taken',
+      'loan_given',
+      'vehicle',
+      'contents_insurance',
+      'business_ownership',
+      'private_investment',
+      'crypto',
+      'poa_account',
+      'prior_declaration',
+      'other_assets',
+    ]) {
+      assert.ok(keys.has(key), key);
+    }
+  });
+});

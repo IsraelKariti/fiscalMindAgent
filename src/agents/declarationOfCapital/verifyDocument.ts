@@ -14,7 +14,7 @@ import { isKillSwitchOn } from '../killSwitch.js';
 import { isAnalyzable } from '../docCollector/analyzeFile.js';
 import { sendVerificationProblemEmail } from '../docCollector/notifyAccountant.js';
 import { isQuarantined } from '../shared/fileEvidence.js';
-import { resolveTaxYear } from '../shared/taxYear.js';
+import { resolveClientTaxYear } from '../shared/taxYear.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
 import { logger } from '../../util/logger.js';
 import { getCatalogType, GENERIC_CHECKS } from './catalog.js';
@@ -177,7 +177,7 @@ export async function verifyCollectedDocument(
 
   const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
   const checks = catalogType?.checks ?? GENERIC_CHECKS;
-  const taxYear = resolveTaxYear(instance, now);
+  const taxYear = resolveClientTaxYear(client, instance, now);
 
   // Extract — the isolated "OCR" read, forced through the schema.
   let extracted: ExtractedFields;
@@ -226,11 +226,14 @@ export async function verifyCollectedDocument(
     return;
   }
 
-  // Validate — deterministic code against ground truth.
+  // Validate — deterministic code against ground truth. The ת"ז may come from
+  // the tax-portal credentials or from the client's CRM card (declaration-of-
+  // capital kickoff stores it in agent_fields.id_number).
   const credentials = await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority');
+  const crmIdNumber = client.agent_fields['id_number'];
   const verdict = runChecks(extracted, {
     clientName: client.name,
-    credentialIdNumber: credentials?.id_number ?? null,
+    credentialIdNumber: credentials?.id_number ?? (typeof crmIdNumber === 'string' ? crmIdNumber : null),
     taxYear,
     checks,
   });

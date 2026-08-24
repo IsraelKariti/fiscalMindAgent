@@ -179,7 +179,10 @@ export function ClientHeader({ client, onSaved, withDueDate = false }: Props) {
       {!editing ? (
         <>
           <div className="client-meta">
-            <MetaChip icon={icons.mail} label={t.emailLabel} value={client.email_address} />
+            {/* WhatsApp-only clients carry a synthetic wa-*@wa.invalid placeholder — not a real address to show. */}
+            {!client.email_address.endsWith('@wa.invalid') && (
+              <MetaChip icon={icons.mail} label={t.emailLabel} value={client.email_address} />
+            )}
             {client.phone && <MetaChip icon={icons.phone} label={t.phoneLabel} value={client.phone} />}
             {client.company && <MetaChip icon={icons.company} label={t.companyLabel} value={client.company} />}
             {client.occupation && (

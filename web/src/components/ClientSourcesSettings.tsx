@@ -47,10 +47,16 @@ interface Props {
   sheetsDescKey: MessageStringKey;
   sheetMappingDescKey: MessageStringKey;
   boardMappingDescKey: MessageStringKey;
+  /** The row-key column: email (default) or phone (WhatsApp-only agents, e.g. declaration of capital). */
+  keyKind?: 'email' | 'phone';
   /** Maps a required-documents column on each source (doc collector: the cell is the imported client's checklist). */
   withDocuments?: boolean;
   /** Maps the tax-portal credential columns (ת"ז + permanent user code) — doc collector only. */
   withPortalCredentials?: boolean;
+  /** Maps a board status column the agent writes its progress labels to (declaration of capital). */
+  withStatusColumn?: boolean;
+  /** Maps the declaration-flow board columns: CRM link, questionnaire link, file number, year (declaration of capital). */
+  withDeclarationColumns?: boolean;
 }
 
 /**
@@ -62,7 +68,7 @@ interface Props {
  * workspace Settings view via AgentTypeUI.settingsPanel; the debt collector
  * wraps it too.
  */
-export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDescKey, sheetMappingDescKey, boardMappingDescKey, withDocuments = false, withPortalCredentials = false }: Props) {
+export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDescKey, sheetMappingDescKey, boardMappingDescKey, keyKind = 'email', withDocuments = false, withPortalCredentials = false, withStatusColumn = false, withDeclarationColumns = false }: Props) {
   const { t } = useT();
   const refreshClients = useClientsRefresh();
   const [connection, setConnection] = useState<MondayConnection | null>(null);
@@ -337,9 +343,11 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
           spreadsheetId: mapping.spreadsheetId,
           spreadsheetName: mapping.name,
           sheetTitle: chosen.sheetTitle,
-          emailColumn: chosen.keyColumn,
+          // Phone-keyed (WhatsApp-only) mappings store the key as the phone column.
+          ...(keyKind === 'phone'
+            ? { phoneColumn: chosen.keyColumn }
+            : { emailColumn: chosen.keyColumn, phoneColumn: chosen.phoneColumn }),
           nameColumn: chosen.nameColumn,
-          phoneColumn: chosen.phoneColumn,
           idNumberColumn: chosen.idNumberColumn,
           taxUserCodeColumn: chosen.taxUserCodeColumn,
           documentsColumn: chosen.documentsColumn,
@@ -385,6 +393,8 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     if (result.notReady === 'no_sources') return t.sourcesImportNoSources;
     if (result.notReady === 'no_mailbox') return t.sourcesImportNoMailbox;
     if (result.notReady === 'no_documents') return t.sourcesImportNoDocuments;
+    if (result.notReady === 'no_wa_sender') return t.sourcesImportNoWaSender;
+    if (result.notReady === 'no_phone_column') return t.sourcesImportNoPhoneColumn;
     const summary = t.sourcesImportResult(result.enrolled, result.skipped);
     return result.failedSources.length > 0
       ? `${summary} ${t.sourcesImportFailedSources(result.failedSources.join(', '))}`
@@ -509,7 +519,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
               }
             />
             {boards?.length === 0 ? (
-              <p className="settings-list-empty muted">{t.dcNoBoards}</p>
+              <p className="settings-list-empty muted">{keyKind === 'phone' ? t.dcNoBoardsPhone : t.dcNoBoards}</p>
             ) : (
               settings.boards.length > 0 && (
                 <ul className="settings-list">
@@ -536,12 +546,21 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                           </button>
                         </div>
                         <span className="muted settings-source-meta">
-                          {t.dcEmailColumn}: {columnTitle(chosen.emailColumnId)}
+                          {chosen.crmLinkColumnId
+                            ? `${t.sourcesCrmLinkColumn}: ${columnTitle(chosen.crmLinkColumnId)}`
+                            : keyKind === 'phone'
+                              ? `${t.csPhoneColumn}: ${chosen.phoneColumnId ? columnTitle(chosen.phoneColumnId) : '—'}`
+                              : `${t.dcEmailColumn}: ${chosen.emailColumnId ? columnTitle(chosen.emailColumnId) : '—'}`}
+                          {chosen.formLinkColumnId ? ` · ${t.sourcesFormLinkColumn}: ${columnTitle(chosen.formLinkColumnId)}` : ''}
+                          {chosen.fileNumberColumnId ? ` · ${t.sourcesFileNumberColumn}: ${columnTitle(chosen.fileNumberColumnId)}` : ''}
+                          {chosen.yearColumnId ? ` · ${t.sourcesYearColumn}: ${columnTitle(chosen.yearColumnId)}` : ''}
                           {` · ${t.csNameColumn}: ${chosen.nameColumnId ? columnTitle(chosen.nameColumnId) : t.csNameColumnDefault}`}
-                          {chosen.phoneColumnId ? ` · ${t.csPhoneColumn}: ${columnTitle(chosen.phoneColumnId)}` : ''}
+                          {keyKind === 'email' && chosen.phoneColumnId ? ` · ${t.csPhoneColumn}: ${columnTitle(chosen.phoneColumnId)}` : ''}
+                          {chosen.crmLinkColumnId && chosen.phoneColumnId ? ` · ${t.csPhoneColumn}: ${columnTitle(chosen.phoneColumnId)}` : ''}
                           {chosen.idNumberColumnId ? ` · ${t.sourcesIdNumberColumn}: ${columnTitle(chosen.idNumberColumnId)}` : ''}
                           {chosen.taxUserCodeColumnId ? ` · ${t.sourcesTaxCodeColumn}: ${columnTitle(chosen.taxUserCodeColumnId)}` : ''}
                           {chosen.documentsColumnId ? ` · ${t.sourcesDocumentsColumn}: ${columnTitle(chosen.documentsColumnId)}` : ''}
+                          {chosen.statusColumnId ? ` · ${t.sourcesStatusColumn}: ${columnTitle(chosen.statusColumnId)}` : ''}
                         </span>
                         {panelApi.scanNow && promptShown && (
                           <div className="settings-source-prompt">
@@ -555,7 +574,11 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
               )
             )}
             {kickoffUrl && settings.boards.length > 0 && (
-              <SettingsRow title={t.sourcesKickoffTitle} description={t.sourcesKickoffDesc} stack>
+              <SettingsRow
+                title={t.sourcesKickoffTitle}
+                description={withDeclarationColumns ? t.sourcesKickoffDescDeclaration : t.sourcesKickoffDesc}
+                stack
+              >
                 <div className="settings-kickoff-url">
                   <code>{kickoffUrl}</code>
                   <button type="button" className="btn btn-ghost btn-small" onClick={copyKickoffUrl}>
@@ -629,9 +652,12 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                           </button>
                         </div>
                         <span className="muted settings-source-meta">
-                          {t.csSheetTab}: {sheet.sheetTitle} · {t.dcEmailColumn}: {sheet.emailColumn}
+                          {t.csSheetTab}: {sheet.sheetTitle} ·{' '}
+                          {keyKind === 'phone'
+                            ? `${t.csPhoneColumn}: ${sheet.phoneColumn ?? '—'}`
+                            : `${t.dcEmailColumn}: ${sheet.emailColumn ?? '—'}`}
                           {sheet.nameColumn ? ` · ${t.csNameColumn}: ${sheet.nameColumn}` : ''}
-                          {sheet.phoneColumn ? ` · ${t.csPhoneColumn}: ${sheet.phoneColumn}` : ''}
+                          {keyKind === 'email' && sheet.phoneColumn ? ` · ${t.csPhoneColumn}: ${sheet.phoneColumn}` : ''}
                           {sheet.idNumberColumn ? ` · ${t.sourcesIdNumberColumn}: ${sheet.idNumberColumn}` : ''}
                           {sheet.taxUserCodeColumn ? ` · ${t.sourcesTaxCodeColumn}: ${sheet.taxUserCodeColumn}` : ''}
                           {sheet.documentsColumn ? ` · ${t.sourcesDocumentsColumn}: ${sheet.documentsColumn}` : ''}
@@ -655,9 +681,10 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
         <SheetMappingModal
           spreadsheetName={mapping.name}
           meta={mapping.meta}
-          columnLabel={t.dcEmailColumn}
+          columnLabel={keyKind === 'phone' ? t.csPhoneColumn : t.dcEmailColumn}
           description={t[sheetMappingDescKey]}
-          withPhoneColumn
+          // Phone-keyed agents carry the phone in the key itself — no separate phone field.
+          withPhoneColumn={keyKind === 'email'}
           withPortalCredentials={withPortalCredentials}
           withDocumentsColumn={withDocuments}
           onConfirm={applySheetMapping}
@@ -679,9 +706,12 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
         <BoardMappingModal
           key={mappingBoards[0].id}
           board={mappingBoards[0]}
-          description={t[boardMappingDescKey]}
+          description={withDeclarationColumns ? t.sourcesBoardMappingDescDeclaration : t[boardMappingDescKey]}
+          keyKind={keyKind}
           withPortalCredentials={withPortalCredentials}
           withDocumentsColumn={withDocuments}
+          withStatusColumn={withStatusColumn}
+          withDeclarationColumns={withDeclarationColumns}
           onConfirm={(mapping) => applyBoardMapping(mappingBoards[0]!, mapping)}
           onClose={() => setMappingBoards((queue) => queue.slice(1))}
         />
@@ -690,13 +720,20 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
   );
 }
 
-/** The doc collector's panel, bound to the shared /client-sources routes. */
+/** The doc-collector family's panel, bound to the shared /client-sources routes. */
 export function ClientImportSettings({
+  keyKind = 'email',
   withDocuments = false,
   withPortalCredentials = false,
+  withStatusColumn = false,
+  withDeclarationColumns = false,
 }: {
+  /** 'phone' for WhatsApp-only agents (declaration of capital): rows are keyed by their phone column. */
+  keyKind?: 'email' | 'phone';
   withDocuments?: boolean;
   withPortalCredentials?: boolean;
+  withStatusColumn?: boolean;
+  withDeclarationColumns?: boolean;
 }) {
   const wsApi = useWorkspaceApi();
   const panelApi = useMemo<ClientSourcesPanelApi>(
@@ -717,8 +754,11 @@ export function ClientImportSettings({
         sheetsDescKey="sourcesSheetsDesc"
         sheetMappingDescKey="sourcesSheetMappingDesc"
         boardMappingDescKey="sourcesBoardMappingDesc"
+        keyKind={keyKind}
         withDocuments={withDocuments}
         withPortalCredentials={withPortalCredentials}
+        withStatusColumn={withStatusColumn}
+        withDeclarationColumns={withDeclarationColumns}
       />
       <WhatsAppBusinessSettings />
     </>

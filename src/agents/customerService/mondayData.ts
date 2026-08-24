@@ -83,7 +83,7 @@ export async function fetchDocsText(accessToken: string, docIds: string[]): Prom
 }
 
 /** Default board filter: has a column that could hold a phone number. */
-const PHONE_CAPABLE = (type: string): boolean => type === 'phone' || TEXT_TYPES.has(type);
+export const PHONE_CAPABLE = (type: string): boolean => type === 'phone' || TEXT_TYPES.has(type);
 
 /** Board filter for agents matching clients by email column instead of phone. */
 export const EMAIL_CAPABLE = (type: string): boolean => type === 'email' || TEXT_TYPES.has(type);
@@ -145,6 +145,7 @@ export interface MondayBoardRows {
 }
 
 interface RawItem {
+  id: string;
   name: string;
   column_values: { id: string; text: string | null; phone?: string | null }[];
 }
@@ -160,7 +161,7 @@ interface RawBoard {
   items_page: RawItemsPage;
 }
 
-const ITEM_FIELDS = 'items { name column_values { id text ... on PhoneValue { phone } } }';
+const ITEM_FIELDS = 'items { id name column_values { id text ... on PhoneValue { phone } } }';
 const PAGE_SIZE = 500;
 /** Hard cap on rows scanned per board per message, to keep one reply bounded. */
 const MAX_SCANNED_ITEMS = 2000;
@@ -302,6 +303,8 @@ export async function fetchRowsByPhone(
 
 /** One board item as the daily debt scan sees it: raw cells by column id plus the flattened prompt row. */
 export interface BoardScanRow {
+  /** monday item id — persisted on imported clients so the agent can write back (status sync). */
+  itemId: string;
   itemName: string;
   /** Cell text keyed by column id — for key-column lookups (email/name). */
   cells: Record<string, string>;
@@ -335,6 +338,83 @@ export async function fetchBoardItemCells(accessToken: string, itemId: string): 
   return cells;
 }
 
+/** One column of a single fetched item: identity, display text and — for connect-boards columns — the linked item ids. */
+export interface ItemColumnDetail {
+  id: string;
+  title: string;
+  type: string;
+  /** monday's display text ('' when empty); phone columns yield the raw phone value. */
+  text: string;
+  /** Linked item ids of a board_relation (connect-boards) column; empty for every other type. */
+  linkedItemIds: string[];
+}
+
+export interface ItemDetails {
+  itemId: string;
+  itemName: string;
+  columns: ItemColumnDetail[];
+}
+
+/**
+ * One board item with everything the declaration-of-capital intake needs to
+ * follow its links and read a linked form response: per-column title + type,
+ * the display text, and connect-boards linked item ids. Null when the item is
+ * gone / not visible to the token.
+ */
+export async function fetchItemDetails(accessToken: string, itemId: string): Promise<ItemDetails | null> {
+  interface RawDetailedItem {
+    id: string;
+    name: string;
+    column_values: {
+      id: string;
+      text: string | null;
+      type: string;
+      column: { title: string } | null;
+      phone?: string | null;
+      linked_item_ids?: string[] | null;
+    }[];
+  }
+  const data = await mondayGraphQL<{ items: (RawDetailedItem | null)[] | null }>(
+    accessToken,
+    `query ($ids: [ID!]) { items (ids: $ids) { id name column_values {
+       id text type column { title }
+       ... on PhoneValue { phone }
+       ... on BoardRelationValue { linked_item_ids } } } }`,
+    { ids: [itemId] },
+  );
+  const item = data.items?.[0];
+  if (!item) return null;
+  return {
+    itemId: item.id,
+    itemName: item.name,
+    columns: item.column_values.map((cv) => ({
+      id: cv.id,
+      title: cv.column?.title ?? cv.id,
+      type: cv.type,
+      text: (cv.phone ?? cv.text ?? '').trim(),
+      linkedItemIds: cv.linked_item_ids ?? [],
+    })),
+  };
+}
+
+/**
+ * Sets a status column's label on one board item (requires the boards:write
+ * scope). The label is matched by its text; a label the column doesn't have
+ * yet is created rather than erroring, so the agents' fixed status texts work
+ * on any board without the accountant pre-creating them.
+ */
+export async function changeItemStatusLabel(
+  accessToken: string,
+  args: { boardId: string; itemId: string; columnId: string; label: string },
+): Promise<void> {
+  await mondayGraphQL(
+    accessToken,
+    `mutation ($boardId: ID!, $itemId: ID!, $columnId: String!, $value: String!) {
+       change_simple_column_value (board_id: $boardId, item_id: $itemId, column_id: $columnId, value: $value, create_labels_if_missing: true) { id } }`,
+    { boardId: args.boardId, itemId: args.itemId, columnId: args.columnId, value: args.label },
+  );
+}
+
 export async function fetchAllBoardRows(
   accessToken: string,
   boardId: string,
@@ -361,7 +441,7 @@ export async function fetchAllBoardRows(
         cells[cv.id] = text;
         row[titles.get(cv.id) ?? cv.id] = text;
       }
-      rows.push({ itemName: item.name, cells, row });
+      rows.push({ itemId: item.id, itemName: item.name, cells, row });
     }
   };
 

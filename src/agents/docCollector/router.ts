@@ -10,6 +10,11 @@ import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { DueDateSchema } from '../../api/schemas.js';
 import { registerClientSourceRoutes } from '../shared/clientSourcesRoutes.js';
+import {
+  MONDAY_STATUS_AGENT_WORKING,
+  MONDAY_STATUS_DOCS_COLLECTED,
+  syncMondayStatus,
+} from '../shared/mondayStatusSync.js';
 import { isDocCollectorFamily } from './family.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { DocCollectorSettingsSchema, parseSettings } from './settings.js';
@@ -83,10 +88,14 @@ async function onDocumentsChanged(clientId: string, agentType: string): Promise<
 
   if (allCollected && client.goal_status === 'pending') {
     await clients.updateGoalStatus(clientId, 'complete');
+    // Report the finished collection back to the board row's status column.
+    void syncMondayStatus(clientId, MONDAY_STATUS_DOCS_COLLECTED);
     await withClientLock(clientId, () => removeFutureEmail(clientId));
     sendGoalCompleteEmail(client).catch((err) => logger.error('goal-complete notification failed', err, { clientId }));
   } else if (!allCollected && client.goal_status === 'complete') {
     await clients.updateGoalStatus(clientId, 'pending');
+    // The goal reopened — the board must not keep claiming the documents are in.
+    void syncMondayStatus(clientId, MONDAY_STATUS_AGENT_WORKING);
     await withClientLock(clientId, async () => {
       await removeFutureEmail(clientId);
       await setFutureEmail(clientId);

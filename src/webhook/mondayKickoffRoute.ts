@@ -5,7 +5,11 @@ import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { parseSettings as parseDocCollectorSettings } from '../agents/docCollector/settings.js';
 import { scanClientImportInstance } from '../agents/shared/clientImportScan.js';
 import { verifyKickoffToken } from '../agents/shared/kickoffWebhook.js';
+import { MONDAY_STATUS_AGENT_WORKING, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
+import { resolveDeclarationClient, type DeclarationIntake } from '../agents/declarationOfCapital/kickoff.js';
+import { applyFormIntake } from '../agents/declarationOfCapital/formIntake.js';
 import { fetchBoardItemCells } from '../agents/customerService/mondayData.js';
+import { normalizeE164 } from '../util/phone.js';
 import { draftFirstEmail } from '../api/draftFirstEmail.js';
 import { recordAudit } from '../audit/audit.js';
 import * as agentInstances from '../db/queries/agentInstances.js';
@@ -84,38 +88,68 @@ async function startClientForItem(instance: AgentInstanceRow, boardId: string, i
   const log = { instanceId: instance.id, boardId, itemId };
 
   // The board must be one of the instance's configured client sources — its
-  // mapping tells us which column holds the row's client email.
+  // mapping tells us which column holds the row's key (the client email, or
+  // the phone number for WhatsApp-only agents).
   const settings = isDocCollectorFamily(instance.agent_type) ? parseDocCollectorSettings(instance.settings) : null;
   const board = settings?.boards.find((b) => b.boardId === boardId);
   if (!board) {
     logger.warn('monday kickoff: board is not a configured client source, ignoring', log);
     return false;
   }
+  const whatsappOnly = getAgentTypeIfKnown(instance.agent_type)?.whatsappOnly === true;
 
   const mondayToken = await mondayOauthTokens.getByUserId(instance.user_id);
   if (!mondayToken) {
     logger.warn('monday kickoff: accountant has no monday connection', log);
     return false;
   }
-  const cells = await fetchBoardItemCells(mondayToken.access_token, itemId);
-  const email = (cells?.[board.emailColumnId] ?? '').trim().toLowerCase();
-  if (!email) {
-    logger.warn('monday kickoff: item has no email cell, ignoring', log);
-    return false;
-  }
 
-  // A row added after the last sweep may not be enrolled yet — the click also
-  // serves as its import (narrowed to this board; manual-kickoff enrollment
-  // creates the client paused, which is exactly the state started below).
-  let client = await clients.getByEmailAddressForInstance(instance.id, email);
-  if (!client) {
-    await scanClientImportInstance(instance, { boardId });
-    client = await clients.getByEmailAddressForInstance(instance.id, email);
-    if (!client) {
-      logger.warn('monday kickoff: row could not be enrolled (missing documents cell / sender mailbox?)', log);
+  // Declaration-of-capital link flow: the row carries no phone — the client's
+  // identity is resolved by following the row's connect-boards links (CRM item
+  // for phone/name/ת"ז, questionnaire item for the form answers), enrolling
+  // on the spot with the row's own declaration year.
+  let client: Awaited<ReturnType<typeof clients.getById>> = null;
+  let intake: DeclarationIntake | null = null;
+  let waPhone: string | null = null;
+  let email = '';
+  if (board.crmLinkColumnId) {
+    intake = await resolveDeclarationClient(instance, board, itemId, mondayToken.access_token);
+    if (!intake) return false;
+    client = intake.client;
+    waPhone = client.wa_phone;
+  } else {
+    const cells = await fetchBoardItemCells(mondayToken.access_token, itemId);
+    email = (board.emailColumnId ? (cells?.[board.emailColumnId] ?? '') : '').trim().toLowerCase();
+    waPhone = normalizeE164((board.phoneColumnId ? (cells?.[board.phoneColumnId] ?? '') : '').trim());
+    if (whatsappOnly ? !waPhone : !email) {
+      logger.warn(`monday kickoff: item has no usable ${whatsappOnly ? 'phone' : 'email'} cell, ignoring`, log);
       return false;
     }
+
+    // A row added after the last sweep may not be enrolled yet — the click also
+    // serves as its import (narrowed to this board; manual-kickoff enrollment
+    // creates the client paused, which is exactly the state started below).
+    const lookup = () =>
+      whatsappOnly
+        ? clients.getByWaPhoneForInstance(instance.id, waPhone!)
+        : clients.getByEmailAddressForInstance(instance.id, email);
+    client = await lookup();
+    if (!client) {
+      await scanClientImportInstance(instance, { boardId });
+      client = await lookup();
+      if (!client) {
+        logger.warn('monday kickoff: row could not be enrolled (missing key column / sender not assigned?)', log);
+        return false;
+      }
+    }
   }
+
+  // The click pins down which board row is this client — remember it (even for
+  // clients that predate the status sync or are already running) so progress
+  // labels can be written back to the row.
+  await clients
+    .setMondayItem(client.id, boardId, itemId)
+    .catch((err) => logger.error('monday kickoff: storing item id failed', err, { ...log, clientId: client.id }));
 
   // Only a never-contacted, waiting client is started: an open goal, still
   // paused (imports create manual-kickoff clients paused), with no messages.
@@ -133,11 +167,33 @@ async function startClientForItem(instance: AgentInstanceRow, boardId: string, i
     action: 'client.kickoff_triggered',
     agentInstanceId: instance.id,
     clientId: client.id,
-    detail: { clientName: client.name, email, boardId, itemId, source: 'monday_webhook' },
+    detail: {
+      clientName: client.name,
+      ...(whatsappOnly ? { waPhone } : { email }),
+      boardId,
+      itemId,
+      source: 'monday_webhook',
+    },
   });
   publishClientUpdated(client.id);
+  // Form pre-resolution (declaration of capital): map the submitted
+  // questionnaire's answers onto the checklist BEFORE the first draft is
+  // planned, so the opening interview only asks what the form left open. A
+  // failure here degrades gracefully — the interview covers everything.
+  if (intake && intake.formAnswers.length > 0) {
+    try {
+      await applyFormIntake(client, intake.formAnswers, intake.taxYear);
+    } catch (err) {
+      logger.error('monday kickoff: form intake failed — falling back to the full interview', err, {
+        ...log,
+        clientId: client.id,
+      });
+    }
+  }
   // Same fire-and-forget first-draft path as manual client creation.
   draftFirstEmail(client.id);
+  // Report the start back to the board row's status column (fire-and-forget).
+  void syncMondayStatus(client.id, MONDAY_STATUS_AGENT_WORKING);
   logger.info('monday kickoff: conversation started', { ...log, clientId: client.id });
   return true;
 }

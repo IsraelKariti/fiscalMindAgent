@@ -11,7 +11,7 @@ interface Props {
   userEmail: string | null;
 }
 
-/** Platform settings: admin access, the emergency kill switch, the global Gemini model and the orphaned Twilio number pool. */
+/** Platform settings: admin access, the emergency kill switch, the global LLM model and the orphaned Twilio number pool. */
 export function AdminSettings({ userEmail }: Props) {
   const { t } = useT();
 

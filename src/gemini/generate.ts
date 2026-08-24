@@ -1,8 +1,12 @@
 import { ApiError, type GenerateContentResponse } from '@google/genai';
+import Anthropic from '@anthropic-ai/sdk';
 import { genaiClient } from './client.js';
+import { providerForModel } from './modelSettings.js';
+import { generateContentAnthropic } from './anthropic.js';
+import { generateContentOpenAI, OpenAiApiError } from './openai.js';
 import { logger } from '../util/logger.js';
 
-// Transient Gemini failures: rate limit, server error, overloaded ("high demand"), timeout.
+// Transient LLM-API failures: rate limit, server error, overloaded ("high demand"), timeout.
 const RETRYABLE_STATUSES = new Set([429, 500, 503, 504]);
 const MAX_ATTEMPTS = 5;
 const BASE_DELAY_MS = 2_000;
@@ -26,12 +30,13 @@ function isNetworkError(err: unknown): boolean {
 }
 
 /**
- * Our ATTEMPT_TIMEOUT_MS firing: the SDK aborts the fetch, which rejects with
- * a DOMException named AbortError. We never pass a caller abortSignal, so any
- * abort seen here is the timeout — retry on a fresh connection.
+ * Our ATTEMPT_TIMEOUT_MS firing: the Gemini SDK aborts the fetch (DOMException
+ * named AbortError); the OpenAI path uses AbortSignal.timeout, which rejects
+ * with TimeoutError. We never pass a caller abortSignal, so any abort seen
+ * here is the timeout — retry on a fresh connection.
  */
 function isTimeoutAbort(err: unknown): boolean {
-  return err instanceof Error && err.name === 'AbortError';
+  return err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
 }
 
 function sleep(ms: number): Promise<void> {
@@ -49,16 +54,31 @@ export async function generateWithRetry(
       httpOptions: { timeout: ATTEMPT_TIMEOUT_MS, ...request.config?.httpOptions },
     },
   };
+  // GPT/Claude models ride the same retry loop but are served by their own
+  // APIs; each translation layer keeps the request/response Gemini-shaped.
+  const provider = providerForModel(timedRequest.model);
   for (let attempt = 0; ; attempt++) {
     try {
+      if (provider === 'openai') return await generateContentOpenAI(timedRequest);
+      if (provider === 'anthropic') return await generateContentAnthropic(timedRequest);
       return await genaiClient.models.generateContent(timedRequest);
     } catch (err) {
+      const apiStatus =
+        err instanceof ApiError || err instanceof OpenAiApiError
+          ? err.status
+          : err instanceof Anthropic.APIError && typeof err.status === 'number'
+            ? err.status
+            : null;
       const retryable =
-        (err instanceof ApiError && RETRYABLE_STATUSES.has(err.status)) || isNetworkError(err) || isTimeoutAbort(err);
+        (apiStatus !== null && RETRYABLE_STATUSES.has(apiStatus)) ||
+        isNetworkError(err) ||
+        isTimeoutAbort(err) ||
+        // The Anthropic SDK wraps transport failures/timeouts in its own classes.
+        err instanceof Anthropic.APIConnectionError;
       if (!retryable || attempt >= MAX_ATTEMPTS - 1) throw err;
       const delayMs = Math.round(BASE_DELAY_MS * 2 ** attempt * (0.5 + Math.random() * 0.5));
-      logger.warn('Gemini call failed, retrying', {
-        status: err instanceof ApiError ? err.status : isTimeoutAbort(err) ? 'timeout' : 'network',
+      logger.warn('LLM call failed, retrying', {
+        status: apiStatus ?? (isTimeoutAbort(err) ? 'timeout' : 'network'),
         cause: err instanceof Error && err.cause instanceof Error ? err.cause.message : undefined,
         attempt,
         delayMs,

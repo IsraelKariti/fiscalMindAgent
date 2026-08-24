@@ -28,6 +28,12 @@ const EnvSchema = z.object({
   REDIS_URL: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),
   GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
+  // OpenAI API key — powers the GPT options in the admin model picker. Optional:
+  // while unset those options are hidden and every LLM call stays on Gemini.
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  // Anthropic API key — powers the Claude options in the admin model picker.
+  // Optional: while unset those options are hidden, like OPENAI_API_KEY.
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ACCOUNTANT_TIMEZONE: z.string().min(1).default('America/New_York'),
   PORT: z.coerce.number().int().positive().default(3000),
   /** When set, the worker serves 200 on /healthz here (App Service pings the container port). */

@@ -6,7 +6,14 @@ export const MODEL_LABELS: Record<string, string> = {
   'gemini-2.5-flash': 'Gemini 2.5 Flash',
   'gemini-3-flash-preview': 'Gemini 3 Flash (Preview)',
   'gemini-3.5-flash': 'Gemini 3.5 Flash',
+  'gemini-3.7-flash': 'Gemini 3.7 Flash',
   'gemini-3.1-pro-preview': 'Gemini 3.1 Pro (Preview)',
+  'gpt-5.6-sol': 'GPT-5.6 Sol',
+  'gpt-5.6-terra': 'GPT-5.6 Terra',
+  'gpt-5.6-luna': 'GPT-5.6 Luna',
+  'claude-opus-5': 'Claude Opus 5',
+  'claude-sonnet-5': 'Claude Sonnet 5',
+  'claude-haiku-4-5': 'Claude Haiku 4.5',
 };
 
 /**

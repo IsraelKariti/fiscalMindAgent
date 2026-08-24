@@ -15,7 +15,8 @@ import { RESERVED } from './mailbox.js';
 import { env } from '../config/env.js';
 import { getPricingForModel } from '../gemini/pricing.js';
 import {
-  GEMINI_MODEL_OPTIONS,
+  LLM_MODEL_OPTIONS,
+  availableModelOptions,
   getGeminiModelState,
   saveGeminiModel,
 } from '../gemini/modelSettings.js';
@@ -26,7 +27,7 @@ import { clearImpersonationCookie, setImpersonationCookie } from './auth.js';
 
 const ImpersonateSchema = z.object({ userId: z.string().uuid() }).strict();
 
-const ModelSchema = z.object({ model: z.enum(GEMINI_MODEL_OPTIONS) }).strict();
+const ModelSchema = z.object({ model: z.enum(LLM_MODEL_OPTIONS) }).strict();
 
 const KillSwitchSchema = z.object({ on: z.boolean() }).strict();
 
@@ -511,20 +512,22 @@ export const adminSetKillSwitch: RequestHandler = async (req, res) => {
 /** GET /api/admin/model — the model every LLM call runs on, plus the pickable options. */
 export const adminGetModel: RequestHandler = async (_req, res) => {
   const state = await getGeminiModelState();
-  res.json({ ...state, options: GEMINI_MODEL_OPTIONS });
+  res.json({ ...state, options: availableModelOptions() });
 };
 
 /** PUT /api/admin/model — switch every LLM call, for every accountant and client, to this model. */
 export const adminSetModel: RequestHandler = async (req, res) => {
   const parsed = ModelSchema.safeParse(req.body);
-  if (!parsed.success) {
+  // A known-but-unavailable model (GPT without OPENAI_API_KEY) is rejected the
+  // same way as an unknown one — it was never offered in the options list.
+  if (!parsed.success || !availableModelOptions().includes(parsed.data.model)) {
     res.status(400).json({ error: 'Unknown model.' });
     return;
   }
   await saveGeminiModel(parsed.data.model);
-  logger.info('gemini model changed', { adminUserId: req.realUserId, model: parsed.data.model });
+  logger.info('llm model changed', { adminUserId: req.realUserId, model: parsed.data.model });
   const state = await getGeminiModelState();
-  res.json({ ...state, options: GEMINI_MODEL_OPTIONS });
+  res.json({ ...state, options: availableModelOptions() });
 };
 
 const AuditQuerySchema = z.object({

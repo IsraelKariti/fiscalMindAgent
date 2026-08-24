@@ -1,3 +1,4 @@
+import { providerForModel } from './modelSettings.js';
 import { logger } from '../util/logger.js';
 
 // Google publishes Gemini prices only as an HTML docs page, so we read them from
@@ -36,7 +37,7 @@ async function refresh(): Promise<void> {
 }
 
 /**
- * Current prices for the given Gemini model, from a registry table cached in
+ * Current prices for the given model (Gemini or OpenAI), from a registry table cached in
  * memory for a day. On fetch failure the previous table keeps being served
  * (null only before the first successful fetch) and the fetch is retried after
  * a few minutes. An unknown model also yields null so callers show token
@@ -51,11 +52,14 @@ export async function getPricingForModel(model: string): Promise<LlmPricing | nu
   }
   if (!table) return null;
 
-  const entry = table[`gemini/${model}`];
+  // LiteLLM keys Gemini models under a provider prefix but OpenAI and
+  // Anthropic models bare.
+  const key = providerForModel(model) === 'gemini' ? `gemini/${model}` : model;
+  const entry = table[key];
   const input = entry?.input_cost_per_token;
   const output = entry?.output_cost_per_token;
   if (typeof input !== 'number' || typeof output !== 'number') {
-    logger.error('no pricing entry for model', { model: `gemini/${model}` });
+    logger.error('no pricing entry for model', { model: key });
     return null;
   }
   const reasoning = entry?.output_cost_per_reasoning_token;
@@ -63,7 +67,7 @@ export async function getPricingForModel(model: string): Promise<LlmPricing | nu
     model,
     inputCostPerToken: input,
     outputCostPerToken: output,
-    // Gemini bills thinking tokens at the output rate unless listed separately.
+    // Both providers bill thinking tokens at the output rate unless listed separately.
     thinkingCostPerToken: typeof reasoning === 'number' ? reasoning : output,
   };
 }

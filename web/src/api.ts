@@ -496,6 +496,8 @@ export interface GeminiModelState {
   /** True when set by an admin; false while running on the server's env default. */
   isCustom: boolean;
   updatedAt: string | null;
+  /** Per-call-site default; null = follows the global model. */
+  purposes: Record<LlmCallPurpose, string | null>;
   options: string[];
 }
 
@@ -980,6 +982,8 @@ export const api = {
   adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),
+  adminSetPurposeModel: (purpose: LlmCallPurpose, model: string | null) =>
+    request<GeminiModelState>('/admin/model/purpose', { method: 'PUT', body: JSON.stringify({ purpose, model }) }),
   adminGetKillSwitch: () => request<KillSwitchState>('/admin/kill-switch'),
   adminSetKillSwitch: (on: boolean) =>
     request<KillSwitchState>('/admin/kill-switch', { method: 'PUT', body: JSON.stringify({ on }) }),

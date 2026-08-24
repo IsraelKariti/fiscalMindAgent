@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LLM_MODEL_OPTIONS } from '../../gemini/modelCatalog.js';
+import { LLM_MODEL_OPTIONS, LLM_CALL_PURPOSES, type LlmCallPurpose } from '../../gemini/modelCatalog.js';
 
 /**
  * The admin LLM A/B experiment config stored in agent_instances.llm_experiment
@@ -7,13 +7,9 @@ import { LLM_MODEL_OPTIONS } from '../../gemini/modelCatalog.js';
  * testable; the runtime behavior around it lives in experiment.ts.
  */
 
-/**
- * The four LLM call sites of the pipeline, by their llm_calls.purpose value.
- * An arm may pin a different model to each; unpinned purposes use the arm's
- * default `model`.
- */
-export const LLM_CALL_PURPOSES = ['conversation_decide', 'form_intake', 'analyze_file', 'verify_document'] as const;
-export type LlmCallPurpose = (typeof LLM_CALL_PURPOSES)[number];
+// An arm may pin a different model to each call site; unpinned purposes use
+// the arm's default `model`.
+export { LLM_CALL_PURPOSES, type LlmCallPurpose } from '../../gemini/modelCatalog.js';
 
 const PurposeModelsSchema = z
   .object({

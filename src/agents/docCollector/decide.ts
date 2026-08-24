@@ -42,7 +42,7 @@ export async function decide(
     log?: LlmCallLogContext;
   } = {},
 ): Promise<DecideResult> {
-  const model = opts.model ?? (await getGeminiModel());
+  const model = opts.model ?? (await getGeminiModel('conversation_decide'));
   const usage: GeminiUsage = { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, cachedTokens: 0 };
   let requestContents = contents;
   let lastError: unknown;

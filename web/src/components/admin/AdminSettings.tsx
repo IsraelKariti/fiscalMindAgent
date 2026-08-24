@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, ApiError, type AdminUser, type GeminiModelState, type KillSwitchState, type OrphanedWaNumber } from '../../api';
+import {
+  api,
+  ApiError,
+  LLM_CALL_PURPOSES,
+  type AdminUser,
+  type GeminiModelState,
+  type KillSwitchState,
+  type LlmCallPurpose,
+  type OrphanedWaNumber,
+} from '../../api';
 import { formatTimestamp } from '../../format';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
@@ -47,6 +56,21 @@ export function AdminSettings({ userEmail }: Props) {
     api.adminGetModel().then(setModelState).catch(() => setModelNotice('load_failed'));
     return () => clearTimeout(modelNoticeTimer.current);
   }, []);
+
+  const changePurposeModel = async (purpose: LlmCallPurpose, model: string | null) => {
+    setModelSaving(true);
+    setModelNotice(null);
+    if (modelNoticeTimer.current) clearTimeout(modelNoticeTimer.current);
+    try {
+      setModelState(await api.adminSetPurposeModel(purpose, model));
+      setModelNotice('saved');
+      modelNoticeTimer.current = setTimeout(() => setModelNotice(null), 3000);
+    } catch {
+      setModelNotice('save_failed');
+    } finally {
+      setModelSaving(false);
+    }
+  };
 
   const changeModel = async (model: string) => {
     setModelSaving(true);
@@ -267,6 +291,31 @@ export function AdminSettings({ userEmail }: Props) {
                 {t.llmModelEnvDefault}: <span dir="ltr">{modelState.model}</span>
               </p>
             )}
+            <h4>{t.llmModelPerCallTitle}</h4>
+            <p className="muted">{t.llmModelPerCallDesc}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+              {LLM_CALL_PURPOSES.map((purpose) => (
+                <label key={purpose} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span>{t.adminLlmExperimentPurposeLabel[purpose] ?? purpose}</span>
+                  <div className="model-picker" dir="ltr">
+                    <select
+                      value={modelState.purposes[purpose] ?? ''}
+                      disabled={modelSaving}
+                      onChange={(e) => changePurposeModel(purpose, e.target.value || null)}
+                    >
+                      <option value="">
+                        {t.llmModelSameAsGlobal} ({MODEL_LABELS[modelState.model] ?? modelState.model})
+                      </option>
+                      {modelState.options.map((m) => (
+                        <option key={m} value={m}>
+                          {MODEL_LABELS[m] ?? m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </label>
+              ))}
+            </div>
             {modelNotice === 'saved' && <div className="ok-banner">{t.llmModelSaved}</div>}
             {modelNotice === 'save_failed' && <div className="error-banner">{t.llmModelSaveFailed}</div>}
           </>

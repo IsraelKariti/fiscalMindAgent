@@ -32,6 +32,7 @@ import {
   adminSetAgentTaxYear,
   adminSetKillSwitch,
   adminSetModel,
+  adminSetPurposeModel,
   adminSetWhitelistHebrewName,
   requireAdmin,
   startImpersonation,
@@ -114,6 +115,7 @@ apiRouter.get('/admin/alerts', wrap(requireAdmin), wrap(adminListAlerts));
 apiRouter.post('/admin/alerts/:id/ack', wrap(requireAdmin), wrap(adminAckAlert));
 apiRouter.get('/admin/model', wrap(requireAdmin), wrap(adminGetModel));
 apiRouter.put('/admin/model', wrap(requireAdmin), wrap(adminSetModel));
+apiRouter.put('/admin/model/purpose', wrap(requireAdmin), wrap(adminSetPurposeModel));
 apiRouter.get('/admin/kill-switch', wrap(requireAdmin), wrap(adminGetKillSwitch));
 apiRouter.put('/admin/kill-switch', wrap(requireAdmin), wrap(adminSetKillSwitch));
 apiRouter.get('/admin/admins', wrap(requireAdmin), wrap(adminListAdmins));

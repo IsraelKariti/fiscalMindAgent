@@ -18,7 +18,10 @@ import {
   LLM_MODEL_OPTIONS,
   availableModelOptions,
   getGeminiModelState,
+  getPurposeModels,
+  LLM_CALL_PURPOSES,
   saveGeminiModel,
+  savePurposeModel,
 } from '../gemini/modelSettings.js';
 import { auditAdminMutation } from '../audit/adminAudit.js';
 import { markNumberAsPooled } from '../twilio/provision.js';
@@ -28,6 +31,9 @@ import { clearImpersonationCookie, setImpersonationCookie } from './auth.js';
 const ImpersonateSchema = z.object({ userId: z.string().uuid() }).strict();
 
 const ModelSchema = z.object({ model: z.enum(LLM_MODEL_OPTIONS) }).strict();
+const PurposeModelSchema = z
+  .object({ purpose: z.enum(LLM_CALL_PURPOSES), model: z.enum(LLM_MODEL_OPTIONS).nullable() })
+  .strict();
 
 const KillSwitchSchema = z.object({ on: z.boolean() }).strict();
 
@@ -517,10 +523,34 @@ export const adminSetKillSwitch: RequestHandler = async (req, res) => {
   res.json(await getKillSwitchState());
 };
 
-/** GET /api/admin/model — the model every LLM call runs on, plus the pickable options. */
+/**
+ * GET /api/admin/model — the global model, the per-call-site defaults (null =
+ * follows the global model), and the pickable options.
+ */
 export const adminGetModel: RequestHandler = async (_req, res) => {
-  const state = await getGeminiModelState();
-  res.json({ ...state, options: availableModelOptions() });
+  res.json(await modelStateResponse());
+};
+
+async function modelStateResponse() {
+  const [state, purposes] = await Promise.all([getGeminiModelState(), getPurposeModels()]);
+  return { ...state, purposes, options: availableModelOptions() };
+}
+
+/**
+ * PUT /api/admin/model/purpose — pin one call site (conversation, form intake,
+ * file classification, document extraction) to a model, or with model: null
+ * let it follow the global model again. Applies to every accountant and
+ * client, independent of any experiment arm (which still wins per client).
+ */
+export const adminSetPurposeModel: RequestHandler = async (req, res) => {
+  const parsed = PurposeModelSchema.safeParse(req.body);
+  if (!parsed.success || (parsed.data.model !== null && !availableModelOptions().includes(parsed.data.model))) {
+    res.status(400).json({ error: 'Unknown model or call type.' });
+    return;
+  }
+  await savePurposeModel(parsed.data.purpose, parsed.data.model);
+  logger.info('llm per-call model changed', { adminUserId: req.realUserId, ...parsed.data });
+  res.json(await modelStateResponse());
 };
 
 /** PUT /api/admin/model — switch every LLM call, for every accountant and client, to this model. */
@@ -534,8 +564,7 @@ export const adminSetModel: RequestHandler = async (req, res) => {
   }
   await saveGeminiModel(parsed.data.model);
   logger.info('llm model changed', { adminUserId: req.realUserId, model: parsed.data.model });
-  const state = await getGeminiModelState();
-  res.json({ ...state, options: availableModelOptions() });
+  res.json(await modelStateResponse());
 };
 
 const AuditQuerySchema = z.object({

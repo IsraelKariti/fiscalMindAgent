@@ -130,7 +130,7 @@ export async function analyzeFile(
     .replace('{{tax_year}}', String(taxYear))
     .replace('{{filename}}', sanitizeInline(filename, 150));
 
-  const model = opts.model ?? (await getGeminiModel());
+  const model = opts.model ?? (await getGeminiModel('analyze_file'));
   const response = await generateWithRetry(
     {
       model,

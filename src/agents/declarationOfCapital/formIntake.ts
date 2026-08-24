@@ -115,7 +115,7 @@ export async function applyFormIntake(
   // model comparison covers the whole pipeline, not just the conversation.
   const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
   const variantArm = await resolveClientLlmVariant(client, instance);
-  const model = variantArm?.models.form_intake ?? (await getGeminiModel());
+  const model = variantArm?.models.form_intake ?? (await getGeminiModel('form_intake'));
   const response = await generateWithRetry(
     {
       model,

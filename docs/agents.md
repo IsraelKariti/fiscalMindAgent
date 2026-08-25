@@ -102,6 +102,30 @@ monday WorkForm is the only source of which documents a declaration needs):
   `cash_foreign_currency`, `valuables`, `foreign_assets` (foreign
   banks/portfolios fold into `bank_balance`/`securities_portfolio`, residual
   assets into `other_assets`).
+- **Requirements ladder** (2026-08-25, migration 050; born from the office's
+  real-estate spec but type-generic): a resolved type's document set can change
+  mid-conversation, via two evidence-gated planner actions validated in
+  `decisionSchema.ts` and applied in `plan.ts` — `added_instances` inserts
+  sibling `pending` rows next to any already-resolved row of a multi-instance
+  type (`clientDocuments.addInstances`; also covers "actually there's a third
+  account"), and `superseded_documents` retires rows the ladder replaced
+  (status **`superseded`**, `clientDocuments.supersede`, requires a verbatim
+  client quote; valid even from collected/approved per the office's unit rule —
+  contract + payments appendix stand or fall together). Superseded rows are out
+  of the goal everywhere `not_required` is (plan/router settle checks,
+  dashboard SQL, web UI where they render as a collapsed group with the quote)
+  and are hidden from the planner's REQUIRED DOCUMENTS section entirely; the
+  accountant can reopen them to pending. Every instance (resolution or
+  addition) also carries **`already_provided`**: when the client says the
+  office already holds a document — from a prior office-made declaration or
+  any earlier delivery — the row is born `claimed` (trust the client; the
+  accountant confirms), feeding the same claimed-documents notification. The
+  real-estate branching itself (purchase contract + appendix → assessment +
+  Tabu with self-service portal links → signed cost declaration with 4
+  mandatory fields; contractor payments-status report; probate order + Tabu
+  for inheritance; current Tabu only for gifts; office-held prior-declaration
+  properties as `already_provided`) lives in the catalog's `real_estate`
+  description + `prompt.md`'s special-case block.
 Since 2026-08-23 the agent also reports its progress **back to the board**
 (`src/agents/shared/mondayStatusSync.ts`): when a board source maps a
 `statusColumnId` (settings UI: declaration-of-capital board mapping only, but

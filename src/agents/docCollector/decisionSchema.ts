@@ -58,8 +58,50 @@ export const DecisionResponseSchema = z.object({
         document_id: z.string(),
         resolution: z.enum(['required', 'not_required']),
         /** For 'required' only: the concrete instances the client described ("two cars" → two entries). */
-        instances: z.array(z.object({ name: z.string(), description: z.string().nullable() })).nullable(),
+        instances: z
+          .array(
+            z.object({
+              name: z.string(),
+              description: z.string().nullable(),
+              /** The client says the office already holds this document — it starts as 'claimed' (awaits the accountant) instead of being requested. */
+              already_provided: z.boolean(),
+            }),
+          )
+          .nullable(),
         /** For 'not_required': the client statement this rests on — a real inbound message_id + verbatim quote. */
+        evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
+      }),
+    )
+    .nullable(),
+  /**
+   * Capital-declaration instance additions (null/empty otherwise): new concrete
+   * documents for a type that was ALREADY resolved — the requirements-ladder
+   * escalation (the replacement documents when the client can't provide the
+   * original set) or a late discovery ("actually there's a third account").
+   * anchor_document_id is any existing checklist row of that type.
+   */
+  added_instances: z
+    .array(
+      z.object({
+        anchor_document_id: z.string(),
+        instances: z.array(
+          z.object({ name: z.string(), description: z.string().nullable(), already_provided: z.boolean() }),
+        ),
+      }),
+    )
+    .nullable(),
+  /**
+   * Capital-declaration document retirements (null/empty otherwise): checklist
+   * rows that are no longer needed because the requirements ladder replaced
+   * them with different documents (e.g. contract + appendix → assessment +
+   * Tabu; the two are one unit — if either is unobtainable, retire both, even
+   * one already received). Each entry needs evidence: the verbatim client
+   * statement the retirement rests on.
+   */
+  superseded_documents: z
+    .array(
+      z.object({
+        document_id: z.string(),
         evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
       }),
     )
@@ -103,10 +145,29 @@ export interface EvidenceRef {
   quote: string;
 }
 
+/** One concrete instance a resolution/addition creates; alreadyProvided rows start 'claimed'. */
+export interface ResolvedInstance {
+  name: string;
+  description: string | null;
+  alreadyProvided: boolean;
+}
+
 /** One validated intake resolution (capital declaration). */
 export type DocumentResolution =
   | { documentId: string; resolution: 'not_required'; evidence: EvidenceRef }
-  | { documentId: string; resolution: 'required'; instances: { name: string; description: string | null }[] };
+  | { documentId: string; resolution: 'required'; instances: ResolvedInstance[] };
+
+/** One validated instance addition to an already-resolved type (capital declaration). */
+export interface InstanceAddition {
+  anchorDocumentId: string;
+  instances: ResolvedInstance[];
+}
+
+/** One validated document retirement (capital declaration): the ladder replaced it. */
+export interface DocumentSupersession {
+  documentId: string;
+  evidence: EvidenceRef;
+}
 
 /** A validated attestation step (capital declaration). */
 export type AttestationDecision = { action: 'request' } | { action: 'confirmed'; evidence: EvidenceRef };
@@ -120,6 +181,8 @@ export type NormalizedDecision =
       matched_files: MatchedFile[];
       tax_fetch: TaxFetchDecision | null;
       resolutions: DocumentResolution[];
+      addedInstances: InstanceAddition[];
+      superseded: DocumentSupersession[];
       attestation: AttestationDecision | null;
     }
   | {
@@ -133,6 +196,8 @@ export type NormalizedDecision =
       send_at: string;
       tax_fetch: TaxFetchDecision | null;
       resolutions: DocumentResolution[];
+      addedInstances: InstanceAddition[];
+      superseded: DocumentSupersession[];
       attestation: AttestationDecision | null;
     };
 
@@ -160,9 +225,20 @@ export interface ResolvableRow {
  * The capital-declaration intake state the validator needs. Absent for other
  * agent types — any intake field the model sets is then rejected outright.
  */
+/** One already-resolved catalog row — a valid anchor for added_instances / target for superseded_documents. */
+export interface TypedRow {
+  id: string;
+  /** Current status (anything past 'unresolved'). */
+  status: string;
+  /** The catalog type allows more than one concrete instance. */
+  multiInstance: boolean;
+}
+
 export interface IntakeDecisionState {
   /** Rows an intake resolution may target. */
   resolvable: ResolvableRow[];
+  /** Catalog rows already resolved (status past 'unresolved'/'not_required') — the pool added_instances anchors to and superseded_documents may retire. */
+  typedRows: TypedRow[];
   /** Inbound message texts by id — the only pool evidence quotes may cite. */
   inboundTexts: Map<string, string>;
   /** Every checklist row is settled (approved / not_required) — precondition for attestation 'request'. */
@@ -366,23 +442,102 @@ function validateResolutions(raw: DecisionResponse, ctx: DecisionContext): Docum
       result.push({ documentId: entry.document_id, resolution: 'not_required', evidence });
       continue;
     }
-    const instances = (entry.instances ?? []).map((i) => ({
-      name: i.name.trim(),
-      description: i.description?.trim() || null,
-    }));
-    if (instances.length === 0) {
-      throw new Error(`required resolution of ${entry.document_id} needs at least one instance ({name, description})`);
-    }
-    if (instances.some((i) => i.name.length === 0 || i.name.length > 200)) {
-      throw new Error(`required resolution of ${entry.document_id}: every instance needs a name of 1-200 characters`);
-    }
-    if (instances.length > 1 && !row.multiInstance) {
-      throw new Error(`required resolution of ${entry.document_id}: this document type allows a single instance only`);
-    }
-    if (instances.length > MAX_RESOLUTION_INSTANCES) {
-      throw new Error(`required resolution of ${entry.document_id}: at most ${MAX_RESOLUTION_INSTANCES} instances`);
-    }
+    const instances = normalizeInstances(entry.instances ?? [], row.multiInstance, `required resolution of ${entry.document_id}`);
     result.push({ documentId: entry.document_id, resolution: 'required', instances });
+  }
+  return result;
+}
+
+/** Shared instance normalization + caps for resolutions and post-resolution additions. */
+function normalizeInstances(
+  raw: { name: string; description: string | null; already_provided: boolean }[],
+  multiInstance: boolean,
+  what: string,
+): ResolvedInstance[] {
+  const instances = raw.map((i) => ({
+    name: i.name.trim(),
+    description: i.description?.trim() || null,
+    alreadyProvided: i.already_provided,
+  }));
+  if (instances.length === 0) {
+    throw new Error(`${what} needs at least one instance ({name, description})`);
+  }
+  if (instances.some((i) => i.name.length === 0 || i.name.length > 200)) {
+    throw new Error(`${what}: every instance needs a name of 1-200 characters`);
+  }
+  if (instances.length > 1 && !multiInstance) {
+    throw new Error(`${what}: this document type allows a single instance only`);
+  }
+  if (instances.length > MAX_RESOLUTION_INSTANCES) {
+    throw new Error(`${what}: at most ${MAX_RESOLUTION_INSTANCES} instances`);
+  }
+  return instances;
+}
+
+/**
+ * Validates post-resolution instance additions (capital declaration): the
+ * anchor must be one of the client's already-resolved catalog rows of a
+ * multi-instance type. The LLM proposes, this decides.
+ */
+function validateAddedInstances(raw: DecisionResponse, ctx: DecisionContext): InstanceAddition[] {
+  const entries = raw.added_instances ?? [];
+  if (entries.length === 0) return [];
+  const intake = ctx.intake;
+  if (!intake) throw new Error('added_instances is not applicable to this agent — leave it null');
+
+  const byId = new Map(intake.typedRows.map((r) => [r.id, r]));
+  const seen = new Set<string>();
+  const result: InstanceAddition[] = [];
+  for (const entry of entries) {
+    if (seen.has(entry.anchor_document_id)) {
+      throw new Error(`added_instances anchors on document ${entry.anchor_document_id} twice — merge the entries`);
+    }
+    seen.add(entry.anchor_document_id);
+    const anchor = byId.get(entry.anchor_document_id);
+    if (!anchor) {
+      throw new Error(
+        `added_instances: document ${entry.anchor_document_id} is not an already-resolved catalog row of this client — unresolved rows go through resolved_documents`,
+      );
+    }
+    if (!anchor.multiInstance) {
+      throw new Error(`added_instances: the type of document ${entry.anchor_document_id} allows a single instance only`);
+    }
+    const instances = normalizeInstances(entry.instances, true, `added_instances for ${entry.anchor_document_id}`);
+    result.push({ anchorDocumentId: entry.anchor_document_id, instances });
+  }
+  return result;
+}
+
+/**
+ * Validates document retirements (capital declaration): only the client's
+ * already-resolved catalog rows may be superseded, never without the verbatim
+ * client statement the retirement rests on. Rows already collected/approved
+ * ARE valid targets — the office's unit rule retires a fulfilled document when
+ * its counterpart is unobtainable.
+ */
+function validateSuperseded(raw: DecisionResponse, ctx: DecisionContext): DocumentSupersession[] {
+  const entries = raw.superseded_documents ?? [];
+  if (entries.length === 0) return [];
+  const intake = ctx.intake;
+  if (!intake) throw new Error('superseded_documents is not applicable to this agent — leave it null');
+
+  const byId = new Map(intake.typedRows.map((r) => [r.id, r]));
+  const seen = new Set<string>();
+  const result: DocumentSupersession[] = [];
+  for (const entry of entries) {
+    if (seen.has(entry.document_id)) throw new Error(`superseded_documents targets document ${entry.document_id} twice`);
+    seen.add(entry.document_id);
+    const row = byId.get(entry.document_id);
+    if (!row) {
+      throw new Error(
+        `superseded_documents: document ${entry.document_id} is not an already-resolved catalog row of this client`,
+      );
+    }
+    if (row.status === 'superseded') {
+      throw new Error(`superseded_documents: document ${entry.document_id} is already superseded`);
+    }
+    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `superseding of ${entry.document_id}`);
+    result.push({ documentId: entry.document_id, evidence });
   }
   return result;
 }
@@ -404,8 +559,10 @@ function validateAttestation(raw: DecisionResponse, ctx: DecisionContext): Attes
     if (raw.decision !== 'follow_up') {
       throw new Error("attestation 'request' must come with a follow_up decision — the scheduled message IS the summary");
     }
-    if (!intake.allSettled || (raw.resolved_documents ?? []).length > 0) {
-      throw new Error("attestation 'request' is valid only when every document is already settled (approved / not_required) and no new resolutions are being made");
+    const changesThisCycle =
+      (raw.resolved_documents ?? []).length + (raw.added_instances ?? []).length + (raw.superseded_documents ?? []).length;
+    if (!intake.allSettled || changesThisCycle > 0) {
+      throw new Error("attestation 'request' is valid only when every document is already settled (approved / not_required) and no new resolutions, additions or supersessions are being made");
     }
     return { action: 'request' };
   }
@@ -440,6 +597,8 @@ export function correctionSuffix(invalidAnswer: string, err: unknown): string {
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {
   const taxFetch = validateTaxFetch(raw, ctx);
   const resolutions = validateResolutions(raw, ctx);
+  const addedInstances = validateAddedInstances(raw, ctx);
+  const superseded = validateSuperseded(raw, ctx);
   const attestation = validateAttestation(raw, ctx);
   if (raw.decision === 'goal_complete') {
     return {
@@ -450,6 +609,8 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
       matched_files: raw.matched_files,
       tax_fetch: taxFetch,
       resolutions,
+      addedInstances,
+      superseded,
       attestation,
     };
   }
@@ -466,6 +627,8 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
     send_at: raw.send_at.trim(),
     tax_fetch: taxFetch,
     resolutions,
+    addedInstances,
+    superseded,
     attestation,
   };
 }

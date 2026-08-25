@@ -53,7 +53,9 @@ const CAPITAL_ONLY_STATUSES = new Set<DocumentStatus>(['not_required', 'approved
  * accountant vouches for).
  */
 const MANUAL_TRANSITIONS: Record<string, DocumentStatus[]> = {
-  pending: ['unresolved', 'not_required', 'claimed', 'collected', 'approved'],
+  // 'superseded' is agent-set only (requirements-ladder retirement), but the
+  // accountant may reopen such a row to pending if the retirement was wrong.
+  pending: ['unresolved', 'not_required', 'claimed', 'collected', 'approved', 'superseded'],
   collected: ['pending', 'claimed'],
   not_required: ['unresolved', 'pending', 'claimed'],
   approved: ['collected', 'claimed'],
@@ -77,7 +79,9 @@ async function onDocumentsChanged(clientId: string, agentType: string): Promise<
   const isCapital = agentType === 'declaration_of_capital';
   let allCollected: boolean;
   if (isCapital) {
-    const settled = docs.length > 0 && docs.every((d) => d.status === 'approved' || d.status === 'not_required');
+    const settled =
+      docs.length > 0 &&
+      docs.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'superseded');
     const attestationTouched =
       typeof client.agent_fields['attestation_confirmed_at'] === 'string' ||
       typeof client.agent_fields['attestation_request_email_id'] === 'string';

@@ -129,11 +129,21 @@ export interface ClientRow {
  * intake (migration 047) adds the rest: 'unresolved' = catalog-seeded, the
  * intake interview hasn't determined applicability yet; 'not_required' = the
  * client explicitly stated the asset doesn't apply (evidence on the row);
- * 'claimed' = the client says they delivered it outside email (fax/in person),
- * awaits the accountant's confirmation; 'approved' = the automatic
- * verification pipeline accepted the received file (never set by hand).
+ * 'claimed' = the client says they delivered it outside email (fax/in person)
+ * or that the office already holds it, awaits the accountant's confirmation;
+ * 'approved' = the automatic verification pipeline accepted the received file
+ * (never set by hand); 'superseded' (migration 050) = the requirements ladder
+ * replaced this document with different ones — out of the goal, but never
+ * presented as "the client doesn't have the asset".
  */
-export type DocumentStatus = 'unresolved' | 'not_required' | 'pending' | 'claimed' | 'collected' | 'approved';
+export type DocumentStatus =
+  | 'unresolved'
+  | 'not_required'
+  | 'pending'
+  | 'claimed'
+  | 'collected'
+  | 'approved'
+  | 'superseded';
 
 /**
  * The client statement an intake resolution rests on: a verbatim quote from a

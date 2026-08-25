@@ -242,10 +242,14 @@ export function buildDeadlineSection(token: string, client: ClientRow, now: Date
 
 /** Lives in `contents` (not the template) so custom system prompts still see current document state. */
 export function buildDocumentsSection(token: string, documents: ClientDocumentRow[], taxYear?: number): string {
-  if (documents.length === 0) {
+  // Superseded rows (capital declaration: replaced by other documents via the
+  // requirements ladder) are settled history — hidden from the model so they
+  // are never re-requested nor presented as "doesn't have".
+  const live = documents.filter((d) => d.status !== 'superseded');
+  if (live.length === 0) {
     return `${fence(token, 'REQUIRED DOCUMENTS')}\n(none configured)\n${endFence(token, 'REQUIRED DOCUMENTS')}`;
   }
-  const lines = documents.map((doc) => {
+  const lines = live.map((doc) => {
     const description = doc.description ? ` — ${sanitizeInline(doc.description, 500)}` : '';
     const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
     const extras: string[] = [];

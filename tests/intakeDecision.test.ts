@@ -25,6 +25,8 @@ function baseRaw(overrides: Partial<DecisionResponse> = {}): DecisionResponse {
     tax_fetch_provider: null,
     tax_fetch_document_keys: null,
     resolved_documents: null,
+    added_instances: null,
+    superseded_documents: null,
     attestation: null,
     attestation_evidence: null,
     ...overrides,
@@ -37,6 +39,12 @@ function baseIntake(overrides: Partial<IntakeDecisionState> = {}): IntakeDecisio
       { id: 'doc-vehicle', status: 'unresolved', multiInstance: true },
       { id: 'doc-cash', status: 'unresolved', multiInstance: false },
       { id: 'doc-crypto', status: 'not_required', multiInstance: true },
+    ],
+    typedRows: [
+      { id: 'doc-contract', status: 'pending', multiInstance: true },
+      { id: 'doc-appendix', status: 'collected', multiInstance: true },
+      { id: 'doc-old-tabu', status: 'superseded', multiInstance: true },
+      { id: 'doc-contents', status: 'pending', multiInstance: false },
     ],
     inboundTexts: new Map([
       ['msg-1', 'שלום,\nאין לי רכב בכלל.\nיש לי קצת מזומן בבית.'],
@@ -103,8 +111,8 @@ describe('intake resolutions (normalizeDecision)', () => {
           document_id: 'doc-vehicle',
           resolution: 'required',
           instances: [
-            { name: '  רישיון רכב - מאזדה 3 ', description: null },
-            { name: 'רישיון רכב - טויוטה', description: 'רכב שני' },
+            { name: '  רישיון רכב - מאזדה 3 ', description: null, already_provided: false },
+            { name: 'רישיון רכב - טויוטה', description: 'רכב שני', already_provided: false },
           ],
           evidence: null,
         },
@@ -123,7 +131,7 @@ describe('intake resolutions (normalizeDecision)', () => {
         {
           document_id: 'doc-crypto',
           resolution: 'required',
-          instances: [{ name: 'דוח קריפטו', description: null }],
+          instances: [{ name: 'דוח קריפטו', description: null, already_provided: false }],
           evidence: null,
         },
       ],
@@ -156,8 +164,8 @@ describe('intake resolutions (normalizeDecision)', () => {
             document_id: 'doc-cash',
             resolution: 'required',
             instances: [
-              { name: 'א', description: null },
-              { name: 'ב', description: null },
+              { name: 'א', description: null, already_provided: false },
+              { name: 'ב', description: null, already_provided: false },
             ],
             evidence: null,
           },
@@ -170,7 +178,7 @@ describe('intake resolutions (normalizeDecision)', () => {
           {
             document_id: 'doc-vehicle',
             resolution: 'required',
-            instances: Array.from({ length: 11 }, (_, i) => ({ name: `רכב ${i}`, description: null })),
+            instances: Array.from({ length: 11 }, (_, i) => ({ name: `רכב ${i}`, description: null, already_provided: false })),
             evidence: null,
           },
         ]),
@@ -179,7 +187,7 @@ describe('intake resolutions (normalizeDecision)', () => {
     const entry = {
       document_id: 'doc-vehicle',
       resolution: 'required' as const,
-      instances: [{ name: 'רכב', description: null }],
+      instances: [{ name: 'רכב', description: null, already_provided: false }],
       evidence: null,
     };
     assert.throws(() => on([entry, entry]), /twice/);
@@ -263,6 +271,112 @@ describe('attestation gate (normalizeDecision)', () => {
           ctxWith({ ...requested, attestationConfirmed: true }),
         ),
       /already confirmed/,
+    );
+  });
+});
+
+describe('ladder actions: added_instances + superseded_documents (normalizeDecision)', () => {
+  it('accepts additions anchored on an already-resolved multi-instance row, keeping already_provided', () => {
+    const raw = baseRaw({
+      added_instances: [
+        {
+          anchor_document_id: 'doc-contract',
+          instances: [
+            { name: 'נסח טאבו - דירה ברחוב הרצל 5', description: null, already_provided: false },
+            { name: 'שומת מס רכישה - דירה ברחוב הרצל 5', description: null, already_provided: true },
+          ],
+        },
+      ],
+    });
+    const decision = normalizeDecision(raw, ctxWith(baseIntake()));
+    assert.equal(decision.addedInstances.length, 1);
+    assert.equal(decision.addedInstances[0]!.instances[1]!.alreadyProvided, true);
+  });
+
+  it('rejects additions on unknown anchors, single-instance types, duplicate anchors, and non-intake agents', () => {
+    const instances = [{ name: 'מסמך', description: null, already_provided: false }];
+    assert.throws(
+      () =>
+        normalizeDecision(
+          baseRaw({ added_instances: [{ anchor_document_id: 'doc-vehicle', instances }] }),
+          ctxWith(baseIntake()),
+        ),
+      /not an already-resolved catalog row/,
+    );
+    assert.throws(
+      () =>
+        normalizeDecision(
+          baseRaw({ added_instances: [{ anchor_document_id: 'doc-contents', instances }] }),
+          ctxWith(baseIntake()),
+        ),
+      /single instance only/,
+    );
+    const entry = { anchor_document_id: 'doc-contract', instances };
+    assert.throws(
+      () => normalizeDecision(baseRaw({ added_instances: [entry, entry] }), ctxWith(baseIntake())),
+      /twice/,
+    );
+    assert.throws(
+      () => normalizeDecision(baseRaw({ added_instances: [entry] }), ctxWith(undefined)),
+      /not applicable/,
+    );
+  });
+
+  it('accepts supersessions of pending and collected rows with verbatim evidence', () => {
+    const raw = baseRaw({
+      superseded_documents: [
+        { document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'אין לי רכב בכלל' } },
+        { document_id: 'doc-appendix', evidence: { message_id: 'msg-1', quote: 'יש לי קצת מזומן בבית' } },
+      ],
+    });
+    const decision = normalizeDecision(raw, ctxWith(baseIntake()));
+    assert.equal(decision.superseded.length, 2);
+    assert.equal(decision.superseded[0]!.documentId, 'doc-contract');
+  });
+
+  it('rejects supersessions without evidence, with a fabricated quote, on unknown or already-superseded rows', () => {
+    const on = (entries: DecisionResponse['superseded_documents']) =>
+      normalizeDecision(baseRaw({ superseded_documents: entries }), ctxWith(baseIntake()));
+    assert.throws(() => on([{ document_id: 'doc-contract', evidence: null }]), /requires evidence/);
+    assert.throws(
+      () => on([{ document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'טקסט שלא נכתב' } }]),
+      /not contained verbatim/,
+    );
+    assert.throws(
+      () => on([{ document_id: 'doc-vehicle', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' } }]),
+      /not an already-resolved catalog row/,
+    );
+    assert.throws(
+      () => on([{ document_id: 'doc-old-tabu', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' } }]),
+      /already superseded/,
+    );
+  });
+
+  it("attestation 'request' is rejected while additions or supersessions are being made", () => {
+    const settled = baseIntake({ allSettled: true, resolvable: [] });
+    assert.throws(
+      () =>
+        normalizeDecision(
+          baseRaw({
+            attestation: 'request',
+            added_instances: [
+              { anchor_document_id: 'doc-contract', instances: [{ name: 'מסמך', description: null, already_provided: false }] },
+            ],
+          }),
+          ctxWith(settled),
+        ),
+      /no new resolutions, additions or supersessions/,
+    );
+    assert.throws(
+      () =>
+        normalizeDecision(
+          baseRaw({
+            attestation: 'request',
+            superseded_documents: [{ document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' } }],
+          }),
+          ctxWith(settled),
+        ),
+      /no new resolutions, additions or supersessions/,
     );
   });
 });

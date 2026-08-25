@@ -117,19 +117,28 @@ export async function resolveNotRequired(
   return rows[0] ?? null;
 }
 
+/** One concrete document instance a resolution/addition creates. */
+export interface DocumentInstance {
+  name: string;
+  description: string | null;
+  /** The client says the office already holds this document — the row starts as 'claimed' (awaits the accountant), not 'pending'. */
+  alreadyProvided?: boolean;
+}
+
 /**
  * Intake resolution (capital declaration): one 'unresolved' catalog row becomes
  * 1..N concrete pending documents — the first instance renames the row itself,
  * extras insert sibling rows sharing its type_key — atomically, so a crash
  * can't leave half the client's cars on the checklist. A 'not_required' row is
  * also a valid target (the client corrected themselves — "actually I do have a
- * car"); its old evidence is cleared. Returns all resulting rows, or null when
- * the target isn't the client's resolvable row.
+ * car"); its old evidence is cleared. An instance the client says the office
+ * already holds starts as 'claimed' instead of 'pending'. Returns all
+ * resulting rows, or null when the target isn't the client's resolvable row.
  */
 export async function resolveRequired(
   id: string,
   clientId: string,
-  instances: { name: string; description: string | null }[],
+  instances: DocumentInstance[],
 ): Promise<ClientDocumentRow[] | null> {
   if (instances.length === 0) throw new Error('resolveRequired: at least one instance is required');
   const conn = await pool.connect();
@@ -138,9 +147,9 @@ export async function resolveRequired(
     const first = instances[0]!;
     const { rows: updated } = await conn.query<ClientDocumentRow>(
       `UPDATE client_documents
-       SET status = 'pending', name = $3, description = $4, resolution_evidence = NULL, updated_at = now()
+       SET status = $5, name = $3, description = $4, resolution_evidence = NULL, updated_at = now()
        WHERE id = $1 AND client_id = $2 AND status IN ('unresolved', 'not_required') RETURNING *`,
-      [id, clientId, first.name, first.description],
+      [id, clientId, first.name, first.description, first.alreadyProvided ? 'claimed' : 'pending'],
     );
     const head = updated[0];
     if (!head) {
@@ -151,8 +160,8 @@ export async function resolveRequired(
     for (const instance of instances.slice(1)) {
       const { rows } = await conn.query<ClientDocumentRow>(
         `INSERT INTO client_documents (client_id, name, description, type_key, status)
-         VALUES ($1, $2, $3, $4, 'pending') RETURNING *`,
-        [clientId, instance.name, instance.description, head.type_key],
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [clientId, instance.name, instance.description, head.type_key, instance.alreadyProvided ? 'claimed' : 'pending'],
       );
       if (rows[0]) result.push(rows[0]);
     }
@@ -164,6 +173,75 @@ export async function resolveRequired(
   } finally {
     conn.release();
   }
+}
+
+/**
+ * Instance addition after resolution (capital declaration): inserts sibling
+ * rows next to an already-resolved catalog row — the requirements-ladder
+ * escalation ("can't find the contract" → assessment + Tabu rows) and late
+ * discoveries ("actually there's a third account"). The anchor must be the
+ * client's own catalog row that already left 'unresolved'; the new rows share
+ * its type_key. Returns the created rows, or null when the anchor doesn't
+ * qualify.
+ */
+export async function addInstances(
+  anchorId: string,
+  clientId: string,
+  instances: DocumentInstance[],
+): Promise<ClientDocumentRow[] | null> {
+  if (instances.length === 0) throw new Error('addInstances: at least one instance is required');
+  const conn = await pool.connect();
+  try {
+    await conn.query('BEGIN');
+    const { rows: anchors } = await conn.query<ClientDocumentRow>(
+      `SELECT * FROM client_documents
+       WHERE id = $1 AND client_id = $2 AND type_key IS NOT NULL AND status <> 'unresolved'`,
+      [anchorId, clientId],
+    );
+    const anchor = anchors[0];
+    if (!anchor) {
+      await conn.query('ROLLBACK');
+      return null;
+    }
+    const result: ClientDocumentRow[] = [];
+    for (const instance of instances) {
+      const { rows } = await conn.query<ClientDocumentRow>(
+        `INSERT INTO client_documents (client_id, name, description, type_key, status)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [clientId, instance.name, instance.description, anchor.type_key, instance.alreadyProvided ? 'claimed' : 'pending'],
+      );
+      if (rows[0]) result.push(rows[0]);
+    }
+    await conn.query('COMMIT');
+    return result;
+  } catch (err) {
+    await conn.query('ROLLBACK').catch(() => undefined);
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Requirements-ladder retirement (capital declaration): the document is no
+ * longer needed because different documents replaced it (e.g. the contract +
+ * appendix unit gave way to assessment + Tabu). Valid from any live status —
+ * including collected/approved, per the office's unit rule ("if either of the
+ * two is missing the other becomes redundant even if fulfilled") — but never
+ * from 'unresolved'/'not_required' (those are resolution's business). The
+ * client statement it rests on is stored as resolution_evidence.
+ */
+export async function supersede(
+  id: string,
+  clientId: string,
+  evidence: ResolutionEvidence,
+): Promise<ClientDocumentRow | null> {
+  const { rows } = await pool.query<ClientDocumentRow>(
+    `UPDATE client_documents SET status = 'superseded', resolution_evidence = $3, updated_at = now()
+     WHERE id = $1 AND client_id = $2 AND status IN ('pending', 'claimed', 'collected', 'approved') RETURNING *`,
+    [id, clientId, JSON.stringify(evidence)],
+  );
+  return rows[0] ?? null;
 }
 
 /**

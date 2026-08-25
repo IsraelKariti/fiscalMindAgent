@@ -62,10 +62,19 @@ export interface Client {
  * Doc collector rows use pending/claimed/collected. The capital-declaration
  * intake adds: 'unresolved' (catalog-seeded, interview pending),
  * 'not_required' (client said the asset doesn't apply), 'approved' (the
- * automatic verification pipeline accepted the file). 'claimed' = the client
- * says they delivered it outside email; awaits the accountant's confirmation.
+ * automatic verification pipeline accepted the file), 'superseded' (the
+ * requirements ladder replaced the document with different ones). 'claimed' =
+ * the client says they delivered it outside email or the office already holds
+ * it; awaits the accountant's confirmation.
  */
-export type DocumentStatus = 'unresolved' | 'not_required' | 'pending' | 'claimed' | 'collected' | 'approved';
+export type DocumentStatus =
+  | 'unresolved'
+  | 'not_required'
+  | 'pending'
+  | 'claimed'
+  | 'collected'
+  | 'approved'
+  | 'superseded';
 
 /** The verification pipeline's latest verdict for a row (subset the UI renders). */
 export interface DocumentVerification {

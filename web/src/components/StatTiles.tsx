@@ -20,9 +20,10 @@ export function StatTiles({ documents, emails, nextScheduled, goalStatus, dueDat
   const { t } = useT();
   const stats = useMemo(() => {
     // 'approved' (capital declaration: verified) counts as done; 'not_required'
-    // rows are outside the goal. Doc-collector lists carry neither status.
+    // and 'superseded' rows are outside the goal. Doc-collector lists carry
+    // none of these statuses.
     const collected = documents.filter((d) => d.status === 'collected' || d.status === 'approved').length;
-    const total = documents.filter((d) => d.status !== 'not_required').length;
+    const total = documents.filter((d) => d.status !== 'not_required' && d.status !== 'superseded').length;
 
     const delivered = emails.filter((e) => e.status !== 'draft');
     const sent = delivered.filter((e) => e.direction === 'outbound').length;

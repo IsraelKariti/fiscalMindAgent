@@ -147,8 +147,19 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
           status: d.status as 'unresolved' | 'not_required',
           multiInstance: (d.type_key ? getCatalogType(d.type_key)?.multiInstance : undefined) ?? false,
         })),
+      // Already-resolved catalog rows: anchors for added_instances (ladder
+      // escalations, late discoveries) and targets for superseded_documents.
+      typedRows: documents
+        .filter((d) => d.type_key !== null && d.status !== 'unresolved' && d.status !== 'not_required')
+        .map((d) => ({
+          id: d.id,
+          status: d.status,
+          multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
+        })),
       inboundTexts,
-      allSettled: documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'not_required'),
+      allSettled:
+        documents.length > 0 &&
+        documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'superseded'),
       attestationRequested: requestSentAt !== null,
       confirmableMessageIds: new Set(
         requestSentAt === null
@@ -236,12 +247,16 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     });
   }
 
-  // Intake resolutions (capital declaration): already validated against the
-  // resolvable rows and the evidence quotes (decisionSchema); the DB guards
-  // re-check the statuses. Suppressed wholesale under suspected injection —
-  // a hostile message must not be able to shrink the declaration.
+  // Intake resolutions + ladder actions (capital declaration): already
+  // validated against the resolvable/typed rows and the evidence quotes
+  // (decisionSchema); the DB guards re-check the statuses. Suppressed
+  // wholesale under suspected injection — a hostile message must not be able
+  // to shrink the declaration.
+  // Rows created directly as 'claimed' (the client says the office already
+  // holds the document) feed the same accountant notification as claim-marks.
+  const claimedAtCreation: string[] = [];
+  let applied = 0;
   if (!decision.suspected_injection && decision.resolutions.length > 0) {
-    let applied = 0;
     for (const resolution of decision.resolutions) {
       if (resolution.resolution === 'not_required') {
         const row = await clientDocuments.resolveNotRequired(resolution.documentId, clientId, resolution.evidence);
@@ -266,6 +281,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
         const rows = await clientDocuments.resolveRequired(resolution.documentId, clientId, resolution.instances);
         if (!rows) continue;
         applied += 1;
+        claimedAtCreation.push(...rows.filter((r) => r.status === 'claimed').map((r) => r.name));
         recordAudit({
           actorType: 'agent',
           action: 'document.resolved',
@@ -282,17 +298,74 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
         });
       }
     }
-    if (applied > 0) {
-      // A reopened checklist voids any earlier attestation — a stale
-      // confirmation must never complete the goal over a changed list.
-      if (intake && (intake.attestationRequested || intake.attestationConfirmed)) {
-        await clients.clearAttestation(clientId);
-        attestationConfirmed = false;
-      }
-      documents = await clientDocuments.listForClient(clientId);
-      publishClientUpdated(clientId);
-      logger.info('intake resolutions applied', { clientId, count: applied });
+  }
+
+  // Instance additions after resolution (capital declaration): the
+  // requirements-ladder escalation and late discoveries.
+  if (!decision.suspected_injection && decision.addedInstances.length > 0) {
+    for (const addition of decision.addedInstances) {
+      const rows = await clientDocuments.addInstances(addition.anchorDocumentId, clientId, addition.instances);
+      if (!rows || rows.length === 0) continue;
+      applied += 1;
+      claimedAtCreation.push(...rows.filter((r) => r.status === 'claimed').map((r) => r.name));
+      recordAudit({
+        actorType: 'agent',
+        action: 'document.instances_added',
+        agentInstanceId: client.agent_instance_id,
+        clientId,
+        targetType: 'client_document',
+        targetId: addition.anchorDocumentId,
+        detail: {
+          clientName: client.name,
+          typeKey: rows[0]?.type_key ?? null,
+          instances: rows.map((r) => r.name),
+        },
+      });
     }
+  }
+
+  // Document retirements (capital declaration): the ladder replaced these rows
+  // with different documents (evidence-backed; collected/approved rows are
+  // valid targets per the office's unit rule).
+  if (!decision.suspected_injection && decision.superseded.length > 0) {
+    for (const supersession of decision.superseded) {
+      const row = await clientDocuments.supersede(supersession.documentId, clientId, supersession.evidence);
+      if (!row) continue;
+      applied += 1;
+      recordAudit({
+        actorType: 'agent',
+        action: 'document.superseded',
+        agentInstanceId: client.agent_instance_id,
+        clientId,
+        targetType: 'client_document',
+        targetId: row.id,
+        detail: {
+          clientName: client.name,
+          name: row.name,
+          typeKey: row.type_key,
+          evidence: supersession.evidence,
+        },
+      });
+    }
+  }
+
+  if (applied > 0) {
+    // A reopened checklist voids any earlier attestation — a stale
+    // confirmation must never complete the goal over a changed list.
+    if (intake && (intake.attestationRequested || intake.attestationConfirmed)) {
+      await clients.clearAttestation(clientId);
+      attestationConfirmed = false;
+    }
+    documents = await clientDocuments.listForClient(clientId);
+    publishClientUpdated(clientId);
+    logger.info('intake changes applied', { clientId, count: applied });
+  }
+  if (claimedAtCreation.length > 0) {
+    // Same accountant touchpoint as claim-marks: rows born 'claimed' ("the
+    // office already has it") await the accountant's confirmation too.
+    sendClaimedDocumentsEmail(client, claimedAtCreation).catch((err) =>
+      logger.error('claimed-documents notification failed', err, { clientId }),
+    );
   }
 
   // Attestation confirmation (capital declaration): validated to cite a real
@@ -404,7 +477,8 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const collectedCount = documents.filter((d) => d.status === 'collected').length + newlyCollected.length;
   const stillPending = documents.length - collectedCount;
   const allSettled =
-    documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'not_required');
+    documents.length > 0 &&
+    documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'superseded');
   const allCollected =
     documents.length > 0
       ? isCapitalDeclaration

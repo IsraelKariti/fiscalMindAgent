@@ -68,6 +68,7 @@ const CAPITAL_GROUPS: { status: DocumentStatus; labelKey: keyof Messages; collap
   { status: 'collected', labelKey: 'groupCollected' },
   { status: 'approved', labelKey: 'groupApproved' },
   { status: 'not_required', labelKey: 'groupNotRequired', collapsed: true },
+  { status: 'superseded', labelKey: 'groupSuperseded', collapsed: true },
 ];
 
 export function DocumentsCard({ clientId, documents, files, onChanged, titleKey, emptyTextKey, capital }: Props) {
@@ -84,8 +85,10 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
   // 106s to the one item — every one of them must stay visible.
   const filesFor = (docId: string): DocumentFile[] => files.filter((f) => f.client_document_id === docId);
 
-  // Capital flow: done = verified; not_required rows are outside the goal.
-  const inGoal = capital ? documents.filter((d) => d.status !== 'not_required') : documents;
+  // Capital flow: done = verified; not_required/superseded rows are outside the goal.
+  const inGoal = capital
+    ? documents.filter((d) => d.status !== 'not_required' && d.status !== 'superseded')
+    : documents;
   const done = capital
     ? documents.filter((d) => d.status === 'approved').length
     : documents.filter((d) => d.status === 'collected').length;
@@ -149,7 +152,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
       controls.push(smallBtn(t.confirmClaimedReceipt, () => setStatus(doc, 'approved'), { title: t.confirmClaimedTitle, primary: true }));
     } else if (doc.status === 'collected') {
       controls.push(smallBtn(t.approveManually, () => setStatus(doc, 'approved'), { primary: stalled }));
-    } else if (doc.status === 'approved' || doc.status === 'not_required') {
+    } else if (doc.status === 'approved' || doc.status === 'not_required' || doc.status === 'superseded') {
       controls.push(smallBtn(t.reopenDocument, () => setStatus(doc, 'pending')));
     }
 
@@ -162,6 +165,8 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         </span>
       ) : doc.status === 'claimed' ? (
         <span className="badge badge-warning">{t.claimedStatus}</span>
+      ) : doc.status === 'superseded' ? (
+        <span className="badge badge-note">{t.supersededStatus}</span>
       ) : null;
 
     return (
@@ -193,7 +198,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         {(doc.status === 'pending' || doc.status === 'collected') && (failed || stalled) && reasons && (
           <div className="doc-verification-note">{t.verificationReasonsPrefix + reasons}</div>
         )}
-        {doc.status === 'not_required' && doc.resolution_evidence && (
+        {(doc.status === 'not_required' || doc.status === 'superseded') && doc.resolution_evidence && (
           <div className="doc-verification-note muted">{`${t.clientQuotePrefix}"${doc.resolution_evidence.quote}"`}</div>
         )}
         {summary && <div className="doc-verification-note muted">{summary}</div>}

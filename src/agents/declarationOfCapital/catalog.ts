@@ -199,8 +199,10 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'prior_declaration',
     nameHe: 'הצהרת הון קודמת',
-    descriptionHe: 'עותק של הצהרת ההון האחרונה שהוגשה לרשות המסים, אם הוגשה בעבר.',
-    discoveryQuestionHe: 'האם הגשת בעבר הצהרת הון לרשות המסים?',
+    descriptionHe:
+      'עותק של הצהרת ההון האחרונה שהוגשה לרשות המסים — נדרש רק אם ההצהרה הקודמת נערכה במשרד אחר. הצהרה קודמת שנערכה במשרדנו כבר שמורה במערכת המשרד ואין צורך שהלקוח ישלח אותה.',
+    discoveryQuestionHe:
+      'האם זו הצהרת ההון הראשונה שלך? אם כבר הגשת בעבר — האם ההצהרה הקודמת נערכה במשרדנו או במשרד אחר?',
     multiInstance: false,
     dateDependent: false,
     checks: { subjectMatch: true, asOfDate: false, amounts: false },

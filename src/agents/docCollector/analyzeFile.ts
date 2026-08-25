@@ -121,7 +121,12 @@ export async function analyzeFile(
                 ? ` (תלוי-תאריך: חייב לשקף את המצב ליום 31.12.${taxYear})`
                 : ' (אינו תלוי-תאריך)'
               : '';
-            return `[id: ${doc.id}] ${doc.name}${doc.description ? ` — ${doc.description}` : ''}${dateRule}`;
+            // Resolved catalog rows carry instance names/descriptions; restate
+            // the type's accepted document forms so matching recognizes every
+            // form the office accepts, not just the instance's wording.
+            const typeDescription = catalogType ? catalogType.descriptionHe.replaceAll('{{tax_year}}', String(taxYear)) : null;
+            const typeRule = typeDescription && typeDescription !== doc.description ? ` (מסמכים קבילים לסוג זה: ${typeDescription})` : '';
+            return `[id: ${doc.id}] ${doc.name}${doc.description ? ` — ${doc.description}` : ''}${typeRule}${dateRule}`;
           })
           .join('\n')
       : '(אין מסמכים מוגדרים)';

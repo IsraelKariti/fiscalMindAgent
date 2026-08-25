@@ -241,7 +241,7 @@ export function buildDeadlineSection(token: string, client: ClientRow, now: Date
 }
 
 /** Lives in `contents` (not the template) so custom system prompts still see current document state. */
-export function buildDocumentsSection(token: string, documents: ClientDocumentRow[]): string {
+export function buildDocumentsSection(token: string, documents: ClientDocumentRow[], taxYear?: number): string {
   if (documents.length === 0) {
     return `${fence(token, 'REQUIRED DOCUMENTS')}\n(none configured)\n${endFence(token, 'REQUIRED DOCUMENTS')}`;
   }
@@ -254,6 +254,15 @@ export function buildDocumentsSection(token: string, documents: ClientDocumentRo
     if (doc.status === 'unresolved' && catalogType) {
       extras.push(`שאלת בירור: ${catalogType.discoveryQuestionHe}`);
       extras.push(catalogType.multiInstance ? 'ייתכנו מופעים מרובים — בררו כמה ואילו' : 'מופע יחיד');
+    }
+    // Rows whose stored description drifted from the catalog (resolved rows
+    // carry instance names/descriptions; old rows were seeded from an earlier
+    // catalog) get the office's current requirements for the type restated —
+    // accepted document forms and the details stated in the declaration — so
+    // the conversation can rely on them when asking for the document.
+    if (catalogType && taxYear !== undefined) {
+      const typeDescription = catalogType.descriptionHe.replaceAll('{{tax_year}}', String(taxYear));
+      if (typeDescription !== doc.description) extras.push(`דרישות הסוג: ${typeDescription}`);
     }
     // A pending row that already failed verification tells the model exactly
     // what to ask the client to fix (reasons are our own code's Hebrew strings).
@@ -402,7 +411,7 @@ export function buildPrompt(
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
-    buildDocumentsSection(token, documents),
+    buildDocumentsSection(token, documents, taxYear),
     buildIntakeSection(token, intake),
     buildDeadlineSection(token, client, now),
     buildWhatsAppSection(token, waState),

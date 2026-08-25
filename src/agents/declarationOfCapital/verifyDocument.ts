@@ -67,7 +67,7 @@ const EXTRACTION_PROMPT = `אתה מחלץ נתונים ממסמך עבור אי
 
 המסמך המצופה: {{expected_name}}
 תיאור: {{expected_description}}
-{{date_context}}
+{{type_context}}{{date_context}}
 
 קרא את תוכן הקובץ עצמו והשב לפי הסכמה:
 - is_expected_type: האם תוכן הקובץ הוא אכן מסמך מהסוג המצופה שלמעלה.
@@ -184,8 +184,16 @@ export async function verifyCollectedDocument(
   let extracted: ExtractedFields;
   try {
     const bytes = await streamToBuffer((await downloadBlob(file.blob_key)).stream);
+    // Resolved rows carry instance names/descriptions; the catalog description
+    // (the office's accepted document forms for the type) is restated so
+    // is_expected_type judges against every acceptable form.
+    const typeDescription = catalogType ? catalogType.descriptionHe.replaceAll('{{tax_year}}', String(taxYear)) : null;
     const prompt = EXTRACTION_PROMPT.replace('{{expected_name}}', doc.name)
       .replace('{{expected_description}}', doc.description ?? '(ללא תיאור)')
+      .replace(
+        '{{type_context}}',
+        typeDescription && typeDescription !== doc.description ? `מסמכים קבילים לסוג זה: ${typeDescription}\n` : '',
+      )
       .replace(
         '{{date_context}}',
         checks.asOfDate

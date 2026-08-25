@@ -67,12 +67,15 @@ const FORM_INTAKE_PROMPT = `אתה מנתח שאלון הצהרת הון שלק�
 השב אך ורק לפי הסכמה שסופקה.`;
 
 /** The catalog lines the prompt shows — only rows still unresolved for this client. */
-function catalogLines(rows: FormResolvableRow[]): string {
+function catalogLines(rows: FormResolvableRow[], taxYear: number): string {
+  const year = String(taxYear);
   return rows
     .map((row) => {
       const t = getCatalogType(row.typeKey);
       if (!t) return `- ${row.typeKey}`;
-      return `- ${t.key}: ${t.nameHe} — ${t.descriptionHe}${t.multiInstance ? '' : ' (מופע יחיד)'}`;
+      const name = t.nameHe.replaceAll('{{tax_year}}', year);
+      const description = t.descriptionHe.replaceAll('{{tax_year}}', year);
+      return `- ${t.key}: ${name} — ${description}${t.multiInstance ? '' : ' (מופע יחיד)'}`;
     })
     .join('\n');
 }
@@ -108,7 +111,7 @@ export async function applyFormIntake(
   if (rows.length === 0) return { applied: 0 };
 
   const prompt = FORM_INTAKE_PROMPT.replaceAll('{{tax_year}}', String(taxYear))
-    .replace('{{catalog}}', catalogLines(rows))
+    .replace('{{catalog}}', catalogLines(rows, taxYear))
     .replace('{{answers}}', answers.map((a) => `שאלה: ${a.question}\nתשובה: ${a.answer}`).join('\n\n'));
 
   // The client's experiment arm (049) also serves this isolated read, so a

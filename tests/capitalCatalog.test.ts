@@ -30,6 +30,13 @@ describe('capital-declaration catalog', () => {
     }
   });
 
+  it('vehicle carries the license validity check and the anatomy hint', () => {
+    const vehicle = getCatalogType('vehicle');
+    assert.ok(vehicle);
+    assert.equal(vehicle!.checks.notExpired, true);
+    assert.ok(vehicle!.analysisHintHe && vehicle!.analysisHintHe.includes('בתוקף עד'));
+  });
+
   it('seed rows render {{tax_year}} everywhere and cover the whole catalog', () => {
     const rows = catalogSeedRows(2025);
     assert.equal(rows.length, CAPITAL_DOCUMENT_CATALOG.length);

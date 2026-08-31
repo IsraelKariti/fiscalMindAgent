@@ -22,6 +22,14 @@ export interface VerificationChecks {
   asOfDate: boolean;
   /** The document must carry at least one sane monetary amount. */
   amounts: boolean;
+  /**
+   * The document carries its own validity period (a "בתוקף עד" date) and must
+   * not be expired at verification time. Enforced only when the extractor
+   * actually finds a validity date — instances of the same type that carry
+   * none (a purchase receipt next to a vehicle license) are unaffected.
+   * Defaults to false.
+   */
+  notExpired?: boolean;
 }
 
 export interface CapitalDocumentType {
@@ -31,6 +39,13 @@ export interface CapitalDocumentType {
   nameHe: string;
   /** What exactly to obtain/ask the institution for; also rendered per {{tax_year}}. */
   descriptionHe: string;
+  /**
+   * Optional anatomy/lookalike guidance for the file-reading models only (the
+   * ingestion analyzer's classification and the verifier's extraction) — where
+   * the load-bearing fields sit on the real document and which lookalike
+   * papers must NOT be accepted. Never shown to clients or seeded into rows.
+   */
+  analysisHintHe?: string;
   /** How the intake interview probes for this type. */
   discoveryQuestionHe: string;
   /** May legitimately resolve to more than one concrete document (accounts, cars, policies…). */
@@ -140,13 +155,18 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'vehicle',
-    nameHe: 'מסמכי רכישת כלי רכב',
+    nameHe: 'מסמכי כלי רכב',
     descriptionHe:
-      'לכל כלי רכב בבעלותך (פרטי, מסחרי, אופנוע): חשבונית מס/קבלה אם נרכש מחברה, או הצהרת עלות רכישה אם נרכש יד שנייה — בהצהרה מצוינים יצרן, דגם, שנת ייצור, מספר רישוי ועלות הרכישה. אם המסמך אינו בנמצא — די בציון הפרטים ועלות הרכישה.',
-    discoveryQuestionHe: 'כמה כלי רכב רשומים על שמך, ומה הם?',
+      'לכל כלי רכב בבעלותך (פרטי, מסחרי, אופנוע) — בהצהרה מצוינים יצרן, דגם, שנת ייצור, מספר רישוי ועלות הרכישה. שני מסמכים לכל רכב: ' +
+      'חובה לכל רכב — העתק רישיון רכב בתוקף (רישיון שפג תוקפו אינו קביל). ' +
+      'לגבי העלות — מסמך רכישה או קבלה מרכישת הרכב (חשבונית מס/קבלה וכדומה). אם אין בידי הלקוח מסמך רכישה או קבלה — במקומם הצהרת עלות מהלקוח, שבה הוא מצהיר כמה עלה לו הרכב.',
+    discoveryQuestionHe:
+      'כמה כלי רכב (פרטי, מסחרי, אופנוע) רשומים על שמך, ומה הם? לגבי כל רכב — האם מסמך הרכישה או הקבלה מרכישת הרכב נמצאים בידיך?',
+    analysisHintHe:
+      'אנטומיית רישיון רכב ישראלי (מסמך משרד התחבורה): בשורת הכותרת העליונה — מספר רכב, סוג, ותאריך "בתוקף עד" (תוקף הרישיון); בגוף — שם הבעלים ומספר הזהות, תוצר, דגם וכינוי מסחרי, מועד עליה לכביש (מציין את שנת הייצור), מספר שילדה. הרישיון הוא המקור לכל פרטי הרכב שבהצהרה מלבד עלות הרכישה. אינו קביל: רישיון שפג תוקפו, או החלק התחתון של הדף בלבד ("חידוש רישיון רכב" / "הודעת זיכוי" — ספח תשלום לחידוש, לא הרישיון עצמו); רישיון הרכב תקף רק לאחר תשלום האגרה ומעבר מבחן הכשירות (טסט). אין לבלבל את "בתוקף עד" עם "תאריך רישום", "תאריך בעלות" או תאריך ההדפסה.',
     multiInstance: true,
     dateDependent: false,
-    checks: { subjectMatch: true, asOfDate: false, amounts: false },
+    checks: { subjectMatch: true, asOfDate: false, amounts: false, notExpired: true },
   },
   {
     key: 'contents_insurance',

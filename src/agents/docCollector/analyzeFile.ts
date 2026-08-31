@@ -126,7 +126,10 @@ export async function analyzeFile(
             // form the office accepts, not just the instance's wording.
             const typeDescription = catalogType ? catalogType.descriptionHe.replaceAll('{{tax_year}}', String(taxYear)) : null;
             const typeRule = typeDescription && typeDescription !== doc.description ? ` (מסמכים קבילים לסוג זה: ${typeDescription})` : '';
-            return `[id: ${doc.id}] ${doc.name}${doc.description ? ` — ${doc.description}` : ''}${typeRule}${dateRule}`;
+            // Anatomy/lookalike hint (e.g. the vehicle-license field map) so
+            // classification recognizes the real document and rejects lookalikes.
+            const typeHint = catalogType?.analysisHintHe ? ` (${catalogType.analysisHintHe})` : '';
+            return `[id: ${doc.id}] ${doc.name}${doc.description ? ` — ${doc.description}` : ''}${typeRule}${typeHint}${dateRule}`;
           })
           .join('\n')
       : '(אין מסמכים מוגדרים)';

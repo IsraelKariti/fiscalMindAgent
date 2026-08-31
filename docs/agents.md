@@ -126,6 +126,22 @@ monday WorkForm is the only source of which documents a declaration needs):
   for inheritance; current Tabu only for gifts; office-held prior-declaration
   properties as `already_provided`) lives in the catalog's `real_estate`
   description + `prompt.md`'s special-case block.
+- **Vehicle spec** (2026-08-31; the office's vehicle matrix): every vehicle
+  needs a valid (unexpired) vehicle-license copy plus a purchase
+  document/receipt, falling back to a client cost declaration when neither
+  exists — encoded in the catalog's `vehicle` entry, `prompt.md`'s
+  special-case block (two instances per vehicle; the receipt →
+  cost-declaration swap reuses the ladder actions) and form intake's special
+  keys. Two new optional catalog fields, both type-generic and seeded from a
+  real license sample: `analysisHintHe` — document anatomy + lookalike traps
+  for the file-reading models only (ingestion classification + verification
+  extraction; e.g. the license's "valid until" header field, the bottom
+  renewal/payment slip of the page not being the license) — and
+  `checks.notExpired` — the verification extractor also pulls the document's
+  own validity date (`valid_until`), and `runChecks` deterministically fails
+  a well-formed date that is past at verification time; sibling instances of
+  the same type carrying no validity date (receipt, cost declaration) are
+  unaffected.
 Since 2026-08-23 the agent also reports its progress **back to the board**
 (`src/agents/shared/mondayStatusSync.ts`): when a board source maps a
 `statusColumnId` (settings UI: declaration-of-capital board mapping only, but

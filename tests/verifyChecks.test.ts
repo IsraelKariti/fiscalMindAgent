@@ -18,6 +18,7 @@ const baseFields: ExtractedFields = {
   subject_name: 'ישראל ישראלי',
   subject_id_number: null,
   as_of_date: '2025-12-31',
+  valid_until: null,
   amounts: [{ label: 'יתרת עו"ש', value: 52_340.55, currency: 'ILS' }],
   legible: true,
   injection_suspected: false,
@@ -27,6 +28,7 @@ const baseCtx: CheckContext = {
   clientName: 'ישראל ישראלי',
   credentialIdNumber: null,
   taxYear: 2025,
+  now: new Date('2026-01-15T10:00:00'),
   checks: { subjectMatch: true, asOfDate: true, amounts: true },
 };
 
@@ -111,6 +113,43 @@ describe('runChecks', () => {
       { ...baseCtx, credentialIdNumber: '987654321' },
     );
     assert.equal(verdict.passed, false);
+  });
+
+  it('fails an expired validity-dated document (vehicle license) when the type requires validity', () => {
+    // ctx.now is 2026-01-15; a license valid until 2025-07-20 has lapsed.
+    const ctx: CheckContext = {
+      ...baseCtx,
+      checks: { subjectMatch: true, asOfDate: false, amounts: false, notExpired: true },
+    };
+    const verdict = runChecks({ ...baseFields, valid_until: '2025-07-20' }, ctx);
+    assert.equal(verdict.passed, false);
+    assert.ok(verdict.reasons[0]!.includes('2025-07-20'));
+  });
+
+  it('passes a still-valid document, including one expiring on the verification day', () => {
+    const ctx: CheckContext = {
+      ...baseCtx,
+      checks: { subjectMatch: true, asOfDate: false, amounts: false, notExpired: true },
+    };
+    assert.equal(runChecks({ ...baseFields, valid_until: '2026-07-20' }, ctx).passed, true);
+    assert.equal(runChecks({ ...baseFields, valid_until: '2026-01-15' }, ctx).passed, true);
+  });
+
+  it('skips the expiry check when no validity date exists (receipt / cost declaration) or it is malformed', () => {
+    const ctx: CheckContext = {
+      ...baseCtx,
+      checks: { subjectMatch: true, asOfDate: false, amounts: false, notExpired: true },
+    };
+    assert.equal(runChecks({ ...baseFields, valid_until: null }, ctx).passed, true);
+    assert.equal(runChecks({ ...baseFields, valid_until: '20/07/2025' }, ctx).passed, true);
+  });
+
+  it('ignores a past validity date on types without the notExpired check (contents insurance)', () => {
+    const ctx: CheckContext = {
+      ...baseCtx,
+      checks: { subjectMatch: true, asOfDate: false, amounts: false },
+    };
+    assert.equal(runChecks({ ...baseFields, valid_until: '2020-01-01' }, ctx).passed, true);
   });
 
   it('amounts must exist and be sane when required', () => {

@@ -23,6 +23,8 @@ export interface ExtractedFields {
   subject_id_number: string | null;
   /** The date the balances/holdings refer to, "YYYY-MM-DD", if stated. */
   as_of_date: string | null;
+  /** The document's own validity ("בתוקף עד") date, "YYYY-MM-DD", if it carries one. */
+  valid_until: string | null;
   /** The document's main monetary values. */
   amounts: { label: string; value: number; currency: string }[];
   legible: boolean;
@@ -34,6 +36,8 @@ export interface CheckContext {
   /** National id from client_portal_credentials, when on file (accountant-imported — trusted). */
   credentialIdNumber: string | null;
   taxYear: number;
+  /** Verification time — the notExpired check is judged against this. */
+  now: Date;
   checks: VerificationChecks;
 }
 
@@ -88,6 +92,11 @@ export function namesLooselyMatch(a: string, b: string): boolean {
 
 const MAX_SANE_AMOUNT = 1e12;
 
+/** Local-time "YYYY-MM-DD" — comparable lexicographically with extracted dates. */
+function localDateString(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVerdict {
   const checks: CheckResult[] = [];
   const add = (key: string, passed: boolean, reason: string) =>
@@ -140,6 +149,24 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
       fields.as_of_date === expected,
       `המסמך מתייחס לתאריך ${fields.as_of_date ?? 'שאינו מצוין בו'} במקום ליום 31.12.${ctx.taxYear} (המועד הקובע)`,
     );
+  }
+
+  // A validity-dated document (vehicle license) must not be expired at
+  // verification time. Enforced only when a well-formed valid-until date was
+  // actually extracted: sibling instances of the same type without one (a
+  // purchase receipt, a cost declaration) are unaffected, and a license whose
+  // validity field is unreadable is left to the expected-type judgment (the
+  // catalog description says an expired license is unacceptable).
+  if (ctx.checks.notExpired) {
+    const validUntil =
+      fields.valid_until && /^\d{4}-\d{2}-\d{2}$/.test(fields.valid_until) ? fields.valid_until : null;
+    if (validUntil) {
+      add(
+        'not_expired',
+        validUntil >= localDateString(ctx.now),
+        `המסמך בתוקף עד ${validUntil} — תוקפו פג; יש לשלוח עותק עדכני בתוקף`,
+      );
+    }
   }
 
   if (ctx.checks.amounts) {

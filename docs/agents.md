@@ -142,6 +142,21 @@ monday WorkForm is the only source of which documents a declaration needs):
   a well-formed date that is past at verification time; sibling instances of
   the same type carrying no validity date (receipt, cost declaration) are
   unaffected.
+- **Savings-family spec** (2026-08-31; the office's savings matrix): pensions,
+  provident funds (incl. investment provident), study funds, managers'
+  insurance and savings policies all share one requirement — a dedicated
+  capital-declaration certificate from the managing body's site OR the last
+  page of the abbreviated annual report (the two are equally acceptable);
+  "חיסכון לכל ילד" accounts need no certificate at all (National Insurance
+  deposits, so never an instance, and mentioning one alone doesn't make a row
+  required). Encoded in the three savings catalog entries
+  (`life_insurance_savings` moved off the old surrender-value ask),
+  `prompt.md`'s special-case block and form intake. `analysisHintHe` on
+  `pension_provident`/`study_fund` is seeded from three real fund samples:
+  the dedicated certificate ("אישור מס להצהרת הון") certifies *cumulative
+  deposits since first deposit* — legitimately 0 for an emptied account —
+  while the annual-report page carries the year-end balance; both often
+  arrive as one PDF, and a deposits-detail table alone is a lookalike trap.
 Since 2026-08-23 the agent also reports its progress **back to the board**
 (`src/agents/shared/mondayStatusSync.ts`): when a board source maps a
 `statusColumnId` (settings UI: declaration-of-capital board mapping only, but

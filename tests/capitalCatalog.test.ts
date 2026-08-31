@@ -37,6 +37,19 @@ describe('capital-declaration catalog', () => {
     assert.ok(vehicle!.analysisHintHe && vehicle!.analysisHintHe.includes('בתוקף עד'));
   });
 
+  it('savings family carries the certificate anatomy hint and the child-savings exemption', () => {
+    for (const key of ['pension_provident', 'study_fund']) {
+      const t = getCatalogType(key);
+      assert.ok(t);
+      assert.ok(t!.analysisHintHe && t!.analysisHintHe.includes('אישור מס להצהרת הון'));
+    }
+    const pension = getCatalogType('pension_provident');
+    assert.ok(pension!.descriptionHe.includes('חיסכון לכל ילד'));
+    const insurance = getCatalogType('life_insurance_savings');
+    assert.ok(insurance);
+    assert.ok(insurance!.descriptionHe.includes('אישור ייעודי להצהרת הון'));
+  });
+
   it('seed rows render {{tax_year}} everywhere and cover the whole catalog', () => {
     const rows = catalogSeedRows(2025);
     assert.equal(rows.length, CAPITAL_DOCUMENT_CATALOG.length);

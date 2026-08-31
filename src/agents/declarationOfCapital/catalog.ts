@@ -55,6 +55,15 @@ export interface CapitalDocumentType {
   checks: VerificationChecks;
 }
 
+/**
+ * Shared anatomy for the savings family (pension/provident/study-fund), seeded
+ * from three real office samples (הראל פנסיה, ילין לפידות קופת גמל להשקעה,
+ * אלטשולר שחם קרן השתלמות). Kept free of {{tax_year}} — analysisHintHe is fed
+ * to the models verbatim, without template rendering.
+ */
+const SAVINGS_CERTIFICATE_HINT_HE =
+  'שתי צורות קבילות למסמך, לכל קופה/קרן בנפרד: (א) האישור הייעודי — עמוד או מקטע שכותרתו "אישור מס להצהרת הון" (לעיתים תחת כותרת "אישור מס עבור קרן השתלמות" / "אישור מס עבור קופת גמל להשקעה"), המופק מהאזור האישי באתר הגוף המנהל; מופיעים בו שם העמית, מספר חשבון, מספר תיק ניכויים ושם הקופה/הקרן, עם הנוסח "הרינו לאשר כי סך ההפקדות... מיום ההפקדה הראשונה ועד ליום 31.12" של שנת המס. שים לב: אישור זה מאשר סך הפקדות מצטבר (לא יתרה צבורה), וסכום מאושר של 0 ש"ח הוא לגיטימי (למשל חשבון שרוקן) — חלץ גם אותו כסכום. (ב) העמוד בדוח השנתי המקוצר המציג את יתרת הכספים לסוף השנה ("יתרת הכספים בחשבונך נכון ל-31.12..." / "יתרת הכספים בחשבון בסוף השנה"). לעיתים קרובות שתי הצורות מגיעות בקובץ PDF אחד — האישור הייעודי כעמוד האחרון של הדוח השנתי — וזה קביל. אינו קביל: דוח רבעוני, או עמוד פירוט ההפקדות השנתי בלבד (טבלת "פירוט ההפקדות לחשבון") ללא יתרת סוף שנה וללא נוסח האישור.';
+
 export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'bank_balance',
@@ -80,7 +89,8 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     key: 'pension_provident',
     nameHe: 'אישור יתרות קופות גמל ופנסיה ליום 31.12.{{tax_year}}',
     descriptionHe:
-      'אישור ייעודי להצהרת הון (מופק מהאזור האישי באתר הקופה) או העמוד האחרון של הדוח השנתי המקוצר, המשקף את היתרה הצבורה בכל קופת גמל וקרן פנסיה ליום 31.12.{{tax_year}} — כולל קופות של בן/בת הזוג.',
+      'אישור ייעודי להצהרת הון (מופק מהאזור האישי באתר הקופה) או העמוד האחרון של הדוח השנתי המקוצר, המשקף את היתרה הצבורה בכל קופת גמל וקרן פנסיה (כולל קופת גמל להשקעה) ליום 31.12.{{tax_year}} — כולל קופות של בן/בת הזוג. חשבונות "חיסכון לכל ילד" אינם דורשים אישור כלל (מופקדים על ידי ביטוח לאומי).',
+    analysisHintHe: SAVINGS_CERTIFICATE_HINT_HE,
     discoveryQuestionHe: 'באילו קופות גמל וקרנות פנסיה אתה חבר?',
     multiInstance: true,
     dateDependent: true,
@@ -91,6 +101,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     nameHe: 'אישור יתרת קרן השתלמות ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרה צבורה מכל קרן השתלמות ליום 31.12.{{tax_year}} — אישור ייעודי להצהרת הון מאתר הקופה או העמוד האחרון של הדוח השנתי המקוצר.',
+    analysisHintHe: SAVINGS_CERTIFICATE_HINT_HE,
     discoveryQuestionHe: 'האם יש לך קרן השתלמות אחת או יותר?',
     multiInstance: true,
     dateDependent: true,
@@ -98,10 +109,10 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'life_insurance_savings',
-    nameHe: 'אישור ערכי פדיון ביטוח חיים ליום 31.12.{{tax_year}}',
+    nameHe: 'אישור להצהרת הון — ביטוח מנהלים / פוליסת חיסכון ליום 31.12.{{tax_year}}',
     descriptionHe:
-      'אישור ערך פדיון מחברת הביטוח לכל פוליסת ביטוח חיים הכוללת מרכיב חיסכון (ביטוח מנהלים, פוליסת חיסכון), ליום 31.12.{{tax_year}}.',
-    discoveryQuestionHe: 'האם יש לך פוליסות ביטוח חיים עם מרכיב חיסכון, ובאילו חברות?',
+      'לכל פוליסה בחברת ביטוח הכוללת מרכיב חיסכון (ביטוח מנהלים, פוליסת חיסכון) — אישור ייעודי להצהרת הון מהאזור האישי באתר חברת הביטוח, או העמוד האחרון של הדוח השנתי המקוצר, ליום 31.12.{{tax_year}}.',
+    discoveryQuestionHe: 'האם יש לך ביטוח מנהלים או פוליסת חיסכון בחברת ביטוח, ובאילו חברות?',
     multiInstance: true,
     dateDependent: true,
     checks: { subjectMatch: true, asOfDate: true, amounts: true },

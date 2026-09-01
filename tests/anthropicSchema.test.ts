@@ -2,7 +2,14 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { toAnthropicSchema, restoreOmittedNulls } from '../src/gemini/anthropicSchema.js';
-import { DecisionResponseSchema } from '../src/agents/docCollector/decisionSchema.js';
+import {
+  DecisionResponseSchema,
+  decisionSchemaForContext,
+  EMAIL_ONLY_CONTEXT,
+  normalizeDecision,
+  restorePrunedNulls,
+  type DecisionContext,
+} from '../src/agents/docCollector/decisionSchema.js';
 
 // The 2026-09-01 prod incident: Anthropic 400 "19 parameters with type arrays
 // or anyOf ... limit: 16" on the doc-collector decision schema. The adapter
@@ -153,5 +160,114 @@ describe('restoreOmittedNulls', () => {
     const restored = restoreOmittedNulls(decisionJsonSchema, answer) as Record<string, unknown>;
     assert.equal('reasoning' in restored, false);
     assert.throws(() => DecisionResponseSchema.parse(restored));
+  });
+});
+
+// Second half of the 2026-09-01 incident: even with zero null-unions the
+// transformed schema was rejected ("Schema is too complex") — Anthropic's
+// grammar budget counts optional properties like unions, and collapsing 19
+// nullables into 19 optionals reduced nothing. The real fix prunes the field
+// groups a context can never accept, keeping every realistic context's schema
+// under the 16-parameter budget.
+describe('decisionSchemaForContext', () => {
+  const ANTHROPIC_UNION_BUDGET = 16;
+
+  /** Optional (non-required) properties of the transformed schema — what Anthropic budgets. */
+  function countOptionals(node: unknown): number {
+    if (Array.isArray(node)) return node.reduce((sum: number, n) => sum + countOptionals(n), 0);
+    if (node === null || typeof node !== 'object') return 0;
+    const obj = node as Record<string, unknown>;
+    let count = 0;
+    if (obj.type === 'object' && obj.properties && typeof obj.properties === 'object') {
+      const required = new Set((obj.required as string[]) ?? []);
+      count += Object.keys(obj.properties).filter((name) => !required.has(name)).length;
+    }
+    return count + Object.values(obj).reduce((sum: number, v) => sum + countOptionals(v), 0);
+  }
+
+  function schemaFor(ctx: DecisionContext): Record<string, unknown> {
+    const json = zodToJsonSchema(decisionSchemaForContext(ctx) as never) as Record<string, unknown>;
+    delete json.$schema;
+    return json;
+  }
+
+  const CAPITAL_DECLARATION_CONTEXT: DecisionContext = {
+    emailAllowed: false,
+    whatsappAllowed: true,
+    windowOpen: true,
+    templates: [],
+    intake: {
+      resolvable: [],
+      typedRows: [],
+      inboundTexts: new Map(),
+      allSettled: false,
+      attestationRequested: false,
+      confirmableMessageIds: new Set(),
+      attestationConfirmed: false,
+    },
+  };
+
+  const DOC_COLLECTOR_CONTEXT: DecisionContext = {
+    whatsappAllowed: true,
+    windowOpen: false,
+    templates: [],
+    taxFetch: [
+      { provider: 'israel_tax_authority', state: 'none', available: true, clientOnWhatsapp: true, documentKeys: ['form_106'] },
+    ],
+  };
+
+  it('capital declaration: drops email + tax-fetch fields and fits the Anthropic budget', () => {
+    const json = schemaFor(CAPITAL_DECLARATION_CONTEXT);
+    const props = json.properties as Record<string, unknown>;
+    for (const gone of ['email_subject', 'email_body', 'tax_fetch_action', 'tax_fetch_provider', 'tax_fetch_document_keys']) {
+      assert.equal(props[gone], undefined, `${gone} should be pruned`);
+    }
+    assert.notEqual(props.resolved_documents, undefined);
+    assert.notEqual(props.attestation, undefined);
+    assert.ok(countUnions(json) <= ANTHROPIC_UNION_BUDGET, `raw unions: ${countUnions(json)}`);
+    assert.ok(countOptionals(toAnthropicSchema(json)) <= ANTHROPIC_UNION_BUDGET, `optionals: ${countOptionals(toAnthropicSchema(json))}`);
+  });
+
+  it('doc collector (no intake): drops the five intake fields and fits the budget', () => {
+    const json = schemaFor(DOC_COLLECTOR_CONTEXT);
+    const props = json.properties as Record<string, unknown>;
+    for (const gone of ['resolved_documents', 'added_instances', 'superseded_documents', 'attestation', 'attestation_evidence']) {
+      assert.equal(props[gone], undefined, `${gone} should be pruned`);
+    }
+    assert.notEqual(props.email_subject, undefined);
+    assert.notEqual(props.tax_fetch_action, undefined);
+    assert.ok(countUnions(json) <= ANTHROPIC_UNION_BUDGET, `raw unions: ${countUnions(json)}`);
+  });
+
+  it('email-only (debt collector): also drops the whatsapp fields', () => {
+    const json = schemaFor(EMAIL_ONLY_CONTEXT);
+    const props = json.properties as Record<string, unknown>;
+    for (const gone of ['whatsapp_text', 'whatsapp_template', 'tax_fetch_action', 'resolved_documents']) {
+      assert.equal(props[gone], undefined, `${gone} should be pruned`);
+    }
+    assert.ok(countUnions(json) <= ANTHROPIC_UNION_BUDGET, `raw unions: ${countUnions(json)}`);
+  });
+
+  it('restorePrunedNulls + normalizeDecision accept a pruned capital-declaration answer', () => {
+    const parsed = decisionSchemaForContext(CAPITAL_DECLARATION_CONTEXT).parse({
+      decision: 'follow_up',
+      reasoning: 'ask the opening questions',
+      suspected_injection: false,
+      collected_document_ids: [],
+      matched_files: [],
+      channel: 'whatsapp',
+      whatsapp_text: 'שלום',
+      whatsapp_template: null,
+      send_at: '2026-09-02 10:00',
+      resolved_documents: null,
+      added_instances: null,
+      superseded_documents: null,
+      attestation: null,
+      attestation_evidence: null,
+    });
+    const decision = normalizeDecision(restorePrunedNulls(parsed), CAPITAL_DECLARATION_CONTEXT);
+    assert.equal(decision.decision, 'follow_up');
+    assert.equal(decision.tax_fetch, null);
+    assert.deepEqual(decision.resolutions, []);
   });
 });

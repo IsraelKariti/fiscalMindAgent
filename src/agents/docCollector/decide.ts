@@ -9,15 +9,37 @@ import {
 } from '../../gemini/generate.js';
 import {
   correctionSuffix,
-  DecisionResponseSchema,
+  decisionSchemaForContext,
   EMAIL_ONLY_CONTEXT,
   normalizeDecision,
+  prunedDecisionFields,
+  restorePrunedNulls,
   type DecisionContext,
+  type DecisionResponse,
   type NormalizedDecision,
 } from './decisionSchema.js';
+import type { z } from 'zod';
 
-const decisionJsonSchema = zodToJsonSchema(DecisionResponseSchema) as Record<string, unknown>;
-delete decisionJsonSchema.$schema;
+/**
+ * Per-context response schemas (the full contract minus the field groups the
+ * context can never accept — see decisionSchema.ts), keyed by the pruned-field
+ * set. Pruning keeps the schema under Anthropic's structured-output complexity
+ * budget; Gemini/OpenAI simply get the smaller schema too.
+ */
+const schemaCache = new Map<string, { zod: z.ZodType<Partial<DecisionResponse>>; json: Record<string, unknown> }>();
+
+function schemasForContext(ctx: DecisionContext): { zod: z.ZodType<Partial<DecisionResponse>>; json: Record<string, unknown> } {
+  const key = prunedDecisionFields(ctx).join(',');
+  let entry = schemaCache.get(key);
+  if (!entry) {
+    const zodSchema = decisionSchemaForContext(ctx);
+    const json = zodToJsonSchema(zodSchema as never) as Record<string, unknown>;
+    delete json.$schema;
+    entry = { zod: zodSchema, json };
+    schemaCache.set(key, entry);
+  }
+  return entry;
+}
 
 export type { GeminiUsage };
 
@@ -43,6 +65,7 @@ export async function decide(
   } = {},
 ): Promise<DecideResult> {
   const model = opts.model ?? (await getGeminiModel('conversation_decide'));
+  const schemas = schemasForContext(ctx);
   const usage: GeminiUsage = { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, cachedTokens: 0 };
   let requestContents = contents;
   let lastError: unknown;
@@ -54,7 +77,7 @@ export async function decide(
         config: {
           systemInstruction,
           responseMimeType: 'application/json',
-          responseJsonSchema: decisionJsonSchema,
+          responseJsonSchema: schemas.json,
           temperature: 0.3,
         },
       },
@@ -73,7 +96,7 @@ export async function decide(
       throw new Error(`Gemini returned no text output (refusal or empty response): ${JSON.stringify(response)}`);
     }
     try {
-      const raw = DecisionResponseSchema.parse(JSON.parse(text));
+      const raw = restorePrunedNulls(schemas.zod.parse(JSON.parse(text)));
       return { decision: normalizeDecision(raw, ctx), usage, model };
     } catch (err) {
       lastError = err;

@@ -119,6 +119,74 @@ export const DecisionResponseSchema = z.object({
 
 export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
 
+/**
+ * Response-schema pruning (2026-09-01 prod incident): Anthropic's
+ * structured-output grammar compiler budgets ~16 union/optional-typed
+ * parameters per schema; the full decision schema has 19 nullable fields and
+ * is rejected with a 400 even after the adapter's null-union collapse. Every
+ * context leaves whole field groups permanently invalid anyway — a
+ * WhatsApp-only agent can never fill the email fields, only the capital
+ * declaration has intake fields, tax-fetch fields only exist when a provider
+ * is offered — so the request schema omits those groups outright and the
+ * parsed answer gets its nulls back (restorePrunedNulls) before
+ * normalizeDecision, whose "set but not applicable" rejections still guard
+ * whatever remains.
+ */
+const EMAIL_FIELDS = ['email_subject', 'email_body'] as const;
+const WHATSAPP_FIELDS = ['whatsapp_text', 'whatsapp_template'] as const;
+const TAX_FETCH_FIELDS = ['tax_fetch_action', 'tax_fetch_provider', 'tax_fetch_document_keys'] as const;
+const INTAKE_FIELDS = [
+  'resolved_documents',
+  'added_instances',
+  'superseded_documents',
+  'attestation',
+  'attestation_evidence',
+] as const;
+
+export type PrunableDecisionField =
+  | (typeof EMAIL_FIELDS)[number]
+  | (typeof WHATSAPP_FIELDS)[number]
+  | (typeof TAX_FETCH_FIELDS)[number]
+  | (typeof INTAKE_FIELDS)[number];
+
+const PRUNED_FIELD_NULLS: { [K in PrunableDecisionField]: null } = {
+  email_subject: null,
+  email_body: null,
+  whatsapp_text: null,
+  whatsapp_template: null,
+  tax_fetch_action: null,
+  tax_fetch_provider: null,
+  tax_fetch_document_keys: null,
+  resolved_documents: null,
+  added_instances: null,
+  superseded_documents: null,
+  attestation: null,
+  attestation_evidence: null,
+};
+
+/** The field groups a given context can never legally fill — the ones the request schema drops. */
+export function prunedDecisionFields(ctx: DecisionContext): PrunableDecisionField[] {
+  return [
+    ...(ctx.emailAllowed === false ? EMAIL_FIELDS : []),
+    ...(ctx.whatsappAllowed ? [] : WHATSAPP_FIELDS),
+    ...((ctx.taxFetch ?? []).length === 0 ? TAX_FETCH_FIELDS : []),
+    ...(ctx.intake ? [] : INTAKE_FIELDS),
+  ];
+}
+
+/** The response contract actually sent for one context: the full schema minus its pruned groups. */
+export function decisionSchemaForContext(ctx: DecisionContext): z.ZodType<Partial<DecisionResponse>> {
+  const pruned = prunedDecisionFields(ctx);
+  if (pruned.length === 0) return DecisionResponseSchema;
+  const mask = Object.fromEntries(pruned.map((f) => [f, true as const])) as { [K in PrunableDecisionField]?: true };
+  return DecisionResponseSchema.omit(mask) as z.ZodType<Partial<DecisionResponse>>;
+}
+
+/** Puts explicit nulls back into the fields the request schema omitted, restoring the full contract. */
+export function restorePrunedNulls(parsed: Partial<DecisionResponse>): DecisionResponse {
+  return { ...PRUNED_FIELD_NULLS, ...parsed } as DecisionResponse;
+}
+
 export interface MatchedFile {
   file_id: string;
   document_id: string;

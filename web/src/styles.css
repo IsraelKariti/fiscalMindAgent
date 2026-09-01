@@ -1965,10 +1965,10 @@ details.doc-group > summary.doc-group-title {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 20px 24px;
-  max-width: 1100px;
+  /* Full-width scroll container: the side gutters stay inside it so the
+     wheel works anywhere, while the padding caps content at 1100px. */
+  padding: 20px max(24px, calc((100% - 1100px) / 2));
   width: 100%;
-  margin: 0 auto;
 }
 
 /* Admin drill-down navigation: roster table → accountant page → agent page */

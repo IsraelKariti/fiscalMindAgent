@@ -9,6 +9,7 @@ const template: WaTemplateRow = {
   name: 'capital_intro',
   body: 'שלום {{1}}, כאן העוזר של משרד {{2}} לעניין הצהרת ההון.',
   variable_count: 2,
+  agent_type: 'declaration_of_capital',
   created_at: new Date(),
 };
 

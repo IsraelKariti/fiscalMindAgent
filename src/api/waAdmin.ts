@@ -4,6 +4,7 @@ import * as agentInstances from '../db/queries/agentInstances.js';
 import * as waBusinessAccounts from '../db/queries/waBusinessAccounts.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
+import { getAgentTypeIfKnown } from '../agents/registry.js';
 import {
   claimSenderWebhook,
   getSenderLiveStatus,
@@ -34,6 +35,11 @@ const TemplateCreateSchema = z
     name: z.string().min(1).max(200),
     body: z.string().min(1).max(2000),
     variableCount: z.number().int().min(0).max(20),
+    // Agent type the template is scoped to; omit/null = offered to every agent.
+    agentType: z
+      .string()
+      .nullish()
+      .refine((t) => t == null || getAgentTypeIfKnown(t) !== undefined, 'Unknown agent type.'),
   })
   .strict();
 
@@ -289,6 +295,7 @@ export const adminListWaTemplates: RequestHandler = async (_req, res) => {
       name: t.name,
       body: t.body,
       variableCount: t.variable_count,
+      agentType: t.agent_type,
     })),
   });
 };
@@ -313,6 +320,7 @@ export const adminCreateWaTemplate: RequestHandler = async (req, res) => {
       name: template.name,
       body: template.body,
       variableCount: template.variable_count,
+      agentType: template.agent_type,
     },
   });
 };

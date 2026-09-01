@@ -70,7 +70,7 @@ export interface WaBusinessAccountRow {
   connected_at: Date;
 }
 
-/** Pre-approved Twilio Content Template (utility category), platform-global. */
+/** Pre-approved Twilio Content Template (utility category). */
 export interface WaTemplateRow {
   id: string;
   /** Twilio Content SID (HX...). */
@@ -79,6 +79,8 @@ export interface WaTemplateRow {
   /** Template text with {{1}}..{{n}} variable slots, as approved by Meta. */
   body: string;
   variable_count: number;
+  /** Agent type this template is offered to; NULL = every agent type. */
+  agent_type: string | null;
   created_at: Date;
 }
 

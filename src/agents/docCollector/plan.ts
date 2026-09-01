@@ -38,7 +38,7 @@ import type { ClientRow } from '../../db/types.js';
  * something sendable (an open 24h window for free-form text, or at least one
  * approved template).
  */
-export async function getWaChannelState(client: ClientRow, now: Date): Promise<WaChannelState> {
+export async function getWaChannelState(client: ClientRow, now: Date, agentType: string): Promise<WaChannelState> {
   if (!client.wa_enabled || !client.wa_phone) {
     return {
       allowed: false,
@@ -60,7 +60,7 @@ export async function getWaChannelState(client: ClientRow, now: Date): Promise<W
   }
   const windowClosesAt = windowCloseTime(await emails.lastInboundWhatsAppAt(client.id));
   const windowOpen = windowClosesAt !== null && now < windowClosesAt;
-  const templates = await waTemplates.listAll();
+  const templates = await waTemplates.listForAgentType(agentType);
   if (!windowOpen && templates.length === 0) {
     return {
       allowed: false,
@@ -87,7 +87,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const history = await emails.listForClient(clientId);
   let documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
-  const waState = await getWaChannelState(client, now);
+  const waState = await getWaChannelState(client, now, agentType);
   // A WhatsApp-only agent with nothing sendable has no possible follow-up —
   // fail loudly (drafting-failed marker + manual retry) instead of asking the
   // LLM for a message no channel can carry. Fix by assigning a sender number,

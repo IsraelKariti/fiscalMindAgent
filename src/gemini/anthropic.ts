@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Content, GenerateContentResponse, Part } from '@google/genai';
 import type { genaiClient } from './client.js';
 import { env } from '../config/env.js';
+import { restoreOmittedNulls, toAnthropicSchema } from './anthropicSchema.js';
 
 type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
 
@@ -19,45 +20,6 @@ function getClient(): Anthropic {
   // maxRetries: 0 — generateWithRetry owns the retry/backoff policy for every provider.
   client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 0 });
   return client;
-}
-
-/**
- * Keywords Anthropic's structured outputs reject; our schemas come from
- * zodToJsonSchema, which can emit them. Stripped only where a key is a schema
- * keyword — never inside a `properties` map, where it would be a field name.
- */
-const UNSUPPORTED_SCHEMA_KEYWORDS = new Set([
-  '$schema',
-  'minimum',
-  'maximum',
-  'exclusiveMinimum',
-  'exclusiveMaximum',
-  'multipleOf',
-  'minLength',
-  'maxLength',
-  'pattern',
-  'minItems',
-  'maxItems',
-  'uniqueItems',
-]);
-
-function normalizeSchema(node: unknown): unknown {
-  if (Array.isArray(node)) return node.map(normalizeSchema);
-  if (node === null || typeof node !== 'object') return node;
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(node)) {
-    if (UNSUPPORTED_SCHEMA_KEYWORDS.has(key)) continue;
-    if (key === 'properties' && value && typeof value === 'object' && !Array.isArray(value)) {
-      out.properties = Object.fromEntries(
-        Object.entries(value).map(([name, propSchema]) => [name, normalizeSchema(propSchema)]),
-      );
-      continue;
-    }
-    out[key] = normalizeSchema(value);
-  }
-  // Structured outputs require additionalProperties:false on every object.
-  if (out.type === 'object' || out.properties !== undefined) out.additionalProperties = false;
-  return out;
 }
 
 function partToBlock(part: Part): Anthropic.ContentBlockParam {
@@ -117,7 +79,7 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
       messages: toMessages(request.contents),
       ...(systemInstruction ? { system: systemInstruction } : {}),
       ...(jsonSchema
-        ? { output_config: { format: { type: 'json_schema' as const, schema: normalizeSchema(jsonSchema) as Record<string, unknown> } } }
+        ? { output_config: { format: { type: 'json_schema' as const, schema: toAnthropicSchema(jsonSchema) as Record<string, unknown> } } }
         : {}),
     },
     { timeout: request.config?.httpOptions?.timeout },
@@ -127,10 +89,20 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
     throw new Error(`Anthropic model refused the request: ${response.stop_details?.explanation ?? 'no explanation'}`);
   }
 
-  const text = response.content
+  let text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')
     .map((block) => block.text)
     .join('');
+  // toAnthropicSchema turned "null when unused" fields into "omitted when
+  // unused"; put the explicit nulls back so callers see the Gemini-shaped
+  // answer their Zod schemas expect.
+  if (text && jsonSchema) {
+    try {
+      text = JSON.stringify(restoreOmittedNulls(jsonSchema, JSON.parse(text)));
+    } catch {
+      // Not parseable JSON — hand it through; the caller's validation owns the rejection.
+    }
+  }
   // Anthropic's input_tokens EXCLUDES cache reads/writes; Gemini's
   // promptTokenCount includes cached tokens. Normalize to the Gemini
   // convention (cached ⊂ input). Cache-creation tokens (1.25× input rate) are

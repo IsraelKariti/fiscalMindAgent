@@ -1717,6 +1717,23 @@ textarea {
   gap: 12px;
 }
 
+/* Capital-declaration rows put .doc-text directly in the row (no .doc-check
+   wrapper) — let it absorb the free space so the badge/buttons/× of every row
+   line up in one column at the row's end instead of trailing the text. */
+.doc-row-main > .doc-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-row-main .btn-small {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.doc-row-main .badge {
+  flex-shrink: 0;
+}
+
 /* One line per received file when a checklist item has several (or labeled)
    files — e.g. a tax-fetched multi-employer year's 106s. */
 .doc-file-list {

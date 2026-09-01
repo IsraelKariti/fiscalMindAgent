@@ -155,7 +155,9 @@ export type DocumentStatus =
  */
 export type ResolutionEvidence =
   | { message_id: string; quote: string }
-  | { source: 'form'; question: string; quote: string };
+  | { source: 'form'; question: string; quote: string }
+  // A questionnaire question the client left empty — "I don't have this".
+  | { source: 'form_empty'; question: string };
 
 export interface ClientDocumentRow {
   id: string;

@@ -513,6 +513,7 @@ const he = {
   reopenDocument: 'החזרה לנדרש',
   verificationReasonsPrefix: 'האימות נכשל: ',
   clientQuotePrefix: 'הלקוח: ',
+  formEmptyNote: 'השדה נותר ריק בשאלון המקוון',
   attestationLabel: 'אישור סופיות מהלקוח',
   attestationNone: 'טרם נשלח סיכום ללקוח',
   attestationRequested: 'הסיכום נשלח — ממתין לאישור הלקוח',

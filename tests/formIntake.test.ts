@@ -12,12 +12,14 @@ const rows: FormResolvableRow[] = [
   { id: 'doc-bank', typeKey: 'bank_balance', multiInstance: true },
   { id: 'doc-prior', typeKey: 'prior_declaration', multiInstance: false },
   { id: 'doc-crypto', typeKey: 'crypto', multiInstance: true },
+  { id: 'doc-ins', typeKey: 'life_insurance_savings', multiInstance: true },
 ];
 
 const answers: FormAnswer[] = [
   { question: 'חשבונות בנק בארץ או בחו"ל', answer: 'יש לי חשבון בלאומי וחשבון בדיסקונט' },
   { question: 'האם הגשת בעבר הצהרת הון', answer: 'לא' },
   { question: 'מטבעות דיגיטליים', answer: 'לא' },
+  { question: 'ביטוח מנהלים או פוליסת חיסכון', answer: '' },
 ];
 
 function raw(resolutions: FormIntakeResponse['resolutions']): FormIntakeResponse {
@@ -121,6 +123,47 @@ describe('form-intake resolution validation', () => {
     );
     assert.equal(valid.length, 0);
     assert.equal(dropped.length, 4);
+  });
+
+  it('accepts a quote-less not_required for a question left empty on the form', () => {
+    const { valid, dropped } = validateFormResolutions(
+      raw([
+        {
+          type_key: 'life_insurance_savings',
+          resolution: 'not_required',
+          instances: null,
+          question: 'ביטוח מנהלים  או פוליסת חיסכון', // whitespace-insensitive match
+          quote: null,
+        },
+      ]),
+      rows,
+      answers,
+    );
+    assert.equal(dropped.length, 0);
+    assert.equal(valid.length, 1);
+    assert.deepEqual(
+      valid[0]!.resolution === 'not_required' ? valid[0]!.evidence : null,
+      { source: 'form_empty', question: 'ביטוח מנהלים  או פוליסת חיסכון' },
+    );
+  });
+
+  it('drops a quote-less not_required whose question was actually answered', () => {
+    const { valid, dropped } = validateFormResolutions(
+      raw([
+        {
+          type_key: 'crypto',
+          resolution: 'not_required',
+          instances: null,
+          question: 'מטבעות דיגיטליים',
+          quote: null,
+        },
+      ]),
+      rows,
+      answers,
+    );
+    assert.equal(valid.length, 0);
+    assert.equal(dropped.length, 1);
+    assert.match(dropped[0]!, /not left empty/);
   });
 
   it('the catalog carries the form-mapped keys the prompt promises', () => {

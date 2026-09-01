@@ -104,7 +104,7 @@ export interface ClientDocument {
   type_key: string | null;
   verification: DocumentVerification | null;
   /** The client quote behind an agent-made 'not_required' — from a stored inbound message or the intake questionnaire. */
-  resolution_evidence: { message_id?: string; source?: 'form'; question?: string; quote: string } | null;
+  resolution_evidence: { message_id?: string; source?: 'form' | 'form_empty'; question?: string; quote?: string } | null;
   created_at: string;
   updated_at: string;
 }

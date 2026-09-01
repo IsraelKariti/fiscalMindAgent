@@ -6,7 +6,7 @@ import { z } from 'zod';
  * db/LLM imports so tests can exercise the rules directly.
  */
 
-/** One question/answer pair of the submitted form (monday column title + cell text). */
+/** One question/answer pair of the submitted form (monday column title + cell text; '' = left empty). */
 export interface FormAnswer {
   question: string;
   answer: string;
@@ -24,8 +24,8 @@ export const FormIntakeSchema = z.object({
       instances: z.array(z.object({ name: z.string(), description: z.string().nullable() })).nullable(),
       /** The form question the decision rests on. */
       question: z.string(),
-      /** Verbatim quote from the client's answer to that question. */
-      quote: z.string(),
+      /** Verbatim quote from the client's answer to that question; null when the question was left empty. */
+      quote: z.string().nullable(),
     }),
   ),
 });
@@ -54,7 +54,9 @@ export type ValidatedFormResolution =
       documentId: string;
       typeKey: string;
       resolution: 'not_required';
-      evidence: { source: 'form'; question: string; quote: string };
+      evidence:
+        | { source: 'form'; question: string; quote: string }
+        | { source: 'form_empty'; question: string };
     }
   | { documentId: string; typeKey: string; resolution: 'required'; instances: { name: string; description: string | null }[] };
 
@@ -70,7 +72,14 @@ export function validateFormResolutions(
   answers: FormAnswer[],
 ): { valid: ValidatedFormResolution[]; dropped: string[] } {
   const byTypeKey = new Map(rows.map((r) => [r.typeKey, r]));
-  const allAnswersText = answers.map((a) => a.answer).join('\n');
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const allAnswersText = answers
+    .filter((a) => a.answer !== '')
+    .map((a) => a.answer)
+    .join('\n');
+  // Questions the client left blank — "I don't have this" — the only ones a
+  // quote-less not_required may rest on.
+  const emptyQuestions = new Set(answers.filter((a) => a.answer === '').map((a) => norm(a.question)));
   const seen = new Set<string>();
   const valid: ValidatedFormResolution[] = [];
   const dropped: string[] = [];
@@ -88,7 +97,23 @@ export function validateFormResolutions(
     seen.add(entry.type_key);
 
     if (entry.resolution === 'not_required') {
-      if (!quoteAppearsIn(entry.quote, allAnswersText)) {
+      const quote = entry.quote?.trim() ?? '';
+      if (quote === '') {
+        // Quote-less resolution: valid only when the named question really was
+        // left empty on the form (empty cell = the client doesn't have this).
+        if (!emptyQuestions.has(norm(entry.question))) {
+          dropped.push(`${entry.type_key}: quote-less not_required but the question was not left empty`);
+          continue;
+        }
+        valid.push({
+          documentId: row.id,
+          typeKey: row.typeKey,
+          resolution: 'not_required',
+          evidence: { source: 'form_empty', question: entry.question.slice(0, 300) },
+        });
+        continue;
+      }
+      if (!quoteAppearsIn(quote, allAnswersText)) {
         dropped.push(`${entry.type_key}: quote not found verbatim in the form answers`);
         continue;
       }
@@ -96,7 +121,7 @@ export function validateFormResolutions(
         documentId: row.id,
         typeKey: row.typeKey,
         resolution: 'not_required',
-        evidence: { source: 'form', question: entry.question.slice(0, 300), quote: entry.quote.slice(0, 500) },
+        evidence: { source: 'form', question: entry.question.slice(0, 300), quote: quote.slice(0, 500) },
       });
       continue;
     }

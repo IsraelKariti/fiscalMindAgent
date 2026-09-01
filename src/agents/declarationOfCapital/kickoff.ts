@@ -111,8 +111,10 @@ export async function resolveDeclarationClient(
     if (!form) {
       logger.warn('declaration kickoff: linked questionnaire item not found / not visible', { ...log, formItemId });
     } else {
+      // Empty cells are kept: a question the client left blank means "I don't
+      // have this" and pre-resolves its type to not_required (formIntake.ts).
       formAnswers = form.columns
-        .filter((c) => !NON_ANSWER_TYPES.has(c.type) && c.text !== '')
+        .filter((c) => !NON_ANSWER_TYPES.has(c.type))
         .map((c) => ({ question: c.title, answer: c.text }));
     }
   } else {

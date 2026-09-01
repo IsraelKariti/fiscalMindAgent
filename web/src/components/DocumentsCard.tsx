@@ -199,7 +199,11 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
           <div className="doc-verification-note">{t.verificationReasonsPrefix + reasons}</div>
         )}
         {(doc.status === 'not_required' || doc.status === 'superseded') && doc.resolution_evidence && (
-          <div className="doc-verification-note muted">{`${t.clientQuotePrefix}"${doc.resolution_evidence.quote}"`}</div>
+          <div className="doc-verification-note muted">
+            {doc.resolution_evidence.source === 'form_empty'
+              ? t.formEmptyNote
+              : `${t.clientQuotePrefix}"${doc.resolution_evidence.quote}"`}
+          </div>
         )}
         {summary && <div className="doc-verification-note muted">{summary}</div>}
       </li>

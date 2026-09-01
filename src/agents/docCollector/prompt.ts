@@ -254,7 +254,9 @@ export function buildDocumentsSection(token: string, documents: ClientDocumentRo
     const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
     const extras: string[] = [];
     // Intake rows carry their own discovery question and instance rule so the
-    // model interviews from the catalog's fixed wording, not improvisation.
+    // model interviews from the catalog's fixed wording, not improvisation —
+    // except where a submitted-questionnaire answer touches the row, which the
+    // template tells it to follow up on instead (SUBMITTED QUESTIONNAIRE).
     if (doc.status === 'unresolved' && catalogType) {
       extras.push(`שאלת בירור: ${catalogType.discoveryQuestionHe}`);
       extras.push(catalogType.multiInstance ? 'ייתכנו מופעים מרובים — בררו כמה ואילו' : 'מופע יחיד');
@@ -282,6 +284,34 @@ export function buildDocumentsSection(token: string, documents: ClientDocumentRo
     return `[id: ${doc.id}] ${sanitizeInline(doc.name, 200)}${description} | status: ${doc.status}${extra}`;
   });
   return `${fence(token, 'REQUIRED DOCUMENTS')}\n${lines.join('\n')}\n${endFence(token, 'REQUIRED DOCUMENTS')}`;
+}
+
+/**
+ * Lives in `contents` (declaration of capital only): the questionnaire the
+ * client submitted before the conversation, as stored at kickoff
+ * (agent_fields.form_answers, already sanitized — re-sanitized here as
+ * defense in depth). The form was mapped onto the checklist by the intake
+ * pre-resolution (formIntake.ts); this section exists so a clarify question
+ * for a row the form left ambiguous can be phrased as a targeted follow-up
+ * to what the client actually wrote, instead of a blank-slate question.
+ * Client-typed text — untrusted, hence fenced.
+ */
+export function buildFormAnswersSection(token: string, client: ClientRow): string {
+  const raw = client.agent_fields?.['form_answers'];
+  if (!Array.isArray(raw)) return '';
+  const pairs = raw
+    .filter(
+      (p): p is { question: string; answer: string } =>
+        typeof p === 'object' &&
+        p !== null &&
+        typeof (p as { question?: unknown }).question === 'string' &&
+        typeof (p as { answer?: unknown }).answer === 'string',
+    )
+    .map((p) => ({ question: sanitizeInline(p.question, 300), answer: sanitizeUntrusted(p.answer, 1500) }))
+    .filter((p) => p.question !== '' && p.answer.trim() !== '');
+  if (pairs.length === 0) return '';
+  const lines = pairs.map((p) => `שאלה: ${p.question}\nתשובה: ${p.answer}`).join('\n\n');
+  return `${fence(token, 'SUBMITTED QUESTIONNAIRE')}\n${lines}\n${endFence(token, 'SUBMITTED QUESTIONNAIRE')}`;
 }
 
 /** The capital-declaration attestation gate's current state, for the template's closing-summary rules. */
@@ -416,6 +446,7 @@ export function buildPrompt(
   const token = makeFenceToken();
   const sections = [
     buildDocumentsSection(token, documents, taxYear),
+    buildFormAnswersSection(token, client),
     buildIntakeSection(token, intake),
     buildDeadlineSection(token, client, now),
     buildWhatsAppSection(token, waState),

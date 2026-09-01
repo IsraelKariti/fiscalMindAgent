@@ -480,6 +480,7 @@ export async function setDeclarationEngagement(
     idNumber?: string;
     crmItemId?: string;
     formItemId?: string;
+    formAnswers?: Array<{ question: string; answer: string }>;
   },
 ): Promise<void> {
   const patch: Record<string, unknown> = {};
@@ -488,6 +489,7 @@ export async function setDeclarationEngagement(
   if (fields.idNumber !== undefined) patch['id_number'] = fields.idNumber;
   if (fields.crmItemId !== undefined) patch['monday_crm_item_id'] = fields.crmItemId;
   if (fields.formItemId !== undefined) patch['monday_form_item_id'] = fields.formItemId;
+  if (fields.formAnswers !== undefined) patch['form_answers'] = fields.formAnswers;
   if (Object.keys(patch).length === 0) return;
   await pool.query(`UPDATE clients SET agent_fields = agent_fields || $2::jsonb WHERE id = $1`, [
     id,

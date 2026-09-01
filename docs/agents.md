@@ -95,6 +95,14 @@ monday WorkForm is the only source of which documents a declaration needs):
   stay `unresolved` so the WhatsApp interview asks **only the gaps** (the
   prompt tells the model the questionnaire was already processed; when nothing
   is left unresolved it skips the interview and goes straight to collection).
+  The answered pairs are also persisted (sanitized) as
+  `agent_fields.form_answers` at kickoff and rendered each turn as the
+  fenced `SUBMITTED QUESTIONNAIRE` prompt section, so a clarify question for
+  a row an ambiguous answer left `unresolved` is phrased as a targeted
+  follow-up to what the client wrote ("you mentioned withdrawing the funds —
+  was the fund closed before 31.12?") instead of the catalog's blank-slate
+  discovery question; the form text itself can never serve as resolution
+  evidence (quotes must come from inbound messages).
   Suspected injection in the answers suppresses all resolutions; every applied
   resolution is audited as `document.resolved` with `source: 'form_intake'`.
   The catalog was realigned to the form (17 types): added

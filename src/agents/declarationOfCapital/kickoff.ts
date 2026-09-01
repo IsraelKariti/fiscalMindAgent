@@ -7,6 +7,7 @@ import { syntheticWaEmail } from '../../util/syntheticEmail.js';
 import { recordAudit } from '../../audit/audit.js';
 import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { logger } from '../../util/logger.js';
+import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { catalogSeedRows } from './catalog.js';
 import type { FormAnswer } from './formIntake.js';
 import type { BoardSource } from '../shared/clientSources.js';
@@ -33,6 +34,20 @@ const ID_TITLE = /מספר זהות|תעודת זהות|^ת\.?["”״׳']?ז\.?$
 
 /** monday column types that can never be a form question's answer. */
 const NON_ANSWER_TYPES = new Set(['board_relation', 'mirror', 'subtasks', 'file', 'formula', 'button']);
+
+/**
+ * The answered questionnaire pairs as persisted on the client
+ * (agent_fields.form_answers), sanitized at write time: the conversation
+ * prompt renders them each turn (SUBMITTED QUESTIONNAIRE section) so clarify
+ * questions can reference what the client actually wrote, without refetching
+ * monday. Blank answers are not stored — they pre-resolve their rows at
+ * intake (formIntake.ts) and carry no phrasing value for the interview.
+ */
+function storableFormAnswers(formAnswers: FormAnswer[]): Array<{ question: string; answer: string }> {
+  return formAnswers
+    .map((a) => ({ question: sanitizeInline(a.question, 300), answer: sanitizeUntrusted(a.answer, 1500) }))
+    .filter((a) => a.question !== '' && a.answer.trim() !== '');
+}
 
 function findPhone(crm: ItemDetails): string | null {
   const typed = crm.columns.find((c) => c.type === 'phone' && c.text !== '');
@@ -121,6 +136,7 @@ export async function resolveDeclarationClient(
     logger.warn('declaration kickoff: row has no linked questionnaire item', log);
   }
 
+  const storedAnswers = storableFormAnswers(formAnswers);
   let client = await clients.getByWaPhoneForInstance(instance.id, waPhone);
   if (!client) {
     try {
@@ -136,6 +152,7 @@ export async function resolveDeclarationClient(
           monday_item_id: itemId,
           monday_crm_item_id: crmItemId,
           ...(formItemId ? { monday_form_item_id: formItemId } : {}),
+          ...(storedAnswers.length > 0 ? { form_answers: storedAnswers } : {}),
           tax_year: taxYear,
           ...(fileNumber ? { file_number: fileNumber } : {}),
           ...(idNumber ? { id_number: idNumber } : {}),
@@ -179,6 +196,7 @@ export async function resolveDeclarationClient(
         ...(idNumber ? { idNumber } : {}),
         crmItemId,
         ...(formItemId ? { formItemId } : {}),
+        ...(storedAnswers.length > 0 ? { formAnswers: storedAnswers } : {}),
       })
       .catch((err) => logger.error('declaration kickoff: engagement backfill failed', err, { ...log, clientId: client!.id }));
   }

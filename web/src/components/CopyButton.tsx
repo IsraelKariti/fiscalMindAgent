@@ -15,7 +15,7 @@ const checkIcon = (
 );
 
 /** Icon-only copy-to-clipboard button that flashes a checkmark after copying. */
-export function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text, title }: { text: string; title?: string }) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -32,7 +32,7 @@ export function CopyButton({ text }: { text: string }) {
       type="button"
       className={`icon-btn ${copied ? 'icon-btn-success' : ''}`}
       onClick={copy}
-      title={copied ? t.copied : t.copyAddress}
+      title={copied ? t.copied : (title ?? t.copyAddress)}
     >
       {copied ? checkIcon : copyIcon}
     </button>

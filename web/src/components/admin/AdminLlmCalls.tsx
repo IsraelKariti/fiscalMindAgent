@@ -9,6 +9,7 @@ import {
 } from '../../api';
 import { displayClientName, formatTimestamp, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
+import { CopyButton } from '../CopyButton';
 import { Dropdown } from '../Dropdown';
 import { MODEL_LABELS } from './shared';
 
@@ -24,6 +25,60 @@ function perMillion(rate: number | null): string {
   return rate === null ? '—' : `$${(rate * 1_000_000).toFixed(3)}`;
 }
 
+/**
+ * The prompt as the model saw it: the text parts of the request's `contents`,
+ * not the JSON wrapper around them. Multi-turn requests keep a small role
+ * marker between turns; anything unexpected falls back to pretty JSON.
+ */
+function promptText(contents: unknown): string {
+  if (typeof contents === 'string') return contents;
+  if (Array.isArray(contents)) {
+    const turns: string[] = [];
+    for (const entry of contents) {
+      const e = entry as { role?: unknown; parts?: unknown };
+      if (!Array.isArray(e?.parts)) continue;
+      const texts = e.parts
+        .map((p) => (typeof (p as { text?: unknown })?.text === 'string' ? (p as { text: string }).text : null))
+        .filter((s): s is string => s !== null);
+      if (texts.length === 0) continue;
+      const body = texts.join('\n\n');
+      turns.push(contents.length > 1 && typeof e.role === 'string' ? `⟪${e.role}⟫\n${body}` : body);
+    }
+    if (turns.length > 0) return turns.join('\n\n');
+  }
+  return JSON.stringify(contents, null, 2);
+}
+
+/** Pretty-prints when the text is JSON (structured-output responses); leaves prose untouched. */
+function maybePrettyJson(text: string): { text: string; isJson: boolean } {
+  try {
+    return { text: JSON.stringify(JSON.parse(text), null, 2), isJson: true };
+  } catch {
+    return { text, isJson: false };
+  }
+}
+
+/**
+ * One scrollable text pane of the drill-down (input / schema / response /
+ * system instruction): tinted background per field so boundaries are obvious,
+ * its own scrollbar, and a copy button pinned to the corner the text doesn't
+ * start in.
+ */
+function CallPane({ tone, text, ltr, copyTitle }: { tone: string; text: string; ltr?: boolean; copyTitle: string }) {
+  return (
+    <div className={`llm-pane-wrap ${ltr ? 'llm-pane-copy-right' : 'llm-pane-copy-left'}`}>
+      <CopyButton text={text} title={copyTitle} />
+      <pre
+        className={`llm-pane llm-pane-${tone}`}
+        dir={ltr ? 'ltr' : 'auto'}
+        style={{ textAlign: ltr ? 'left' : 'right' }}
+      >
+        {text}
+      </pre>
+    </div>
+  );
+}
+
 function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => void }) {
   const { t } = useT();
   const [call, setCall] = useState<LlmCallDetail | null>(null);
@@ -37,15 +92,9 @@ function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => v
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [callId]);
 
-  const preStyle = {
-    whiteSpace: 'pre-wrap' as const,
-    wordBreak: 'break-word' as const,
-    maxHeight: 320,
-    overflowY: 'auto' as const,
-    textAlign: 'right' as const,
-  };
   const schema = call?.request?.config?.['responseJsonSchema'];
   const contents = call?.request?.contents;
+  const response = call?.response != null && call.response.trim() !== '' ? maybePrettyJson(call.response) : null;
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
@@ -99,33 +148,27 @@ function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => v
             {call.request?.systemInstruction && (
               <>
                 <h3>{t.adminLlmCallSystemInstruction}</h3>
-                <pre className="wa-number-display" dir="auto" style={preStyle}>
-                  {call.request.systemInstruction}
-                </pre>
+                <CallPane tone="system" text={call.request.systemInstruction} copyTitle={t.copyText} />
               </>
             )}
 
             <h3>{t.adminLlmCallContents}</h3>
-            <pre className="wa-number-display" dir="auto" style={preStyle}>
-              {typeof contents === 'string' ? contents : JSON.stringify(contents, null, 2)}
-            </pre>
+            <CallPane tone="input" text={promptText(contents)} copyTitle={t.copyText} />
 
             {schema !== undefined && (
               <details>
-                <summary className="muted">{t.adminLlmCallSchema}</summary>
-                <pre className="wa-number-display" dir="ltr" style={{ ...preStyle, textAlign: 'left' }}>
-                  {JSON.stringify(schema, null, 2)}
-                </pre>
+                <summary className="muted" style={{ cursor: 'pointer' }}>
+                  {t.adminLlmCallSchema}
+                </summary>
+                <CallPane tone="schema" text={JSON.stringify(schema, null, 2)} ltr copyTitle={t.copyText} />
               </details>
             )}
 
             <h3>{t.adminLlmCallResponse}</h3>
-            {call.response === null ? (
+            {response === null ? (
               <p className="muted">{t.adminLlmCallNoResponse}</p>
             ) : (
-              <pre className="wa-number-display" dir="auto" style={preStyle}>
-                {call.response}
-              </pre>
+              <CallPane tone="response" text={response.text} ltr={response.isJson} copyTitle={t.copyText} />
             )}
           </>
         )}

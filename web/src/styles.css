@@ -2168,6 +2168,55 @@ details.doc-group > summary.doc-group-title {
   border-color: rgba(251, 113, 133, 0.6);
 }
 
+/* Admin LLM-call drill-down: the input / schema / response panes, each its own
+   scroll box with a distinct tint so the field boundaries read at a glance. */
+.llm-pane-wrap {
+  position: relative;
+  margin: 8px 0 18px;
+}
+.llm-pane-wrap > .icon-btn {
+  position: absolute;
+  top: 8px;
+  z-index: 1;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+}
+.llm-pane-wrap.llm-pane-copy-left > .icon-btn {
+  left: 8px;
+}
+.llm-pane-wrap.llm-pane-copy-right > .icon-btn {
+  right: 8px;
+}
+.llm-pane {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+.llm-pane-input {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.38);
+}
+.llm-pane-schema {
+  background: rgba(251, 191, 36, 0.07);
+  border-color: rgba(251, 191, 36, 0.32);
+}
+.llm-pane-response {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.32);
+}
+.llm-pane-system {
+  background: var(--primary-soft);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
 /* Agent page: the assigned WhatsApp number and its lifecycle actions */
 .wa-number-display {
   font-size: 24px;

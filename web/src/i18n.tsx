@@ -330,6 +330,7 @@ const he = {
   agentWhatsAppNone: 'עדיין לא הוקצה מספר וואטסאפ לסוכן הזה.',
   copied: 'הועתק!',
   copyAddress: 'העתקת הכתובת',
+  copyText: 'העתקה',
 
   // ClientView tabs
   tabConversation: 'שיחה',

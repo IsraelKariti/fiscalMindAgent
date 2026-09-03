@@ -36,8 +36,6 @@ const KNOWN_ROUTES: Record<string, { action: `admin.${string}`; severity: AuditS
   'POST /admin/agent-review-mode': { action: 'admin.agent_review_mode_set', severity: 'warning' },
   'POST /admin/agent-admin-pause': { action: 'admin.agent_admin_pause_set', severity: 'warning' },
   'POST /admin/clients/:clientId/admin-pause': { action: 'admin.client_admin_pause_set', severity: 'warning' },
-  'PUT /admin/agents/:agentInstanceId/llm-experiment': { action: 'admin.llm_experiment_set', severity: 'warning' },
-  'POST /admin/clients/:clientId/llm-variant': { action: 'admin.client_llm_variant_set', severity: 'info' },
 };
 
 /**

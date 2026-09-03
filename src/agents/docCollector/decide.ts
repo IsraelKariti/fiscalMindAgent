@@ -58,13 +58,11 @@ export async function decide(
   contents: string,
   ctx: DecisionContext = EMAIL_ONLY_CONTEXT,
   opts: {
-    /** Experiment-arm model override (049); default = the global admin-picked model. */
-    model?: string;
     /** Per-call llm_calls attribution; each validation attempt logs its own row. */
     log?: LlmCallLogContext;
   } = {},
 ): Promise<DecideResult> {
-  const model = opts.model ?? (await getGeminiModel('conversation_decide'));
+  const model = await getGeminiModel('conversation_decide');
   const schemas = schemasForContext(ctx);
   const usage: GeminiUsage = { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, cachedTokens: 0 };
   let requestContents = contents;

@@ -102,8 +102,6 @@ export async function analyzeFile(
   taxYear: number,
   purpose: AnalysisPurpose = 'annual_report',
   opts: {
-    /** Experiment-arm model override (049); default = the global admin-picked model. */
-    model?: string;
     /** Per-call llm_calls attribution. */
     log?: LlmCallLogContext;
   } = {},
@@ -138,7 +136,7 @@ export async function analyzeFile(
     .replace('{{tax_year}}', String(taxYear))
     .replace('{{filename}}', sanitizeInline(filename, 150));
 
-  const model = opts.model ?? (await getGeminiModel('analyze_file'));
+  const model = await getGeminiModel('analyze_file');
   const response = await generateWithRetry(
     {
       model,

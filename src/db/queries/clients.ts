@@ -282,27 +282,6 @@ export async function setAdminPaused(id: string, on: boolean): Promise<ClientRow
   return rows[0] ?? null;
 }
 
-/** Admin-owned LLM experiment arm assignment (049). updated_at is left alone — not an accountant edit. */
-export async function setLlmVariant(id: string, variant: string | null): Promise<ClientRow | null> {
-  const { rows } = await pool.query<ClientRow>('UPDATE clients SET llm_variant = $2 WHERE id = $1 RETURNING *', [
-    id,
-    variant,
-  ]);
-  return rows[0] ?? null;
-}
-
-/** How many of the instance's clients each experiment arm holds — the round-robin balance read. */
-export async function llmVariantCounts(agentInstanceId: string): Promise<Map<string, number>> {
-  const { rows } = await pool.query<{ llm_variant: string; count: number }>(
-    `SELECT llm_variant, COUNT(*)::int AS count
-     FROM clients
-     WHERE agent_instance_id = $1 AND llm_variant IS NOT NULL
-     GROUP BY llm_variant`,
-    [agentInstanceId],
-  );
-  return new Map(rows.map((r) => [r.llm_variant, r.count]));
-}
-
 /**
  * Stamps the start of a planning attempt (and clears any earlier failure).
  * Agent-status fields only, so updated_at is left alone — it tracks accountant edits.

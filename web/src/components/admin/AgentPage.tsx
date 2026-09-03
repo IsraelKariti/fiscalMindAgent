@@ -6,7 +6,6 @@ import {
   type AdminWaSenderStatus,
   type AgentInstance,
   type AgentTypeEmailInfo,
-  type LlmExperimentState,
   type OrphanedWaNumber,
 } from '../../api';
 import { getAgentUI } from '../../agents/registry';
@@ -14,7 +13,6 @@ import { useT } from '../../i18n';
 import { AgentConversationsCard } from './AgentConversationsCard';
 import { ConfirmModal } from '../ConfirmModal';
 import { Dropdown } from '../Dropdown';
-import { LlmExperimentCard } from './LlmExperimentCard';
 import { Spinner } from '../Spinner';
 import { WaPoolModal } from '../WaPoolModal';
 import { taxYearOptions, type AccountantRow } from './shared';
@@ -194,20 +192,6 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   // admin pause. Both invisible to the accountant.
   const [confirmingReviewMode, setConfirmingReviewMode] = useState(false);
   const [confirmingAdminPause, setConfirmingAdminPause] = useState(false);
-
-  // LLM A/B experiment (declaration_of_capital only, 049): loaded here so the
-  // experiment editor and the conversations card share one source of truth.
-  const isCapitalDeclaration = agentType === 'declaration_of_capital';
-  const [experimentState, setExperimentState] = useState<LlmExperimentState | null>(null);
-  const experimentInstanceId = isCapitalDeclaration ? (instance?.id ?? null) : null;
-  const loadExperiment = useCallback(async () => {
-    if (!experimentInstanceId) return;
-    setExperimentState(await api.adminGetLlmExperiment(experimentInstanceId));
-  }, [experimentInstanceId]);
-  useEffect(() => {
-    setExperimentState(null);
-    loadExperiment().catch(() => {});
-  }, [loadExperiment]);
 
   const [manualNumber, setManualNumber] = useState('');
   const [poolPicking, setPoolPicking] = useState(false);
@@ -481,13 +465,7 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
         </section>
       )}
 
-      {instance && isCapitalDeclaration && (
-        <LlmExperimentCard instanceId={instance.id} state={experimentState} onChanged={loadExperiment} />
-      )}
-
-      {instance && (
-        <AgentConversationsCard instanceId={instance.id} experiment={experimentState?.experiment ?? null} />
-      )}
+      {instance && <AgentConversationsCard instanceId={instance.id} />}
 
       {instance && (
         <section className="card">

@@ -50,11 +50,8 @@ import {
 import {
   adminGetClientConversation,
   adminGetLlmCall,
-  adminGetLlmExperiment,
   adminListInstanceClients,
   adminListLlmCalls,
-  adminSetClientLlmVariant,
-  adminSetLlmExperiment,
 } from './llmAdmin.js';
 import {
   adminCreateWaTemplate,
@@ -136,11 +133,8 @@ apiRouter.post('/admin/review/messages/:emailId/regenerate', wrap(requireAdmin),
 apiRouter.post('/admin/agent-review-mode', wrap(requireAdmin), wrap(adminSetAgentReviewMode));
 apiRouter.post('/admin/agent-admin-pause', wrap(requireAdmin), wrap(adminSetAgentAdminPause));
 apiRouter.post('/admin/clients/:clientId/admin-pause', wrap(requireAdmin), wrap(adminSetClientAdminPause));
-// LLM experiments + per-call observability (049): admin-only A/B comparison for the pilot.
-apiRouter.get('/admin/agents/:agentInstanceId/llm-experiment', wrap(requireAdmin), wrap(adminGetLlmExperiment));
-apiRouter.put('/admin/agents/:agentInstanceId/llm-experiment', wrap(requireAdmin), wrap(adminSetLlmExperiment));
+// Per-call LLM observability (049): admin-only conversation and call browsers.
 apiRouter.get('/admin/agents/:agentInstanceId/clients', wrap(requireAdmin), wrap(adminListInstanceClients));
-apiRouter.post('/admin/clients/:clientId/llm-variant', wrap(requireAdmin), wrap(adminSetClientLlmVariant));
 apiRouter.get('/admin/clients/:clientId/conversation', wrap(requireAdmin), wrap(adminGetClientConversation));
 apiRouter.get('/admin/llm-calls', wrap(requireAdmin), wrap(adminListLlmCalls));
 apiRouter.get('/admin/llm-calls/:id', wrap(requireAdmin), wrap(adminGetLlmCall));

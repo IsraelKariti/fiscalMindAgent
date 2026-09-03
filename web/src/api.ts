@@ -324,50 +324,7 @@ export interface LlmDailyUsage {
 export const LLM_CALL_PURPOSES = ['conversation_decide', 'form_intake', 'analyze_file', 'verify_document'] as const;
 export type LlmCallPurpose = (typeof LLM_CALL_PURPOSES)[number];
 
-/**
- * One arm of an admin LLM A/B experiment: a default model, optional per-call-site
- * model pins, and its own prompt (null = the built-in template).
- */
-export interface LlmExperimentArm {
-  key: string;
-  model: string;
-  models?: Partial<Record<LlmCallPurpose, string>>;
-  promptTemplate: string | null;
-}
-
-export interface LlmExperiment {
-  enabled: boolean;
-  arms: LlmExperimentArm[];
-}
-
-/** Per-(arm, model) totals from the per-call log — the experiment scoreboard. */
-export interface LlmVariantStats {
-  variant: string | null;
-  model: string;
-  calls: number;
-  errorCalls: number;
-  clients: number;
-  inputTokens: number;
-  outputTokens: number;
-  thinkingTokens: number;
-  cachedTokens: number;
-  /** USD summed from call-time prices; null when no call in the group was priced. */
-  cost: number | null;
-  unpricedCalls: number;
-}
-
-export interface LlmExperimentState {
-  experiment: LlmExperiment | null;
-  /** Model ids currently selectable (providers with API keys configured). */
-  options: string[];
-  /** The built-in prompt template — the starting point for arm overrides. */
-  defaultPromptTemplate: string;
-  /** Clients currently assigned to each arm key. */
-  clientCounts: Record<string, number>;
-  stats: LlmVariantStats[];
-}
-
-/** One client as the admin panel sees it (experiment fields included). */
+/** One client as the admin panel sees it. */
 export interface AdminClient {
   id: string;
   name: string;
@@ -376,7 +333,6 @@ export interface AdminClient {
   goalStatus: 'pending' | 'complete';
   paused: boolean;
   adminPaused: boolean;
-  llmVariant: string | null;
   createdAt: string;
   lastMessageAt?: string | null;
 }
@@ -415,7 +371,6 @@ export interface LlmCallSummary {
   agentInstanceId: string | null;
   clientId: string | null;
   clientName: string | null;
-  variant: string | null;
   purpose: string;
   provider: string;
   model: string;
@@ -449,7 +404,6 @@ export interface LlmCallDetail extends LlmCallSummary {
 export interface LlmCallFilters {
   agentInstanceId?: string;
   clientId?: string;
-  variant?: string;
   purpose?: string;
   model?: string;
   /** ISO instant — return calls strictly before it (keyset pagination). */
@@ -931,20 +885,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ paused }),
     }),
-  adminGetLlmExperiment: (agentInstanceId: string) =>
-    request<LlmExperimentState>(`/admin/agents/${agentInstanceId}/llm-experiment`),
-  adminSetLlmExperiment: (agentInstanceId: string, experiment: LlmExperiment | null) =>
-    request<{ experiment: LlmExperiment | null }>(`/admin/agents/${agentInstanceId}/llm-experiment`, {
-      method: 'PUT',
-      body: JSON.stringify({ experiment }),
-    }),
   adminListInstanceClients: (agentInstanceId: string) =>
     request<{ clients: AdminClient[] }>(`/admin/agents/${agentInstanceId}/clients`),
-  adminSetClientLlmVariant: (clientId: string, variant: string | null) =>
-    request<{ llmVariant: string | null }>(`/admin/clients/${clientId}/llm-variant`, {
-      method: 'POST',
-      body: JSON.stringify({ variant }),
-    }),
   adminGetClientConversation: (clientId: string) =>
     request<AdminConversation>(`/admin/clients/${clientId}/conversation`),
   adminListLlmCalls: (filters: LlmCallFilters) => {

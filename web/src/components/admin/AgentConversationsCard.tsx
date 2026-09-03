@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { api, ApiError, type AdminClient, type AdminConversation, type LlmExperiment } from '../../api';
+import { api, type AdminClient, type AdminConversation } from '../../api';
 import { displayClientName, formatTimestamp } from '../../format';
 import { useT } from '../../i18n';
-import { Dropdown } from '../Dropdown';
 
 /**
  * Admin conversation viewer: the full thread (drafts, held and sent rows) the
@@ -37,9 +36,6 @@ function ConversationModal({ clientId, onClose }: { clientId: string; onClose: (
           <p className="muted">
             {conversation.accountantName ?? conversation.accountantEmail ?? '—'}
             {conversation.instanceName ? ` · ${conversation.instanceName}` : ''}
-            {conversation.client.llmVariant
-              ? ` · ${t.adminConversationsColVariant}: ${conversation.client.llmVariant}`
-              : ''}
           </p>
         )}
         {error && <div className="error-banner">{error}</div>}
@@ -84,22 +80,14 @@ function ConversationModal({ clientId, onClose }: { clientId: string; onClose: (
 }
 
 /**
- * The instance's clients as the admin sees them: experiment arm (editable),
- * status, last activity, and the door into each conversation.
+ * The instance's clients as the admin sees them: status, last activity, and
+ * the door into each conversation.
  */
-export function AgentConversationsCard({
-  instanceId,
-  experiment,
-}: {
-  instanceId: string;
-  /** Non-null on declaration_of_capital when configured — enables the arm column's editor. */
-  experiment: LlmExperiment | null;
-}) {
+export function AgentConversationsCard({ instanceId }: { instanceId: string }) {
   const { t } = useT();
   const [clients, setClients] = useState<AdminClient[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setClients((await api.adminListInstanceClients(instanceId)).clients);
@@ -110,25 +98,6 @@ export function AgentConversationsCard({
     load().catch(() => setError(t.adminClientsLoadFailed));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
-
-  const setVariant = async (client: AdminClient, variant: string | null) => {
-    setBusyId(client.id);
-    setError(null);
-    try {
-      await api.adminSetClientLlmVariant(client.id, variant);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : t.adminVariantChangeFailed);
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const arms = experiment?.arms ?? [];
-  const variantOptions = [
-    { value: '', label: t.adminVariantNone },
-    ...arms.map((a) => ({ value: a.key, label: a.key })),
-  ];
 
   return (
     <section className="card">
@@ -145,7 +114,6 @@ export function AgentConversationsCard({
               <thead>
                 <tr>
                   <th>{t.adminConversationsColClient}</th>
-                  {arms.length > 0 && <th>{t.adminConversationsColVariant}</th>}
                   <th>{t.adminConversationsColStatus}</th>
                   <th>{t.adminConversationsColLastMessage}</th>
                   <th />
@@ -155,23 +123,6 @@ export function AgentConversationsCard({
                 {clients.map((c) => (
                   <tr key={c.id}>
                     <td className="admin-table-name">{displayClientName(c.name)}</td>
-                    {arms.length > 0 && (
-                      <td>
-                        <span className="tax-year-dropdown">
-                          <Dropdown
-                            value={c.llmVariant ?? ''}
-                            options={
-                              c.llmVariant && !arms.some((a) => a.key === c.llmVariant)
-                                ? [...variantOptions, { value: c.llmVariant, label: c.llmVariant }]
-                                : variantOptions
-                            }
-                            onChange={(v) => {
-                              if (busyId === null && v !== (c.llmVariant ?? '')) void setVariant(c, v === '' ? null : v);
-                            }}
-                          />
-                        </span>
-                      </td>
-                    )}
                     <td>
                       {c.goalStatus === 'complete' ? (
                         <span className="badge badge-success">{t.adminGoalComplete}</span>

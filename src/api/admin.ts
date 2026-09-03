@@ -540,7 +540,7 @@ async function modelStateResponse() {
  * PUT /api/admin/model/purpose — pin one call site (conversation, form intake,
  * file classification, document extraction) to a model, or with model: null
  * let it follow the global model again. Applies to every accountant and
- * client, independent of any experiment arm (which still wins per client).
+ * client.
  */
 export const adminSetPurposeModel: RequestHandler = async (req, res) => {
   const parsed = PurposeModelSchema.safeParse(req.body);

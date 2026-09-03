@@ -14,7 +14,6 @@ import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/monday
 import { capitalClientTaxYear, resolveTaxYear } from '../shared/taxYear.js';
 import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../declarationOfCapital/prompt.js';
 import { getCatalogType } from '../declarationOfCapital/catalog.js';
-import { resolveClientLlmVariant } from '../declarationOfCapital/experiment.js';
 import { verifyCollectedDocument } from '../declarationOfCapital/verifyDocument.js';
 import { getPromptTemplate } from '../../gemini/promptSettings.js';
 import { decide } from './decide.js';
@@ -174,12 +173,9 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
 
   // The accountant-editable template (legacy setting key) applies to the doc
   // collector only; the declaration-of-capital collector uses its built-in
-  // template — unless the client runs under an admin LLM-experiment arm (049)
-  // that carries its own prompt override. Per-agent custom-template keys are
-  // deferred work.
-  const variantArm = isCapitalDeclaration ? await resolveClientLlmVariant(client, ctx.instance) : null;
+  // template. Per-agent custom-template keys are deferred work.
   const template = isCapitalDeclaration
-    ? (variantArm?.promptTemplate ?? DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE)
+    ? DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE
     : (await getPromptTemplate(client.user_id)).template;
   const { systemInstruction, contents } = buildPrompt(
     client,
@@ -215,12 +211,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     intake,
   };
   const { decision, usage, model } = await decide(systemInstruction, contents, decisionCtx, {
-    model: variantArm?.models.conversation_decide ?? undefined,
     log: {
       userId: client.user_id,
       agentInstanceId: client.agent_instance_id,
       clientId,
-      variant: variantArm?.key ?? null,
       purpose: 'conversation_decide',
     },
   });

@@ -2,7 +2,6 @@ import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { analyzeFile, isAnalyzable } from './analyzeFile.js';
-import { resolveClientLlmVariant } from '../declarationOfCapital/experiment.js';
 import { resolveTaxYear } from '../shared/taxYear.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
@@ -30,15 +29,11 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
     const requiredDocuments = await clientDocuments.listForClient(clientId);
     const taxYear = resolveTaxYear(ctx.instance, new Date());
     const purpose = ctx.instance?.agent_type === 'declaration_of_capital' ? 'capital_declaration' : 'annual_report';
-    // Experiment arm (049): a null result (non-DoC / no experiment) leaves the global model.
-    const variantArm = await resolveClientLlmVariant(ctx.client, ctx.instance);
     const { analysis, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear, purpose, {
-      model: variantArm?.models.analyze_file ?? undefined,
       log: {
         userId: ctx.client.user_id,
         agentInstanceId: ctx.client.agent_instance_id,
         clientId,
-        variant: variantArm?.key ?? null,
         purpose: 'analyze_file',
       },
     });

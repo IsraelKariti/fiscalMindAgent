@@ -16,7 +16,6 @@ import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
 import { logger } from '../../util/logger.js';
 import { getCatalogType, GENERIC_CHECKS } from './catalog.js';
-import { resolveClientLlmVariant } from './experiment.js';
 import {
   EXTRACTION_PROMPT,
   ExtractionSchema,
@@ -174,9 +173,7 @@ export async function verifyCollectedDocument(
           : '',
       )
       .replace('{{filename}}', sanitizeInline(file.filename, 150));
-    // The client's experiment arm (049) also serves the extraction read.
-    const variantArm = await resolveClientLlmVariant(client, instance);
-    const model = variantArm?.models.verify_document ?? (await getGeminiModel('verify_document'));
+    const model = await getGeminiModel('verify_document');
     const response = await generateWithRetry(
       {
         model,
@@ -192,7 +189,6 @@ export async function verifyCollectedDocument(
         userId: client.user_id,
         agentInstanceId: client.agent_instance_id,
         clientId: client.id,
-        variant: variantArm?.key ?? null,
         purpose: 'verify_document',
       },
     );

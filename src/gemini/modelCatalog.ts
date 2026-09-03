@@ -36,8 +36,7 @@ export function providerForModel(model: string): LlmProvider {
 
 /**
  * The pipeline's LLM call sites, by their llm_calls.purpose value. The admin
- * can pin a default model to each (modelSettings.ts) and experiment arms can
- * pin one per arm (experimentConfig.ts).
+ * can pin a default model to each (modelSettings.ts).
  */
 export const LLM_CALL_PURPOSES = ['conversation_decide', 'form_intake', 'analyze_file', 'verify_document'] as const;
 export type LlmCallPurpose = (typeof LLM_CALL_PURPOSES)[number];

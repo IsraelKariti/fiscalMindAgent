@@ -1,10 +1,8 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { getGeminiModel } from '../../gemini/modelSettings.js';
 import { generateWithRetry, usageFromResponse } from '../../gemini/generate.js';
-import { resolveClientLlmVariant } from './experiment.js';
 import { recordAudit } from '../../audit/audit.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
@@ -131,11 +129,7 @@ export async function applyFormIntake(
     .replace('{{answers}}', answered.map((a) => `שאלה: ${a.question}\nתשובה: ${a.answer}`).join('\n\n'))
     .replace('{{empty_questions}}', emptyQuestions.length > 0 ? emptyQuestions.map((q) => `- ${q}`).join('\n') : '(אין)');
 
-  // The client's experiment arm (049) also serves this isolated read, so a
-  // model comparison covers the whole pipeline, not just the conversation.
-  const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
-  const variantArm = await resolveClientLlmVariant(client, instance);
-  const model = variantArm?.models.form_intake ?? (await getGeminiModel('form_intake'));
+  const model = await getGeminiModel('form_intake');
   const response = await generateWithRetry(
     {
       model,
@@ -146,7 +140,6 @@ export async function applyFormIntake(
       userId: client.user_id,
       agentInstanceId: client.agent_instance_id,
       clientId: client.id,
-      variant: variantArm?.key ?? null,
       purpose: 'form_intake',
     },
   );

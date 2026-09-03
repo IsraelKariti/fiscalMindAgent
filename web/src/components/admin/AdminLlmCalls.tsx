@@ -65,7 +65,6 @@ function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => v
               {MODEL_LABELS[call.model] ?? call.model}
               {' · '}
               {t.llmPurposeLabels[call.purpose] ?? call.purpose}
-              {call.variant ? ` · ${t.adminLlmCallsFilterVariant}: ${call.variant}` : ''}
               {call.clientName ? ` · ${displayClientName(call.clientName)}` : ''}
             </p>
             <p className="muted" dir="ltr" style={{ textAlign: 'right' }}>
@@ -143,15 +142,13 @@ function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => v
 
 /**
  * The per-call LLM log (#/llm-calls): every call's tokens, call-time cost and
- * status, filterable by agent / client / arm / purpose, with a drill-down into
- * the exact input the model saw — the debugging surface for prompt work and
- * the A/B model comparison.
+ * status, filterable by agent / client / purpose, with a drill-down into the
+ * exact input the model saw — the debugging surface for prompt work.
  */
 export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
   const { t } = useT();
   const [instanceFilter, setInstanceFilter] = useState('all');
   const [clientFilter, setClientFilter] = useState('all');
-  const [variantFilter, setVariantFilter] = useState('all');
   const [purposeFilter, setPurposeFilter] = useState('all');
   const [calls, setCalls] = useState<LlmCallSummary[] | null>(null);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
@@ -185,12 +182,11 @@ export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
     (before?: string) => ({
       ...(instanceFilter !== 'all' ? { agentInstanceId: instanceFilter } : {}),
       ...(clientFilter !== 'all' ? { clientId: clientFilter } : {}),
-      ...(variantFilter !== 'all' ? { variant: variantFilter } : {}),
       ...(purposeFilter !== 'all' ? { purpose: purposeFilter } : {}),
       ...(before ? { before } : {}),
       limit: PAGE_SIZE,
     }),
-    [instanceFilter, clientFilter, variantFilter, purposeFilter],
+    [instanceFilter, clientFilter, purposeFilter],
   );
 
   useEffect(() => {
@@ -231,10 +227,6 @@ export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
     }
   };
 
-  const variantOptions = [
-    { value: 'all', label: t.adminLlmCallsFilterAll },
-    ...['A', 'B', 'C', 'D'].map((v) => ({ value: v, label: v })),
-  ];
   const purposeOptions = [
     { value: 'all', label: t.adminLlmCallsFilterAll },
     ...Object.entries(t.llmPurposeLabels).map(([value, label]) => ({ value, label })),
@@ -266,12 +258,6 @@ export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
             </label>
           )}
           <label className="muted">
-            {t.adminLlmCallsFilterVariant}{' '}
-            <span className="tax-year-dropdown">
-              <Dropdown value={variantFilter} options={variantOptions} onChange={setVariantFilter} />
-            </span>
-          </label>
-          <label className="muted">
             {t.adminLlmCallsFilterPurpose}{' '}
             <span className="tax-year-dropdown" style={{ minWidth: 160 }}>
               <Dropdown value={purposeFilter} options={purposeOptions} onChange={setPurposeFilter} />
@@ -291,7 +277,6 @@ export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
                   <th>{t.adminLlmCallsColWhen}</th>
                   <th>{t.adminLlmCallsColClient}</th>
                   <th>{t.adminLlmCallsColPurpose}</th>
-                  <th>{t.adminLlmCallsFilterVariant}</th>
                   <th>{t.adminLlmCallsColModel}</th>
                   <th>{t.adminLlmCallsColTokens}</th>
                   <th>{t.adminLlmCallsColCost}</th>
@@ -307,7 +292,6 @@ export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
                       {t.llmPurposeLabels[c.purpose] ?? c.purpose}
                       {c.status === 'error' && <span className="badge badge-danger">{t.adminLlmCallsStatusError}</span>}
                     </td>
-                    <td>{c.variant ?? '—'}</td>
                     <td>{MODEL_LABELS[c.model] ?? c.model}</td>
                     <td dir="ltr">{tokensCell(c)}</td>
                     <td dir="ltr">{c.cost !== null ? formatUsd(c.cost) : '—'}</td>

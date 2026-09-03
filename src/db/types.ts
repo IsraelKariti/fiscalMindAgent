@@ -19,8 +19,6 @@ export interface AgentInstanceRow {
   review_mode: boolean;
   /** Admin-owned emergency brake (048): silently stops planning + sending for all this instance's clients. Only effective on declaration_of_capital. Invisible to the accountant. */
   admin_paused: boolean;
-  /** Admin-owned LLM A/B experiment config (049, shape: LlmExperimentConfig). Only effective on declaration_of_capital. Invisible to the accountant. */
-  llm_experiment: Record<string, unknown> | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -116,8 +114,6 @@ export interface ClientRow {
   paused: boolean;
   /** Admin-owned emergency brake (048), separate from the accountant-visible `paused`. Only effective on declaration_of_capital clients. Never serialized to the workspace. */
   admin_paused: boolean;
-  /** LLM experiment arm key this client's conversation runs under (049); NULL outside experiments. Never serialized to the workspace. */
-  llm_variant: string | null;
   /** Set while a planning attempt (setFutureEmail) is in flight; stale = attempt died mid-flight. */
   drafting_since: Date | null;
   /** Set when the last planning attempt threw; the UI shows a Retry button. */

@@ -57,8 +57,6 @@ export interface LlmCallLogContext {
   userId: string | null;
   agentInstanceId: string | null;
   clientId: string | null;
-  /** Experiment arm key the call ran under; null outside experiments. */
-  variant?: string | null;
   /** e.g. 'conversation_decide' | 'form_intake' | 'verify_document' | 'analyze_file'. */
   purpose: string;
 }
@@ -86,7 +84,6 @@ async function recordCall(
       userId: log.userId,
       agentInstanceId: log.agentInstanceId,
       clientId: log.clientId,
-      variant: log.variant ?? null,
       purpose: log.purpose,
       provider,
       model: request.model,

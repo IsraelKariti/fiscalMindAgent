@@ -16,39 +16,36 @@ export interface FormAnswer {
 // a dedicated pre-call (shared/injectionScreen.ts) before the mapping runs.
 
 /**
- * One per-type verdict inside `resolutions` (the type key is the object key).
- * Deliberately NO nullable/optional field: nullables turn into optional
- * parameters in the Anthropic structured-output conversion, and with the
- * entry inlined once per type key the count blows past Anthropic's
- * 24-optional-parameter limit. "Absent" is the empty string / empty array.
- */
-const formIntakeEntrySchema = z.object({
-  /** 'unclear' = the form doesn't settle this type — it stays for the WhatsApp interview. */
-  resolution: z.enum(['required', 'not_required', 'unclear']),
-  /** For 'required' only: one entry per concrete document instance; [] otherwise. */
-  instances: z.array(z.object({ name: z.string(), description: z.string() })),
-  /** The form question the decision rests on; '' for 'unclear'. */
-  question: z.string(),
-  /** Verbatim quote from the client's answer to that question; '' when the question was left empty. */
-  quote: z.string(),
-});
-
-export type FormIntakeEntry = z.infer<typeof formIntakeEntrySchema>;
-
-/**
- * The response schema, built PER CALL: `resolutions` is an object with one
- * REQUIRED property per type key still unresolved for this client. The model
- * therefore cannot skip a type (every key must be answered — 'unclear' is the
- * explicit way out) and cannot name a row that doesn't exist.
+ * The response schema, built PER CALL, in three flat parts kept deliberately
+ * light for Anthropic's structured-output grammar compiler (a full per-key
+ * entry object, inlined 17 times, was rejected as "compiled grammar too
+ * large"; nullable/optional fields hit the 24-optional cap before that — so:
+ * everything required, empty string / empty array means "absent"):
+ *
+ *  - `verdicts` — one REQUIRED enum property per type key still unresolved
+ *    for this client. The model cannot skip a type (answering every key is
+ *    the schema, 'unclear' is the explicit way out) and cannot name a row
+ *    that doesn't exist.
+ *  - `evidence` — one row per not_required verdict: the form question it
+ *    rests on and the verbatim quote ('' when the question was left empty).
+ *  - `instances` — one row per concrete document of a required verdict.
  */
 export function buildFormIntakeSchema(typeKeys: readonly [string, ...string[]]) {
   return z.object({
-    resolutions: z.object(Object.fromEntries(typeKeys.map((k) => [k, formIntakeEntrySchema]))),
+    verdicts: z.object(
+      Object.fromEntries(typeKeys.map((k) => [k, z.enum(['required', 'not_required', 'unclear'])])),
+    ),
+    evidence: z.array(z.object({ type_key: z.enum(typeKeys), question: z.string(), quote: z.string() })),
+    instances: z.array(z.object({ type_key: z.enum(typeKeys), name: z.string(), description: z.string() })),
   });
 }
 
+export type FormIntakeVerdict = 'required' | 'not_required' | 'unclear';
+
 export interface FormIntakeResponse {
-  resolutions: Record<string, FormIntakeEntry>;
+  verdicts: Record<string, FormIntakeVerdict>;
+  evidence: { type_key: string; question: string; quote: string }[];
+  instances: { type_key: string; name: string; description: string }[];
 }
 
 /** Hard cap on concrete instances one resolution may create — same bound as the interview validator. */
@@ -106,24 +103,29 @@ export function validateFormResolutions(
   const dropped: string[] = [];
   const unclear: string[] = [];
 
-  for (const [typeKey, entry] of Object.entries(raw.resolutions)) {
+  for (const [typeKey, verdict] of Object.entries(raw.verdicts)) {
     const row = byTypeKey.get(typeKey);
     if (!row) {
       dropped.push(`${typeKey}: not an unresolved catalog row of this client`);
       continue;
     }
-    if (entry.resolution === 'unclear') {
+    if (verdict === 'unclear') {
       unclear.push(typeKey);
       continue;
     }
 
-    if (entry.resolution === 'not_required') {
-      const question = entry.question.trim();
+    if (verdict === 'not_required') {
+      const proof = raw.evidence.find((e) => e.type_key === typeKey);
+      if (!proof) {
+        dropped.push(`${typeKey}: not_required without an evidence row`);
+        continue;
+      }
+      const question = proof.question.trim();
       if (question === '') {
         dropped.push(`${typeKey}: not_required without a question`);
         continue;
       }
-      const quote = entry.quote.trim();
+      const quote = proof.quote.trim();
       if (quote === '') {
         // Quote-less resolution: valid only when the named question really was
         // left empty on the form (empty cell = the client doesn't have this).
@@ -152,10 +154,12 @@ export function validateFormResolutions(
       continue;
     }
 
-    const instances = entry.instances.map((i) => ({
-      name: i.name.trim(),
-      description: i.description.trim() || null,
-    }));
+    const instances = raw.instances
+      .filter((i) => i.type_key === typeKey)
+      .map((i) => ({
+        name: i.name.trim(),
+        description: i.description.trim() || null,
+      }));
     if (instances.length === 0) {
       dropped.push(`${typeKey}: required without instances`);
       continue;

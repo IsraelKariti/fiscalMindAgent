@@ -15,16 +15,22 @@ export interface FormAnswer {
 // Injection detection is NOT this schema's job: the answers are screened by
 // a dedicated pre-call (shared/injectionScreen.ts) before the mapping runs.
 
-/** One per-type verdict inside `resolutions` (the type key is the object key). */
+/**
+ * One per-type verdict inside `resolutions` (the type key is the object key).
+ * Deliberately NO nullable/optional field: nullables turn into optional
+ * parameters in the Anthropic structured-output conversion, and with the
+ * entry inlined once per type key the count blows past Anthropic's
+ * 24-optional-parameter limit. "Absent" is the empty string / empty array.
+ */
 const formIntakeEntrySchema = z.object({
   /** 'unclear' = the form doesn't settle this type — it stays for the WhatsApp interview. */
   resolution: z.enum(['required', 'not_required', 'unclear']),
-  /** For 'required' only: one entry per concrete document instance. */
-  instances: z.array(z.object({ name: z.string(), description: z.string().nullable() })).nullable(),
-  /** The form question the decision rests on; null for 'unclear'. */
-  question: z.string().nullable(),
-  /** Verbatim quote from the client's answer to that question; null when the question was left empty. */
-  quote: z.string().nullable(),
+  /** For 'required' only: one entry per concrete document instance; [] otherwise. */
+  instances: z.array(z.object({ name: z.string(), description: z.string() })),
+  /** The form question the decision rests on; '' for 'unclear'. */
+  question: z.string(),
+  /** Verbatim quote from the client's answer to that question; '' when the question was left empty. */
+  quote: z.string(),
 });
 
 export type FormIntakeEntry = z.infer<typeof formIntakeEntrySchema>;
@@ -112,12 +118,12 @@ export function validateFormResolutions(
     }
 
     if (entry.resolution === 'not_required') {
-      const question = entry.question?.trim() ?? '';
+      const question = entry.question.trim();
       if (question === '') {
         dropped.push(`${typeKey}: not_required without a question`);
         continue;
       }
-      const quote = entry.quote?.trim() ?? '';
+      const quote = entry.quote.trim();
       if (quote === '') {
         // Quote-less resolution: valid only when the named question really was
         // left empty on the form (empty cell = the client doesn't have this).
@@ -146,9 +152,9 @@ export function validateFormResolutions(
       continue;
     }
 
-    const instances = (entry.instances ?? []).map((i) => ({
+    const instances = entry.instances.map((i) => ({
       name: i.name.trim(),
-      description: i.description?.trim() || null,
+      description: i.description.trim() || null,
     }));
     if (instances.length === 0) {
       dropped.push(`${typeKey}: required without instances`);

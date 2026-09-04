@@ -33,15 +33,15 @@ describe('form-intake resolution validation', () => {
         bank_balance: {
           resolution: 'required',
           instances: [
-            { name: 'אישור יתרות בנק לאומי ליום 31.12.2025', description: null },
-            { name: 'אישור יתרות בנק דיסקונט ליום 31.12.2025', description: null },
+            { name: 'אישור יתרות בנק לאומי ליום 31.12.2025', description: '' },
+            { name: 'אישור יתרות בנק דיסקונט ליום 31.12.2025', description: '' },
           ],
           question: 'חשבונות בנק בארץ או בחו"ל',
           quote: 'יש לי חשבון בלאומי וחשבון בדיסקונט',
         },
         crypto: {
           resolution: 'not_required',
-          instances: null,
+          instances: [],
           question: 'מטבעות דיגיטליים',
           quote: 'לא',
         },
@@ -62,7 +62,7 @@ describe('form-intake resolution validation', () => {
   it('collects unclear verdicts separately — they neither resolve nor drop', () => {
     const { valid, dropped, unclear } = validateFormResolutions(
       raw({
-        crypto: { resolution: 'unclear', instances: null, question: null, quote: null },
+        crypto: { resolution: 'unclear', instances: [], question: '', quote: '' },
       }),
       rows,
       answers,
@@ -77,7 +77,7 @@ describe('form-intake resolution validation', () => {
       raw({
         crypto: {
           resolution: 'not_required',
-          instances: null,
+          instances: [],
           question: 'מטבעות דיגיטליים',
           quote: 'אין לי שום מטבעות',
         },
@@ -95,7 +95,7 @@ describe('form-intake resolution validation', () => {
       raw({
         bank_balance: {
           resolution: 'required',
-          instances: [{ name: 'אישור יתרות', description: null }],
+          instances: [{ name: 'אישור יתרות', description: '' }],
           question: 'חשבונות בנק',
           quote: 'חשבון  בלאומי', // double space
         },
@@ -110,13 +110,13 @@ describe('form-intake resolution validation', () => {
     const { valid, dropped } = validateFormResolutions(
       raw({
         // Not a seeded row of this client (only possible if the provider ignored the schema).
-        no_such_type: { resolution: 'not_required', instances: null, question: 'ש', quote: 'לא' },
+        no_such_type: { resolution: 'not_required', instances: [], question: 'ש', quote: 'לא' },
         // Single-instance type given two instances.
         prior_declaration: {
           resolution: 'required',
           instances: [
-            { name: 'הצהרה 2019', description: null },
-            { name: 'הצהרה 2015', description: null },
+            { name: 'הצהרה 2019', description: '' },
+            { name: 'הצהרה 2015', description: '' },
           ],
           question: 'האם הגשת בעבר הצהרת הון',
           quote: 'לא',
@@ -124,7 +124,7 @@ describe('form-intake resolution validation', () => {
         // Required without instances.
         bank_balance: { resolution: 'required', instances: [], question: 'בנקים', quote: 'יש' },
         // not_required must name the question it rests on.
-        crypto: { resolution: 'not_required', instances: null, question: null, quote: 'לא' },
+        crypto: { resolution: 'not_required', instances: [], question: '', quote: 'לא' },
       }),
       rows,
       answers,
@@ -138,9 +138,9 @@ describe('form-intake resolution validation', () => {
       raw({
         life_insurance_savings: {
           resolution: 'not_required',
-          instances: null,
+          instances: [],
           question: 'ביטוח מנהלים  או פוליסת חיסכון', // whitespace-insensitive match
-          quote: null,
+          quote: '',
         },
       }),
       rows,
@@ -159,9 +159,9 @@ describe('form-intake resolution validation', () => {
       raw({
         crypto: {
           resolution: 'not_required',
-          instances: null,
+          instances: [],
           question: 'מטבעות דיגיטליים',
-          quote: null,
+          quote: '',
         },
       }),
       rows,

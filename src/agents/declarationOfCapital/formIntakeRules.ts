@@ -13,8 +13,8 @@ export interface FormAnswer {
 }
 
 export const FormIntakeSchema = z.object({
-  /** The answers contain instruction-like text aimed at an AI; resolutions are suppressed when set. */
-  suspected_injection: z.boolean(),
+  // Injection detection is NOT this schema's job: the answers are screened by
+  // a dedicated pre-call (shared/injectionScreen.ts) before the mapping runs.
   resolutions: z.array(
     z.object({
       /** Catalog type key the resolution settles (client_documents.type_key). */

@@ -784,6 +784,7 @@ const he = {
   llmPurposeLabels: {
     conversation_decide: 'החלטת שיחה',
     form_intake: 'ניתוח שאלון',
+    injection_screen: 'סינון הזרקת הנחיות',
     verify_document: 'אימות מסמך',
     analyze_file: 'ניתוח קובץ',
   } as Record<string, string>,

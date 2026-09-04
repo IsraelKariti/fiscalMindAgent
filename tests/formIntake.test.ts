@@ -23,7 +23,7 @@ const answers: FormAnswer[] = [
 ];
 
 function raw(resolutions: FormIntakeResponse['resolutions']): FormIntakeResponse {
-  return { suspected_injection: false, resolutions };
+  return { resolutions };
 }
 
 describe('form-intake resolution validation', () => {

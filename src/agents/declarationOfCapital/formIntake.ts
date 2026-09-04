@@ -160,7 +160,10 @@ export async function applyFormIntake(
   const intakeSchema = buildFormIntakeSchema(
     rows.map((r) => r.typeKey) as [string, ...string[]],
   );
-  const intakeJsonSchema = zodToJsonSchema(intakeSchema) as Record<string, unknown>;
+  // $refStrategy 'none': the entry schema repeats per type key, and the default
+  // strategy dedups repeats into $ref pointers aimed at the first occurrence -
+  // which Anthropic rejects (refs must live under $defs). Inline everything.
+  const intakeJsonSchema = zodToJsonSchema(intakeSchema, { $refStrategy: 'none' }) as Record<string, unknown>;
   delete intakeJsonSchema.$schema;
 
   const prompt = FORM_INTAKE_PROMPT.replaceAll('{{tax_year}}', String(taxYear))

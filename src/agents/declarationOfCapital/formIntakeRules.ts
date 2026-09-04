@@ -12,25 +12,33 @@ export interface FormAnswer {
   answer: string;
 }
 
-export const FormIntakeSchema = z.object({
-  // Injection detection is NOT this schema's job: the answers are screened by
-  // a dedicated pre-call (shared/injectionScreen.ts) before the mapping runs.
-  resolutions: z.array(
-    z.object({
-      /** Catalog type key the resolution settles (client_documents.type_key). */
-      type_key: z.string(),
-      resolution: z.enum(['required', 'not_required']),
-      /** For 'required' only: one entry per concrete document instance. */
-      instances: z.array(z.object({ name: z.string(), description: z.string().nullable() })).nullable(),
-      /** The form question the decision rests on. */
-      question: z.string(),
-      /** Verbatim quote from the client's answer to that question; null when the question was left empty. */
-      quote: z.string().nullable(),
-    }),
-  ),
-});
+// Injection detection is NOT this schema's job: the answers are screened by
+// a dedicated pre-call (shared/injectionScreen.ts) before the mapping runs.
+/**
+ * The response schema, built PER CALL: `type_key` is an enum of exactly the
+ * type keys still unresolved for this client, so the model cannot name a row
+ * that doesn't exist (or misspell one) — a wrong key is impossible at
+ * generation time instead of dropped after the fact.
+ */
+export function buildFormIntakeSchema(typeKeys: readonly [string, ...string[]]) {
+  return z.object({
+    resolutions: z.array(
+      z.object({
+        /** Catalog type key the resolution settles — one of this client's open rows. */
+        type_key: z.enum(typeKeys),
+        resolution: z.enum(['required', 'not_required']),
+        /** For 'required' only: one entry per concrete document instance. */
+        instances: z.array(z.object({ name: z.string(), description: z.string().nullable() })).nullable(),
+        /** The form question the decision rests on. */
+        question: z.string(),
+        /** Verbatim quote from the client's answer to that question; null when the question was left empty. */
+        quote: z.string().nullable(),
+      }),
+    ),
+  });
+}
 
-export type FormIntakeResponse = z.infer<typeof FormIntakeSchema>;
+export type FormIntakeResponse = z.infer<ReturnType<typeof buildFormIntakeSchema>>;
 
 /** Hard cap on concrete instances one resolution may create — same bound as the interview validator. */
 export const MAX_FORM_INSTANCES = 10;

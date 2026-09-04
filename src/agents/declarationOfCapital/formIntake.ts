@@ -10,7 +10,7 @@ import { screenForInjection } from '../shared/injectionScreen.js';
 import { logger } from '../../util/logger.js';
 import { getCatalogType } from './catalog.js';
 import {
-  FormIntakeSchema,
+  buildFormIntakeSchema,
   validateFormResolutions,
   type FormAnswer,
   type FormResolvableRow,
@@ -43,9 +43,6 @@ export type { FormAnswer } from './formIntakeRules.js';
  * (shared/injectionScreen.ts) must clear them before the mapping call runs —
  * the mapping model itself carries no detection duty.
  */
-
-const formIntakeJsonSchema = zodToJsonSchema(FormIntakeSchema) as Record<string, unknown>;
-delete formIntakeJsonSchema.$schema;
 
 const FORM_INTAKE_PROMPT = `אתה מנתח שאלון הצהרת הון שלקוח של משרד רואי חשבון מילא והגיש (טופס מקוון). תפקידך: למפות את תשובות הלקוח על רשימת סוגי המסמכים שהצהרת הון עשויה לדרוש, ולקבוע לכל סוג אם הוא נדרש (ואילו מופעים קונקרטיים יש) או שאינו נדרש. ההצהרה מתייחסת ליום 31.12.{{tax_year}}.
 
@@ -154,6 +151,14 @@ export async function applyFormIntake(
     }));
   if (rows.length === 0) return { applied: 0 };
 
+  // The response schema is per-call: type_key is an enum of exactly this
+  // client's open rows, so an invalid key can't be generated in the first place.
+  const intakeSchema = buildFormIntakeSchema(
+    rows.map((r) => r.typeKey) as [string, ...string[]],
+  );
+  const intakeJsonSchema = zodToJsonSchema(intakeSchema) as Record<string, unknown>;
+  delete intakeJsonSchema.$schema;
+
   const prompt = FORM_INTAKE_PROMPT.replaceAll('{{tax_year}}', String(taxYear))
     .replace('{{catalog}}', catalogLines(rows, taxYear))
     .replace('{{answers}}', answered.map((a) => `שאלה: ${a.question}\nתשובה: ${a.answer}`).join('\n\n'))
@@ -164,7 +169,7 @@ export async function applyFormIntake(
     {
       model,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { responseMimeType: 'application/json', responseJsonSchema: formIntakeJsonSchema, temperature: 0 },
+      config: { responseMimeType: 'application/json', responseJsonSchema: intakeJsonSchema, temperature: 0 },
     },
     {
       userId: client.user_id,
@@ -177,7 +182,7 @@ export async function applyFormIntake(
     await llmUsage.add(client.user_id, client.agent_instance_id, model, usageFromResponse(response));
   }
   if (!response.text) throw new Error('form intake: model returned no text');
-  const raw = FormIntakeSchema.parse(JSON.parse(response.text));
+  const raw = intakeSchema.parse(JSON.parse(response.text));
 
   const { valid, dropped } = validateFormResolutions(raw, rows, answers);
   if (dropped.length > 0) {

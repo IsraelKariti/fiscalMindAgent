@@ -29,9 +29,8 @@ function raw(resolutions: FormIntakeResponse['resolutions']): FormIntakeResponse
 describe('form-intake resolution validation', () => {
   it('accepts a required resolution with instances and a not_required with a real quote', () => {
     const { valid, dropped } = validateFormResolutions(
-      raw([
-        {
-          type_key: 'bank_balance',
+      raw({
+        bank_balance: {
           resolution: 'required',
           instances: [
             { name: 'אישור יתרות בנק לאומי ליום 31.12.2025', description: null },
@@ -40,14 +39,13 @@ describe('form-intake resolution validation', () => {
           question: 'חשבונות בנק בארץ או בחו"ל',
           quote: 'יש לי חשבון בלאומי וחשבון בדיסקונט',
         },
-        {
-          type_key: 'crypto',
+        crypto: {
           resolution: 'not_required',
           instances: null,
           question: 'מטבעות דיגיטליים',
           quote: 'לא',
         },
-      ]),
+      }),
       rows,
       answers,
     );
@@ -61,17 +59,29 @@ describe('form-intake resolution validation', () => {
     );
   });
 
+  it('collects unclear verdicts separately — they neither resolve nor drop', () => {
+    const { valid, dropped, unclear } = validateFormResolutions(
+      raw({
+        crypto: { resolution: 'unclear', instances: null, question: null, quote: null },
+      }),
+      rows,
+      answers,
+    );
+    assert.equal(valid.length, 0);
+    assert.equal(dropped.length, 0);
+    assert.deepEqual(unclear, ['crypto']);
+  });
+
   it('drops a not_required whose quote is not verbatim in the answers', () => {
     const { valid, dropped } = validateFormResolutions(
-      raw([
-        {
-          type_key: 'crypto',
+      raw({
+        crypto: {
           resolution: 'not_required',
           instances: null,
           question: 'מטבעות דיגיטליים',
           quote: 'אין לי שום מטבעות',
         },
-      ]),
+      }),
       rows,
       answers,
     );
@@ -82,29 +92,27 @@ describe('form-intake resolution validation', () => {
 
   it('quote matching is whitespace-insensitive', () => {
     const { valid } = validateFormResolutions(
-      raw([
-        {
-          type_key: 'bank_balance',
+      raw({
+        bank_balance: {
           resolution: 'required',
           instances: [{ name: 'אישור יתרות', description: null }],
           question: 'חשבונות בנק',
           quote: 'חשבון  בלאומי', // double space
         },
-      ]),
+      }),
       rows,
       answers,
     );
     assert.equal(valid.length, 1);
   });
 
-  it('drops unknown type keys, duplicates, and instance-rule violations', () => {
+  it('drops unknown type keys, question-less not_required, and instance-rule violations', () => {
     const { valid, dropped } = validateFormResolutions(
-      raw([
-        // Not a seeded row of this client.
-        { type_key: 'no_such_type', resolution: 'not_required', instances: null, question: 'ש', quote: 'לא' },
+      raw({
+        // Not a seeded row of this client (only possible if the provider ignored the schema).
+        no_such_type: { resolution: 'not_required', instances: null, question: 'ש', quote: 'לא' },
         // Single-instance type given two instances.
-        {
-          type_key: 'prior_declaration',
+        prior_declaration: {
           resolution: 'required',
           instances: [
             { name: 'הצהרה 2019', description: null },
@@ -114,10 +122,10 @@ describe('form-intake resolution validation', () => {
           quote: 'לא',
         },
         // Required without instances.
-        { type_key: 'bank_balance', resolution: 'required', instances: [], question: 'בנקים', quote: 'יש' },
-        // Same row targeted twice.
-        { type_key: 'bank_balance', resolution: 'not_required', instances: null, question: 'בנקים', quote: 'לא' },
-      ]),
+        bank_balance: { resolution: 'required', instances: [], question: 'בנקים', quote: 'יש' },
+        // not_required must name the question it rests on.
+        crypto: { resolution: 'not_required', instances: null, question: null, quote: 'לא' },
+      }),
       rows,
       answers,
     );
@@ -127,15 +135,14 @@ describe('form-intake resolution validation', () => {
 
   it('accepts a quote-less not_required for a question left empty on the form', () => {
     const { valid, dropped } = validateFormResolutions(
-      raw([
-        {
-          type_key: 'life_insurance_savings',
+      raw({
+        life_insurance_savings: {
           resolution: 'not_required',
           instances: null,
           question: 'ביטוח מנהלים  או פוליסת חיסכון', // whitespace-insensitive match
           quote: null,
         },
-      ]),
+      }),
       rows,
       answers,
     );
@@ -149,15 +156,14 @@ describe('form-intake resolution validation', () => {
 
   it('drops a quote-less not_required whose question was actually answered', () => {
     const { valid, dropped } = validateFormResolutions(
-      raw([
-        {
-          type_key: 'crypto',
+      raw({
+        crypto: {
           resolution: 'not_required',
           instances: null,
           question: 'מטבעות דיגיטליים',
           quote: null,
         },
-      ]),
+      }),
       rows,
       answers,
     );

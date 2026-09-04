@@ -14,31 +14,36 @@ export interface FormAnswer {
 
 // Injection detection is NOT this schema's job: the answers are screened by
 // a dedicated pre-call (shared/injectionScreen.ts) before the mapping runs.
+
+/** One per-type verdict inside `resolutions` (the type key is the object key). */
+const formIntakeEntrySchema = z.object({
+  /** 'unclear' = the form doesn't settle this type — it stays for the WhatsApp interview. */
+  resolution: z.enum(['required', 'not_required', 'unclear']),
+  /** For 'required' only: one entry per concrete document instance. */
+  instances: z.array(z.object({ name: z.string(), description: z.string().nullable() })).nullable(),
+  /** The form question the decision rests on; null for 'unclear'. */
+  question: z.string().nullable(),
+  /** Verbatim quote from the client's answer to that question; null when the question was left empty. */
+  quote: z.string().nullable(),
+});
+
+export type FormIntakeEntry = z.infer<typeof formIntakeEntrySchema>;
+
 /**
- * The response schema, built PER CALL: `type_key` is an enum of exactly the
- * type keys still unresolved for this client, so the model cannot name a row
- * that doesn't exist (or misspell one) — a wrong key is impossible at
- * generation time instead of dropped after the fact.
+ * The response schema, built PER CALL: `resolutions` is an object with one
+ * REQUIRED property per type key still unresolved for this client. The model
+ * therefore cannot skip a type (every key must be answered — 'unclear' is the
+ * explicit way out) and cannot name a row that doesn't exist.
  */
 export function buildFormIntakeSchema(typeKeys: readonly [string, ...string[]]) {
   return z.object({
-    resolutions: z.array(
-      z.object({
-        /** Catalog type key the resolution settles — one of this client's open rows. */
-        type_key: z.enum(typeKeys),
-        resolution: z.enum(['required', 'not_required']),
-        /** For 'required' only: one entry per concrete document instance. */
-        instances: z.array(z.object({ name: z.string(), description: z.string().nullable() })).nullable(),
-        /** The form question the decision rests on. */
-        question: z.string(),
-        /** Verbatim quote from the client's answer to that question; null when the question was left empty. */
-        quote: z.string().nullable(),
-      }),
-    ),
+    resolutions: z.object(Object.fromEntries(typeKeys.map((k) => [k, formIntakeEntrySchema]))),
   });
 }
 
-export type FormIntakeResponse = z.infer<ReturnType<typeof buildFormIntakeSchema>>;
+export interface FormIntakeResponse {
+  resolutions: Record<string, FormIntakeEntry>;
+}
 
 /** Hard cap on concrete instances one resolution may create — same bound as the interview validator. */
 export const MAX_FORM_INSTANCES = 10;
@@ -69,16 +74,19 @@ export type ValidatedFormResolution =
   | { documentId: string; typeKey: string; resolution: 'required'; instances: { name: string; description: string | null }[] };
 
 /**
- * Validates the model's proposed resolutions against the seeded rows and the
+ * Validates the model's per-type verdicts against the seeded rows and the
  * actual form answers. Invalid entries are dropped (with the reason collected)
  * rather than failing the whole pass — a dropped row simply stays unresolved
- * and the WhatsApp interview covers it.
+ * and the WhatsApp interview covers it, exactly like an explicit 'unclear'
+ * (returned separately for logging). Duplicates are impossible now (object
+ * keys are unique); an unknown key can only appear if the provider ignored
+ * the schema, and is still dropped.
  */
 export function validateFormResolutions(
   raw: FormIntakeResponse,
   rows: FormResolvableRow[],
   answers: FormAnswer[],
-): { valid: ValidatedFormResolution[]; dropped: string[] } {
+): { valid: ValidatedFormResolution[]; dropped: string[]; unclear: string[] } {
   const byTypeKey = new Map(rows.map((r) => [r.typeKey, r]));
   const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
   const allAnswersText = answers
@@ -88,48 +96,52 @@ export function validateFormResolutions(
   // Questions the client left blank — "I don't have this" — the only ones a
   // quote-less not_required may rest on.
   const emptyQuestions = new Set(answers.filter((a) => a.answer === '').map((a) => norm(a.question)));
-  const seen = new Set<string>();
   const valid: ValidatedFormResolution[] = [];
   const dropped: string[] = [];
+  const unclear: string[] = [];
 
-  for (const entry of raw.resolutions) {
-    const row = byTypeKey.get(entry.type_key);
+  for (const [typeKey, entry] of Object.entries(raw.resolutions)) {
+    const row = byTypeKey.get(typeKey);
     if (!row) {
-      dropped.push(`${entry.type_key}: not an unresolved catalog row of this client`);
+      dropped.push(`${typeKey}: not an unresolved catalog row of this client`);
       continue;
     }
-    if (seen.has(entry.type_key)) {
-      dropped.push(`${entry.type_key}: targeted twice`);
+    if (entry.resolution === 'unclear') {
+      unclear.push(typeKey);
       continue;
     }
-    seen.add(entry.type_key);
 
     if (entry.resolution === 'not_required') {
+      const question = entry.question?.trim() ?? '';
+      if (question === '') {
+        dropped.push(`${typeKey}: not_required without a question`);
+        continue;
+      }
       const quote = entry.quote?.trim() ?? '';
       if (quote === '') {
         // Quote-less resolution: valid only when the named question really was
         // left empty on the form (empty cell = the client doesn't have this).
-        if (!emptyQuestions.has(norm(entry.question))) {
-          dropped.push(`${entry.type_key}: quote-less not_required but the question was not left empty`);
+        if (!emptyQuestions.has(norm(question))) {
+          dropped.push(`${typeKey}: quote-less not_required but the question was not left empty`);
           continue;
         }
         valid.push({
           documentId: row.id,
           typeKey: row.typeKey,
           resolution: 'not_required',
-          evidence: { source: 'form_empty', question: entry.question.slice(0, 300) },
+          evidence: { source: 'form_empty', question: question.slice(0, 300) },
         });
         continue;
       }
       if (!quoteAppearsIn(quote, allAnswersText)) {
-        dropped.push(`${entry.type_key}: quote not found verbatim in the form answers`);
+        dropped.push(`${typeKey}: quote not found verbatim in the form answers`);
         continue;
       }
       valid.push({
         documentId: row.id,
         typeKey: row.typeKey,
         resolution: 'not_required',
-        evidence: { source: 'form', question: entry.question.slice(0, 300), quote: quote.slice(0, 500) },
+        evidence: { source: 'form', question: question.slice(0, 300), quote: quote.slice(0, 500) },
       });
       continue;
     }
@@ -139,22 +151,22 @@ export function validateFormResolutions(
       description: i.description?.trim() || null,
     }));
     if (instances.length === 0) {
-      dropped.push(`${entry.type_key}: required without instances`);
+      dropped.push(`${typeKey}: required without instances`);
       continue;
     }
     if (instances.some((i) => i.name.length === 0 || i.name.length > 200)) {
-      dropped.push(`${entry.type_key}: instance name out of 1-200 chars`);
+      dropped.push(`${typeKey}: instance name out of 1-200 chars`);
       continue;
     }
     if (instances.length > 1 && !row.multiInstance) {
-      dropped.push(`${entry.type_key}: multiple instances on a single-instance type`);
+      dropped.push(`${typeKey}: multiple instances on a single-instance type`);
       continue;
     }
     if (instances.length > MAX_FORM_INSTANCES) {
-      dropped.push(`${entry.type_key}: more than ${MAX_FORM_INSTANCES} instances`);
+      dropped.push(`${typeKey}: more than ${MAX_FORM_INSTANCES} instances`);
       continue;
     }
     valid.push({ documentId: row.id, typeKey: row.typeKey, resolution: 'required', instances });
   }
-  return { valid, dropped };
+  return { valid, dropped, unclear };
 }

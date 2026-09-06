@@ -205,7 +205,13 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
 
         {route.screen === 'review' && <AdminReview onCountChanged={setPendingReviews} />}
 
-        {route.screen === 'llmCalls' && accountants && <AdminLlmCalls accountants={accountants} />}
+        {route.screen === 'llmCalls' && accountants && (
+          <AdminLlmCalls
+            accountants={accountants}
+            viewingCallId={route.callId ?? null}
+            onViewCall={(callId) => navigate(callId ? { screen: 'llmCalls', callId } : { screen: 'llmCalls' })}
+          />
+        )}
 
         {route.screen === 'settings' && <AdminSettings userEmail={userEmail} />}
       </main>

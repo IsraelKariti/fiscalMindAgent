@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
  *   #/audit                              audit trail + anomaly alerts
  *   #/review                             pilot message review queue
  *   #/llm-calls                          per-call LLM log browser
+ *   #/llm-calls/:callId                  one call's drill-down (shareable)
  *   #/settings                           platform settings
  */
 export type AdminRoute =
@@ -25,7 +26,7 @@ export type AdminRoute =
   | { screen: 'usage' }
   | { screen: 'audit' }
   | { screen: 'review' }
-  | { screen: 'llmCalls' }
+  | { screen: 'llmCalls'; callId?: string }
   | { screen: 'settings' };
 
 export function routeHash(route: AdminRoute): string {
@@ -47,7 +48,7 @@ export function routeHash(route: AdminRoute): string {
     case 'review':
       return '#/review';
     case 'llmCalls':
-      return '#/llm-calls';
+      return route.callId ? `#/llm-calls/${encodeURIComponent(route.callId)}` : '#/llm-calls';
     case 'settings':
       return '#/settings';
   }
@@ -63,7 +64,7 @@ function parseHash(hash: string): AdminRoute {
   if (parts[0] === 'usage') return { screen: 'usage' };
   if (parts[0] === 'audit') return { screen: 'audit' };
   if (parts[0] === 'review') return { screen: 'review' };
-  if (parts[0] === 'llm-calls') return { screen: 'llmCalls' };
+  if (parts[0] === 'llm-calls') return parts[1] ? { screen: 'llmCalls', callId: parts[1] } : { screen: 'llmCalls' };
   if (parts[0] === 'agents') return { screen: 'agents' };
   // A workspace deep link (#/as/:email/agents/:instanceId/clients/:clientId)
   // opened by an admin who isn't impersonating: show that accountant's page.

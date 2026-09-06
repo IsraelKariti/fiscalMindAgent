@@ -187,8 +187,20 @@ function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => v
  * The per-call LLM log (#/llm-calls): every call's tokens, call-time cost and
  * status, filterable by agent / client / purpose, with a drill-down into the
  * exact input the model saw — the debugging surface for prompt work.
+ *
+ * The drill-down is URL-driven (#/llm-calls/:callId, `viewingCallId` /
+ * `onViewCall`) so every call has a shareable permalink and back/forward
+ * close/reopen the modal.
  */
-export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
+export function AdminLlmCalls({
+  accountants,
+  viewingCallId,
+  onViewCall,
+}: {
+  accountants: Accountant[];
+  viewingCallId: string | null;
+  onViewCall: (callId: string | null) => void;
+}) {
   const { t } = useT();
   const [instanceFilter, setInstanceFilter] = useState('all');
   const [clientFilter, setClientFilter] = useState('all');
@@ -198,7 +210,6 @@ export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
   const [instanceClients, setInstanceClients] = useState<AdminClient[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [viewing, setViewing] = useState<string | null>(null);
 
   const instanceOptions = useMemo(() => {
     const options = [{ value: 'all', label: t.adminLlmCallsFilterAll }];
@@ -328,7 +339,7 @@ export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
               </thead>
               <tbody>
                 {calls.map((c) => (
-                  <tr key={c.id} onClick={() => setViewing(c.id)} style={{ cursor: 'pointer' }}>
+                  <tr key={c.id} onClick={() => onViewCall(c.id)} style={{ cursor: 'pointer' }}>
                     <td dir="ltr">{formatTimestamp(c.createdAt)}</td>
                     <td className="admin-table-name">{c.clientName ? displayClientName(c.clientName) : '—'}</td>
                     <td>
@@ -354,7 +365,7 @@ export function AdminLlmCalls({ accountants }: { accountants: Accountant[] }) {
         )}
       </section>
 
-      {viewing && <CallDetailModal callId={viewing} onClose={() => setViewing(null)} />}
+      {viewingCallId && <CallDetailModal callId={viewingCallId} onClose={() => onViewCall(null)} />}
     </>
   );
 }

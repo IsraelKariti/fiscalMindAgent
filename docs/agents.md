@@ -344,6 +344,17 @@ the coming-soon pane's back target. A
 today — the monday custom object was unpinned from `doc_collector` once
 `customer_service` shipped, so it shows the same shell as the standalone app.
 
+Workspace navigation lives in the URL hash on standalone surfaces
+(`components/workspaceRoute.ts`), so a specific agent + client (conversation)
+is deep-linkable: `#/agents/:instanceId/clients/:clientId`, prefixed
+`#/as/:email/…` during impersonation (`/as/` is its own namespace because
+`#/accountants/:email/agents/:type` is the admin drill-down). An admin
+opening an `/as/` link without impersonating lands on that accountant's
+admin page with the hash preserved, so "view as" continues straight to the
+linked client. monday surfaces don't get hash routing (the iframe URL
+belongs to monday) — `Workspace` falls back to in-memory navigation there
+(`hashRouting` prop, set only by the standalone `App.tsx`).
+
 ## Adding an agent type (checklist)
 
 1. `src/agents/<type>/index.ts` — the `AgentTypeDefinition` (see

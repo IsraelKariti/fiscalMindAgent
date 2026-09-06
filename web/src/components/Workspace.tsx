@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { agentApi, api, type AgentInstance, type Client, type MailboxStatus } from '../api';
 import { ClientsRefreshProvider, WorkspaceApiProvider } from '../agents/ApiContext';
@@ -12,12 +12,7 @@ import { DeleteClientModal } from './DeleteClientModal';
 import { Overview } from './Overview';
 import { Settings } from './Settings';
 import { useT } from '../i18n';
-
-type View =
-  | { kind: 'client'; clientId: string }
-  | { kind: 'prompt' }
-  | { kind: 'settings' }
-  | { kind: 'empty' };
+import { useWorkspaceRoute } from './workspaceRoute';
 
 interface Props {
   userEmail: string | null;
@@ -37,6 +32,12 @@ interface Props {
    * no agents-home page and no switcher, whatever the account has enabled.
    */
   pinnedAgentType?: string;
+  /**
+   * Standalone SPA only: keep the workspace position (agent + client) in the
+   * URL hash so it is shareable/deep-linkable. monday surfaces leave it off —
+   * the iframe URL belongs to monday — and navigate in memory.
+   */
+  hashRouting?: boolean;
 }
 
 /**
@@ -52,56 +53,68 @@ export function Workspace({
   onLogout,
   renderImportPanel,
   pinnedAgentType,
+  hashRouting,
 }: Props) {
   const { t } = useT();
   const [agents, setAgents] = useState<AgentInstance[] | null>(null);
-  const [agent, setAgent] = useState<AgentInstance | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
-  const [view, setView] = useState<View>({ kind: 'empty' });
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
 
-  // Which agent workspace this shell shows. Boot always auto-enters one —
+  // Which agent workspace this shell shows and which view is open, driven by
+  // the route (URL hash on standalone, in-memory on monday — workspaceRoute.ts).
+  // Impersonation prefixes /as/:email so the link names whose workspace it is.
+  const hashBase = useMemo(
+    () => (hashRouting ? (impersonatingEmail ? ['as', impersonatingEmail] : []) : null),
+    [hashRouting, impersonatingEmail],
+  );
+  const [route, navigate, replaceRoute] = useWorkspaceRoute(hashBase);
+  // Callbacks that outlive a render (loadClients) read the route through this.
+  const routeRef = useRef(route);
+  routeRef.current = route;
+  const agentId = 'agentId' in route ? route.agentId : null;
+  const agent = (agentId && agents?.find((a) => a.id === agentId)) || null;
+
+  useEffect(() => {
+    api
+      .listAgents()
+      .then(({ agents: list }) => setAgents(list))
+      .catch(console.error);
+  }, []);
+
+  // Boot (or a link to an agent this account doesn't have) auto-enters one —
   // the pinned type, the remembered one, else the doc collector (the product's
   // core agent), else the first. The agents-home grid is never a landing page;
   // multi-agent accounts reach it only via the sidebar's "my agents" item.
   useEffect(() => {
-    api
-      .listAgents()
-      .then(({ agents: list }) => {
-        setAgents(list);
-        if (pinnedAgentType) {
-          setAgent(list.find((a) => a.agentType === pinnedAgentType) ?? list[0] ?? null);
-          return;
-        }
-        const stored = sessionStorage.getItem('fm.lastAgentId');
-        setAgent(
-          list.find((a) => a.id === stored) ??
-            list.find((a) => a.agentType === 'doc_collector') ??
-            list[0] ??
-            null,
-        );
-      })
-      .catch(console.error);
-  }, [pinnedAgentType]);
+    if (!agents) return;
+    if (route.kind !== 'boot' && (!agentId || agents.some((a) => a.id === agentId))) return;
+    const pick = pinnedAgentType
+      ? (agents.find((a) => a.agentType === pinnedAgentType) ?? agents[0] ?? null)
+      : (agents.find((a) => a.id === sessionStorage.getItem('fm.lastAgentId')) ??
+        agents.find((a) => a.agentType === 'doc_collector') ??
+        agents[0] ??
+        null);
+    replaceRoute(pick ? { kind: 'agent', agentId: pick.id } : { kind: 'home' });
+  }, [agents, route.kind, agentId, pinnedAgentType, replaceRoute]);
   useEffect(() => {
     if (agent) sessionStorage.setItem('fm.lastAgentId', agent.id);
   }, [agent]);
+  // Entering another agent drops the previous roster while the new one loads.
+  useEffect(() => {
+    setClients([]);
+  }, [agentId]);
 
   const enterAgent = (next: AgentInstance) => {
-    setClients([]);
-    setView({ kind: 'empty' });
-    setAgent(next);
+    navigate({ kind: 'agent', agentId: next.id });
   };
   const showAgentsHome = () => {
     // Explicitly leaving an agent also forgets it — a refresh from here boots
     // into the default (doc collector) rather than the forgotten agent.
     sessionStorage.removeItem('fm.lastAgentId');
-    setClients([]);
-    setView({ kind: 'empty' });
-    setAgent(null);
+    navigate({ kind: 'home' });
   };
 
   const wsApi = useMemo(() => (agent ? agentApi(agent.id) : null), [agent]);
@@ -113,28 +126,30 @@ export function Workspace({
     if (!wsApi || !lastClientKey) return;
     const { clients: list } = await wsApi.listClients();
     setClients(list);
-    setView((v) => {
-      if (v.kind !== 'empty') return v;
-      // Restore the screen viewed before a refresh: settings (which owns the
-      // dashboard tab) or the client if it still exists. 'overview' is the
-      // pre-merge name for the dashboard — map it to its new home.
-      const lastView = sessionStorage.getItem('fm.lastView');
-      if (lastView === 'overview') {
-        sessionStorage.setItem('fm.settingsTab', 'dashboard');
-        return { kind: 'settings' };
-      }
-      if (lastView === 'settings') return { kind: 'settings' };
-      const stored = sessionStorage.getItem(lastClientKey);
-      const restored = stored && list.some((c) => c.id === stored) ? stored : list[0]?.id;
-      return restored ? { kind: 'client', clientId: restored } : v;
-    });
-  }, [wsApi, lastClientKey]);
+    // An agent-level route — and a link to a client that no longer exists —
+    // resolves to the screen viewed before a refresh: settings (which owns the
+    // dashboard tab) or the last client if it still exists. 'overview' is the
+    // pre-merge name for the dashboard — map it to its new home.
+    const current = routeRef.current;
+    if (current.kind !== 'agent' && current.kind !== 'client') return;
+    if (current.kind === 'client' && list.some((c) => c.id === current.clientId)) return;
+    const lastView = sessionStorage.getItem('fm.lastView');
+    if (lastView === 'overview' || lastView === 'settings') {
+      if (lastView === 'overview') sessionStorage.setItem('fm.settingsTab', 'dashboard');
+      replaceRoute({ kind: 'settings', agentId: current.agentId });
+      return;
+    }
+    const stored = sessionStorage.getItem(lastClientKey);
+    const restored = stored && list.some((c) => c.id === stored) ? stored : list[0]?.id;
+    if (restored) replaceRoute({ kind: 'client', agentId: current.agentId, clientId: restored });
+    else if (current.kind === 'client') replaceRoute({ kind: 'agent', agentId: current.agentId });
+  }, [wsApi, lastClientKey, replaceRoute]);
 
   useEffect(() => {
-    if (view.kind === 'client' && lastClientKey) sessionStorage.setItem(lastClientKey, view.clientId);
-    if (view.kind === 'client' || view.kind === 'settings')
-      sessionStorage.setItem('fm.lastView', view.kind);
-  }, [view, lastClientKey]);
+    if (route.kind === 'client' && lastClientKey) sessionStorage.setItem(lastClientKey, route.clientId);
+    if (route.kind === 'client' || route.kind === 'settings')
+      sessionStorage.setItem('fm.lastView', route.kind);
+  }, [route, lastClientKey]);
 
   useEffect(() => {
     loadClients().catch(console.error);
@@ -168,24 +183,31 @@ export function Workspace({
     setDeleting(null);
     const remaining = clients.filter((c) => c.id !== client.id);
     setClients(remaining);
-    setView((v) =>
-      v.kind === 'client' && v.clientId === client.id
-        ? remaining[0]
-          ? { kind: 'client', clientId: remaining[0].id }
-          : { kind: 'empty' }
-        : v,
-    );
+    const current = routeRef.current;
+    if (current.kind === 'client' && current.clientId === client.id) {
+      replaceRoute(
+        remaining[0]
+          ? { kind: 'client', agentId: current.agentId, clientId: remaining[0].id }
+          : { kind: 'agent', agentId: current.agentId },
+      );
+    }
   };
 
-  // Until the agent list arrives there is no workspace to scope requests to.
-  if (!agents) {
+  // Until the agent list arrives — or the boot route resolves to an agent —
+  // there is no workspace to scope requests to.
+  if (!agents || route.kind === 'boot') {
     return <div className="screen-center muted">{t.loading}</div>;
   }
-  // No active agent: reached only when the account has no agents at all (the
-  // none-enabled message inside) or after an explicit "my agents" click —
-  // boot never lands here anymore.
-  if (!agent || !wsApi) {
+  // The agents grid: an explicit "my agents" click, or the account has no
+  // agents at all (the none-enabled message inside) — boot never lands here
+  // otherwise.
+  if (route.kind === 'home') {
     return <AgentsHome agents={agents} onSelectAgent={enterAgent} userEmail={userEmail} onLogout={onLogout} />;
+  }
+  // A route naming an agent this account doesn't have: the boot effect is
+  // already rewriting it to the default.
+  if (!agent || !wsApi) {
+    return <div className="screen-center muted">{t.loading}</div>;
   }
   // Stub agent types have no workspace yet — a full-pane "coming soon" note
   // instead of the client shell.
@@ -227,12 +249,12 @@ export function Workspace({
             if (next) enterAgent(next);
           }}
           clients={clients}
-          selectedClientId={view.kind === 'client' ? view.clientId : null}
-          promptSelected={view.kind === 'prompt'}
-          settingsSelected={view.kind === 'settings'}
-          onSelectClient={(clientId) => setView({ kind: 'client', clientId })}
-          onSelectPrompt={() => setView({ kind: 'prompt' })}
-          onSelectSettings={() => setView({ kind: 'settings' })}
+          selectedClientId={route.kind === 'client' ? route.clientId : null}
+          promptSelected={route.kind === 'prompt'}
+          settingsSelected={route.kind === 'settings'}
+          onSelectClient={(clientId) => navigate({ kind: 'client', agentId: agent.id, clientId })}
+          onSelectPrompt={() => navigate({ kind: 'prompt', agentId: agent.id })}
+          onSelectSettings={() => navigate({ kind: 'settings', agentId: agent.id })}
           onAddClient={agentUI.inboundOnlyClients || agentUI.importOnlyClients ? undefined : () => setAdding(true)}
           // Inbound-only agents are goal-less; their client dot shows the mute state instead.
           muteDots={agentUI.inboundOnlyClients}
@@ -247,25 +269,29 @@ export function Workspace({
           onLogout={onLogout}
         />
         <main className="main">
-          {view.kind === 'client' && (
+          {route.kind === 'client' && (
             <ClientView
-              key={view.clientId}
-              clientId={view.clientId}
+              key={route.clientId}
+              clientId={route.clientId}
               agentUI={agentUI}
               onClientUpdated={loadClients}
             />
           )}
-          {view.kind === 'prompt' && impersonatingEmail && <PromptSettings />}
-          {view.kind === 'settings' && (
+          {route.kind === 'prompt' && impersonatingEmail && <PromptSettings />}
+          {route.kind === 'settings' && (
             <Settings
               mailbox={mailbox}
-              dashboard={<Overview onSelectClient={(clientId) => setView({ kind: 'client', clientId })} />}
+              dashboard={
+                <Overview
+                  onSelectClient={(clientId) => navigate({ kind: 'client', agentId: agent.id, clientId })}
+                />
+              }
               agentPanel={agentUI.settingsPanel?.()}
               agentPanelTabKey={agentUI.settingsPanelTabKey}
               hideMailbox={!agentUI.channels.includes('email')}
             />
           )}
-          {view.kind === 'empty' && (
+          {route.kind === 'agent' && (
             <div className="screen-center muted">
               {agentUI.inboundOnlyClients
                 ? t.noClientsInboundWa
@@ -287,7 +313,7 @@ export function Workspace({
           onClose={() => setAdding(false)}
           onCreated={(client) => {
             setAdding(false);
-            setView({ kind: 'client', clientId: client.id });
+            navigate({ kind: 'client', agentId: agent.id, clientId: client.id });
             loadClients().catch(console.error);
           }}
         />

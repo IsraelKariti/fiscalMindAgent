@@ -7,6 +7,8 @@ import { useCallback, useEffect, useState } from 'react';
  *   #/accountants                        roster table
  *   #/accountants/:email                 one accountant's page
  *   #/accountants/:email/agents/:type    one agent of that accountant
+ *   #/as/:email/...                      impersonation deep link (workspaceRoute.ts)
+ *                                        → that accountant's page, hash untouched
  *   #/agents                             all agent instances across accountants
  *   #/usage                              LLM spend analytics
  *   #/audit                              audit trail + anomaly alerts
@@ -63,6 +65,11 @@ function parseHash(hash: string): AdminRoute {
   if (parts[0] === 'review') return { screen: 'review' };
   if (parts[0] === 'llm-calls') return { screen: 'llmCalls' };
   if (parts[0] === 'agents') return { screen: 'agents' };
+  // A workspace deep link (#/as/:email/agents/:instanceId/clients/:clientId)
+  // opened by an admin who isn't impersonating: show that accountant's page.
+  // The hash is deliberately not rewritten — it survives the "view as" reload,
+  // and the workspace then continues straight to the linked agent + client.
+  if (parts[0] === 'as' && parts[1]) return { screen: 'accountant', email: parts[1] };
   if (parts[0] === 'accountants') {
     const email = parts[1];
     if (!email) return { screen: 'accountants' };

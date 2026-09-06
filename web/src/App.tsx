@@ -31,8 +31,9 @@ export function App() {
         setIsAdmin(admin ?? false);
         setWhitelisted(allowed ?? false);
         setImpersonating(viewing ?? null);
-        // Drop a stale ?login_error= once signed in.
-        if (authenticated && window.location.search) window.history.replaceState(null, '', '/');
+        // Drop a stale ?login_error= once signed in (keep any workspace deep link).
+        if (authenticated && window.location.search)
+          window.history.replaceState(null, '', '/' + window.location.hash);
       })
       .catch(() => setAuthed(false));
   }, []);
@@ -101,6 +102,7 @@ export function App() {
         impersonatingEmail={impersonating?.email ?? null}
         onStopImpersonating={stopImpersonating}
         onLogout={requestLogout}
+        hashRouting
       />
       {logoutModal}
     </>

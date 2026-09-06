@@ -80,9 +80,11 @@ async function loadPendingDraft(
  * POST /api/admin/review/messages/:emailId/approve — clear the draft to send.
  * Before its send time this is just a stamp (the delayed job sends on
  * schedule); a parked draft is re-enqueued to send immediately. The original
- * jobId is squatted by its completed job, so the re-add uses an ':approved'
- * suffix — every jobId consumer parses by split(':') positions, which the
- * extra segment doesn't disturb.
+ * jobId is squatted by its completed job, so the re-add uses a distinct
+ * 'send_email_approved' prefix. BullMQ (5.x) rejects custom ids that don't
+ * have exactly three ':' segments, so the suffix must replace the prefix
+ * segment rather than append a fourth; every jobId consumer parses by
+ * split(':') positions [1]/[2], which still hold clientId/emailId.
  */
 export const adminApproveReviewMessage: RequestHandler = async (req, res) => {
   const target = await loadPendingDraft(req.params.emailId ?? '', res);
@@ -101,7 +103,7 @@ export const adminApproveReviewMessage: RequestHandler = async (req, res) => {
       return;
     }
     if (before.status === 'held') {
-      const jobId = `send_email:${target.clientId}:${target.draftId}:approved`;
+      const jobId = `send_email_approved:${target.clientId}:${target.draftId}`;
       await sendEmailQueue.add('send_email', { clientId: target.clientId, emailId: target.draftId }, { jobId });
       await scheduledJobs.upsertForClient(target.clientId, jobId, new Date());
     }

@@ -292,7 +292,7 @@ export function AdminSettings({ userEmail }: Props) {
               {LLM_CALL_PURPOSES.map((purpose) => (
                 <label key={purpose} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span>{t.llmPurposeLabels[purpose] ?? humanizePurpose(purpose)}</span>
-                  <div className="model-picker" dir="ltr">
+                  <div className="model-picker model-picker--fill" dir="ltr">
                     <select
                       value={modelState.purposes[purpose] ?? modelState.model}
                       disabled={modelSaving}

@@ -3117,6 +3117,13 @@ button.meta-chip:hover {
   min-width: 260px;
 }
 
+/* Per-purpose model grid: the select spans its whole cell so it shares
+   both edges with the label above it instead of hugging the LTR start. */
+.model-picker--fill select {
+  width: 100%;
+  min-width: 0;
+}
+
 /* The WhatsApp number on the admin agent card reads as a value, not editable text */
 .settings-mailbox-address {
   font-size: 15.5px;

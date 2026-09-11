@@ -690,6 +690,8 @@ const he = {
   adminLlmCallPricesTitle: 'מחירים בזמן הקריאה (דולר למיליון טוקנים)',
   adminLlmCallSystemInstruction: 'הנחיית המערכת (system instruction)',
   adminLlmCallContents: 'תוכן הקריאה (input)',
+  adminLlmCallHistory: 'היסטוריית השיחה (תורות קודמים)',
+  adminLlmCallQuery: 'השאילתה (query)',
   adminLlmCallSchema: 'סכמת התשובה שנכפתה',
   adminLlmCallResponse: 'תשובת המודל',
   adminLlmCallErrorLabel: 'שגיאה',

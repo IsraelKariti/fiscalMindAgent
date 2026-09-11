@@ -26,27 +26,38 @@ function perMillion(rate: number | null): string {
 }
 
 /**
- * The prompt as the model saw it: the text parts of the request's `contents`,
- * not the JSON wrapper around them. Multi-turn requests keep a small role
- * marker between turns; anything unexpected falls back to pretty JSON.
+ * The text of one request turn as the model saw it: its text parts joined,
+ * binary parts as their logged placeholder ({mimeType, sizeBytes}).
  */
-function promptText(contents: unknown): string {
-  if (typeof contents === 'string') return contents;
-  if (Array.isArray(contents)) {
-    const turns: string[] = [];
-    for (const entry of contents) {
-      const e = entry as { role?: unknown; parts?: unknown };
-      if (!Array.isArray(e?.parts)) continue;
-      const texts = e.parts
-        .map((p) => (typeof (p as { text?: unknown })?.text === 'string' ? (p as { text: string }).text : null))
-        .filter((s): s is string => s !== null);
-      if (texts.length === 0) continue;
-      const body = texts.join('\n\n');
-      turns.push(contents.length > 1 && typeof e.role === 'string' ? `⟪${e.role}⟫\n${body}` : body);
-    }
-    if (turns.length > 0) return turns.join('\n\n');
+function turnText(entry: unknown): string {
+  if (typeof entry === 'string') return entry;
+  const e = entry as { parts?: unknown };
+  if (!Array.isArray(e?.parts)) return JSON.stringify(entry, null, 2);
+  const pieces = e.parts.map((p) => {
+    const part = p as { text?: unknown; inlineData?: { mimeType?: string; sizeBytes?: number } };
+    if (typeof part.text === 'string') return part.text;
+    if (part.inlineData) return `[${part.inlineData.mimeType ?? 'binary'} · ${part.inlineData.sizeBytes ?? '?'} bytes]`;
+    return JSON.stringify(p);
+  });
+  return pieces.join('\n\n');
+}
+
+/**
+ * Splits the request's `contents` into the conversation history (every turn
+ * but the last — only multi-turn requests have one) and the query (the last
+ * turn, the one the answer replies to). A string request is a single query.
+ */
+function splitContents(contents: unknown): { history: { role: string; text: string }[]; query: string } {
+  if (Array.isArray(contents) && contents.length > 0) {
+    const turns = contents.map((entry) => ({
+      role: typeof (entry as { role?: unknown })?.role === 'string' ? ((entry as { role: string }).role) : 'user',
+      text: turnText(entry),
+    }));
+    const last = turns[turns.length - 1]!;
+    return { history: turns.slice(0, -1), query: last.text };
   }
-  return JSON.stringify(contents, null, 2);
+  if (typeof contents === 'string') return { history: [], query: contents };
+  return { history: [], query: JSON.stringify(contents, null, 2) };
 }
 
 /** Pretty-prints when the text is JSON (structured-output responses); leaves prose untouched. */
@@ -79,7 +90,13 @@ function CallPane({ tone, text, ltr, copyTitle }: { tone: string; text: string; 
   );
 }
 
-function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => void }) {
+/**
+ * One LLM call's drill-down: metadata, the system prompt, the conversation
+ * history (multi-turn requests only), the query turn and the answer. Used by
+ * the admin call browser (#/llm-calls/:id) and by the admin trace inside the
+ * workspace conversation (Timeline).
+ */
+export function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => void }) {
   const { t } = useT();
   const [call, setCall] = useState<LlmCallDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +110,7 @@ function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => v
   }, [callId]);
 
   const schema = call?.request?.config?.['responseJsonSchema'];
-  const contents = call?.request?.contents;
+  const { history, query } = splitContents(call?.request?.contents);
   const response = call?.response != null && call.response.trim() !== '' ? maybePrettyJson(call.response) : null;
 
   return createPortal(
@@ -152,8 +169,20 @@ function CallDetailModal({ callId, onClose }: { callId: string; onClose: () => v
               </>
             )}
 
-            <h3>{t.adminLlmCallContents}</h3>
-            <CallPane tone="input" text={promptText(contents)} copyTitle={t.copyText} />
+            {history.length > 0 && (
+              <>
+                <h3>{t.adminLlmCallHistory}</h3>
+                {history.map((turn, i) => (
+                  <div key={i} className="llm-history-turn">
+                    <span className="badge badge-neutral mono">{turn.role}</span>
+                    <CallPane tone="input" text={turn.text} copyTitle={t.copyText} />
+                  </div>
+                ))}
+              </>
+            )}
+
+            <h3>{t.adminLlmCallQuery}</h3>
+            <CallPane tone="input" text={query} copyTitle={t.copyText} />
 
             {schema !== undefined && (
               <details>

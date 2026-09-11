@@ -15,6 +15,7 @@ import {
 import { formatFileSize, formatTimestamp, formatUsd, LOCALE } from '../format';
 import { useT } from '../i18n';
 import { useViewer } from '../agents/ApiContext';
+import { CallDetailModal } from './admin/AdminLlmCalls';
 import { FileViewModal } from './FileViewModal';
 import { SendNowModal } from './SendNowModal';
 
@@ -88,22 +89,38 @@ function readTraceToggle(kind: TraceKind): boolean {
   }
 }
 
-function TraceRow({ entry }: { entry: TraceEntry }) {
-  if (entry.kind === 'call') {
-    const c = entry.call;
-    return (
-      <li className="timeline-trace timeline-trace-call" dir="ltr" title={c.error ?? undefined}>
+/**
+ * An LLM call: just its stage name in a clickable chip; the click opens the
+ * call's drill-down (metadata, system prompt, history, query, answer). The
+ * numbers live in the chip's tooltip.
+ */
+function CallChip({ call }: { call: LlmCallSummary }) {
+  const [open, setOpen] = useState(false);
+  const tooltip = [
+    formatTimestamp(call.createdAt),
+    call.model,
+    `${call.inputTokens.toLocaleString(LOCALE)}/${call.outputTokens.toLocaleString(LOCALE)} tok`,
+    call.cost === null ? '—' : formatUsd(call.cost),
+    ...(call.error ? [call.error] : []),
+  ].join(' · ');
+  return (
+    <li className="timeline-trace timeline-trace-call" dir="ltr">
+      <button
+        type="button"
+        className={`timeline-trace-chip ${call.status === 'error' ? 'timeline-trace-chip-error' : ''}`}
+        title={tooltip}
+        onClick={() => setOpen(true)}
+      >
         <span className="timeline-trace-icon" aria-hidden="true">🤖</span>
-        <span className="muted">{formatTimestamp(c.createdAt)}</span>
-        <span className="mono">{c.purpose}</span>
-        <span className="muted">{c.model}</span>
-        <span className="muted">
-          {c.inputTokens.toLocaleString(LOCALE)}/{c.outputTokens.toLocaleString(LOCALE)} tok · {c.cost === null ? '—' : formatUsd(c.cost)}
-        </span>
-        {c.status === 'error' && <span className="badge badge-danger">error</span>}
-      </li>
-    );
-  }
+        <span className="mono">{call.purpose}</span>
+      </button>
+      {open && <CallDetailModal callId={call.id} onClose={() => setOpen(false)} />}
+    </li>
+  );
+}
+
+function TraceRow({ entry }: { entry: TraceEntry }) {
+  if (entry.kind === 'call') return <CallChip call={entry.call} />;
   const s = entry.step;
   const result = typeof s.detail['result'] === 'boolean' ? (s.detail['result'] as boolean) : null;
   const reason = typeof s.detail['reason'] === 'string' && s.detail['reason'] !== '' ? String(s.detail['reason']) : null;

@@ -3989,3 +3989,38 @@ button.meta-chip:hover {
 .timeline-trace-reason {
   overflow-wrap: anywhere;
 }
+
+/* LLM call chip in the admin trace: the stage name only, click → drill-down. */
+.timeline-trace-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(99, 102, 241, 0.14) 50%, rgba(34, 211, 238, 0.12));
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.timeline-trace-chip:hover,
+.timeline-trace-chip:focus-visible {
+  border-color: rgba(168, 85, 247, 0.85);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+  outline: none;
+}
+.timeline-trace-chip-error {
+  border-color: rgba(251, 113, 133, 0.7);
+  background: rgba(251, 113, 133, 0.14);
+}
+.llm-history-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.llm-history-turn .badge {
+  align-self: flex-start;
+}

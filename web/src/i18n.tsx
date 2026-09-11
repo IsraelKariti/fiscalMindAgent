@@ -539,6 +539,10 @@ const he = {
   analysisTaxYear: (year: string) => `שנת מס ${year}`,
   analysisNotLegible: 'לא קריא',
   analysisSuspicious: 'תוכן חשוד',
+  analysisBlocked: 'נחסם — תוכן חשוד',
+  analysisBlockedTitle: 'מסנן ההזרקות זיהה בקובץ טקסט שמנסה להנחות את סוכן ה-AI. הקובץ הוסגר: לא סווג, לא ייחשב כהוכחה ולא יקושר למסמך.',
+  messageBlocked: 'ההודעה נחסמה — תוכן חשוד',
+  messageBlockedTitle: 'מסנן ההזרקות זיהה בהודעה ניסיון להנחות את סוכן ה-AI. תוכן ההודעה לא הוצג לסוכן; הלקוח קיבל תשובה קבועה.',
   analysisSuspiciousTitle: 'הקובץ מכיל טקסט שמנסה להנחות את סוכן ה-AI (חשד להזרקת הוראות). הקובץ לא ייחשב כהוכחה לקבלת מסמך או תשלום.',
 
   // AddClientModal

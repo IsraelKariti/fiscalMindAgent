@@ -4061,3 +4061,8 @@ button.meta-chip:hover {
 .usage-breakdown td[dir='ltr'] {
   text-align: end;
 }
+
+/* An inbound message the injection screen withheld from the agent (054). */
+.bubble-blocked {
+  margin-top: 6px;
+}

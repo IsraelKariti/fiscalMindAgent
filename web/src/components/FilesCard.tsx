@@ -12,6 +12,13 @@ interface Props {
 /** The content-analysis verdict line under a file, or a status badge when there is none. */
 function AnalysisLine({ file }: { file: DocumentFile }) {
   const { t } = useT();
+  if (file.analysis_status === 'blocked') {
+    return (
+      <span className="badge badge-danger" title={t.analysisBlockedTitle}>
+        {t.analysisBlocked}
+      </span>
+    );
+  }
   if (file.analysis_status !== 'done' || !file.analysis) {
     const label =
       file.analysis_status === 'failed'

@@ -1,5 +1,5 @@
 import { pool } from '../pool.js';
-import type { DocumentFileRow, FileAnalysis, FileAnalysisStatus } from '../types.js';
+import type { DocumentFileRow, FileAnalysis, FileAnalysisStatus, InjectionBlock } from '../types.js';
 
 export async function listForClient(clientId: string): Promise<DocumentFileRow[]> {
   const { rows } = await pool.query<DocumentFileRow>(
@@ -61,6 +61,14 @@ export async function setAnalysis(id: string, status: FileAnalysisStatus, analys
   await pool.query(
     `UPDATE document_files SET analysis_status = $2, analysis = $3, analyzed_at = now() WHERE id = $1`,
     [id, status, analysis === null ? null : JSON.stringify(analysis)],
+  );
+}
+
+/** The injection screen flagged the file: quarantined before classification (054). */
+export async function setBlocked(id: string, blocked: InjectionBlock): Promise<void> {
+  await pool.query(
+    `UPDATE document_files SET analysis_status = 'blocked', analysis = NULL, blocked = $2, analyzed_at = now() WHERE id = $1`,
+    [id, JSON.stringify(blocked)],
   );
 }
 

@@ -9,11 +9,14 @@ import type { DocumentFileRow } from '../../db/types.js';
  */
 
 /**
- * The file's content analysis is untrustworthy: the analyzer flagged
- * instruction-like content addressed at an AI, or couldn't read the file.
+ * The file's content analysis is untrustworthy: the injection screen blocked
+ * the file, the analyzer flagged instruction-like content addressed at an AI,
+ * or it couldn't read the file.
  * Quarantined files never count as evidence and are surfaced as suspicious.
  */
 export function isQuarantined(file: DocumentFileRow): boolean {
+  // The injection screen blocked it before classification (054).
+  if (file.analysis_status === 'blocked') return true;
   if (file.analysis_status !== 'done' || !file.analysis) return false;
   return file.analysis.injection_suspected === true || !file.analysis.legible;
 }

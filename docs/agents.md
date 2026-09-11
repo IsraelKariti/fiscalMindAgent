@@ -676,3 +676,48 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   (detection never auto-acts): `recordAudit` and the anomaly scan are NOT
   kill-switch-gated — they are the layer that must keep seeing during an
   incident.
+
+## Code gates and the three injection layers (2026-09-11)
+
+Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
+
+- **Every LLM result is followed by a named code gate**, audited as one row
+  per run with `detail.result: true|false` and the reason:
+  `injection_detection_regex`, `validate_injection_scan`,
+  `validate_form_resolutions`, `validate_classification`, `validate_message`
+  (one per decide attempt), `verify_extraction` (with the per-check table).
+  A gate never flips a security verdict: it drops or rejects, it does not
+  make a "suspected" answer "clean". Pure rules modules (no llm/db/audit
+  imports, tests run without an API key): `shared/injectionRegex.ts`,
+  `shared/injectionScanRules.ts`, `docCollector/analyzeFileRules.ts`,
+  `declarationOfCapital/formIntakeRules.ts`, `verifyChecks.ts`,
+  `docCollector/decisionSchema.ts`.
+- **Request builders**: each stage exports the exact `generate()` request it
+  sends (`buildFormIntakeCall`, `buildInjectionScreenCall` /
+  `buildFileScreenCall`, `buildAnalysisCall`, `buildExtractionCall`,
+  `buildDecisionCall`) and the runtime does `runLlmCall(build…(), { log })`
+  (`gemini/llmCall.ts`). The evals harness (`evals/`) calls the same builders
+  with a per-call `model` override and a file log sink, so it tests what the
+  app sends and leaves no trace in `llm_calls`.
+- **Three injection layers on every untrusted input** — form answers
+  (`formIntake.ts`), every inbound message (`docCollector/screenInbound.ts`,
+  before planning) and every attached file (`docCollector/analyzeInboundFile.ts`,
+  before classification): (1) `injection_detection_regex` — eleven named
+  patterns, first hit wins, no model; for a PDF also over the text layer
+  `shared/fileText.ts` can read (dependency-free; Hebrew CID fonts come out as
+  glyph ids, so '' / short text means "not checkable", never "clean");
+  (2) `injection_screen` — the dedicated LLM scan, a text variant and a
+  multimodal file variant (margins, footers, tiny/low-contrast text), fails
+  closed; (3) `validate_injection_scan` — a hit must quote the reviewed text
+  verbatim, a clean verdict carries no evidence, a rejected proof never flips
+  a hit. A hit on a message sets `emails.blocked` (migration 054): the
+  transcript shows `[message withheld …]`, the client gets a fixed WhatsApp
+  reply with no model consulted (`BLOCKED_REPLY_HE`), and the re-plan still
+  runs so the follow-up chain survives. A hit on a file sets
+  `document_files.analysis_status = 'blocked'` + `blocked`: quarantined before
+  classification (`isQuarantined`), never evidence, never linked. Both audit
+  `message.blocked` / `file.blocked` plus `injection.cycle_suppressed`.
+- **Classification cross-check**: capital-declaration files answer with a
+  closed `document_type` (catalog keys + `other`, `CAPITAL_DOCUMENT_TYPE_VALUES`);
+  `validateClassification` drops a matched id the model was not shown or
+  whose row type disagrees with `document_type`.

@@ -109,7 +109,15 @@ export interface ClientDocument {
   updated_at: string;
 }
 
-export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported';
+/** 'blocked': the injection screen flagged the file before classification — quarantined, never analyzed. */
+export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked';
+
+/** What the injection screen found on a withheld message / blocked file. */
+export interface InjectionBlock {
+  detector: 'regex' | 'llm';
+  kind: string | null;
+  evidence: string | null;
+}
 
 /** Gemini's verdict from reading the file's actual contents at ingestion. */
 export interface FileAnalysis {
@@ -136,6 +144,8 @@ export interface DocumentFile {
   size_bytes: string;
   analysis_status: FileAnalysisStatus;
   analysis: FileAnalysis | null;
+  /** Set with analysis_status 'blocked'. */
+  blocked?: InjectionBlock | null;
   analyzed_at: string | null;
   created_at: string;
 }
@@ -153,6 +163,8 @@ export interface Email {
   body: string;
   /** LLM's internal explanation for the follow-up decision (send time etc.); outbound only. */
   reasoning: string | null;
+  /** Inbound only: the injection screen withheld this message from the agent. */
+  blocked?: InjectionBlock | null;
   sent_at: string | null;
   created_at: string;
 }

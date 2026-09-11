@@ -17,6 +17,7 @@ function fileWith(analysis: Partial<FileAnalysis> | null, status: DocumentFileRo
     size_bytes: '1000',
     sha256: 'x',
     analysis_status: status,
+    blocked: null,
     analysis:
       analysis === null
         ? null
@@ -73,4 +74,11 @@ test('unanalyzed or failed files are never verified evidence (and never quaranti
     assert.equal(isVerifiedLegibleFile(file), false);
     assert.equal(fileMatchesDocument(file, 'doc-9'), false);
   }
+});
+
+test('a file the injection screen blocked (054) is quarantined regardless of analysis', () => {
+  const blocked = fileWith(null, 'blocked');
+  assert.equal(isQuarantined(blocked), true);
+  assert.equal(isVerifiedLegibleFile(blocked), false);
+  assert.equal(fileMatchesDocument(blocked, 'doc-1'), false);
 });

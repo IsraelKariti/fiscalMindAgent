@@ -1,5 +1,5 @@
 import { pool } from '../pool.js';
-import type { EmailRow, MessageChannel } from '../types.js';
+import type { EmailRow, InjectionBlock, MessageChannel } from '../types.js';
 
 /** Chronological history usable for LLM prompt context: sent outbound mail + received inbound mail only. */
 export async function listForClient(clientId: string): Promise<EmailRow[]> {
@@ -108,6 +108,11 @@ export async function insertInboundIfNew(
  * secrets (tax-portal OTPs) after they have been consumed — the code has no
  * reason to live in the DB, and the conversation UI shows the masked body.
  */
+/** The injection screen withheld this inbound message from the planner (054). */
+export async function markBlocked(id: string, blocked: InjectionBlock): Promise<void> {
+  await pool.query(`UPDATE emails SET blocked = $2 WHERE id = $1`, [id, JSON.stringify(blocked)]);
+}
+
 export async function overwriteBody(id: string, body: string): Promise<void> {
   await pool.query('UPDATE emails SET body = $2 WHERE id = $1', [id, body]);
 }

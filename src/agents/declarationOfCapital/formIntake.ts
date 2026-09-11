@@ -5,7 +5,7 @@ import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import { recordAudit } from '../../audit/audit.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
-import { screenForInjection } from '../shared/injectionScreen.js';
+import { runInjectionRegexStep, screenForInjection } from '../shared/injectionScreen.js';
 import { logger } from '../../util/logger.js';
 import { getCatalogType } from './catalog.js';
 import {
@@ -161,16 +161,25 @@ export async function applyFormIntake(
   // covers everything.
   if (answered.length === 0) return { applied: 0 };
 
-  // Dedicated injection screen BEFORE the mapping call: the mapping model
+  // The three injection layers BEFORE the mapping call: the mapping model
   // carries no detection duty, so nothing untrusted may reach it unscreened.
+  // Step 1, regex (no model): a hit stops the intake here — the model never
+  // sees the text. Step 2, the dedicated LLM screen + step 3, its code gate.
   // Fails closed — a screen failure (throw) aborts the intake the same way a
   // suspected injection does, and the interview covers everything.
-  const screen = await screenForInjection(
-    answered.map((a) => `${a.question}: ${a.answer}`),
-    { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id },
-  );
+  const screenCtx = {
+    userId: client.user_id,
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    source: 'form_intake' as const,
+  };
+  const snippets = answered.map((a) => `${a.question}: ${a.answer}`);
+  const regexHit = runInjectionRegexStep(snippets.join('\n'), screenCtx);
+  const screen = regexHit
+    ? { suspected: true, evidence: regexHit.evidence, detector: 'regex' as const, kind: regexHit.kind }
+    : { ...(await screenForInjection(snippets, screenCtx)), detector: 'llm' as const, kind: null };
   if (screen.suspected) {
-    logger.warn('form intake: injection screen flagged the form answers — intake skipped', { clientId: client.id });
+    logger.warn('form intake: injection screen flagged the form answers — intake skipped', { clientId: client.id, detector: screen.detector });
     recordAudit({
       actorType: 'agent',
       action: 'injection.cycle_suppressed',
@@ -182,6 +191,8 @@ export async function applyFormIntake(
         agent: 'declaration_of_capital',
         clientName: client.name,
         source: 'form_intake_screen',
+        detector: screen.detector,
+        kind: screen.kind,
         ...(screen.evidence ? { evidence: screen.evidence.slice(0, 500) } : {}),
       },
     });

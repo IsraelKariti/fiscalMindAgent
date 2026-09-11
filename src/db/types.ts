@@ -171,7 +171,16 @@ export interface ClientDocumentRow {
   updated_at: Date;
 }
 
-export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported';
+/** 'blocked' (054): the injection screen flagged the file before classification — quarantined, never analyzed. */
+export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked';
+
+/** What the injection screen found on a withheld message / blocked file (054). */
+export interface InjectionBlock {
+  detector: 'regex' | 'llm';
+  /** The regex pattern that fired; null for the LLM scan. */
+  kind: string | null;
+  evidence: string | null;
+}
 
 /** Gemini's verdict from reading the file's actual contents (FileAnalysisSchema in gemini/analyzeFile.ts). */
 export interface FileAnalysis {
@@ -204,6 +213,8 @@ export interface DocumentFileRow {
   sha256: string;
   analysis_status: FileAnalysisStatus;
   analysis: FileAnalysis | null;
+  /** Set with analysis_status 'blocked' (054). */
+  blocked: InjectionBlock | null;
   analyzed_at: Date | null;
   created_at: Date;
 }
@@ -243,6 +254,8 @@ export interface EmailRow {
   review_status: ReviewStatus | null;
   /** When the worker parked this draft unapproved at its send time (048). */
   held_at: Date | null;
+  /** Inbound only (054): the injection screen withheld this message from the planner. */
+  blocked: InjectionBlock | null;
   sent_at: Date | null;
   created_at: Date;
 }

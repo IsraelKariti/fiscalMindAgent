@@ -363,14 +363,25 @@ export function Timeline({
                   {(email.body !== '' || attachments.length === 0) && (
                     <div className="bubble-body" dir="auto">{email.body}</div>
                   )}
+                  {email.blocked && (
+                    <div className="bubble-blocked">
+                      <span className="badge badge-danger" title={t.messageBlockedTitle}>{t.messageBlocked}</span>
+                    </div>
+                  )}
                   {attachments.length > 0 && (
                     <div className="bubble-attachments">
                       {attachments.map((file) => (
                         <button
                           key={file.id}
                           type="button"
-                          className={`attachment-chip ${file.analysis?.injection_suspected ? 'attachment-chip-danger' : ''}`}
-                          title={file.analysis?.injection_suspected ? t.analysisSuspiciousTitle : file.filename}
+                          className={`attachment-chip ${file.analysis?.injection_suspected || file.analysis_status === 'blocked' ? 'attachment-chip-danger' : ''}`}
+                          title={
+                            file.analysis_status === 'blocked'
+                              ? t.analysisBlockedTitle
+                              : file.analysis?.injection_suspected
+                                ? t.analysisSuspiciousTitle
+                                : file.filename
+                          }
                           onClick={() => setViewingFile(file)}
                         >
                           <span className="attachment-chip-icon">

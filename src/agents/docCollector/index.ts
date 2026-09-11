@@ -3,6 +3,7 @@ import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { planFollowUp } from './plan.js';
 import { analyzeInboundFile } from './analyzeInboundFile.js';
+import { screenInboundMessage } from './screenInbound.js';
 import { buildRouter } from './router.js';
 import { maybeHandleOtpInbound } from './taxFetch/inboundOtp.js';
 import type { AgentTypeDefinition } from '../types.js';
@@ -22,6 +23,9 @@ export const docCollectorAgent: AgentTypeDefinition = {
     // A WhatsApp reply carrying the tax-authority OTP is time-critical: route it
     // straight to the worker without an LLM round-trip or a re-plan.
     if (await maybeHandleOtpInbound(ctx, evt)) return;
+    // The three injection layers on the message text, before any planning: a
+    // hit withholds the text from the planner and answers with a fixed reply.
+    await screenInboundMessage(ctx, evt);
     // A reply (or backfilled files) always obsoletes the pending send; the
     // re-plan drafts the next one. Locked so a concurrent worker send and this
     // re-plan can't interleave.

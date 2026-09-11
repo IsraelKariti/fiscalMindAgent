@@ -125,40 +125,67 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
         {!call && !error && <p className="muted">{t.loading}</p>}
         {call && (
           <>
-            <p className="muted">
-              {formatTimestamp(call.createdAt)}
-              {' · '}
-              {MODEL_LABELS[call.model] ?? call.model}
-              {' · '}
-              {t.llmPurposeLabels[call.purpose] ?? call.purpose}
-              {call.clientName ? ` · ${displayClientName(call.clientName)}` : ''}
-            </p>
-            <p className="muted">
-              {t.adminLlmCallStageKey}: <span className="mono" dir="ltr">{call.purpose}</span>
-            </p>
-            <p className="muted" dir="ltr" style={{ textAlign: 'right' }}>
-              {t.inputTokens}: {call.inputTokens.toLocaleString(LOCALE)}
-              {' · '}
-              {t.outputTokens}: {call.outputTokens.toLocaleString(LOCALE)}
-              {' · '}
-              {t.thinkingTokens}: {call.thinkingTokens.toLocaleString(LOCALE)}
-              {' · '}
-              {t.cachedTokens}: {call.cachedTokens.toLocaleString(LOCALE)}
-              {' · '}
-              {t.totalCost}: {call.cost !== null ? formatUsd(call.cost) : '—'}
-              {' · '}
-              {t.adminLlmCallMetaAttempts}: {call.attempts}
-              {call.durationMs !== null ? ` · ${(call.durationMs / 1000).toFixed(1)}s` : ''}
-            </p>
-            <p className="muted" dir="ltr" style={{ textAlign: 'right' }}>
-              {t.adminLlmCallPricesTitle}: {t.inputTokens} {perMillion(call.inputPricePerToken)}
-              {' · '}
-              {t.outputTokens} {perMillion(call.outputPricePerToken)}
-              {' · '}
-              {t.thinkingTokens} {perMillion(call.thinkingPricePerToken)}
-              {' · '}
-              {t.cachedTokens} {perMillion(call.cachedPricePerToken)}
-            </p>
+            {/* Stage header: the human label, the technical key, the outcome. */}
+            <div className="llm-meta-head">
+              <span className="llm-meta-stage">{t.llmPurposeLabels[call.purpose] ?? call.purpose}</span>
+              <span className="badge badge-neutral mono" dir="ltr" title={t.adminLlmCallStageKey}>
+                {call.purpose}
+              </span>
+              {call.status === 'error' ? (
+                <span className="badge badge-danger">{t.adminLlmCallsStatusError}</span>
+              ) : (
+                <span className="badge badge-success">{t.adminLlmCallStatusOk}</span>
+              )}
+            </div>
+
+            {/* Who / when / what — labelled fields, not a dotted sentence. */}
+            <dl className="detail-grid llm-meta-grid">
+              <div>
+                <dt>{t.adminLlmCallsColWhen}</dt>
+                <dd>{formatTimestamp(call.createdAt)}</dd>
+              </div>
+              <div>
+                <dt>{t.adminLlmCallsColModel}</dt>
+                <dd>{MODEL_LABELS[call.model] ?? call.model}</dd>
+              </div>
+              <div>
+                <dt>{t.adminLlmCallsColClient}</dt>
+                <dd>{call.clientName ? displayClientName(call.clientName) : '—'}</dd>
+              </div>
+              <div>
+                <dt>{t.adminLlmCallMetaAttempts}</dt>
+                <dd>{call.attempts}</dd>
+              </div>
+              <div>
+                <dt>{t.adminLlmCallsColDuration}</dt>
+                <dd>{call.durationMs !== null ? `${(call.durationMs / 1000).toFixed(1)}s` : '—'}</dd>
+              </div>
+            </dl>
+
+            {/* Tokens by kind, each with the price it was billed at, plus the total. */}
+            <div className="llm-meta-tiles">
+              {(
+                [
+                  [t.inputTokens, call.inputTokens, call.inputPricePerToken],
+                  [t.outputTokens, call.outputTokens, call.outputPricePerToken],
+                  [t.thinkingTokens, call.thinkingTokens, call.thinkingPricePerToken],
+                  [t.cachedTokens, call.cachedTokens, call.cachedPricePerToken],
+                ] as const
+              ).map(([label, count, rate]) => (
+                <div key={label} className="llm-meta-tile">
+                  <span className="stat-label">{label}</span>
+                  <span className="llm-meta-value">{count.toLocaleString(LOCALE)}</span>
+                  <span className="llm-meta-sub" dir="ltr">
+                    {perMillion(rate)} {t.adminLlmCallPerMillion}
+                  </span>
+                </div>
+              ))}
+              <div className="llm-meta-tile llm-meta-tile-total">
+                <span className="stat-label">{t.totalCost}</span>
+                <span className="llm-meta-value" dir="ltr">{call.cost !== null ? formatUsd(call.cost) : '—'}</span>
+                <span className="llm-meta-sub">{t.adminLlmCallPricesTitle}</span>
+              </div>
+            </div>
             {call.error && (
               <div className="error-banner" dir="ltr">
                 {t.adminLlmCallErrorLabel}: {call.error}

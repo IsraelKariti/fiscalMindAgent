@@ -60,6 +60,17 @@ export interface InsertLlmCall {
   response: string | null;
 }
 
+/** Priced spend (SUM(cost), unpriced rows count as 0) of calls since `since`, platform-wide or for one instance — the budget cap's meter. */
+export async function spentSince(since: Date, agentInstanceId?: string): Promise<number> {
+  const { rows } = await pool.query<{ spent: string | null }>(
+    agentInstanceId
+      ? 'SELECT SUM(cost)::float8 AS spent FROM llm_calls WHERE created_at >= $1 AND agent_instance_id = $2'
+      : 'SELECT SUM(cost)::float8 AS spent FROM llm_calls WHERE created_at >= $1',
+    agentInstanceId ? [since, agentInstanceId] : [since],
+  );
+  return Number(rows[0]?.spent ?? 0) || 0;
+}
+
 export async function insert(call: InsertLlmCall): Promise<void> {
   await pool.query(
     `INSERT INTO llm_calls (

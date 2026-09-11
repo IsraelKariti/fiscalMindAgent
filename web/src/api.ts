@@ -472,6 +472,13 @@ export interface KillSwitchState {
 }
 
 /** The Gemini model every LLM call runs on, for every accountant and client. */
+/** The LLM spend cap (GET/PUT /admin/llm-budget): daily USD ceilings (0 = unlimited) and today's priced spend. */
+export interface LlmBudgetState {
+  platformDailyUsd: number;
+  instanceDailyUsd: number;
+  spentTodayUsd: number;
+}
+
 export interface GeminiModelState {
   model: string;
   /** True when set by an admin; false while running on the server's env default. */
@@ -948,6 +955,9 @@ export const api = {
   adminListOrphanedWaNumbers: () => request<{ numbers: OrphanedWaNumber[] }>('/admin/wa-numbers/orphaned'),
   adminReleaseOrphanedWaNumber: (phoneNumber: string) =>
     request<{ ok: true }>('/admin/wa-numbers/release', { method: 'POST', body: JSON.stringify({ phoneNumber }) }),
+  adminGetLlmBudget: () => request<LlmBudgetState>('/admin/llm-budget'),
+  adminSetLlmBudget: (budget: { platformDailyUsd: number; instanceDailyUsd: number }) =>
+    request<LlmBudgetState>('/admin/llm-budget', { method: 'PUT', body: JSON.stringify(budget) }),
   adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),

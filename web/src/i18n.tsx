@@ -822,6 +822,16 @@ const he = {
   llmModelSaved: 'נשמר. כל הקריאות הבאות ישתמשו במודל הזה.',
   llmModelLoadFailed: 'טעינת הגדרת המודל נכשלה.',
   llmModelSaveFailed: 'שמירת המודל נכשלה.',
+  llmBudgetTitle: 'תקרת הוצאה למודלים',
+  llmBudgetDesc:
+    'תקרה יומית בדולרים להוצאה על קריאות למודלים — לכל הפלטפורמה ולכל סוכן בנפרד. כשתקרה מושגת, כל קריאה נוספת נדחית לפני שנשלחת, נרשמת ביומן הביקורת כאירוע קריטי ומפעילה התראה למנהלים. 0 = ללא תקרה.',
+  llmBudgetSpentToday: (spent: number, platformCap: number) =>
+    platformCap > 0 ? `הוצאה היום: $${spent.toFixed(2)} מתוך $${platformCap.toFixed(2)}` : `הוצאה היום: $${spent.toFixed(2)} (ללא תקרה)`,
+  llmBudgetPlatformLabel: 'תקרה יומית לפלטפורמה ($)',
+  llmBudgetInstanceLabel: 'תקרה יומית לכל סוכן ($)',
+  llmBudgetSaved: 'התקרות נשמרו.',
+  llmBudgetLoadFailed: 'טעינת תקרת ההוצאה נכשלה.',
+  llmBudgetSaveFailed: 'שמירת התקרות נכשלה — יש להזין סכומים לא שליליים.',
   llmModelEnvDefault: 'ברירת המחדל של השרת',
   killSwitchTitle: 'מתג חירום כללי',
   killSwitchDesc:

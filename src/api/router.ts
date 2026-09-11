@@ -18,6 +18,7 @@ import {
   adminEnableAgent,
   adminGetKillSwitch,
   adminDeleteAccountant,
+  adminGetLlmBudget,
   adminGetModel,
   adminGrantAdmin,
   adminListAccountantAgents,
@@ -31,6 +32,7 @@ import {
   adminSetAgentEmail,
   adminSetAgentTaxYear,
   adminSetKillSwitch,
+  adminSetLlmBudget,
   adminSetModel,
   adminSetPurposeModel,
   adminSetWhitelistHebrewName,
@@ -113,6 +115,8 @@ apiRouter.post('/admin/alerts/:id/ack', wrap(requireAdmin), wrap(adminAckAlert))
 apiRouter.get('/admin/model', wrap(requireAdmin), wrap(adminGetModel));
 apiRouter.put('/admin/model', wrap(requireAdmin), wrap(adminSetModel));
 apiRouter.put('/admin/model/purpose', wrap(requireAdmin), wrap(adminSetPurposeModel));
+apiRouter.get('/admin/llm-budget', wrap(requireAdmin), wrap(adminGetLlmBudget));
+apiRouter.put('/admin/llm-budget', wrap(requireAdmin), wrap(adminSetLlmBudget));
 apiRouter.get('/admin/kill-switch', wrap(requireAdmin), wrap(adminGetKillSwitch));
 apiRouter.put('/admin/kill-switch', wrap(requireAdmin), wrap(adminSetKillSwitch));
 apiRouter.get('/admin/admins', wrap(requireAdmin), wrap(adminListAdmins));

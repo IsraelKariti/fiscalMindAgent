@@ -23,6 +23,7 @@ import {
   saveGeminiModel,
   savePurposeModel,
 } from '../gemini/modelSettings.js';
+import { getBudgetState, saveBudgetSettings } from '../gemini/budget.js';
 import { auditAdminMutation } from '../audit/adminAudit.js';
 import { markNumberAsPooled } from '../twilio/provision.js';
 import { logger } from '../util/logger.js';
@@ -551,6 +552,30 @@ export const adminSetPurposeModel: RequestHandler = async (req, res) => {
   await savePurposeModel(parsed.data.purpose, parsed.data.model);
   logger.info('llm per-call model changed', { adminUserId: req.realUserId, ...parsed.data });
   res.json(await modelStateResponse());
+};
+
+const BudgetSchema = z
+  .object({
+    platformDailyUsd: z.number().min(0).max(100_000),
+    instanceDailyUsd: z.number().min(0).max(100_000),
+  })
+  .strict();
+
+/** GET /api/admin/llm-budget — the daily spend ceilings and today's priced spend. */
+export const adminGetLlmBudget: RequestHandler = async (_req, res) => {
+  res.json(await getBudgetState());
+};
+
+/** PUT /api/admin/llm-budget — set the ceilings (0 = unlimited). Every further call is refused once one is reached. */
+export const adminSetLlmBudget: RequestHandler = async (req, res) => {
+  const parsed = BudgetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Budgets must be non-negative USD amounts.' });
+    return;
+  }
+  await saveBudgetSettings(parsed.data);
+  logger.info('llm budget changed', { adminUserId: req.realUserId, ...parsed.data });
+  res.json(await getBudgetState());
 };
 
 /** PUT /api/admin/model — switch every LLM call, for every accountant and client, to this model. */

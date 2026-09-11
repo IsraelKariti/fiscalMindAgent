@@ -721,3 +721,19 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   closed `document_type` (catalog keys + `other`, `CAPITAL_DOCUMENT_TYPE_VALUES`);
   `validateClassification` drops a matched id the model was not shown or
   whose row type disagrees with `document_type`.
+- **Rerun after verification** (`verifyDocument.ts` → `replanAfterVerification`):
+  once a verdict lands (approved / reopened pending / stalled) the planner
+  runs one extra cycle with the `afterVerification` hint (`PlanHints` on
+  `AgentContext`, passed through `setFutureEmail(clientId, hints)`), so the
+  agent reports the outcome right away instead of waiting for the client's
+  next message. That cycle cannot collect files, so it cannot verify again —
+  no loop. Audited as `planner.rerun_after_verification`.
+- **Spend cap** (`gemini/budget.ts`, admin Settings → "תקרת הוצאה למודלים",
+  `GET/PUT /api/admin/llm-budget`): two daily USD ceilings in `app_settings`
+  (`llm_budget_daily_usd` platform-wide, `llm_budget_daily_instance_usd` per
+  agent instance) judged against today's priced `llm_calls` rows (cached per
+  process for a minute, incremented in-process per call). Reached →
+  `generateWithRetry` refuses the call before sending it, audits
+  `llm.budget_exceeded` (critical → admin alert) and throws
+  `LlmBudgetExceededError`. 0 = unlimited. Harness calls (file sink) are
+  exempt and carry their own `EVALS_MAX_SPEND_USD`.

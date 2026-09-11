@@ -7,6 +7,7 @@ import { requestForLog } from './requestLog.js';
 import { generateContentAnthropic } from './anthropic.js';
 import { generateContentOpenAI, OpenAiApiError } from './openai.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
+import { assertWithinBudget, noteSpend } from './budget.js';
 import { appendFile } from 'node:fs/promises';
 import { logger } from '../util/logger.js';
 
@@ -119,6 +120,7 @@ async function recordCall(
       await appendFile(log.sink.file, `${JSON.stringify(line)}\n`, 'utf8');
       return;
     }
+    noteSpend(log.agentInstanceId, row.cost);
     await llmCalls.insert(row);
   } catch (err) {
     logger.error('llm call logging failed', err, { purpose: log.purpose, clientId: log.clientId });
@@ -148,6 +150,12 @@ export async function generateWithRetryDetailed(
   // GPT/Claude models ride the same retry loop but are served by their own
   // APIs; each translation layer keeps the request/response Gemini-shaped.
   const provider = providerForModel(timedRequest.model);
+  // Budget kill switch (budget.ts): a production call (DB-logged) is refused
+  // before it is sent once today's ceiling is reached. Harness calls (file
+  // sink) carry their own cap and are exempt.
+  if (log && (!log.sink || log.sink === 'db')) {
+    await assertWithinBudget({ purpose: log.purpose, agentInstanceId: log.agentInstanceId, clientId: log.clientId });
+  }
   const startedAt = Date.now();
   for (let attempt = 0; ; attempt++) {
     try {

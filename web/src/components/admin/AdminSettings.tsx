@@ -6,6 +6,7 @@ import {
   type AdminUser,
   type GeminiModelState,
   type KillSwitchState,
+  type LlmBudgetState,
   type LlmCallPurpose,
   type OrphanedWaNumber,
 } from '../../api';
@@ -69,6 +70,41 @@ export function AdminSettings({ userEmail }: Props) {
       setModelNotice('save_failed');
     } finally {
       setModelSaving(false);
+    }
+  };
+
+  // The LLM spend cap: daily USD ceilings, platform-wide and per agent instance.
+  const [budget, setBudget] = useState<LlmBudgetState | null>(null);
+  const [budgetDraft, setBudgetDraft] = useState<{ platform: string; instance: string }>({ platform: '', instance: '' });
+  const [budgetNotice, setBudgetNotice] = useState<'saved' | 'load_failed' | 'save_failed' | null>(null);
+  const [budgetSaving, setBudgetSaving] = useState(false);
+
+  useEffect(() => {
+    api
+      .adminGetLlmBudget()
+      .then((b) => {
+        setBudget(b);
+        setBudgetDraft({ platform: String(b.platformDailyUsd), instance: String(b.instanceDailyUsd) });
+      })
+      .catch(() => setBudgetNotice('load_failed'));
+  }, []);
+
+  const saveBudget = async () => {
+    const platformDailyUsd = Number(budgetDraft.platform);
+    const instanceDailyUsd = Number(budgetDraft.instance);
+    if (!Number.isFinite(platformDailyUsd) || !Number.isFinite(instanceDailyUsd) || platformDailyUsd < 0 || instanceDailyUsd < 0) {
+      setBudgetNotice('save_failed');
+      return;
+    }
+    setBudgetSaving(true);
+    setBudgetNotice(null);
+    try {
+      setBudget(await api.adminSetLlmBudget({ platformDailyUsd, instanceDailyUsd }));
+      setBudgetNotice('saved');
+    } catch {
+      setBudgetNotice('save_failed');
+    } finally {
+      setBudgetSaving(false);
     }
   };
 
@@ -282,6 +318,55 @@ export function AdminSettings({ userEmail }: Props) {
             {modelSaving && <span className="muted">{t.saving}</span>}
             {modelNotice === 'saved' && <div className="ok-banner">{t.llmModelSaved}</div>}
             {modelNotice === 'save_failed' && <div className="error-banner">{t.llmModelSaveFailed}</div>}
+          </>
+        )}
+      </div>
+
+      <div className="settings-section">
+        <h3>{t.llmBudgetTitle}</h3>
+        <p className="muted">{t.llmBudgetDesc}</p>
+        {budgetNotice === 'load_failed' && !budget ? (
+          <div className="error-banner">{t.llmBudgetLoadFailed}</div>
+        ) : !budget ? (
+          <p className="muted">{t.loading}</p>
+        ) : (
+          <>
+            <p className="muted">{t.llmBudgetSpentToday(budget.spentTodayUsd, budget.platformDailyUsd)}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span>{t.llmBudgetPlatformLabel}</span>
+                <input
+                  id="llm-budget-platform"
+                  type="number"
+                  min={0}
+                  step={1}
+                  dir="ltr"
+                  value={budgetDraft.platform}
+                  disabled={budgetSaving}
+                  onChange={(e) => setBudgetDraft((d) => ({ ...d, platform: e.target.value }))}
+                />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span>{t.llmBudgetInstanceLabel}</span>
+                <input
+                  id="llm-budget-instance"
+                  type="number"
+                  min={0}
+                  step={1}
+                  dir="ltr"
+                  value={budgetDraft.instance}
+                  disabled={budgetSaving}
+                  onChange={(e) => setBudgetDraft((d) => ({ ...d, instance: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <button className="btn btn-primary" disabled={budgetSaving} onClick={() => void saveBudget()}>
+                {budgetSaving ? t.saving : t.save}
+              </button>
+            </div>
+            {budgetNotice === 'saved' && <div className="ok-banner">{t.llmBudgetSaved}</div>}
+            {budgetNotice === 'save_failed' && <div className="error-banner">{t.llmBudgetSaveFailed}</div>}
           </>
         )}
       </div>

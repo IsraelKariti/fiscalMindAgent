@@ -27,6 +27,7 @@ export type AdminRoute =
   | { screen: 'audit' }
   | { screen: 'review' }
   | { screen: 'llmCalls'; callId?: string }
+  | { screen: 'llmStages' }
   | { screen: 'settings' };
 
 export function routeHash(route: AdminRoute): string {
@@ -49,6 +50,8 @@ export function routeHash(route: AdminRoute): string {
       return '#/review';
     case 'llmCalls':
       return route.callId ? `#/llm-calls/${encodeURIComponent(route.callId)}` : '#/llm-calls';
+    case 'llmStages':
+      return '#/llm-stages';
     case 'settings':
       return '#/settings';
   }
@@ -65,6 +68,7 @@ function parseHash(hash: string): AdminRoute {
   if (parts[0] === 'audit') return { screen: 'audit' };
   if (parts[0] === 'review') return { screen: 'review' };
   if (parts[0] === 'llm-calls') return parts[1] ? { screen: 'llmCalls', callId: parts[1] } : { screen: 'llmCalls' };
+  if (parts[0] === 'llm-stages') return { screen: 'llmStages' };
   if (parts[0] === 'agents') return { screen: 'agents' };
   // A workspace deep link (#/as/:email/agents/:instanceId/clients/:clientId)
   // opened by an admin who isn't impersonating: show that accountant's page.

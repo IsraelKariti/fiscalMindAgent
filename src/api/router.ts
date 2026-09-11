@@ -52,6 +52,7 @@ import {
 import {
   adminGetClientConversation,
   adminGetLlmCall,
+  adminListLlmStages,
   adminListInstanceClients,
   adminListLlmCalls,
 } from './llmAdmin.js';
@@ -142,6 +143,7 @@ apiRouter.get('/admin/agents/:agentInstanceId/clients', wrap(requireAdmin), wrap
 apiRouter.get('/admin/clients/:clientId/conversation', wrap(requireAdmin), wrap(adminGetClientConversation));
 apiRouter.get('/admin/llm-calls', wrap(requireAdmin), wrap(adminListLlmCalls));
 apiRouter.get('/admin/llm-calls/:id', wrap(requireAdmin), wrap(adminGetLlmCall));
+apiRouter.get('/admin/llm-stages', wrap(requireAdmin), wrap(adminListLlmStages));
 apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));
 apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender));
 apiRouter.post('/admin/wa-senders/provision', wrap(requireAdmin), wrap(adminProvisionWaSender));

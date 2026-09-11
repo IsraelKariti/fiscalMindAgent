@@ -83,6 +83,25 @@ export async function listSince(since: Date, limit: number): Promise<AuditEventL
   return rows;
 }
 
+/** One client's trail, oldest first — the admin conversation viewer interleaves it with messages and LLM calls. */
+export async function listForClient(clientId: string, limit: number): Promise<AuditEventListRow[]> {
+  const { rows } = await pool.query<AuditEventListRow>(
+    `SELECT e.id, e.occurred_at, e.actor_type, e.actor_user_id, u.email AS actor_email,
+            e.agent_instance_id, ai.agent_type, ai.name AS instance_name,
+            e.client_id, c.name AS client_name,
+            e.action, e.target_type, e.target_id, e.severity, e.suspected_injection, e.detail
+     FROM audit_events e
+     LEFT JOIN users u            ON u.id = e.actor_user_id
+     LEFT JOIN agent_instances ai ON ai.id = e.agent_instance_id
+     LEFT JOIN clients c          ON c.id = e.client_id
+     WHERE e.client_id = $1
+     ORDER BY e.occurred_at DESC
+     LIMIT $2`,
+    [clientId, limit],
+  );
+  return rows.reverse();
+}
+
 export interface InstanceActionCountRow {
   agent_instance_id: string | null;
   count: number;

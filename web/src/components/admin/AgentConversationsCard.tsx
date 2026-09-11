@@ -1,18 +1,48 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { api, type AdminClient, type AdminConversation } from '../../api';
-import { displayClientName, formatTimestamp } from '../../format';
+import {
+  api,
+  type AdminClient,
+  type AdminConversation,
+  type AdminConversationMessage,
+  type AdminConversationStep,
+  type LlmCallSummary,
+} from '../../api';
+import { displayClientName, formatTimestamp, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
+
+type TimelineEntry =
+  | { kind: 'message'; at: number; message: AdminConversationMessage }
+  | { kind: 'call'; at: number; call: LlmCallSummary }
+  | { kind: 'step'; at: number; step: AdminConversationStep };
+
+/**
+ * One time-ordered list of messages, LLM calls and code steps (gates,
+ * apply_*, send_reply) — the conversation as the pipeline saw it. Ties break
+ * steps → calls → messages, so a cycle reads: inbound, regex, scan, decide,
+ * validate_message, apply_*, send_reply, outbound.
+ */
+function interleave(c: AdminConversation, withSteps: boolean): TimelineEntry[] {
+  const rank = { step: 0, call: 1, message: 2 } as const;
+  const entries: TimelineEntry[] = c.messages.map((m) => ({ kind: 'message', at: Date.parse(m.sentAt ?? m.createdAt), message: m }));
+  if (withSteps) {
+    for (const call of c.calls) entries.push({ kind: 'call', at: Date.parse(call.createdAt), call });
+    for (const step of c.steps) entries.push({ kind: 'step', at: Date.parse(step.occurredAt), step });
+  }
+  return entries.sort((a, b) => a.at - b.at || rank[a.kind] - rank[b.kind]);
+}
 
 /**
  * Admin conversation viewer: the full thread (drafts, held and sent rows) the
- * agent is having with one client. Read-only — actions on messages live in
- * the review queue (#/review).
+ * agent is having with one client, optionally interleaved with every LLM call
+ * and code step. Read-only — actions on messages live in the review queue
+ * (#/review).
  */
 function ConversationModal({ clientId, onClose }: { clientId: string; onClose: () => void }) {
   const { t } = useT();
   const [conversation, setConversation] = useState<AdminConversation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showSteps, setShowSteps] = useState(true);
 
   useEffect(() => {
     api
@@ -42,31 +72,73 @@ function ConversationModal({ clientId, onClose }: { clientId: string; onClose: (
         {!conversation && !error && <p className="muted">{t.loading}</p>}
         {conversation && conversation.messages.length === 0 && <p className="muted">{t.adminConversationEmpty}</p>}
 
-        {conversation?.messages.map((m) => {
-          const scheduled = m.direction === 'outbound' && m.status === 'draft';
-          const held = m.status === 'held' || m.reviewStatus === 'pending';
-          return (
-            <div key={m.id} style={{ marginBottom: 14 }}>
-              <p className="muted" style={{ marginBottom: 4 }}>
-                {m.direction === 'inbound' ? '⬅' : '➡'} {formatTimestamp(m.sentAt ?? m.createdAt)}
-                {' · '}
-                {m.channel === 'whatsapp' ? 'WhatsApp' : t.mwColEmail}
-                {m.isTemplate && <span className="badge badge-neutral">{t.adminMsgStatusTemplate}</span>}
-                {scheduled && !held && <span className="badge badge-pending">{t.adminMsgStatusScheduled}</span>}
-                {held && <span className="badge badge-danger">{t.adminMsgStatusHeld}</span>}
-              </p>
-              {m.subject && <p style={{ fontWeight: 600, marginBottom: 4 }}>{m.subject}</p>}
-              <div className="wa-number-display" dir="rtl" style={{ whiteSpace: 'pre-wrap', textAlign: 'right' }}>
-                {m.body}
-              </div>
-              {m.reasoning && (
-                <p className="muted" style={{ marginTop: 4 }}>
-                  {t.reviewReasoningLabel}: {m.reasoning}
+        {conversation && (
+          <label className="muted" style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10 }}>
+            <input id="admin-conversation-show-steps" type="checkbox" checked={showSteps} onChange={(e) => setShowSteps(e.target.checked)} />
+            {t.adminConversationShowSteps}
+          </label>
+        )}
+
+        {conversation &&
+          interleave(conversation, showSteps).map((entry) => {
+            if (entry.kind === 'message') {
+              const m = entry.message;
+              const scheduled = m.direction === 'outbound' && m.status === 'draft';
+              const held = m.status === 'held' || m.reviewStatus === 'pending';
+              return (
+                <div key={`m-${m.id}`} style={{ marginBottom: 14 }}>
+                  <p className="muted" style={{ marginBottom: 4 }}>
+                    {m.direction === 'inbound' ? '⬅' : '➡'} {formatTimestamp(m.sentAt ?? m.createdAt)}
+                    {' · '}
+                    {m.channel === 'whatsapp' ? 'WhatsApp' : t.mwColEmail}
+                    {m.isTemplate && <span className="badge badge-neutral">{t.adminMsgStatusTemplate}</span>}
+                    {scheduled && !held && <span className="badge badge-pending">{t.adminMsgStatusScheduled}</span>}
+                    {held && <span className="badge badge-danger">{t.adminMsgStatusHeld}</span>}
+                  </p>
+                  {m.subject && <p style={{ fontWeight: 600, marginBottom: 4 }}>{m.subject}</p>}
+                  <div className="wa-number-display" dir="rtl" style={{ whiteSpace: 'pre-wrap', textAlign: 'right' }}>
+                    {m.body}
+                  </div>
+                  {m.reasoning && (
+                    <p className="muted" style={{ marginTop: 4 }}>
+                      {t.reviewReasoningLabel}: {m.reasoning}
+                    </p>
+                  )}
+                </div>
+              );
+            }
+            if (entry.kind === 'call') {
+              const c = entry.call;
+              return (
+                <p key={`c-${c.id}`} className="muted admin-timeline-call" dir="ltr" style={{ textAlign: 'left', marginBottom: 6 }}>
+                  🤖 {formatTimestamp(c.createdAt)} · <span className="mono">{c.purpose}</span> · {c.model} ·{' '}
+                  {c.inputTokens.toLocaleString(LOCALE)}/{c.outputTokens.toLocaleString(LOCALE)} tok · {c.cost === null ? '—' : formatUsd(c.cost)}
+                  {c.status === 'error' && <span className="badge badge-danger">error</span>}{' '}
+                  <a href={`#/llm-calls/${encodeURIComponent(c.id)}`}>{t.adminConversationOpenCall}</a>
                 </p>
-              )}
-            </div>
-          );
-        })}
+              );
+            }
+            const s = entry.step;
+            const result = typeof s.detail['result'] === 'boolean' ? (s.detail['result'] as boolean) : null;
+            return (
+              <p
+                key={`s-${s.id}`}
+                className={`muted admin-timeline-step ${s.severity === 'critical' ? 'admin-timeline-critical' : ''}`}
+                dir="ltr"
+                style={{ textAlign: 'left', marginBottom: 6 }}
+                title={JSON.stringify(s.detail)}
+              >
+                {s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' ? '⚙️' : '🛡️'}{' '}
+                {formatTimestamp(s.occurredAt)} · <span className="mono">{s.action}</span>
+                {result !== null && (
+                  <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`} style={{ marginInlineStart: 6 }}>
+                    result: {String(result)}
+                  </span>
+                )}
+                {typeof s.detail['reason'] === 'string' && s.detail['reason'] !== '' && ` · ${String(s.detail['reason'])}`}
+              </p>
+            );
+          })}
 
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose}>

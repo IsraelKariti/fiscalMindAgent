@@ -6,6 +6,7 @@ import { AccountantsTable } from './admin/AccountantsTable';
 import { AdminAgents } from './admin/AdminAgents';
 import { AdminAudit } from './admin/AdminAudit';
 import { AdminLlmCalls } from './admin/AdminLlmCalls';
+import { AdminLlmStages } from './admin/AdminLlmStages';
 import { AdminOverview } from './admin/AdminOverview';
 import { AdminReview } from './admin/AdminReview';
 import { AdminSettings } from './admin/AdminSettings';
@@ -75,6 +76,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     route.screen === 'audit' ||
     route.screen === 'review' ||
     route.screen === 'llmCalls' ||
+    route.screen === 'llmStages' ||
     route.screen === 'overview' ||
     route.screen === 'agents'
       ? route.screen
@@ -157,6 +159,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             {t.adminLlmCallsTab}
           </button>
           <button
+            className={`client-tab ${activeTab === 'llmStages' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === 'llmStages'}
+            onClick={() => navigate({ screen: 'llmStages' })}
+          >
+            {t.adminLlmStagesTab}
+          </button>
+          <button
             className={`client-tab ${activeTab === 'settings' ? 'active' : ''}`}
             role="tab"
             aria-selected={activeTab === 'settings'}
@@ -212,6 +222,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             onViewCall={(callId) => navigate(callId ? { screen: 'llmCalls', callId } : { screen: 'llmCalls' })}
           />
         )}
+
+        {route.screen === 'llmStages' && <AdminLlmStages onViewCalls={() => navigate({ screen: 'llmCalls' })} />}
 
         {route.screen === 'settings' && <AdminSettings userEmail={userEmail} />}
       </main>

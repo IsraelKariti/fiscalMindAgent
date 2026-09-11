@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { describeLlmStages } from '../gemini/llmStages.js';
 import type { RequestHandler } from 'express';
 import * as agentInstances from '../db/queries/agentInstances.js';
+import * as auditEvents from '../db/queries/auditEvents.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
@@ -71,10 +73,12 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'Client not found.' });
     return;
   }
-  const [instance, accountant, thread] = await Promise.all([
+  const [instance, accountant, thread, calls, steps] = await Promise.all([
     client.agent_instance_id ? agentInstances.getById(client.agent_instance_id) : null,
     client.user_id ? users.getById(client.user_id) : null,
     emails.listFullThreadForClient(client.id),
+    llmCalls.list({ clientId: client.id, limit: 200 }),
+    auditEvents.listForClient(client.id, 500),
   ]);
   res.json({
     client: toAdminClient(client),
@@ -84,6 +88,21 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
     accountantEmail: accountant?.email ?? null,
     accountantName: accountant?.hebrew_name ?? accountant?.name ?? null,
     messages: thread.map(toAdminMessage),
+    // The same conversation as the pipeline saw it: every LLM call and every
+    // code step (gates, apply_*, send_reply) so the viewer can interleave them
+    // with the messages into one timeline.
+    calls: calls.map(toAdminCall),
+    steps: steps.map((e) => ({
+      id: e.id,
+      occurredAt: e.occurred_at,
+      actorType: e.actor_type,
+      action: e.action,
+      targetType: e.target_type,
+      targetId: e.target_id,
+      severity: e.severity,
+      suspectedInjection: e.suspected_injection,
+      detail: e.detail,
+    })),
   });
 };
 
@@ -139,6 +158,11 @@ export const adminListLlmCalls: RequestHandler = async (req, res) => {
     calls: rows.map(toAdminCall),
     nextBefore: rows.length === parsed.data.limit ? (rows[rows.length - 1]?.created_at ?? null) : null,
   });
+};
+
+/** GET /api/admin/llm-stages — every LLM stage as the code defines it (prompt templates, query layout, schema, resolved model). */
+export const adminListLlmStages: RequestHandler = async (_req, res) => {
+  res.json({ stages: await describeLlmStages() });
 };
 
 /** GET /api/admin/llm-calls/:id — one call with the exact request payload and the raw response. */

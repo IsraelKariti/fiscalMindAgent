@@ -4066,3 +4066,55 @@ button.meta-chip:hover {
 .bubble-blocked {
   margin-top: 6px;
 }
+
+/* Admin → LLM stages: one card per purpose, built from the call sites' own constants. */
+.llm-stage-card {
+  margin-bottom: 12px;
+}
+.llm-stage-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+.llm-stage-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.llm-stage-body {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.llm-stage-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.llm-placeholder {
+  background: rgba(255, 196, 0, 0.35);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+.llm-binary-part {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Admin conversation viewer: LLM calls and code steps interleaved with the messages. */
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+.admin-timeline-call,
+.admin-timeline-step {
+  font-size: 0.85rem;
+  padding-inline-start: 8px;
+  border-inline-start: 2px solid var(--border, #d0d4dc);
+}
+.admin-timeline-critical {
+  border-inline-start-color: #c0392b;
+}

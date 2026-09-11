@@ -379,6 +379,23 @@ export interface AdminConversation {
   accountantEmail: string | null;
   accountantName: string | null;
   messages: AdminConversationMessage[];
+  /** Every LLM call of this client (payloads excluded), oldest last as listed by the call log. */
+  calls: LlmCallSummary[];
+  /** Every audit row of this client (code gates, apply_* steps, security events), oldest first. */
+  steps: AdminConversationStep[];
+}
+
+/** One audit row shown as a code step in the admin conversation timeline. */
+export interface AdminConversationStep {
+  id: string;
+  occurredAt: string;
+  actorType: 'agent' | 'admin' | 'accountant' | 'system';
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  severity: 'info' | 'warning' | 'critical';
+  suspectedInjection: boolean;
+  detail: Record<string, unknown>;
 }
 
 /** One LLM API call (payloads excluded — the list view). */
@@ -472,6 +489,21 @@ export interface KillSwitchState {
 }
 
 /** The Gemini model every LLM call runs on, for every accountant and client. */
+/** One LLM stage as the code defines it (GET /admin/llm-stages): prompt templates with `{{placeholders}}`, query layout, schema, resolved model. */
+export interface LlmStage {
+  purpose: LlmCallPurpose;
+  title: string;
+  file: string;
+  gate: string;
+  model: string;
+  provider: string;
+  temperature: number;
+  placeholders: string[];
+  prompts: { variant: string; systemPrompt: string }[];
+  query: { variant: string; parts: { kind: 'text' | 'binary'; body: string }[] }[];
+  schema: Record<string, unknown>;
+}
+
 /** The LLM spend cap (GET/PUT /admin/llm-budget): daily USD ceilings (0 = unlimited) and today's priced spend. */
 export interface LlmBudgetState {
   platformDailyUsd: number;
@@ -922,6 +954,7 @@ export const api = {
     const qs = params.toString();
     return request<{ calls: LlmCallSummary[]; nextBefore: string | null }>(`/admin/llm-calls${qs ? `?${qs}` : ''}`);
   },
+  adminListLlmStages: () => request<{ stages: LlmStage[] }>('/admin/llm-stages'),
   adminGetLlmCall: (id: string) => request<{ call: LlmCallDetail }>(`/admin/llm-calls/${id}`),
   adminEnableAgent: (userId: string, agentType: string, emailLocalPart?: string, taxYear?: number) =>
     request<{ agent: AgentInstance }>(`/admin/accountants/${userId}/agents`, {

@@ -11,11 +11,10 @@ import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../sh
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
 import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/mondayStatusSync.js';
-import { capitalClientTaxYear, resolveTaxYear } from '../shared/taxYear.js';
-import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../declarationOfCapital/prompt.js';
-import { getCatalogType } from '../declarationOfCapital/catalog.js';
-import { verifyCollectedDocument } from '../declarationOfCapital/verifyDocument.js';
-import { getPromptTemplate } from '../../gemini/promptSettings.js';
+import { capitalClientTaxYear } from '../shared/taxYear.js';
+import { getCatalogType } from './catalog.js';
+import { verifyCollectedDocument } from './verifyDocument.js';
+import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState } from './decisionSchema.js';
 import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys } from './taxFetch/flow.js';
@@ -77,23 +76,21 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const { client, accountant } = ctx;
   const clientId = client.id;
   const now = new Date();
-  const agentType = ctx.instance?.agent_type ?? 'doc_collector';
-  const isCapitalDeclaration = agentType === 'declaration_of_capital';
-  // Capital declaration: the year is per client (from the monday board row) —
-  // the instance has no year. Doc collector: the admin-set instance year.
-  const taxYear = isCapitalDeclaration ? capitalClientTaxYear(client, now) : resolveTaxYear(ctx.instance, now);
-  const whatsappOnly = getAgentTypeIfKnown(agentType)?.whatsappOnly === true;
+  const agentType = ctx.instance?.agent_type ?? DECLARATION_OF_CAPITAL;
+  // The declaration year is per client (from the monday board row) — the
+  // instance has no year.
+  const taxYear = capitalClientTaxYear(client, now);
   const history = await emails.listForClient(clientId);
   let documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
   const waState = await getWaChannelState(client, now, agentType);
-  // A WhatsApp-only agent with nothing sendable has no possible follow-up —
-  // fail loudly (drafting-failed marker + manual retry) instead of asking the
-  // LLM for a message no channel can carry. Fix by assigning a sender number,
-  // opting the client in, or approving a template (waAdmin).
-  if (whatsappOnly && !waState.allowed) {
+  // The agent is WhatsApp-only: with nothing sendable there is no possible
+  // follow-up — fail loudly (drafting-failed marker + manual retry) instead of
+  // asking the LLM for a message no channel can carry. Fix by assigning a
+  // sender number, opting the client in, or approving a template (waAdmin).
+  if (!waState.allowed) {
     throw new Error(
-      `planFollowUp: agent ${agentType} is WhatsApp-only but the channel is unavailable for client ${clientId}: ${waState.unavailableReason}`,
+      `planFollowUp: the WhatsApp channel is unavailable for client ${clientId}: ${waState.unavailableReason}`,
     );
   }
   // The start_login readiness signal must come from the phone-verified WhatsApp
@@ -119,85 +116,62 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       })),
     };
   });
-  // Capital-declaration intake: what the validator lets the model resolve, and
-  // where the attestation gate stands. The request is trusted only once its
-  // draft actually SENT (sent_at set) — an abandoned draft is not a request —
-  // and only inbound messages after that send can confirm it.
-  let intake: IntakeDecisionState | undefined;
-  let attestationConfirmed = false;
-  if (isCapitalDeclaration) {
-    // The model quotes from the sanitized transcript it reads (bidi/zero-width
-    // chars stripped, fences defanged) — validate against that same view, or
-    // legitimate quotes of messages with invisible characters would never match.
-    const inboundTexts = new Map(
-      history
-        .filter((m) => m.direction === 'inbound')
-        .map((m) => [m.id, `${sanitizeInline(m.subject ?? '', 300)}\n${sanitizeUntrusted(m.body, 10_000)}`] as const),
-    );
-    attestationConfirmed = typeof client.agent_fields['attestation_confirmed_at'] === 'string';
-    const requestEmailId = client.agent_fields['attestation_request_email_id'];
-    const requestEmail = typeof requestEmailId === 'string' ? await emails.getById(requestEmailId) : null;
-    const requestSentAt = requestEmail?.sent_at ?? null;
-    intake = {
-      resolvable: documents
-        .filter((d) => d.status === 'unresolved' || d.status === 'not_required')
-        .map((d) => ({
-          id: d.id,
-          status: d.status as 'unresolved' | 'not_required',
-          multiInstance: (d.type_key ? getCatalogType(d.type_key)?.multiInstance : undefined) ?? false,
-        })),
-      // Already-resolved catalog rows: anchors for added_instances (ladder
-      // escalations, late discoveries) and targets for retired_documents.
-      typedRows: documents
-        .filter((d) => d.type_key !== null && d.status !== 'unresolved' && d.status !== 'not_required')
-        .map((d) => ({
-          id: d.id,
-          status: d.status,
-          multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
-        })),
-      inboundTexts,
-      allSettled:
-        documents.length > 0 &&
-        documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired'),
-      attestationRequested: requestSentAt !== null,
-      confirmableMessageIds: new Set(
-        requestSentAt === null
-          ? []
-          : history
-              .filter((m) => m.direction === 'inbound' && (m.sent_at ?? m.created_at) > requestSentAt)
-              .map((m) => m.id),
-      ),
-      attestationConfirmed,
-    };
-  }
-
-  // The accountant-editable template (legacy setting key) applies to the doc
-  // collector only; the declaration-of-capital collector uses its built-in
-  // template. Per-agent custom-template keys are deferred work.
-  const template = isCapitalDeclaration
-    ? DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE
-    : (await getPromptTemplate(client.user_id)).template;
-  const { systemInstruction, contents } = buildPrompt(
-    client,
-    accountant,
-    history,
-    documents,
-    files,
-    now,
-    template,
-    waState,
-    taxFetchPromptInputs,
-    taxYear,
-    intake
-      ? {
-          unresolvedCount: intake.resolvable.filter((r) => r.status === 'unresolved').length,
-          allSettled: intake.allSettled,
-          attestation: intake.attestationConfirmed ? 'confirmed' : intake.attestationRequested ? 'requested' : 'none',
-        }
-      : undefined,
+  // Intake: what the validator lets the model resolve, and where the
+  // attestation gate stands. The request is trusted only once its draft
+  // actually SENT (sent_at set) — an abandoned draft is not a request — and
+  // only inbound messages after that send can confirm it.
+  // The model quotes from the sanitized transcript it reads (bidi/zero-width
+  // chars stripped, fences defanged) — validate against that same view, or
+  // legitimate quotes of messages with invisible characters would never match.
+  const inboundTexts = new Map(
+    history
+      .filter((m) => m.direction === 'inbound')
+      .map((m) => [m.id, `${sanitizeInline(m.subject ?? '', 300)}\n${sanitizeUntrusted(m.body, 10_000)}`] as const),
   );
+  let attestationConfirmed = typeof client.agent_fields['attestation_confirmed_at'] === 'string';
+  const requestEmailId = client.agent_fields['attestation_request_email_id'];
+  const requestEmail = typeof requestEmailId === 'string' ? await emails.getById(requestEmailId) : null;
+  const requestSentAt = requestEmail?.sent_at ?? null;
+  const intake: IntakeDecisionState = {
+    resolvable: documents
+      .filter((d) => d.status === 'unresolved' || d.status === 'not_required')
+      .map((d) => ({
+        id: d.id,
+        status: d.status as 'unresolved' | 'not_required',
+        multiInstance: (d.type_key ? getCatalogType(d.type_key)?.multiInstance : undefined) ?? false,
+      })),
+    // Already-resolved catalog rows: anchors for added_instances (ladder
+    // escalations, late discoveries) and targets for retired_documents.
+    typedRows: documents
+      .filter((d) => d.type_key !== null && d.status !== 'unresolved' && d.status !== 'not_required')
+      .map((d) => ({
+        id: d.id,
+        status: d.status,
+        multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
+      })),
+    inboundTexts,
+    allSettled:
+      documents.length > 0 &&
+      documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired'),
+    attestationRequested: requestSentAt !== null,
+    confirmableMessageIds: new Set(
+      requestSentAt === null
+        ? []
+        : history
+            .filter((m) => m.direction === 'inbound' && (m.sent_at ?? m.created_at) > requestSentAt)
+            .map((m) => m.id),
+    ),
+    attestationConfirmed,
+  };
+
+  const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPromptInputs, taxYear, {
+    unresolvedCount: intake.resolvable.filter((r) => r.status === 'unresolved').length,
+    allSettled: intake.allSettled,
+    attestation: intake.attestationConfirmed ? 'confirmed' : intake.attestationRequested ? 'requested' : 'none',
+  });
   const decisionCtx: DecisionContext = {
-    emailAllowed: !whatsappOnly,
+    // WhatsApp-only: the planner may never choose email.
+    emailAllowed: false,
     whatsappAllowed: waState.allowed,
     windowOpen: waState.windowOpen,
     templates: waState.templates,
@@ -226,7 +200,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   }
 
   if (decision.suspected_injection) {
-    logger.warn('doc collector: LLM flagged suspected prompt injection — suppressing state changes this cycle', {
+    logger.warn('planner: LLM flagged suspected prompt injection — suppressing state changes this cycle', {
       clientId,
       reasoning: decision.reasoning,
     });
@@ -488,12 +462,12 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     });
   }
 
-  // Verification pipeline (capital declaration): each just-collected document
+  // Verification pipeline: each just-collected document
   // is verified against the file that earned it — the analyzer's own match
   // (tier A), else the planner's pairing (tier B). Fire-and-forget: a
   // verification hiccup must never fail the planning cycle; the outcome
   // (approved / reopened pending) lands before the next cycle reads statuses.
-  if (isCapitalDeclaration && newlyCollected.length > 0) {
+  if (newlyCollected.length > 0) {
     const targets = newlyCollected.flatMap((id) => {
       const tierA = files.find((f) => fileMatchesDocument(f, id));
       const paired = proposedPairs.find((m) => m.document_id === id);
@@ -507,23 +481,17 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     })().catch((err) => logger.error('document verification pipeline failed', err, { clientId }));
   }
 
-  // Completion is derived from the documents, not the LLM's decision field.
-  // Doc collector: complete iff every required document is collected —
-  // 'claimed' rows still need the accountant's confirmation. Declaration of
-  // capital: complete iff every row is settled (approved / not_required — the
+  // Completion is derived from the documents, not the LLM's decision field:
+  // complete iff every row is settled (approved / not_required / retired — the
   // verification pipeline, not receipt, is what closes a document) AND the
   // client confirmed the attestation summary. Clients with no configured
   // documents fall back to trusting the decision field (legacy behavior).
-  const collectedCount = documents.filter((d) => d.status === 'collected').length + newlyCollected.length;
-  const stillPending = documents.length - collectedCount;
   const allSettled =
     documents.length > 0 &&
     documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired');
   const allCollected =
     documents.length > 0
-      ? isCapitalDeclaration
-        ? allSettled && attestationConfirmed
-        : stillPending === 0
+      ? allSettled && attestationConfirmed
       : decision.decision === 'goal_complete' && !decision.suspected_injection;
 
   // Under suspected injection the fetch may only be cancelled — an injected
@@ -564,11 +532,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     // Contract violation (prompt forbids goal_complete before the goal is actually
     // done): there is no drafted email to schedule, so fail loudly and let the
     // caller's retry path re-ask.
-    const why = isCapitalDeclaration
-      ? allSettled
-        ? 'the attestation is not confirmed'
-        : 'documents are still unsettled'
-      : `${stillPending} document(s) still pending`;
+    const why = allSettled ? 'the attestation is not confirmed' : 'documents are still unsettled';
     throw new Error(`setFutureEmail: LLM returned goal_complete but ${why} for client ${clientId}`);
   }
 

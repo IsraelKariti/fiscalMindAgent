@@ -4,7 +4,7 @@ import { withClientLock } from '../../db/withClientLock.js';
 import { adminCommsPaused } from '../../orchestration/adminPause.js';
 import { pauseFutureEmail } from '../../orchestration/pauseFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
-import { DOC_COLLECTOR_FAMILY } from './family.js';
+import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { sendOverdueEmail } from './notifyAccountant.js';
 import { isKillSwitchOn } from '../killSwitch.js';
 import { env } from '../../config/env.js';
@@ -16,7 +16,7 @@ function todayLocal(): string {
 }
 
 /**
- * Stops the chase for doc-collector clients whose collection due date has
+ * Stops the chase for clients whose collection due date has
  * passed: pauses the client (stamping the overdue markers) and emails the
  * accountant the list of still-missing documents. Runs daily just after local
  * midnight plus once on worker boot; markOverdueStopped's conditional UPDATE
@@ -27,7 +27,7 @@ export async function runOverdueScan(): Promise<void> {
     logger.warn('platform kill switch on, skipping overdue scan');
     return;
   }
-  const candidates = await clients.listOverdueForAgentTypes(todayLocal(), [...DOC_COLLECTOR_FAMILY]);
+  const candidates = await clients.listOverdueForAgentTypes(todayLocal(), [DECLARATION_OF_CAPITAL]);
   let stopped = 0;
   for (const candidate of candidates) {
     // Admin-paused clients (048) aren't ignoring the agent — the agent is

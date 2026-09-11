@@ -1,8 +1,8 @@
 import { Worker } from 'bullmq';
 import { bullOpts } from './connection.js';
 import { TAX_FETCH_QUEUE_NAME, type TaxFetchJob } from './taxFetchQueue.js';
-import { expireOrphanedTaxFetchSessions, runTaxFetchJob, wireSessionExpiry } from '../agents/docCollector/taxFetch/runner.js';
-import { sweepOrphanedSessionContainers } from '../agents/docCollector/taxFetch/aciSessionPool.js';
+import { expireOrphanedTaxFetchSessions, runTaxFetchJob, wireSessionExpiry } from '../agents/declarationOfCapital/taxFetch/runner.js';
+import { sweepOrphanedSessionContainers } from '../agents/declarationOfCapital/taxFetch/aciSessionPool.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 

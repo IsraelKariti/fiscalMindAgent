@@ -87,9 +87,8 @@ function uuidParam(value: string | undefined): string | null {
  * and dashboard. Carries no auth of its own — it is mounted (via
  * resolveAgentInstance, which sets req.agentInstance) with the caller's auth
  * in front:
- *   - /api/agents/:agentId/* and /api/*            (session cookie)
- *   - /api/monday/app/agents/:agentId/* and /api/monday/app/*  (monday sessionToken)
- * The unprefixed legacy mounts resolve to the user's doc_collector instance.
+ *   - /api/agents/:agentId/*             (session cookie)
+ *   - /api/monday/app/agents/:agentId/*  (monday sessionToken)
  */
 export const workspaceRouter = Router();
 
@@ -627,7 +626,7 @@ workspaceRouter.post(
   }),
 );
 
-// Agent-type-specific routes (e.g. the doc collector's required-documents CRUD).
+// Agent-type-specific routes (e.g. the required-documents CRUD).
 // Each router guards on req.agentInstance.agent_type and skips itself otherwise.
 for (const definition of listAgentTypes()) {
   if (definition.buildRouter) workspaceRouter.use(definition.buildRouter());

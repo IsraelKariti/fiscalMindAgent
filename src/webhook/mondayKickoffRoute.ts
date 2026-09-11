@@ -1,14 +1,13 @@
 import { Router, type RequestHandler } from 'express';
-import { isDocCollectorFamily } from '../agents/docCollector/family.js';
 import { getAgentTypeIfKnown } from '../agents/registry.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
-import { parseSettings as parseDocCollectorSettings } from '../agents/docCollector/settings.js';
+import { parseSettings } from '../agents/declarationOfCapital/settings.js';
 import { scanClientImportInstance } from '../agents/shared/clientImportScan.js';
 import { verifyKickoffToken } from '../agents/shared/kickoffWebhook.js';
 import { MONDAY_STATUS_AGENT_WORKING, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
 import { resolveDeclarationClient, type DeclarationIntake } from '../agents/declarationOfCapital/kickoff.js';
 import { applyFormIntake } from '../agents/declarationOfCapital/formIntake.js';
-import { fetchBoardItemCells } from '../agents/customerService/mondayData.js';
+import { fetchBoardItemCells } from '../agents/shared/mondayData.js';
 import { normalizeE164 } from '../util/phone.js';
 import { draftFirstEmail } from '../api/draftFirstEmail.js';
 import { recordAudit } from '../audit/audit.js';
@@ -90,8 +89,7 @@ async function startClientForItem(instance: AgentInstanceRow, boardId: string, i
   // The board must be one of the instance's configured client sources — its
   // mapping tells us which column holds the row's key (the client email, or
   // the phone number for WhatsApp-only agents).
-  const settings = isDocCollectorFamily(instance.agent_type) ? parseDocCollectorSettings(instance.settings) : null;
-  const board = settings?.boards.find((b) => b.boardId === boardId);
+  const board = parseSettings(instance.settings).boards.find((b) => b.boardId === boardId);
   if (!board) {
     logger.warn('monday kickoff: board is not a configured client source, ignoring', log);
     return false;

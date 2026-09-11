@@ -6,8 +6,8 @@ import * as googleOauthTokens from '../db/queries/googleOauthTokens.js';
 import { logger } from '../util/logger.js';
 
 /**
- * Google OAuth for server-side API reads (customer_service agent: Sheets rows
- * + Docs text). Scope is drive.file only — the app can read exactly the files
+ * Google OAuth for server-side API reads (client-import sources: Sheet rows).
+ * Scope is drive.file only — the app can read exactly the files
  * the accountant picked in the Google Picker, nothing else (non-sensitive
  * scope, no Google verification review). Separate from the Google *login*
  * flow (auth.ts), which is identity-only and discards its tokens.

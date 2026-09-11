@@ -15,7 +15,7 @@ export interface LlmDailyUsageRow {
   day: string;
   user_id: string;
   agent_instance_id: string | null;
-  /** 'doc_collector' for legacy NULL-instance rows (same convention as clients.agent_instance_id). */
+  /** 'unknown' for legacy NULL-instance rows. */
   agent_type: string;
   instance_name: string | null;
   model: string;
@@ -92,7 +92,7 @@ export async function listAll(): Promise<LlmModelUsageListRow[]> {
 export async function listDaily(sinceDay: string): Promise<LlmDailyUsageRow[]> {
   const { rows } = await pool.query<LlmDailyUsageRow>(
     `SELECT d.day::text AS day, d.user_id, d.agent_instance_id,
-            COALESCE(ai.agent_type, 'doc_collector') AS agent_type,
+            COALESCE(ai.agent_type, 'unknown') AS agent_type,
             ai.name AS instance_name,
             d.model,
             d.input_tokens::float8 AS input_tokens,

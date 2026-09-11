@@ -1,9 +1,8 @@
 import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as clients from '../../db/queries/clients.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
-import { changeItemStatusLabel } from '../customerService/mondayData.js';
-import { isDocCollectorFamily } from '../docCollector/family.js';
-import { parseSettings as parseDocCollectorSettings } from '../docCollector/settings.js';
+import { changeItemStatusLabel } from './mondayData.js';
+import { parseSettings } from '../declarationOfCapital/settings.js';
 import { logger } from '../../util/logger.js';
 
 /**
@@ -34,10 +33,8 @@ export async function syncMondayStatus(clientId: string, label: string): Promise
     if (typeof boardId !== 'string' || typeof itemId !== 'string') return;
 
     const instance = await agentInstances.getById(client.agent_instance_id);
-    // The status column mapping lives in the doc-collector-family settings —
-    // the only family that configures board client sources today.
-    if (!instance || !isDocCollectorFamily(instance.agent_type)) return;
-    const board = parseDocCollectorSettings(instance.settings).boards.find((b) => b.boardId === boardId);
+    if (!instance) return;
+    const board = parseSettings(instance.settings).boards.find((b) => b.boardId === boardId);
     if (!board?.statusColumnId) return;
 
     const token = await mondayOauthTokens.getByUserId(instance.user_id);

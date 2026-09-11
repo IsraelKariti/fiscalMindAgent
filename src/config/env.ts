@@ -51,7 +51,7 @@ const EnvSchema = z.object({
   // 503 until both are set.
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
-  // Google Picker (customer_service agent: pick Sheets/Docs knowledge sources).
+  // Google Picker (client-import sources: pick Google Sheets).
   // Browser API key from the same Google Cloud project as the OAuth client;
   // the Picker endpoints return 503 until it is set.
   GOOGLE_PICKER_API_KEY: z.string().min(1).optional(),
@@ -126,7 +126,8 @@ const EnvSchema = z.object({
   MONDAY_CLIENT_SECRET: z.string().min(1).optional(),
   // Client ID of the same monday app — needed (with the secret) only for the
   // OAuth connect flow that stores a server-side monday API token per
-  // accountant (customer_service agent). Optional — the connect endpoints
+  // accountant (client-import sources, kickoff webhook, board status sync).
+  // Optional — the connect endpoints
   // return 503 until both are set.
   MONDAY_CLIENT_ID: z.string().min(1).optional(),
   // Azure Blob Storage holding client document files. The default is the

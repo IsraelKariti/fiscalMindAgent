@@ -9,7 +9,7 @@ import {
   normalizeDecision,
   restorePrunedNulls,
   type DecisionContext,
-} from '../src/agents/docCollector/decisionSchema.js';
+} from '../src/agents/declarationOfCapital/decisionSchema.js';
 
 // The 2026-09-01 prod incident: Anthropic 400 "19 parameters with type arrays
 // or anyOf ... limit: 16" on the doc-collector decision schema. The adapter
@@ -239,7 +239,7 @@ describe('decisionSchemaForContext', () => {
     assert.ok(countUnions(json) <= ANTHROPIC_UNION_BUDGET, `raw unions: ${countUnions(json)}`);
   });
 
-  it('email-only (debt collector): also drops the whatsapp fields', () => {
+  it('email-only context: also drops the whatsapp fields', () => {
     const json = schemaFor(EMAIL_ONLY_CONTEXT);
     const props = json.properties as Record<string, unknown>;
     for (const gone of ['whatsapp_text', 'whatsapp_template', 'tax_fetch_action', 'resolved_documents']) {

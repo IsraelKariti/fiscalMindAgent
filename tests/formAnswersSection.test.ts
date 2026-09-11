@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildFormAnswersSection } from '../src/agents/docCollector/prompt.js';
+import { buildFormAnswersSection } from '../src/agents/declarationOfCapital/prompt.js';
 import type { ClientRow } from '../src/db/types.js';
 
 /** Only agent_fields is read by the section builder. */

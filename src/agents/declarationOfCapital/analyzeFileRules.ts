@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CAPITAL_DOCUMENT_CATALOG } from '../declarationOfCapital/catalog.js';
+import { CAPITAL_DOCUMENT_CATALOG } from './catalog.js';
 
 /**
  * Pure rules of the analyze_file stage: the response schemas and the code gate

@@ -5,7 +5,7 @@ import {
   CapitalFileAnalysisSchema,
   validateClassification,
   type FileAnalysis,
-} from '../src/agents/docCollector/analyzeFileRules.js';
+} from '../src/agents/declarationOfCapital/analyzeFileRules.js';
 import { CAPITAL_DOCUMENT_CATALOG } from '../src/agents/declarationOfCapital/catalog.js';
 
 const rows = [

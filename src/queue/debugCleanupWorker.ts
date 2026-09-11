@@ -1,6 +1,6 @@
 import { Queue, Worker } from 'bullmq';
 import { bullOpts } from './connection.js';
-import { cleanupExpiredFailureShots } from '../agents/docCollector/taxFetch/failureShots.js';
+import { cleanupExpiredFailureShots } from '../agents/declarationOfCapital/taxFetch/failureShots.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';

@@ -16,9 +16,8 @@ import {
   MONDAY_STATUS_DOCS_COLLECTED,
   syncMondayStatus,
 } from '../shared/mondayStatusSync.js';
-import { isDocCollectorFamily } from './family.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
-import { DocCollectorSettingsSchema, parseSettings } from './settings.js';
+import { InstanceSettingsSchema, parseSettings } from './settings.js';
 import { logger } from '../../util/logger.js';
 import type { DocumentStatus } from '../../db/types.js';
 
@@ -41,9 +40,6 @@ const DocumentPatchSchema = z
     status: z.enum(['pending', 'collected', 'not_required', 'approved']).optional(),
   })
   .strict();
-
-/** Statuses only the capital-declaration flow uses; other family types reject them. */
-const CAPITAL_ONLY_STATUSES = new Set<DocumentStatus>(['not_required', 'approved']);
 
 /**
  * Which statuses an accountant may move a row FROM, per requested status.
@@ -68,28 +64,21 @@ const MANUAL_TRANSITIONS: Record<string, DocumentStatus[]> = {
  * While the goal stays pending, an already-scheduled email is left alone — the updated list is
  * picked up when the next email is drafted.
  *
- * Doc collector: done = every document collected. Declaration of capital:
- * done = every row approved/not_required AND the client's attestation stands —
- * and a manual change that reopens a settled list voids any earlier
+ * Done = every row approved/not_required/retired AND the client's attestation
+ * stands — and a manual change that reopens a settled list voids any earlier
  * attestation (a stale confirmation must not complete the goal later).
  */
-async function onDocumentsChanged(clientId: string, agentType: string): Promise<void> {
+async function onDocumentsChanged(clientId: string): Promise<void> {
   const [client, docs] = await Promise.all([clients.getById(clientId), clientDocuments.listForClient(clientId)]);
   if (!client) return;
-  const isCapital = agentType === 'declaration_of_capital';
-  let allCollected: boolean;
-  if (isCapital) {
-    const settled =
-      docs.length > 0 &&
-      docs.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired');
-    const attestationTouched =
-      typeof client.agent_fields['attestation_confirmed_at'] === 'string' ||
-      typeof client.agent_fields['attestation_request_email_id'] === 'string';
-    if (!settled && attestationTouched) await clients.clearAttestation(clientId);
-    allCollected = settled && typeof client.agent_fields['attestation_confirmed_at'] === 'string';
-  } else {
-    allCollected = docs.length > 0 && docs.every((d) => d.status === 'collected');
-  }
+  const settled =
+    docs.length > 0 &&
+    docs.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired');
+  const attestationTouched =
+    typeof client.agent_fields['attestation_confirmed_at'] === 'string' ||
+    typeof client.agent_fields['attestation_request_email_id'] === 'string';
+  if (!settled && attestationTouched) await clients.clearAttestation(clientId);
+  const allCollected = settled && typeof client.agent_fields['attestation_confirmed_at'] === 'string';
 
   if (allCollected && client.goal_status === 'pending') {
     await clients.updateGoalStatus(clientId, 'complete');
@@ -115,23 +104,12 @@ function uuidParam(value: string | undefined): string | null {
 
 const DueDatePutSchema = z.object({ dueDate: DueDateSchema.nullable() }).strict();
 
-/** The doc collector's required-documents CRUD and due-date editing, composed into the workspace router. */
+/** The agent's required-documents CRUD and due-date editing, composed into the workspace router. */
 export function buildRouter(): Router {
   const router = Router();
 
-  // Composed into the shared workspace router alongside other agent types'
-  // routes — bail out to it when the active agent isn't a doc-collector-family
-  // type (the declaration-of-capital collector shares these routes wholesale).
-  router.use((req, _res, next) => {
-    if (req.agentInstance && !isDocCollectorFamily(req.agentInstance.agent_type)) {
-      next('router');
-      return;
-    }
-    next();
-  });
-
-  // Client-import sources (boards/sheets + the default-documents checklist).
-  registerClientSourceRoutes(router, { schema: DocCollectorSettingsSchema, parse: parseSettings });
+  // Client-import sources (boards/sheets).
+  registerClientSourceRoutes(router, { schema: InstanceSettingsSchema, parse: parseSettings });
 
   // Sets or clears the collection due date. Editing it always clears both
   // overdue markers (a new deadline may notify again when it passes); if the
@@ -152,7 +130,7 @@ export function buildRouter(): Router {
         return;
       }
       const wasOverdueStopped = client.paused && typeof client.agent_fields['overdue_stopped_at'] === 'string';
-      let updated = await clients.setDocCollectorDueDate(client.id, req.agentInstance!.id, parsed.data.dueDate);
+      let updated = await clients.setDueDate(client.id, req.agentInstance!.id, parsed.data.dueDate);
       if (!updated) {
         res.status(404).json({ error: 'Client not found.' });
         return;
@@ -198,7 +176,7 @@ export function buildRouter(): Router {
         name: parsed.data.name,
         description: parsed.data.description ?? null,
       });
-      await onDocumentsChanged(client.id, req.agentInstance!.agent_type);
+      await onDocumentsChanged(client.id);
       res.status(201).json({ document });
     }),
   );
@@ -221,11 +199,6 @@ export function buildRouter(): Router {
       }
       const requested = parsed.data.status;
       if (requested && requested !== current.status) {
-        const isCapital = req.agentInstance!.agent_type === 'declaration_of_capital';
-        if (!isCapital && CAPITAL_ONLY_STATUSES.has(requested)) {
-          res.status(400).json({ error: `Status "${requested}" does not apply to this agent type.` });
-          return;
-        }
         if (!MANUAL_TRANSITIONS[requested]?.includes(current.status)) {
           res.status(400).json({ error: `Cannot change a "${current.status}" document to "${requested}".` });
           return;
@@ -251,7 +224,7 @@ export function buildRouter(): Router {
           detail: { clientName: client!.name, name: document.name, status: parsed.data.status },
         });
       }
-      await onDocumentsChanged(client!.id, req.agentInstance!.agent_type);
+      await onDocumentsChanged(client!.id);
       res.json({ document });
     }),
   );
@@ -267,7 +240,7 @@ export function buildRouter(): Router {
         res.status(404).json({ error: 'Document not found.' });
         return;
       }
-      await onDocumentsChanged(client!.id, req.agentInstance!.agent_type);
+      await onDocumentsChanged(client!.id);
       res.json({ ok: true });
     }),
   );

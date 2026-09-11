@@ -19,8 +19,8 @@ import {
   type FormResolvableRow,
 } from '../src/agents/declarationOfCapital/formIntakeRules.js';
 import { CAPITAL_DOCUMENT_CATALOG, getCatalogType } from '../src/agents/declarationOfCapital/catalog.js';
-import { analysisSchemaFor, buildAnalysisCall } from '../src/agents/docCollector/analyzeFile.js';
-import { validateClassification, type FileAnalysis } from '../src/agents/docCollector/analyzeFileRules.js';
+import { buildAnalysisCall } from '../src/agents/declarationOfCapital/analyzeFile.js';
+import { CapitalFileAnalysisSchema, validateClassification, type FileAnalysis } from '../src/agents/declarationOfCapital/analyzeFileRules.js';
 import { buildExtractionCall, checksFor } from '../src/agents/declarationOfCapital/extractionCall.js';
 import {
   ExtractionSchema,
@@ -28,16 +28,15 @@ import {
   runChecks,
   type ExtractedFields,
 } from '../src/agents/declarationOfCapital/verifyChecks.js';
-import { buildDecisionCall } from '../src/agents/docCollector/decide.js';
+import { buildDecisionCall } from '../src/agents/declarationOfCapital/decide.js';
 import {
   normalizeDecision,
   restorePrunedNulls,
   type DecisionContext,
   type DecisionResponse,
   type IntakeDecisionState,
-} from '../src/agents/docCollector/decisionSchema.js';
-import { buildPrompt, type IntakePromptInput, type WaChannelState } from '../src/agents/docCollector/prompt.js';
-import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../src/agents/declarationOfCapital/prompt.js';
+} from '../src/agents/declarationOfCapital/decisionSchema.js';
+import { buildPrompt, type IntakePromptInput, type WaChannelState } from '../src/agents/declarationOfCapital/prompt.js';
 import { env } from '../src/config/env.js';
 import { zonedTimeToUtc } from '../src/util/time.js';
 import type { LlmCallPurpose } from '../src/gemini/modelCatalog.js';
@@ -291,9 +290,8 @@ const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
       filename: c.filename,
       requiredDocuments: ctx.checklist,
       taxYear: ctx.taxYear,
-      purpose: 'capital_declaration',
     });
-    return { spec, parse: (text) => analysisSchemaFor('capital_declaration').parse(JSON.parse(text)) };
+    return { spec, parse: (text) => CapitalFileAnalysisSchema.parse(JSON.parse(text)) };
   },
   judge(c, output, ctx) {
     const raw = output as FileAnalysis;
@@ -664,7 +662,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
   build(c, ctx) {
     const { taxYear, now, client, history, documents, files, waState, intakePrompt, decisionCtx } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
-    const prompt = buildPrompt(client, accountant, history, documents, files, now, DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE, waState, [], taxYear, intakePrompt);
+    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, [], taxYear, intakePrompt);
     const { spec, schema } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
     return { spec, parse: (text) => restorePrunedNulls(schema.parse(JSON.parse(text))) };
   },

@@ -1,21 +1,14 @@
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { env } from '../config/env.js';
-import * as agentInstances from '../db/queries/agentInstances.js';
-import * as clientDocuments from '../db/queries/clientDocuments.js';
-import * as clients from '../db/queries/clients.js';
 import * as dashboard from '../db/queries/dashboard.js';
 import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
-import { resolveSenderMailbox } from '../agents/instanceEmail.js';
-import { publishInstanceClientsUpdated } from '../events/clientEvents.js';
 import { requireWhitelisted } from './auth.js';
 import { accountRouter } from './account.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
-import { draftFirstEmail } from './draftFirstEmail.js';
 import { createMondayHandoffToken, createMondayLinkToken, requireMondayIdentity, requireMondayUser } from './mondayAuth.js';
-import { DueDateSchema } from './schemas.js';
 import { workspaceRouter } from './workspace.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
@@ -32,39 +25,11 @@ const SessionSchema = z
   })
   .strict();
 
-const ImportSchema = z
-  .object({
-    clients: z
-      .array(
-        z
-          .object({
-            name: z.string().min(1).max(200),
-            email: z.string().email(),
-            phone: z.string().max(50).nullable().optional(),
-            // Required-document names read from the board's documents column.
-            documents: z.array(z.string().min(1).max(200)).max(50).default([]),
-            // Optional collection deadline read from the board's due-date column.
-            dueDate: DueDateSchema.nullable().optional(),
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(500),
-  })
-  .strict();
-
 /** Everything the widget needs to decide what to render for this user. */
 async function sessionStatus(userId: string) {
   const user = await users.getById(userId);
   if (!user) return null;
-  // The widget imports into the doc collector, so what matters is whether
-  // that instance can send (its admin-assigned address, or the legacy
-  // account mailbox for grandfathered accounts).
-  const docCollector = await agentInstances.getByTypeForUser(user.id, 'doc_collector');
-  const [sender, whitelisted] = await Promise.all([
-    resolveSenderMailbox(docCollector?.id ?? null, user.id),
-    whitelist.isWhitelisted(user.email),
-  ]);
+  const whitelisted = await whitelist.isWhitelisted(user.email);
   return {
     provisioned: true,
     // Auto-provisioned users carry a synthetic `monday:<ids>` google_sub until
@@ -73,7 +38,6 @@ async function sessionStatus(userId: string) {
     linked: user.google_sub !== null && !user.google_sub.startsWith('monday:'),
     email: user.email,
     whitelisted: user.is_admin || whitelisted,
-    senderAssigned: sender !== null,
     appUrl: env.APP_BASE_URL,
   };
 }
@@ -200,13 +164,11 @@ mondayRouter.get(
 // The full agent workspace API (clients, documents, files, conversation) plus
 // account routes under monday auth — same routers the cookie-authenticated
 // /api/* mounts use; requireMondayUser supplies the req.userId they read.
-// Mirrors router.ts: agent-scoped under /app/agents/:agentId, with the
-// unprefixed /app mount resolving to the user's doc_collector instance.
+// Mirrors router.ts: agent-scoped under /app/agents/:agentId.
 const appRouter = Router();
 appRouter.use(accountRouter);
 appRouter.get('/agents', wrap(listAgents));
 appRouter.use('/agents/:agentId', wrap(resolveAgentInstance), workspaceRouter);
-appRouter.use(wrap(resolveAgentInstance), workspaceRouter);
 mondayRouter.use('/app', wrap(requireMondayUser), wrap(requireWhitelisted), appRouter);
 
 // Slightly wider than the 8 Monday-based weeks the activity chart shows (same
@@ -228,61 +190,3 @@ mondayRouter.get(
   }),
 );
 
-/**
- * POST /api/monday/clients/import — bulk-create clients read from a monday
- * board (the widget queries the board via monday's seamless API and posts the
- * mapped rows here). Existing emails are skipped, so re-importing is safe.
- */
-mondayRouter.post(
-  '/clients/import',
-  wrap(requireMondayUser),
-  wrap(requireWhitelisted),
-  wrap(async (req, res) => {
-    const parsed = ImportSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid import payload.', details: parsed.error.flatten() });
-      return;
-    }
-    // Imported clients land in the doc collector (clients.insert defaults
-    // there) — it needs a sender address before enrolling anyone.
-    const docCollector = await agentInstances.getByTypeForUser(req.userId!, 'doc_collector');
-    if (!(await resolveSenderMailbox(docCollector?.id ?? null, req.userId!))) {
-      res.status(409).json({
-        error: 'The agent has no email address yet — an administrator must assign one in fiscalMind.',
-        code: 'no_mailbox',
-      });
-      return;
-    }
-
-    let created = 0;
-    let skipped = 0;
-    for (const row of parsed.data.clients) {
-      const email = row.email.trim();
-      if (await clients.getByEmailAddressForUser(req.userId!, email)) {
-        skipped += 1;
-        continue;
-      }
-      const client = await clients.insert({
-        userId: req.userId!,
-        name: row.name.trim(),
-        emailAddress: email,
-        phone: row.phone || null,
-        agentFields: row.dueDate ? { due_date: row.dueDate } : undefined,
-      });
-      // The documents to collect come from the board row; without any, the first
-      // draft finds nothing pending and the goal completes with no outreach.
-      for (const docName of new Set(row.documents.map((d) => d.trim()).filter((d) => d.length > 0))) {
-        await clientDocuments.insert({ clientId: client.id, name: docName });
-      }
-      // Stagger the first-email drafts so a big import doesn't fire hundreds of
-      // concurrent Gemini calls; each draft keeps its own retry ladder.
-      const delay = created * 1500;
-      created += 1;
-      if (delay === 0) draftFirstEmail(client.id);
-      else setTimeout(() => draftFirstEmail(client.id), delay);
-    }
-    // Tells open workspace tabs (over SSE) to refetch the sidebar's client list.
-    if (created > 0 && docCollector) publishInstanceClientsUpdated(docCollector.id);
-    res.status(201).json({ created, skipped });
-  }),
-);

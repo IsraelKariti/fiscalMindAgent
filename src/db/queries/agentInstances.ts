@@ -3,19 +3,7 @@ import type { AgentInstanceRow } from '../types.js';
 
 /** Hebrew display name used when an instance of this type is provisioned. */
 export const DEFAULT_INSTANCE_NAMES: Record<string, string> = {
-  doc_collector: 'איסוף מסמכים',
   declaration_of_capital: 'הצהרת הון',
-  debt_collector: 'גביית חובות',
-  customer_service: 'שירות לקוחות',
-  invoice_processing: 'עיבוד חשבוניות',
-  bank_reconciliation: 'התאמות בנקים',
-  transaction_categorization: 'סיווג תנועות',
-  tax_deadlines: 'מועדי דיווח ומס',
-  client_onboarding: 'קליטת לקוחות',
-  payroll_prep: 'הכנת שכר',
-  financial_reports: 'דוחות ותובנות',
-  expense_tracking: 'קליטת קבלות',
-  cashflow_forecast: 'תזרים מזומנים',
 };
 
 export async function listForUser(userId: string): Promise<AgentInstanceRow[]> {
@@ -62,15 +50,13 @@ export type AgentInstanceWithClientCount = AgentInstanceRow & { client_count: nu
 /**
  * Every instance on the platform (incl. disabled) with its client count —
  * the admin roster. Legacy CLI-era clients (NULL agent_instance_id) count
- * toward their user's doc_collector instance, mirroring the resolver fallback.
+ * toward no instance.
  */
 export async function listAllWithClientCounts(): Promise<AgentInstanceWithClientCount[]> {
   const { rows } = await pool.query<AgentInstanceWithClientCount>(
     `SELECT i.*, COUNT(c.id)::int AS client_count
      FROM agent_instances i
-     LEFT JOIN clients c
-       ON c.agent_instance_id = i.id
-       OR (c.agent_instance_id IS NULL AND c.user_id = i.user_id AND i.agent_type = 'doc_collector')
+     LEFT JOIN clients c ON c.agent_instance_id = i.id
      GROUP BY i.id
      ORDER BY i.created_at ASC`,
   );

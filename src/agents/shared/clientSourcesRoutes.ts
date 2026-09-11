@@ -4,8 +4,8 @@ import { requireGoogleToken, requireMondayToken } from '../../api/integrationGua
 import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as googleOauthTokens from '../../db/queries/googleOauthTokens.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
-import { getSpreadsheetMeta } from '../customerService/googleData.js';
-import { EMAIL_CAPABLE, PHONE_CAPABLE, listBoards } from '../customerService/mondayData.js';
+import { getSpreadsheetMeta } from './googleData.js';
+import { EMAIL_CAPABLE, PHONE_CAPABLE, listBoards } from './mondayData.js';
 import { getAgentTypeIfKnown } from '../registry.js';
 import { scanClientImportInstance } from './clientImportScan.js';
 import { kickoffWebhookUrl } from './kickoffWebhook.js';
@@ -28,10 +28,9 @@ const ScanRequestSchema = z
   .strict();
 
 /**
- * The client-import source routes (today only the doc collector's), registered
- * into the agent's (already agent-type-guarded) router under /client-sources.
- * The settings schema is the agent's own — the doc collector's adds the
- * default-documents checklist.
+ * The client-import source routes, registered into the agent's router under
+ * /client-sources. The settings schema is the agent's own (a strict superset
+ * of ClientSourcesSchema).
  */
 export function registerClientSourceRoutes(
   router: Router,

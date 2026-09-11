@@ -1,6 +1,6 @@
 import { Queue, Worker } from 'bullmq';
 import { bullOpts } from './connection.js';
-import { runOverdueScan } from '../agents/docCollector/overdueScan.js';
+import { runOverdueScan } from '../agents/declarationOfCapital/overdueScan.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 

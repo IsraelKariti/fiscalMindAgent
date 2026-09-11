@@ -5,7 +5,7 @@
  * every field always present, unused ones null (see decisionSchema.ts). Each
  * `.nullable()` serializes to a union (`anyOf: [X, {type:'null'}]` or
  * `type: [T, 'null']`), and Anthropic caps schemas at 16 union-typed
- * parameters — the doc-collector decision schema alone has 19, so the raw
+ * parameters — the planner's decision schema alone has 19, so the raw
  * schema is rejected with a 400 (seen in prod 2026-09-01).
  *
  * The fix is a round-trip translation owned by the adapter, invisible to

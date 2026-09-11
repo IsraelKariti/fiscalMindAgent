@@ -1,23 +1,8 @@
 export type GoalStatus = 'pending' | 'complete';
 
-/** The debt collector's latest per-client analysis (clients.agent_fields.debt). */
-export interface DebtSnapshot {
-  /** 'paid_claimed' = the client claims payment but the data still shows debt — awaiting the accountant's confirmation. */
-  status: 'in_debt' | 'no_debt' | 'paid' | 'paid_claimed' | 'no_data';
-  amount: string | null;
-  reason: string | null;
-  payment_plan: 'monthly' | 'bi_monthly' | 'other' | 'unknown';
-  recurring_payments: string | null;
-  one_time_payments: string | null;
-  /** The LLM's explanation — the workspace surface for silent completions. */
-  reasoning: string;
-  analyzed_at: string;
-  paid_confirmed_at?: string;
-}
-
 /** Per-agent scalar fields (clients.agent_fields JSONB). */
 export interface ClientAgentFields {
-  /** The doc collector's optional collection deadline ("YYYY-MM-DD"). */
+  /** The optional collection deadline ("YYYY-MM-DD"). */
   due_date?: string | null;
   /** Capital declaration: the scheduled draft that is the attestation summary (trusted once sent). */
   attestation_request_email_id?: string;
@@ -29,8 +14,6 @@ export interface ClientAgentFields {
   overdue_notified_at?: string;
   /** Set while the agent is stopped because the due date passed — the "handed off" UI state. */
   overdue_stopped_at?: string;
-  /** The debt collector's latest analysis snapshot. */
-  debt?: DebtSnapshot;
 }
 
 export interface Client {
@@ -59,7 +42,7 @@ export interface Client {
 }
 
 /**
- * Doc collector rows use pending/claimed/collected. The capital-declaration
+ * Ad-hoc rows use pending/claimed/collected. The capital-declaration
  * intake adds: 'unresolved' (catalog-seeded, interview pending),
  * 'not_required' (client said the asset doesn't apply), 'approved' (the
  * automatic verification pipeline accepted the file), 'retired' (the
@@ -100,7 +83,7 @@ export interface ClientDocument {
   name: string;
   description: string | null;
   status: DocumentStatus;
-  /** Capital-declaration catalog type key; null for doc-collector/ad-hoc rows. */
+  /** Capital-declaration catalog type key; null for ad-hoc (accountant-added) rows. */
   type_key: string | null;
   verification: DocumentVerification | null;
   /** The client quote behind an agent-made 'not_required' — from a stored inbound message or the intake questionnaire. */
@@ -185,7 +168,7 @@ export interface DashboardClientSummary {
   name: string;
   email_address: string;
   goal_status: GoalStatus;
-  /** The agent stopped chasing because the collection due date passed (doc collector). */
+  /** The agent stopped chasing because the collection due date passed. */
   overdue_stopped: boolean;
   created_at: string;
   docs_total: number;
@@ -201,14 +184,6 @@ export interface DashboardSummary {
   /** Delivered emails in the recent-activity window, for the weekly chart. */
   activity: { at: string; direction: 'inbound' | 'outbound' }[];
   filesTotal: number;
-}
-
-export interface PromptTemplateState {
-  template: string;
-  isCustom: boolean;
-  updatedAt: string | null;
-  defaultTemplate: string;
-  placeholders: string[];
 }
 
 export class ApiError extends Error {
@@ -611,20 +586,6 @@ export interface SpreadsheetMeta {
   sheets: { title: string; headers: string[] }[];
 }
 
-/** The customer-service agent's per-instance config (agent_instances.settings). */
-export interface CustomerServiceSettings {
-  docIds: string[];
-  boards: { boardId: string; phoneColumnId: string; nameColumnId?: string; boardName?: string }[];
-  sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; phoneColumn: string; nameColumn?: string }[];
-  googleDocs: { documentId: string; name: string }[];
-}
-
-/** The debt collector's per-instance config (agent_instances.settings). */
-export interface DebtCollectorSettings {
-  boards: { boardId: string; emailColumnId?: string; nameColumnId?: string; boardName?: string }[];
-  sheets: { spreadsheetId: string; spreadsheetName?: string; sheetTitle: string; emailColumn?: string; nameColumn?: string }[];
-}
-
 /** Client-import sources config (doc collector; agent_instances.settings). */
 export interface ClientSourcesConfig {
   boards: {
@@ -741,11 +702,7 @@ export interface AgentTypeEmailInfo {
   taxYearCapable: boolean;
 }
 
-/**
- * The agent-workspace endpoints, rooted at a path prefix: '' hits the legacy
- * unprefixed mount (resolves to the doc_collector instance server-side),
- * `/agents/<id>` hits that instance explicitly. Same handlers either way.
- */
+/** The agent-workspace endpoints of one agent instance, rooted at `/agents/<id>`. */
 function makeWorkspaceApi(prefix: string) {
   return {
     dashboard: () => request<DashboardSummary>(`${prefix}/dashboard`),
@@ -791,7 +748,7 @@ function makeWorkspaceApi(prefix: string) {
       request<{ ok: true }>(`${prefix}/clients/${clientId}/send-now`, { method: 'POST' }),
     setPaused: (clientId: string, paused: boolean) =>
       request<{ client: Client }>(`${prefix}/clients/${clientId}/pause`, { method: 'PUT', body: JSON.stringify({ paused }) }),
-    /** Doc collector only: sets or clears the collection due date; editing it un-stops an overdue-stopped client. */
+    /** Sets or clears the collection due date; editing it un-stops an overdue-stopped client. */
     setDueDate: (clientId: string, dueDate: string | null) =>
       request<{ client: Client }>(`${prefix}/clients/${clientId}/due-date`, {
         method: 'PUT',
@@ -810,40 +767,7 @@ function makeWorkspaceApi(prefix: string) {
     eventsUrl: (clientId: string) => tokenizedUrl(`${prefix}/clients/${clientId}/events`),
     /** SSE ticks when this instance's client roster changes — the sidebar refetches the list. */
     clientsEventsUrl: () => tokenizedUrl(`${prefix}/events`),
-    // Customer-service agent (routes exist only on customer_service instances).
-    csGetSettings: () =>
-      request<{ settings: CustomerServiceSettings; mondayConnected: boolean; googleConnected: boolean }>(
-        `${prefix}/customer-service/settings`,
-      ),
-    csSaveSettings: (settings: CustomerServiceSettings) =>
-      request<{ settings: CustomerServiceSettings }>(`${prefix}/customer-service/settings`, {
-        method: 'PUT',
-        body: JSON.stringify(settings),
-      }),
-    csListMondayDocs: () => request<{ docs: MondayDocMeta[] }>(`${prefix}/customer-service/monday/docs`),
-    csListMondayBoards: () => request<{ boards: MondayBoardMeta[] }>(`${prefix}/customer-service/monday/boards`),
-    csSpreadsheetMeta: (spreadsheetId: string) =>
-      request<{ meta: SpreadsheetMeta }>(
-        `${prefix}/customer-service/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/meta`,
-      ),
-    // Debt-collector agent (routes exist only on debt_collector instances).
-    dcGetSettings: () =>
-      request<{ settings: DebtCollectorSettings; mondayConnected: boolean; googleConnected: boolean }>(
-        `${prefix}/debt-collector/settings`,
-      ),
-    dcSaveSettings: (settings: DebtCollectorSettings) =>
-      request<{ settings: DebtCollectorSettings }>(`${prefix}/debt-collector/settings`, {
-        method: 'PUT',
-        body: JSON.stringify(settings),
-      }),
-    dcConfirmPaid: (clientId: string) =>
-      request<{ client: Client }>(`${prefix}/debt-collector/clients/${clientId}/confirm-paid`, { method: 'POST' }),
-    dcListMondayBoards: () => request<{ boards: MondayBoardMeta[] }>(`${prefix}/debt-collector/monday/boards`),
-    dcSpreadsheetMeta: (spreadsheetId: string) =>
-      request<{ meta: SpreadsheetMeta }>(
-        `${prefix}/debt-collector/google/spreadsheets/${encodeURIComponent(spreadsheetId)}/meta`,
-      ),
-    // Client-import sources (routes exist only on doc_collector instances).
+    // Client-import sources.
     sourcesGetSettings: () =>
       request<{
         settings: ClientSourcesConfig;
@@ -878,7 +802,6 @@ export function agentApi(agentId: string): WorkspaceApi {
 }
 
 export const api = {
-  ...makeWorkspaceApi(''),
   me: () => request<Me>('/me'),
   logout: () => request<{ ok: true }>('/logout', { method: 'POST' }),
   listAgents: () => request<{ agents: AgentInstance[] }>('/agents'),
@@ -1022,8 +945,4 @@ export const api = {
   impersonate: (userId: string) =>
     request<{ ok: true }>('/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) }),
   stopImpersonating: () => request<{ ok: true }>('/admin/impersonate/stop', { method: 'POST' }),
-  getPromptTemplate: () => request<PromptTemplateState>('/prompt-template'),
-  savePromptTemplate: (template: string) =>
-    request<PromptTemplateState>('/prompt-template', { method: 'PUT', body: JSON.stringify({ template }) }),
-  resetPromptTemplate: () => request<PromptTemplateState>('/prompt-template/reset', { method: 'POST' }),
 };

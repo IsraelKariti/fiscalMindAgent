@@ -2,14 +2,12 @@ import http from 'node:http';
 import { createSendEmailWorker } from './queue/sendEmailWorker.js';
 import { resyncScheduledJobs } from './queue/resyncScheduledJobs.js';
 import { createOverdueScanWorker, ensureOverdueScanScheduler } from './queue/overdueScanWorker.js';
-import { createDebtScanWorker, ensureDebtScanScheduler } from './queue/debtScanWorker.js';
 import { createClientImportScanWorker, ensureClientImportScanScheduler } from './queue/clientImportScanWorker.js';
 import { createTaxFetchWorker, sweepOrphanedTaxFetchSessions } from './queue/taxFetchWorker.js';
 import { createAnomalyScanWorker, ensureAnomalyScanScheduler } from './queue/anomalyScanWorker.js';
 import { createDebugCleanupWorker, ensureDebugCleanupScheduler } from './queue/debugCleanupWorker.js';
 import { env } from './config/env.js';
-import { runOverdueScan } from './agents/docCollector/overdueScan.js';
-import { runDebtScan } from './agents/debtCollector/dailyScan.js';
+import { runOverdueScan } from './agents/declarationOfCapital/overdueScan.js';
 import { runClientImportScan } from './agents/shared/clientImportScan.js';
 import { logger } from './util/logger.js';
 
@@ -42,12 +40,6 @@ logger.info('overdue_scan worker started');
 // Catch-up scan: covers the worker being down at the daily cron moment.
 runOverdueScan().catch((err) => logger.error('boot overdue scan failed', err));
 
-await ensureDebtScanScheduler();
-const debtScanWorker = createDebtScanWorker();
-logger.info('debt_scan worker started');
-// Catch-up sweep, same rationale; already-enrolled clients make re-runs no-ops.
-runDebtScan().catch((err) => logger.error('boot debt scan failed', err));
-
 await ensureClientImportScanScheduler();
 const clientImportScanWorker = createClientImportScanWorker();
 logger.info('client_import_scan worker started');
@@ -72,7 +64,6 @@ async function shutdown(): Promise<void> {
   await Promise.all([
     worker.close(),
     overdueWorker.close(),
-    debtScanWorker.close(),
     clientImportScanWorker.close(),
     anomalyScanWorker.close(),
     debugCleanupWorker.close(),

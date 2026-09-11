@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeFollowUpMessage, type DecisionContext } from '../src/agents/docCollector/decisionSchema.js';
+import { normalizeFollowUpMessage, type DecisionContext } from '../src/agents/declarationOfCapital/decisionSchema.js';
 import type { WaTemplateRow } from '../src/db/types.js';
 
 const template: WaTemplateRow = {

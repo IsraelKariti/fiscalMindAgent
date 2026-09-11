@@ -1,7 +1,4 @@
 import { Router, type RequestHandler } from 'express';
-import { z } from 'zod';
-import { DEFAULT_PROMPT_TEMPLATE, PROMPT_PLACEHOLDERS } from '../agents/docCollector/prompt.js';
-import { getPromptTemplate, resetPromptTemplate, savePromptTemplate } from '../gemini/promptSettings.js';
 import { logger } from '../util/logger.js';
 import { googleLoginCallback, logout, me, mondayHandoff, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
 import { accountRouter } from './account.js';
@@ -75,7 +72,6 @@ function wrap(handler: RequestHandler): RequestHandler {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 }
 
-const PromptTemplateSchema = z.object({ template: z.string().min(1) }).strict();
 
 export const apiRouter = Router();
 
@@ -156,52 +152,13 @@ apiRouter.get('/admin/wa-templates', wrap(requireAdmin), wrap(adminListWaTemplat
 apiRouter.post('/admin/wa-templates', wrap(requireAdmin), wrap(adminCreateWaTemplate));
 apiRouter.delete('/admin/wa-templates/:id', wrap(requireAdmin), wrap(adminDeleteWaTemplate));
 
-// Admin-only, keyed on the effective user: reachable only while impersonating, so
-// the admin edits the impersonated accountant's template. Accountants never see it.
-apiRouter.get(
-  '/prompt-template',
-  wrap(requireAdmin),
-  wrap(async (req, res) => {
-    const state = await getPromptTemplate(req.userId!);
-    res.json({ ...state, defaultTemplate: DEFAULT_PROMPT_TEMPLATE, placeholders: PROMPT_PLACEHOLDERS });
-  }),
-);
-
-apiRouter.put(
-  '/prompt-template',
-  wrap(requireAdmin),
-  wrap(async (req, res) => {
-    const parsed = PromptTemplateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Template must be a non-empty string.' });
-      return;
-    }
-    await savePromptTemplate(req.userId!, parsed.data.template);
-    const state = await getPromptTemplate(req.userId!);
-    res.json({ ...state, defaultTemplate: DEFAULT_PROMPT_TEMPLATE, placeholders: PROMPT_PLACEHOLDERS });
-  }),
-);
-
-apiRouter.post(
-  '/prompt-template/reset',
-  wrap(requireAdmin),
-  wrap(async (req, res) => {
-    await resetPromptTemplate(req.userId!);
-    const state = await getPromptTemplate(req.userId!);
-    res.json({ ...state, defaultTemplate: DEFAULT_PROMPT_TEMPLATE, placeholders: PROMPT_PLACEHOLDERS });
-  }),
-);
-
 // Account-level routes shared by every agent (mailbox, monday connection).
 apiRouter.use(accountRouter);
 
 // The agent workspace (clients, documents, files, conversation), shared with
-// the monday mount in monday.ts. Agent-scoped under /agents/:agentId; the
-// unprefixed mount resolves to the user's doc_collector instance so existing
-// clients keep working during the transition.
+// the monday mount in monday.ts. Agent-scoped under /agents/:agentId.
 apiRouter.get('/agents', wrap(listAgents));
 apiRouter.use('/agents/:agentId', wrap(resolveAgentInstance), workspaceRouter);
-apiRouter.use(wrap(resolveAgentInstance), workspaceRouter);
 
 // Terminal error handler for this router: log and return JSON instead of Express's HTML error page.
 apiRouter.use(((err: unknown, _req, res, _next) => {

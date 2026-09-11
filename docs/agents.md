@@ -1,20 +1,35 @@
 # Multi-agent platform architecture
 
 Since 2026-07-11 (prod v11, migration 019) fiscalMind is a multi-agent
-platform: one app hosting several developer-built agent types, each enabled
-per accountant and owning its own client list. The document collector is
-agent #1; `debt_collector`, `customer_service` and `declaration_of_capital`
-are live too. `declaration_of_capital` (2026-08-18) is a second
-**doc-collector-family** type (`src/agents/docCollector/family.ts`): it reuses
-the doc collector's behavior wholesale (definition spread, shared router,
-client-import scan, overdue scan, tax-year gating) and differs only in what
-the documents are for — a הצהרת הון as of the 31.12.tax_year valuation date —
-via its own prompt template (`declarationOfCapital/prompt.md`, selected per
-agent type in `docCollector/plan.ts`), the analyzer's valuation-date framing
-(`AnalysisPurpose` in `analyzeFile.ts`), and its own UI defaults (add-client
-checklist, no monday board import). The accountant-editable prompt template
-(legacy setting key) applies to `doc_collector` only.
-Since 2026-08-23 it is also the first **WhatsApp-only** type
+platform: one app built to host several developer-built agent types, each
+enabled per accountant and owning its own client list. **Since 2026-09-11 it
+hosts exactly one agent type, `declaration_of_capital`**
+(`src/agents/declarationOfCapital/`, UI `web/src/agents/declarationOfCapital.tsx`):
+a WhatsApp collector of the documents a הצהרת הון needs as of the
+31.12.tax_year valuation date. The registries, the per-instance client model,
+the admin activation flow and the `AgentTypeDefinition`/`AgentTypeUI` seams
+stay generic so another type can be added, but nothing else is registered.
+
+History: the document collector (`doc_collector`, agent #1 — the annual
+tax-return checklist chased over email/WhatsApp) was the engine the
+declaration-of-capital collector was built on (2026-08-18, as a
+"doc-collector-family" type spreading its definition); `debt_collector`
+(email dunning over office sheets/boards) and `customer_service` (inbound
+WhatsApp Q&A over monday docs/boards + Google Sheets/Docs) shipped 2026-07-13,
+alongside nine coming-soon stubs. All of them were removed 2026-09-11:
+migration 055 disabled their `agent_instances` rows (rows are never deleted),
+the doc collector's engine (planner, decision schema, file analyzer, documents
+router, overdue scan, tax-authority fetch) moved wholesale into
+`declarationOfCapital/`, and the doc-collector-only surfaces went with it —
+the accountant-editable prompt template (admin prompt editor +
+`/prompt-template` routes + `user_settings`), the monday-widget board→clients
+import (`POST /api/monday/clients/import`), the legacy unprefixed workspace
+mounts (`/api/clients…` resolving to the user's doc_collector instance) and the
+CLI bootstrap script. The monday/Google row fetchers the customer-service
+agent owned live on as `src/agents/shared/mondayData.ts` / `googleData.ts`
+(client-import sources, kickoff webhook, board status sync).
+
+The agent is **WhatsApp-only**
 (`AgentTypeDefinition.whatsappOnly`; it has no `emailSuffix` anymore, so
 activation is not email-gated and no mailbox is required — the instance's
 `wa_senders` number is what it sends from):
@@ -24,7 +39,7 @@ activation is not email-gated and no mailbox is required — the instance's
   dedupes by the E.164 number, the import looks rows up via
   `getByWaPhoneForInstance`, and `email_address` gets the synthetic
   `wa-<digits>@wa.invalid` placeholder (`src/util/syntheticEmail.ts`, same
-  pattern as CS auto-enrollment; the UI hides it, tax-fetch delivery treats it
+  pattern; the UI hides it, tax-fetch delivery treats it
   as "no email"). The kickoff webhook resolves the clicked row by its phone
   cell the same way.
 - The import gate is a **WhatsApp sender**, not a mailbox
@@ -40,7 +55,7 @@ activation is not email-gated and no mailbox is required — the instance's
   window opens. Operational prerequisite: at least one approved `wa_templates`
   row must exist (admin: waAdmin routes) or the agent cannot start
   conversations.
-It is also the first **manual-kickoff** type (`AgentTypeDefinition.manualKickoff`):
+It is also a **manual-kickoff** type (`AgentTypeDefinition.manualKickoff`):
 the client-import scan enrolls its clients *paused* with no first draft, and
 the first message is drafted+scheduled only on an explicit accountant trigger —
 either the **monday kickoff webhook** (`src/webhook/mondayKickoffRoute.ts`:
@@ -66,7 +81,7 @@ monday WorkForm is the only source of which documents a declaration needs):
   webhook recipe fires on form submission (e.g. "when the questionnaire status
   changes to התקבל מענה").
 - **Kickoff resolution** (`declarationOfCapital/kickoff.ts`,
-  `fetchItemDetails` in `customerService/mondayData.ts` reads titles/types +
+  `fetchItemDetails` in `shared/mondayData.ts` reads titles/types +
   `BoardRelationValue.linked_item_ids`): the webhook follows the CRM link for
   the phone (first phone-typed column, title-pattern fallback; the ת"ז cell
   feeds `agent_fields.id_number`, used by verification as a credentials
@@ -164,7 +179,7 @@ monday WorkForm is the only source of which documents a declaration needs):
 Since 2026-08-23 the agent also reports its progress **back to the board**
 (`src/agents/shared/mondayStatusSync.ts`): when a board source maps a
 `statusColumnId` (settings UI: declaration-of-capital board mapping only, but
-the backend is doc-collector-family-generic), the agent writes fixed Hebrew
+the backend is agent-generic), the agent writes fixed Hebrew
 labels into that status column — "agent working" on conversation start
 (kickoff webhook or first resume) and "documents collected" on goal
 completion, reverting to "agent working" if the goal reopens. The write-back
@@ -179,7 +194,8 @@ best-effort: failures are logged, never block the conversation, and the
 status-change events the writes fire back at the kickoff webhook are ignored
 by its startable-state guards.
 `annual_report_assistant` was retired 2026-07-31 — migration 041 disabled its
-instances; the rows survive, hidden, because instance rows are never deleted.
+instances; the rows survive, hidden, because instance rows are never deleted
+(migration 055 did the same for the types removed 2026-09-11).
 Industry pattern followed: one app with an agent registry
 (HubSpot Breeze / Salesforce Agentforce model) — never one app per agent.
 
@@ -189,7 +205,7 @@ Industry pattern followed: one app with an agent registry
   `src/agents/<type>/`, frontend half in `web/src/agents/<type>.tsx`,
   registered in `src/agents/registry.ts` and `web/src/agents/registry.ts`.
 - **Agent instance** — one row in `agent_instances` per (accountant, type).
-  Every instance — the doc collector included — is admin-created
+  Every instance is admin-created
   (`agentInstances.enableInstance`); nothing is auto-provisioned at sign-in.
   Onboarding is admin-first (migration 043): activating (whitelisting) an
   accountant immediately creates their `users` row as an *invited* account
@@ -211,7 +227,7 @@ Industry pattern followed: one app with an agent registry
   deploy or restart. New deferred/scheduled execution paths must call
   `agentWorkBlocked` (or at least `isKillSwitchOn`) before acting.
 - **Clients belong to an instance** — `clients.agent_instance_id` (NULL only
-  on legacy CLI-era rows, treated as doc_collector). Per-agent scalar fields
+  on legacy CLI-era rows, for which no agent acts). Per-agent scalar fields
   go in `clients.agent_fields` JSONB; relational per-agent data gets its own
   tables keyed by `client_id` (pattern: `client_documents`).
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
@@ -251,8 +267,7 @@ Industry pattern followed: one app with an agent registry
 
 **Agent prompts are plain Markdown files**, not inline strings: each agent's
 system-prompt template lives in `src/agents/<type>/prompt.md` next to its
-`prompt.ts` (the debt collector's daily-scan screening prompt is
-`dailyScanPrompt.md`). They use `{{placeholder}}` substitution and are loaded
+`prompt.ts`. They use `{{placeholder}}` substitution and are loaded
 at module init by `src/agents/shared/promptFile.ts` (`loadPrompt` /
 `renderTemplate`). tsc does not copy them — `npm run build` runs
 `scripts/copyPromptAssets.mjs` to place them in `dist/src`; keep new prompt
@@ -287,8 +302,6 @@ tenancy / admin impersonation / monday token auth.
 - `/api/agents/:agentId/...` — the agent-scoped workspace (clients, emails,
   files, dashboard, SSE); `resolveAgentInstance` middleware sets
   `req.agentInstance` (404 on other users' or disabled instances).
-- Legacy unprefixed `/api/clients...` mounts still exist and resolve to the
-  user's doc_collector instance (removal is pending phase-6 cleanup).
 - Same three shapes under `/api/monday/app/...` (monday sessionToken auth).
 - Account-level (not agent-scoped): `GET /api/mailbox` (`src/api/account.ts`)
   — read-only status of the legacy account mailbox; there is no
@@ -302,7 +315,8 @@ tenancy / admin impersonation / monday token auth.
   Activation of a type that emails clients (has `emailSuffix`) is email-gated:
   the first enable must carry `emailLocalPart` (the admin picks it with the
   accountant in the activation modal; a re-enable keeps the existing address).
-  Types with `collectsTaxYear` (today only the doc collector) are year-gated
+  Types with `collectsTaxYear` (none today — the declaration year is per
+  client) are year-gated
   the same way: the first enable must carry `taxYear` (the modal prefills the
   last concluded year), stored in `agent_instances.tax_year` (migration 042 —
   a column, not `settings`, because the accountant-facing settings PUT replaces
@@ -331,18 +345,17 @@ tenancy / admin impersonation / monday token auth.
 (id, labelKey, `render(ClientTabContext)`). The generic
 `components/ClientView.tsx` owns load/SSE/poll/drafting logic and renders the
 active type's tabs. Requests flow through `agentApi(agentId)` provided via
-`WorkspaceApiContext` (`useWorkspaceApi()` in components; the default context
-value is the legacy unprefixed `api`).
+`WorkspaceApiContext` (`useWorkspaceApi()` in components; it throws outside a
+provider — there is no unprefixed fallback).
 
 Shell behavior (`Workspace.tsx`): boots on `GET /agents` and always
-auto-enters an agent — the remembered one, else the `doc_collector` instance
-(the product's core agent), else the first. The `AgentsHome` card grid is
+auto-enters an agent — the remembered one, else the first. The `AgentsHome`
+card grid is
 not accountant-reachable anymore (no landing page, no sidebar item) — it
 survives only as the none-enabled message for agent-less accounts and as
 the coming-soon pane's back target. A
 `pinnedAgentType` prop can lock a surface to one type; no surface uses it
-today — the monday custom object was unpinned from `doc_collector` once
-`customer_service` shipped, so it shows the same shell as the standalone app.
+today — the monday custom object shows the same shell as the standalone app.
 
 Workspace navigation lives in the URL hash on standalone surfaces
 (`components/workspaceRoute.ts`), so a specific agent + client (conversation)
@@ -358,7 +371,7 @@ belongs to monday) — `Workspace` falls back to in-memory navigation there
 ## Adding an agent type (checklist)
 
 1. `src/agents/<type>/index.ts` — the `AgentTypeDefinition` (see
-   `docCollector/` for the full shape, `debtCollector/` for the minimal stub).
+   `declarationOfCapital/` for the full shape).
 2. Register in `src/agents/registry.ts` + add a Hebrew default name in
    `DEFAULT_INSTANCE_NAMES` (`src/db/queries/agentInstances.ts`).
 3. `web/src/agents/<type>.tsx` — `AgentTypeUI` with tabs; register in
@@ -369,28 +382,28 @@ belongs to monday) — `Workspace` falls back to in-memory navigation there
 5. No migration needed for the type itself (`agent_type` is TEXT, validated in
    code). Enable it per accountant from the admin panel.
 
-## Doc-collector lifecycle (completion & due date)
+## Collection lifecycle (completion & due date)
 
-- **Goal complete** (every required document collected): the agent stops
-  (guards in `setFutureEmail`/`sendEmailWorker`) and emails the accountant —
-  `docCollector/notifyAccountant.ts`, sent from a no-reply platform address
+- **Goal complete** (every row settled and the attestation confirmed): the
+  agent stops (guards in `setFutureEmail`/`sendEmailWorker`) and emails the
+  accountant — `notifyAccountant.ts`, sent from a no-reply platform address
   to their login address, deliberately *not* stored in `emails` (that table is
   the client conversation). Both completion paths notify: the LLM plan
   (`plan.ts`) and the manual documents toggle (`router.ts`). No closing
   message is sent to the client.
 - **Due date passed** (`agent_fields.due_date`, "YYYY-MM-DD"): the
   `overdue_scan` BullMQ queue (daily job scheduler at 00:10 local +
-  a catch-up scan on worker boot, `docCollector/overdueScan.ts`) pauses the
+  a catch-up scan on worker boot, `overdueScan.ts`) pauses the
   client and emails the accountant the missing documents — the client is
   handed off. Two `agent_fields` markers: `overdue_notified_at` (idempotency —
   cleared only by a due-date edit) and `overdue_stopped_at` (the "handed off"
   UI state — cleared on resume or due-date edit). Resuming, or editing the due
-  date (`PUT /clients/:id/due-date`, doc-collector router), puts the agent
+  date (`PUT /clients/:id/due-date`, the agent router), puts the agent
   back to work; manually paused clients are never overdue-stopped.
 
-## Doc-collector tax-authority 106 fetch (browser automation)
+## Tax-authority 106 fetch (browser automation)
 
-The doc collector can fetch a client's Form 106 (טופס 106) straight from the
+The agent can fetch a client's Form 106 (טופס 106) straight from the
 Israeli tax authority by driving a real browser, entirely as a **conversational
 capability** — there is no accountant button.
 
@@ -540,21 +553,13 @@ touching prompt builders or planners:
   never linked to documents, and never count as evidence; the workspace files
   card shows a "תוכן חשוד" badge.
 - **Authority reduction** — LLM verdicts alone can't flip consequential state:
-  - Doc collector: `collected` requires file evidence — the
+  - Documents: `collected` requires file evidence — the
     analyzer's own match (tier A, `fileMatchesDocument`) or a planner pairing
     with a verified legible file (tier B, `isVerifiedLegibleFile`). A no-file
     claim ("delivered by fax / in person") becomes status **`claimed`**
     (migration 030) + a confirm-request email to the accountant; only the
     accountant's click (documents-tab checkbox → `collected`) completes it.
     Goal completion counts only `collected`.
-  - Debt collector: `paid` is authoritative only when the extraction says the
-    accountant's own rows are clean (`in_debt=false`, i.e. the row was
-    cleared). Otherwise the snapshot becomes **`paid_claimed`**: dunning stops,
-    the accountant gets a confirm-request email (idempotent via
-    `paid_claim_notified_at`), and either their confirmation
-    (`POST /debt-collector/clients/:id/confirm-paid`, button in the debt tab)
-    or clearing the source row completes the goal. `no_debt` under
-    `suspected_injection` records the snapshot but leaves the goal open.
   - Tax fetch: `start_login` requires a live WhatsApp conversation — an email
     alone can never arm it (see the 106-fetch section above).
 
@@ -562,58 +567,22 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
 
 ## Current state & deferred work
 
-- `customer_service` is the first `'immediate_reply'` agent: an inbound-only
-  WhatsApp Q&A agent. `onInboundMessage` fetches its knowledge sources
-  **live** (no caching), generates one answer, and sends it synchronously —
-  nothing ever goes through the BullMQ scheduler (`planNextAction` is a no-op
-  by design). Two source families, each behind its own per-accountant OAuth
-  connection:
-  - **monday**: workdocs (office knowledge) + board rows (client records),
-    via `monday_oauth_tokens` (migration 020; connect flow in
-    `src/api/mondayOauth.ts`). monday tokens never expire.
-  - **Google**: Docs (office knowledge) + Sheet rows (client records), via
-    `google_oauth_tokens` (migration 022; connect flow in
-    `src/api/googleOauth.ts`). Scope is `drive.file` only — the accountant
-    picks specific files in the Google Picker popup
-    (`web/google-picker.html`), and the app can read only those. Google
-    access tokens expire ~hourly; `getFreshGoogleAccessToken()` refreshes
-    from the stored refresh token before every read.
-
-  Sender phone is the only authentication; board and sheet rows are
-  re-verified server-side against the sender's number (`mondayData.ts`
-  `phonesMatch`, shared by `googleData.ts`) before entering the prompt — the
-  privacy boundary. The CS instance has its own dedicated WhatsApp number
-  (`wa_senders`); unknown senders who message that number are auto-enrolled
-  by the webhook (`onInboundWhatsApp.ts`) **only if their number matches a
-  row in the connected client records** (`enrollGate.ts`
-  `isListedClientPhone`, same phonesMatch check; fail-closed — no sources
-  configured or a lookup error means no enrollment). Unlisted strangers get
-  silence: no client row, no LLM call. Messages to other agents' numbers
-  never reach CS.
-  Config lives in `agent_instances.settings`
-  (`customerService/settings.ts`); the settings UI is the `settingsPanel`
-  slot on `AgentTypeUI`, rendered in the workspace Settings view.
-- **Client-import sources** (doc collector): the
-  accountant links monday boards / Google Sheets (email + optional name
-  column, per-instance in `agent_instances.settings`) and every row that isn't
-  a client yet is enrolled — immediately via the settings panel's per-source
-  "import now" (`POST /client-sources/scan`, optional `source` body narrows
-  the sweep to one board/sheet) and by a daily sweep (queue
-  `client_import_scan`, 00:50 local + boot catch-up). Shared machinery lives
-  in `src/agents/shared/`: `clientSources.ts` (source schemas + whole-source
-  sweep + candidate collection — the debt collector's settings/scan now build
-  on it too), `clientImportScan.ts` (enroll-all scan; no LLM screening),
-  `clientSourcesRoutes.ts` (the `/client-sources/*` routes the agent mounts).
-  The doc collector additionally keeps a `documents` checklist in its settings
-  (`docCollector/settings.ts`) — every imported client is created with it, and
-  the import refuses to run while the checklist is empty (a document-less
-  client would complete trivially). Web: `ClientSourcesSettings.tsx` is the
-  shared panel (connections, board/sheet pickers, optional documents editor +
-  import-now); `DebtCollectorSettings.tsx` is now a thin wrapper around it.
-- Deferred (unblocked by design, not built): removal of the legacy unprefixed
-  mounts; per-agent prompt-template keys (`prompt_template.<agent_type>`,
-  today the admin prompt editor edits the doc collector via the legacy key,
-  and the DoC collector uses its built-in template);
+- **Client-import sources**: the accountant links monday boards (per-instance
+  in `agent_instances.settings`, `declarationOfCapital/settings.ts`; Google
+  Sheets are supported by the shared machinery but hidden for this
+  phone-keyed, kickoff-only type) and rows are enrolled via the kickoff
+  webhook — the settings panel's per-source "import now"
+  (`POST /client-sources/scan`, optional `source` body narrows the sweep to
+  one board/sheet) and the daily sweep (queue `client_import_scan`, 00:50
+  local + boot catch-up) exist but skip catalog-seeded types. Shared
+  machinery lives in `src/agents/shared/`: `clientSources.ts` (source schemas
+  + whole-source sweep + candidate collection), `clientImportScan.ts`
+  (enroll-all scan; no LLM screening), `clientSourcesRoutes.ts` (the
+  `/client-sources/*` routes the agent mounts), `mondayData.ts` /
+  `googleData.ts` (the live board/sheet reads, also used by the kickoff
+  webhook and the board status sync). Web: `ClientSourcesSettings.tsx` is the
+  shared panel (connections, board/sheet pickers, import-now).
+- Deferred (unblocked by design, not built):
   inbound **email** fan-out when one accountant has the same client email in
   two agents (the 019 uniqueness relaxation to `(client_id, message_id)`
   already allows it — today routing picks the user-scoped match). The
@@ -641,12 +610,12 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   `LlmCallLogContext` (fire-and-forget; logging never fails the call). **Every
   new LLM call site should pass a `LlmCallLogContext` to `generateWithRetry`**
   alongside the existing `llmUsage.add` obligation (today wired: the
-  doc-collector family's five sites — `conversation_decide`, `form_intake`, `injection_screen`, `analyze_file`, `verify_document`; debt collector / CS are counters-only).
+  the agent's five sites — `conversation_decide`, `form_intake`, `injection_screen`, `analyze_file`, `verify_document`).
   Like `audit_events`, `llm_calls` has no FKs — call history outlives clients.
 - **Audit trail + anomaly detection** (migrations 031-032): `audit_events` is
   the per-action forensic record — one row per outbound email/WhatsApp,
   tax-authority login/OTP/delivery, LLM-driven status change
-  (collected/claimed/goal-complete/debt statuses), injection-suppressed
+  (collected/claimed/goal-complete statuses), injection-suppressed
   planning cycle, auto-enrollment, accountant override and mutating admin API
   call. **Every new outward-facing or state-changing action site must call
   `recordAudit`** (`src/audit/audit.ts`, fire-and-forget — it never fails or
@@ -689,9 +658,9 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   A gate never flips a security verdict: it drops or rejects, it does not
   make a "suspected" answer "clean". Pure rules modules (no llm/db/audit
   imports, tests run without an API key): `shared/injectionRegex.ts`,
-  `shared/injectionScanRules.ts`, `docCollector/analyzeFileRules.ts`,
-  `declarationOfCapital/formIntakeRules.ts`, `verifyChecks.ts`,
-  `docCollector/decisionSchema.ts`.
+  `shared/injectionScanRules.ts`, `analyzeFileRules.ts`,
+  `formIntakeRules.ts`, `verifyChecks.ts`,
+  `decisionSchema.ts`.
 - **Request builders**: each stage exports the exact `generate()` request it
   sends (`buildFormIntakeCall`, `buildInjectionScreenCall` /
   `buildFileScreenCall`, `buildAnalysisCall`, `buildExtractionCall`,
@@ -700,8 +669,8 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   with a per-call `model` override and a file log sink, so it tests what the
   app sends and leaves no trace in `llm_calls`.
 - **Three injection layers on every untrusted input** — form answers
-  (`formIntake.ts`), every inbound message (`docCollector/screenInbound.ts`,
-  before planning) and every attached file (`docCollector/analyzeInboundFile.ts`,
+  (`formIntake.ts`), every inbound message (`screenInbound.ts`,
+  before planning) and every attached file (`analyzeInboundFile.ts`,
   before classification): (1) `injection_detection_regex` — eleven named
   patterns, first hit wins, no model; for a PDF also over the text layer
   `shared/fileText.ts` can read (dependency-free; Hebrew CID fonts come out as

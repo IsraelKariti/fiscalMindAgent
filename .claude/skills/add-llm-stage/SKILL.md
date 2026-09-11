@@ -20,12 +20,12 @@ the gate or the injection screen because a stage "looks isolated".
 |---|---|---|
 | purpose (the LLM call, `llm_calls.purpose`) | `snake_case` noun | `analyze_file` |
 | gate step (the audit action) | `validate_<thing>` / `verify_<thing>` | `validate_classification` |
-| pure rules module | `src/agents/<agent>/<name>Rules.ts` | `src/agents/docCollector/analyzeFileRules.ts` |
-| runtime module | `src/agents/<agent>/<name>.ts` | `src/agents/docCollector/analyzeFile.ts` |
+| pure rules module | `src/agents/<agent>/<name>Rules.ts` | `src/agents/declarationOfCapital/analyzeFileRules.ts` |
+| runtime module | `src/agents/<agent>/<name>.ts` | `src/agents/declarationOfCapital/analyzeFile.ts` |
 | request builder | `build<Name>Call` | `buildAnalysisCall` |
 | test | `tests/<name>Rules.test.ts` | `tests/analyzeFileRules.test.ts` |
 
-Study `src/agents/docCollector/analyzeFile.ts` + `analyzeFileRules.ts` first: the smallest complete example.
+Study `src/agents/declarationOfCapital/analyzeFile.ts` + `analyzeFileRules.ts` first: the smallest complete example.
 
 ## Checklist (do all of it, in this order)
 

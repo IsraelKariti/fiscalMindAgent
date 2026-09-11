@@ -61,7 +61,7 @@ from a model's answer. Each case has `id`, `notes` (one sentence: what it proves
 is seeded `unresolved` unless `seedCatalog: false`), `thread` (inbound rows are the only evidence pool), `wa`
 (window + template names from the file's `templates`), optional `attestation`, and a fixed `now` — the adapter
 turns them into `ClientRow` / `EmailRow[]` / `ClientDocumentRow[]` and the `DecisionContext` the way
-`docCollector/plan.ts` does.
+`declarationOfCapital/plan.ts` does.
 
 ## Results file
 

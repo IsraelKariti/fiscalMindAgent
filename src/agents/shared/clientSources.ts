@@ -2,15 +2,15 @@ import { z } from 'zod';
 import { normalizeE164 } from '../../util/phone.js';
 import { getFreshGoogleAccessToken } from '../../api/googleOauth.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
-import { fetchAllSheetRows } from '../customerService/googleData.js';
-import { fetchAllBoardRows } from '../customerService/mondayData.js';
+import { fetchAllSheetRows } from './googleData.js';
+import { fetchAllBoardRows } from './mondayData.js';
 import { logger } from '../../util/logger.js';
 
 /**
- * Client-source config shared by every agent that reads client rows from the
- * accountant's monday boards / Google Sheets (debt collector, doc collector,
- * annual-report assistant): each source is mapped by the column the client
- * email addresses live in, plus an optional display-name column.
+ * Client-source config for agents that read client rows from the accountant's
+ * monday boards / Google Sheets: each source is mapped by the column the
+ * client key (email, or phone for WhatsApp-only types) lives in, plus an
+ * optional display-name column.
  */
 export const BoardSourceSchema = z
   .object({
@@ -25,7 +25,7 @@ export const BoardSourceSchema = z
     idNumberColumnId: z.string().min(1).optional(),
     /** Column holding the client's tax-authority permanent user code — optional. */
     taxUserCodeColumnId: z.string().min(1).optional(),
-    /** Column listing the client's required documents (doc collector) — optional. */
+    /** Column listing the client's required documents (types without catalog seeding) — optional. */
     documentsColumnId: z.string().min(1).optional(),
     /** Status column the agent writes its progress labels to (mondayStatusSync) — optional. */
     statusColumnId: z.string().min(1).optional(),
@@ -62,7 +62,7 @@ export const SheetSourceSchema = z
     idNumberColumn: z.string().min(1).optional(),
     /** Header text of the column holding the tax-authority permanent user code — optional. */
     taxUserCodeColumn: z.string().min(1).optional(),
-    /** Header text of the column listing the client's required documents (doc collector) — optional. */
+    /** Header text of the column listing the client's required documents (types without catalog seeding) — optional. */
     documentsColumn: z.string().min(1).optional(),
     /** Set by the settings UI on add; the UI shows "import now" until a scan clears it. */
     pendingImport: z.boolean().optional(),
@@ -129,7 +129,7 @@ export function hasCrmLinkColumn(settings: ClientSources): boolean {
 /**
  * Document names from a source row's documents cell: split on newlines, commas
  * and semicolons, trimmed, deduped, clamped to the checklist limits (50 items,
- * 200 chars each — the DocCollectorSettingsSchema bounds).
+ * 200 chars each — the InstanceSettingsSchema bounds).
  */
 export function parseDocumentsCell(cell: string): string[] {
   const names: string[] = [];

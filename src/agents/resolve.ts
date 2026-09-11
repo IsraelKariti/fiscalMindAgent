@@ -11,8 +11,9 @@ export interface ResolvedAgent extends AgentContext {
 /** The agent context for one client: its instance, type definition, and owning accountant. */
 export async function loadAgentContext(client: ClientRow): Promise<ResolvedAgent> {
   const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
-  // Legacy CLI-era clients (NULL instance) behave as they always have: doc collector.
-  const definition = getAgentType(instance?.agent_type ?? 'doc_collector');
+  // Legacy CLI-era clients (NULL instance) have no agent to act for them.
+  if (!instance) throw new Error(`client ${client.id} has no agent instance`);
+  const definition = getAgentType(instance.agent_type);
   const accountant = client.user_id ? await users.getById(client.user_id) : null;
   return { instance, client, accountant, definition };
 }

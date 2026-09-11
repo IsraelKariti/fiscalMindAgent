@@ -39,13 +39,8 @@ export type AgentBlockedReason = 'kill_switch' | 'instance_disabled';
  */
 export async function agentWorkBlocked(client: ClientRow): Promise<AgentBlockedReason | null> {
   if (await isKillSwitchOn()) return 'kill_switch';
-  const instance = client.agent_instance_id
-    ? await agentInstances.getById(client.agent_instance_id)
-    : client.user_id
-      ? // Legacy CLI-era clients (NULL instance) behave as doc collector, like loadAgentContext.
-        await agentInstances.getByTypeForUser(client.user_id, 'doc_collector')
-      : null;
-  // A legacy client whose user has no doc_collector row keeps working as before.
-  if (instance && !instance.enabled) return 'instance_disabled';
+  const instance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
+  // A client without an instance (legacy CLI-era rows) has no agent to act for it.
+  if (!instance || !instance.enabled) return 'instance_disabled';
   return null;
 }

@@ -9,7 +9,6 @@ import type {
   WorkspaceApi,
 } from '../api';
 import type { Messages } from '../i18n';
-import type { DocumentDraft } from '../defaultDocuments';
 
 /** Everything a client tab needs, loaded and kept fresh by the generic ClientView. */
 export interface ClientTabContext {
@@ -17,7 +16,7 @@ export interface ClientTabContext {
   client: Client;
   emails: Email[];
   nextScheduled: NextScheduled | null;
-  /** Doc-collector data; [] for agent types without required documents. */
+  /** The client's required-documents checklist. */
   documents: ClientDocument[];
   /** Files received over the channels (channel-level, agent-agnostic). */
   files: DocumentFile[];
@@ -51,12 +50,6 @@ export interface AgentTypeUI {
   icon: ReactNode;
   clientTabs: ClientTab[];
   /**
-   * A stub agent type with no behavior yet: it gets a normal picker card, but
-   * entering it renders a "coming soon" pane instead of the client workspace
-   * (clientTabs/channels are ignored and may be empty).
-   */
-  comingSoon?: boolean;
-  /**
    * Optional agent-level settings panel, rendered as an extra section of the
    * workspace Settings view (inside WorkspaceApiProvider, so it may call
    * useWorkspaceApi() for agent-scoped requests).
@@ -68,44 +61,12 @@ export interface AgentTypeUI {
    */
   settingsPanelTabKey?: MessageStringKey;
   /**
-   * monday surfaces only: offers the board→clients import in this agent's
-   * workspace. The import endpoint creates doc-collector clients (required
-   * documents + first-email draft), so only the doc collector sets this;
-   * other agents connect monday through their own settings panel instead.
-   */
-  supportsBoardImport?: boolean;
-  /**
-   * Clients enroll themselves (inbound-only agents: a WhatsApp sender becomes
-   * a client on their first message). The shell hides the manual add-client
-   * button — whose email + documents form is follow-up-agent shaped — and
-   * shows an inbound-oriented empty state instead.
-   */
-  inboundOnlyClients?: boolean;
-  /**
    * Clients come only from the configured import sources (monday boards /
    * Google Sheets) — the shell hides the manual add-client button and shows an
    * import-oriented empty state instead. Used by manual-kickoff agents
    * (declaration of capital), whose whole flow lives on the monday board.
    */
   importOnlyClients?: boolean;
-  /**
-   * The manual add-client form collects only name + email — no required
-   * documents or due date (doc-collector concepts). Used by agents whose
-   * per-client data comes from elsewhere (debt collector: the sheets/boards).
-   */
-  simpleClientForm?: boolean;
-  /**
-   * Lead paragraph for the simple add-client form. The simple form is shared
-   * by several agent types whose "what happens after you add a client" story
-   * differs; defaults to the debt collector's copy for back-compat.
-   */
-  addClientLeadKey?: MessageStringKey;
-  /**
-   * Checklist prefilled in the manual add-client form. Only meaningful for
-   * agent types with the full (non-simple) form; unset falls back to the doc
-   * collector's annual-tax-return list (DEFAULT_DOCUMENTS).
-   */
-  defaultDocuments?: DocumentDraft[];
   /**
    * The channels this agent type communicates over. Drives every
    * channel-conditional surface: single-channel agents get no channel filter

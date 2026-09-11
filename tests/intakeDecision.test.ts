@@ -5,7 +5,7 @@ import {
   type DecisionContext,
   type DecisionResponse,
   type IntakeDecisionState,
-} from '../src/agents/docCollector/decisionSchema.js';
+} from '../src/agents/declarationOfCapital/decisionSchema.js';
 
 /** A minimal valid follow_up answer; tests override the intake fields. */
 function baseRaw(overrides: Partial<DecisionResponse> = {}): DecisionResponse {

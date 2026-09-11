@@ -22,7 +22,7 @@ export interface PlanHints {
 
 /** Everything a hook needs to act for one client of one agent instance. */
 export interface AgentContext {
-  /** NULL only for legacy CLI-era clients that predate agent_instances (treated as doc_collector). */
+  /** NULL only for legacy CLI-era clients that predate agent_instances (no agent acts for them). */
   instance: AgentInstanceRow | null;
   client: ClientRow;
   accountant: UserRow | null;
@@ -103,8 +103,8 @@ export interface AgentTypeDefinition {
    */
   analyzeInboundFile?(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<void>;
   /**
-   * Agent-type-specific API routes (e.g. the doc collector's required-documents
-   * CRUD), composed into the agent-scoped workspace router. Handlers see
+   * Agent-type-specific API routes (e.g. the required-documents CRUD),
+   * composed into the agent-scoped workspace router. Handlers see
    * req.agentInstance and must skip (next('router')) when it isn't their type.
    */
   buildRouter?(): Router;

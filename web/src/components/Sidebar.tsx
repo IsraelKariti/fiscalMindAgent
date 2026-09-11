@@ -25,26 +25,17 @@ interface Props {
   onShowAgents?: () => void;
   clients: Client[];
   selectedClientId: string | null;
-  promptSelected: boolean;
   settingsSelected: boolean;
   onSelectClient: (clientId: string) => void;
-  onSelectPrompt: () => void;
   onSelectSettings: () => void;
   /** Absent for inbound-only agents, whose clients enroll themselves — the + button hides. */
   onAddClient?: () => void;
-  /**
-   * Inbound-only agents have no goal to track, so the client dot shows the
-   * mute state instead: green while the agent answers, red while muted.
-   */
-  muteDots?: boolean;
   onDeleteClient: (client: Client) => void;
   userEmail: string | null;
   impersonatingEmail: string | null;
   onStopImpersonating?: () => void;
   /** Absent in the monday iframe, where the identity is monday's — the logout button hides. */
   onLogout?: () => void;
-  /** monday surfaces only: opens the board→clients import; the button hides when absent. */
-  onImportClients?: () => void;
 }
 
 const icon = {
@@ -128,19 +119,15 @@ export function Sidebar({
   onShowAgents,
   clients,
   selectedClientId,
-  promptSelected,
   settingsSelected,
   onSelectClient,
-  onSelectPrompt,
   onSelectSettings,
   onAddClient,
-  muteDots,
   onDeleteClient,
   userEmail,
   impersonatingEmail,
   onStopImpersonating,
   onLogout,
-  onImportClients,
 }: Props) {
   const { t } = useT();
   const [clientQuery, setClientQuery] = useState('');
@@ -182,11 +169,7 @@ export function Sidebar({
     );
   }, [clients, clientQuery]);
   const dotFor = (client: Client) =>
-    muteDots
-      ? client.wa_enabled
-        ? { cls: 'complete', title: t.muteStatusAnswering }
-        : { cls: 'wa-muted', title: t.muteStatusMuted }
-      : isOverdueStopped(client)
+    isOverdueStopped(client)
         ? { cls: 'overdue', title: t.goalOverdueTitle }
         : {
             cls: client.goal_status,
@@ -251,11 +234,6 @@ export function Sidebar({
             {clients.length > 0 && <span className="side-count">{clients.length}</span>}
           </span>
           <span className="side-heading-rule" />
-          {onImportClients && (
-            <button className="icon-btn" onClick={onImportClients} title={t.mwImportOpen}>
-              {icon.download}
-            </button>
-          )}
           {onAddClient && (
             <button className="icon-btn" onClick={onAddClient} title={t.addClient}>
               {icon.plus}
@@ -309,19 +287,6 @@ export function Sidebar({
           )}
         </ul>
 
-        {/* Prompt tuning is an admin task — surfaced only inside an impersonated workspace. */}
-        {impersonatingEmail && (
-          <>
-            <div className="side-heading">
-              <span className="side-heading-label">{t.adminTools}</span>
-              <span className="side-heading-rule" />
-            </div>
-            <button className={`client-item ${promptSelected ? 'selected' : ''}`} onClick={onSelectPrompt}>
-              <span className="nav-item-icon">{icon.sliders}</span>
-              <span className="client-item-name">{t.systemPrompt}</span>
-            </button>
-          </>
-        )}
       </div>
 
       <div className="sidebar-footer">

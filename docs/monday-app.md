@@ -5,12 +5,11 @@ server and built from `web/src/monday/`:
 
 - **Dashboard widget** at `/monday-widget` (`web/monday-widget.html` →
   `web/src/monday/widgetMain.tsx`): glanceable overview stat tiles +
-  needs-attention list, plus client import from a board connected to the
-  dashboard.
+  needs-attention list.
 - **Custom object** at `/monday-object` (`web/monday-object.html` →
   `web/src/monday/objectMain.tsx` → `MondayObject.tsx`): the full accountant
-  workspace (sidebar, client conversations, documents, files, settings, board
-  import) — the same `Workspace` component the standalone SPA renders, added
+  workspace (sidebar, client conversations, documents, files, settings) — the
+  same `Workspace` component the standalone SPA renders, added
   to a monday workspace from the left-pane **+** menu like a board or doc.
 
 ## How it works
@@ -38,8 +37,8 @@ server and built from `web/src/monday/`:
   cookie-authenticated at `/api/*` (standalone SPA) and sessionToken-
   authenticated at `/api/monday/app/*` (custom object). `GET /api/monday/me`
   returns the standalone `/api/me` payload for the monday-mapped user so the
-  shared shell boots identically. Admin, impersonation, and prompt-template
-  routes are cookie-only by design. The frontend picks the mount via
+  shared shell boots identically. Admin and impersonation routes are
+  cookie-only by design. The frontend picks the mount via
   `configureApi` in `web/src/api.ts` (see `web/src/monday/objectMain.tsx`).
 - **Standalone handoff** — "Open in FiscalMind" (widget) doesn't just link to
   the app: it fetches `GET /api/monday/app-login-url`, which returns a
@@ -48,12 +47,10 @@ server and built from `web/src/monday/`:
   way monday-only accounts (synthetic `monday:` google_sub, no Google login)
   can enter the standalone app; replays and expired tokens bounce to
   `/?login_error=monday_handoff_failed`.
-- **Board import** (widget only) — the widget reads the connected board with
-  monday's seamless API (user's own permissions, no stored monday tokens):
-  board columns → pick the email (+ optional phone) column → `items_page`
-  pagination → POST `/api/monday/clients/import`, which skips existing emails,
-  so re-importing is safe. Importing requires the account to have claimed an
-  agent mailbox first.
+- **Clients come from the agent's client-import sources** (workspace Settings
+  → Integrations, server-side monday token) and the kickoff webhook — the
+  widget itself imports nothing (the seamless-auth board import went with the
+  document collector, 2026-09-11).
 - **Framing** — only `/monday-widget` and `/monday-object` carry a
   `Content-Security-Policy: frame-ancestors https://*.monday.com` header; the
   rest of the app sets no framing headers (unchanged).
@@ -68,11 +65,10 @@ server and built from `web/src/monday/`:
    - a **Custom Object** with custom URL `https://<host>/monday-object`
 
    (dev host: `<NGROK_DOMAIN>`; prod host: the Azure app.)
-4. **Permissions (scopes)**: enable `me:read` and `boards:read` (the surfaces
-   query `me { email }`, and the widget reads board items via seamless auth).
-   For the customer-service agent's server-side reads also enable `docs:read`
-   (workdocs).
-5. **OAuth** (customer-service agent only): copy the **Client ID** (Basic
+4. **Permissions (scopes)**: enable `me:read`, `boards:read` (the surfaces
+   query `me { email }`; the server reads client boards) and `boards:write`
+   (the board status sync).
+5. **OAuth** (the "Connect monday" flow behind client-import sources): copy the **Client ID** (Basic
    Information) into `MONDAY_CLIENT_ID` in `.env`, and register the redirect
    URL `https://<host>/api/auth/monday/callback` under the app's OAuth
    settings. This powers the "Connect monday" popup
@@ -82,8 +78,7 @@ server and built from `web/src/monday/`:
    monday at webhook time (boards + docs) with no browser involved. monday
    access tokens don't expire; "Disconnect" just deletes the row.
 6. Install the app on the account (**Install** / share URL). Then:
-   - widget: on any dashboard, **Add widget → Apps → your widget**, and connect
-     the board(s) holding clients via the widget settings.
+   - widget: on any dashboard, **Add widget → Apps → your widget**.
    - custom object: in a workspace, **+ Add item → Apps → your app**.
 
 ## Dev notes
@@ -91,7 +86,7 @@ server and built from `web/src/monday/`:
 - Both iframes are served from `web/dist` by the Express server (the ngrok
   tunnel targets `PORT`), **not** by the Vite dev server — run
   `npm run build:gui` after frontend changes when testing inside monday.
-- Emails imported/provisioned from monday are *claimed* by the frontend
+- Emails of accounts provisioned from monday are *claimed* by the frontend
   (monday-verified only); they are never auto-linked to existing Google users —
   that always goes through the Google popup.
 - In-process endpoint tests: see the verification script pattern (signs a fake

@@ -3,7 +3,6 @@ import type { Me } from '../api';
 import { Workspace } from '../components/Workspace';
 import { useT } from '../i18n';
 import { mondayApi } from './api';
-import { ImportPanel } from './ImportPanel';
 import { SessionGate, useMondaySession } from './useMondaySession';
 
 /**
@@ -55,12 +54,9 @@ export function MondayObject() {
   return (
     <Workspace
       userEmail={me.user?.email ?? null}
-      // Unpinned: the object shows the same multi-agent shell as the
-      // standalone app (agents-home grid + sidebar switcher when the account
-      // has several agents; auto-enter when it has one).
-      // A custom object has no board context, so the panel starts from its
-      // all-boards fallback (every readable board with an email-capable column).
-      renderImportPanel={(props) => <ImportPanel boardIds={[]} {...props} />}
+      // Unpinned: the object shows the same shell as the standalone app
+      // (agents-home grid + sidebar switcher when the account has several
+      // agents; auto-enter when it has one).
     />
   );
 }

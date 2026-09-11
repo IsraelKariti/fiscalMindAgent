@@ -5,7 +5,7 @@ import {
   DecisionResponseSchema,
   normalizeDecision,
   type DecisionContext,
-} from '../src/agents/docCollector/decisionSchema.js';
+} from '../src/agents/declarationOfCapital/decisionSchema.js';
 
 // The exact decision Gemini returned in the 2026-08-02 production incident:
 // "no message needed, the client will reply with the SMS code" — a follow_up

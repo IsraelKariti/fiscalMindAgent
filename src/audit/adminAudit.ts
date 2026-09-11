@@ -28,8 +28,6 @@ const KNOWN_ROUTES: Record<string, { action: `admin.${string}`; severity: AuditS
   'POST /admin/wa-senders/provision': { action: 'admin.wa_number_provisioned', severity: 'warning' },
   'POST /admin/wa-senders/:agentInstanceId/release': { action: 'admin.wa_number_released', severity: 'warning' },
   'POST /admin/wa-numbers/release': { action: 'admin.wa_number_released', severity: 'warning' },
-  'PUT /prompt-template': { action: 'admin.prompt_template_changed', severity: 'warning' },
-  'POST /prompt-template/reset': { action: 'admin.prompt_template_reset', severity: 'info' },
   'POST /admin/alerts/:id/ack': { action: 'admin.alert_acked', severity: 'info' },
   'POST /admin/review/messages/:emailId/approve': { action: 'admin.review_message_approved', severity: 'info' },
   'POST /admin/review/messages/:emailId/regenerate': { action: 'admin.review_message_regenerated', severity: 'info' },

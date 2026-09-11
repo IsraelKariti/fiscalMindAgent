@@ -21,7 +21,7 @@ export async function insert(args: {
   clientId: string;
   name: string;
   description?: string | null;
-  /** Catalog type the row instantiates (declaration of capital); omit for doc-collector/ad-hoc rows. */
+  /** Catalog type the row instantiates; omit for ad-hoc (accountant-added) rows. */
   typeKey?: string | null;
   /** Seeding status; defaults to 'pending' (catalog seeding passes 'unresolved'). */
   status?: DocumentStatus;

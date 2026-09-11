@@ -1,28 +1,32 @@
-import { docCollectorAgent } from '../docCollector/index.js';
+import { withClientLock } from '../../db/withClientLock.js';
+import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
+import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
+import { DECLARATION_OF_CAPITAL } from './agentType.js';
+import { planFollowUp } from './plan.js';
+import { analyzeInboundFile } from './analyzeInboundFile.js';
+import { screenInboundMessage } from './screenInbound.js';
+import { buildRouter } from './router.js';
 import { catalogSeedRows } from './catalog.js';
+import { maybeHandleOtpInbound } from './taxFetch/inboundOtp.js';
 import type { AgentTypeDefinition } from '../types.js';
 
 /**
- * The declaration-of-capital collector: identical behavior to the document
- * collector (checklist chased over email/WhatsApp, client-import sources,
- * due-date handling), but the documents are for a הצהרת הון — the capital
- * declaration the tax authority requires once every few years — as of the
- * 31.12.{{tax_year}} valuation date. The behavioral difference lives entirely
- * in its own prompt template (selected per agent type in docCollector/plan.ts)
- * and the file analyzer's valuation-date framing. Family membership is
- * declared in docCollector/family.ts, which routes the shared router,
- * client-import scan and overdue scan to both types.
+ * The declaration-of-capital collector — the platform's only agent: converses
+ * with clients over WhatsApp to collect the documents a הצהרת הון needs as of
+ * the 31.12.{{tax_year}} valuation date (client_documents, seeded from the
+ * catalog and resolved by the intake interview), with LLM-scheduled
+ * follow-ups, per-document verification and the closing attestation.
  */
 export const declarationOfCapitalAgent: AgentTypeDefinition = {
-  ...docCollectorAgent,
-  id: 'declaration_of_capital',
+  id: DECLARATION_OF_CAPITAL,
+  conversationModel: 'scheduled_follow_up',
   // A הצהרת הון demand is accountant-initiated: imported clients wait paused
-  // until the accountant fires the monday kickoff webhook (button on the board
-  // row) or resumes them in the workspace.
+  // until the accountant fires the monday kickoff webhook (form submission on
+  // the board row) or resumes them in the workspace.
   manualKickoff: true,
   // WhatsApp is the only client channel (no emailSuffix — the agent has no
-  // mailbox): clients are keyed by their phone column, first contact goes out
-  // as an approved template, and the planner may never pick email.
+  // mailbox): clients are keyed by their phone, first contact goes out as an
+  // approved template, and the planner may never pick email.
   whatsappOnly: true,
   // The hardcoded catalog is the ONLY checklist supply: every new client
   // starts with one 'unresolved' row per document type and the intake
@@ -33,4 +37,22 @@ export const declarationOfCapitalAgent: AgentTypeDefinition = {
   // year: the admin field is hidden and a row without a parseable year is not
   // started.
   collectsTaxYear: false,
+  planNextAction: planFollowUp,
+  async onInboundMessage(ctx, evt) {
+    // A WhatsApp reply carrying the tax-authority OTP is time-critical: route it
+    // straight to the worker without an LLM round-trip or a re-plan.
+    if (await maybeHandleOtpInbound(ctx, evt)) return;
+    // The three injection layers on the message text, before any planning: a
+    // hit withholds the text from the planner and answers with a fixed reply.
+    await screenInboundMessage(ctx, evt);
+    // A reply (or backfilled files) always obsoletes the pending send; the
+    // re-plan drafts the next one. Locked so a concurrent worker send and this
+    // re-plan can't interleave.
+    await withClientLock(ctx.client.id, async () => {
+      await removeFutureEmail(ctx.client.id);
+      await setFutureEmail(ctx.client.id);
+    });
+  },
+  analyzeInboundFile,
+  buildRouter,
 };

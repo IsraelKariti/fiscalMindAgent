@@ -27,16 +27,6 @@ export async function getContext(): Promise<MondayContext> {
   return res.data ?? {};
 }
 
-/**
- * Subscribe to context pushes from monday. Fires immediately with the current
- * context and again whenever it changes (e.g. the user connects a board to the
- * widget) — a one-time `get('context')` misses those later changes. Returns an
- * unsubscribe function.
- */
-export function listenContext(callback: (ctx: MondayContext) => void): () => void {
-  return monday.listen('context', (res) => callback((res.data as MondayContext) ?? {}));
-}
-
 /** Hebrew/Arabic-range strong RTL characters. */
 const RTL_RE = /[\u0590-\u08FF]/;
 

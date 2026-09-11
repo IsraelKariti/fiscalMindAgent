@@ -9,7 +9,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *   #/agents/:instanceId                 one agent, auto-restored view
  *   #/agents/:instanceId/clients/:id     one client of that agent
  *   #/agents/:instanceId/settings        agent settings (owns the dashboard)
- *   #/agents/:instanceId/prompt          prompt tuning (impersonation only)
  *
  * While an admin impersonates, every path is prefixed with /as/:email so the
  * link also names whose workspace it is. It is a namespace of its own because
@@ -27,7 +26,6 @@ export type WorkspaceRoute =
   | { kind: 'home' }
   | { kind: 'agent'; agentId: string }
   | { kind: 'settings'; agentId: string }
-  | { kind: 'prompt'; agentId: string }
   | { kind: 'client'; agentId: string; clientId: string };
 
 function routeHash(route: WorkspaceRoute, base: string[]): string {
@@ -43,9 +41,6 @@ function routeHash(route: WorkspaceRoute, base: string[]): string {
       break;
     case 'settings':
       segs.push('agents', route.agentId, 'settings');
-      break;
-    case 'prompt':
-      segs.push('agents', route.agentId, 'prompt');
       break;
     case 'client':
       segs.push('agents', route.agentId, 'clients', route.clientId);
@@ -69,7 +64,6 @@ function parseHash(hash: string, base: string[]): WorkspaceRoute {
   if (!agentId) return { kind: 'home' };
   if (rest[2] === 'clients' && rest[3]) return { kind: 'client', agentId, clientId: rest[3] };
   if (rest[2] === 'settings') return { kind: 'settings', agentId };
-  if (rest[2] === 'prompt') return { kind: 'prompt', agentId };
   return { kind: 'agent', agentId };
 }
 

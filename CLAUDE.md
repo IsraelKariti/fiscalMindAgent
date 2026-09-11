@@ -20,9 +20,11 @@ parts) from Claude's shell. Dev ports are driven by the root `.env`
 
 ## Multi-agent architecture
 
-The app hosts multiple agent types (doc collector, debt-collector stub, …)
-behind one dashboard — **read `docs/agents.md` before touching agent
-behavior, the workspace API, or the workspace UI**. Key invariants:
+The app is a multi-agent platform (agent-type registries, per-instance
+clients) that currently hosts a single agent type, `declaration_of_capital`
+(`src/agents/declarationOfCapital/`) — **read `docs/agents.md` before
+touching agent behavior, the workspace API, or the workspace UI**. Key
+invariants:
 
 - Agent types are code (`src/agents/<type>/` + `web/src/agents/<type>.tsx`,
   both registries); which accountant has which type enabled lives in the

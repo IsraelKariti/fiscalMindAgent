@@ -1086,10 +1086,6 @@ textarea {
 
 /* Board→clients import inside the monday custom object: the column-mapping
    selects and row preview need more room than the default modal. */
-.modal-import {
-  width: 560px;
-  max-width: calc(100vw - 32px);
-}
 
 .modal-actions {
   justify-content: flex-end;
@@ -1557,14 +1553,6 @@ textarea {
 }
 
 /* Prompt editor */
-.prompt-editor {
-  width: 100%;
-  font-family: 'JetBrains Mono', 'Rubik', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 15px;
-  line-height: 1.55;
-  overflow-y: hidden;
-  resize: none;
-}
 
 .placeholder-chips {
   display: flex;
@@ -3586,33 +3574,12 @@ button.meta-chip:hover {
   padding: 16px;
 }
 
-.mw-import-card {
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
 /* Import-form toggle: the chevron flips and the button stays "pressed" while
    the form is open, so it reads as open/close rather than a one-shot action. */
-.mw-import-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
 
-.mw-import-toggle .chevron {
-  transition: transform var(--speed) ease;
-}
 
-.mw-import-toggle[aria-expanded='true'] {
-  background: rgba(148, 163, 216, 0.18);
-  border-color: rgba(148, 163, 216, 0.55);
-}
 
-.mw-import-toggle[aria-expanded='true'] .chevron {
-  transform: rotate(180deg);
-}
 
 /* First rows of the mapped import, so a wrong column choice is obvious. */
 .mw-sample {
@@ -3915,73 +3882,7 @@ button.meta-chip:hover {
 }
 
 /* Stub agent types: full-pane "coming soon" note instead of a workspace */
-.coming-soon-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  max-width: 420px;
-  padding: 32px 28px;
-  text-align: center;
-}
 
-.coming-soon-card h2 {
-  margin: 6px 0 0;
-  font-size: 20px;
-}
-
-.coming-soon-card .muted {
-  line-height: 1.6;
-}
-
-.coming-soon-note {
-  margin: 4px 0 8px;
-  font-weight: 600;
-}
-
-/* ---------- Debt collector: per-client debt snapshot card ---------- */
-
-/* The 'client claims paid' confirmation block above the snapshot details. */
-.debt-confirm {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 12px 14px;
-  border: 1px solid rgba(251, 146, 60, 0.35);
-  border-radius: 10px;
-  background: rgba(251, 146, 60, 0.08);
-}
-
-.debt-confirm p {
-  margin: 0;
-  font-size: 13px;
-}
-
-.debt-details {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.debt-details-row {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 8px 16px;
-  align-items: baseline;
-}
-
-.debt-details-row dt {
-  font-size: 13px;
-}
-
-.debt-details-row dd {
-  margin: 0;
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
 
 /* ---------- Admin usage analytics (#/usage) ---------- */
 

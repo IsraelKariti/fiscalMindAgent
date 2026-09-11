@@ -8,8 +8,6 @@ export interface MondaySessionStatus {
   linked: boolean;
   email: string;
   whitelisted: boolean;
-  /** Whether the doc collector has a sender address (admin-assigned, or the legacy account mailbox). */
-  senderAssigned: boolean;
   /** Base URL of the standalone app, for "open in FiscalMind" links. */
   appUrl: string;
 }
@@ -18,7 +16,7 @@ export class MondayApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    /** Machine-readable error code (e.g. 'email_in_use', 'no_mailbox'). */
+    /** Machine-readable error code (e.g. 'email_in_use'). */
     public code?: string,
   ) {
     super(message);
@@ -52,11 +50,4 @@ export const mondayApi = {
   linkUrl: () => request<{ url: string }>('/api/monday/link-url'),
   /** Single-use handoff URL that opens the standalone app already signed in (works without Google). */
   appLoginUrl: () => request<{ url: string }>('/api/monday/app-login-url'),
-  importClients: (
-    clients: { name: string; email: string; phone?: string | null; documents?: string[]; dueDate?: string | null }[],
-  ) =>
-    request<{ created: number; skipped: number }>('/api/monday/clients/import', {
-      method: 'POST',
-      body: JSON.stringify({ clients }),
-    }),
 };

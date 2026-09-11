@@ -7,7 +7,7 @@ export interface ClientSummaryRow {
   name: string;
   email_address: string;
   goal_status: GoalStatus;
-  /** The agent stopped chasing because the collection due date passed (doc collector). */
+  /** The agent stopped chasing because the collection due date passed. */
   overdue_stopped: boolean;
   created_at: Date;
   docs_total: number;

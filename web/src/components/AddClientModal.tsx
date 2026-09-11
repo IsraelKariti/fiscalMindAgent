@@ -3,28 +3,26 @@ import { createPortal } from 'react-dom';
 import { ApiError, type Client } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
-import { DEFAULT_DOCUMENTS, type DocumentDraft } from '../defaultDocuments';
 import { useT } from '../i18n';
+
+interface DocumentDraft {
+  name: string;
+  description?: string | null;
+}
 
 interface Props {
   onCreated: (client: Client) => void;
   onClose: () => void;
-  /** Name + email only — no documents/due-date (doc-collector concepts); see AgentTypeUI.simpleClientForm. */
-  simple?: boolean;
-  /** Lead paragraph for the simple form (AgentTypeUI.addClientLeadKey); defaults to the debt collector's copy. */
-  leadKey?: MessageStringKey;
-  /** Prefilled checklist (AgentTypeUI.defaultDocuments); defaults to the doc collector's annual-return list. */
-  defaultDocuments?: DocumentDraft[];
 }
 
-export function AddClientModal({ onCreated, onClose, simple = false, leadKey, defaultDocuments }: Props) {
+export function AddClientModal({ onCreated, onClose }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [documents, setDocuments] = useState<DocumentDraft[]>(simple ? [] : (defaultDocuments ?? DEFAULT_DOCUMENTS));
+  const [documents, setDocuments] = useState<DocumentDraft[]>([]);
   const [docDraft, setDocDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,7 +36,7 @@ export function AddClientModal({ onCreated, onClose, simple = false, leadKey, de
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!simple && documents.length === 0) {
+    if (documents.length === 0) {
       setError(t.atLeastOneDoc);
       return;
     }
@@ -59,7 +57,7 @@ export function AddClientModal({ onCreated, onClose, simple = false, leadKey, de
     <div className="modal-backdrop" onClick={onClose}>
       <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>{t.addClientTitle}</h2>
-        <p className="muted">{simple ? t[leadKey ?? 'addClientLeadDebt'] : t.addClientLead}</p>
+        <p className="muted">{t.addClientLead}</p>
         <label className="field">
           <span>{t.nameLabel}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
@@ -72,8 +70,6 @@ export function AddClientModal({ onCreated, onClose, simple = false, leadKey, de
           <span>{t.phoneLabel}</span>
           <input dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.waPhonePlaceholder} />
         </label>
-        {!simple && (
-        <>
         <label className="field">
           <span>{t.dueDateLabel}</span>
           <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -115,8 +111,6 @@ export function AddClientModal({ onCreated, onClose, simple = false, leadKey, de
             </button>
           </div>
         </div>
-        </>
-        )}
         {error && <div className="error-banner">{error}</div>}
         <div className="btn-row modal-actions">
           <button className="btn btn-ghost" type="button" onClick={onClose} disabled={busy}>

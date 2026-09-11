@@ -5,11 +5,11 @@ import { FORM_INTAKE_PROMPT } from '../agents/declarationOfCapital/formIntakeCal
 import { buildFormIntakeSchema } from '../agents/declarationOfCapital/formIntakeRules.js';
 import { CAPITAL_DOCUMENT_CATALOG } from '../agents/declarationOfCapital/catalog.js';
 import { EXTRACTION_PROMPT, extractionJsonSchema } from '../agents/declarationOfCapital/verifyChecks.js';
-import { DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE } from '../agents/declarationOfCapital/prompt.js';
+import { PROMPT_TEMPLATE } from '../agents/declarationOfCapital/prompt.js';
 import { FILE_SCREEN_PROMPT, InjectionScreenSchema, SCREEN_PROMPT } from '../agents/shared/injectionScreen.js';
-import { ANALYSIS_PROMPT, YEAR_CONTEXT } from '../agents/docCollector/analyzeFile.js';
-import { CapitalFileAnalysisSchema } from '../agents/docCollector/analyzeFileRules.js';
-import { decisionSchemaForContext, EMAIL_ONLY_CONTEXT, type DecisionContext } from '../agents/docCollector/decisionSchema.js';
+import { ANALYSIS_PROMPT, YEAR_CONTEXT } from '../agents/declarationOfCapital/analyzeFile.js';
+import { CapitalFileAnalysisSchema } from '../agents/declarationOfCapital/analyzeFileRules.js';
+import { decisionSchemaForContext, type DecisionContext } from '../agents/declarationOfCapital/decisionSchema.js';
 import { buildUntrustedDataDoctrine } from '../agents/shared/promptSafety.js';
 
 /**
@@ -126,12 +126,12 @@ const STAGES: StageStatic[] = [
   {
     purpose: 'conversation_decide',
     title: 'Conversation planner',
-    file: 'src/agents/docCollector/decide.ts · decide (prompt: docCollector/prompt.ts + declarationOfCapital/prompt.md)',
+    file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md)',
     gate: 'validate_message',
     prompts: [
       {
-        variant: 'declaration_of_capital (template + untrusted-data doctrine)',
-        systemPrompt: `${DECLARATION_OF_CAPITAL_PROMPT_TEMPLATE}\n\n${buildUntrustedDataDoctrine('{{token}}', true)}`,
+        variant: 'template + untrusted-data doctrine',
+        systemPrompt: `${PROMPT_TEMPLATE}\n\n${buildUntrustedDataDoctrine('{{token}}', true)}`,
       },
     ],
     query: [
@@ -150,12 +150,9 @@ const STAGES: StageStatic[] = [
   {
     purpose: 'analyze_file',
     title: 'File classification',
-    file: 'src/agents/docCollector/analyzeFile.ts · analyzeFile',
+    file: 'src/agents/declarationOfCapital/analyzeFile.ts · analyzeFile',
     gate: 'validate_classification',
-    prompts: [
-      { variant: 'capital_declaration', systemPrompt: ANALYSIS_PROMPT.replace('{{year_context}}', YEAR_CONTEXT.capital_declaration) },
-      { variant: 'annual_report (doc collector)', systemPrompt: ANALYSIS_PROMPT.replace('{{year_context}}', YEAR_CONTEXT.annual_report).replace('{{document_types}}', '') },
-    ],
+    prompts: [{ variant: 'default', systemPrompt: ANALYSIS_PROMPT.replace('{{year_context}}', YEAR_CONTEXT) }],
     query: [{ variant: 'default', parts: [{ kind: 'binary', body: 'the file bytes (PDF / image)' }, { kind: 'text', body: 'שם הקובץ כפי שנשלח: <filename>' }] }],
     schema: jsonSchema(CapitalFileAnalysisSchema),
   },
@@ -194,7 +191,3 @@ export async function describeLlmStages(): Promise<LlmStageDescription[]> {
     }),
   );
 }
-
-// The doc-collector planner variant is described with the email-only context
-// for completeness of the schema catalogue (pruned differently per agent).
-export const DOC_COLLECTOR_DECISION_SCHEMA = jsonSchema(decisionSchemaForContext(EMAIL_ONLY_CONTEXT));

@@ -2,7 +2,7 @@ import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { analyzeFile, isAnalyzable } from './analyzeFile.js';
-import { capitalClientTaxYear, resolveTaxYear } from '../shared/taxYear.js';
+import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { recordAudit } from '../../audit/audit.js';
 import { extractFileText } from '../shared/fileText.js';
 import { runInjectionRegexStep, screenFileForInjection } from '../shared/injectionScreen.js';
@@ -86,13 +86,10 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
 
   try {
     const requiredDocuments = await clientDocuments.listForClient(clientId);
-    const isCapital = ctx.instance?.agent_type === 'declaration_of_capital';
-    // Capital-declaration clients carry their own declaration year (the instance's
-    // tax_year is NULL for this type) — frame the classifier around it, like plan.ts
-    // and verifyDocument.ts do, not around the last concluded year.
-    const taxYear = isCapital ? capitalClientTaxYear(ctx.client, new Date()) : resolveTaxYear(ctx.instance, new Date());
-    const purpose = isCapital ? 'capital_declaration' : 'annual_report';
-    const { analysis, gate, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear, purpose, {
+    // The client carries its own declaration year (the instance has none) —
+    // frame the classifier around it, like plan.ts and verifyDocument.ts do.
+    const taxYear = capitalClientTaxYear(ctx.client, new Date());
+    const { analysis, gate, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear, {
       log: {
         userId: ctx.client.user_id,
         agentInstanceId: ctx.client.agent_instance_id,

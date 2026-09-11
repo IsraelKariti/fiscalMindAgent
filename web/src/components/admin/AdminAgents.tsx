@@ -65,11 +65,7 @@ export function AdminAgents({ accountants }: Props) {
                     </span>
                   </td>
                   <td>
-                    {ui.comingSoon ? (
-                      <span className="badge badge-neutral">{t.comingSoonBadge}</span>
-                    ) : (
-                      <span className="badge badge-success">{t.adminAgentTypeAvailable}</span>
-                    )}
+                    <span className="badge badge-success">{t.adminAgentTypeAvailable}</span>
                   </td>
                   <td>{stats ? stats.activeInstances : <span className="muted">—</span>}</td>
                   <td>{stats && stats.clients > 0 ? stats.clients : <span className="muted">—</span>}</td>

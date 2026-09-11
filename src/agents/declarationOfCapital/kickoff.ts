@@ -1,6 +1,6 @@
 import * as clients from '../../db/queries/clients.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
-import { fetchItemDetails, type ItemDetails } from '../customerService/mondayData.js';
+import { fetchItemDetails, type ItemDetails } from '../shared/mondayData.js';
 import { parseTaxYearCell } from '../shared/taxYear.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { syntheticWaEmail } from '../../util/syntheticEmail.js';

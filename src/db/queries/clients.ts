@@ -42,12 +42,11 @@ export async function getByEmailAddressForUser(userId: string, emailAddress: str
 
 export async function insert(args: {
   userId: string;
-  /** Callers without agent scope (monday import) default to the user's doc_collector instance. */
-  agentInstanceId?: string;
+  agentInstanceId: string;
   name: string;
   emailAddress: string;
   phone?: string | null;
-  /** Per-agent scalar fields (agent_fields JSONB), e.g. the doc collector's due_date. */
+  /** Per-agent scalar fields (agent_fields JSONB), e.g. due_date. */
   agentFields?: Record<string, unknown>;
   /** Created paused (manual-kickoff agents): the agent stays quiet until an explicit accountant trigger. */
   paused?: boolean;
@@ -56,13 +55,13 @@ export async function insert(args: {
     const { rows } = await pool.query<ClientRow>(
       `INSERT INTO clients (user_id, agent_instance_id, name, email_address, phone, goal_status, agent_fields, paused,
                             wa_phone, wa_enabled, wa_opted_in_at, wa_opted_in_by)
-       VALUES ($1, COALESCE($2, (SELECT id FROM agent_instances WHERE user_id = $1 AND agent_type = 'doc_collector')), $3, $4, $5, 'pending', COALESCE($6::jsonb, '{}'::jsonb), $8,
+       VALUES ($1, $2, $3, $4, $5, 'pending', COALESCE($6::jsonb, '{}'::jsonb), $8,
                $7::text, $7 IS NOT NULL, CASE WHEN $7 IS NOT NULL THEN now() END, CASE WHEN $7 IS NOT NULL THEN $1::uuid END)
        RETURNING *`,
       // Stored lowercased — inbound routing and the import dedupe match on it.
       [
         args.userId,
-        args.agentInstanceId ?? null,
+        args.agentInstanceId,
         args.name,
         args.emailAddress.trim().toLowerCase(),
         args.phone ?? null,
@@ -87,33 +86,6 @@ export async function insert(args: {
     if (waPhone && isUniqueViolationOn(err, 'clients_instance_wa_phone_key')) return insertRow(null);
     throw err;
   }
-}
-
-/**
- * Auto-enrollment of an unknown WhatsApp sender into a customer_service
- * instance: WhatsApp-only client, opted in (they messaged us first), no goal.
- * email_address is NOT NULL + unique per instance, so a synthetic address is
- * derived from the phone. Race-safe: two concurrent webhook deliveries hit the
- * clients_instance_wa_phone_key index; ON CONFLICT DO NOTHING returns null and
- * the caller re-selects the winner's row.
- */
-export async function insertWhatsAppOnly(args: {
-  userId: string;
-  agentInstanceId: string;
-  name: string;
-  waPhone: string;
-  optedInBy: string;
-}): Promise<ClientRow | null> {
-  const syntheticEmail = syntheticWaEmail(args.waPhone);
-  const { rows } = await pool.query<ClientRow>(
-    `INSERT INTO clients (user_id, agent_instance_id, name, email_address, goal_status,
-                          wa_phone, wa_enabled, wa_opted_in_at, wa_opted_in_by)
-     VALUES ($1, $2, $3, $4, 'complete', $5, true, now(), $6)
-     ON CONFLICT (agent_instance_id, wa_phone) WHERE wa_phone IS NOT NULL DO NOTHING
-     RETURNING *`,
-    [args.userId, args.agentInstanceId, args.name, syntheticEmail, args.waPhone, args.optedInBy],
-  );
-  return rows[0] ?? null;
 }
 
 /** getById constrained to one agent instance — agent-scoped API routes use this. */
@@ -352,11 +324,11 @@ export async function markOverdueStopped(id: string): Promise<ClientRow | null> 
 }
 
 /**
- * Sets or clears the doc collector's collection due date. Either way both
+ * Sets or clears the client's collection due date. Either way both
  * overdue markers are dropped, so a changed date can notify again when the new
  * date passes and any "handed off" UI state is cleared.
  */
-export async function setDocCollectorDueDate(
+export async function setDueDate(
   id: string,
   agentInstanceId: string,
   dueDate: string | null,
@@ -418,18 +390,6 @@ export async function clearAttestation(id: string): Promise<void> {
   await pool.query(
     `UPDATE clients SET agent_fields = agent_fields - 'attestation_request_email_id' - 'attestation_confirmed_at' - 'attestation_evidence' WHERE id = $1`,
     [id],
-  );
-}
-
-/**
- * Overwrites the debt collector's per-client analysis snapshot
- * (agent_fields.debt). Agent-status write, so updated_at is left alone — it
- * tracks accountant edits.
- */
-export async function setDebtSnapshot(id: string, snapshot: Record<string, unknown>): Promise<void> {
-  await pool.query(
-    `UPDATE clients SET agent_fields = agent_fields || jsonb_build_object('debt', $2::jsonb) WHERE id = $1`,
-    [id, JSON.stringify(snapshot)],
   );
 }
 

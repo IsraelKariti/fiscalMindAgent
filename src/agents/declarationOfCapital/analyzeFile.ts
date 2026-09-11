@@ -3,21 +3,18 @@ import { logger } from '../../util/logger.js';
 import type { GeminiUsage, LlmCallLogContext } from '../../gemini/generate.js';
 import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
-import { CAPITAL_DOCUMENT_CATALOG, getCatalogType } from '../declarationOfCapital/catalog.js';
+import { CAPITAL_DOCUMENT_CATALOG, getCatalogType } from './catalog.js';
 import {
   CAPITAL_DOCUMENT_TYPE_VALUES,
   CapitalFileAnalysisSchema,
-  FileAnalysisSchema,
   validateClassification,
   type ClassificationGateResult,
   type FileAnalysis,
 } from './analyzeFileRules.js';
 import type { ClientDocumentRow } from '../../db/types.js';
 
-export { FileAnalysisSchema, CapitalFileAnalysisSchema, type FileAnalysis } from './analyzeFileRules.js';
+export { CapitalFileAnalysisSchema, type FileAnalysis } from './analyzeFileRules.js';
 
-const analysisJsonSchema = zodToJsonSchema(FileAnalysisSchema) as Record<string, unknown>;
-delete analysisJsonSchema.$schema;
 const capitalAnalysisJsonSchema = zodToJsonSchema(CapitalFileAnalysisSchema) as Record<string, unknown>;
 delete capitalAnalysisJsonSchema.$schema;
 
@@ -62,15 +59,9 @@ export const ANALYSIS_PROMPT = `אתה בודק מסמכים עבור משרד �
 
 הקובץ עצמו ושם הקובץ כפי שנשלח (לידיעה בלבד, אין להסתמך עליו) מגיעים בהודעת המשתמש.`;
 
-/** What the collection is for — swaps the year-matching framing in the analyzer prompt. */
-export type AnalysisPurpose = 'annual_report' | 'capital_declaration';
-
-export const YEAR_CONTEXT: Record<AnalysisPurpose, string> = {
-  annual_report:
-    'המסמכים נאספים עבור שנת המס {{tax_year}}. אם המסמך הוא מסמך תלוי-שנה (כמו טופס 106, אישור שנתי או דוח שנתי) והוא מתייחס במפורש לשנת מס אחרת - אל תקבע התאמה (matched_document_id: null). מסמכים שאינם תלויי-שנה (כמו צילום תעודת זהות) אינם מושפעים מכך.',
-  capital_declaration:
-    'המסמכים נאספים עבור הצהרת הון ליום 31.12.{{tax_year}} (המועד הקובע). אם המסמך הוא מסמך תלוי-תאריך (כמו אישור יתרות בנק, תדפיס תיק השקעות או אישור יתרת הלוואה) והוא מתייחס במפורש למועד או לשנה אחרים - אל תקבע התאמה (matched_document_id: null). מסמכים שאינם תלויי-תאריך (כמו צילום תעודת זהות או חוזה רכישה) אינם מושפעים מכך.',
-};
+/** The valuation-date framing of the analyzer prompt: date-dependent documents must reflect 31.12 of the declaration year. */
+export const YEAR_CONTEXT =
+  'המסמכים נאספים עבור הצהרת הון ליום 31.12.{{tax_year}} (המועד הקובע). אם המסמך הוא מסמך תלוי-תאריך (כמו אישור יתרות בנק, תדפיס תיק השקעות או אישור יתרת הלוואה) והוא מתייחס במפורש למועד או לשנה אחרים - אל תקבע התאמה (matched_document_id: null). מסמכים שאינם תלויי-תאריך (כמו צילום תעודת זהות או חוזה רכישה) אינם מושפעים מכך.';
 
 export interface AnalyzeFileResult {
   analysis: FileAnalysis;
@@ -89,20 +80,19 @@ export interface AnalysisCallInput {
   contentType: string;
   filename: string;
   requiredDocuments: AnalyzableDocument[];
-  /** The collection's tax year — year-mismatched annual documents must not match. */
+  /** The client's declaration year — date-mismatched documents must not match. */
   taxYear: number;
-  purpose: AnalysisPurpose;
 }
 
 /** The exact analyze_file request — shared with the evals harness so it tests what the app sends. */
-export function buildAnalysisCall({ bytes, contentType, filename, requiredDocuments, taxYear, purpose }: AnalysisCallInput): LlmCallSpec {
+export function buildAnalysisCall({ bytes, contentType, filename, requiredDocuments, taxYear }: AnalysisCallInput): LlmCallSpec {
   const documentLines =
     requiredDocuments.length > 0
       ? requiredDocuments
           .map((doc) => {
-            // Catalog rows (capital declaration) carry an explicit valuation-date
-            // rule so date-dependent matching is judged per row, not only by the
-            // global year_context framing.
+            // Catalog rows carry an explicit valuation-date rule so date-dependent
+            // matching is judged per row, not only by the global year_context
+            // framing.
             const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
             const dateRule = catalogType
               ? catalogType.dateDependent
@@ -121,12 +111,11 @@ export function buildAnalysisCall({ bytes, contentType, filename, requiredDocume
           })
           .join('\n')
       : '(אין מסמכים מוגדרים)';
-  const isCapital = purpose === 'capital_declaration';
   // Instructions + the required list (trusted) in the system turn; only the
   // bytes and the (untrusted) filename in the user turn.
-  const systemInstruction = ANALYSIS_PROMPT.replace('{{year_context}}', YEAR_CONTEXT[purpose])
+  const systemInstruction = ANALYSIS_PROMPT.replace('{{year_context}}', YEAR_CONTEXT)
     .replace('{{documents}}', documentLines)
-    .replace('{{document_types}}', isCapital ? `\n${capitalDocumentTypesBlock(taxYear)}\n` : '')
+    .replace('{{document_types}}', `\n${capitalDocumentTypesBlock(taxYear)}\n`)
     .replace('{{tax_year}}', String(taxYear));
   return {
     purpose: 'analyze_file',
@@ -140,15 +129,15 @@ export function buildAnalysisCall({ bytes, contentType, filename, requiredDocume
         ],
       },
     ],
-    responseJsonSchema: isCapital ? capitalAnalysisJsonSchema : analysisJsonSchema,
+    responseJsonSchema: capitalAnalysisJsonSchema,
     temperature: 0.1,
   };
 }
 
 /**
- * Capital-declaration files are also classified into a closed type
- * (CAPITAL_DOCUMENT_TYPE_VALUES) independent of the checklist, so the gate can
- * reject a match to a row of a different type.
+ * Files are also classified into a closed type (CAPITAL_DOCUMENT_TYPE_VALUES)
+ * independent of the checklist, so the gate can reject a match to a row of a
+ * different type.
  */
 function capitalDocumentTypesBlock(taxYear: number): string {
   const lines = CAPITAL_DOCUMENT_CATALOG.map((t) => `- "${t.key}": ${t.nameHe.replaceAll('{{tax_year}}', String(taxYear))}`);
@@ -156,10 +145,6 @@ function capitalDocumentTypesBlock(taxYear: number): string {
   return `סוגי המסמכים (document_type — השתמש אך ורק במפתחות אלה):\n${lines.join('\n')}\n\n- document_type: המפתח מהרשימה שמתאר מהו המסמך בפועל לפי תוכנו — בלי קשר לשאלה אם הוא נדרש. המסמך הנדרש שתתאים (matched_document_id) חייב להיות מאותו סוג.`;
 }
 
-/** The exact analyze_file schema a purpose answers with (the harness parses answers with it). */
-export function analysisSchemaFor(purpose: AnalysisPurpose): typeof FileAnalysisSchema | typeof CapitalFileAnalysisSchema {
-  return purpose === 'capital_declaration' ? CapitalFileAnalysisSchema : FileAnalysisSchema;
-}
 export { CAPITAL_DOCUMENT_TYPE_VALUES };
 
 /** Reads the file's actual bytes with Gemini and classifies what document it is. */
@@ -168,20 +153,19 @@ export async function analyzeFile(
   contentType: string,
   filename: string,
   requiredDocuments: ClientDocumentRow[],
-  /** The instance's configured tax year (resolveTaxYear) — year-mismatched annual documents must not match. */
+  /** The client's declaration year (capitalClientTaxYear) — date-mismatched documents must not match. */
   taxYear: number,
-  purpose: AnalysisPurpose = 'annual_report',
   opts: {
     /** Per-call llm_calls attribution. */
     log?: LlmCallLogContext;
   } = {},
 ): Promise<AnalyzeFileResult> {
   const { text, usage, model } = await runLlmCall(
-    buildAnalysisCall({ bytes, contentType, filename, requiredDocuments, taxYear, purpose }),
+    buildAnalysisCall({ bytes, contentType, filename, requiredDocuments, taxYear }),
     { log: opts.log },
   );
   logger.info('gemini tokens used (file analysis)', { model, filename, ...usage });
-  const raw: FileAnalysis = analysisSchemaFor(purpose).parse(JSON.parse(text));
+  const raw: FileAnalysis = CapitalFileAnalysisSchema.parse(JSON.parse(text));
   // Step validate_classification: the model (which just read attacker-controlled
   // bytes) can't smuggle an id it wasn't shown, nor match a row of another type.
   const gate = validateClassification(raw, requiredDocuments);

@@ -7,7 +7,7 @@ export type GoalStatus = 'pending' | 'complete';
 export interface AgentInstanceRow {
   id: string;
   user_id: string;
-  /** Registry id, e.g. 'doc_collector'; validated in code, not the DB. */
+  /** Registry id, e.g. 'declaration_of_capital'; validated in code, not the DB. */
   agent_type: string;
   name: string;
   enabled: boolean;
@@ -93,7 +93,7 @@ export interface ClientRow {
   id: string;
   /** NULL only on legacy rows created via the CLI before multi-tenancy. */
   user_id: string | null;
-  /** NULL only on the same legacy CLI rows; runtime falls back to doc_collector. */
+  /** NULL only on the same legacy CLI rows; no agent acts for them. */
   agent_instance_id: string | null;
   /** Per-agent scalar fields (e.g. debt amount) — shape owned by the agent type's Zod schema. */
   agent_fields: Record<string, unknown>;
@@ -123,7 +123,7 @@ export interface ClientRow {
 }
 
 /**
- * Doc-collector rows use pending/claimed/collected. The capital-declaration
+ * Ad-hoc rows use pending/claimed/collected. The capital-declaration
  * intake (migration 047) adds the rest: 'unresolved' = catalog-seeded, the
  * intake interview hasn't determined applicability yet; 'not_required' = the
  * client explicitly stated the asset doesn't apply (evidence on the row);
@@ -161,7 +161,7 @@ export interface ClientDocumentRow {
   name: string;
   description: string | null;
   status: DocumentStatus;
-  /** Catalog type this row instantiates (declarationOfCapital/catalog.ts); NULL = doc-collector or ad-hoc row. */
+  /** Catalog type this row instantiates (declarationOfCapital/catalog.ts); NULL = ad-hoc (accountant-added) row. */
   type_key: string | null;
   /** Latest verification-pipeline verdict (extracted fields + per-check results); NULL until a file is verified. */
   verification: Record<string, unknown> | null;

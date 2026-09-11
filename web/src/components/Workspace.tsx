@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { agentApi, api, type AgentInstance, type Client, type MailboxStatus } from '../api';
 import { ClientsRefreshProvider, WorkspaceApiProvider } from '../agents/ApiContext';
 import { getAgentUI } from '../agents/registry';
 import { AgentsHome } from './AgentsHome';
 import { Sidebar } from './Sidebar';
 import { ClientView } from './ClientView';
-import { PromptSettings } from './PromptSettings';
 import { AddClientModal } from './AddClientModal';
 import { DeleteClientModal } from './DeleteClientModal';
 import { Overview } from './Overview';
@@ -16,19 +14,13 @@ import { useWorkspaceRoute } from './workspaceRoute';
 
 interface Props {
   userEmail: string | null;
-  /** Set while an admin is impersonating (standalone only); enables the prompt-tuning view. */
+  /** Set while an admin is impersonating (standalone only). */
   impersonatingEmail?: string | null;
   onStopImpersonating?: () => void;
   /** Absent in the monday iframe — identity belongs to monday, so there is nothing to log out of. */
   onLogout?: () => void;
   /**
-   * monday surfaces only: renders the board→clients import inside a modal.
-   * The shell owns the modal state and passes the refresh/close callbacks so
-   * the import stays decoupled from the monday SDK this component must not know.
-   */
-  renderImportPanel?: (props: { onImported: () => void; onClose: () => void }) => ReactNode;
-  /**
-   * Locks the shell to one agent type (monday surfaces pin the doc collector):
+   * Locks the shell to one agent type:
    * no agents-home page and no switcher, whatever the account has enabled.
    */
   pinnedAgentType?: string;
@@ -51,7 +43,6 @@ export function Workspace({
   impersonatingEmail,
   onStopImpersonating,
   onLogout,
-  renderImportPanel,
   pinnedAgentType,
   hashRouting,
 }: Props) {
@@ -60,7 +51,6 @@ export function Workspace({
   const [clients, setClients] = useState<Client[]>([]);
   const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
   const [adding, setAdding] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
 
   // Which agent workspace this shell shows and which view is open, driven by
@@ -85,18 +75,15 @@ export function Workspace({
   }, []);
 
   // Boot (or a link to an agent this account doesn't have) auto-enters one —
-  // the pinned type, the remembered one, else the doc collector (the product's
-  // core agent), else the first. The agents-home grid is never a landing page;
-  // multi-agent accounts reach it only via the sidebar's "my agents" item.
+  // the pinned type, the remembered one, else the first. The agents-home grid
+  // is never a landing page; multi-agent accounts reach it only via the
+  // sidebar's "my agents" item.
   useEffect(() => {
     if (!agents) return;
     if (route.kind !== 'boot' && (!agentId || agents.some((a) => a.id === agentId))) return;
     const pick = pinnedAgentType
       ? (agents.find((a) => a.agentType === pinnedAgentType) ?? agents[0] ?? null)
-      : (agents.find((a) => a.id === sessionStorage.getItem('fm.lastAgentId')) ??
-        agents.find((a) => a.agentType === 'doc_collector') ??
-        agents[0] ??
-        null);
+      : (agents.find((a) => a.id === sessionStorage.getItem('fm.lastAgentId')) ?? agents[0] ?? null);
     replaceRoute(pick ? { kind: 'agent', agentId: pick.id } : { kind: 'home' });
   }, [agents, route.kind, agentId, pinnedAgentType, replaceRoute]);
   useEffect(() => {
@@ -112,13 +99,13 @@ export function Workspace({
   };
   const showAgentsHome = () => {
     // Explicitly leaving an agent also forgets it — a refresh from here boots
-    // into the default (doc collector) rather than the forgotten agent.
+    // into the default rather than the forgotten agent.
     sessionStorage.removeItem('fm.lastAgentId');
     navigate({ kind: 'home' });
   };
 
   const wsApi = useMemo(() => (agent ? agentApi(agent.id) : null), [agent]);
-  const agentUI = getAgentUI(agent?.agentType ?? 'doc_collector');
+  const agentUI = getAgentUI(agent?.agentType ?? '');
   // Per-agent so switching agents restores each one's last viewed client.
   const lastClientKey = agent ? `fm.lastClientId.${agent.id}` : null;
 
@@ -209,26 +196,6 @@ export function Workspace({
   if (!agent || !wsApi) {
     return <div className="screen-center muted">{t.loading}</div>;
   }
-  // Stub agent types have no workspace yet — a full-pane "coming soon" note
-  // instead of the client shell.
-  if (agentUI.comingSoon) {
-    return (
-      <div className="screen-center">
-        <div className="card coming-soon-card">
-          <span className="agent-card-icon">{agentUI.icon}</span>
-          <h2>{agent.name}</h2>
-          <p className="muted">{t[agentUI.descriptionKey]}</p>
-          <p className="coming-soon-note">{t.agentComingSoon}</p>
-          {!pinnedAgentType && agents.length > 1 && (
-            <button className="btn btn-ghost" onClick={showAgentsHome}>
-              {t.agentsHomeTitle}
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <WorkspaceApiProvider value={wsApi}>
     <ClientsRefreshProvider value={refreshClients}>
@@ -250,18 +217,10 @@ export function Workspace({
           }}
           clients={clients}
           selectedClientId={route.kind === 'client' ? route.clientId : null}
-          promptSelected={route.kind === 'prompt'}
           settingsSelected={route.kind === 'settings'}
           onSelectClient={(clientId) => navigate({ kind: 'client', agentId: agent.id, clientId })}
-          onSelectPrompt={() => navigate({ kind: 'prompt', agentId: agent.id })}
           onSelectSettings={() => navigate({ kind: 'settings', agentId: agent.id })}
-          onAddClient={agentUI.inboundOnlyClients || agentUI.importOnlyClients ? undefined : () => setAdding(true)}
-          // Inbound-only agents are goal-less; their client dot shows the mute state instead.
-          muteDots={agentUI.inboundOnlyClients}
-          // The board→clients import is doc-collector behavior — agents that
-          // connect monday differently (customer service: settings panel)
-          // must not offer it, or their imports land in the wrong instance.
-          onImportClients={renderImportPanel && agentUI.supportsBoardImport ? () => setImporting(true) : undefined}
+          onAddClient={agentUI.importOnlyClients ? undefined : () => setAdding(true)}
           onDeleteClient={setDeleting}
           userEmail={userEmail}
           impersonatingEmail={impersonatingEmail ?? null}
@@ -277,7 +236,6 @@ export function Workspace({
               onClientUpdated={loadClients}
             />
           )}
-          {route.kind === 'prompt' && impersonatingEmail && <PromptSettings />}
           {route.kind === 'settings' && (
             <Settings
               mailbox={mailbox}
@@ -293,11 +251,7 @@ export function Workspace({
           )}
           {route.kind === 'agent' && (
             <div className="screen-center muted">
-              {agentUI.inboundOnlyClients
-                ? t.noClientsInboundWa
-                : agentUI.importOnlyClients
-                  ? t.noClientsImportOnly
-                  : t.noClientsUseAdd}
+              {agentUI.importOnlyClients ? t.noClientsImportOnly : t.noClientsUseAdd}
             </div>
           )}
         </main>
@@ -307,9 +261,6 @@ export function Workspace({
       )}
       {adding && (
         <AddClientModal
-          simple={agentUI.simpleClientForm}
-          leadKey={agentUI.addClientLeadKey}
-          defaultDocuments={agentUI.defaultDocuments}
           onClose={() => setAdding(false)}
           onCreated={(client) => {
             setAdding(false);
@@ -318,20 +269,6 @@ export function Workspace({
           }}
         />
       )}
-      {importing && renderImportPanel &&
-        // Portaled to <body> like the modal components: ancestors with
-        // backdrop-filter/transforms re-anchor position:fixed away from the viewport.
-        createPortal(
-          <div className="modal-backdrop" onClick={() => setImporting(false)}>
-            <div className="card modal modal-import" onClick={(e) => e.stopPropagation()}>
-              {renderImportPanel({
-                onImported: () => loadClients().catch(console.error),
-                onClose: () => setImporting(false),
-              })}
-            </div>
-          </div>,
-          document.body,
-        )}
     </div>
     </ClientsRefreshProvider>
     </WorkspaceApiProvider>

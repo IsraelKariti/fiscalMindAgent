@@ -5,8 +5,9 @@ import * as mondayOauthTokens from '../db/queries/mondayOauthTokens.js';
 import { logger } from '../util/logger.js';
 
 /**
- * monday.com OAuth for server-side API reads (customer_service agent: workdocs
- * + board rows). Unlike the widget's seamless sessionToken auth, this stores a
+ * monday.com OAuth for server-side API access (client-import sources, the
+ * kickoff webhook and the board status sync: board rows + status writes).
+ * Unlike the widget's seamless sessionToken auth, this stores a
  * long-lived per-accountant access token so agents can query monday at webhook
  * time, with no browser involved.
  *

@@ -189,7 +189,7 @@ export async function upsertFromGoogle(args: {
   );
   const row = rows[0];
   if (!row) throw new Error('upsertFromGoogle: no row returned');
-  // Accounts start with zero agent instances; every agent — the doc collector
-  // included — is admin-created (agentInstances.enableInstance).
+  // Accounts start with zero agent instances; every agent is admin-created
+  // (agentInstances.enableInstance).
   return row;
 }

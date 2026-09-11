@@ -9,7 +9,6 @@ import { loadAgentContext } from '../agents/resolve.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { recordAudit } from '../audit/audit.js';
 import { detectInjectionHeuristics } from '../agents/shared/promptSafety.js';
-import { isListedClientPhone } from '../agents/customerService/enrollGate.js';
 import { ingestWaMedia, type WaMediaItem } from './ingestWaMedia.js';
 import { logger } from '../util/logger.js';
 
@@ -78,44 +77,10 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
 
   let client = await clients.getByWaPhoneForInstance(instance.id, clientNumber);
   if (!client) {
-    // Unknown number: only the customer_service agent auto-enrolls, and only
-    // senders listed in the accountant's connected client records (monday
-    // boards / Google Sheets, verified by phonesMatch). Other agents' clients
-    // are pre-created, so strangers are ignored everywhere.
-    if (instance.agent_type !== 'customer_service') {
-      logger.warn('inbound whatsapp from unknown number, ignoring', { from: clientNumber, to: senderNumber });
-      return;
-    }
-    if (!(await isListedClientPhone(instance, clientNumber))) {
-      logger.warn('inbound whatsapp from number not in client records, ignoring', {
-        from: clientNumber,
-        to: senderNumber,
-        instanceId: instance.id,
-      });
-      return;
-    }
-    client =
-      (await clients.insertWhatsAppOnly({
-        userId: instance.user_id,
-        agentInstanceId: instance.id,
-        name: clientNumber,
-        waPhone: clientNumber,
-        optedInBy: instance.user_id,
-      })) ?? (await clients.getByWaPhoneForInstance(instance.id, clientNumber)); // conflict: a concurrent delivery won the insert
-    if (!client) {
-      logger.warn('customer service auto-enroll raced and lost, ignoring', { from: clientNumber });
-      return;
-    }
-    logger.info('customer service client auto-created from inbound whatsapp', { clientId: client.id });
-    recordAudit({
-      actorType: 'system',
-      action: 'client.auto_enrolled',
-      agentInstanceId: instance.id,
-      clientId: client.id,
-      detail: { waPhone: clientNumber, source: 'inbound_whatsapp' },
-    });
-    // Tells open workspace tabs (over SSE) to refetch the sidebar's client list.
-    publishInstanceClientsUpdated(instance.id);
+    // Clients are pre-created (import scan / kickoff webhook), so an unknown
+    // sender is ignored: no client row, no LLM call.
+    logger.warn('inbound whatsapp from unknown number, ignoring', { from: clientNumber, to: senderNumber });
+    return;
   }
 
   const body = params.Body ?? '';

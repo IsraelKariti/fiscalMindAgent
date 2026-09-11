@@ -13,8 +13,8 @@ import { normalizeE164 } from '../../util/phone.js';
 import { syntheticWaEmail } from '../../util/syntheticEmail.js';
 import { logger } from '../../util/logger.js';
 import type { AgentInstanceRow } from '../../db/types.js';
-import { DOC_COLLECTOR_FAMILY, isDocCollectorFamily } from '../docCollector/family.js';
-import { parseSettings as parseDocCollectorSettings } from '../docCollector/settings.js';
+import { DECLARATION_OF_CAPITAL } from '../declarationOfCapital/agentType.js';
+import { parseSettings } from '../declarationOfCapital/settings.js';
 import {
   collectCandidates,
   hasCrmLinkColumn,
@@ -29,7 +29,7 @@ import {
 } from './clientSources.js';
 
 /** Agent types whose clients are auto-enrolled from the configured sources (every row, no screening). */
-export const CLIENT_IMPORT_AGENT_TYPES = [...DOC_COLLECTOR_FAMILY] as const;
+export const CLIENT_IMPORT_AGENT_TYPES = [DECLARATION_OF_CAPITAL] as const;
 
 /** New clients enrolled per instance per run — keeps a huge board from flooding the send pipeline. */
 const MAX_ENROLL = 500;
@@ -65,7 +65,7 @@ function filterSources(sources: ClientSources, filter: ScanSourceFilter): Client
 
 interface InstanceImportConfig {
   sources: ClientSources;
-  /** Doc-collector family only: a mapped documents column supplies each client's checklist. */
+  /** Types without catalog seeding: a mapped documents column supplies each client's checklist. */
   perRowDocuments: boolean;
   /** Config gap that must block enrollment (beyond having no sources). */
   notReady: 'no_documents' | 'no_phone_column' | null;
@@ -122,38 +122,32 @@ async function clearPendingImportFlags(instance: AgentInstanceRow, filter?: Scan
 
 function importConfig(instance: AgentInstanceRow, filter?: ScanSourceFilter): InstanceImportConfig {
   const definition = getAgentTypeIfKnown(instance.agent_type);
-  if (isDocCollectorFamily(instance.agent_type)) {
-    const settings = parseDocCollectorSettings(instance.settings);
-    const sources = filter ? filterSources(settings, filter) : settings;
-    // WhatsApp-only agents key rows by phone — a source without a mapped phone
-    // column can only produce unreachable clients, so enrollment refuses. A
-    // board mapped by its CRM connect-boards column is exempt: its phone lives
-    // on the linked CRM item and enrollment happens at kickoff (form
-    // submission), not in this sweep.
-    const missingPhoneKey =
-      definition?.whatsappOnly === true && !hasPhoneColumn(sources) && !hasCrmLinkColumn(sources)
-        ? ('no_phone_column' as const)
-        : null;
-    // Catalog-seeded types (declaration of capital) take no per-row checklist:
-    // the hardcoded catalog is the only supply, so the documents column is
-    // ignored and enrollment never blocks on it.
-    if (definition?.seedClientDocuments) {
-      return { sources, perRowDocuments: false, notReady: missingPhoneKey };
-    }
-    // A doc-collector client without documents completes trivially and never
-    // gets emailed — refuse to mass-create useless clients. The mapped
-    // documents column (of the scanned sources) is the only supply of a
-    // client's checklist.
-    const perRowDocuments = hasDocumentsColumn(sources);
-    return { sources, perRowDocuments, notReady: perRowDocuments ? null : 'no_documents' };
+  const settings = parseSettings(instance.settings);
+  const sources = filter ? filterSources(settings, filter) : settings;
+  // WhatsApp-only agents key rows by phone — a source without a mapped phone
+  // column can only produce unreachable clients, so enrollment refuses. A
+  // board mapped by its CRM connect-boards column is exempt: its phone lives
+  // on the linked CRM item and enrollment happens at kickoff (form
+  // submission), not in this sweep.
+  const missingPhoneKey =
+    definition?.whatsappOnly === true && !hasPhoneColumn(sources) && !hasCrmLinkColumn(sources)
+      ? ('no_phone_column' as const)
+      : null;
+  // Catalog-seeded types take no per-row checklist: the hardcoded catalog is
+  // the only supply, so the documents column is ignored and enrollment never
+  // blocks on it. (A type without catalog seeding would need the mapped
+  // documents column as its checklist supply — a client without documents
+  // completes trivially.)
+  if (definition?.seedClientDocuments) {
+    return { sources, perRowDocuments: false, notReady: missingPhoneKey };
   }
-  const sources = parseClientSources(instance.settings);
-  return { sources: filter ? filterSources(sources, filter) : sources, perRowDocuments: false, notReady: null };
+  const perRowDocuments = hasDocumentsColumn(sources);
+  return { sources, perRowDocuments, notReady: perRowDocuments ? null : 'no_documents' };
 }
 
 /**
  * The checklist an enrolled client starts with: the row's documents cell
- * (doc-collector family only — other client-import agents track no documents).
+ * (empty for catalog-seeded types — the seed rows are the checklist).
  */
 function resolveDocuments(config: InstanceImportConfig, candidate: Candidate): { name: string }[] {
   if (!config.perRowDocuments) return [];
@@ -162,7 +156,8 @@ function resolveDocuments(config: InstanceImportConfig, candidate: Candidate): {
 
 /**
  * Enrolls every not-yet-known row of the instance's configured boards/sheets
- * as a client (name+email; doc collector adds its checklist) and kicks the
+ * as a client (name + key column, plus the row's checklist when the type
+ * takes one) and kicks the
  * staggered first drafts. Existing clients are skipped, so re-runs and the
  * daily sweep are idempotent. Also serves the settings panel's per-source
  * "import now" — `filter` narrows the sweep to that one board/sheet.

@@ -144,7 +144,7 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
           </div>
           <span className="btn-row admin-row-actions">
             {row.user && (
-              <button className="btn btn-ghost btn-small" disabled={busy} onClick={impersonate}>
+              <button className="btn btn-primary btn-small" disabled={busy} onClick={impersonate}>
                 {busy ? t.justAMoment : t.enterAccount}
               </button>
             )}

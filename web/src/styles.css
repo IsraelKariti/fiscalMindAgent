@@ -2160,7 +2160,9 @@ details.doc-group > summary.doc-group-title {
    scroll box with a distinct tint so the field boundaries read at a glance. */
 .llm-pane-wrap {
   position: relative;
-  margin: 8px 0 18px;
+  /* Side gutters: a strip of modal on both sides of the pane where the wheel
+     scrolls the modal, not the pane's own scrollbar. */
+  margin: 8px 36px 18px;
 }
 .llm-pane-wrap > .icon-btn {
   position: absolute;

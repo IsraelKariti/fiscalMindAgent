@@ -26,7 +26,8 @@ import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
 import { MONDAY_STATUS_AGENT_WORKING, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
-import { defaultTaxYear } from '../agents/shared/taxYear.js';
+import { capitalClientTaxYear, defaultTaxYear } from '../agents/shared/taxYear.js';
+import { applyFormIntake, type FormAnswer } from '../agents/declarationOfCapital/formIntake.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { DueDateSchema } from './schemas.js';
@@ -530,6 +531,21 @@ workspaceRouter.put(
         getAgentType(req.agentInstance!.agent_type).manualKickoff === true &&
         (await emails.listForClient(client.id)).length === 0
       ) {
+        // Same pre-resolution the monday kickoff webhook runs: map the stored
+        // questionnaire onto the checklist before the first draft is planned,
+        // so the opening interview asks only what the form left open. Skipped
+        // when a resolution already happened (a re-resume) or nothing is stored.
+        const formAnswers = updated.agent_fields['form_answers'];
+        if (req.agentInstance!.agent_type === 'declaration_of_capital' && Array.isArray(formAnswers) && formAnswers.length > 0) {
+          const docs = await clientDocuments.listForClient(client.id);
+          if (docs.length > 0 && docs.every((d) => d.status === 'unresolved')) {
+            try {
+              await applyFormIntake(updated, formAnswers as FormAnswer[], capitalClientTaxYear(updated, new Date()));
+            } catch (err) {
+              logger.error('workspace resume: form intake failed — falling back to the full interview', err, { clientId: client.id });
+            }
+          }
+        }
         void syncMondayStatus(client.id, MONDAY_STATUS_AGENT_WORKING);
       }
       await withClientLock(client.id, () => resumeFutureEmail(client.id));

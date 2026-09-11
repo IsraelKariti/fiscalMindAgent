@@ -119,6 +119,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     descriptionHe:
       'לכל פוליסה בחברת ביטוח הכוללת מרכיב חיסכון (ביטוח מנהלים, פוליסת חיסכון) — אישור ייעודי להצהרת הון מהאזור האישי באתר חברת הביטוח, או העמוד האחרון של הדוח השנתי המקוצר, ליום 31.12.{{tax_year}}.',
     discoveryQuestionHe: 'האם יש לך ביטוח מנהלים או פוליסת חיסכון בחברת ביטוח, ובאילו חברות?',
+    analysisHintHe: SAVINGS_CERTIFICATE_HINT_HE,
     multiInstance: true,
     dateDependent: true,
     checks: { subjectMatch: true, asOfDate: true, amounts: true },

@@ -641,7 +641,7 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   `LlmCallLogContext` (fire-and-forget; logging never fails the call). **Every
   new LLM call site should pass a `LlmCallLogContext` to `generateWithRetry`**
   alongside the existing `llmUsage.add` obligation (today wired: the
-  doc-collector family's four sites; debt collector / CS are counters-only).
+  doc-collector family's five sites — `conversation_decide`, `form_intake`, `injection_screen`, `analyze_file`, `verify_document`; debt collector / CS are counters-only).
   Like `audit_events`, `llm_calls` has no FKs — call history outlives clients.
 - **Audit trail + anomaly detection** (migrations 031-032): `audit_events` is
   the per-action forensic record — one row per outbound email/WhatsApp,

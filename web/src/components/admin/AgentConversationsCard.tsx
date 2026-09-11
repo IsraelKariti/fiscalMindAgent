@@ -26,7 +26,8 @@ function interleave(c: AdminConversation, withSteps: boolean): TimelineEntry[] {
   const rank = { step: 0, call: 1, message: 2 } as const;
   const entries: TimelineEntry[] = c.messages.map((m) => ({ kind: 'message', at: Date.parse(m.sentAt ?? m.createdAt), message: m }));
   if (withSteps) {
-    for (const call of c.calls) entries.push({ kind: 'call', at: Date.parse(call.createdAt), call });
+    // createdAt is the call's END (the row is written on answer); sort by its start.
+    for (const call of c.calls) entries.push({ kind: 'call', at: Date.parse(call.createdAt) - (call.durationMs ?? 0), call });
     for (const step of c.steps) entries.push({ kind: 'step', at: Date.parse(step.occurredAt), step });
   }
   return entries.sort((a, b) => a.at - b.at || rank[a.kind] - rank[b.kind]);

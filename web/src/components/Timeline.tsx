@@ -72,7 +72,10 @@ function mergeTrace(
     index,
   }));
   if (!trace) return rows;
-  if (show.calls) for (const call of trace.calls) rows.push({ kind: 'call', at: Date.parse(call.createdAt), call });
+  // A call's row is written when the answer arrives (createdAt = end), while
+  // its gate is audited right after — order calls by their START so the call
+  // precedes the gate that checks it.
+  if (show.calls) for (const call of trace.calls) rows.push({ kind: 'call', at: Date.parse(call.createdAt) - (call.durationMs ?? 0), call });
   if (show.steps) for (const step of trace.steps) rows.push({ kind: 'step', at: Date.parse(step.occurredAt), step });
   return rows.sort((a, b) => a.at - b.at || ROW_RANK[a.kind] - ROW_RANK[b.kind]);
 }

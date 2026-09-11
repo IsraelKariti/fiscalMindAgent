@@ -381,7 +381,11 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
         key: 'subject_name_matches',
         expected: e.subject_name_matches,
         actual: data.subject_name,
-        pass: namesLooselyMatch(data.subject_name ?? '', c.client.name) === e.subject_name_matches,
+        // The app's subject rule (runChecks): a printed ID that matches the client vouches for the subject;
+        // only otherwise does the (loosely matched) name decide. A Latin-script name on a Hebrew client is fine when the ID matches.
+        pass:
+          ((digits(data.subject_id_number) !== '' && digits(data.subject_id_number) === digits(c.client.idNumber)) ||
+            namesLooselyMatch(data.subject_name ?? '', c.client.name)) === e.subject_name_matches,
       });
     }
     if (e.amount) {

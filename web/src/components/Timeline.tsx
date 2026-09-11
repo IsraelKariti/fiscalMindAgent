@@ -59,7 +59,11 @@ type TimelineRow = { kind: 'message'; at: number; email: Email; index: number } 
 
 const ROW_RANK = { step: 0, call: 1, message: 2 } as const;
 
-function mergeTrace(emails: Email[], trace: AdminConversation | null): TimelineRow[] {
+function mergeTrace(
+  emails: Email[],
+  trace: AdminConversation | null,
+  show: { calls: boolean; steps: boolean },
+): TimelineRow[] {
   const rows: TimelineRow[] = emails.map((email, index) => ({
     kind: 'message',
     at: Date.parse(email.sent_at ?? email.created_at),
@@ -67,16 +71,18 @@ function mergeTrace(emails: Email[], trace: AdminConversation | null): TimelineR
     index,
   }));
   if (!trace) return rows;
-  for (const call of trace.calls) rows.push({ kind: 'call', at: Date.parse(call.createdAt), call });
-  for (const step of trace.steps) rows.push({ kind: 'step', at: Date.parse(step.occurredAt), step });
+  if (show.calls) for (const call of trace.calls) rows.push({ kind: 'call', at: Date.parse(call.createdAt), call });
+  if (show.steps) for (const step of trace.steps) rows.push({ kind: 'step', at: Date.parse(step.occurredAt), step });
   return rows.sort((a, b) => a.at - b.at || ROW_RANK[a.kind] - ROW_RANK[b.kind]);
 }
 
-const TRACE_TOGGLE_KEY = 'fm.conversationTrace';
+// Two independent toggles (LLM calls / code steps), each remembered per browser.
+const TRACE_KEYS = { calls: 'fm.conversationTrace.calls', steps: 'fm.conversationTrace.steps' } as const;
+type TraceKind = keyof typeof TRACE_KEYS;
 
-function readTraceToggle(): boolean {
+function readTraceToggle(kind: TraceKind): boolean {
   try {
-    return localStorage.getItem(TRACE_TOGGLE_KEY) === '1';
+    return localStorage.getItem(TRACE_KEYS[kind]) === '1';
   } catch {
     return false;
   }
@@ -235,10 +241,11 @@ export function Timeline({
   // (requireAdmin, checked on the REAL user) refuses their session anyway.
   const { isAdmin } = useViewer();
   const traceAvailable = isAdmin && clientId !== undefined;
-  const [showTrace, setShowTrace] = useState<boolean>(() => readTraceToggle());
+  const [showCalls, setShowCalls] = useState<boolean>(() => readTraceToggle('calls'));
+  const [showSteps, setShowSteps] = useState<boolean>(() => readTraceToggle('steps'));
   const [trace, setTrace] = useState<AdminConversation | null>(null);
   const [traceError, setTraceError] = useState<string | null>(null);
-  const traceOn = traceAvailable && showTrace;
+  const traceOn = traceAvailable && (showCalls || showSteps);
   useEffect(() => {
     if (!traceOn || !clientId) {
       setTrace(null);
@@ -262,10 +269,10 @@ export function Timeline({
     // Refetch whenever the thread changes (a new message means new calls/steps).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [traceOn, clientId, emails, nextScheduled]);
-  const toggleTrace = (on: boolean) => {
-    setShowTrace(on);
+  const toggleTrace = (kind: TraceKind, on: boolean) => {
+    (kind === 'calls' ? setShowCalls : setShowSteps)(on);
     try {
-      localStorage.setItem(TRACE_TOGGLE_KEY, on ? '1' : '0');
+      localStorage.setItem(TRACE_KEYS[kind], on ? '1' : '0');
     } catch {
       /* per-viewer convenience only */
     }
@@ -447,10 +454,16 @@ export function Timeline({
         )}
         <div className="panel-header-actions">
           {traceAvailable && (
-            <label className="muted timeline-trace-toggle" title={t.conversationTraceTitle}>
-              <input id="conversation-trace-toggle" type="checkbox" checked={showTrace} onChange={(e) => toggleTrace(e.target.checked)} />
-              {t.conversationTraceToggle}
-            </label>
+            <>
+              <label className="muted timeline-trace-toggle" title={t.conversationTraceTitle}>
+                <input id="conversation-trace-calls" type="checkbox" checked={showCalls} onChange={(e) => toggleTrace('calls', e.target.checked)} />
+                {t.conversationTraceCalls}
+              </label>
+              <label className="muted timeline-trace-toggle" title={t.conversationTraceTitle}>
+                <input id="conversation-trace-steps" type="checkbox" checked={showSteps} onChange={(e) => toggleTrace('steps', e.target.checked)} />
+                {t.conversationTraceSteps}
+              </label>
+            </>
           )}
           {visibleEmails.length > 0 && (
             <span className="muted panel-count">
@@ -479,7 +492,7 @@ export function Timeline({
         )}
         {traceError && traceOn && <div className="error-banner">{traceError}</div>}
         <ol className="timeline">
-          {mergeTrace(visibleEmails, traceOn ? trace : null).map((row) => {
+          {mergeTrace(visibleEmails, traceOn ? trace : null, { calls: showCalls, steps: showSteps }).map((row) => {
             if (row.kind !== 'message') {
               return <TraceRow key={`${row.kind}-${row.kind === 'call' ? row.call.id : row.step.id}`} entry={row} />;
             }

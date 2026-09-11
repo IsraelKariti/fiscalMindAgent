@@ -48,6 +48,14 @@ export type AuditAction =
   | 'file.blocked'
   | 'planner.rerun_after_verification'
   | 'llm.budget_exceeded'
+  // Apply phase of the planner (plan.ts): one row per decision field that
+  // changed state, never for a no-op.
+  | 'apply_resolutions'
+  | 'apply_additions'
+  | 'apply_retirements'
+  | 'apply_collections'
+  | 'apply_attestation'
+  | 'send_reply'
   | 'client.auto_enrolled'
   | 'client.kickoff_triggered'
   | 'agent.auto_provisioned'

@@ -22,7 +22,7 @@ import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys } from './taxFet
 import { getProviderSpec } from './taxFetch/providers.js';
 import { getAgentTypeIfKnown } from '../registry.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
-import { recordAudit } from '../../audit/audit.js';
+import { recordAudit, type AuditAction } from '../../audit/audit.js';
 import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js';
 import { windowCloseTime } from '../../orchestration/whatsappWindow.js';
 import { zonedTimeToUtc } from '../../util/time.js';
@@ -250,6 +250,18 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // holds the document) feed the same accountant notification as claim-marks.
   const claimedAtCreation: string[] = [];
   let applied = 0;
+  // Apply phase: each decision field is executed by its own block below; a
+  // block that changed state records one `apply_*` step row (never for a
+  // no-op), so the trail reads validate_message → apply_* → send_reply.
+  const step = (action: AuditAction, detail: Record<string, unknown>): void =>
+    recordAudit({
+      actorType: 'system',
+      action,
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      detail: { clientName: client.name, ...detail },
+    });
+  let stepBase = applied;
   if (!decision.suspected_injection && decision.resolutions.length > 0) {
     for (const resolution of decision.resolutions) {
       if (resolution.resolution === 'not_required') {
@@ -294,6 +306,14 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     }
   }
 
+  if (applied > stepBase) {
+    step('apply_resolutions', {
+      count: applied - stepBase,
+      rows: decision.resolutions.map((r) => ({ id: r.documentId, resolution: r.resolution })),
+    });
+    stepBase = applied;
+  }
+
   // Instance additions after resolution (capital declaration): the
   // requirements-ladder escalation and late discoveries.
   if (!decision.suspected_injection && decision.addedInstances.length > 0) {
@@ -316,6 +336,14 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
         },
       });
     }
+  }
+
+  if (applied > stepBase) {
+    step('apply_additions', {
+      count: applied - stepBase,
+      entries: decision.addedInstances.map((a) => ({ anchorId: a.anchorDocumentId, instances: a.instances.map((i) => i.name) })),
+    });
+    stepBase = applied;
   }
 
   // Document retirements (capital declaration): the ladder replaced these rows
@@ -341,6 +369,11 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
         },
       });
     }
+  }
+
+  if (applied > stepBase) {
+    step('apply_retirements', { count: applied - stepBase, rows: decision.retired.map((r) => r.documentId) });
+    stepBase = applied;
   }
 
   if (applied > 0) {
@@ -374,6 +407,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       clientId,
       detail: { clientName: client.name, evidence: decision.attestation.evidence },
     });
+    step('apply_attestation', { action: 'confirmed', evidence: decision.attestation.evidence });
   }
 
   // Evidence-gated status updates: the planner proposes, the file evidence decides.
@@ -443,6 +477,15 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     if (!file || isQuarantined(file)) continue;
     await documentFiles.linkToDocument(match.file_id, clientId, match.document_id);
     logger.info('file linked to document', { clientId, fileId: match.file_id, documentId: match.document_id });
+  }
+
+  if (newlyCollected.length + newlyClaimed.length + proposedPairs.length > 0) {
+    step('apply_collections', {
+      proposed: decision.collected_document_ids,
+      collected: newlyCollected,
+      claimed: newlyClaimed,
+      pairs: proposedPairs.map((m) => ({ fileId: m.file_id, documentId: m.document_id })),
+    });
   }
 
   // Verification pipeline (capital declaration): each just-collected document
@@ -553,6 +596,13 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     delayMs: Math.max(0, delayMs),
     reasoning: decision.reasoning,
   });
+  step('send_reply', {
+    emailId,
+    channel: message.channel,
+    kind: message.channel === 'whatsapp' ? message.kind : 'email',
+    send_at: sendAtGuard.sendAt,
+    chars: (message.channel === 'email' || message.kind === 'freeform' ? message.body : message.renderedBody).length,
+  });
   // Attestation request (capital declaration): this very draft is the closing
   // summary. Stamped by email id — the confirmation validator only trusts it
   // once the row actually sent, so an abandoned draft never becomes a request.
@@ -565,6 +615,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       clientId,
       detail: { clientName: client.name, emailId, send_at: sendAtGuard.sendAt },
     });
+    step('apply_attestation', { action: 'request', emailId });
   }
   // Act on the document-fetch step (client agreed / start login / cancel)
   // after the draft exists: start_login is enqueued against the heads-up draft

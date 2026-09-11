@@ -10,12 +10,24 @@ import type { AgentInstanceRow, ClientRow, DocumentFileRow, MessageChannel, User
  */
 export type ConversationModel = 'scheduled_follow_up' | 'immediate_reply' | 'none';
 
+/** Why this planning cycle runs, when it matters to the plan. */
+export interface PlanHints {
+  /**
+   * The cycle was triggered by a verification verdict landing (approved /
+   * reopened / stalled): the agent reports the outcome; it must not collect
+   * files in this cycle (nothing new arrived), so it cannot verify again.
+   */
+  afterVerification?: boolean;
+}
+
 /** Everything a hook needs to act for one client of one agent instance. */
 export interface AgentContext {
   /** NULL only for legacy CLI-era clients that predate agent_instances (treated as doc_collector). */
   instance: AgentInstanceRow | null;
   client: ClientRow;
   accountant: UserRow | null;
+  /** Set by setFutureEmail when the caller passed hints. */
+  hints?: PlanHints;
 }
 
 /** A stored inbound message and/or newly ingested files, ready for the agent's reaction. */

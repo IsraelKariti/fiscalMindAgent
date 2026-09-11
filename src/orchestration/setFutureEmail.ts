@@ -3,13 +3,14 @@ import { loadAgentContext } from '../agents/resolve.js';
 import { adminCommsPaused } from './adminPause.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { logger } from '../util/logger.js';
+import type { PlanHints } from '../agents/types.js';
 
 /**
  * Runs one planning step for the client's agent (loaded via the agent-type
  * registry) inside the generic lifecycle wrapper: complete/paused guards,
  * drafting stamps for the UI, and failure recording for the manual retry.
  */
-export async function setFutureEmail(clientId: string): Promise<void> {
+export async function setFutureEmail(clientId: string, hints?: PlanHints): Promise<void> {
   const client = await clients.getById(clientId);
   if (!client) throw new Error(`setFutureEmail: client ${clientId} not found`);
   if (client.goal_status === 'complete') return;
@@ -33,7 +34,7 @@ export async function setFutureEmail(clientId: string): Promise<void> {
   await clients.markDraftingStarted(clientId);
   try {
     const agent = await loadAgentContext(client);
-    await agent.definition.planNextAction(agent);
+    await agent.definition.planNextAction(hints ? { ...agent, hints } : agent);
     await clients.clearDraftingState(clientId);
   } catch (err) {
     await clients.markDraftingFailed(clientId).catch((markErr) => {

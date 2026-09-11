@@ -390,7 +390,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     : decision.matched_files.filter((m) => fileById.has(m.file_id) && documentIds.has(m.document_id));
   const newlyCollected: string[] = [];
   const newlyClaimed: string[] = [];
-  if (!decision.suspected_injection) {
+  // A cycle triggered by a verification verdict reports the outcome only: no
+  // new file arrived, so nothing may be collected (and therefore nothing can
+  // be verified again — the rerun cannot loop).
+  if (!decision.suspected_injection && !ctx.hints?.afterVerification) {
     for (const id of decision.collected_document_ids) {
       if (!pendingIds.has(id)) continue;
       const strongMatch = files.some((f) => fileMatchesDocument(f, id));

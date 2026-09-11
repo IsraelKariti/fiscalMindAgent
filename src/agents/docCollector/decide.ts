@@ -2,6 +2,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { logger } from '../../util/logger.js';
 import type { GeminiUsage, LlmCallLogContext } from '../../gemini/generate.js';
 import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
+import { recordAudit } from '../../audit/audit.js';
 import {
   correctionSuffix,
   decisionSchemaForContext,
@@ -98,11 +99,39 @@ export async function decide(
     usage.cachedTokens += callUsage.cachedTokens;
     logger.info('gemini tokens used', { model, ...callUsage });
 
+    // Step validate_message: schema parse + normalizeDecision (evidence quotes,
+    // instance caps, channel rules, attestation gate). One audit row per
+    // attempt with the verdict; a rejection is fed back for one corrective pass.
     try {
       const raw = restorePrunedNulls(schema.parse(JSON.parse(text)));
-      return { decision: normalizeDecision(raw, ctx), usage, model };
+      const decision = normalizeDecision(raw, ctx);
+      recordAudit({
+        actorType: 'system',
+        action: 'validate_message',
+        agentInstanceId: opts.log?.agentInstanceId ?? null,
+        clientId: opts.log?.clientId ?? null,
+        detail: {
+          attempt,
+          result: true,
+          decision: decision.decision,
+          resolutions: decision.resolutions.length,
+          added: decision.addedInstances.length,
+          retired: decision.retired.length,
+          collected: decision.collected_document_ids,
+          attestation: decision.attestation?.action ?? null,
+        },
+      });
+      return { decision, usage, model };
     } catch (err) {
       lastError = err;
+      recordAudit({
+        actorType: 'system',
+        action: 'validate_message',
+        agentInstanceId: opts.log?.agentInstanceId ?? null,
+        clientId: opts.log?.clientId ?? null,
+        severity: 'warning',
+        detail: { attempt, result: false, error: (err instanceof Error ? err.message : String(err)).slice(0, 500) },
+      });
       if (attempt < MAX_DECISION_ATTEMPTS) {
         logger.warn('decision rejected by validation; retrying once with corrective feedback', {
           error: err instanceof Error ? err.message : String(err),

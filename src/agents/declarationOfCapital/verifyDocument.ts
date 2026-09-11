@@ -6,6 +6,9 @@ import * as llmUsage from '../../db/queries/llmUsage.js';
 import { downloadBlob } from '../../storage/blob.js';
 import { runLlmCall } from '../../gemini/llmCall.js';
 import { recordAudit } from '../../audit/audit.js';
+import { withClientLock } from '../../db/withClientLock.js';
+import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
+import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { isKillSwitchOn } from '../killSwitch.js';
 import { isAnalyzable } from '../docCollector/analyzeFile.js';
@@ -177,6 +180,27 @@ export async function verifyCollectedDocument(
     now,
     checks,
   });
+  // Step verify_extraction: the code checks after extract_document, one row per
+  // attempt with the per-check table (reasons are our own Hebrew strings).
+  recordAudit({
+    actorType: 'system',
+    action: 'verify_extraction',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'client_document',
+    targetId: doc.id,
+    severity: verdict.passed ? 'info' : 'warning',
+    detail: {
+      clientName: client.name,
+      name: doc.name,
+      fileId,
+      attempt: attempts + 1,
+      result: verdict.passed,
+      issuer: extracted.issuer,
+      checks: verdict.checks.map((c) => ({ key: c.key, passed: c.passed })),
+      reasons: verdict.reasons,
+    },
+  });
 
   if (verdict.passed) {
     const record: VerificationRecord = {
@@ -199,6 +223,7 @@ export async function verifyCollectedDocument(
     });
     publishClientUpdated(client.id);
     logger.info('document verified and approved', { clientId: client.id, documentId: doc.id, fileId });
+    await replanAfterVerification(client, doc, 'approved');
     return;
   }
 
@@ -219,6 +244,7 @@ export async function verifyCollectedDocument(
       attempts: failedAttempts,
       reasons: verdict.reasons,
     });
+    await replanAfterVerification(client, doc, 'stalled');
     return;
   }
   const reopened = await clientDocuments.revertToPending(doc.id, client.id, record);
@@ -239,4 +265,35 @@ export async function verifyCollectedDocument(
     attempt: failedAttempts,
     reasons: verdict.reasons,
   });
+  await replanAfterVerification(client, doc, 'reopened');
+}
+
+/**
+ * One extra planning cycle once a verdict lands, so the agent reports the
+ * outcome (approved / please resend / handed to the office) right away
+ * instead of waiting for the client's next message. The cycle runs with the
+ * afterVerification hint: it cannot collect files, so it cannot verify again
+ * — no loop. Waits for the client lock, i.e. for the planning cycle that
+ * kicked this verification off to finish scheduling its draft, then replaces
+ * that draft with one that has the verdict in view. Best-effort: the verdict
+ * itself is already recorded.
+ */
+async function replanAfterVerification(client: ClientRow, doc: ClientDocumentRow, outcome: 'approved' | 'reopened' | 'stalled'): Promise<void> {
+  recordAudit({
+    actorType: 'system',
+    action: 'planner.rerun_after_verification',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'client_document',
+    targetId: doc.id,
+    detail: { clientName: client.name, name: doc.name, outcome },
+  });
+  try {
+    await withClientLock(client.id, async () => {
+      await removeFutureEmail(client.id);
+      await setFutureEmail(client.id, { afterVerification: true });
+    });
+  } catch (err) {
+    logger.error('post-verification re-plan failed', err, { clientId: client.id, documentId: doc.id, outcome });
+  }
 }

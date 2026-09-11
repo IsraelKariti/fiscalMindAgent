@@ -219,6 +219,24 @@ export async function applyFormIntake(
   const raw = intakeSchema.parse(JSON.parse(text));
 
   const { valid, dropped, unclear } = validateFormResolutions(raw, rows, answers);
+  // Step validate_form_resolutions: code checks every proposal. true = all
+  // accepted, false = at least one dropped (a dropped row stays unresolved —
+  // no retry, the interview covers it).
+  recordAudit({
+    actorType: 'system',
+    action: 'validate_form_resolutions',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    severity: dropped.length > 0 ? 'warning' : 'info',
+    detail: {
+      clientName: client.name,
+      result: dropped.length === 0,
+      proposed: Object.keys(raw.verdicts).length,
+      accepted: valid.map((v) => ({ typeKey: v.typeKey, resolution: v.resolution })),
+      unclear,
+      dropped,
+    },
+  });
   if (dropped.length > 0) {
     logger.warn('form intake: some proposed resolutions were dropped', { clientId: client.id, dropped });
   }

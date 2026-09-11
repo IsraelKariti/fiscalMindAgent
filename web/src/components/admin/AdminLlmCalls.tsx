@@ -133,6 +133,9 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
               {t.llmPurposeLabels[call.purpose] ?? call.purpose}
               {call.clientName ? ` · ${displayClientName(call.clientName)}` : ''}
             </p>
+            <p className="muted">
+              {t.adminLlmCallStageKey}: <span className="mono" dir="ltr">{call.purpose}</span>
+            </p>
             <p className="muted" dir="ltr" style={{ textAlign: 'right' }}>
               {t.inputTokens}: {call.inputTokens.toLocaleString(LOCALE)}
               {' · '}

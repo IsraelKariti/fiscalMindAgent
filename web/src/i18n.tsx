@@ -696,12 +696,13 @@ const he = {
   adminLlmCallResponse: 'תשובת המודל',
   adminLlmCallErrorLabel: 'שגיאה',
   adminLlmCallNoResponse: 'אין תשובה (הקריאה נכשלה).',
+  adminLlmCallStageKey: 'שם טכני של השלב',
   llmPurposeLabels: {
-    generate_message: 'החלטת שיחה',
-    questionnaire_schema_mapping: 'ניתוח שאלון',
-    injection_detection_llm: 'סינון הזרקת הנחיות',
-    extract_document: 'אימות מסמך',
-    file_classification: 'ניתוח קובץ',
+    generate_message: 'ניסוח התשובה ללקוח',
+    questionnaire_schema_mapping: 'מיפוי השאלון לרשימת המסמכים',
+    injection_detection_llm: 'סינון ניסיונות הזרקת הנחיות',
+    extract_document: 'חילוץ נתונים מהמסמך לאימות',
+    file_classification: 'סיווג הקובץ שהתקבל',
   } as Record<string, string>,
 
   adminDangerZone: 'פעולות מסוכנות',

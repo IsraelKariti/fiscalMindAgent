@@ -95,7 +95,10 @@ function readTraceToggle(kind: TraceKind): boolean {
  * numbers live in the chip's tooltip.
  */
 function CallChip({ call }: { call: LlmCallSummary }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
+  // The human label; the technical stage key lives inside the modal.
+  const label = t.llmPurposeLabels[call.purpose] ?? call.purpose;
   const tooltip = [
     formatTimestamp(call.createdAt),
     call.model,
@@ -112,7 +115,7 @@ function CallChip({ call }: { call: LlmCallSummary }) {
         onClick={() => setOpen(true)}
       >
         <span className="timeline-trace-icon" aria-hidden="true">🤖</span>
-        <span className="mono">{call.purpose}</span>
+        <span dir="auto">{label}</span>
       </button>
       {open && <CallDetailModal callId={call.id} onClose={() => setOpen(false)} />}
     </li>

@@ -23,7 +23,7 @@ export type AuditAction =
   | 'document.claimed'
   | 'document.resolved'
   | 'document.instances_added'
-  | 'document.superseded'
+  | 'document.retired'
   | 'document.verified'
   | 'document.verification_failed'
   | 'document.status_changed'

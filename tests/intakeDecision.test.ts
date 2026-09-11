@@ -26,7 +26,7 @@ function baseRaw(overrides: Partial<DecisionResponse> = {}): DecisionResponse {
     tax_fetch_document_keys: null,
     resolved_documents: null,
     added_instances: null,
-    superseded_documents: null,
+    retired_documents: null,
     attestation: null,
     attestation_evidence: null,
     ...overrides,
@@ -43,7 +43,7 @@ function baseIntake(overrides: Partial<IntakeDecisionState> = {}): IntakeDecisio
     typedRows: [
       { id: 'doc-contract', status: 'pending', multiInstance: true },
       { id: 'doc-appendix', status: 'collected', multiInstance: true },
-      { id: 'doc-old-tabu', status: 'superseded', multiInstance: true },
+      { id: 'doc-old-tabu', status: 'retired', multiInstance: true },
       { id: 'doc-contents', status: 'pending', multiInstance: false },
     ],
     inboundTexts: new Map([
@@ -275,7 +275,7 @@ describe('attestation gate (normalizeDecision)', () => {
   });
 });
 
-describe('ladder actions: added_instances + superseded_documents (normalizeDecision)', () => {
+describe('ladder actions: added_instances + retired_documents (normalizeDecision)', () => {
   it('accepts additions anchored on an already-resolved multi-instance row, keeping already_provided', () => {
     const raw = baseRaw({
       added_instances: [
@@ -322,21 +322,21 @@ describe('ladder actions: added_instances + superseded_documents (normalizeDecis
     );
   });
 
-  it('accepts supersessions of pending and collected rows with verbatim evidence', () => {
+  it('accepts retirements of pending and collected rows with verbatim evidence', () => {
     const raw = baseRaw({
-      superseded_documents: [
+      retired_documents: [
         { document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'אין לי רכב בכלל' } },
         { document_id: 'doc-appendix', evidence: { message_id: 'msg-1', quote: 'יש לי קצת מזומן בבית' } },
       ],
     });
     const decision = normalizeDecision(raw, ctxWith(baseIntake()));
-    assert.equal(decision.superseded.length, 2);
-    assert.equal(decision.superseded[0]!.documentId, 'doc-contract');
+    assert.equal(decision.retired.length, 2);
+    assert.equal(decision.retired[0]!.documentId, 'doc-contract');
   });
 
-  it('rejects supersessions without evidence, with a fabricated quote, on unknown or already-superseded rows', () => {
-    const on = (entries: DecisionResponse['superseded_documents']) =>
-      normalizeDecision(baseRaw({ superseded_documents: entries }), ctxWith(baseIntake()));
+  it('rejects retirements without evidence, with a fabricated quote, on unknown or already-retired rows', () => {
+    const on = (entries: DecisionResponse['retired_documents']) =>
+      normalizeDecision(baseRaw({ retired_documents: entries }), ctxWith(baseIntake()));
     assert.throws(() => on([{ document_id: 'doc-contract', evidence: null }]), /requires evidence/);
     assert.throws(
       () => on([{ document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'טקסט שלא נכתב' } }]),
@@ -348,11 +348,11 @@ describe('ladder actions: added_instances + superseded_documents (normalizeDecis
     );
     assert.throws(
       () => on([{ document_id: 'doc-old-tabu', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' } }]),
-      /already superseded/,
+      /already retired/,
     );
   });
 
-  it("attestation 'request' is rejected while additions or supersessions are being made", () => {
+  it("attestation 'request' is rejected while additions or retirements are being made", () => {
     const settled = baseIntake({ allSettled: true, resolvable: [] });
     assert.throws(
       () =>
@@ -365,18 +365,18 @@ describe('ladder actions: added_instances + superseded_documents (normalizeDecis
           }),
           ctxWith(settled),
         ),
-      /no new resolutions, additions or supersessions/,
+      /no new resolutions, additions or retirements/,
     );
     assert.throws(
       () =>
         normalizeDecision(
           baseRaw({
             attestation: 'request',
-            superseded_documents: [{ document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' } }],
+            retired_documents: [{ document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' } }],
           }),
           ctxWith(settled),
         ),
-      /no new resolutions, additions or supersessions/,
+      /no new resolutions, additions or retirements/,
     );
   });
 });

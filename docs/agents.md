@@ -112,10 +112,10 @@ monday WorkForm is the only source of which documents a declaration needs):
   `decisionSchema.ts` and applied in `plan.ts` — `added_instances` inserts
   sibling `pending` rows next to any already-resolved row of a multi-instance
   type (`clientDocuments.addInstances`; also covers "actually there's a third
-  account"), and `superseded_documents` retires rows the ladder replaced
-  (status **`superseded`**, `clientDocuments.supersede`, requires a verbatim
+  account"), and `retired_documents` retires rows the ladder replaced
+  (status **`retired`** — migration 053 renamed it from `superseded` — `clientDocuments.retire`, requires a verbatim
   client quote; valid even from collected/approved per the office's unit rule —
-  contract + payments appendix stand or fall together). Superseded rows are out
+  contract + payments appendix stand or fall together). Retired rows are out
   of the goal everywhere `not_required` is (plan/router settle checks,
   dashboard SQL, web UI where they render as a collapsed group with the quote)
   and are hidden from the planner's REQUIRED DOCUMENTS section entirely; the

@@ -147,7 +147,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
           multiInstance: (d.type_key ? getCatalogType(d.type_key)?.multiInstance : undefined) ?? false,
         })),
       // Already-resolved catalog rows: anchors for added_instances (ladder
-      // escalations, late discoveries) and targets for superseded_documents.
+      // escalations, late discoveries) and targets for retired_documents.
       typedRows: documents
         .filter((d) => d.type_key !== null && d.status !== 'unresolved' && d.status !== 'not_required')
         .map((d) => ({
@@ -158,7 +158,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       inboundTexts,
       allSettled:
         documents.length > 0 &&
-        documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'superseded'),
+        documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired'),
       attestationRequested: requestSentAt !== null,
       confirmableMessageIds: new Set(
         requestSentAt === null
@@ -321,14 +321,14 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // Document retirements (capital declaration): the ladder replaced these rows
   // with different documents (evidence-backed; collected/approved rows are
   // valid targets per the office's unit rule).
-  if (!decision.suspected_injection && decision.superseded.length > 0) {
-    for (const supersession of decision.superseded) {
-      const row = await clientDocuments.supersede(supersession.documentId, clientId, supersession.evidence);
+  if (!decision.suspected_injection && decision.retired.length > 0) {
+    for (const retirement of decision.retired) {
+      const row = await clientDocuments.retire(retirement.documentId, clientId, retirement.evidence);
       if (!row) continue;
       applied += 1;
       recordAudit({
         actorType: 'agent',
-        action: 'document.superseded',
+        action: 'document.retired',
         agentInstanceId: client.agent_instance_id,
         clientId,
         targetType: 'client_document',
@@ -337,7 +337,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
           clientName: client.name,
           name: row.name,
           typeKey: row.type_key,
-          evidence: supersession.evidence,
+          evidence: retirement.evidence,
         },
       });
     }
@@ -472,7 +472,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const stillPending = documents.length - collectedCount;
   const allSettled =
     documents.length > 0 &&
-    documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'superseded');
+    documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired');
   const allCollected =
     documents.length > 0
       ? isCapitalDeclaration

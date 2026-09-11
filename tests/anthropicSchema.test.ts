@@ -148,7 +148,7 @@ describe('restoreOmittedNulls', () => {
       tax_fetch_document_keys: null,
       resolved_documents: null,
       added_instances: null,
-      superseded_documents: null,
+      retired_documents: null,
       attestation: null,
       attestation_evidence: null,
     };
@@ -231,7 +231,7 @@ describe('decisionSchemaForContext', () => {
   it('doc collector (no intake): drops the five intake fields and fits the budget', () => {
     const json = schemaFor(DOC_COLLECTOR_CONTEXT);
     const props = json.properties as Record<string, unknown>;
-    for (const gone of ['resolved_documents', 'added_instances', 'superseded_documents', 'attestation', 'attestation_evidence']) {
+    for (const gone of ['resolved_documents', 'added_instances', 'retired_documents', 'attestation', 'attestation_evidence']) {
       assert.equal(props[gone], undefined, `${gone} should be pruned`);
     }
     assert.notEqual(props.email_subject, undefined);
@@ -261,7 +261,7 @@ describe('decisionSchemaForContext', () => {
       send_at: '2026-09-02 10:00',
       resolved_documents: null,
       added_instances: null,
-      superseded_documents: null,
+      retired_documents: null,
       attestation: null,
       attestation_evidence: null,
     });

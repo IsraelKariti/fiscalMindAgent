@@ -28,7 +28,7 @@ const incidentAnswer = JSON.stringify({
   tax_fetch_document_keys: ['pension_annual'],
   resolved_documents: null,
   added_instances: null,
-  superseded_documents: null,
+  retired_documents: null,
   attestation: null,
   attestation_evidence: null,
 });

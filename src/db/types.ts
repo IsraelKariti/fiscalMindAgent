@@ -130,7 +130,7 @@ export interface ClientRow {
  * 'claimed' = the client says they delivered it outside email (fax/in person)
  * or that the office already holds it, awaits the accountant's confirmation;
  * 'approved' = the automatic verification pipeline accepted the received file
- * (never set by hand); 'superseded' (migration 050) = the requirements ladder
+ * (never set by hand); 'retired' (migration 050) = the requirements ladder
  * replaced this document with different ones — out of the goal, but never
  * presented as "the client doesn't have the asset".
  */
@@ -141,7 +141,7 @@ export type DocumentStatus =
   | 'claimed'
   | 'collected'
   | 'approved'
-  | 'superseded';
+  | 'retired';
 
 /**
  * The client statement an intake resolution rests on: a verbatim quote from a

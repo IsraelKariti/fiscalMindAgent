@@ -98,7 +98,7 @@ export const DecisionResponseSchema = z.object({
    * one already received). Each entry needs evidence: the verbatim client
    * statement the retirement rests on.
    */
-  superseded_documents: z
+  retired_documents: z
     .array(
       z.object({
         document_id: z.string(),
@@ -138,7 +138,7 @@ const TAX_FETCH_FIELDS = ['tax_fetch_action', 'tax_fetch_provider', 'tax_fetch_d
 const INTAKE_FIELDS = [
   'resolved_documents',
   'added_instances',
-  'superseded_documents',
+  'retired_documents',
   'attestation',
   'attestation_evidence',
 ] as const;
@@ -159,7 +159,7 @@ const PRUNED_FIELD_NULLS: { [K in PrunableDecisionField]: null } = {
   tax_fetch_document_keys: null,
   resolved_documents: null,
   added_instances: null,
-  superseded_documents: null,
+  retired_documents: null,
   attestation: null,
   attestation_evidence: null,
 };
@@ -232,7 +232,7 @@ export interface InstanceAddition {
 }
 
 /** One validated document retirement (capital declaration): the ladder replaced it. */
-export interface DocumentSupersession {
+export interface DocumentRetirement {
   documentId: string;
   evidence: EvidenceRef;
 }
@@ -250,7 +250,7 @@ export type NormalizedDecision =
       tax_fetch: TaxFetchDecision | null;
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
-      superseded: DocumentSupersession[];
+      retired: DocumentRetirement[];
       attestation: AttestationDecision | null;
     }
   | {
@@ -265,7 +265,7 @@ export type NormalizedDecision =
       tax_fetch: TaxFetchDecision | null;
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
-      superseded: DocumentSupersession[];
+      retired: DocumentRetirement[];
       attestation: AttestationDecision | null;
     };
 
@@ -293,7 +293,7 @@ export interface ResolvableRow {
  * The capital-declaration intake state the validator needs. Absent for other
  * agent types — any intake field the model sets is then rejected outright.
  */
-/** One already-resolved catalog row — a valid anchor for added_instances / target for superseded_documents. */
+/** One already-resolved catalog row — a valid anchor for added_instances / target for retired_documents. */
 export interface TypedRow {
   id: string;
   /** Current status (anything past 'unresolved'). */
@@ -305,7 +305,7 @@ export interface TypedRow {
 export interface IntakeDecisionState {
   /** Rows an intake resolution may target. */
   resolvable: ResolvableRow[];
-  /** Catalog rows already resolved (status past 'unresolved'/'not_required') — the pool added_instances anchors to and superseded_documents may retire. */
+  /** Catalog rows already resolved (status past 'unresolved'/'not_required') — the pool added_instances anchors to and retired_documents may retire. */
   typedRows: TypedRow[];
   /** Inbound message texts by id — the only pool evidence quotes may cite. */
   inboundTexts: Map<string, string>;
@@ -578,33 +578,33 @@ function validateAddedInstances(raw: DecisionResponse, ctx: DecisionContext): In
 
 /**
  * Validates document retirements (capital declaration): only the client's
- * already-resolved catalog rows may be superseded, never without the verbatim
+ * already-resolved catalog rows may be retired, never without the verbatim
  * client statement the retirement rests on. Rows already collected/approved
  * ARE valid targets — the office's unit rule retires a fulfilled document when
  * its counterpart is unobtainable.
  */
-function validateSuperseded(raw: DecisionResponse, ctx: DecisionContext): DocumentSupersession[] {
-  const entries = raw.superseded_documents ?? [];
+function validateRetirements(raw: DecisionResponse, ctx: DecisionContext): DocumentRetirement[] {
+  const entries = raw.retired_documents ?? [];
   if (entries.length === 0) return [];
   const intake = ctx.intake;
-  if (!intake) throw new Error('superseded_documents is not applicable to this agent — leave it null');
+  if (!intake) throw new Error('retired_documents is not applicable to this agent — leave it null');
 
   const byId = new Map(intake.typedRows.map((r) => [r.id, r]));
   const seen = new Set<string>();
-  const result: DocumentSupersession[] = [];
+  const result: DocumentRetirement[] = [];
   for (const entry of entries) {
-    if (seen.has(entry.document_id)) throw new Error(`superseded_documents targets document ${entry.document_id} twice`);
+    if (seen.has(entry.document_id)) throw new Error(`retired_documents targets document ${entry.document_id} twice`);
     seen.add(entry.document_id);
     const row = byId.get(entry.document_id);
     if (!row) {
       throw new Error(
-        `superseded_documents: document ${entry.document_id} is not an already-resolved catalog row of this client`,
+        `retired_documents: document ${entry.document_id} is not an already-resolved catalog row of this client`,
       );
     }
-    if (row.status === 'superseded') {
-      throw new Error(`superseded_documents: document ${entry.document_id} is already superseded`);
+    if (row.status === 'retired') {
+      throw new Error(`retired_documents: document ${entry.document_id} is already retired`);
     }
-    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `superseding of ${entry.document_id}`);
+    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `retirement of ${entry.document_id}`);
     result.push({ documentId: entry.document_id, evidence });
   }
   return result;
@@ -628,9 +628,9 @@ function validateAttestation(raw: DecisionResponse, ctx: DecisionContext): Attes
       throw new Error("attestation 'request' must come with a follow_up decision — the scheduled message IS the summary");
     }
     const changesThisCycle =
-      (raw.resolved_documents ?? []).length + (raw.added_instances ?? []).length + (raw.superseded_documents ?? []).length;
+      (raw.resolved_documents ?? []).length + (raw.added_instances ?? []).length + (raw.retired_documents ?? []).length;
     if (!intake.allSettled || changesThisCycle > 0) {
-      throw new Error("attestation 'request' is valid only when every document is already settled (approved / not_required) and no new resolutions, additions or supersessions are being made");
+      throw new Error("attestation 'request' is valid only when every document is already settled (approved / not_required) and no new resolutions, additions or retirements are being made");
     }
     return { action: 'request' };
   }
@@ -666,7 +666,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
   const taxFetch = validateTaxFetch(raw, ctx);
   const resolutions = validateResolutions(raw, ctx);
   const addedInstances = validateAddedInstances(raw, ctx);
-  const superseded = validateSuperseded(raw, ctx);
+  const retired = validateRetirements(raw, ctx);
   const attestation = validateAttestation(raw, ctx);
   if (raw.decision === 'goal_complete') {
     return {
@@ -678,7 +678,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
       tax_fetch: taxFetch,
       resolutions,
       addedInstances,
-      superseded,
+      retired,
       attestation,
     };
   }
@@ -696,7 +696,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
     tax_fetch: taxFetch,
     resolutions,
     addedInstances,
-    superseded,
+    retired,
     attestation,
   };
 }

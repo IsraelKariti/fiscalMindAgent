@@ -231,13 +231,13 @@ export async function addInstances(
  * from 'unresolved'/'not_required' (those are resolution's business). The
  * client statement it rests on is stored as resolution_evidence.
  */
-export async function supersede(
+export async function retire(
   id: string,
   clientId: string,
   evidence: ResolutionEvidence,
 ): Promise<ClientDocumentRow | null> {
   const { rows } = await pool.query<ClientDocumentRow>(
-    `UPDATE client_documents SET status = 'superseded', resolution_evidence = $3, updated_at = now()
+    `UPDATE client_documents SET status = 'retired', resolution_evidence = $3, updated_at = now()
      WHERE id = $1 AND client_id = $2 AND status IN ('pending', 'claimed', 'collected', 'approved') RETURNING *`,
     [id, clientId, JSON.stringify(evidence)],
   );

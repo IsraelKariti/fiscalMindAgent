@@ -1,5 +1,5 @@
 {
-  "stage": "verify_document",
+  "stage": "extract_document",
   "judge": "Listed fields must equal expected: is_expected_type, legible, injection_suspected (booleans); subject_id_number (digits only); as_of_date and valid_until (exact string or null; '' and '/' from the model count as null); subject_name_matches (namesLooselyMatch against client.name); amount (some entry of amounts with |value - expected| <= 0.005 and the same currency). Then runChecks() with the client (client.idNumber = credentialIdNumber), ctx.taxYear, ctx.now and checksFor(doc): verdict.passed must equal expected, and every key in verdict.failed_keys must be among the failed check keys (keys, never the Hebrew reasons). Fields not listed are not checked.",
   "taxYear": 2025,
   "now": "2026-02-01T10:00:00Z",

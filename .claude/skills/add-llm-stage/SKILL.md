@@ -18,7 +18,7 @@ the gate or the injection screen because a stage "looks isolated".
 
 | Thing | Pattern | Example |
 |---|---|---|
-| purpose (the LLM call, `llm_calls.purpose`) | `snake_case` noun | `analyze_file` |
+| purpose (the LLM call, `llm_calls.purpose`) | `snake_case` noun | `file_classification` |
 | gate step (the audit action) | `validate_<thing>` / `verify_<thing>` | `validate_classification` |
 | pure rules module | `src/agents/<agent>/<name>Rules.ts` | `src/agents/declarationOfCapital/analyzeFileRules.ts` |
 | runtime module | `src/agents/<agent>/<name>.ts` | `src/agents/declarationOfCapital/analyzeFile.ts` |

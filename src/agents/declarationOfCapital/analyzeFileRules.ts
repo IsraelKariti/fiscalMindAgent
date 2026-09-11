@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { CAPITAL_DOCUMENT_CATALOG } from './catalog.js';
 
 /**
- * Pure rules of the analyze_file stage: the response schemas and the code gate
+ * Pure rules of the file_classification stage: the response schemas and the code gate
  * (validate_classification) that checks the model's proposal before anything
  * uses it. No imports of llm/db/audit, so the tests and the evals harness run
  * without an API key or a database.

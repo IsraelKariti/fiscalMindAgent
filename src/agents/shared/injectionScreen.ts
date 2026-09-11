@@ -14,7 +14,7 @@ import { endFence, fence, makeFenceToken, sanitizeInline } from './promptSafety.
  *
  *   1. injection_detection_regex — named patterns, first hit wins, no model
  *      (runInjectionRegexStep);
- *   2. injection_screen — one small dedicated LLM call whose only job is to
+ *   2. injection_detection_llm — one small dedicated LLM call whose only job is to
  *      decide whether the content tries to instruct an AI system: a text
  *      variant (screenForInjection) and a multimodal file variant that reads
  *      the bytes (screenFileForInjection). Fails CLOSED: a throw means "cannot
@@ -67,12 +67,12 @@ export function joinSnippets(snippets: string[]): string {
   return snippets.filter((s) => s.trim() !== '').join('\n---\n');
 }
 
-/** The exact injection_screen request for text — shared with the evals harness so it tests what the app sends. */
+/** The exact injection_detection_llm request for text — shared with the evals harness so it tests what the app sends. */
 export function buildInjectionScreenCall(content: string): LlmCallSpec {
   // Instructions in the system turn; only the fenced text under review in the user turn.
   const token = makeFenceToken();
   return {
-    purpose: 'injection_screen',
+    purpose: 'injection_detection_llm',
     systemInstruction: SCREEN_PROMPT.replaceAll('{{token}}', token),
     contents: [
       { role: 'user', parts: [{ text: `${fence(token, 'TEXT UNDER REVIEW')}\n${content}\n${endFence(token, 'TEXT UNDER REVIEW')}` }] },
@@ -88,11 +88,11 @@ export interface FileScreenInput {
   filename: string;
 }
 
-/** The exact injection_screen request for a file (multimodal read of the bytes). */
+/** The exact injection_detection_llm request for a file (multimodal read of the bytes). */
 export function buildFileScreenCall({ bytes, contentType, filename }: FileScreenInput): LlmCallSpec {
   // Instructions in the system turn; the bytes and the (untrusted) filename in the user turn.
   return {
-    purpose: 'injection_screen',
+    purpose: 'injection_detection_llm',
     systemInstruction: FILE_SCREEN_PROMPT,
     contents: [
       {

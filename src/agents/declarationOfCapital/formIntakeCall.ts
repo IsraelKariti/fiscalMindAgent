@@ -5,7 +5,7 @@ import { getCatalogType } from './catalog.js';
 import { buildFormIntakeSchema, type FormAnswer, type FormResolvableRow } from './formIntakeRules.js';
 
 /**
- * The form_intake request builder, kept apart from formIntake.ts (which
+ * The questionnaire_schema_mapping request builder, kept apart from formIntake.ts (which
  * imports the DB and the SSE event bus, whose Redis client opens at import)
  * so the evals harness and the stage description can build the exact prompt
  * without any of that.
@@ -68,7 +68,7 @@ export interface FormIntakeCallInput {
 }
 
 /**
- * The exact form_intake request — shared with the evals harness so it tests
+ * The exact questionnaire_schema_mapping request — shared with the evals harness so it tests
  * what the app sends. Returns the per-call zod schema too: `verdicts` carries
  * one REQUIRED property per open row of this client, so the model can neither
  * skip a type (it must answer every key — 'unclear' is the explicit way out)
@@ -101,7 +101,7 @@ export function buildFormIntakeCall({ answered, emptyQuestions, rows, taxYear }:
   ].join('\n');
   return {
     spec: {
-      purpose: 'form_intake',
+      purpose: 'questionnaire_schema_mapping',
       systemInstruction,
       contents: [{ role: 'user', parts: [{ text: query }] }],
       responseJsonSchema,

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
  * and a stage x model summary. Judged in code only (evals/stages.ts).
  *
  *   npx tsx evals/run.ts
- *   npx tsx evals/run.ts --stages injection_screen,analyze_file --models gemini-2.5-flash,gpt-5.6-luna
+ *   npx tsx evals/run.ts --stages injection_detection_llm,file_classification --models gemini-2.5-flash,gpt-5.6-luna
  *   npx tsx evals/run.ts --cases inj_06,cls_09 --concurrency 2 --out evals/results/smoke.json
  *
  * Every request goes through the platform's own build*Call factories and

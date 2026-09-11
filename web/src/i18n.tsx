@@ -695,11 +695,11 @@ const he = {
   adminLlmCallErrorLabel: 'שגיאה',
   adminLlmCallNoResponse: 'אין תשובה (הקריאה נכשלה).',
   llmPurposeLabels: {
-    conversation_decide: 'החלטת שיחה',
-    form_intake: 'ניתוח שאלון',
-    injection_screen: 'סינון הזרקת הנחיות',
-    verify_document: 'אימות מסמך',
-    analyze_file: 'ניתוח קובץ',
+    generate_message: 'החלטת שיחה',
+    questionnaire_schema_mapping: 'ניתוח שאלון',
+    injection_detection_llm: 'סינון הזרקת הנחיות',
+    extract_document: 'אימות מסמך',
+    file_classification: 'ניתוח קובץ',
   } as Record<string, string>,
 
   adminDangerZone: 'פעולות מסוכנות',

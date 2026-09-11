@@ -60,25 +60,26 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
   }
   if (block) {
     await documentFiles.setBlocked(file.id, block);
+    // One row, the sibling agent's name for it: the file is quarantined and
+    // every state change of this cycle is suppressed. Targets the file so the
+    // trail links it to the quarantined row.
     recordAudit({
-      actorType: 'system',
-      action: 'file.blocked',
+      actorType: 'agent',
+      action: 'injection.cycle_suppressed',
       agentInstanceId: ctx.client.agent_instance_id,
       clientId,
       targetType: 'document_file',
       targetId: file.id,
       severity: 'critical',
       suspectedInjection: true,
-      detail: { clientName: ctx.client.name, filename: file.filename, contentType: file.content_type, ...block },
-    });
-    recordAudit({
-      actorType: 'agent',
-      action: 'injection.cycle_suppressed',
-      agentInstanceId: ctx.client.agent_instance_id,
-      clientId,
-      severity: 'critical',
-      suspectedInjection: true,
-      detail: { clientName: ctx.client.name, source: 'inbound_file_screen', fileId: file.id, ...block },
+      detail: {
+        clientName: ctx.client.name,
+        source: 'inbound_file_screen',
+        fileId: file.id,
+        filename: file.filename,
+        contentType: file.content_type,
+        ...block,
+      },
     });
     logger.warn('attachment quarantined by the injection screen', { clientId, fileId: file.id, detector: block.detector, kind: block.kind });
     return;
@@ -94,7 +95,7 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
         userId: ctx.client.user_id,
         agentInstanceId: ctx.client.agent_instance_id,
         clientId,
-        purpose: 'analyze_file',
+        purpose: 'file_classification',
       },
     });
     // Step validate_classification: the code check of the model's proposal.

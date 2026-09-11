@@ -25,7 +25,7 @@ test('each stage carries a real prompt, a query layout, a gate and a non-empty s
 });
 
 test('the planner prompt carries the untrusted-data doctrine with the fence token and the suspicion field', () => {
-  const planner = describeLlmStagesStatic().find((s) => s.purpose === 'conversation_decide');
+  const planner = describeLlmStagesStatic().find((s) => s.purpose === 'generate_message');
   assert.ok(planner);
   const prompt = planner.prompts[0]!.systemPrompt;
   assert.ok(prompt.includes('[{{token}}]'));

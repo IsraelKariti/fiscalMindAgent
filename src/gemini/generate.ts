@@ -59,7 +59,7 @@ export interface LlmCallLogContext {
   userId: string | null;
   agentInstanceId: string | null;
   clientId: string | null;
-  /** e.g. 'conversation_decide' | 'form_intake' | 'verify_document' | 'analyze_file'. */
+  /** e.g. 'generate_message' | 'questionnaire_schema_mapping' | 'extract_document' | 'file_classification'. */
   purpose: string;
   /**
    * Where the row goes. Default: the llm_calls table. `{ file }` appends the

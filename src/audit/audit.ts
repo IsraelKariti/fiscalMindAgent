@@ -44,8 +44,6 @@ export type AuditAction =
   | 'validate_classification'
   | 'validate_message'
   | 'verify_extraction'
-  | 'message.blocked'
-  | 'file.blocked'
   | 'planner.rerun_after_verification'
   | 'llm.budget_exceeded'
   // Apply phase of the planner (plan.ts): one row per decision field that

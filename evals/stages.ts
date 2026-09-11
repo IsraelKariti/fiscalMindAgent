@@ -106,7 +106,7 @@ const dateOrNull = (s: unknown): string | null => (typeof s === 'string' && /^\d
 const errorMessage = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
 // ---------------------------------------------------------------------------
-// injection_screen
+// injection_detection_llm
 
 interface InjectionTextCase {
   id: string;
@@ -133,8 +133,8 @@ const MIN_CHECKABLE_TEXT = 40;
 const textSnippets = (c: InjectionTextCase): string[] => c.snippets.map((s) => sanitizeUntrusted(s, 4300));
 
 const injectionScreen: StageAdapter<InjectionCase, Record<string, unknown>> = {
-  purpose: 'injection_screen',
-  load: () => readCases('injection_screen'),
+  purpose: 'injection_detection_llm',
+  load: () => readCases('injection_detection_llm'),
   build(c) {
     const spec =
       c.kind === 'file'
@@ -171,7 +171,7 @@ const injectionScreen: StageAdapter<InjectionCase, Record<string, unknown>> = {
 };
 
 // ---------------------------------------------------------------------------
-// form_intake
+// questionnaire_schema_mapping
 
 interface FormIntakeCase {
   id: string;
@@ -206,8 +206,8 @@ function formAnswers(c: FormIntakeCase, ctx: FormIntakeCtx) {
 }
 
 const formIntake: StageAdapter<FormIntakeCase, FormIntakeCtx> = {
-  purpose: 'form_intake',
-  load: () => readCases('form_intake'),
+  purpose: 'questionnaire_schema_mapping',
+  load: () => readCases('questionnaire_schema_mapping'),
   build(c, ctx) {
     const { answered, emptyQuestions, rows } = formAnswers(c, ctx);
     const { spec, schema } = buildFormIntakeCall({ answered, emptyQuestions, rows, taxYear: ctx.taxYear });
@@ -252,7 +252,7 @@ const formIntake: StageAdapter<FormIntakeCase, FormIntakeCtx> = {
 };
 
 // ---------------------------------------------------------------------------
-// analyze_file
+// file_classification
 
 interface AnalyzeFileCase {
   id: string;
@@ -281,8 +281,8 @@ interface AnalyzeFileCtx {
 }
 
 const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
-  purpose: 'analyze_file',
-  load: () => readCases('analyze_file'),
+  purpose: 'file_classification',
+  load: () => readCases('file_classification'),
   build(c, ctx) {
     const spec = buildAnalysisCall({
       bytes: readFile(c.file),
@@ -327,7 +327,7 @@ const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
 };
 
 // ---------------------------------------------------------------------------
-// verify_document
+// extract_document
 
 interface VerifyDocumentCase {
   id: string;
@@ -357,8 +357,8 @@ interface VerifyDocumentCtx {
 }
 
 const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
-  purpose: 'verify_document',
-  load: () => readCases('verify_document'),
+  purpose: 'extract_document',
+  load: () => readCases('extract_document'),
   build(c, ctx) {
     const spec = buildExtractionCall({ doc: c.doc, bytes: readFile(c.file), contentType: c.contentType, filename: c.filename, taxYear: ctx.taxYear });
     return { spec, parse: (text) => ExtractionSchema.parse(JSON.parse(text)) };
@@ -391,7 +391,7 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
       const hit = data.amounts.find((x) => Math.abs(x.value - want.value) <= 0.005 && x.currency.toUpperCase() === want.currency.toUpperCase());
       checks.push({ key: 'amount', expected: e.amount, actual: data.amounts, pass: hit !== undefined });
     }
-    // The deterministic verdict the app would reach with these fields (verify_document's code half).
+    // The deterministic verdict the app would reach with these fields (extract_document's code half).
     const verdict = runChecks(data, {
       clientName: c.client.name,
       credentialIdNumber: c.client.idNumber ?? null,
@@ -419,7 +419,7 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
 };
 
 // ---------------------------------------------------------------------------
-// conversation_decide (declaration of capital, WhatsApp-only)
+// generate_message (declaration of capital, WhatsApp-only)
 
 interface DecideDocumentInput {
   id?: string;
@@ -549,7 +549,7 @@ function documentRows(c: DecideCase, taxYear: number): ClientDocumentRow[] {
   return all.map((d) => {
     const t = d.type_key ? getCatalogType(d.type_key) : undefined;
     const id = d.id ?? `doc-${d.type_key ?? 'adhoc'}`;
-    if (seenIds.has(id)) throw new Error(`conversation_decide case ${c.id}: duplicate document id ${id} — give explicit ids to sibling rows`);
+    if (seenIds.has(id)) throw new Error(`generate_message case ${c.id}: duplicate document id ${id} — give explicit ids to sibling rows`);
     seenIds.add(id);
     return {
       id,
@@ -594,7 +594,7 @@ function threadRows(c: DecideCase): EmailRow[] {
 function templateRows(c: DecideCase, ctx: DecideCtx): WaTemplateRow[] {
   return c.wa.templates.map((name) => {
     const t = ctx.templates.find((x) => x.name === name);
-    if (!t) throw new Error(`conversation_decide case ${c.id}: unknown template "${name}"`);
+    if (!t) throw new Error(`generate_message case ${c.id}: unknown template "${name}"`);
     return { id: `tpl-${t.name}`, content_sid: t.content_sid, name: t.name, body: t.body, variable_count: t.variable_count, agent_type: 'declaration_of_capital', created_at: new Date('2025-01-01T00:00:00Z') };
   });
 }
@@ -657,8 +657,8 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
 }
 
 const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
-  purpose: 'conversation_decide',
-  load: () => readCases('conversation_decide'),
+  purpose: 'generate_message',
+  load: () => readCases('generate_message'),
   build(c, ctx) {
     const { taxYear, now, client, history, documents, files, waState, intakePrompt, decisionCtx } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
@@ -742,11 +742,11 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
 // ---------------------------------------------------------------------------
 
 export const STAGES: Record<string, StageAdapter<never, never>> = {
-  injection_screen: injectionScreen as StageAdapter<never, never>,
-  form_intake: formIntake as StageAdapter<never, never>,
-  analyze_file: analyzeFile as StageAdapter<never, never>,
-  verify_document: verifyDocument as StageAdapter<never, never>,
-  conversation_decide: conversationDecide as StageAdapter<never, never>,
+  injection_detection_llm: injectionScreen as StageAdapter<never, never>,
+  questionnaire_schema_mapping: formIntake as StageAdapter<never, never>,
+  file_classification: analyzeFile as StageAdapter<never, never>,
+  extract_document: verifyDocument as StageAdapter<never, never>,
+  generate_message: conversationDecide as StageAdapter<never, never>,
 };
 
 export const STAGE_NAMES = Object.keys(STAGES);

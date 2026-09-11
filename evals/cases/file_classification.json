@@ -1,5 +1,5 @@
 {
-  "stage": "analyze_file",
+  "stage": "file_classification",
   "judge": "After validateClassification (capital_declaration purpose, closed document_type enum): document_type, matched_document_id, legible and injection_suspected must equal expected when listed (a list means any of these is accepted); document_kind must contain at least one of document_kind_any (case-insensitive). Fields not listed are not checked. The checklist is a post-intake client's list: resolved instance rows with a type_key, as buildDocumentsSection would show them.",
   "taxYear": 2025,
   "checklist": [

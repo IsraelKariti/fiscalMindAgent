@@ -50,11 +50,11 @@ export interface LlmStageDescription {
 }
 
 const TEMPERATURES: Record<LlmCallPurpose, number> = {
-  conversation_decide: 0.3,
-  form_intake: 0,
-  injection_screen: 0,
-  analyze_file: 0.1,
-  verify_document: 0,
+  generate_message: 0.3,
+  questionnaire_schema_mapping: 0,
+  injection_detection_llm: 0,
+  file_classification: 0.1,
+  extract_document: 0,
 };
 
 const CAPITAL_DECISION_CONTEXT: DecisionContext = {
@@ -89,7 +89,7 @@ type StageStatic = Omit<LlmStageDescription, 'model' | 'provider' | 'temperature
 
 const STAGES: StageStatic[] = [
   {
-    purpose: 'injection_screen',
+    purpose: 'injection_detection_llm',
     title: 'Injection screen',
     file: 'src/agents/shared/injectionScreen.ts · screenForInjection / screenFileForInjection',
     gate: 'validate_injection_scan',
@@ -104,7 +104,7 @@ const STAGES: StageStatic[] = [
     schema: jsonSchema(InjectionScreenSchema),
   },
   {
-    purpose: 'form_intake',
+    purpose: 'questionnaire_schema_mapping',
     title: 'Questionnaire → checklist mapping',
     file: 'src/agents/declarationOfCapital/formIntake.ts · applyFormIntake',
     gate: 'validate_form_resolutions',
@@ -124,7 +124,7 @@ const STAGES: StageStatic[] = [
     schema: jsonSchema(buildFormIntakeSchema(CAPITAL_DOCUMENT_CATALOG.map((t) => t.key) as [string, ...string[]])),
   },
   {
-    purpose: 'conversation_decide',
+    purpose: 'generate_message',
     title: 'Conversation planner',
     file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md)',
     gate: 'validate_message',
@@ -148,7 +148,7 @@ const STAGES: StageStatic[] = [
     schema: jsonSchema(decisionSchemaForContext(CAPITAL_DECISION_CONTEXT)),
   },
   {
-    purpose: 'analyze_file',
+    purpose: 'file_classification',
     title: 'File classification',
     file: 'src/agents/declarationOfCapital/analyzeFile.ts · analyzeFile',
     gate: 'validate_classification',
@@ -157,7 +157,7 @@ const STAGES: StageStatic[] = [
     schema: jsonSchema(CapitalFileAnalysisSchema),
   },
   {
-    purpose: 'verify_document',
+    purpose: 'extract_document',
     title: 'Extraction for verification',
     file: 'src/agents/declarationOfCapital/verifyDocument.ts · verifyCollectedDocument (prompt: extractionCall.ts / verifyChecks.ts)',
     gate: 'verify_extraction',

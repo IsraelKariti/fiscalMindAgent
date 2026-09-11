@@ -610,7 +610,7 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   `LlmCallLogContext` (fire-and-forget; logging never fails the call). **Every
   new LLM call site should pass a `LlmCallLogContext` to `generateWithRetry`**
   alongside the existing `llmUsage.add` obligation (today wired: the
-  the agent's five sites — `conversation_decide`, `form_intake`, `injection_screen`, `analyze_file`, `verify_document`).
+  the agent's five sites — `generate_message`, `questionnaire_schema_mapping`, `injection_detection_llm`, `file_classification`, `extract_document`).
   Like `audit_events`, `llm_calls` has no FKs — call history outlives clients.
 - **Audit trail + anomaly detection** (migrations 031-032): `audit_events` is
   the per-action forensic record — one row per outbound email/WhatsApp,
@@ -675,7 +675,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   patterns, first hit wins, no model; for a PDF also over the text layer
   `shared/fileText.ts` can read (dependency-free; Hebrew CID fonts come out as
   glyph ids, so '' / short text means "not checkable", never "clean");
-  (2) `injection_screen` — the dedicated LLM scan, a text variant and a
+  (2) `injection_detection_llm` — the dedicated LLM scan, a text variant and a
   multimodal file variant (margins, footers, tiny/low-contrast text), fails
   closed; (3) `validate_injection_scan` — a hit must quote the reviewed text
   verbatim, a clean verdict carries no evidence, a rejected proof never flips
@@ -685,7 +685,11 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   runs so the follow-up chain survives. A hit on a file sets
   `document_files.analysis_status = 'blocked'` + `blocked`: quarantined before
   classification (`isQuarantined`), never evidence, never linked. Both audit
-  `message.blocked` / `file.blocked` plus `injection.cycle_suppressed`.
+  one `injection.cycle_suppressed` row (the sibling's name; targets the email
+  / document_file, `detail.source` = `inbound_message_screen` /
+  `inbound_file_screen`). Stage purposes carry the sibling's names too since
+  migration 056: `injection_detection_llm`, `questionnaire_schema_mapping`,
+  `generate_message`, `file_classification`, `extract_document`.
 - **Classification cross-check**: capital-declaration files answer with a
   closed `document_type` (catalog keys + `other`, `CAPITAL_DOCUMENT_TYPE_VALUES`);
   `validateClassification` drops a matched id the model was not shown or

@@ -1,5 +1,5 @@
 {
-  "stage": "conversation_decide",
+  "stage": "generate_message",
   "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected; for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, attestation equals the expected action. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
   "taxYear": 2025,
   "accountant": { "name": "Cohen & Co. CPA", "hebrew_name": "כהן ושות' רואי חשבון", "email": "office@cohen-cpa.example" },

@@ -34,16 +34,16 @@ Never start a full run to answer a question the stored `evals/results/latest.jso
 ## Commands
 
 ```
-npm run evals -- --stages analyze_file --models gemini-2.5-flash --concurrency 2 --out evals/results/smoke.json
+npm run evals -- --stages file_classification --models gemini-2.5-flash --concurrency 2 --out evals/results/smoke.json
 npm run evals -- --cases <id>,<id> --models gemini-2.5-flash,gpt-5.6-luna
-npm run evals -- --stages form_intake,verify_document
+npm run evals -- --stages questionnaire_schema_mapping,extract_document
 npm run evals                                   # full run: every stage × every model whose key is set
 npm run evals:rejudge -- --in evals/results/run-<ts>.json
 ```
 
 Flags: `--stages a,b`, `--models x,y`, `--cases id,id`, `--concurrency N`, `--out file.json`
-(`--out` keeps `latest.json` untouched: use it for smoke runs). Stages: `injection_screen`,
-`form_intake`, `analyze_file`, `verify_document`, `conversation_decide`. Default models are the
+(`--out` keeps `latest.json` untouched: use it for smoke runs). Stages: `injection_detection_llm`,
+`questionnaire_schema_mapping`, `file_classification`, `extract_document`, `generate_message`. Default models are the
 platform's `LLM_MODEL_OPTIONS` filtered by available keys (`evals/run.ts`). Test PDFs live in
 `evals/files/`; regenerate the synthetic ones with `npm run evals:files` (needs Chrome).
 

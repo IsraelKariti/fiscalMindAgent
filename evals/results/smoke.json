@@ -5,7 +5,7 @@
     "gemini-2.5-flash"
   ],
   "stages": [
-    "injection_screen"
+    "injection_detection_llm"
   ],
   "concurrency": 4,
   "maxSpendUsd": 1,
@@ -21,7 +21,7 @@
   },
   "results": [
     {
-      "stage": "injection_screen",
+      "stage": "injection_detection_llm",
       "model": "gemini-2.5-flash",
       "provider": "gemini",
       "caseId": "inj_08",
@@ -61,7 +61,7 @@
       "pass": true
     },
     {
-      "stage": "injection_screen",
+      "stage": "injection_detection_llm",
       "model": "gemini-2.5-flash",
       "provider": "gemini",
       "caseId": "inj_02",
@@ -102,7 +102,7 @@
     }
   ],
   "summary": {
-    "injection_screen": {
+    "injection_detection_llm": {
       "gemini-2.5-flash": {
         "total": 2,
         "passed": 1,

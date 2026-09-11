@@ -309,11 +309,11 @@ export interface LlmDailyUsage {
 
 /** The four LLM call sites an arm can pin a model to (llm_calls.purpose values). */
 export const LLM_CALL_PURPOSES = [
-  'conversation_decide',
-  'form_intake',
-  'injection_screen',
-  'analyze_file',
-  'verify_document',
+  'generate_message',
+  'questionnaire_schema_mapping',
+  'injection_detection_llm',
+  'file_classification',
+  'extract_document',
 ] as const;
 export type LlmCallPurpose = (typeof LLM_CALL_PURPOSES)[number];
 

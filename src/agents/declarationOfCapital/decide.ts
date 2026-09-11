@@ -57,7 +57,7 @@ export interface DecisionCallInput {
   ctx: DecisionContext;
 }
 
-/** The exact conversation_decide request — shared with the evals harness so it tests what the app sends. */
+/** The exact generate_message request — shared with the evals harness so it tests what the app sends. */
 export function buildDecisionCall({ systemInstruction, contents, ctx }: DecisionCallInput): {
   spec: LlmCallSpec;
   schema: z.ZodType<Partial<DecisionResponse>>;
@@ -65,7 +65,7 @@ export function buildDecisionCall({ systemInstruction, contents, ctx }: Decision
   const schemas = schemasForContext(ctx);
   return {
     spec: {
-      purpose: 'conversation_decide',
+      purpose: 'generate_message',
       systemInstruction,
       contents,
       responseJsonSchema: schemas.json,

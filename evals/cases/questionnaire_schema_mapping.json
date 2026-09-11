@@ -1,5 +1,5 @@
 {
-  "stage": "form_intake",
+  "stage": "questionnaire_schema_mapping",
   "judge": "Every verdict must equal expected (a list means any of these is accepted). For each required type the gate-accepted instances must be exactly the listed count and each listed substring must appear in a distinct instance name (case-insensitive; '' = any name). validateFormResolutions must drop 0 proposals. `answers` align with `questions` in order ('' = left blank); every catalog type is an unresolved row (a fresh client). Expected values follow FORM_INTAKE_PROMPT's rules: blank question -> not_required with quote='', explicit no -> not_required with a verbatim quote, combined savings question partially answered -> the unmentioned types not_required (quote = full answer), real_estate/vehicle split into per-document instances, a mortgage mentioned anywhere -> mortgage_balance instance, prior declaration by our office -> not_required / another office -> required / unknown -> unclear.",
   "taxYear": 2025,
   "questions": [

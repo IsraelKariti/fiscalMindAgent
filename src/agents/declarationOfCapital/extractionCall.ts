@@ -5,7 +5,7 @@ import { getCatalogType, GENERIC_CHECKS, type VerificationChecks } from './catal
 import { EXTRACTION_PROMPT, extractionJsonSchema } from './verifyChecks.js';
 
 /**
- * The verify_document request builder, kept apart from verifyDocument.ts (which
+ * The extract_document request builder, kept apart from verifyDocument.ts (which
  * imports the DB, blob storage and mail) so the evals harness can build the
  * exact extraction prompt without any of that.
  */
@@ -31,7 +31,7 @@ export interface ExtractionCallInput {
   taxYear: number;
 }
 
-/** The exact verify_document request — shared with the evals harness so it tests what the app sends. */
+/** The exact extract_document request — shared with the evals harness so it tests what the app sends. */
 export function buildExtractionCall({ doc, bytes, contentType, filename, taxYear }: ExtractionCallInput): LlmCallSpec {
   const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
   const checks = checksFor(doc);
@@ -63,7 +63,7 @@ export function buildExtractionCall({ doc, bytes, contentType, filename, taxYear
   // Instructions + expected-document context (trusted) in the system turn;
   // only the bytes and the (untrusted) filename in the user turn.
   return {
-    purpose: 'verify_document',
+    purpose: 'extract_document',
     systemInstruction: prompt.trimEnd(),
     contents: [
       {

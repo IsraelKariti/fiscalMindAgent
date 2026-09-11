@@ -1,6 +1,6 @@
 /**
  * Step validate_injection_scan — the code check of the dedicated LLM scan's
- * verdict (injection_screen) against its own proof. Pure: no llm/db/audit
+ * verdict (injection_detection_llm) against its own proof. Pure: no llm/db/audit
  * imports, so the tests and the evals harness run without an API key.
  *
  * Decision table:

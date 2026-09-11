@@ -57,25 +57,19 @@ export async function screenInboundMessage(ctx: AgentContext, evt: InboundEvent)
   if (!block) return { blocked: false };
 
   await emails.markBlocked(row.id, block);
-  recordAudit({
-    actorType: 'system',
-    action: 'message.blocked',
-    agentInstanceId: client.agent_instance_id,
-    clientId: client.id,
-    targetType: 'email',
-    targetId: row.id,
-    severity: 'warning',
-    suspectedInjection: true,
-    detail: { clientName: client.name, channel: row.channel, ...block },
-  });
+  // One row, the sibling agent's name for it: the message is withheld and
+  // every state change of this cycle is suppressed. The row targets the
+  // email so the trail links it to the withheld message.
   recordAudit({
     actorType: 'agent',
     action: 'injection.cycle_suppressed',
     agentInstanceId: client.agent_instance_id,
     clientId: client.id,
+    targetType: 'email',
+    targetId: row.id,
     severity: 'critical',
     suspectedInjection: true,
-    detail: { clientName: client.name, source: 'inbound_message_screen', messageId: row.id, ...block },
+    detail: { clientName: client.name, source: 'inbound_message_screen', messageId: row.id, channel: row.channel, ...block },
   });
 
   // Fixed reply, no model consulted. Only over WhatsApp (an inbound message just

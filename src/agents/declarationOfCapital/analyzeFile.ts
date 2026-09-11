@@ -84,7 +84,7 @@ export interface AnalysisCallInput {
   taxYear: number;
 }
 
-/** The exact analyze_file request — shared with the evals harness so it tests what the app sends. */
+/** The exact file_classification request — shared with the evals harness so it tests what the app sends. */
 export function buildAnalysisCall({ bytes, contentType, filename, requiredDocuments, taxYear }: AnalysisCallInput): LlmCallSpec {
   const documentLines =
     requiredDocuments.length > 0
@@ -118,7 +118,7 @@ export function buildAnalysisCall({ bytes, contentType, filename, requiredDocume
     .replace('{{document_types}}', `\n${capitalDocumentTypesBlock(taxYear)}\n`)
     .replace('{{tax_year}}', String(taxYear));
   return {
-    purpose: 'analyze_file',
+    purpose: 'file_classification',
     systemInstruction,
     contents: [
       {

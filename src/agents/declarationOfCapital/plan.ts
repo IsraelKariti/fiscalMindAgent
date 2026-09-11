@@ -189,7 +189,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       userId: client.user_id,
       agentInstanceId: client.agent_instance_id,
       clientId,
-      purpose: 'conversation_decide',
+      purpose: 'generate_message',
     },
   });
 

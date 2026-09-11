@@ -115,11 +115,11 @@
 (() => {
   const RUN = JSON.parse(document.getElementById('data').textContent);
   const STAGE_TITLES = {
-    injection_screen: 'Injection screen',
-    form_intake: 'Form intake',
-    analyze_file: 'File classification',
-    verify_document: 'Document extraction',
-    conversation_decide: 'Conversation decide',
+    injection_detection_llm: 'Injection screen',
+    questionnaire_schema_mapping: 'Form intake',
+    file_classification: 'File classification',
+    extract_document: 'Document extraction',
+    generate_message: 'Conversation decide',
   };
   const fmtMs = (v) => (v == null ? '—' : `${Math.round(v).toLocaleString()} ms`);
   const fmtInt = (v) => (v == null ? '—' : Math.round(v).toLocaleString());

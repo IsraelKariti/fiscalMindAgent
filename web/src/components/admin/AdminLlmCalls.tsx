@@ -80,7 +80,7 @@ function CallPane({ tone, text, ltr, copyTitle }: { tone: string; text: string; 
     <div className={`llm-pane-wrap ${ltr ? 'llm-pane-copy-right' : 'llm-pane-copy-left'}`}>
       <CopyButton text={text} title={copyTitle} />
       <pre
-        className={`llm-pane llm-pane-${tone}`}
+        className={`llm-pane llm-pane-${tone} ${ltr ? 'llm-pane-mono' : ''}`}
         dir={ltr ? 'ltr' : 'auto'}
         style={{ textAlign: ltr ? 'left' : 'right' }}
       >

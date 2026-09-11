@@ -2180,13 +2180,20 @@ details.doc-group > summary.doc-group-title {
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid var(--border-strong);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12.5px;
-  line-height: 1.6;
+  /* Prose panes (prompts, Hebrew answers) read in the app's text face —
+     monospace Hebrew is hard to read; JSON panes opt into .llm-pane-mono. */
+  font-family: inherit;
+  font-size: 14.5px;
+  line-height: 1.75;
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 45vh;
   overflow-y: auto;
+}
+.llm-pane-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
 }
 .llm-pane-input {
   background: rgba(99, 102, 241, 0.1);

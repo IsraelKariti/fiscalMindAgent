@@ -59,13 +59,19 @@ export function buildExtractionCall({ doc, bytes, contentType, filename, taxYear
         ? 'מסמך מהסוג הזה עשוי לשאת תאריך תוקף משלו — אתר וחלץ בקפידה את שדה "בתוקף עד" (valid_until).'
         : '',
     )
-    .replace('{{filename}}', sanitizeInline(filename, 150));
+    .replace('{{filename}}', '');
+  // Instructions + expected-document context (trusted) in the system turn;
+  // only the bytes and the (untrusted) filename in the user turn.
   return {
     purpose: 'verify_document',
+    systemInstruction: prompt.trimEnd(),
     contents: [
       {
         role: 'user',
-        parts: [{ inlineData: { mimeType: contentType, data: bytes.toString('base64') } }, { text: prompt }],
+        parts: [
+          { inlineData: { mimeType: contentType, data: bytes.toString('base64') } },
+          { text: `שם הקובץ כפי שנשלח: ${sanitizeInline(filename, 150)}` },
+        ],
       },
     ],
     responseJsonSchema: extractionJsonSchema,

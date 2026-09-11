@@ -4,8 +4,7 @@ import * as clientPortalCredentials from '../../db/queries/clientPortalCredentia
 import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { downloadBlob } from '../../storage/blob.js';
-import { getGeminiModel } from '../../gemini/modelSettings.js';
-import { generateWithRetry, usageFromResponse } from '../../gemini/generate.js';
+import { runLlmCall } from '../../gemini/llmCall.js';
 import { recordAudit } from '../../audit/audit.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { isKillSwitchOn } from '../killSwitch.js';
@@ -13,16 +12,9 @@ import { isAnalyzable } from '../docCollector/analyzeFile.js';
 import { sendVerificationProblemEmail } from '../docCollector/notifyAccountant.js';
 import { isQuarantined } from '../shared/fileEvidence.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
-import { sanitizeInline } from '../shared/promptSafety.js';
 import { logger } from '../../util/logger.js';
-import { getCatalogType, GENERIC_CHECKS } from './catalog.js';
-import {
-  EXTRACTION_PROMPT,
-  ExtractionSchema,
-  extractionJsonSchema,
-  runChecks,
-  type ExtractedFields,
-} from './verifyChecks.js';
+import { buildExtractionCall, checksFor } from './extractionCall.js';
+import { ExtractionSchema, runChecks, type ExtractedFields } from './verifyChecks.js';
 import type { AgentInstanceRow, ClientRow, ClientDocumentRow } from '../../db/types.js';
 import type { Readable } from 'node:stream';
 
@@ -140,63 +132,21 @@ export async function verifyCollectedDocument(
     return;
   }
 
-  const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
-  const checks = catalogType?.checks ?? GENERIC_CHECKS;
+  const checks = checksFor(doc);
   const taxYear = capitalClientTaxYear(client, now);
 
   // Extract — the isolated "OCR" read, forced through the schema.
   let extracted: ExtractedFields;
   try {
     const bytes = await streamToBuffer((await downloadBlob(file.blob_key)).stream);
-    // Resolved rows carry instance names/descriptions; the catalog description
-    // (the office's accepted document forms for the type) is restated so
-    // is_expected_type judges against every acceptable form.
-    const typeDescription = catalogType ? catalogType.descriptionHe.replaceAll('{{tax_year}}', String(taxYear)) : null;
-    const prompt = EXTRACTION_PROMPT.replace('{{expected_name}}', doc.name)
-      .replace('{{expected_description}}', doc.description ?? '(ללא תיאור)')
-      .replace(
-        '{{type_context}}',
-        `${typeDescription && typeDescription !== doc.description ? `מסמכים קבילים לסוג זה: ${typeDescription}\n` : ''}${
-          catalogType?.analysisHintHe ? `${catalogType.analysisHintHe}\n` : ''
-        }`,
-      )
-      .replace(
-        '{{date_context}}',
-        checks.asOfDate
-          ? `מסמך זה תלוי-תאריך: היתרות בו אמורות להתייחס ליום 31.12.${taxYear} (המועד הקובע להצהרת ההון).`
-          : '',
-      )
-      .replace(
-        '{{validity_context}}',
-        checks.notExpired
-          ? 'מסמך מהסוג הזה עשוי לשאת תאריך תוקף משלו — אתר וחלץ בקפידה את שדה "בתוקף עד" (valid_until).'
-          : '',
-      )
-      .replace('{{filename}}', sanitizeInline(file.filename, 150));
-    const model = await getGeminiModel('verify_document');
-    const response = await generateWithRetry(
-      {
-        model,
-        contents: [
-          {
-            role: 'user',
-            parts: [{ inlineData: { mimeType: file.content_type, data: bytes.toString('base64') } }, { text: prompt }],
-          },
-        ],
-        config: { responseMimeType: 'application/json', responseJsonSchema: extractionJsonSchema, temperature: 0 },
-      },
-      {
-        userId: client.user_id,
-        agentInstanceId: client.agent_instance_id,
-        clientId: client.id,
-        purpose: 'verify_document',
-      },
+    const { text, usage, model } = await runLlmCall(
+      buildExtractionCall({ doc, bytes, contentType: file.content_type, filename: file.filename, taxYear }),
+      { log: { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id } },
     );
     if (client.user_id) {
-      await llmUsage.add(client.user_id, client.agent_instance_id, model, usageFromResponse(response));
+      await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
     }
-    if (!response.text) throw new Error('extraction returned no text');
-    extracted = ExtractionSchema.parse(JSON.parse(response.text));
+    extracted = ExtractionSchema.parse(JSON.parse(text));
   } catch (err) {
     // Transient extraction failure (model/storage hiccup): leave the row as-is
     // with no verdict — it does not burn an attempt, and the accountant can

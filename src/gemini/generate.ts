@@ -7,6 +7,7 @@ import { requestForLog } from './requestLog.js';
 import { generateContentAnthropic } from './anthropic.js';
 import { generateContentOpenAI, OpenAiApiError } from './openai.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
+import { appendFile } from 'node:fs/promises';
 import { logger } from '../util/logger.js';
 
 // Transient LLM-API failures: rate limit, server error, overloaded ("high demand"), timeout.
@@ -59,7 +60,17 @@ export interface LlmCallLogContext {
   clientId: string | null;
   /** e.g. 'conversation_decide' | 'form_intake' | 'verify_document' | 'analyze_file'. */
   purpose: string;
+  /**
+   * Where the row goes. Default: the llm_calls table. `{ file }` appends the
+   * same row (camelCase, plus `ts`) as one JSON line to that path and never
+   * touches Postgres — the evals harness uses it so a run leaves no trace in
+   * production observability.
+   */
+  sink?: 'db' | { file: string };
 }
+
+/** One llm_calls row as written to a file sink (the DB columns, camelCase). */
+export type LlmCallFileRow = llmCalls.InsertLlmCall & { ts: string };
 
 /**
  * Persists one llm_calls row for a finished generateWithRetry invocation
@@ -80,7 +91,7 @@ async function recordCall(
         ? usageFromResponse(outcome.response)
         : { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, cachedTokens: 0 };
     const pricing = await getPricingForModel(request.model);
-    await llmCalls.insert({
+    const row: llmCalls.InsertLlmCall = {
       userId: log.userId,
       agentInstanceId: log.agentInstanceId,
       clientId: log.clientId,
@@ -102,7 +113,13 @@ async function recordCall(
       cost: pricing ? computeCost(pricing, usage) : null,
       request: requestForLog(request),
       response: 'response' in outcome ? (outcome.response.text ?? null) : null,
-    });
+    };
+    if (log.sink && log.sink !== 'db') {
+      const line: LlmCallFileRow = { ts: new Date().toISOString(), ...row };
+      await appendFile(log.sink.file, `${JSON.stringify(line)}\n`, 'utf8');
+      return;
+    }
+    await llmCalls.insert(row);
   } catch (err) {
     logger.error('llm call logging failed', err, { purpose: log.purpose, clientId: log.clientId });
   }
@@ -113,6 +130,14 @@ export async function generateWithRetry(
   request: GeminiRequest,
   log?: LlmCallLogContext,
 ): Promise<GenerateContentResponse> {
+  return (await generateWithRetryDetailed(request, log)).response;
+}
+
+/** generateWithRetry plus how many provider round trips the answer took. */
+export async function generateWithRetryDetailed(
+  request: GeminiRequest,
+  log?: LlmCallLogContext,
+): Promise<{ response: GenerateContentResponse; attempts: number; provider: string }> {
   const timedRequest = {
     ...request,
     config: {
@@ -133,7 +158,7 @@ export async function generateWithRetry(
             ? await generateContentAnthropic(timedRequest)
             : await genaiClient.models.generateContent(timedRequest);
       if (log) void recordCall(log, timedRequest, provider, startedAt, attempt + 1, { response });
-      return response;
+      return { response, attempts: attempt + 1, provider };
     } catch (err) {
       const apiStatus =
         err instanceof ApiError || err instanceof OpenAiApiError

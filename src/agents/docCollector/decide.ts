@@ -1,12 +1,7 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { logger } from '../../util/logger.js';
-import { getGeminiModel } from '../../gemini/modelSettings.js';
-import {
-  generateWithRetry,
-  usageFromResponse,
-  type GeminiUsage,
-  type LlmCallLogContext,
-} from '../../gemini/generate.js';
+import type { GeminiUsage, LlmCallLogContext } from '../../gemini/generate.js';
+import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import {
   correctionSuffix,
   decisionSchemaForContext,
@@ -53,6 +48,32 @@ export interface DecideResult {
 /** First answer + one corrective pass; the second rejection propagates. */
 const MAX_DECISION_ATTEMPTS = 2;
 
+export interface DecisionCallInput {
+  /** The rendered agent prompt (+ keepalive contract + untrusted-data doctrine). */
+  systemInstruction: string;
+  /** The fenced data sections (checklist, questionnaire, thread), possibly with a correction suffix. */
+  contents: string;
+  ctx: DecisionContext;
+}
+
+/** The exact conversation_decide request — shared with the evals harness so it tests what the app sends. */
+export function buildDecisionCall({ systemInstruction, contents, ctx }: DecisionCallInput): {
+  spec: LlmCallSpec;
+  schema: z.ZodType<Partial<DecisionResponse>>;
+} {
+  const schemas = schemasForContext(ctx);
+  return {
+    spec: {
+      purpose: 'conversation_decide',
+      systemInstruction,
+      contents,
+      responseJsonSchema: schemas.json,
+      temperature: 0.3,
+    },
+    schema: schemas.zod,
+  };
+}
+
 export async function decide(
   systemInstruction: string,
   contents: string,
@@ -62,39 +83,23 @@ export async function decide(
     log?: LlmCallLogContext;
   } = {},
 ): Promise<DecideResult> {
-  const model = await getGeminiModel('conversation_decide');
-  const schemas = schemasForContext(ctx);
   const usage: GeminiUsage = { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, cachedTokens: 0 };
   let requestContents = contents;
   let lastError: unknown;
+  let model = '';
   for (let attempt = 1; attempt <= MAX_DECISION_ATTEMPTS; attempt++) {
-    const response = await generateWithRetry(
-      {
-        model,
-        contents: requestContents,
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          responseJsonSchema: schemas.json,
-          temperature: 0.3,
-        },
-      },
-      opts.log,
-    );
-
-    const callUsage = usageFromResponse(response);
+    const { spec, schema } = buildDecisionCall({ systemInstruction, contents: requestContents, ctx });
+    const result = await runLlmCall(spec, { log: opts.log });
+    model = result.model;
+    const { text, usage: callUsage } = result;
     usage.inputTokens += callUsage.inputTokens;
     usage.outputTokens += callUsage.outputTokens;
     usage.thinkingTokens += callUsage.thinkingTokens;
     usage.cachedTokens += callUsage.cachedTokens;
     logger.info('gemini tokens used', { model, ...callUsage });
 
-    const text = response.text;
-    if (!text) {
-      throw new Error(`Gemini returned no text output (refusal or empty response): ${JSON.stringify(response)}`);
-    }
     try {
-      const raw = restorePrunedNulls(schemas.zod.parse(JSON.parse(text)));
+      const raw = restorePrunedNulls(schema.parse(JSON.parse(text)));
       return { decision: normalizeDecision(raw, ctx), usage, model };
     } catch (err) {
       lastError = err;

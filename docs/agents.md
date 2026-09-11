@@ -22,7 +22,7 @@ the doc collector's engine (planner, decision schema, file analyzer, documents
 router, overdue scan, tax-authority fetch) moved wholesale into
 `declarationOfCapital/`, and the doc-collector-only surfaces went with it —
 the accountant-editable prompt template (admin prompt editor +
-`/prompt-template` routes + `user_settings`), the monday-widget board→clients
+`/prompt-template` routes + `user_settings`), the (since-removed) monday-widget board→clients
 import (`POST /api/monday/clients/import`), the legacy unprefixed workspace
 mounts (`/api/clients…` resolving to the user's doc_collector instance) and the
 CLI bootstrap script. The monday/Google row fetchers the customer-service

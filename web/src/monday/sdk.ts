@@ -2,7 +2,7 @@ import mondaySdk from 'monday-sdk-js';
 
 /**
  * The monday client SDK. It only works while this document runs inside a
- * monday.com iframe (dashboard widget); every call talks to the parent frame.
+ * monday.com iframe (the custom object); every call talks to the parent frame.
  */
 export const monday = mondaySdk();
 
@@ -16,22 +16,11 @@ export async function getSessionToken(): Promise<string> {
   return res.data;
 }
 
-export interface MondayContext {
-  /** Boards connected to the dashboard this widget sits on. */
-  boardIds?: (number | string)[];
-  theme?: string;
-}
-
-export async function getContext(): Promise<MondayContext> {
-  const res = (await monday.get('context')) as { data: MondayContext };
-  return res.data ?? {};
-}
-
 /** Hebrew/Arabic-range strong RTL characters. */
 const RTL_RE = /[\u0590-\u08FF]/;
 
 /**
- * monday-native toast, shown by the parent frame over the dashboard. That
+ * monday-native toast, shown by the parent frame over the workspace. That
  * frame is LTR whenever the monday UI language is, which scrambles Hebrew
  * messages with embedded numbers — wrap them in an RTL isolate (U+2067/U+2069)
  * so they lay out right-to-left regardless of the toast's own direction.

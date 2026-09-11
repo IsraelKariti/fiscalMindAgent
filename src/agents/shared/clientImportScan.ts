@@ -34,7 +34,7 @@ export const CLIENT_IMPORT_AGENT_TYPES = [DECLARATION_OF_CAPITAL] as const;
 /** New clients enrolled per instance per run — keeps a huge board from flooding the send pipeline. */
 const MAX_ENROLL = 500;
 
-/** Spacing between the enrolled clients' first-draft kicks (same rationale as the monday-widget import). */
+/** Spacing between the enrolled clients' first-draft kicks (same rationale as the retired monday-widget import). */
 const DRAFT_STAGGER_MS = 1500;
 
 export interface SourceScanResult {

@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import { logger } from '../util/logger.js';
-import { googleLoginCallback, logout, me, mondayHandoff, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
+import { googleLoginCallback, logout, me, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
 import { accountRouter } from './account.js';
 import { googleDriveOauthCallback, startGoogleDriveOauth } from './googleOauth.js';
 import { mondayOauthCallback, startMondayOauth } from './mondayOauth.js';
@@ -77,7 +77,6 @@ export const apiRouter = Router();
 
 apiRouter.get('/auth/google', startGoogleLogin);
 apiRouter.get('/auth/google/callback', wrap(googleLoginCallback));
-apiRouter.get('/auth/monday-handoff', wrap(mondayHandoff));
 // monday OAuth connect (server-side API token): pre-auth — the signed state
 // token carries the user identity through the top-level popup.
 apiRouter.get('/auth/monday/start', startMondayOauth);
@@ -89,7 +88,7 @@ apiRouter.get('/auth/google-drive/callback', wrap(googleDriveOauthCallback));
 apiRouter.post('/logout', logout);
 apiRouter.get('/me', wrap(me));
 
-// monday.com surfaces (widget + custom object): authenticated by monday's
+// monday.com custom object: authenticated by monday's
 // sessionToken (Bearer header), not the session cookie, so they mount before
 // requireAuth.
 apiRouter.use('/monday', mondayRouter);

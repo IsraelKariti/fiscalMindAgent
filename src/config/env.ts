@@ -121,7 +121,7 @@ const EnvSchema = z.object({
   META_APP_ID: z.string().min(1).optional(),
   META_ES_CONFIG_ID: z.string().min(1).optional(),
   // monday.com app (Developer Center -> your app -> Basic Information): the
-  // Client Secret that signs the widget iframe's sessionToken JWTs. Optional —
+  // Client Secret that signs the custom-object iframe's sessionToken JWTs. Optional —
   // the /api/monday endpoints return 503 until it is set.
   MONDAY_CLIENT_SECRET: z.string().min(1).optional(),
   // Client ID of the same monday app — needed (with the secret) only for the

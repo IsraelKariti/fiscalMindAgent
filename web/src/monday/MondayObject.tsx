@@ -33,7 +33,7 @@ export function MondayObject() {
   if (meFailed) {
     return (
       <div className="ma-shell screen-center">
-        <div className="mw-message">
+        <div className="ma-message">
           <p className="muted">{t.mwSetupFailed}</p>
           <button
             className="btn btn-ghost"

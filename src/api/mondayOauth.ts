@@ -7,7 +7,7 @@ import { logger } from '../util/logger.js';
 /**
  * monday.com OAuth for server-side API access (client-import sources, the
  * kickoff webhook and the board status sync: board rows + status writes).
- * Unlike the widget's seamless sessionToken auth, this stores a
+ * Unlike the custom object's seamless sessionToken auth, this stores a
  * long-lived per-accountant access token so agents can query monday at webhook
  * time, with no browser involved.
  *
@@ -41,7 +41,7 @@ function timingSafeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-// Same signing scheme as the link/handoff tokens in mondayAuth.ts, domain-separated.
+// Same signing scheme as the link tokens in mondayAuth.ts, domain-separated.
 function signStatePayload(payload: string): string {
   return crypto
     .createHmac('sha256', `monday-oauth:${env.MONDAY_CLIENT_SECRET ?? ''}`)

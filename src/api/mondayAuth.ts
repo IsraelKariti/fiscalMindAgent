@@ -29,7 +29,7 @@ function b64urlJson(part: string): unknown {
 }
 
 /**
- * Verifies the sessionToken the monday SDK hands the widget iframe: an HS256
+ * Verifies the sessionToken the monday SDK hands the custom-object iframe: an HS256
  * JWT signed with the app's Client Secret, carrying the monday account/user
  * ids under `dat`. Hand-rolled like the session-cookie HMAC in auth.ts — HS256
  * is just HMAC-SHA256 over `<header>.<payload>`.
@@ -84,7 +84,7 @@ export const requireMondayIdentity: RequestHandler = (req, res, next) => {
 
 /**
  * Resolves the monday identity to a fiscalMind user. Runs after
- * requireMondayIdentity; the widget calls POST /api/monday/session (which
+ * requireMondayIdentity; the object calls POST /api/monday/session (which
  * provisions the mapping) before anything guarded by this.
  */
 export const requireMondayUser: RequestHandler = async (req, res, next) => {
@@ -106,7 +106,7 @@ export const requireMondayUser: RequestHandler = async (req, res, next) => {
 // carried through the top-level Google OAuth popup so the callback knows which
 // monday identity to link. Signed with the client secret (domain-separated
 // from the JWTs above) and short-lived — the signature proves the link was
-// requested from inside that monday user's widget, not crafted by a third party.
+// requested from inside that monday user's iframe, not crafted by a third party.
 const LINK_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 function signLinkPayload(payload: string): string {
@@ -130,46 +130,3 @@ export function verifyMondayLinkToken(token: string): { accountId: string; userI
   return { accountId: parsed.a, userId: parsed.u };
 }
 
-// "Open in FiscalMind" handoff tokens: issued to an authenticated monday user
-// and redeemed once by GET /api/auth/monday-handoff for a regular session
-// cookie, so monday-only accounts (synthetic `monday:` google_sub, no Google
-// login) can enter the standalone app. Same signing scheme as the link tokens
-// above, domain-separated, but much shorter-lived and single-use.
-const HANDOFF_TOKEN_TTL_MS = 60 * 1000;
-
-/**
- * Redeemed token ids, kept until their expiry. In-memory, so a replay against
- * another web replica would not be caught — the 60s TTL bounds that window,
- * and the token only ever leaves the server inside the widget's response to
- * the already-authenticated monday user.
- */
-const redeemedHandoffs = new Map<string, number>();
-
-function signHandoffPayload(payload: string): string {
-  return crypto
-    .createHmac('sha256', `monday-handoff:${env.MONDAY_CLIENT_SECRET ?? ''}`)
-    .update(payload)
-    .digest('base64url');
-}
-
-export function createMondayHandoffToken(userId: string): string {
-  const payload = Buffer.from(
-    JSON.stringify({ u: userId, jti: crypto.randomBytes(16).toString('hex'), exp: Date.now() + HANDOFF_TOKEN_TTL_MS }),
-  ).toString('base64url');
-  return `${payload}.${signHandoffPayload(payload)}`;
-}
-
-/** Verifies and burns a handoff token; returns the fiscalMind user id only on first use. */
-export function consumeMondayHandoffToken(token: string): { userId: string } | null {
-  if (!env.MONDAY_CLIENT_SECRET) return null;
-  const [payload, signature] = token.split('.');
-  if (!payload || !signature || !timingSafeEqual(signature, signHandoffPayload(payload))) return null;
-  const parsed = b64urlJson(payload) as { u?: string; jti?: string; exp?: number } | null;
-  if (!parsed || typeof parsed.u !== 'string' || typeof parsed.jti !== 'string') return null;
-  const now = Date.now();
-  if (typeof parsed.exp !== 'number' || parsed.exp < now) return null;
-  if (redeemedHandoffs.has(parsed.jti)) return null;
-  for (const [jti, exp] of redeemedHandoffs) if (exp < now) redeemedHandoffs.delete(jti);
-  redeemedHandoffs.set(parsed.jti, parsed.exp);
-  return { userId: parsed.u };
-}

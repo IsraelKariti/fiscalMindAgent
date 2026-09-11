@@ -6,7 +6,7 @@ import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { logger } from '../util/logger.js';
-import { consumeMondayHandoffToken, verifyMondayLinkToken } from './mondayAuth.js';
+import { verifyMondayLinkToken } from './mondayAuth.js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -88,7 +88,7 @@ function loginReturnOrigin(req: Request): string {
 /**
  * Sets a short-lived signed CSRF state cookie (state + return origin) for an
  * OAuth redirect flow. `mondayLink` carries a monday link token (see
- * mondayAuth.ts) when the login was opened from the widget's "link existing
+ * mondayAuth.ts) when the login was opened from the monday object's "link existing
  * account" popup.
  */
 export function setOAuthStateCookie(res: Response, state: string, returnTo = '', mondayLink = ''): void {
@@ -222,7 +222,7 @@ export const startGoogleLogin: RequestHandler = (req, res) => {
 function mondayLinkResultPage(ok: boolean): string {
   const message = ok
     ? 'החשבון קושר בהצלחה — אפשר לסגור את החלון ולחזור ל-monday. / Account linked — you can close this window and return to monday.'
-    : 'קישור החשבון נכשל — סגרו את החלון ונסו שוב מהווידג׳ט. / Linking failed — close this window and retry from the widget.';
+    : 'קישור החשבון נכשל — סגרו את החלון ונסו שוב מתוך monday. / Linking failed — close this window and retry from monday.';
   return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>FiscalMind</title></head>
 <body style="font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;background:#070a14;color:#e8eaf2">
 <p style="max-width:32rem;text-align:center;padding:1rem">${message}</p></body></html>`;
@@ -270,7 +270,7 @@ export const googleLoginCallback: RequestHandler = async (req, res) => {
   }
   setSessionCookie(res, user.id);
 
-  // Login opened from the monday widget's "link existing account" popup:
+  // Login opened from the monday object's "link existing account" popup:
   // point the monday identity at this (Google-verified) user and show a
   // plain closing page instead of entering the SPA.
   if (stateCookie.mondayLink) {
@@ -291,25 +291,6 @@ export const googleLoginCallback: RequestHandler = async (req, res) => {
   }
 
   res.redirect(`${returnTo}/`);
-};
-
-/**
- * GET /api/auth/monday-handoff?token=… — redeem a single-use handoff token
- * (issued by GET /api/monday/app-login-url to an authenticated monday user)
- * for a regular session cookie. This is how monday-only accounts, which have
- * no Google login, enter the standalone app from "Open in FiscalMind".
- */
-export const mondayHandoff: RequestHandler = async (req, res) => {
-  const token = typeof req.query.token === 'string' ? req.query.token : null;
-  const handoff = token ? consumeMondayHandoffToken(token) : null;
-  const user = handoff ? await users.getById(handoff.userId) : null;
-  if (!user) {
-    logger.warn('monday handoff failed', { reason: handoff ? 'unknown user' : 'invalid, expired, or reused token' });
-    res.redirect('/?login_error=monday_handoff_failed');
-    return;
-  }
-  setSessionCookie(res, user.id);
-  res.redirect('/');
 };
 
 export const logout: RequestHandler = (_req, res) => {

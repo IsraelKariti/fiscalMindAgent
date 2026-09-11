@@ -826,14 +826,13 @@ const he = {
   srPercent: 'אחוז',
   srPeriod: 'תקופה',
 
-  // monday.com widget
-  mwOpenApp: 'פתיחת FiscalMind',
-  mwSetupFailed: 'טעינת הווידג׳ט נכשלה. ודאו שהאפליקציה מוגדרת ונסו לרענן.',
+  // monday.com custom object
+  mwSetupFailed: 'טעינת האפליקציה נכשלה. ודאו שהאפליקציה מוגדרת ונסו לרענן.',
   mwRefresh: 'רענון',
   mwEmailInUse: (email: string) =>
     `כבר קיים חשבון FiscalMind עבור ${email}. קשרו אותו כדי להשתמש בו מתוך monday.`,
   mwLinkButton: 'קישור עם חשבון Google',
-  mwLinkHint: 'ייפתח חלון התחברות של Google. בסיומו, חזרו לכאן — הווידג׳ט יתעדכן לבד.',
+  mwLinkHint: 'ייפתח חלון התחברות של Google. בסיומו, חזרו לכאן — החלון יתעדכן לבד.',
   mwColEmail: 'אימייל',
 };
 

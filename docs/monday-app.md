@@ -1,11 +1,8 @@
 # monday.com surfaces
 
-FiscalMind embeds in monday.com as two iframes, both served by our own Express
+FiscalMind embeds in monday.com as one iframe, served by our own Express
 server and built from `web/src/monday/`:
 
-- **Dashboard widget** at `/monday-widget` (`web/monday-widget.html` →
-  `web/src/monday/widgetMain.tsx`): glanceable overview stat tiles +
-  needs-attention list.
 - **Custom object** at `/monday-object` (`web/monday-object.html` →
   `web/src/monday/objectMain.tsx` → `MondayObject.tsx`): the full accountant
   workspace (sidebar, client conversations, documents, files, settings) — the
@@ -14,7 +11,7 @@ server and built from `web/src/monday/`:
 
 ## How it works
 
-- **Auth** — no login screen in either iframe. The frontend fetches a
+- **Auth** — no login screen in the iframe. The frontend fetches a
   `sessionToken` from the monday SDK on every request and sends it as
   `Authorization: Bearer`; `src/api/mondayAuth.ts` verifies it (HS256, signed
   by monday with the app's Client Secret). The session cookie is never used
@@ -30,8 +27,8 @@ server and built from `web/src/monday/`:
   belongs to a Google-based account, the surface instead offers "link with your
   Google account" — a popup running the normal Google login, carrying a signed
   short-lived token that tells the callback which monday identity to point at
-  the signed-in user. This bootstrap is shared by both surfaces
-  (`web/src/monday/useMondaySession.tsx`).
+  the signed-in user. This bootstrap lives in
+  `web/src/monday/useMondaySession.tsx`.
 - **The workspace API mount** — the accountant workspace routes live in
   `src/api/workspace.ts` with no auth of their own and are mounted twice:
   cookie-authenticated at `/api/*` (standalone SPA) and sessionToken-
@@ -40,18 +37,16 @@ server and built from `web/src/monday/`:
   shared shell boots identically. Admin and impersonation routes are
   cookie-only by design. The frontend picks the mount via
   `configureApi` in `web/src/api.ts` (see `web/src/monday/objectMain.tsx`).
-- **Standalone handoff** — "Open in FiscalMind" (widget) doesn't just link to
-  the app: it fetches `GET /api/monday/app-login-url`, which returns a
-  single-use, 60-second handoff URL (`/api/auth/monday-handoff?token=…`) that
-  sets the regular session cookie and redirects into the SPA. This is the only
-  way monday-only accounts (synthetic `monday:` google_sub, no Google login)
-  can enter the standalone app; replays and expired tokens bounce to
-  `/?login_error=monday_handoff_failed`.
+- **Monday-only accounts stay inside monday** — accounts auto-provisioned
+  from monday carry a synthetic `monday:` google_sub and no Google login, so
+  they can only use the custom object. (The dashboard widget and its
+  single-use "Open in FiscalMind" handoff were removed 2026-09-11; linking a
+  Google account is the way into the standalone SPA.)
 - **Clients come from the agent's client-import sources** (workspace Settings
   → Integrations, server-side monday token) and the kickoff webhook — the
-  widget itself imports nothing (the seamless-auth board import went with the
-  document collector, 2026-09-11).
-- **Framing** — only `/monday-widget` and `/monday-object` carry a
+  object itself imports nothing through monday's in-iframe auth (the
+  seamless-auth board import went with the document collector, 2026-09-11).
+- **Framing** — only `/monday-object` carries a
   `Content-Security-Policy: frame-ancestors https://*.monday.com` header; the
   rest of the app sets no framing headers (unchanged).
 
@@ -60,13 +55,12 @@ server and built from `web/src/monday/`:
 1. <https://monday.com/developers/apps> → **Create app**.
 2. **Basic information** → copy the **Client Secret** into `MONDAY_CLIENT_SECRET`
    in this clone's `.env` (each clone/env can share the same app or use its own).
-3. **Features** → add:
-   - a **Dashboard Widget** with custom URL `https://<host>/monday-widget`
-   - a **Custom Object** with custom URL `https://<host>/monday-object`
-
-   (dev host: `<NGROK_DOMAIN>`; prod host: the Azure app.)
-4. **Permissions (scopes)**: enable `me:read`, `boards:read` (the surfaces
-   query `me { email }`; the server reads client boards) and `boards:write`
+3. **Features** → add a **Custom Object** with custom URL
+   `https://<host>/monday-object` (dev host: `<NGROK_DOMAIN>`; prod host:
+   the Azure app). If the app still has a **Dashboard Widget** feature from
+   before 2026-09-11, remove it — `/monday-widget` no longer exists.
+4. **Permissions (scopes)**: enable `me:read`, `boards:read` (the object
+   queries `me { email }`; the server reads client boards) and `boards:write`
    (the board status sync).
 5. **OAuth** (the "Connect monday" flow behind client-import sources): copy the **Client ID** (Basic
    Information) into `MONDAY_CLIENT_ID` in `.env`, and register the redirect
@@ -77,13 +71,12 @@ server and built from `web/src/monday/`:
    the seamless in-iframe auth above, this token lets the *server* query
    monday at webhook time (boards + docs) with no browser involved. monday
    access tokens don't expire; "Disconnect" just deletes the row.
-6. Install the app on the account (**Install** / share URL). Then:
-   - widget: on any dashboard, **Add widget → Apps → your widget**.
-   - custom object: in a workspace, **+ Add item → Apps → your app**.
+6. Install the app on the account (**Install** / share URL). Then, in a
+   workspace, **+ Add item → Apps → your app**.
 
 ## Dev notes
 
-- Both iframes are served from `web/dist` by the Express server (the ngrok
+- The iframe is served from `web/dist` by the Express server (the ngrok
   tunnel targets `PORT`), **not** by the Vite dev server — run
   `npm run build:gui` after frontend changes when testing inside monday.
 - Emails of accounts provisioned from monday are *claimed* by the frontend

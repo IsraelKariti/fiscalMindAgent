@@ -13,8 +13,8 @@ export type SessionPhase =
   | { kind: 'ready'; status: MondaySessionStatus };
 
 /**
- * Session bootstrap shared by the monday surfaces (dashboard widget, custom
- * object). Identity comes from monday (sessionToken), never from a login
+ * Session bootstrap for the monday custom object. Identity comes from monday
+ * (sessionToken), never from a login
  * screen: the first load auto-provisions a fiscalMind account for this monday
  * user, and existing Google-based accounts link via a popup. Retries the boot
  * when focus returns to a failed/linking iframe (e.g. after the Google popup).
@@ -78,7 +78,7 @@ interface GateProps {
   phase: Exclude<SessionPhase, { kind: 'ready' }>;
   onRetry: () => void;
   onLink: () => void;
-  /** Outer shell class of the calling surface ('mw-shell' for the widget). */
+  /** Outer shell class of the calling surface ('ma-shell' for the custom object). */
   shellClass: string;
 }
 

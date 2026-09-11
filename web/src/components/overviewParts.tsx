@@ -4,9 +4,8 @@ import { daysSince, displayClientName, LOCALE } from '../format';
 import { useT, type Messages } from '../i18n';
 import { ChartCard, ChartEmpty } from './charts/common';
 
-// Pieces of the workspace overview shared with the monday.com widget, which
-// renders the same stat tiles and needs-attention list from the same dashboard
-// payload (fetched over its own authenticated channel).
+// Pieces of the workspace overview (stat tiles and needs-attention list),
+// split out of Overview.tsx for readability.
 
 export const STALE_REPLY_DAYS = 7;
 

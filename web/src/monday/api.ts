@@ -1,7 +1,7 @@
-import type { DashboardSummary, Me } from '../api';
+import type { Me } from '../api';
 import { getSessionToken } from './sdk';
 
-/** What the widget may show for this monday user (see POST /api/monday/session). */
+/** What the custom object may show for this monday user (see POST /api/monday/session). */
 export interface MondaySessionStatus {
   provisioned: boolean;
   /** False while the account is auto-provisioned (no Google sign-in linked yet). */
@@ -44,10 +44,7 @@ export const mondayApi = {
       method: 'POST',
       body: JSON.stringify({ email, name }),
     }),
-  dashboard: () => request<DashboardSummary>('/api/monday/dashboard'),
   /** The standalone GET /api/me payload for the monday-mapped user (custom object shell). */
   me: () => request<Me>('/api/monday/me'),
   linkUrl: () => request<{ url: string }>('/api/monday/link-url'),
-  /** Single-use handoff URL that opens the standalone app already signed in (works without Google). */
-  appLoginUrl: () => request<{ url: string }>('/api/monday/app-login-url'),
 };

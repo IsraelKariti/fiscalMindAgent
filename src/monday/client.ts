@@ -2,7 +2,7 @@ import { logger } from '../util/logger.js';
 
 /**
  * Server-side monday.com GraphQL client, authenticated by a stored
- * per-accountant OAuth token (monday_oauth_tokens) — unlike the widget's
+ * per-accountant OAuth token (monday_oauth_tokens) — unlike the custom object's
  * seamless in-iframe auth (web/src/monday/sdk.ts), this works at webhook time
  * with no browser involved.
  */

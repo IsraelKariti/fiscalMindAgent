@@ -3958,3 +3958,34 @@ button.meta-chip:hover {
 .admin-timeline-critical {
   border-inline-start-color: #c0392b;
 }
+
+/* Admin-only LLM trace rows woven into the workspace conversation (Timeline). */
+.timeline-trace-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.timeline-trace {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  align-self: stretch;
+  max-width: 100%;
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-inline-start: 2px solid var(--border, #d0d4dc);
+  text-align: left;
+}
+.timeline-trace-step {
+  opacity: 0.9;
+}
+.timeline-trace-critical {
+  border-inline-start-color: #c0392b;
+}
+.timeline-trace-reason {
+  overflow-wrap: anywhere;
+}

@@ -721,7 +721,13 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   unit test fails on an undocumented purpose) and the admin conversation
   viewer now interleaves messages, LLM calls and code steps (gates, `apply_*`,
   `send_reply`) into one timeline (`GET /api/admin/clients/:id/conversation`
-  returns `calls` + `steps`).
+  returns `calls` + `steps`). The same trace is available inside the
+  accountant workspace's conversation tab, but only to an admin who is
+  impersonating: `ViewerProvider` (`web/src/agents/ApiContext.tsx`) carries
+  `isAdmin`, `Timeline` shows a "קריאות LLM ושלבי קוד" toggle (persisted in
+  localStorage) and fetches the admin endpoint, which `requireAdmin` gates on
+  the REAL user — an accountant's session never gets the data, and the monday
+  embed has no provider so the toggle never renders there.
 - **Apply phase**: `plan.ts` records one `apply_resolutions` /
   `apply_additions` / `apply_retirements` / `apply_collections` /
   `apply_attestation` / `send_reply` row per decision field that changed

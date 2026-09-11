@@ -20,6 +20,7 @@ const clientTabs: ClientTab[] = [
     render: (ctx) => (
       <div className="tab-pane tab-pane-fill" role="tabpanel">
         <Timeline
+          clientId={ctx.client.id}
           emails={ctx.emails}
           files={ctx.files}
           channels={CHANNELS}

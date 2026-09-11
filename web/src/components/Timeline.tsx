@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { ApiError, type DocumentFile, type Email, type GoalStatus, type MessageChannel, type NextScheduled } from '../api';
-import { formatFileSize, formatTimestamp } from '../format';
+import {
+  api,
+  ApiError,
+  type AdminConversation,
+  type AdminConversationStep,
+  type DocumentFile,
+  type Email,
+  type GoalStatus,
+  type LlmCallSummary,
+  type MessageChannel,
+  type NextScheduled,
+} from '../api';
+import { formatFileSize, formatTimestamp, formatUsd, LOCALE } from '../format';
 import { useT } from '../i18n';
+import { useViewer } from '../agents/ApiContext';
 import { FileViewModal } from './FileViewModal';
 import { SendNowModal } from './SendNowModal';
 
@@ -30,6 +42,79 @@ function isTimelineAttachment(file: DocumentFile): boolean {
 // "whatsapp-media-N.ext", which means nothing to the accountant.
 function hasSyntheticName(file: DocumentFile): boolean {
   return /^whatsapp-media-\d+\./.test(file.filename);
+}
+
+/**
+ * Admin-only trace rows woven between the messages: the LLM calls and the
+ * audited code steps (gates, apply_*, send_reply) of this client, as served
+ * by the admin conversation endpoint. Ties on the same instant break steps →
+ * calls → messages, so a cycle reads inbound, regex, scan, decide,
+ * validate_message, apply_*, send_reply, outbound.
+ */
+type TraceEntry =
+  | { kind: 'call'; at: number; call: LlmCallSummary }
+  | { kind: 'step'; at: number; step: AdminConversationStep };
+
+type TimelineRow = { kind: 'message'; at: number; email: Email; index: number } | TraceEntry;
+
+const ROW_RANK = { step: 0, call: 1, message: 2 } as const;
+
+function mergeTrace(emails: Email[], trace: AdminConversation | null): TimelineRow[] {
+  const rows: TimelineRow[] = emails.map((email, index) => ({
+    kind: 'message',
+    at: Date.parse(email.sent_at ?? email.created_at),
+    email,
+    index,
+  }));
+  if (!trace) return rows;
+  for (const call of trace.calls) rows.push({ kind: 'call', at: Date.parse(call.createdAt), call });
+  for (const step of trace.steps) rows.push({ kind: 'step', at: Date.parse(step.occurredAt), step });
+  return rows.sort((a, b) => a.at - b.at || ROW_RANK[a.kind] - ROW_RANK[b.kind]);
+}
+
+const TRACE_TOGGLE_KEY = 'fm.conversationTrace';
+
+function readTraceToggle(): boolean {
+  try {
+    return localStorage.getItem(TRACE_TOGGLE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function TraceRow({ entry }: { entry: TraceEntry }) {
+  if (entry.kind === 'call') {
+    const c = entry.call;
+    return (
+      <li className="timeline-trace timeline-trace-call" dir="ltr" title={c.error ?? undefined}>
+        <span className="timeline-trace-icon" aria-hidden="true">🤖</span>
+        <span className="muted">{formatTimestamp(c.createdAt)}</span>
+        <span className="mono">{c.purpose}</span>
+        <span className="muted">{c.model}</span>
+        <span className="muted">
+          {c.inputTokens.toLocaleString(LOCALE)}/{c.outputTokens.toLocaleString(LOCALE)} tok · {c.cost === null ? '—' : formatUsd(c.cost)}
+        </span>
+        {c.status === 'error' && <span className="badge badge-danger">error</span>}
+      </li>
+    );
+  }
+  const s = entry.step;
+  const result = typeof s.detail['result'] === 'boolean' ? (s.detail['result'] as boolean) : null;
+  const reason = typeof s.detail['reason'] === 'string' && s.detail['reason'] !== '' ? String(s.detail['reason']) : null;
+  const glyph = s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' ? '⚙️' : '🛡️';
+  return (
+    <li
+      className={`timeline-trace timeline-trace-step ${s.severity === 'critical' ? 'timeline-trace-critical' : ''}`}
+      dir="ltr"
+      title={JSON.stringify(s.detail)}
+    >
+      <span className="timeline-trace-icon" aria-hidden="true">{glyph}</span>
+      <span className="muted">{formatTimestamp(s.occurredAt)}</span>
+      <span className="mono">{s.action}</span>
+      {result !== null && <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`}>result: {String(result)}</span>}
+      {reason && <span className="muted timeline-trace-reason">{reason}</span>}
+    </li>
+  );
 }
 
 const icon = {
@@ -90,8 +175,15 @@ export function Timeline({
   onRetrySend,
   channels,
   hideStatusFooter = false,
+  clientId,
 }: {
   emails: Email[];
+  /**
+   * Enables the admin-only LLM trace toggle (calls + audited code steps woven
+   * between the messages). Only shown to an admin viewer (ViewerProvider); the
+   * data comes from the admin-gated conversation endpoint.
+   */
+  clientId?: string;
   /** The client's stored files; each carries email_id, linking it to the message it arrived (or was sent) on. */
   files?: DocumentFile[];
   nextScheduled: NextScheduled | null;
@@ -138,6 +230,46 @@ export function Timeline({
   const [filter, setFilter] = useState<ChannelFilter>('all');
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
+  // Admin-only LLM trace. The toggle exists only for an admin viewer with a
+  // clientId; the accountant never sees it and the endpoint behind it
+  // (requireAdmin, checked on the REAL user) refuses their session anyway.
+  const { isAdmin } = useViewer();
+  const traceAvailable = isAdmin && clientId !== undefined;
+  const [showTrace, setShowTrace] = useState<boolean>(() => readTraceToggle());
+  const [trace, setTrace] = useState<AdminConversation | null>(null);
+  const [traceError, setTraceError] = useState<string | null>(null);
+  const traceOn = traceAvailable && showTrace;
+  useEffect(() => {
+    if (!traceOn || !clientId) {
+      setTrace(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .adminGetClientConversation(clientId)
+      .then((c) => {
+        if (!cancelled) {
+          setTrace(c);
+          setTraceError(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setTraceError(t.conversationTraceFailed);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Refetch whenever the thread changes (a new message means new calls/steps).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [traceOn, clientId, emails, nextScheduled]);
+  const toggleTrace = (on: boolean) => {
+    setShowTrace(on);
+    try {
+      localStorage.setItem(TRACE_TOGGLE_KEY, on ? '1' : '0');
+    } catch {
+      /* per-viewer convenience only */
+    }
+  };
   // Whether the user is scrolled near the bottom — sampled on every scroll so the
   // auto-scroll below never yanks someone who is reading older messages.
   const nearBottomRef = useRef(true);
@@ -314,6 +446,12 @@ export function Timeline({
           </div>
         )}
         <div className="panel-header-actions">
+          {traceAvailable && (
+            <label className="muted timeline-trace-toggle" title={t.conversationTraceTitle}>
+              <input id="conversation-trace-toggle" type="checkbox" checked={showTrace} onChange={(e) => toggleTrace(e.target.checked)} />
+              {t.conversationTraceToggle}
+            </label>
+          )}
           {visibleEmails.length > 0 && (
             <span className="muted panel-count">
               {visibleEmails.length === 1 ? t.oneMessage : t.nMessages(visibleEmails.length)}
@@ -339,8 +477,13 @@ export function Timeline({
         {visibleEmails.length === 0 && !showScheduled && goalStatus !== 'pending' && (
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
+        {traceError && traceOn && <div className="error-banner">{traceError}</div>}
         <ol className="timeline">
-          {visibleEmails.map((email, i) => {
+          {mergeTrace(visibleEmails, traceOn ? trace : null).map((row) => {
+            if (row.kind !== 'message') {
+              return <TraceRow key={`${row.kind}-${row.kind === 'call' ? row.call.id : row.step.id}`} entry={row} />;
+            }
+            const { email, index: i } = row;
             const outbound = email.direction === 'outbound';
             const prev = i > 0 ? visibleEmails[i - 1] : undefined;
             // WhatsApp messages have no subject; only email bubbles show a thread title.

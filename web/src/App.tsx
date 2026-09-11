@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type Me } from './api';
 import { Login } from './components/Login';
 import { Workspace } from './components/Workspace';
+import { ViewerProvider } from './agents/ApiContext';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AccessPending } from './components/AccessPending';
 import { LogoutConfirmModal } from './components/LogoutConfirmModal';
@@ -97,13 +98,17 @@ export function App() {
   return (
     <>
       {envBanner}
-      <Workspace
-        userEmail={user?.email ?? null}
-        impersonatingEmail={impersonating?.email ?? null}
-        onStopImpersonating={stopImpersonating}
-        onLogout={requestLogout}
-        hashRouting
-      />
+      {/* isAdmin here always means "an admin impersonating" — admins never see the
+          workspace otherwise (adminMode above). Reveals the LLM trace toggle. */}
+      <ViewerProvider value={{ isAdmin }}>
+        <Workspace
+          userEmail={user?.email ?? null}
+          impersonatingEmail={impersonating?.email ?? null}
+          onStopImpersonating={stopImpersonating}
+          onLogout={requestLogout}
+          hashRouting
+        />
+      </ViewerProvider>
       {logoutModal}
     </>
   );

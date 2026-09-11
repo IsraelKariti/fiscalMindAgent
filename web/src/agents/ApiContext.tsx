@@ -24,3 +24,18 @@ export const ClientsRefreshProvider = ClientsRefreshContext.Provider;
 export function useClientsRefresh(): () => void {
   return useContext(ClientsRefreshContext);
 }
+
+/**
+ * Who is looking at the workspace. `isAdmin` is true only for an admin
+ * impersonating an accountant (standalone shell); the accountant's own session
+ * — and the monday embed — never set it. It only reveals admin-only UI (the
+ * LLM trace in the conversation); the data behind it is served by admin-gated
+ * endpoints, so a forged flag shows an empty, failing toggle and nothing else.
+ */
+const ViewerContext = createContext<{ isAdmin: boolean }>({ isAdmin: false });
+
+export const ViewerProvider = ViewerContext.Provider;
+
+export function useViewer(): { isAdmin: boolean } {
+  return useContext(ViewerContext);
+}

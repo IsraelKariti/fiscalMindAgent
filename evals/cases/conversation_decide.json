@@ -1,0 +1,254 @@
+{
+  "stage": "conversation_decide",
+  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected; for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, attestation equals the expected action. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
+  "taxYear": 2025,
+  "accountant": { "name": "Cohen & Co. CPA", "hebrew_name": "כהן ושות' רואי חשבון", "email": "office@cohen-cpa.example" },
+  "templates": [
+    {
+      "content_sid": "HXEVAL0001",
+      "name": "capital_intro",
+      "body": "שלום {{1}}, כאן העוזר הדיגיטלי של משרד רואה החשבון {{2}}. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.{{3}}, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+      "variable_count": 3
+    },
+    {
+      "content_sid": "HXEVAL0002",
+      "name": "capital_reminder",
+      "body": "שלום {{1}}, רק מזכיר בעדינות לגבי המסמכים להצהרת ההון ליום 31.12.{{2}} - אשמח לעדכון כשנוח לך.",
+      "variable_count": 2
+    }
+  ],
+  "cases": [
+    {
+      "id": "dec_01",
+      "now": "2026-02-10T08:30:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            { "question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד" },
+            { "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין" }
+          ]
+        }
+      },
+      "wa": { "windowOpen": false, "windowClosesAt": null, "templates": ["capital_intro"] },
+      "documents": [
+        { "id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
+        { "type_key": "vehicle", "status": "not_required" }
+      ],
+      "thread": [],
+      "expects": { "decision": "follow_up", "message_kind": "template", "resolved_documents": [], "mentions_valuation_date": true, "max_question_marks": 3 },
+      "notes": "first contact: empty thread, window closed -> the opening message must be the approved template with the tax year filled in, nothing resolved, send_at in the future"
+    },
+    {
+      "id": "dec_02",
+      "now": "2026-02-10T08:30:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            { "question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד" },
+            { "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין" }
+          ]
+        }
+      },
+      "wa": { "windowOpen": true, "windowClosesAt": "2026-02-11T08:25:00Z", "templates": ["capital_intro", "capital_reminder"] },
+      "documents": [
+        { "id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
+        { "type_key": "vehicle", "status": "not_required" }
+      ],
+      "thread": [
+        { "id": "msg-1", "direction": "outbound", "at": "2026-02-09T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?" },
+        { "id": "msg-2", "direction": "inbound", "at": "2026-02-10T08:25:00Z", "body": "היי, כן בוא נתחיל" }
+      ],
+      "expects": { "decision": "follow_up", "message_kind": "freeform", "resolved_documents": [], "mentions_valuation_date": false, "max_question_marks": 3 },
+      "notes": "the client just said 'let's start': first free-form message = a small group of 2-3 discovery questions, nothing resolved yet (the questionnaire may not be cited as evidence — the gate rejects it), no re-introduction"
+    },
+    {
+      "id": "dec_03",
+      "now": "2026-02-10T08:30:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T08:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            { "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין" }
+          ]
+        }
+      },
+      "wa": { "windowOpen": true, "windowClosesAt": "2026-02-11T08:25:00Z", "templates": ["capital_intro", "capital_reminder"] },
+      "documents": [
+        { "type_key": "vehicle", "status": "not_required" }
+      ],
+      "thread": [
+        { "id": "msg-1", "direction": "outbound", "at": "2026-02-09T09:00:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?" },
+        { "id": "msg-2", "direction": "inbound", "at": "2026-02-09T09:10:00Z", "body": "כן, בוא נתחיל" },
+        { "id": "msg-3", "direction": "outbound", "at": "2026-02-09T09:12:00Z", "body": "מעולה ישראל, בוא נתחיל. באילו בנקים מתנהלים חשבונותיך, וכמה חשבונות יש לך בכל בנק? האם יש לך תיק ניירות ערך או חשבון השקעות בבנק או בבית השקעות? ואם יש לך מטבעות דיגיטליים (קריפטו) - באילו זירות או ארנקים? אם משהו לא קיים, מספיק לכתוב \"אין\"." },
+        { "id": "msg-4", "direction": "inbound", "at": "2026-02-10T08:25:00Z", "body": "יש לי חשבון אחד בבנק הפועלים ועוד חשבון בדיסקונט. אין לי תיק ניירות ערך ואין לי קריפטו." }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "resolved_documents": { "doc-bank_balance": "required", "doc-securities_portfolio": "not_required", "doc-crypto": "not_required" },
+        "instances": { "doc-bank_balance": 2 },
+        "mentions_valuation_date": false,
+        "max_question_marks": 3
+      },
+      "notes": "explicit answers resolve exactly the three rows asked: two bank instances (one per account), two not_required rows with verbatim quotes from msg-4; nothing else is guessed"
+    },
+    {
+      "id": "dec_04",
+      "now": "2026-02-10T08:30:00Z",
+      "client": { "name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-02-08T08:00:00Z" },
+      "wa": { "windowOpen": true, "windowClosesAt": "2026-02-11T08:25:00Z", "templates": ["capital_intro", "capital_reminder"] },
+      "documents": [
+        { "id": "doc-bank-hapoalim", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
+        { "id": "doc-study-altshuler", "type_key": "study_fund", "status": "pending", "name": "אישור יתרת קרן השתלמות אלטשולר שחם ליום 31.12.2025", "description": null },
+        { "type_key": "securities_portfolio", "status": "not_required" },
+        { "type_key": "pension_provident", "status": "not_required" },
+        { "type_key": "life_insurance_savings", "status": "not_required" },
+        { "type_key": "real_estate", "status": "not_required" },
+        { "type_key": "mortgage_balance", "status": "not_required" },
+        { "type_key": "loan_taken", "status": "not_required" },
+        { "type_key": "loan_given", "status": "not_required" },
+        { "type_key": "vehicle", "status": "not_required" },
+        { "type_key": "contents_insurance", "status": "not_required" },
+        { "type_key": "business_ownership", "status": "not_required" },
+        { "type_key": "crypto", "status": "not_required" },
+        { "type_key": "private_investment", "status": "not_required" },
+        { "type_key": "poa_account", "status": "not_required" },
+        { "type_key": "prior_declaration", "status": "not_required" },
+        { "type_key": "other_assets", "status": "not_required" }
+      ],
+      "thread": [
+        { "id": "msg-1", "direction": "outbound", "at": "2026-02-08T09:00:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?" },
+        { "id": "msg-2", "direction": "inbound", "at": "2026-02-08T09:10:00Z", "body": "כן" },
+        { "id": "msg-3", "direction": "outbound", "at": "2026-02-08T09:12:00Z", "body": "מעולה ישראל. השאלון כיסה הכול, אז נעבור ישר לאיסוף: תוכל לשלוח לי כאן את אישור היתרות מבנק הפועלים ליום 31.12.2025? אפשר להפיק אותו מהאזור האישי באתר הבנק. בהמשך אבקש גם את אישור קרן ההשתלמות." },
+        { "id": "msg-4", "direction": "inbound", "at": "2026-02-10T08:25:00Z", "body": "מה בדיוק אני צריך לשלוח לך? תזכיר לי" }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "resolved_documents": [],
+        "mentions_valuation_date": true,
+        "max_question_marks": 3,
+        "no_settled_rows_mentioned": {
+          "doc-crypto": ["קריפטו", "מטבעות דיגיטליים"],
+          "doc-vehicle": ["רכב"],
+          "doc-real_estate": ["נדל\"ן", "דירה"],
+          "doc-prior_declaration": ["הצהרת הון קודמת", "הצהרה קודמת"]
+        }
+      },
+      "notes": "the client asks what is still needed: the answer names the pending documents with the valuation date and never brings up rows already settled as not_required"
+    },
+    {
+      "id": "dec_05",
+      "now": "2026-02-10T08:30:00Z",
+      "client": { "name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-02-05T08:00:00Z" },
+      "wa": { "windowOpen": false, "windowClosesAt": null, "templates": ["capital_intro", "capital_reminder"] },
+      "documents": [
+        { "id": "doc-bank-hapoalim", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
+        { "type_key": "securities_portfolio", "status": "not_required" },
+        { "type_key": "pension_provident", "status": "not_required" },
+        { "type_key": "study_fund", "status": "not_required" },
+        { "type_key": "life_insurance_savings", "status": "not_required" },
+        { "type_key": "real_estate", "status": "not_required" },
+        { "type_key": "mortgage_balance", "status": "not_required" },
+        { "type_key": "loan_taken", "status": "not_required" },
+        { "type_key": "loan_given", "status": "not_required" },
+        { "type_key": "vehicle", "status": "not_required" },
+        { "type_key": "contents_insurance", "status": "not_required" },
+        { "type_key": "business_ownership", "status": "not_required" },
+        { "type_key": "crypto", "status": "not_required" },
+        { "type_key": "private_investment", "status": "not_required" },
+        { "type_key": "poa_account", "status": "not_required" },
+        { "type_key": "prior_declaration", "status": "not_required" },
+        { "type_key": "other_assets", "status": "not_required" }
+      ],
+      "thread": [
+        { "id": "msg-1", "direction": "outbound", "at": "2026-02-05T09:00:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?" },
+        { "id": "msg-2", "direction": "inbound", "at": "2026-02-05T09:10:00Z", "body": "כן" },
+        { "id": "msg-3", "direction": "outbound", "at": "2026-02-05T09:12:00Z", "body": "מעולה ישראל. השאלון כיסה הכול, אז נעבור ישר לאיסוף: תוכל לשלוח לי כאן את אישור היתרות מבנק הפועלים ליום 31.12.2025? אפשר להפיק אותו מהאזור האישי באתר הבנק." },
+        { "id": "msg-4", "direction": "inbound", "at": "2026-02-05T09:15:00Z", "body": "בסדר, אשלח מחר" },
+        { "id": "msg-5", "direction": "outbound", "at": "2026-02-05T09:20:00Z", "body": "מעולה, אחכה למחר. תודה!" }
+      ],
+      "expects": { "decision": "follow_up", "message_kind": "template", "resolved_documents": [], "mentions_valuation_date": true, "max_question_marks": 3 },
+      "notes": "the client promised 'tomorrow' five days ago and went quiet: the window is closed, so the reminder must be the approved reminder template (with the tax year), scheduled in the future"
+    },
+    {
+      "id": "dec_06",
+      "now": "2026-02-10T08:30:00Z",
+      "client": { "name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-02-05T08:00:00Z" },
+      "wa": { "windowOpen": true, "windowClosesAt": "2026-02-11T08:25:00Z", "templates": ["capital_intro", "capital_reminder"] },
+      "documents": [
+        { "id": "doc-bank-hapoalim", "type_key": "bank_balance", "status": "approved", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
+        { "id": "doc-study-altshuler", "type_key": "study_fund", "status": "approved", "name": "אישור יתרת קרן השתלמות אלטשולר שחם ליום 31.12.2025", "description": null },
+        { "type_key": "securities_portfolio", "status": "not_required" },
+        { "type_key": "pension_provident", "status": "not_required" },
+        { "type_key": "life_insurance_savings", "status": "not_required" },
+        { "type_key": "real_estate", "status": "not_required" },
+        { "type_key": "mortgage_balance", "status": "not_required" },
+        { "type_key": "loan_taken", "status": "not_required" },
+        { "type_key": "loan_given", "status": "not_required" },
+        { "type_key": "vehicle", "status": "not_required" },
+        { "type_key": "contents_insurance", "status": "not_required" },
+        { "type_key": "business_ownership", "status": "not_required" },
+        { "type_key": "crypto", "status": "not_required" },
+        { "type_key": "private_investment", "status": "not_required" },
+        { "type_key": "poa_account", "status": "not_required" },
+        { "type_key": "prior_declaration", "status": "not_required" },
+        { "type_key": "other_assets", "status": "not_required" }
+      ],
+      "thread": [
+        { "id": "msg-1", "direction": "outbound", "at": "2026-02-05T09:00:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?" },
+        { "id": "msg-2", "direction": "inbound", "at": "2026-02-05T09:10:00Z", "body": "כן" },
+        { "id": "msg-3", "direction": "outbound", "at": "2026-02-05T09:12:00Z", "body": "מעולה ישראל. השאלון כיסה הכול, אז נעבור ישר לאיסוף: תוכל לשלוח לי כאן את אישור היתרות מבנק הפועלים ליום 31.12.2025 ואת אישור קרן ההשתלמות מאלטשולר שחם לאותו תאריך?" },
+        { "id": "msg-4", "direction": "inbound", "at": "2026-02-09T10:00:00Z", "body": "שלחתי את שני האישורים" },
+        { "id": "msg-5", "direction": "outbound", "at": "2026-02-09T10:05:00Z", "body": "תודה ישראל, קיבלתי את שניהם והם עברו לאימות. אעדכן אותך בהמשך." },
+        { "id": "msg-6", "direction": "inbound", "at": "2026-02-10T08:25:00Z", "body": "תודה. יש עוד משהו שצריך ממני?" }
+      ],
+      "expects": { "decision": "follow_up", "message_kind": "freeform", "resolved_documents": [], "attestation": "request", "mentions_valuation_date": false, "max_question_marks": 3 },
+      "notes": "every row is approved / not_required and no summary was sent yet: the next message IS the closing summary (attestation='request'), still a follow_up"
+    },
+    {
+      "id": "dec_07",
+      "now": "2026-02-10T08:30:00Z",
+      "client": { "name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-02-05T08:00:00Z" },
+      "wa": { "windowOpen": true, "windowClosesAt": "2026-02-11T08:25:00Z", "templates": ["capital_intro", "capital_reminder"] },
+      "documents": [
+        { "id": "doc-bank-hapoalim", "type_key": "bank_balance", "status": "approved", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
+        { "id": "doc-study-altshuler", "type_key": "study_fund", "status": "approved", "name": "אישור יתרת קרן השתלמות אלטשולר שחם ליום 31.12.2025", "description": null },
+        { "type_key": "securities_portfolio", "status": "not_required" },
+        { "type_key": "pension_provident", "status": "not_required" },
+        { "type_key": "life_insurance_savings", "status": "not_required" },
+        { "type_key": "real_estate", "status": "not_required" },
+        { "type_key": "mortgage_balance", "status": "not_required" },
+        { "type_key": "loan_taken", "status": "not_required" },
+        { "type_key": "loan_given", "status": "not_required" },
+        { "type_key": "vehicle", "status": "not_required" },
+        { "type_key": "contents_insurance", "status": "not_required" },
+        { "type_key": "business_ownership", "status": "not_required" },
+        { "type_key": "crypto", "status": "not_required" },
+        { "type_key": "private_investment", "status": "not_required" },
+        { "type_key": "poa_account", "status": "not_required" },
+        { "type_key": "prior_declaration", "status": "not_required" },
+        { "type_key": "other_assets", "status": "not_required" }
+      ],
+      "thread": [
+        { "id": "msg-1", "direction": "outbound", "at": "2026-02-05T09:00:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?" },
+        { "id": "msg-2", "direction": "inbound", "at": "2026-02-05T09:10:00Z", "body": "כן" },
+        { "id": "msg-3", "direction": "outbound", "at": "2026-02-05T09:12:00Z", "body": "מעולה ישראל. השאלון כיסה הכול, אז נעבור ישר לאיסוף: תוכל לשלוח לי כאן את אישור היתרות מבנק הפועלים ליום 31.12.2025 ואת אישור קרן ההשתלמות מאלטשולר שחם לאותו תאריך?" },
+        { "id": "msg-4", "direction": "inbound", "at": "2026-02-09T10:00:00Z", "body": "שלחתי את שני האישורים" },
+        { "id": "msg-5", "direction": "outbound", "at": "2026-02-10T07:00:00Z", "body": "תודה ישראל, שני האישורים עברו את האימות. לסיכום:\n\n1. התקבלו ואומתו: אישור יתרות בנק הפועלים ליום 31.12.2025, אישור יתרת קרן ההשתלמות באלטשולר שחם ליום 31.12.2025.\n\n2. לפי מה שמסרת, אין לך: תיק ניירות ערך, קופות גמל ופנסיה, ביטוח מנהלים או פוליסת חיסכון, נדל\"ן, משכנתא, הלוואות, חייבים, כלי רכב, ביטוח תכולה, בעלות בעסק, מטבעות דיגיטליים, השקעות פרטיות, יפוי כוח בחשבון של אחר, נכסים נוספים, וזו הצהרת ההון הראשונה שלך.\n\nתוכל לאשר שהרשימה מלאה ושאין נכסים או התחייבויות נוספים?" },
+        { "id": "msg-6", "direction": "inbound", "at": "2026-02-10T08:25:00Z", "body": "מאשר, הרשימה מלאה ואין לי נכסים או התחייבויות נוספים" }
+      ],
+      "attestation": { "requestedAt": "2026-02-10T07:00:00Z", "confirmed": false },
+      "expects": { "decision": "goal_complete", "resolved_documents": [], "attestation": "confirmed" },
+      "notes": "the client confirmed the sent summary verbatim: attestation='confirmed' with evidence citing msg-6 (post-request), and the goal is complete"
+    }
+  ]
+}

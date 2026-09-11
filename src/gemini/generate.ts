@@ -165,7 +165,14 @@ export async function generateWithRetryDetailed(
           : provider === 'anthropic'
             ? await generateContentAnthropic(timedRequest)
             : await genaiClient.models.generateContent(timedRequest);
-      if (log) void recordCall(log, timedRequest, provider, startedAt, attempt + 1, { response });
+      // DB sink: fire-and-forget (logging never delays the call). File sink
+      // (the evals harness): awaited, so a process that exits right after its
+      // last answer still has every row on disk.
+      if (log) {
+        const recorded = recordCall(log, timedRequest, provider, startedAt, attempt + 1, { response });
+        if (log.sink && log.sink !== 'db') await recorded;
+        else void recorded;
+      }
       return { response, attempts: attempt + 1, provider };
     } catch (err) {
       const apiStatus =

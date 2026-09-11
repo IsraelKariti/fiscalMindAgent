@@ -737,3 +737,23 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `llm.budget_exceeded` (critical → admin alert) and throws
   `LlmBudgetExceededError`. 0 = unlimited. Harness calls (file sink) are
   exempt and carry their own `EVALS_MAX_SPEND_USD`.
+- **System/user split on every stage**: builders put instructions + trusted
+  context in `systemInstruction` and only the client's fenced/sanitized data
+  (or the file bytes + filename) in the user turn (`formIntakeCall.ts`,
+  `injectionScreen.ts`, `analyzeFile.ts`, `extractionCall.ts`).
+- **Evals harness** (`evals/`, `npm run evals`, skills `run-evals` /
+  `add-eval-case` / `add-llm-stage`): 55 code-judged cases over the five
+  stages, a model matrix, `latest.json` + a self-contained `report.html`,
+  synthetic PDFs (`evals/make-files.ts`), its own spend cap
+  `EVALS_MAX_SPEND_USD`. Sends the app's exact requests via the builders
+  with a per-call model override and the file log sink.
+- **Admin observability**: `#/llm-stages` (`GET /api/admin/llm-stages`,
+  `gemini/llmStages.ts` — every stage from the call sites' own constants, a
+  unit test fails on an undocumented purpose) and the admin conversation
+  viewer now interleaves messages, LLM calls and code steps (gates, `apply_*`,
+  `send_reply`) into one timeline (`GET /api/admin/clients/:id/conversation`
+  returns `calls` + `steps`).
+- **Apply phase**: `plan.ts` records one `apply_resolutions` /
+  `apply_additions` / `apply_retirements` / `apply_collections` /
+  `apply_attestation` / `send_reply` row per decision field that changed
+  state (never for a no-op).

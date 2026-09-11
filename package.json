@@ -25,8 +25,13 @@
     "cli:bootstrap": "tsx src/cli/bootstrapClient.ts",
     "ship": "node scripts/ship.mjs",
     "sync": "node scripts/sync.mjs",
-    "test": "node --import tsx --test tests/promptSafety.test.ts tests/fileEvidence.test.ts tests/audit.test.ts tests/anomalyRules.test.ts tests/twilioMediaUrl.test.ts tests/sendAtGuard.test.ts tests/upcomingDates.test.ts tests/decisionKeepalive.test.ts tests/verifyChecks.test.ts tests/intakeDecision.test.ts tests/capitalCatalog.test.ts tests/waOnlyChannel.test.ts tests/formIntake.test.ts tests/anthropicSchema.test.ts tests/formAnswersSection.test.ts tests/analyzeFileRules.test.ts tests/injectionRegex.test.ts tests/injectionScanRules.test.ts tests/fileText.test.ts",
-    "typecheck": "tsc -p . --noEmit"
+    "test": "node --import tsx --test tests/promptSafety.test.ts tests/fileEvidence.test.ts tests/audit.test.ts tests/anomalyRules.test.ts tests/twilioMediaUrl.test.ts tests/sendAtGuard.test.ts tests/upcomingDates.test.ts tests/decisionKeepalive.test.ts tests/verifyChecks.test.ts tests/intakeDecision.test.ts tests/capitalCatalog.test.ts tests/waOnlyChannel.test.ts tests/formIntake.test.ts tests/anthropicSchema.test.ts tests/formAnswersSection.test.ts tests/analyzeFileRules.test.ts tests/injectionRegex.test.ts tests/injectionScanRules.test.ts tests/fileText.test.ts tests/llmStages.test.ts",
+    "typecheck": "tsc -p . --noEmit && tsc -p evals/tsconfig.json",
+    "evals": "tsx evals/run.ts",
+    "evals:rejudge": "tsx evals/rejudge.ts",
+    "evals:report": "tsx evals/report.ts",
+    "evals:serve": "tsx evals/serve.ts",
+    "evals:files": "tsx evals/make-files.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

@@ -8,3 +8,7 @@ npm-debug.log*
 .DS_Store
 secrets/
 .azure-secrets
+
+# evals harness (evals/README.md): its LLM log + per-run result files
+evals/data/
+evals/results/run-*.json

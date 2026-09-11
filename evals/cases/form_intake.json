@@ -1,0 +1,947 @@
+{
+  "stage": "form_intake",
+  "judge": "Every verdict must equal expected (a list means any of these is accepted). For each required type the gate-accepted instances must be exactly the listed count and each listed substring must appear in a distinct instance name (case-insensitive; '' = any name). validateFormResolutions must drop 0 proposals. `answers` align with `questions` in order ('' = left blank); every catalog type is an unresolved row (a fresh client). Expected values follow FORM_INTAKE_PROMPT's rules: blank question -> not_required with quote='', explicit no -> not_required with a verbatim quote, combined savings question partially answered -> the unmentioned types not_required (quote = full answer), real_estate/vehicle split into per-document instances, a mortgage mentioned anywhere -> mortgage_balance instance, prior declaration by our office -> not_required / another office -> required / unknown -> unclear.",
+  "taxYear": 2025,
+  "questions": [
+    "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?",
+    "תיק ניירות ערך / חשבון השקעות - בבנק או בבית השקעות?",
+    "קופות גמל ופנסיה, קופת גמל להשקעה, קרן השתלמות, ביטוח מנהלים או פוליסת חיסכון - באילו גופים? (כולל של בן/בת הזוג)",
+    "נכסי נדל\"ן בבעלותך (דירה, בית, מגרש, נכס מסחרי), בארץ או בחו\"ל - כתובת ואופן הקבלה (רכישה / מקבלן / ירושה / מתנה)",
+    "משכנתאות - באיזה בנק?",
+    "הלוואות פעילות שאינן משכנתא (בנק, כרטיס אשראי, הלוואה פרטית)",
+    "חייבים - האם מישהו חייב לך כסף (הלוואות שנתת לאנשים פרטיים, לבני משפחה או לעסק)?",
+    "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?",
+    "פוליסת ביטוח תכולה לדירה שהייתה בתוקף ביום 31.12",
+    "בעל מניות / בעלים / שותף בעסק או בחברה",
+    "מטבעות דיגיטליים (קריפטו) - באילו זירות או ארנקים?",
+    "השקעות פרטיות (שאינן ניירות ערך) בחברה, בתאגיד או במיזם",
+    "יפוי כוח / מורשה חתימה / אפוטרופוס בחשבון בנק של אדם אחר",
+    "האם זו הצהרת ההון הראשונה שלך? אם לא - האם ההצהרה הקודמת נערכה במשרדנו או במשרד אחר?",
+    "נכסים נוספים או התחייבויות משמעותיות שלא נשאלת עליהם (כספת, יאכטה, שינויים מבניים וכו')"
+  ],
+  "cases": [
+    {
+      "id": "map_01",
+      "answers": [
+        "בנק לאומי, חשבון אחד",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "one bank, everything else blank: every other type (incl. all three of the combined savings question) is not_required with quote=\"\""
+    },
+    {
+      "id": "map_02",
+      "answers": [
+        "אין",
+        "לא",
+        "אין לי",
+        "אין",
+        "אין",
+        "לא",
+        "לא",
+        "אין",
+        "אין",
+        "לא",
+        "לא",
+        "לא",
+        "לא",
+        "כן, זו הראשונה",
+        "אין"
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "not_required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {},
+        "dropped": 0
+      },
+      "notes": "explicit no everywhere; every not_required needs a verbatim quote; \"yes, this is the first one\" = no prior declaration"
+    },
+    {
+      "id": "map_03",
+      "answers": [
+        "לאומי (2 חשבונות) ודיסקונט (חשבון אחד)",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי",
+            "לאומי",
+            "דיסקונט"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "one certificate per account: 3 instances"
+    },
+    {
+      "id": "map_04",
+      "answers": [
+        "הפועלים, וגם חשבון ב-Chase בארה\"ב",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "הפועלים",
+            "chase"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "a foreign bank account belongs to bank_balance"
+    },
+    {
+      "id": "map_05",
+      "answers": [
+        "מזרחי טפחות",
+        "תיק מנוהל במיטב",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "מזרחי"
+          ],
+          "securities_portfolio": [
+            "מיטב"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "an investment house belongs to securities_portfolio"
+    },
+    {
+      "id": "map_06",
+      "answers": [
+        "לאומי",
+        "",
+        "פנסיה במנורה",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ],
+          "pension_provident": [
+            "מנורה"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "combined savings question answered with a pension only: study_fund and life_insurance_savings are not_required by the combined-question rule (quote = the full answer)"
+    },
+    {
+      "id": "map_07",
+      "answers": [
+        "דיסקונט",
+        "",
+        "הפנסיה שלי בהפניקס, לאשתי קופת גמל באלטשולר שחם, ויש לי קרן השתלמות בהראל",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "required",
+          "study_fund": "required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "דיסקונט"
+          ],
+          "pension_provident": [
+            "הפניקס",
+            "אלטשולר"
+          ],
+          "study_fund": [
+            "הראל"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "the spouse's fund counts; the study fund splits off; life_insurance_savings stays not_required"
+    },
+    {
+      "id": "map_08",
+      "answers": [
+        "מזרחי",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "לא, הגשתי ב-2019 דרך רואה חשבון אחר",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "מזרחי"
+          ],
+          "prior_declaration": [
+            ""
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "prior declaration by another office -> required, single instance"
+    },
+    {
+      "id": "map_09",
+      "answers": [
+        "לאומי",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "לא, המשרד שלכם ערך אותה לפני שנתיים",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "prior declaration by our office -> not_required with a quote (the copy is already in the office)"
+    },
+    {
+      "id": "map_10",
+      "answers": [
+        "לא בטוח, אולי",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "כן",
+        "",
+        "",
+        "לא יודע",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "unclear",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "unclear",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "crypto": [
+            ""
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "ambiguous answers stay unclear (incl. \"don't know\" where the prior declaration was prepared); a bare \"yes\" gives one generic instance"
+    },
+    {
+      "id": "map_11",
+      "answers": [
+        "לאומי",
+        "",
+        "",
+        "דירה ברחוב הרצל 5, תל אביב - נרכשה ב-2018",
+        "משכנתא במזרחי טפחות",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "required",
+          "mortgage_balance": "required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ],
+          "real_estate": [
+            "חוזה",
+            "נספח"
+          ],
+          "mortgage_balance": [
+            "מזרחי"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "a purchased property splits into two instances (purchase contract + payments appendix); the mortgage is its own instance"
+    },
+    {
+      "id": "map_12",
+      "answers": [
+        "הפועלים",
+        "",
+        "",
+        "דירה בחיפה שקיבלתי בירושה מאבא, ומגרש בנהריה שקיבלתי במתנה מההורים",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "הפועלים"
+          ],
+          "real_estate": [
+            "צו ירושה",
+            "טאבו",
+            "טאבו"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "inherited property = inheritance order + Tabu extract; gifted property = Tabu extract only: 3 instances"
+    },
+    {
+      "id": "map_13",
+      "answers": [
+        "לאומי",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "מאזדה 3 משנת 2019, אין לי קבלה מהרכישה",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ],
+          "vehicle": [
+            "רישיון",
+            "הצהרת עלות"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "a vehicle is two instances; with no purchase receipt the second is a cost declaration instead of the purchase document"
+    },
+    {
+      "id": "map_14",
+      "answers": [
+        "לאומי",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "שני רכבים: טויוטה קורולה 2020 (יש חשבונית) ואופנוע 2017 (אין קבלה)",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ],
+          "vehicle": [
+            "רישיון",
+            "רכישה",
+            "רישיון",
+            "הצהרת עלות"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "two vehicles = four instances: license + purchase document for the car, license + cost declaration for the motorcycle"
+    },
+    {
+      "id": "map_15",
+      "answers": [
+        "לאומי",
+        "",
+        "",
+        "דירה ברמת גן שנרכשה ב-2015, יש עליה משכנתא בבנק לאומי",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "required",
+          "mortgage_balance": "required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ],
+          "real_estate": [
+            "חוזה",
+            "נספח"
+          ],
+          "mortgage_balance": [
+            "לאומי"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "a mortgage mentioned only inside the real-estate answer (the mortgage question left blank) still creates a mortgage_balance instance — the prompt's explicit rule beats the blank-question default"
+    },
+    {
+      "id": "map_16",
+      "answers": [
+        "הפועלים",
+        "",
+        "רק חיסכון לכל ילד של שני הילדים",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "הפועלים"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "\"savings for every child\" accounts need no certificate: none of the three savings types becomes required (not_required with the answer as quote)"
+    },
+    {
+      "id": "map_17",
+      "answers": [
+        "לאומי",
+        "",
+        "קופת גמל להשקעה באלטשולר שחם ופוליסת חיסכון בהראל",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ],
+          "pension_provident": [
+            "אלטשולר"
+          ],
+          "life_insurance_savings": [
+            "הראל"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "an investment provident fund belongs to pension_provident and a savings policy to life_insurance_savings; study_fund not_required by the combined-question rule"
+    },
+    {
+      "id": "map_18",
+      "answers": [
+        "דיסקונט",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "אחי חייב לי 50,000 ש\"ח",
+        "",
+        "",
+        "בעל 50% במניות חברת א.ב. שיווק בע\"מ",
+        "",
+        "לא",
+        "כן, מיופה כוח בחשבון של אמא שלי בדיסקונט",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "not_required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "דיסקונט"
+          ],
+          "loan_given": [
+            ""
+          ],
+          "business_ownership": [
+            ""
+          ],
+          "poa_account": [
+            "דיסקונט"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "the special-key mapping: a debtor -> loan_given, a shareholding -> business_ownership, a power of attorney -> poa_account"
+    }
+  ]
+}

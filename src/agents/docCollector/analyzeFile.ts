@@ -1,33 +1,25 @@
-import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { logger } from '../../util/logger.js';
 import type { GeminiUsage, LlmCallLogContext } from '../../gemini/generate.js';
 import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
-import { getCatalogType } from '../declarationOfCapital/catalog.js';
+import { CAPITAL_DOCUMENT_CATALOG, getCatalogType } from '../declarationOfCapital/catalog.js';
+import {
+  CAPITAL_DOCUMENT_TYPE_VALUES,
+  CapitalFileAnalysisSchema,
+  FileAnalysisSchema,
+  validateClassification,
+  type ClassificationGateResult,
+  type FileAnalysis,
+} from './analyzeFileRules.js';
 import type { ClientDocumentRow } from '../../db/types.js';
 
-/** Verdict from reading the file's actual contents; persisted as document_files.analysis. */
-export const FileAnalysisSchema = z.object({
-  /** What the document actually is, from its contents (e.g. "טופס 867 מבנק לאומי"). */
-  document_kind: z.string(),
-  /** 1-2 sentence Hebrew summary of the contents, shown to the accountant. */
-  summary: z.string(),
-  tax_year: z.string().nullable(),
-  /** The person/business the document is about, if stated. */
-  subject_name: z.string().nullable(),
-  /** Id from the required-documents list this file satisfies, or null if none. */
-  matched_document_id: z.string().nullable(),
-  legible: z.boolean(),
-  confidence: z.enum(['high', 'medium', 'low']),
-  /** The file contains instruction-like text addressed at an AI/system rather than plain document content. */
-  injection_suspected: z.boolean(),
-});
-
-export type FileAnalysis = z.infer<typeof FileAnalysisSchema>;
+export { FileAnalysisSchema, CapitalFileAnalysisSchema, type FileAnalysis } from './analyzeFileRules.js';
 
 const analysisJsonSchema = zodToJsonSchema(FileAnalysisSchema) as Record<string, unknown>;
 delete analysisJsonSchema.$schema;
+const capitalAnalysisJsonSchema = zodToJsonSchema(CapitalFileAnalysisSchema) as Record<string, unknown>;
+delete capitalAnalysisJsonSchema.$schema;
 
 // Types Gemini reads natively as documents/images. Everything else (Office
 // files, archives, …) is stored but marked unsupported for content analysis.
@@ -57,7 +49,7 @@ export const ANALYSIS_PROMPT = `אתה בודק מסמכים עבור משרד �
 {{documents}}
 
 {{year_context}}
-
+{{document_types}}
 השב לפי הסכמה:
 - document_kind: מהו המסמך בפועל לפי תוכנו (למשל "טופס 867 מבנק הפועלים", "דוח שנתי מקרן פנסיה", "צילום תעודת זהות").
 - summary: סיכום קצר (משפט-שניים) של תוכן המסמך, בעברית.
@@ -82,6 +74,8 @@ export const YEAR_CONTEXT: Record<AnalysisPurpose, string> = {
 
 export interface AnalyzeFileResult {
   analysis: FileAnalysis;
+  /** The validate_classification verdict (the caller audits it). */
+  gate: ClassificationGateResult;
   usage: GeminiUsage;
   /** The model that actually served this call, for per-model usage accounting. */
   model: string;
@@ -127,8 +121,10 @@ export function buildAnalysisCall({ bytes, contentType, filename, requiredDocume
           })
           .join('\n')
       : '(אין מסמכים מוגדרים)';
+  const isCapital = purpose === 'capital_declaration';
   const prompt = ANALYSIS_PROMPT.replace('{{year_context}}', YEAR_CONTEXT[purpose])
     .replace('{{documents}}', documentLines)
+    .replace('{{document_types}}', isCapital ? `\n${capitalDocumentTypesBlock(taxYear)}\n` : '')
     .replace('{{tax_year}}', String(taxYear))
     .replace('{{filename}}', sanitizeInline(filename, 150));
   return {
@@ -139,10 +135,27 @@ export function buildAnalysisCall({ bytes, contentType, filename, requiredDocume
         parts: [{ inlineData: { mimeType: contentType, data: bytes.toString('base64') } }, { text: prompt }],
       },
     ],
-    responseJsonSchema: analysisJsonSchema,
+    responseJsonSchema: isCapital ? capitalAnalysisJsonSchema : analysisJsonSchema,
     temperature: 0.1,
   };
 }
+
+/**
+ * Capital-declaration files are also classified into a closed type
+ * (CAPITAL_DOCUMENT_TYPE_VALUES) independent of the checklist, so the gate can
+ * reject a match to a row of a different type.
+ */
+function capitalDocumentTypesBlock(taxYear: number): string {
+  const lines = CAPITAL_DOCUMENT_CATALOG.map((t) => `- "${t.key}": ${t.nameHe.replaceAll('{{tax_year}}', String(taxYear))}`);
+  lines.push('- "other": אף אחד מהסוגים שלמעלה');
+  return `סוגי המסמכים (document_type — השתמש אך ורק במפתחות אלה):\n${lines.join('\n')}\n\n- document_type: המפתח מהרשימה שמתאר מהו המסמך בפועל לפי תוכנו — בלי קשר לשאלה אם הוא נדרש. המסמך הנדרש שתתאים (matched_document_id) חייב להיות מאותו סוג.`;
+}
+
+/** The exact analyze_file schema a purpose answers with (the harness parses answers with it). */
+export function analysisSchemaFor(purpose: AnalysisPurpose): typeof FileAnalysisSchema | typeof CapitalFileAnalysisSchema {
+  return purpose === 'capital_declaration' ? CapitalFileAnalysisSchema : FileAnalysisSchema;
+}
+export { CAPITAL_DOCUMENT_TYPE_VALUES };
 
 /** Reads the file's actual bytes with Gemini and classifies what document it is. */
 export async function analyzeFile(
@@ -163,15 +176,12 @@ export async function analyzeFile(
     { log: opts.log },
   );
   logger.info('gemini tokens used (file analysis)', { model, filename, ...usage });
-  const analysis = FileAnalysisSchema.parse(JSON.parse(text));
-  // The matched id is validated against the real list at write time — the model
-  // (which just read attacker-controlled bytes) can't smuggle an id it wasn't shown.
-  if (analysis.matched_document_id !== null && !requiredDocuments.some((doc) => doc.id === analysis.matched_document_id)) {
-    logger.warn('file analysis returned unknown matched_document_id, dropping', {
-      filename,
-      matchedDocumentId: analysis.matched_document_id,
-    });
-    analysis.matched_document_id = null;
+  const raw: FileAnalysis = analysisSchemaFor(purpose).parse(JSON.parse(text));
+  // Step validate_classification: the model (which just read attacker-controlled
+  // bytes) can't smuggle an id it wasn't shown, nor match a row of another type.
+  const gate = validateClassification(raw, requiredDocuments);
+  if (!gate.result) {
+    logger.warn('file analysis: matched_document_id dropped by validate_classification', { filename, reason: gate.reason });
   }
-  return { analysis, usage, model };
+  return { analysis: gate.analysis, gate, usage, model };
 }

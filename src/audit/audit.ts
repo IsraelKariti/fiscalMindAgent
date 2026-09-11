@@ -35,6 +35,19 @@ export type AuditAction =
   | 'debt.paid_claimed'
   | 'debt.confirmed_paid'
   | 'injection.cycle_suppressed'
+  // Code gates — one row per run with detail.result true/false (the sibling
+  // agent's doctrine: every LLM result is followed by a named code check that
+  // is visible in the trail). See docs/agents.md "Code gates".
+  | 'injection_detection_regex'
+  | 'validate_injection_scan'
+  | 'validate_form_resolutions'
+  | 'validate_classification'
+  | 'validate_message'
+  | 'verify_extraction'
+  | 'message.blocked'
+  | 'file.blocked'
+  | 'planner.rerun_after_verification'
+  | 'llm.budget_exceeded'
   | 'client.auto_enrolled'
   | 'client.kickoff_triggered'
   | 'agent.auto_provisioned'

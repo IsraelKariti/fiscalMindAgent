@@ -3,6 +3,7 @@ import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { analyzeFile, isAnalyzable } from './analyzeFile.js';
 import { capitalClientTaxYear, resolveTaxYear } from '../shared/taxYear.js';
+import { recordAudit } from '../../audit/audit.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
 import type { DocumentFileRow } from '../../db/types.js';
@@ -33,12 +34,40 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
     // and verifyDocument.ts do, not around the last concluded year.
     const taxYear = isCapital ? capitalClientTaxYear(ctx.client, new Date()) : resolveTaxYear(ctx.instance, new Date());
     const purpose = isCapital ? 'capital_declaration' : 'annual_report';
-    const { analysis, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear, purpose, {
+    const { analysis, gate, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear, purpose, {
       log: {
         userId: ctx.client.user_id,
         agentInstanceId: ctx.client.agent_instance_id,
         clientId,
         purpose: 'analyze_file',
+      },
+    });
+    // Step validate_classification: the code check of the model's proposal.
+    // result false = an id the model was not shown (or of another type) was
+    // dropped; quarantine (suspected / illegible) is reported alongside.
+    recordAudit({
+      actorType: 'system',
+      action: 'validate_classification',
+      agentInstanceId: ctx.client.agent_instance_id,
+      clientId,
+      targetType: 'document_file',
+      targetId: file.id,
+      severity: gate.quarantined && analysis.injection_suspected ? 'critical' : gate.result ? 'info' : 'warning',
+      suspectedInjection: analysis.injection_suspected === true,
+      detail: {
+        clientName: ctx.client.name,
+        filename: file.filename,
+        result: gate.result,
+        reason: gate.reason,
+        rejectedId: gate.rejectedId,
+        matched: analysis.matched_document_id,
+        type: analysis.document_type ?? null,
+        kind: analysis.document_kind,
+        confidence: analysis.confidence,
+        legible: analysis.legible,
+        quarantined: gate.quarantined,
+        quarantineReason: gate.quarantineReason,
+        candidates: requiredDocuments.map((d) => d.id),
       },
     });
     await documentFiles.setAnalysis(file.id, 'done', analysis);

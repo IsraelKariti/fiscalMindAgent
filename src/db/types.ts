@@ -184,6 +184,8 @@ export interface FileAnalysis {
   confidence: 'high' | 'medium' | 'low';
   /** The analyzer saw instruction-like text addressed at an AI inside the file; absent on rows analyzed before this field existed. */
   injection_suspected?: boolean;
+  /** Capital-declaration files only: closed classification (a catalog type key or 'other'), cross-checked against the matched row's type. */
+  document_type?: string;
 }
 
 /** A file received from the client; bytes live in Azure Blob Storage under blob_key. */

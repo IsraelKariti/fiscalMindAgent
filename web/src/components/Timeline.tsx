@@ -12,7 +12,7 @@ import {
   type MessageChannel,
   type NextScheduled,
 } from '../api';
-import { formatFileSize, formatTimestamp, formatUsd, LOCALE } from '../format';
+import { formatFileSize, formatTimestamp, formatUsd, humanizePurpose, LOCALE } from '../format';
 import { useT } from '../i18n';
 import { useViewer } from '../agents/ApiContext';
 import { CallDetailModal } from './admin/AdminLlmCalls';
@@ -98,7 +98,7 @@ function CallChip({ call }: { call: LlmCallSummary }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   // The human label; the technical stage key lives inside the modal.
-  const label = t.llmPurposeLabels[call.purpose] ?? call.purpose;
+  const label = t.llmPurposeLabels[call.purpose] ?? humanizePurpose(call.purpose);
   const tooltip = [
     formatTimestamp(call.createdAt),
     call.model,
@@ -115,7 +115,7 @@ function CallChip({ call }: { call: LlmCallSummary }) {
         onClick={() => setOpen(true)}
       >
         <span className="timeline-trace-icon" aria-hidden="true">🤖</span>
-        <span dir="auto">{label}</span>
+        <span dir="ltr">{label}</span>
       </button>
       {open && <CallDetailModal callId={call.id} onClose={() => setOpen(false)} />}
     </li>

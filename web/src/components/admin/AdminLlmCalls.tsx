@@ -7,7 +7,7 @@ import {
   type LlmCallDetail,
   type LlmCallSummary,
 } from '../../api';
-import { displayClientName, formatTimestamp, formatUsd, LOCALE } from '../../format';
+import { displayClientName, formatTimestamp, formatUsd, humanizePurpose, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { CopyButton } from '../CopyButton';
 import { Dropdown } from '../Dropdown';
@@ -127,7 +127,7 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
           <>
             {/* Stage header: the human label, the technical key, the outcome. */}
             <div className="llm-meta-head">
-              <span className="llm-meta-stage">{t.llmPurposeLabels[call.purpose] ?? call.purpose}</span>
+              <span className="llm-meta-stage">{t.llmPurposeLabels[call.purpose] ?? humanizePurpose(call.purpose)}</span>
               <span className="badge badge-neutral mono" dir="ltr" title={t.adminLlmCallStageKey}>
                 {call.purpose}
               </span>
@@ -402,7 +402,7 @@ export function AdminLlmCalls({
                     <td dir="ltr">{formatTimestamp(c.createdAt)}</td>
                     <td className="admin-table-name">{c.clientName ? displayClientName(c.clientName) : '—'}</td>
                     <td>
-                      {t.llmPurposeLabels[c.purpose] ?? c.purpose}
+                      {t.llmPurposeLabels[c.purpose] ?? humanizePurpose(c.purpose)}
                       {c.status === 'error' && <span className="badge badge-danger">{t.adminLlmCallsStatusError}</span>}
                     </td>
                     <td>{MODEL_LABELS[c.model] ?? c.model}</td>

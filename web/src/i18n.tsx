@@ -699,12 +699,14 @@ const he = {
   adminLlmCallErrorLabel: 'שגיאה',
   adminLlmCallNoResponse: 'אין תשובה (הקריאה נכשלה).',
   adminLlmCallStageKey: 'שם טכני של השלב',
+  // The stage key, title-cased (the sibling agent's names, kept in English on
+  // purpose). Unknown keys fall back to humanizePurpose() at the call sites.
   llmPurposeLabels: {
-    generate_message: 'ניסוח התשובה ללקוח',
-    questionnaire_schema_mapping: 'מיפוי השאלון לרשימת המסמכים',
-    injection_detection_llm: 'סינון ניסיונות הזרקת הנחיות',
-    extract_document: 'חילוץ נתונים מהמסמך לאימות',
-    file_classification: 'סיווג הקובץ שהתקבל',
+    generate_message: 'Generate Message',
+    questionnaire_schema_mapping: 'Questionnaire Schema Mapping',
+    injection_detection_llm: 'Injection Detection LLM',
+    extract_document: 'Extract Document',
+    file_classification: 'File Classification',
   } as Record<string, string>,
 
   adminDangerZone: 'פעולות מסוכנות',

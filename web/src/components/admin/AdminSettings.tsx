@@ -10,7 +10,7 @@ import {
   type LlmCallPurpose,
   type OrphanedWaNumber,
 } from '../../api';
-import { formatTimestamp } from '../../format';
+import { formatTimestamp, humanizePurpose } from '../../format';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
 import { Spinner } from '../Spinner';
@@ -291,12 +291,12 @@ export function AdminSettings({ userEmail }: Props) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
               {LLM_CALL_PURPOSES.map((purpose) => (
                 <label key={purpose} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span>{t.llmPurposeLabels[purpose] ?? purpose}</span>
+                  <span>{t.llmPurposeLabels[purpose] ?? humanizePurpose(purpose)}</span>
                   <div className="model-picker" dir="ltr">
                     <select
                       value={modelState.purposes[purpose] ?? modelState.model}
                       disabled={modelSaving}
-                      aria-label={t.llmPurposeLabels[purpose] ?? purpose}
+                      aria-label={t.llmPurposeLabels[purpose] ?? humanizePurpose(purpose)}
                       onChange={(e) => changePurposeModel(purpose, e.target.value)}
                     >
                       {/* The env-default model may predate the options list; keep it selectable. */}

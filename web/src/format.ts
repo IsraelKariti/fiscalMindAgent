@@ -76,3 +76,14 @@ export function formatUsd(value: number): string {
 export function formatCompact(value: number): string {
   return new Intl.NumberFormat(LOCALE, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
+
+const PURPOSE_ACRONYMS = new Set(['llm', 'ocr', 'pdf', 'id', 'api']);
+
+/** `injection_detection_llm` → "Injection Detection LLM" — the label of a stage key with no explicit entry. */
+export function humanizePurpose(purpose: string): string {
+  return purpose
+    .split('_')
+    .filter(Boolean)
+    .map((w) => (PURPOSE_ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+}

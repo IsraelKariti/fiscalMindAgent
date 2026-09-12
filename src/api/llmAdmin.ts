@@ -95,16 +95,20 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
   );
   const discardedStepIds = new Set<string>();
   const discardedCallIds = new Set<string>();
+  // A call's row is written fire-and-forget after the answer returns, so it
+  // can land AFTER the pipeline's own send_reply step for that answer — match
+  // by the call's START (row time minus duration), which always precedes it.
   const generateCalls = calls
     .filter((c) => c.purpose === 'generate_message')
-    .sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+    .map((c) => ({ id: c.id, startedAt: c.created_at.getTime() - (c.duration_ms ?? 0) }))
+    .sort((a, b) => a.startedAt - b.startedAt);
   for (const s of steps) {
     if (s.action !== 'send_reply') continue;
     const emailId = typeof s.detail['emailId'] === 'string' ? (s.detail['emailId'] as string) : null;
     if (!emailId || !discardedDraftIds.has(emailId)) continue;
     discardedStepIds.add(s.id);
-    // The call that drafted it: the last generate_message answered before the step.
-    const call = generateCalls.filter((c) => c.created_at.getTime() <= s.occurred_at.getTime()).pop();
+    // The call that drafted it: the last generate_message started before the step.
+    const call = generateCalls.filter((c) => c.startedAt <= s.occurred_at.getTime()).pop();
     if (call) discardedCallIds.add(call.id);
   }
   res.json({

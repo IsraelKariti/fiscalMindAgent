@@ -21,4 +21,4 @@
 ## 4. Docs, skill, and delivery
 
 - [x] 4.1 Update `docs/agents.md` ("Code gates" section: the `checks` contract and the per-gate lists) and `.claude/skills/add-llm-stage/SKILL.md` (audit row must carry `checks`; test must assert the list). Verify by reading both diffs.
-- [ ] 4.2 Run `npm test` and `npm run typecheck`; commit per the repo git workflow (pull --rebase, commit, push). Verify the push lands on `origin/master`.
+- [x] 4.2 Run `npm test` and `npm run typecheck`; commit per the repo git workflow (pull --rebase, commit, push). Verify the push lands on `origin/master`.

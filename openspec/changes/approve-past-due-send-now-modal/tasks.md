@@ -22,4 +22,4 @@
 
 - [x] 5.1 Run `npm run typecheck` and `npm test`; both pass.
 - [ ] 5.2 Walk the four spec scenarios in the browser (past-due while page open, draft already parked, cancel, confirm) and the accountant-visibility scenario; all behave as the spec says.
-- [ ] 5.3 Commit per the repo Git workflow (pull --rebase, typecheck, commit with message file, push) and verify the push lands on master.
+- [x] 5.3 Commit per the repo Git workflow (pull --rebase, typecheck, commit with message file, push) and verify the push lands on master.

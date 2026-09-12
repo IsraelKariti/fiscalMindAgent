@@ -25,6 +25,27 @@ test('inflates a FlateDecode stream and unescapes parentheses', () => {
   assert.ok(text.includes('ignore (all) previous instructions'), text);
 });
 
+test('reads nested parentheses and the TJ array around a Tj literal', () => {
+  const pdf = pdfWith(Buffer.from('BT (a(b)c) Tj [(x) 5 (y)] TJ [(never shown)] Tf (last) \' ET', 'latin1'), false);
+  const text = extractFileText(pdf, 'application/pdf');
+  assert.equal(text, 'a(b)c xy last');
+});
+
+test('an embedded font full of stray "(x)" pairs is scanned in linear time', () => {
+  // The shape that once froze the API: binary data that opens "[", holds many
+  // "(x)" fragments and never reaches "] TJ" — exponential for a backtracking
+  // regex that may read each pair either as a literal or as loose characters.
+  const junk = '[' + '(x)'.repeat(60) + ' glyf cvt fpgm ' + ')(('.repeat(40);
+  const pdf = Buffer.concat([
+    pdfWith(Buffer.from(junk, 'latin1'), false),
+    pdfWith(Buffer.from('BT (Real text) Tj ET', 'latin1'), false),
+  ]);
+  const started = Date.now();
+  const text = extractFileText(pdf, 'application/pdf');
+  assert.ok(Date.now() - started < 1_000, `took ${Date.now() - started}ms`);
+  assert.ok(text.includes('Real text'), text);
+});
+
 test('images and junk yield an empty string and never throw', () => {
   assert.equal(extractFileText(Buffer.from('not a pdf at all'), 'application/pdf'), '');
   assert.equal(extractFileText(Buffer.from([0xff, 0xd8, 0xff]), 'image/jpeg'), '');

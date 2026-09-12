@@ -84,8 +84,8 @@ function ConversationModal({ clientId, onClose }: { clientId: string; onClose: (
           interleave(conversation, showSteps).map((entry) => {
             if (entry.kind === 'message') {
               const m = entry.message;
-              const scheduled = m.direction === 'outbound' && m.status === 'draft';
-              const held = m.status === 'held' || m.reviewStatus === 'pending';
+              const scheduled = m.direction === 'outbound' && m.status === 'draft' && !m.discarded;
+              const held = !m.discarded && (m.status === 'held' || m.reviewStatus === 'pending');
               return (
                 <div key={`m-${m.id}`} style={{ marginBottom: 14 }}>
                   <p className="muted" style={{ marginBottom: 4 }}>
@@ -95,6 +95,7 @@ function ConversationModal({ clientId, onClose }: { clientId: string; onClose: (
                     {m.isTemplate && <span className="badge badge-neutral">{t.adminMsgStatusTemplate}</span>}
                     {scheduled && !held && <span className="badge badge-pending">{t.adminMsgStatusScheduled}</span>}
                     {held && <span className="badge badge-danger">{t.adminMsgStatusHeld}</span>}
+                    {m.discarded && <span className="badge badge-neutral">{t.adminMsgStatusDiscarded}</span>}
                   </p>
                   {m.subject && <p style={{ fontWeight: 600, marginBottom: 4 }}>{m.subject}</p>}
                   <div className="wa-number-display" dir="rtl" style={{ whiteSpace: 'pre-wrap', textAlign: 'right' }}>

@@ -6,6 +6,7 @@ import * as auditEvents from '../db/queries/auditEvents.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
+import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import * as users from '../db/queries/users.js';
 import type { ClientRow, EmailRow } from '../db/types.js';
 
@@ -73,13 +74,39 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'Client not found.' });
     return;
   }
-  const [instance, accountant, thread, calls, steps] = await Promise.all([
+  const [instance, accountant, thread, calls, steps, job] = await Promise.all([
     client.agent_instance_id ? agentInstances.getById(client.agent_instance_id) : null,
     client.user_id ? users.getById(client.user_id) : null,
     emails.listFullThreadForClient(client.id),
     llmCalls.list({ clientId: client.id, limit: 200 }),
     auditEvents.listForClient(client.id, 500),
+    scheduledJobs.getForClient(client.id),
   ]);
+  // A replan discards the pending draft (removeFutureEmail drops its job but
+  // keeps the row), so any unsent outbound row other than the live job's
+  // draft is a discarded one. Its `send_reply` step and the generate_message
+  // call that drafted it are flagged so the timeline can drop them too — a
+  // planning step whose only output was thrown away is noise.
+  const liveDraftId = job?.bullmq_job_id.split(':')[2] ?? null;
+  const discardedDraftIds = new Set(
+    thread
+      .filter((m) => m.direction === 'outbound' && (m.status === 'draft' || m.status === 'held') && m.id !== liveDraftId)
+      .map((m) => m.id),
+  );
+  const discardedStepIds = new Set<string>();
+  const discardedCallIds = new Set<string>();
+  const generateCalls = calls
+    .filter((c) => c.purpose === 'generate_message')
+    .sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+  for (const s of steps) {
+    if (s.action !== 'send_reply') continue;
+    const emailId = typeof s.detail['emailId'] === 'string' ? (s.detail['emailId'] as string) : null;
+    if (!emailId || !discardedDraftIds.has(emailId)) continue;
+    discardedStepIds.add(s.id);
+    // The call that drafted it: the last generate_message answered before the step.
+    const call = generateCalls.filter((c) => c.created_at.getTime() <= s.occurred_at.getTime()).pop();
+    if (call) discardedCallIds.add(call.id);
+  }
   res.json({
     client: toAdminClient(client),
     agentInstanceId: instance?.id ?? null,
@@ -87,13 +114,14 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
     instanceName: instance?.name ?? null,
     accountantEmail: accountant?.email ?? null,
     accountantName: accountant?.hebrew_name ?? accountant?.name ?? null,
-    messages: thread.map(toAdminMessage),
+    messages: thread.map((m) => ({ ...toAdminMessage(m), discarded: discardedDraftIds.has(m.id) })),
     // The same conversation as the pipeline saw it: every LLM call and every
     // code step (gates, apply_*, send_reply) so the viewer can interleave them
     // with the messages into one timeline.
-    calls: calls.map(toAdminCall),
+    calls: calls.map((c) => ({ ...toAdminCall(c), discarded: discardedCallIds.has(c.id) })),
     steps: steps.map((e) => ({
       id: e.id,
+      discarded: discardedStepIds.has(e.id),
       occurredAt: e.occurred_at,
       actorType: e.actor_type,
       action: e.action,

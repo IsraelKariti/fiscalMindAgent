@@ -75,8 +75,18 @@ function mergeTrace(
   // A call's row is written when the answer arrives (createdAt = end), while
   // its gate is audited right after — order calls by their START so the call
   // precedes the gate that checks it.
-  if (show.calls) for (const call of trace.calls) rows.push({ kind: 'call', at: Date.parse(call.createdAt) - (call.durationMs ?? 0), call });
-  if (show.steps) for (const step of trace.steps) rows.push({ kind: 'step', at: Date.parse(step.occurredAt), step });
+  // A generate_message call (and its send_reply) whose draft a replan threw
+  // away never produced a visible message — dropped along with the draft.
+  if (show.calls)
+    for (const call of trace.calls) {
+      if (call.discarded) continue;
+      rows.push({ kind: 'call', at: Date.parse(call.createdAt) - (call.durationMs ?? 0), call });
+    }
+  if (show.steps)
+    for (const step of trace.steps) {
+      if (step.discarded) continue;
+      rows.push({ kind: 'step', at: Date.parse(step.occurredAt), step });
+    }
   return rows.sort((a, b) => a.at - b.at || ROW_RANK[a.kind] - ROW_RANK[b.kind]);
 }
 

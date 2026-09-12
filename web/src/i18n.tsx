@@ -659,6 +659,7 @@ const he = {
   adminConversationEmpty: 'עוד לא הוחלפו הודעות עם הלקוח הזה.',
   adminMsgStatusScheduled: 'טיוטה מתוזמנת',
   adminMsgStatusHeld: 'ממתינה לאישור',
+  adminMsgStatusDiscarded: 'טיוטה שנזנחה',
   adminMsgStatusTemplate: 'תבנית',
   adminGoalComplete: 'הושלם',
   adminGoalPending: 'בתהליך',

@@ -343,6 +343,8 @@ export interface AdminConversationMessage {
   heldAt: string | null;
   sentAt: string | null;
   createdAt: string;
+  /** An unsent draft a replan threw away (never the live scheduled one). */
+  discarded?: boolean;
 }
 
 /** The full thread the agent is having with one client (GET /admin/clients/:id/conversation). */
@@ -371,6 +373,8 @@ export interface AdminConversationStep {
   severity: 'info' | 'warning' | 'critical';
   suspectedInjection: boolean;
   detail: Record<string, unknown>;
+  /** send_reply of a draft a replan discarded — the conversation endpoint flags it. */
+  discarded?: boolean;
 }
 
 /** One LLM API call (payloads excluded — the list view). */
@@ -398,6 +402,8 @@ export interface LlmCallSummary {
   thinkingPricePerToken: number | null;
   cachedPricePerToken: number | null;
   cost: number | null;
+  /** generate_message whose draft a replan discarded — set only by the conversation endpoint. */
+  discarded?: boolean;
 }
 
 /** One call with the exact request payload and the raw response (GET /admin/llm-calls/:id). */

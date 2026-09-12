@@ -80,6 +80,45 @@ describe('validate_classification (validateClassification)', () => {
     assert.equal(ill.quarantineReason, 'illegible');
   });
 
+  it('reports the checks that ran: drop rules decide result, quarantine is reported alongside', () => {
+    assert.deepEqual(validateClassification(raw(), rows).checks, [
+      { key: 'matched_id_known', passed: true, note: null },
+      { key: 'matched_type_agrees', passed: true, note: null },
+      { key: 'not_injection_suspected', passed: true, note: null },
+      { key: 'legible', passed: true, note: null },
+    ]);
+
+    const unknown = validateClassification(raw({ matched_document_id: 'doc-99' }), rows);
+    assert.equal(unknown.result, false);
+    assert.deepEqual(
+      unknown.checks.map((c) => [c.key, c.passed]),
+      [['matched_id_known', false], ['not_injection_suspected', true], ['legible', true]],
+    );
+    assert.match(unknown.checks[0]!.note ?? '', /doc-99/);
+
+    const mismatch = validateClassification(raw({ matched_document_id: 'doc-2', document_type: 'bank_balance' }), rows);
+    assert.deepEqual(
+      mismatch.checks.map((c) => [c.key, c.passed]),
+      [['matched_id_known', true], ['matched_type_agrees', false], ['not_injection_suspected', true], ['legible', true]],
+    );
+    assert.match(mismatch.checks[1]!.note ?? '', /study_fund/);
+
+    // No match proposed: the id checks did not run.
+    assert.deepEqual(
+      validateClassification(raw({ matched_document_id: null }), rows).checks.map((c) => c.key),
+      ['not_injection_suspected', 'legible'],
+    );
+
+    const inj = validateClassification(raw({ injection_suspected: true }), rows);
+    assert.equal(inj.result, true);
+    assert.deepEqual(inj.checks.find((c) => c.key === 'not_injection_suspected'), {
+      key: 'not_injection_suspected',
+      passed: false,
+      note: 'injection suspected',
+    });
+    assert.equal(validateClassification(raw({ legible: false }), rows).checks.find((c) => c.key === 'legible')?.passed, false);
+  });
+
   it('never mutates the input', () => {
     const input = raw({ matched_document_id: 'doc-99' });
     validateClassification(input, rows);

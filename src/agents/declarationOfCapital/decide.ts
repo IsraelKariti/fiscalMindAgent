@@ -3,13 +3,14 @@ import { logger } from '../../util/logger.js';
 import type { GeminiUsage, LlmCallLogContext } from '../../gemini/generate.js';
 import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import { recordAudit } from '../../audit/audit.js';
+import { check } from '../shared/gateChecks.js';
 import {
   correctionSuffix,
+  DecisionRejectedError,
   decisionSchemaForContext,
   EMAIL_ONLY_CONTEXT,
-  normalizeDecision,
+  gateDecision,
   prunedDecisionFields,
-  restorePrunedNulls,
   type DecisionContext,
   type DecisionResponse,
   type NormalizedDecision,
@@ -102,9 +103,10 @@ export async function decide(
     // Step validate_message: schema parse + normalizeDecision (evidence quotes,
     // instance caps, channel rules, attestation gate). One audit row per
     // attempt with the verdict; a rejection is fed back for one corrective pass.
+    // gateDecision runs the two checks in order (`json_schema`, then
+    // `business_rules`) and, on rejection, throws with the checks that ran.
     try {
-      const raw = restorePrunedNulls(schema.parse(JSON.parse(text)));
-      const decision = normalizeDecision(raw, ctx);
+      const { decision, checks } = gateDecision(text, schema, ctx);
       recordAudit({
         actorType: 'system',
         action: 'validate_message',
@@ -119,18 +121,25 @@ export async function decide(
           retired: decision.retired.length,
           collected: decision.collected_document_ids,
           attestation: decision.attestation?.action ?? null,
+          checks,
         },
       });
       return { decision, usage, model };
     } catch (err) {
       lastError = err;
+      const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);
       recordAudit({
         actorType: 'system',
         action: 'validate_message',
         agentInstanceId: opts.log?.agentInstanceId ?? null,
         clientId: opts.log?.clientId ?? null,
         severity: 'warning',
-        detail: { attempt, result: false, error: (err instanceof Error ? err.message : String(err)).slice(0, 500) },
+        detail: {
+          attempt,
+          result: false,
+          error: message,
+          checks: err instanceof DecisionRejectedError ? err.checks : [check('json_schema', false, message)],
+        },
       });
       if (attempt < MAX_DECISION_ATTEMPTS) {
         logger.warn('decision rejected by validation; retrying once with corrective feedback', {

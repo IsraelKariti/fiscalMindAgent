@@ -197,7 +197,7 @@ export async function verifyCollectedDocument(
       attempt: attempts + 1,
       result: verdict.passed,
       issuer: extracted.issuer,
-      checks: verdict.checks.map((c) => ({ key: c.key, passed: c.passed })),
+      checks: verdict.checks.map((c) => ({ key: c.key, passed: c.passed, note: c.reason })),
       reasons: verdict.reasons,
     },
   });

@@ -124,6 +124,7 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
         quarantined: gate.quarantined,
         quarantineReason: gate.quarantineReason,
         candidates: requiredDocuments.map((d) => d.id),
+        checks: gate.checks,
       },
     });
     await documentFiles.setAnalysis(file.id, 'done', analysis);

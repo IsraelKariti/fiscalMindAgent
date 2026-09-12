@@ -126,7 +126,7 @@ export async function applyFormIntake(
   }
   const raw = intakeSchema.parse(JSON.parse(text));
 
-  const { valid, dropped, unclear } = validateFormResolutions(raw, rows, answers);
+  const { valid, dropped, unclear, checks } = validateFormResolutions(raw, rows, answers);
   // Step validate_form_resolutions: code checks every proposal. true = all
   // accepted, false = at least one dropped (a dropped row stays unresolved —
   // no retry, the interview covers it).
@@ -143,6 +143,7 @@ export async function applyFormIntake(
       accepted: valid.map((v) => ({ typeKey: v.typeKey, resolution: v.resolution })),
       unclear,
       dropped,
+      checks,
     },
   });
   if (dropped.length > 0) {

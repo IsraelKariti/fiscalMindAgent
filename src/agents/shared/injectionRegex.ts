@@ -10,6 +10,8 @@
  * unscreened (form intake, message screening, file screening).
  */
 
+import { check, type GateCheck } from './gateChecks.js';
+
 export interface InjectionPattern {
   /** Stable label for audit rows / telemetry. */
   kind: string;
@@ -56,4 +58,15 @@ export function matchInjectionRegex(text: string): InjectionRegexHit | null {
 /** Every pattern the text sets off (empty = clean) — the transcript's tripwire note lists them all. */
 export function injectionRegexLabels(text: string): string[] {
   return INJECTION_PATTERNS.filter((p) => p.pattern.test(text)).map((p) => p.kind);
+}
+
+/**
+ * The gate's check list for the audit row: one entry per pattern, in pattern
+ * order; a pattern that matched is a failed check whose note quotes the match.
+ */
+export function injectionRegexChecks(text: string): GateCheck[] {
+  return INJECTION_PATTERNS.map(({ kind, pattern }) => {
+    const m = pattern.exec(text);
+    return check(kind, m === null, m?.[0].slice(0, 300));
+  });
 }

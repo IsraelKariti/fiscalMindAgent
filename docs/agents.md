@@ -651,10 +651,29 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
 Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
 
 - **Every LLM result is followed by a named code gate**, audited as one row
-  per run with `detail.result: true|false` and the reason:
-  `injection_detection_regex`, `validate_injection_scan`,
-  `validate_form_resolutions`, `validate_classification`, `validate_message`
-  (one per decide attempt), `verify_extraction` (with the per-check table).
+  per run with `detail.result: true|false`, the reason, and — since
+  2026-09-12 (openspec `code-gates`) — `detail.checks`: the ordered list of
+  the checks that actually ran, each `{ key, passed, note }` (`note` = the
+  failure reason, `null` on a pass; a check that did not apply is absent, not
+  "passed"). The type and builder live in `shared/gateChecks.ts`; the pure
+  rules modules return the list and the call sites only copy it into the
+  audit row. Gates and their checks:
+  `injection_detection_regex` (one check per named pattern, the match as the
+  note), `validate_injection_scan` (`clean_without_evidence` |
+  `hit_has_evidence` + `evidence_verbatim` when the text was readable),
+  `validate_form_resolutions` (one check per proposed catalog type key, drop
+  reason as note), `validate_classification` (`matched_id_known`,
+  `matched_type_agrees`, then `not_injection_suspected` / `legible` — the
+  quarantine checks are reported but never change `result`),
+  `validate_message` (one row per decide attempt: `json_schema`, then
+  `business_rules` via `gateDecision` in `decisionSchema.ts`; the second is
+  absent when parsing failed), `verify_extraction` (the per-document table
+  from `verifyChecks.ts`: `legible`, `expected_type`, `subject`,
+  `id_checksum`, `id_matches_client`, `as_of_date`, `not_expired`,
+  `amounts`). In the trace viewers a gate row with a `checks` list is a
+  button that opens `GateChecksModal` (✓ / ✗ per check with its note, labels
+  in `i18n.gateCheckLabels`); rows without one (older audit rows, `apply_*`,
+  `send_reply`) are plain.
   A gate never flips a security verdict: it drops or rejects, it does not
   make a "suspected" answer "clean". Pure rules modules (no llm/db/audit
   imports, tests run without an API key): `shared/injectionRegex.ts`,

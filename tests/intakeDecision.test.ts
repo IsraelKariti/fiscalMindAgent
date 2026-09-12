@@ -1,11 +1,63 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  DecisionRejectedError,
+  decisionSchemaForContext,
+  gateDecision,
   normalizeDecision,
   type DecisionContext,
   type DecisionResponse,
   type IntakeDecisionState,
 } from '../src/agents/declarationOfCapital/decisionSchema.js';
+
+describe('validate_message check list (gateDecision)', () => {
+  const ctx = ctxWith(baseIntake());
+  const schema = decisionSchemaForContext(ctx);
+
+  it('a valid answer passes both checks', () => {
+    const { decision, checks } = gateDecision(JSON.stringify(baseRaw()), schema, ctx);
+    assert.equal(decision.decision, 'follow_up');
+    assert.deepEqual(checks, [
+      { key: 'json_schema', passed: true, note: null },
+      { key: 'business_rules', passed: true, note: null },
+    ]);
+  });
+
+  it('a schema-invalid answer fails json_schema only — business_rules never ran', () => {
+    for (const text of ['not json at all', JSON.stringify({ decision: 'follow_up' })]) {
+      assert.throws(
+        () => gateDecision(text, schema, ctx),
+        (err: unknown) => {
+          assert.ok(err instanceof DecisionRejectedError);
+          assert.equal(err.checks.length, 1);
+          assert.equal(err.checks[0]!.key, 'json_schema');
+          assert.equal(err.checks[0]!.passed, false);
+          assert.ok((err.checks[0]!.note ?? '').length > 0);
+          return true;
+        },
+      );
+    }
+  });
+
+  it('an answer normalization rejects passes json_schema and fails business_rules with the rejection text', () => {
+    const text = JSON.stringify(
+      baseRaw({ resolved_documents: [{ document_id: 'doc-vehicle', resolution: 'not_required', instances: null, evidence: null }] }),
+    );
+    assert.throws(
+      () => gateDecision(text, schema, ctx),
+      (err: unknown) => {
+        assert.ok(err instanceof DecisionRejectedError);
+        assert.match(err.message, /requires evidence/);
+        assert.deepEqual(
+          err.checks.map((c) => [c.key, c.passed]),
+          [['json_schema', true], ['business_rules', false]],
+        );
+        assert.match(err.checks[1]!.note ?? '', /requires evidence/);
+        return true;
+      },
+    );
+  });
+});
 
 /** A minimal valid follow_up answer; tests override the intake fields. */
 function baseRaw(overrides: Partial<DecisionResponse> = {}): DecisionResponse {

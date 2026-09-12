@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CAPITAL_DOCUMENT_CATALOG } from './catalog.js';
+import { check, type GateCheck } from '../shared/gateChecks.js';
 
 /**
  * Pure rules of the file_classification stage: the response schemas and the code gate
@@ -55,6 +56,12 @@ export interface ClassificationGateResult {
   /** Suspected injection or illegible: never evidence, never linked — reported alongside, the verdict stands. */
   quarantined: boolean;
   quarantineReason: 'injection suspected' | 'illegible' | null;
+  /**
+   * The checks that ran, for the audit row: `matched_id_known` /
+   * `matched_type_agrees` (drop rules — these decide `result`), then
+   * `not_injection_suspected` / `legible` (quarantine — reported, never flipped).
+   */
+  checks: GateCheck[];
 }
 
 /** The quarantine rule on a fresh analysis (fileEvidence.isQuarantined applies it to stored rows). */
@@ -77,6 +84,7 @@ export function validateClassification(raw: FileAnalysis, requiredDocuments: Cla
   let result = true;
   let reason: string | null = null;
   let rejectedId: string | null = null;
+  const checks: GateCheck[] = [];
   if (analysis.matched_document_id !== null) {
     const row = requiredDocuments.find((d) => d.id === analysis.matched_document_id);
     if (!row) {
@@ -84,14 +92,24 @@ export function validateClassification(raw: FileAnalysis, requiredDocuments: Cla
       rejectedId = analysis.matched_document_id;
       reason = `matched id "${rejectedId}" is not in the required-documents list`;
       analysis.matched_document_id = null;
-    } else if (analysis.document_type !== undefined && row.type_key !== null && row.type_key !== analysis.document_type) {
-      result = false;
-      rejectedId = analysis.matched_document_id;
-      reason = `matched id "${rejectedId}" is of type "${row.type_key}" but the file was classified as "${analysis.document_type}"`;
-      analysis.matched_document_id = null;
+      checks.push(check('matched_id_known', false, reason));
+    } else {
+      checks.push(check('matched_id_known', true));
+      if (analysis.document_type !== undefined && row.type_key !== null) {
+        const agrees = row.type_key === analysis.document_type;
+        if (!agrees) {
+          result = false;
+          rejectedId = analysis.matched_document_id;
+          reason = `matched id "${rejectedId}" is of type "${row.type_key}" but the file was classified as "${analysis.document_type}"`;
+          analysis.matched_document_id = null;
+        }
+        checks.push(check('matched_type_agrees', agrees, reason));
+      }
     }
   }
   const quarantined = classificationQuarantined(analysis);
   const quarantineReason = !quarantined ? null : analysis.injection_suspected ? 'injection suspected' : 'illegible';
-  return { analysis, result, reason, rejectedId, quarantined, quarantineReason };
+  checks.push(check('not_injection_suspected', analysis.injection_suspected !== true, 'injection suspected'));
+  checks.push(check('legible', analysis.legible !== false, 'illegible'));
+  return { analysis, result, reason, rejectedId, quarantined, quarantineReason, checks };
 }

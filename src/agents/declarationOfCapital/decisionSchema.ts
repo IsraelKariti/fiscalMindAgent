@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { check, type GateCheck } from '../shared/gateChecks.js';
 import { isWallClockDateTime } from '../../util/time.js';
 import { renderTemplateBody } from '../../twilio/renderTemplate.js';
 import type { WaTemplateRow } from '../../db/types.js';
@@ -660,6 +661,46 @@ export function correctionSuffix(invalidAnswer: string, err: unknown): string {
     `Validation error: ${message}`,
     'Return a corrected, complete JSON decision now. Remember: every follow_up decision MUST include exactly one full message (the chosen channel\'s fields) and a future send_at — "no message needed" is never a valid state; when there is nothing new to say, schedule a gentle reminder instead.',
   ].join('\n');
+}
+
+/** A decision answer the gate rejected; `checks` is the audit row's check list for that attempt. */
+export class DecisionRejectedError extends Error {
+  constructor(
+    message: string,
+    public readonly checks: GateCheck[],
+  ) {
+    super(message);
+    this.name = 'DecisionRejectedError';
+  }
+}
+
+/**
+ * Step validate_message, pure: the model's raw answer text through the two
+ * checks in order — `json_schema` (JSON parse + the context's schema) then
+ * `business_rules` (normalizeDecision). Returns the decision with both checks
+ * passed, or throws DecisionRejectedError carrying only the checks that ran
+ * (`business_rules` is absent when parsing already failed).
+ */
+export function gateDecision(
+  text: string,
+  schema: z.ZodType<Partial<DecisionResponse>>,
+  ctx: DecisionContext,
+): { decision: NormalizedDecision; checks: GateCheck[] } {
+  const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 500);
+  let parsed: DecisionResponse;
+  try {
+    parsed = restorePrunedNulls(schema.parse(JSON.parse(text)));
+  } catch (err) {
+    const message = messageOf(err);
+    throw new DecisionRejectedError(message, [check('json_schema', false, message)]);
+  }
+  try {
+    const decision = normalizeDecision(parsed, ctx);
+    return { decision, checks: [check('json_schema', true), check('business_rules', true)] };
+  } catch (err) {
+    const message = messageOf(err);
+    throw new DecisionRejectedError(message, [check('json_schema', true), check('business_rules', false, message)]);
+  }
 }
 
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {

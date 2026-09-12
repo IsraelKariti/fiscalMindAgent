@@ -4,7 +4,7 @@ import * as llmUsage from '../../db/queries/llmUsage.js';
 import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import { recordAudit } from '../../audit/audit.js';
 import { logger } from '../../util/logger.js';
-import { matchInjectionRegex, type InjectionRegexHit } from './injectionRegex.js';
+import { injectionRegexChecks, matchInjectionRegex, type InjectionRegexHit } from './injectionRegex.js';
 import { validateInjectionScan, type InjectionScanGateResult } from './injectionScanRules.js';
 import { endFence, fence, makeFenceToken, sanitizeInline } from './promptSafety.js';
 
@@ -138,7 +138,14 @@ export function runInjectionRegexStep(text: string, ctx: InjectionScreenContext)
     targetId: ctx.targetId ?? null,
     severity: hit ? (ctx.source === 'form_intake' ? 'critical' : 'warning') : 'info',
     suspectedInjection: hit !== null,
-    detail: { source: ctx.source, result: hit === null, kind: hit?.kind ?? null, evidence: hit?.evidence ?? null, chars: text.length },
+    detail: {
+      source: ctx.source,
+      result: hit === null,
+      kind: hit?.kind ?? null,
+      evidence: hit?.evidence ?? null,
+      chars: text.length,
+      checks: injectionRegexChecks(text),
+    },
   });
   return hit;
 }
@@ -162,6 +169,7 @@ function recordScanGate(ctx: InjectionScreenContext, gate: InjectionScanGateResu
       evidence: gate.evidence,
       verbatimChecked: gate.verbatimChecked,
       chars,
+      checks: gate.checks,
     },
   });
 }

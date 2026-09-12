@@ -72,6 +72,13 @@ describe('runChecks', () => {
     const verdict = runChecks({ ...baseFields, is_expected_type: false, legible: false }, baseCtx);
     assert.equal(verdict.passed, false);
     assert.equal(verdict.reasons.length, 2);
+    // The per-check reasons are what the audit row's check notes carry: one
+    // per failed check, in check order, null on a pass.
+    assert.deepEqual(
+      verdict.checks.filter((c) => !c.passed).map((c) => c.reason),
+      verdict.reasons,
+    );
+    assert.ok(verdict.checks.filter((c) => c.passed).every((c) => c.reason === null));
   });
 
   it('fails a date-dependent document stating a different as-of date', () => {

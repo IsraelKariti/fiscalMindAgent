@@ -27,6 +27,28 @@ function raw(parts: Partial<FormIntakeResponse>): FormIntakeResponse {
 }
 
 describe('form-intake resolution validation', () => {
+  it('reports one check per proposed verdict, in proposal order, with the drop reason as the note', () => {
+    const { checks, dropped } = validateFormResolutions(
+      raw({
+        verdicts: { crypto: 'not_required', prior_declaration: 'unclear', bank_balance: 'required', life_insurance_savings: 'not_required' },
+        evidence: [
+          { type_key: 'crypto', question: 'מטבעות דיגיטליים', quote: 'לא' },
+          { type_key: 'life_insurance_savings', question: 'ביטוח מנהלים או פוליסת חיסכון', quote: 'אין לי' },
+        ],
+        instances: [],
+      }),
+      rows,
+      answers,
+    );
+    assert.equal(dropped.length, 2);
+    assert.deepEqual(checks, [
+      { key: 'crypto', passed: true, note: null },
+      { key: 'prior_declaration', passed: true, note: null },
+      { key: 'bank_balance', passed: false, note: 'required without instances' },
+      { key: 'life_insurance_savings', passed: false, note: 'quote not found verbatim in the form answers' },
+    ]);
+  });
+
   it('accepts a required verdict with instances and a not_required with a real quote', () => {
     const { valid, dropped } = validateFormResolutions(
       raw({

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { check, type GateCheck } from '../shared/gateChecks.js';
 
 /**
  * The pure contract of the form pre-resolution (formIntake.ts): the model's
@@ -89,7 +90,7 @@ export function validateFormResolutions(
   raw: FormIntakeResponse,
   rows: FormResolvableRow[],
   answers: FormAnswer[],
-): { valid: ValidatedFormResolution[]; dropped: string[]; unclear: string[] } {
+): { valid: ValidatedFormResolution[]; dropped: string[]; unclear: string[]; checks: GateCheck[] } {
   const byTypeKey = new Map(rows.map((r) => [r.typeKey, r]));
   const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
   const allAnswersText = answers
@@ -178,5 +179,12 @@ export function validateFormResolutions(
     }
     valid.push({ documentId: row.id, typeKey: row.typeKey, resolution: 'required', instances });
   }
-  return { valid, dropped, unclear };
+  // One check per proposed verdict, in proposal order: dropped = failed with
+  // the drop reason; accepted or left for the interview (unclear) = passed.
+  const checks = Object.keys(raw.verdicts).map((typeKey) => {
+    const prefix = `${typeKey}: `;
+    const drop = dropped.find((d) => d.startsWith(prefix));
+    return check(typeKey, drop === undefined, drop?.slice(prefix.length));
+  });
+  return { valid, dropped, unclear, checks };
 }

@@ -69,6 +69,8 @@ export function AdminReview({ onCountChanged }: Props) {
             : t.reviewApproveConfirm(message.clientName),
           confirmLabel: t.reviewApprove,
           danger: false,
+          // Same hazard styling as the workspace timeline's past-due approve modal.
+          warning: message.pastDue,
           onConfirm: () => void run(message.id, () => api.adminApproveReviewMessage(message.id)),
         };
       case 'regenerate':

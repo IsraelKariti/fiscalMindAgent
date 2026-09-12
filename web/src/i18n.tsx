@@ -612,7 +612,11 @@ const he = {
   reviewApproveConfirm: (client: string) => `לאשר את שליחת ההודעה ללקוח ${client}?`,
   reviewApproveConfirmPastDue: (client: string) => `לאשר את שליחת ההודעה ללקוח ${client}? מועד השליחה כבר עבר, ולכן היא תישלח מיד.`,
   approveDraftConfirm: (when: string) => `לאשר את ההודעה? היא תישלח במועד המתוכנן, ${when}.`,
-  approveDraftConfirmPastDue: 'לאשר את ההודעה? מועד השליחה כבר עבר, ולכן היא תישלח מיד.',
+  approveDraftNowTitle: 'ההודעה תישלח מיד',
+  approveDraftNowNote: 'מועד השליחה המתוכנן כבר עבר. אישור ההודעה ישלח אותה ללקוח באופן מיידי, לא במועד המתוכנן. לאשר ולשלוח עכשיו?',
+  approveDraftNowConfirm: 'אישור ושליחה מיד',
+  approveDraftSentNow: 'ההודעה אושרה ונשלחה ללקוח מיד.',
+  dismiss: 'סגירה',
   approvingDraft: 'מאשר…',
   reviewRegenerate: 'ניסוח מחדש',
   reviewRegenerateConfirm: (client: string) =>

@@ -1035,6 +1035,15 @@ textarea {
   border: 1px solid rgba(52, 211, 153, 0.3);
 }
 
+/* Timeline: "approved past due, sent immediately" notice with a dismiss button */
+.sent-now-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* Login */
 .login-card {
   width: 350px;

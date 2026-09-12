@@ -324,15 +324,32 @@ export function Timeline({
         : null,
     [trace, nextScheduled],
   );
-  const [confirmingApprove, setConfirmingApprove] = useState(false);
+  // Which approve modal is open. Decided at click time (not render time) so a
+  // trace refresh can't flip the modal's wording under the admin's cursor:
+  // 'now' = the send time already passed (parked as 'held', or by the clock),
+  // so approval sends immediately; 'scheduled' = it will send on schedule.
+  const [confirmingApprove, setConfirmingApprove] = useState<'scheduled' | 'now' | null>(null);
   const [approveBusy, setApproveBusy] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
+  // Id of the draft the server just sent at once (approved past due). Drives a
+  // dismissable notice that outlives the scheduled block (which vanishes as
+  // soon as the send lands) and clears itself once a different draft is up.
+  const [sentNowId, setSentNowId] = useState<string | null>(null);
+  const openApproveModal = () => {
+    if (!pendingReview || !nextScheduled) return;
+    const pastDue = pendingReview.status === 'held' || Date.parse(nextScheduled.scheduledFor) <= Date.now();
+    setConfirmingApprove(pastDue ? 'now' : 'scheduled');
+  };
   const approveDraft = async () => {
     if (!pendingReview) return;
+    const draftId = pendingReview.id;
     setApproveBusy(true);
     setApproveError(null);
+    setSentNowId(null);
     try {
-      await api.adminApproveReviewMessage(pendingReview.id);
+      // The server, not the client's guess, says whether it went out at once.
+      const { sentImmediately } = await api.adminApproveReviewMessage(draftId);
+      if (sentImmediately) setSentNowId(draftId);
       await loadTrace();
     } catch (err) {
       setApproveError(err instanceof ApiError ? err.message : t.reviewActionFailed);
@@ -340,6 +357,9 @@ export function Timeline({
       setApproveBusy(false);
     }
   };
+  useEffect(() => {
+    if (sentNowId && pendingReview && pendingReview.id !== sentNowId) setSentNowId(null);
+  }, [sentNowId, pendingReview]);
   const toggleTrace = (kind: TraceKind, on: boolean) => {
     (kind === 'calls' ? setShowCalls : setShowSteps)(on);
     try {
@@ -559,6 +579,14 @@ export function Timeline({
         {regenError && <div className="error-banner">{regenError}</div>}
         {sendRetryError && <div className="error-banner">{sendRetryError}</div>}
         {approveError && <div className="error-banner">{approveError}</div>}
+        {sentNowId && !approveError && (
+          <div className="ok-banner sent-now-banner" role="status">
+            <span>{t.approveDraftSentNow}</span>
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setSentNowId(null)}>
+              {t.dismiss}
+            </button>
+          </div>
+        )}
         {visibleEmails.length === 0 && !showScheduled && goalStatus !== 'pending' && (
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
@@ -684,7 +712,7 @@ export function Timeline({
                   <button
                     type="button"
                     className="btn btn-primary btn-small approve-draft-btn"
-                    onClick={() => setConfirmingApprove(true)}
+                    onClick={openApproveModal}
                     disabled={approveBusy || regenBusy || pauseBusy}
                   >
                     {approveBusy ? t.approvingDraft : t.reviewApprove}
@@ -827,17 +855,23 @@ export function Timeline({
           <p className="muted timeline-footer">{t.goalCompleteFooter}</p>
         )}
       </div>
-      {confirmingApprove && pendingReview && nextScheduled && (
+      {confirmingApprove === 'now' && pendingReview && (
+        <ConfirmModal
+          warning
+          title={t.approveDraftNowTitle}
+          note={t.approveDraftNowNote}
+          confirmLabel={t.approveDraftNowConfirm}
+          onConfirm={() => void approveDraft()}
+          onClose={() => setConfirmingApprove(null)}
+        />
+      )}
+      {confirmingApprove === 'scheduled' && pendingReview && nextScheduled && (
         <ConfirmModal
           title={t.reviewApprove}
-          note={
-            pendingReview.status === 'held' || Date.parse(nextScheduled.scheduledFor) <= Date.now()
-              ? t.approveDraftConfirmPastDue
-              : t.approveDraftConfirm(formatTimestamp(nextScheduled.scheduledFor))
-          }
+          note={t.approveDraftConfirm(formatTimestamp(nextScheduled.scheduledFor))}
           confirmLabel={t.reviewApprove}
           onConfirm={() => void approveDraft()}
-          onClose={() => setConfirmingApprove(false)}
+          onClose={() => setConfirmingApprove(null)}
         />
       )}
       {confirmingSendNow && nextScheduled && (

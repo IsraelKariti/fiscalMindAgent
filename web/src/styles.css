@@ -1319,6 +1319,21 @@ textarea {
   font-size: 13px;
 }
 
+/* Admin-only (048): approve the review-pending draft right from the thread. */
+.approve-draft-btn {
+  margin-inline-start: auto;
+  padding: 1px 12px;
+  font-size: 13px;
+}
+
+.approve-draft-btn + .send-now-btn {
+  margin-inline-start: 0;
+}
+
+.review-pending-badge {
+  align-self: center;
+}
+
 /* "Regenerate" and "Pause" sit at the far edge next to "Send now" (which carries
    the auto margin). */
 .regenerate-btn,

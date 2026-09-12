@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import {
   api,
@@ -16,6 +16,7 @@ import { formatFileSize, formatTimestamp, formatUsd, humanizePurpose, LOCALE } f
 import { useT } from '../i18n';
 import { useViewer } from '../agents/ApiContext';
 import { CallDetailModal } from './admin/AdminLlmCalls';
+import { ConfirmModal } from './ConfirmModal';
 import { FileViewModal } from './FileViewModal';
 import { SendNowModal } from './SendNowModal';
 
@@ -279,8 +280,20 @@ export function Timeline({
   const [trace, setTrace] = useState<AdminConversation | null>(null);
   const [traceError, setTraceError] = useState<string | null>(null);
   const traceOn = traceAvailable && (showCalls || showSteps);
+  // Fetched for any admin viewer, not only with a trace toggle on: the same
+  // payload tells whether the scheduled draft awaits admin review (048), which
+  // drives the in-conversation approve button below.
+  const loadTrace = useCallback(async () => {
+    if (!traceAvailable || !clientId) return;
+    try {
+      setTrace(await api.adminGetClientConversation(clientId));
+      setTraceError(null);
+    } catch {
+      setTraceError(t.conversationTraceFailed);
+    }
+  }, [traceAvailable, clientId, t]);
   useEffect(() => {
-    if (!traceOn || !clientId) {
+    if (!traceAvailable || !clientId) {
       setTrace(null);
       return;
     }
@@ -301,7 +314,32 @@ export function Timeline({
     };
     // Refetch whenever the thread changes (a new message means new calls/steps).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [traceOn, clientId, emails, nextScheduled]);
+  }, [traceAvailable, clientId, emails, nextScheduled]);
+  // The live draft awaiting admin review, if any (admin viewer only). A replan's
+  // discarded draft never counts — the endpoint flags those.
+  const pendingReview = useMemo(
+    () =>
+      nextScheduled && trace
+        ? (trace.messages.find((m) => m.direction === 'outbound' && m.reviewStatus === 'pending' && !m.discarded) ?? null)
+        : null,
+    [trace, nextScheduled],
+  );
+  const [confirmingApprove, setConfirmingApprove] = useState(false);
+  const [approveBusy, setApproveBusy] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
+  const approveDraft = async () => {
+    if (!pendingReview) return;
+    setApproveBusy(true);
+    setApproveError(null);
+    try {
+      await api.adminApproveReviewMessage(pendingReview.id);
+      await loadTrace();
+    } catch (err) {
+      setApproveError(err instanceof ApiError ? err.message : t.reviewActionFailed);
+    } finally {
+      setApproveBusy(false);
+    }
+  };
   const toggleTrace = (kind: TraceKind, on: boolean) => {
     (kind === 'calls' ? setShowCalls : setShowSteps)(on);
     try {
@@ -520,6 +558,7 @@ export function Timeline({
         {retryError && <div className="error-banner">{retryError}</div>}
         {regenError && <div className="error-banner">{regenError}</div>}
         {sendRetryError && <div className="error-banner">{sendRetryError}</div>}
+        {approveError && <div className="error-banner">{approveError}</div>}
         {visibleEmails.length === 0 && !showScheduled && goalStatus !== 'pending' && (
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
@@ -638,6 +677,19 @@ export function Timeline({
                     </>
                   )}
                 </span>
+                {pendingReview && (
+                  <span className="badge badge-pending review-pending-badge">{t.adminMsgStatusHeld}</span>
+                )}
+                {pendingReview && !paused && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-small approve-draft-btn"
+                    onClick={() => setConfirmingApprove(true)}
+                    disabled={approveBusy || regenBusy || pauseBusy}
+                  >
+                    {approveBusy ? t.approvingDraft : t.reviewApprove}
+                  </button>
+                )}
                 {paused ? (
                   <button
                     type="button"
@@ -775,6 +827,19 @@ export function Timeline({
           <p className="muted timeline-footer">{t.goalCompleteFooter}</p>
         )}
       </div>
+      {confirmingApprove && pendingReview && nextScheduled && (
+        <ConfirmModal
+          title={t.reviewApprove}
+          note={
+            pendingReview.status === 'held' || Date.parse(nextScheduled.scheduledFor) <= Date.now()
+              ? t.approveDraftConfirmPastDue
+              : t.approveDraftConfirm(formatTimestamp(nextScheduled.scheduledFor))
+          }
+          confirmLabel={t.reviewApprove}
+          onConfirm={() => void approveDraft()}
+          onClose={() => setConfirmingApprove(false)}
+        />
+      )}
       {confirmingSendNow && nextScheduled && (
         <SendNowModal
           channel={nextScheduled.channel}

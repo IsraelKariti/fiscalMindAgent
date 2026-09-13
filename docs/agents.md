@@ -505,6 +505,15 @@ capability** — there is no accountant button.
   precedent as the OAuth token tables), imported from the accountant's
   boards/sheets via the shared client-import mapping (two optional columns:
   national ID + permanent user code), synced for new *and* existing clients.
+  Only the tax authority needs that row (its login also takes the user code).
+  Altshuler and Harel log in with a national id + the client's WhatsApp
+  number, and take the id from `taxFetch/clientId.ts` `clientIdNumber` in
+  one shared order — the provider's own credentials row → the tax-authority
+  row → `agent_fields.id_number` stored by the kickoff from the CRM card —
+  used both by the availability check (`flow.ts`) and the runner's login, so
+  an offer the agent makes can always be carried out; verification's
+  `clientIdOnFile` uses the same helper before its lazy CRM fetch (openspec
+  `document-fetch`).
 - **WhatsApp media (outbound infra, currently unused)**: `sendWhatsAppMedia` +
   a signed, expiring public link (`src/storage/mediaUrl.ts` +
   `GET /media/:token`, `MEDIA_SIGNING_SECRET`), since Twilio fetches media

@@ -1,6 +1,5 @@
 import { Buffer } from 'node:buffer';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
-import * as clientPortalCredentials from '../../db/queries/clientPortalCredentials.js';
 import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { downloadBlob } from '../../storage/blob.js';
@@ -22,10 +21,11 @@ import * as clients from '../../db/queries/clients.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { fetchItemDetails } from '../shared/mondayData.js';
 import { crmIdNumber } from './crmIdentity.js';
+import { clientIdNumber, type ClientIdOnFile } from './taxFetch/clientId.js';
 import type { AgentInstanceRow, ClientRow, ClientDocumentRow } from '../../db/types.js';
 import type { Readable } from 'node:stream';
 
-type IdOnFile = { id: string; source: 'credentials' | 'monday_crm' };
+type IdOnFile = ClientIdOnFile;
 
 /**
  * The client's national id the checks compare a printed id against, and
@@ -36,10 +36,8 @@ type IdOnFile = { id: string; source: 'credentials' | 'monday_crm' };
  * verification: it just leaves no id on file.
  */
 async function clientIdOnFile(client: ClientRow): Promise<IdOnFile | null> {
-  const credentials = await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority');
-  if (credentials?.id_number) return { id: credentials.id_number, source: 'credentials' };
-  const stored = client.agent_fields['id_number'];
-  if (typeof stored === 'string' && stored.trim() !== '') return { id: stored, source: 'monday_crm' };
+  const onFile = await clientIdNumber(client, 'israel_tax_authority');
+  if (onFile) return onFile;
 
   const crmItemId = client.agent_fields['monday_crm_item_id'];
   if (typeof crmItemId !== 'string' || crmItemId === '' || !client.user_id) return null;

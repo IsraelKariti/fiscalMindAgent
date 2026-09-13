@@ -1,5 +1,6 @@
 import * as clientPortalCredentials from '../../../db/queries/clientPortalCredentials.js';
 import type { ClientRow } from '../../../db/types.js';
+import { clientIdNumber } from './clientId.js';
 import type { FetchedDocument, PortalCredentials } from './types.js';
 
 /**
@@ -204,12 +205,11 @@ const altshulerShahamSpec: FetchProviderSpec = {
   ],
 
   async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
-    // The login needs a national ID and the client's phone. The ID comes from a
-    // portal-credentials row; fall back to the tax-authority row's id_number
-    // (same person, same ת"ז) so a client already set up for the 106 fetch needs
-    // no new credential. The phone is the client's own WhatsApp number.
-    const own = await clientPortalCredentials.getForClient(client.id, 'altshuler_shaham');
-    const idNumber = own?.id_number ?? (await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority'))?.id_number;
+    // The login needs a national ID and the client's phone (the WhatsApp
+    // number). The ID comes from clientIdNumber's shared order: own
+    // credentials row → tax-authority row → the id the kickoff stored from
+    // the CRM card (openspec `document-fetch`).
+    const idNumber = (await clientIdNumber(client, 'altshuler_shaham'))?.id;
     if (!idNumber || !client.wa_phone) return null;
     return { idNumber, phoneNumber: client.wa_phone };
   },
@@ -296,12 +296,11 @@ const harelSpec: FetchProviderSpec = {
   ],
 
   async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
-    // The login needs a national ID and the client's phone. The ID comes from a
-    // portal-credentials row; fall back to the tax-authority row's id_number
-    // (same person, same ת"ז) so a client already set up for the 106 fetch needs
-    // no new credential. The phone is the client's own WhatsApp number.
-    const own = await clientPortalCredentials.getForClient(client.id, 'harel');
-    const idNumber = own?.id_number ?? (await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority'))?.id_number;
+    // The login needs a national ID and the client's phone (the WhatsApp
+    // number). The ID comes from clientIdNumber's shared order: own
+    // credentials row → tax-authority row → the id the kickoff stored from
+    // the CRM card (openspec `document-fetch`).
+    const idNumber = (await clientIdNumber(client, 'harel'))?.id;
     if (!idNumber || !client.wa_phone) return null;
     return { idNumber, phoneNumber: client.wa_phone };
   },

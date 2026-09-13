@@ -14,6 +14,7 @@ import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/monday
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { getCatalogType } from './catalog.js';
 import { verifyCollectedDocument } from './verifyDocument.js';
+import { additionsStepDetail, collectionsStepDetail, resolutionsStepDetail, retirementsStepDetail } from './applyStepDetails.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState } from './decisionSchema.js';
@@ -235,6 +236,13 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       clientId,
       detail: { clientName: client.name, ...detail },
     });
+  // Names for the step details (read at call time: `documents` is reloaded
+  // after the apply block). Unknown ids fall back to the id itself.
+  const docName = (id: string): string | undefined => documents.find((d) => d.id === id)?.name;
+  const fileName = (id: string): string | undefined => {
+    const f = files.find((x) => x.id === id);
+    return f ? (f.label ?? f.filename) : undefined;
+  };
   let stepBase = applied;
   if (!decision.suspected_injection && decision.resolutions.length > 0) {
     for (const resolution of decision.resolutions) {
@@ -281,10 +289,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   }
 
   if (applied > stepBase) {
-    step('apply_resolutions', {
-      count: applied - stepBase,
-      rows: decision.resolutions.map((r) => ({ id: r.documentId, resolution: r.resolution })),
-    });
+    step('apply_resolutions', resolutionsStepDetail(decision.resolutions, docName, applied - stepBase));
     stepBase = applied;
   }
 
@@ -313,10 +318,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   }
 
   if (applied > stepBase) {
-    step('apply_additions', {
-      count: applied - stepBase,
-      entries: decision.addedInstances.map((a) => ({ anchorId: a.anchorDocumentId, instances: a.instances.map((i) => i.name) })),
-    });
+    step('apply_additions', additionsStepDetail(decision.addedInstances, docName, applied - stepBase));
     stepBase = applied;
   }
 
@@ -346,7 +348,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   }
 
   if (applied > stepBase) {
-    step('apply_retirements', { count: applied - stepBase, rows: decision.retired.map((r) => r.documentId) });
+    step('apply_retirements', retirementsStepDetail(decision.retired, docName, applied - stepBase));
     stepBase = applied;
   }
 
@@ -423,7 +425,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       agentInstanceId: client.agent_instance_id,
       clientId,
       targetType: 'client_document',
-      detail: { clientName: client.name, documentIds: newlyCollected },
+      detail: { clientName: client.name, documentIds: newlyCollected, names: newlyCollected.map((id) => docName(id) ?? id) },
     });
   }
   if (newlyClaimed.length > 0) {
@@ -454,12 +456,14 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   }
 
   if (newlyCollected.length + newlyClaimed.length + proposedPairs.length > 0) {
-    step('apply_collections', {
-      proposed: decision.collected_document_ids,
-      collected: newlyCollected,
-      claimed: newlyClaimed,
-      pairs: proposedPairs.map((m) => ({ fileId: m.file_id, documentId: m.document_id })),
-    });
+    step(
+      'apply_collections',
+      collectionsStepDetail(
+        { proposed: decision.collected_document_ids, collected: newlyCollected, claimed: newlyClaimed, pairs: proposedPairs },
+        docName,
+        fileName,
+      ),
+    );
   }
 
   // Verification pipeline: each just-collected document

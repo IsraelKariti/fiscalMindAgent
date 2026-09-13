@@ -683,11 +683,14 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   the document prints an id but none is on file — reported, never enforced),
   `as_of_date`, `not_expired`, `amounts` — each with the value read from the
   document as `observed` and the reference as `expected`; the amounts check
-  names the exact failing amount and condition in its reason). In the trace viewers a gate row with a
-  `checks` list is a button that opens `GateChecksModal` (✓ / ✗ per check,
-  "נבדק:" / "צפוי:" value lines, the note under a failure; labels in
-  `i18n.gateCheckLabels`); rows without one (older audit rows, `apply_*`,
-  `send_reply`) are plain.
+  names the exact failing amount and condition in its reason). In the trace viewers every
+  step row is a button that opens `StepDetailModal`: a "what the step did"
+  section built by `stepSummary.ts` from the row's detail (document names,
+  evidence quotes, channel, scheduled time; labels in `i18n.stepFieldLabels`,
+  unknown keys listed generically so nothing is hidden), then, for a gate
+  row, its `checks` list (✓ / ✗ per check, "נבדק:" / "צפוי:" value lines,
+  the note under a failure; labels in `i18n.gateCheckLabels`), then the raw
+  JSON collapsed.
   A gate never flips a security verdict: it drops or rejects, it does not
   make a "suspected" answer "clean". Pure rules modules (no llm/db/audit
   imports, tests run without an API key): `shared/injectionRegex.ts`,
@@ -768,4 +771,8 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
 - **Apply phase**: `plan.ts` records one `apply_resolutions` /
   `apply_additions` / `apply_retirements` / `apply_collections` /
   `apply_attestation` / `send_reply` row per decision field that changed
-  state (never for a no-op).
+  state (never for a no-op). The detail names every document the step
+  touched next to its id (`applyStepDetails.ts`: `name`, `anchorName`,
+  `collectedNames`, pair `fileName` / `documentName`), so the row stays
+  readable after the document is deleted and the modal never shows bare
+  ids; rows written before 2026-09-13 carry ids only.

@@ -4056,9 +4056,8 @@ button.meta-chip:hover {
   background: rgba(251, 113, 133, 0.14);
 }
 
-/* Code-gate row with a recorded check list: the whole row is a button that
-   opens the checks modal. Rows without checks (old rows, apply_*) keep the
-   plain <li> and no affordance. */
+/* Code-step row: the whole row is a button that opens the step detail modal
+   (what the step did; the check list too for a gate row). */
 .timeline-trace-gate {
   display: inline-flex;
   flex-wrap: wrap;
@@ -4125,6 +4124,59 @@ button.meta-chip:hover {
      the modal's max-height squeezes the list and clips the last checks
      instead of scrolling the modal. */
   flex-shrink: 0;
+}
+/* "What the step did": labelled rows of the step's detail. Same box as the
+   check list, and flex-shrink:0 for the same reason (the modal scrolls). */
+.gate-summary-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+.gate-summary-empty {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.gate-summary-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr);
+  gap: 4px 16px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+.gate-summary-row:first-child {
+  border-top: none;
+}
+.gate-summary-row dt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 600;
+}
+.gate-summary-row dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gate-summary-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gate-summary-items li {
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var(--border);
+}
+@media (max-width: 480px) {
+  .gate-summary-row {
+    grid-template-columns: 1fr;
+  }
 }
 .gate-check {
   display: flex;

@@ -10,7 +10,7 @@ import {
 } from '../../api';
 import { displayClientName, formatTimestamp, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
-import { GateChecksModal, gateChecksOf, gateReasonOf, gateResultOf } from '../GateChecksModal';
+import { StepDetailModal, gateReasonOf, gateResultOf } from '../StepDetailModal';
 
 type TimelineEntry =
   | { kind: 'message'; at: number; message: AdminConversationMessage }
@@ -209,43 +209,32 @@ export function AgentConversationsCard({ instanceId }: { instanceId: string }) {
 }
 
 /**
- * One audited code step in the admin viewer. A gate row that recorded its
- * check list is a button that opens the shared checks modal; rows without a
- * list (older audit rows, apply_* / send_reply) render with no affordance.
+ * One audited code step in the admin viewer. Every row is a button that
+ * opens the shared step detail modal (what the step did, plus the check
+ * list for a gate row).
  */
 function AdminStepRow({ step: s }: { step: AdminConversationStep }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
-  const checks = gateChecksOf(s);
   const result = gateResultOf(s);
   const reason = gateReasonOf(s);
-  const content = (
-    <>
-      {s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' ? '⚙️' : '🛡️'}{' '}
-      {formatTimestamp(s.occurredAt)} · <span className="mono">{s.action}</span>
-      {result !== null && (
-        <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`} style={{ marginInlineStart: 6 }}>
-          result: {String(result)}
-        </span>
-      )}
-      {reason && ` · ${reason}`}
-    </>
-  );
   return (
     <p
       className={`muted admin-timeline-step ${s.severity === 'critical' ? 'admin-timeline-critical' : ''}`}
       dir="ltr"
       style={{ textAlign: 'left', marginBottom: 6 }}
-      title={JSON.stringify(s.detail)}
     >
-      {checks ? (
-        <button type="button" className="timeline-trace-gate" aria-label={`${t.gateModalOpen}: ${s.action}`} onClick={() => setOpen(true)}>
-          {content}
-        </button>
-      ) : (
-        content
-      )}
-      {open && checks && <GateChecksModal step={s} checks={checks} onClose={() => setOpen(false)} />}
+      <button type="button" className="timeline-trace-gate" aria-label={`${t.gateModalOpen}: ${s.action}`} onClick={() => setOpen(true)}>
+        {s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' ? '⚙️' : '🛡️'}{' '}
+        {formatTimestamp(s.occurredAt)} · <span className="mono">{s.action}</span>
+        {result !== null && (
+          <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`} style={{ marginInlineStart: 6 }}>
+            result: {String(result)}
+          </span>
+        )}
+        {reason && ` · ${reason}`}
+      </button>
+      {open && <StepDetailModal step={s} onClose={() => setOpen(false)} />}
     </p>
   );
 }

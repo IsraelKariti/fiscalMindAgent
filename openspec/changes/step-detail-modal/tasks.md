@@ -1,0 +1,17 @@
+## 1. Record names in the apply steps (backend)
+
+- [x] 1.1 In `src/agents/declarationOfCapital/plan.ts`, add `name` to each row of `apply_resolutions` and `apply_retirements`, `anchorName` to each entry of `apply_additions`, and `names` for the proposed / collected / claimed lists plus `fileName` and `documentName` on each pair of `apply_collections`; add `names` to the `document.collected` row. Verify with `npm run typecheck` and by reading the recorded detail in a unit test or a local planning cycle (`GET /api/admin/clients/:id/conversation` shows the names).
+- [x] 1.2 Add or extend a unit test in `src/agents/declarationOfCapital/` that runs the apply block against fake documents and asserts the four apply-step details carry the names next to the ids. Verify with `npm test`.
+
+## 2. Step detail modal (frontend)
+
+- [x] 2.1 In `web/src/components/GateChecksModal.tsx`, make `checks` optional, rename the component to `StepDetailModal`, and add the "what this step did" section between the reason and the checks list; keep the checks section only when a list exists and keep the raw JSON section. Verify with `npm run typecheck` and by opening a gate row (checks still listed) and an `apply_*` row (no checks section) in the browser.
+- [x] 2.2 Add `stepSummaryOf(step)` (same file or a sibling `stepSummary.ts`) with per-action mappings for `apply_resolutions`, `apply_additions`, `apply_retirements`, `apply_collections`, `apply_attestation`, `send_reply`, `document.instances_added`, `document.retired`, `document.resolved`, `document.collected`, `document.claimed`, `document.verified`, `document.verification_failed`, `review.message_pending`, `review.message_held`, `client.attestation_requested`, `client.attestation_confirmed`, `planner.rerun_after_verification`, `goal.completed`, `email.client_sent`, `wa.text_sent`, `wa.template_sent`, and a generic fallback for every other action and every unconsumed key; drop `clientName`; use `name ?? id` for document rows. Verify with a unit test in `web/src` that feeds one fixture per mapped action (including an old id-only `apply_retirements` row) and asserts the summary rows.
+- [x] 2.3 In `web/src/i18n.tsx`, add labels for the summary fields (`stepFieldLabels`) and for the non-gate step actions, and reword `gateModalOpen` to a neutral "open step details" text. Verify the modal shows Hebrew labels for every mapped field and `humanizePurpose` for an unmapped key.
+- [x] 2.4 In `web/src/components/Timeline.tsx` (`StepRow`) and `web/src/components/admin/AgentConversationsCard.tsx` (`AdminStepRow`), always wrap the row in the button, remove the `checks ?` branch and the raw-JSON `title`, and open `StepDetailModal` for every row. Verify in the browser: mouse click, Enter and Space open the modal on an `apply_additions` row in both surfaces; Escape, backdrop and the close button close it; an accountant session shows no trace rows.
+- [x] 2.5 Adjust `web/src/styles.css` so the new summary section scrolls with the modal body and long item lists do not clip (reuse the recent gate-modal scroll rules). Verify with a long `apply_collections` row and at phone width.
+
+## 3. Docs and wrap-up
+
+- [x] 3.1 Update the trace section of `docs/agents.md` (around "Code gates and the three injection layers") to say every step row opens the detail modal and that apply steps record names. Verify by reading the section.
+- [ ] 3.2 Run `npm run typecheck` and `npm test`, then commit per the repo git workflow and push.

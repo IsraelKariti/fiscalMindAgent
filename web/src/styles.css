@@ -1776,6 +1776,11 @@ textarea {
   flex: 1;
 }
 
+/* A status badge inside the column must not stretch to the row's width. */
+.doc-file-text > .badge {
+  align-self: flex-start;
+}
+
 .doc-file-label {
   color: var(--text);
   overflow: hidden;

@@ -4121,6 +4121,10 @@ button.meta-chip:hover {
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
+  /* overflow:hidden lets a flex child shrink below its content; without this
+     the modal's max-height squeezes the list and clips the last checks
+     instead of scrolling the modal. */
+  flex-shrink: 0;
 }
 .gate-check {
   display: flex;

@@ -280,6 +280,7 @@ export function Timeline({
   const [filter, setFilter] = useState<ChannelFilter>('all');
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
   // Admin-only LLM trace. The toggle exists only for an admin viewer with a
   // clientId; the accountant never sees it and the endpoint behind it
   // (requireAdmin, checked on the REAL user) refuses their session anyway.
@@ -381,7 +382,6 @@ export function Timeline({
   // Whether the user is scrolled near the bottom — sampled on every scroll so the
   // auto-scroll below never yanks someone who is reading older messages.
   const nearBottomRef = useRef(true);
-  const didInitRef = useRef(false);
 
   // The filter only exists when the client actually has (or is about to get)
   // WhatsApp traffic — email-only conversations keep the plain header.
@@ -419,26 +419,31 @@ export function Timeline({
     return t.attachmentFile;
   };
 
-  const lastEmailId = visibleEmails[visibleEmails.length - 1]?.id ?? null;
-
   const trackScroll = () => {
     const el = bodyRef.current;
     if (!el) return;
     nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
 
-  // Open at the latest message; afterwards only follow new messages if the user
-  // was already at the bottom. Keyed on the last email id, not the array, so the
-  // 15s refresh leaves scroll position alone when nothing changed.
+  // Open at the latest message and stay there while the content grows — messages
+  // arriving, trace rows loading, images decoding, the panel getting its final
+  // height — unless the user has scrolled up to read older messages. A
+  // ResizeObserver on the list (and on the panel, for viewport changes) sees
+  // every one of those; an effect keyed on the data cannot, because the DOM often
+  // has not reached its final size when React commits.
   useEffect(() => {
     const el = bodyRef.current;
-    if (!el || el.scrollHeight <= el.clientHeight) return;
-    if (didInitRef.current && !nearBottomRef.current) return;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollTo({ top: el.scrollHeight, behavior: didInitRef.current && !reduceMotion ? 'smooth' : 'auto' });
-    didInitRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastEmailId, nextScheduled?.scheduledFor]);
+    const list = listRef.current;
+    if (!el || !list) return;
+    const follow = () => {
+      if (nearBottomRef.current) el.scrollTop = el.scrollHeight;
+    };
+    follow();
+    const ro = new ResizeObserver(follow);
+    ro.observe(list);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const retryDraft = async () => {
     setRetryBusy(true);
@@ -601,7 +606,7 @@ export function Timeline({
           <p className="muted">{t.noEmailsExchangedYet}</p>
         )}
         {traceError && traceOn && <div className="error-banner">{traceError}</div>}
-        <ol className="timeline">
+        <ol className="timeline" ref={listRef}>
           {mergeTrace(visibleEmails, traceOn ? trace : null, { calls: showCalls, steps: showSteps }).map((row) => {
             if (row.kind !== 'message') {
               return <TraceRow key={`${row.kind}-${row.kind === 'call' ? row.call.id : row.step.id}`} entry={row} />;

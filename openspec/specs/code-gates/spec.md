@@ -38,7 +38,8 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
   - `expected_type`: observed = what the model saw the document as (`actual_kind`); expected = the required document's name.
   - `subject`: observed = the printed subject name (or, when an id match vouched for it, the masked id); expected = the client's name.
   - `id_checksum`: observed = the masked id printed on the document.
-  - `id_matches_client`: observed = the masked id printed on the document; expected = the masked id on file.
+  - `id_matches_client`: when the document prints an id and an id is on file; observed = the masked id printed on the document; expected = the masked id on file followed by its source in parentheses: the tax-portal credentials or the monday CRM card.
+  - `client_id_on_file`: when the document prints an id but no id is on file (after the CRM-card fetch of the `declaration-kickoff` capability); `passed: false`, observed = "none", note = the client has no id on the tax-portal credentials or the monday CRM card, so the printed id could not be compared. This check is reported alongside and does not change `result`.
   - `as_of_date`: observed = the as-of date read (or "not stated"); expected = 31.12 of the declaration year.
   - `not_expired`: observed = the valid-until date read; expected = the verification date.
   - `amounts`: observed = the amounts found, each as label, value and currency (capped to a short list); the failure note says which condition failed: no amounts found, a negative value, a value above the sane cap, or a value that is not a number, naming the offending amount.
@@ -62,3 +63,11 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
 #### Scenario: Decision rejected by business rules
 - **WHEN** the planner's answer parses against the schema but normalization rejects it (for example, an evidence quote not found in the transcript)
 - **THEN** the `validate_message` row for that attempt has `result: false`, `json_schema` passed and `business_rules` failed with the rejection message as note
+
+#### Scenario: Printed id compared with the CRM card's id
+- **WHEN** the client's id on file came from the monday CRM card and the document prints the same id
+- **THEN** the `verify_extraction` row has `id_matches_client` passed, observed the masked printed id, expected the masked id on file with "(monday CRM)" as its source
+
+#### Scenario: Printed id but nothing on file
+- **WHEN** the document prints an id, the client has no tax-portal credentials, and the CRM card (if any) yields no id
+- **THEN** the row carries `client_id_on_file` with `passed: false` and a note that no id is on file, `id_matches_client` is absent, and `result` is not affected by this check

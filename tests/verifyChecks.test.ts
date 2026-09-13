@@ -114,6 +114,26 @@ describe('runChecks', () => {
     assert.match(nan.reason ?? '', /אינו מספר/);
   });
 
+  it('a printed id missing its leading zero still matches the 9-digit id on file', () => {
+    // 012345542 is checksum-valid; banks commonly print it as 12345542.
+    const printed = '12345542';
+    const verdict = runChecks(
+      { ...baseFields, subject_id_number: printed },
+      { ...baseCtx, credentialIdNumber: '012345542', credentialIdSource: 'monday_crm' },
+    );
+    const match = verdict.checks.find((c) => c.key === 'id_matches_client')!;
+    assert.equal(match.passed, true);
+    assert.equal(match.observed, '••••••542');
+    assert.equal(match.expected, '••••••542 (monday CRM)');
+    assert.equal(verdict.checks.find((c) => c.key === 'subject')!.passed, true);
+    // The reverse case: the CRM card dropped the zero, the document printed it.
+    const reverse = runChecks(
+      { ...baseFields, subject_id_number: '012345542' },
+      { ...baseCtx, credentialIdNumber: printed },
+    );
+    assert.equal(reverse.checks.find((c) => c.key === 'id_matches_client')!.passed, true);
+  });
+
   it('id_matches_client names where the id on file came from', () => {
     const fromCrm = runChecks(
       { ...baseFields, subject_id_number: VALID_ID },

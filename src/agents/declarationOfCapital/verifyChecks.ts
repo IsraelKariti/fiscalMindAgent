@@ -127,6 +127,17 @@ export function isValidIsraeliId(id: string): boolean {
   return sum % 10 === 0;
 }
 
+/**
+ * Digits only, left-padded to the 9 digits of an Israeli id. Documents (and
+ * CRM cards) often drop a leading zero; "12345543" and "012345543" are the
+ * same person and must compare equal.
+ */
+export function normalizeIdNumber(raw: string | null | undefined): string {
+  const digits = (raw ?? '').replace(/\D/g, '');
+  if (digits === '' || digits.length > 9) return digits;
+  return digits.padStart(9, '0');
+}
+
 /** Lowercase, strip punctuation/quotes, split to tokens of 2+ chars. */
 function nameTokens(name: string): string[] {
   return name
@@ -179,8 +190,8 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
   );
 
   if (ctx.checks.subjectMatch) {
-    const normalizedDocId = fields.subject_id_number?.replace(/\D/g, '') ?? '';
-    const normalizedCredId = ctx.credentialIdNumber?.replace(/\D/g, '') ?? '';
+    const normalizedDocId = normalizeIdNumber(fields.subject_id_number);
+    const normalizedCredId = normalizeIdNumber(ctx.credentialIdNumber);
     const idMatches = normalizedDocId !== '' && normalizedCredId !== '' && normalizedDocId === normalizedCredId;
     if (idMatches) {
       add('subject', true, '', `ת"ז ${maskId(normalizedDocId)} תואמת ללקוח`, ctx.clientName);
@@ -200,9 +211,9 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
   // An id printed on the document must be a real id, and must not contradict
   // the one on file — regardless of whether subjectMatch applies to the type.
   if (fields.subject_id_number) {
-    const normalizedDocId = fields.subject_id_number.replace(/\D/g, '');
+    const normalizedDocId = normalizeIdNumber(fields.subject_id_number);
     add('id_checksum', isValidIsraeliId(normalizedDocId), 'מספר תעודת הזהות המופיע במסמך אינו תקין', maskId(normalizedDocId));
-    const normalizedCredId = ctx.credentialIdNumber?.replace(/\D/g, '') ?? '';
+    const normalizedCredId = normalizeIdNumber(ctx.credentialIdNumber);
     if (normalizedCredId !== '') {
       const source = ctx.credentialIdSource === 'monday_crm' ? ' (monday CRM)' : ctx.credentialIdSource === 'credentials' ? ' (credentials)' : '';
       add(

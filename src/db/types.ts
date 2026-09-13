@@ -172,7 +172,8 @@ export interface ClientDocumentRow {
 }
 
 /** 'blocked' (054): the injection screen flagged the file before classification — quarantined, never analyzed. */
-export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked';
+/** 'not_needed': the platform fetched the file itself and linked it — content analysis does not apply (057). */
+export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked' | 'not_needed';
 
 /** What the injection screen found on a withheld message / blocked file (054). */
 export interface InjectionBlock {

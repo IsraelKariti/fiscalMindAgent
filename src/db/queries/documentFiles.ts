@@ -35,10 +35,12 @@ export async function insertIfNew(args: {
   contentType: string;
   sizeBytes: number;
   sha256: string;
+  /** 'not_needed' for files the platform fetched itself (already linked; content analysis does not apply). Default 'pending'. */
+  analysisStatus?: 'pending' | 'not_needed';
 }): Promise<DocumentFileRow | null> {
   const { rows } = await pool.query<DocumentFileRow>(
-    `INSERT INTO document_files (client_id, email_id, provider_attachment_id, blob_key, filename, label, content_type, size_bytes, sha256)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO document_files (client_id, email_id, provider_attachment_id, blob_key, filename, label, content_type, size_bytes, sha256, analysis_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (provider_attachment_id) DO NOTHING
      RETURNING *`,
     [
@@ -51,6 +53,7 @@ export async function insertIfNew(args: {
       args.contentType,
       args.sizeBytes,
       args.sha256,
+      args.analysisStatus ?? 'pending',
     ],
   );
   return rows[0] ?? null;

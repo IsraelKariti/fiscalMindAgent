@@ -58,6 +58,13 @@ function AnalysisLine({ file }: { file: DocumentFile }) {
       </span>
     );
   }
+  if (file.analysis_status === 'not_needed') {
+    return (
+      <span className="badge badge-neutral" title={t.analysisNotNeededTitle}>
+        {t.analysisNotNeeded}
+      </span>
+    );
+  }
   if (file.analysis_status !== 'done' || !file.analysis) {
     const label =
       file.analysis_status === 'failed'

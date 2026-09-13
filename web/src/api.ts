@@ -93,7 +93,8 @@ export interface ClientDocument {
 }
 
 /** 'blocked': the injection screen flagged the file before classification — quarantined, never analyzed. */
-export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked';
+/** 'not_needed': the platform fetched the file itself — content analysis does not apply. */
+export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked' | 'not_needed';
 
 /** What the injection screen found on a withheld message / blocked file. */
 export interface InjectionBlock {

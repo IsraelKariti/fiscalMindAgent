@@ -460,6 +460,8 @@ const he = {
   analysisPending: 'טרם נותח',
   analysisFailed: 'הניתוח נכשל',
   analysisUnsupported: 'לא ניתן לניתוח תוכן',
+  analysisNotNeeded: 'הובא אוטומטית מהאתר',
+  analysisNotNeededTitle: 'המערכת הביאה את הקובץ בעצמה מאתר הספק וקישרה אותו למסמך. ניתוח התוכן מיועד לקבצים שהלקוח שולח, ולכן לא רלוונטי כאן; הקובץ נבדק בשלב האימות.',
   analysisIdentified: (kind: string) => `זוהה בתוכן: ${kind}`,
   analysisTaxYear: (year: string) => `שנת מס ${year}`,
   analysisNotLegible: 'לא קריא',

@@ -109,6 +109,9 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
       contentType: doc.contentType,
       sizeBytes: doc.buffer.length,
       sha256: createHash('sha256').update(doc.buffer).digest('hex'),
+      // The platform fetched this file and links it below; the inbound content
+      // analyzer (which matches a client-sent file to a document) never runs on it.
+      analysisStatus: 'not_needed',
     });
     if (!file) throw new Error(`tax fetch: document_files insert returned no row for session ${session.id}`);
     files.push(file);

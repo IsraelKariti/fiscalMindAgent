@@ -9,6 +9,7 @@ import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { logger } from '../../util/logger.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { catalogSeedRows } from './catalog.js';
+import { crmIdNumber } from './crmIdentity.js';
 import type { FormAnswer } from './formIntake.js';
 import type { BoardSource } from '../shared/clientSources.js';
 import type { AgentInstanceRow, ClientRow } from '../../db/types.js';
@@ -28,9 +29,8 @@ import type { AgentInstanceRow, ClientRow } from '../../db/types.js';
  * prompts and the verification date checks.
  */
 
-/** Title fallbacks when the CRM board has no phone-typed column / for the ID cell. */
+/** Title fallback when the CRM board has no phone-typed column. The id cell rule lives in crmIdentity.ts. */
 const PHONE_TITLE = /phone|mobile|cell|טלפון|נייד/i;
-const ID_TITLE = /מספר זהות|תעודת זהות|^ת\.?["”״׳']?ז\.?$/i;
 
 /** monday column types that can never be a form question's answer. */
 const NON_ANSWER_TYPES = new Set(['board_relation', 'mirror', 'subtasks', 'file', 'formula', 'button']);
@@ -53,12 +53,6 @@ function findPhone(crm: ItemDetails): string | null {
   const typed = crm.columns.find((c) => c.type === 'phone' && c.text !== '');
   const titled = typed ?? crm.columns.find((c) => PHONE_TITLE.test(c.title.trim()) && c.text !== '');
   return titled ? normalizeE164(titled.text) : null;
-}
-
-function findIdNumber(crm: ItemDetails): string | null {
-  const cell = crm.columns.find((c) => ID_TITLE.test(c.title.trim()) && c.text !== '');
-  const digits = cell?.text.replace(/\D/g, '') ?? '';
-  return digits.length >= 5 ? digits : null;
 }
 
 export interface DeclarationIntake {
@@ -105,7 +99,7 @@ export async function resolveDeclarationClient(
     return null;
   }
   const clientName = crm.itemName.trim() || row.itemName.trim() || waPhone;
-  const idNumber = findIdNumber(crm);
+  const idNumber = crmIdNumber(crm.columns);
 
   const fileNumber = column(board.fileNumberColumnId)?.text || undefined;
   // The declaration year is the engagement identity (file number + year) and

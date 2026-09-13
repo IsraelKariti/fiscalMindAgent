@@ -85,6 +85,8 @@ export interface CheckContext {
   clientName: string;
   /** National id from client_portal_credentials, when on file (accountant-imported — trusted). */
   credentialIdNumber: string | null;
+  /** Where credentialIdNumber came from — shown next to the expected value of id_matches_client. */
+  credentialIdSource?: 'credentials' | 'monday_crm' | null;
   taxYear: number;
   /** Verification time — the notExpired check is judged against this. */
   now: Date;
@@ -202,12 +204,23 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
     add('id_checksum', isValidIsraeliId(normalizedDocId), 'מספר תעודת הזהות המופיע במסמך אינו תקין', maskId(normalizedDocId));
     const normalizedCredId = ctx.credentialIdNumber?.replace(/\D/g, '') ?? '';
     if (normalizedCredId !== '') {
+      const source = ctx.credentialIdSource === 'monday_crm' ? ' (monday CRM)' : ctx.credentialIdSource === 'credentials' ? ' (credentials)' : '';
       add(
         'id_matches_client',
         normalizedDocId === normalizedCredId,
         'מספר תעודת הזהות במסמך אינו תואם את זה הרשום ללקוח',
         maskId(normalizedDocId),
-        maskId(normalizedCredId),
+        `${maskId(normalizedCredId)}${source}`,
+      );
+    } else {
+      // Nothing to compare against: reported so the trace shows why, but it
+      // never decides the verdict (see the filter below) — an accountant's
+      // CRM card without an id must not stall every document.
+      add(
+        'client_id_on_file',
+        false,
+        'ללקוח אין מספר תעודת זהות רשום — לא בפרטי הכניסה לרשות המסים ולא בכרטיס ה-CRM ב-monday — ולכן לא ניתן היה להשוות את המספר שבמסמך',
+        'none',
       );
     }
   }
@@ -268,7 +281,8 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
     add('amounts', problem === null, problem ?? '', observed);
   }
 
-  const failed = checks.filter((c) => !c.passed);
+  // client_id_on_file is informational: it is listed, never enforced.
+  const failed = checks.filter((c) => !c.passed && c.key !== 'client_id_on_file');
   return {
     passed: failed.length === 0,
     reasons: failed.map((c) => c.reason!),

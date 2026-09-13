@@ -18,8 +18,48 @@ import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { logger } from '../../util/logger.js';
 import { buildExtractionCall, checksFor } from './extractionCall.js';
 import { ExtractionSchema, runChecks, type ExtractedFields } from './verifyChecks.js';
+import * as clients from '../../db/queries/clients.js';
+import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
+import { fetchItemDetails } from '../shared/mondayData.js';
+import { crmIdNumber } from './crmIdentity.js';
 import type { AgentInstanceRow, ClientRow, ClientDocumentRow } from '../../db/types.js';
 import type { Readable } from 'node:stream';
+
+type IdOnFile = { id: string; source: 'credentials' | 'monday_crm' };
+
+/**
+ * The client's national id the checks compare a printed id against, and
+ * where it came from: the tax-portal credentials first, then the id the
+ * kickoff stored from the monday CRM card, then — for a client enrolled
+ * before the card's id cell was recognised — the card itself, fetched once
+ * and stored (openspec `declaration-kickoff`). monday trouble never fails a
+ * verification: it just leaves no id on file.
+ */
+async function clientIdOnFile(client: ClientRow): Promise<IdOnFile | null> {
+  const credentials = await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority');
+  if (credentials?.id_number) return { id: credentials.id_number, source: 'credentials' };
+  const stored = client.agent_fields['id_number'];
+  if (typeof stored === 'string' && stored.trim() !== '') return { id: stored, source: 'monday_crm' };
+
+  const crmItemId = client.agent_fields['monday_crm_item_id'];
+  if (typeof crmItemId !== 'string' || crmItemId === '' || !client.user_id) return null;
+  try {
+    const token = await mondayOauthTokens.getByUserId(client.user_id);
+    if (!token) return null;
+    const crm = await fetchItemDetails(token.access_token, crmItemId);
+    const id = crm ? crmIdNumber(crm.columns) : null;
+    if (!id) {
+      logger.info('document verification: linked CRM card carries no id cell', { clientId: client.id, crmItemId });
+      return null;
+    }
+    await clients.setDeclarationEngagement(client.id, { idNumber: id });
+    logger.info('document verification: client id fetched from the CRM card and stored', { clientId: client.id });
+    return { id, source: 'monday_crm' };
+  } catch (err) {
+    logger.warn('document verification: CRM card fetch for the client id failed', { clientId: client.id, crmItemId, err: String(err) });
+    return null;
+  }
+}
 
 /**
  * The automatic verification pipeline (collected → approved), the only code
@@ -171,11 +211,11 @@ export async function verifyCollectedDocument(
   // Validate — deterministic code against ground truth. The ת"ז may come from
   // the tax-portal credentials or from the client's CRM card (declaration-of-
   // capital kickoff stores it in agent_fields.id_number).
-  const credentials = await clientPortalCredentials.getForClient(client.id, 'israel_tax_authority');
-  const crmIdNumber = client.agent_fields['id_number'];
+  const idOnFile = await clientIdOnFile(client);
   const verdict = runChecks(extracted, {
     clientName: client.name,
-    credentialIdNumber: credentials?.id_number ?? (typeof crmIdNumber === 'string' ? crmIdNumber : null),
+    credentialIdNumber: idOnFile?.id ?? null,
+    credentialIdSource: idOnFile?.source ?? null,
     taxYear,
     now,
     checks,

@@ -84,8 +84,14 @@ monday WorkForm is the only source of which documents a declaration needs):
   `fetchItemDetails` in `shared/mondayData.ts` reads titles/types +
   `BoardRelationValue.linked_item_ids`): the webhook follows the CRM link for
   the phone (first phone-typed column, title-pattern fallback; the ת"ז cell
-  feeds `agent_fields.id_number`, used by verification as a credentials
-  fallback), enrolls the phone-keyed client on the spot, and stamps the
+  — recognised by `crmIdentity.ts` `crmIdNumber`: Hebrew titles `מספר זהות` /
+  `תעודת זהות` / `זהות` / `ת"ז` in any punctuation, English `id` / `id number`
+  / `national id` / `identity` as words, never `item|board|monday|pulse`
+  titles, ≥ 5 digits, checksum-valid candidate preferred — feeds
+  `agent_fields.id_number`, used by verification after the tax-portal
+  credentials; a client with neither but a linked CRM card gets the card
+  fetched once at verification and the id stored, openspec
+  `declaration-kickoff`), enrolls the phone-keyed client on the spot, and stamps the
   engagement identity — **file number + declaration year** — plus the linked
   item ids into `agent_fields` (`file_number`, `tax_year`,
   `monday_crm_item_id`, `monday_form_item_id`).
@@ -672,10 +678,12 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `business_rules` via `gateDecision` in `decisionSchema.ts`; the second is
   absent when parsing failed), `verify_extraction` (the per-document table
   from `verifyChecks.ts`: `legible`, `expected_type`, `subject`,
-  `id_checksum`, `id_matches_client`, `as_of_date`, `not_expired`,
-  `amounts` — each with the value read from the document as `observed` and
-  the reference as `expected`; the amounts check names the exact failing
-  amount and condition in its reason). In the trace viewers a gate row with a
+  `id_checksum`, `id_matches_client` (its `expected` names the source of the
+  id on file: `(credentials)` or `(monday CRM)`), `client_id_on_file` (when
+  the document prints an id but none is on file — reported, never enforced),
+  `as_of_date`, `not_expired`, `amounts` — each with the value read from the
+  document as `observed` and the reference as `expected`; the amounts check
+  names the exact failing amount and condition in its reason). In the trace viewers a gate row with a
   `checks` list is a button that opens `GateChecksModal` (✓ / ✗ per check,
   "נבדק:" / "צפוי:" value lines, the note under a failure; labels in
   `i18n.gateCheckLabels`); rows without one (older audit rows, `apply_*`,

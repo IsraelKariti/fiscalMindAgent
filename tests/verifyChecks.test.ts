@@ -114,6 +114,34 @@ describe('runChecks', () => {
     assert.match(nan.reason ?? '', /אינו מספר/);
   });
 
+  it('id_matches_client names where the id on file came from', () => {
+    const fromCrm = runChecks(
+      { ...baseFields, subject_id_number: VALID_ID },
+      { ...baseCtx, credentialIdNumber: VALID_ID, credentialIdSource: 'monday_crm' },
+    );
+    assert.equal(fromCrm.checks.find((c) => c.key === 'id_matches_client')!.expected, '••••••782 (monday CRM)');
+    const fromCreds = runChecks(
+      { ...baseFields, subject_id_number: VALID_ID },
+      { ...baseCtx, credentialIdNumber: VALID_ID, credentialIdSource: 'credentials' },
+    );
+    assert.equal(fromCreds.checks.find((c) => c.key === 'id_matches_client')!.expected, '••••••782 (credentials)');
+    assert.equal(fromCreds.passed, true);
+    assert.equal(fromCreds.checks.some((c) => c.key === 'client_id_on_file'), false);
+  });
+
+  it('a printed id with nothing on file reports client_id_on_file without failing the document', () => {
+    const verdict = runChecks({ ...baseFields, subject_id_number: VALID_ID }, { ...baseCtx, credentialIdNumber: null });
+    const onFile = verdict.checks.find((c) => c.key === 'client_id_on_file')!;
+    assert.equal(onFile.passed, false);
+    assert.equal(onFile.observed, 'none');
+    assert.match(onFile.reason ?? '', /monday/);
+    assert.equal(verdict.checks.some((c) => c.key === 'id_matches_client'), false);
+    assert.equal(verdict.passed, true);
+    assert.deepEqual(verdict.reasons, []);
+    // No id printed on the document: nothing to compare, nothing reported.
+    assert.equal(runChecks(baseFields, baseCtx).checks.some((c) => c.key === 'client_id_on_file'), false);
+  });
+
   it('a printed id never appears unmasked in any check text', () => {
     const verdict = runChecks(
       { ...baseFields, subject_name: null, subject_id_number: VALID_ID },

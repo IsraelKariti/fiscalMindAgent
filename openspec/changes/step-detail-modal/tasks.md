@@ -14,4 +14,4 @@
 ## 3. Docs and wrap-up
 
 - [x] 3.1 Update the trace section of `docs/agents.md` (around "Code gates and the three injection layers") to say every step row opens the detail modal and that apply steps record names. Verify by reading the section.
-- [ ] 3.2 Run `npm run typecheck` and `npm test`, then commit per the repo git workflow and push.
+- [x] 3.2 Run `npm run typecheck` and `npm test`, then commit per the repo git workflow and push.

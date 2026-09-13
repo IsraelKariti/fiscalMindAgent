@@ -12,4 +12,4 @@
 ## 3. Docs and wrap-up
 
 - [x] 3.1 Update `docs/agents.md` (fetch credentials section) to state the Altshuler/Harel id order: credentials row → `agent_fields.id_number`. Verify the section reads correctly.
-- [ ] 3.2 Run `npm test` and `npm run typecheck`, then commit and push per the repo Git workflow.
+- [x] 3.2 Run `npm test` and `npm run typecheck`, then commit and push per the repo Git workflow.

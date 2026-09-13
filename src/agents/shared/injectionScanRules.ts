@@ -47,6 +47,8 @@ const norm = (s: string): string => s.replace(/\s+/g, ' ').trim();
 export function validateInjectionScan(raw: InjectionScanRaw, text: string | null): InjectionScanGateResult {
   const evidence = raw.evidence?.trim() ?? '';
   const verbatimChecked = text !== null;
+  // What every check looked at: the model's quote (null when it quoted nothing).
+  const observed = evidence === '' ? null : evidence.slice(0, 300);
   if (!raw.suspected_injection) {
     const reason = evidence === '' ? null : 'clean verdict carries evidence';
     return {
@@ -55,19 +57,26 @@ export function validateInjectionScan(raw: InjectionScanRaw, text: string | null
       result: reason === null,
       reason,
       verbatimChecked,
-      checks: [check('clean_without_evidence', reason === null, reason)],
+      checks: [check('clean_without_evidence', reason === null, reason, { observed })],
     };
   }
   if (evidence === '') {
     const reason = 'hit without evidence';
-    return { suspected: true, evidence: null, result: false, reason, verbatimChecked, checks: [check('hit_has_evidence', false, reason)] };
+    return {
+      suspected: true,
+      evidence: null,
+      result: false,
+      reason,
+      verbatimChecked,
+      checks: [check('hit_has_evidence', false, reason, { observed })],
+    };
   }
-  const checks = [check('hit_has_evidence', true)];
+  const checks = [check('hit_has_evidence', true, null, { observed })];
   if (text !== null && !norm(text).includes(norm(evidence))) {
     const reason = 'evidence not found verbatim in the text under review';
-    checks.push(check('evidence_verbatim', false, reason));
+    checks.push(check('evidence_verbatim', false, reason, { observed }));
     return { suspected: true, evidence: null, result: false, reason, verbatimChecked, checks };
   }
-  if (text !== null) checks.push(check('evidence_verbatim', true));
+  if (text !== null) checks.push(check('evidence_verbatim', true, null, { observed }));
   return { suspected: true, evidence: evidence.slice(0, 500), result: true, reason: null, verbatimChecked, checks };
 }

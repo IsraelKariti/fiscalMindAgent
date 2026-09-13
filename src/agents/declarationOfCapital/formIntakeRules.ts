@@ -181,10 +181,16 @@ export function validateFormResolutions(
   }
   // One check per proposed verdict, in proposal order: dropped = failed with
   // the drop reason; accepted or left for the interview (unclear) = passed.
-  const checks = Object.keys(raw.verdicts).map((typeKey) => {
+  const checks = Object.entries(raw.verdicts).map(([typeKey, verdict]) => {
     const prefix = `${typeKey}: `;
     const drop = dropped.find((d) => d.startsWith(prefix));
-    return check(typeKey, drop === undefined, drop?.slice(prefix.length));
+    // What the gate looked at: the verdict and, for a not_required, the
+    // question and quote the model cited for it.
+    const proof = verdict === 'not_required' ? raw.evidence.find((e) => e.type_key === typeKey) : undefined;
+    const observed = proof
+      ? `${verdict} — "${proof.question.trim()}": "${proof.quote.trim()}"`
+      : verdict;
+    return check(typeKey, drop === undefined, drop?.slice(prefix.length), { observed });
   });
   return { valid, dropped, unclear, checks };
 }

@@ -653,11 +653,14 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
 - **Every LLM result is followed by a named code gate**, audited as one row
   per run with `detail.result: true|false`, the reason, and — since
   2026-09-12 (openspec `code-gates`) — `detail.checks`: the ordered list of
-  the checks that actually ran, each `{ key, passed, note }` (`note` = the
-  failure reason, `null` on a pass; a check that did not apply is absent, not
-  "passed"). The type and builder live in `shared/gateChecks.ts`; the pure
-  rules modules return the list and the call sites only copy it into the
-  audit row. Gates and their checks:
+  the checks that actually ran, each `{ key, passed, note, observed, expected }`
+  (`note` = the failure reason, `null` on a pass; `observed` = the value the
+  check looked at, also on a pass; `expected` = the reference it was compared
+  with, when there is one; a check that did not apply is absent, not
+  "passed"). National ids never appear in full — `maskId` keeps the last three
+  digits. The type, the `check()` builder and `maskId` live in
+  `shared/gateChecks.ts`; the pure rules modules return the list and the call
+  sites only copy it into the audit row. Gates and their checks:
   `injection_detection_regex` (one check per named pattern, the match as the
   note), `validate_injection_scan` (`clean_without_evidence` |
   `hit_has_evidence` + `evidence_verbatim` when the text was readable),
@@ -670,9 +673,12 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   absent when parsing failed), `verify_extraction` (the per-document table
   from `verifyChecks.ts`: `legible`, `expected_type`, `subject`,
   `id_checksum`, `id_matches_client`, `as_of_date`, `not_expired`,
-  `amounts`). In the trace viewers a gate row with a `checks` list is a
-  button that opens `GateChecksModal` (✓ / ✗ per check with its note, labels
-  in `i18n.gateCheckLabels`); rows without one (older audit rows, `apply_*`,
+  `amounts` — each with the value read from the document as `observed` and
+  the reference as `expected`; the amounts check names the exact failing
+  amount and condition in its reason). In the trace viewers a gate row with a
+  `checks` list is a button that opens `GateChecksModal` (✓ / ✗ per check,
+  "נבדק:" / "צפוי:" value lines, the note under a failure; labels in
+  `i18n.gateCheckLabels`); rows without one (older audit rows, `apply_*`,
   `send_reply`) are plain.
   A gate never flips a security verdict: it drops or rejects, it does not
   make a "suspected" answer "clean". Pure rules modules (no llm/db/audit

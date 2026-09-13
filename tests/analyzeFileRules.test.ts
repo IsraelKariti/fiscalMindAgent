@@ -82,10 +82,10 @@ describe('validate_classification (validateClassification)', () => {
 
   it('reports the checks that ran: drop rules decide result, quarantine is reported alongside', () => {
     assert.deepEqual(validateClassification(raw(), rows).checks, [
-      { key: 'matched_id_known', passed: true, note: null },
-      { key: 'matched_type_agrees', passed: true, note: null },
-      { key: 'not_injection_suspected', passed: true, note: null },
-      { key: 'legible', passed: true, note: null },
+      { key: 'matched_id_known', passed: true, note: null, observed: 'doc-1', expected: null },
+      { key: 'matched_type_agrees', passed: true, note: null, observed: 'bank_balance', expected: 'bank_balance' },
+      { key: 'not_injection_suspected', passed: true, note: null, observed: 'injection_suspected: false', expected: null },
+      { key: 'legible', passed: true, note: null, observed: 'legible: true', expected: null },
     ]);
 
     const unknown = validateClassification(raw({ matched_document_id: 'doc-99' }), rows);
@@ -102,6 +102,8 @@ describe('validate_classification (validateClassification)', () => {
       [['matched_id_known', true], ['matched_type_agrees', false], ['not_injection_suspected', true], ['legible', true]],
     );
     assert.match(mismatch.checks[1]!.note ?? '', /study_fund/);
+    assert.equal(mismatch.checks[1]!.observed, 'bank_balance');
+    assert.equal(mismatch.checks[1]!.expected, 'study_fund');
 
     // No match proposed: the id checks did not run.
     assert.deepEqual(
@@ -115,6 +117,8 @@ describe('validate_classification (validateClassification)', () => {
       key: 'not_injection_suspected',
       passed: false,
       note: 'injection suspected',
+      observed: 'injection_suspected: true',
+      expected: null,
     });
     assert.equal(validateClassification(raw({ legible: false }), rows).checks.find((c) => c.key === 'legible')?.passed, false);
   });

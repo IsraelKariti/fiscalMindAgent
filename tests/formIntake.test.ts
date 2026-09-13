@@ -42,10 +42,16 @@ describe('form-intake resolution validation', () => {
     );
     assert.equal(dropped.length, 2);
     assert.deepEqual(checks, [
-      { key: 'crypto', passed: true, note: null },
-      { key: 'prior_declaration', passed: true, note: null },
-      { key: 'bank_balance', passed: false, note: 'required without instances' },
-      { key: 'life_insurance_savings', passed: false, note: 'quote not found verbatim in the form answers' },
+      { key: 'crypto', passed: true, note: null, observed: 'not_required — "מטבעות דיגיטליים": "לא"', expected: null },
+      { key: 'prior_declaration', passed: true, note: null, observed: 'unclear', expected: null },
+      { key: 'bank_balance', passed: false, note: 'required without instances', observed: 'required', expected: null },
+      {
+        key: 'life_insurance_savings',
+        passed: false,
+        note: 'quote not found verbatim in the form answers',
+        observed: 'not_required — "ביטוח מנהלים או פוליסת חיסכון": "אין לי"',
+        expected: null,
+      },
     ]);
   });
 

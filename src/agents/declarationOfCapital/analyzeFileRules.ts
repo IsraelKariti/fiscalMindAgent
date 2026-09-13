@@ -87,29 +87,38 @@ export function validateClassification(raw: FileAnalysis, requiredDocuments: Cla
   const checks: GateCheck[] = [];
   if (analysis.matched_document_id !== null) {
     const row = requiredDocuments.find((d) => d.id === analysis.matched_document_id);
+    const proposedId = analysis.matched_document_id;
     if (!row) {
       result = false;
-      rejectedId = analysis.matched_document_id;
+      rejectedId = proposedId;
       reason = `matched id "${rejectedId}" is not in the required-documents list`;
       analysis.matched_document_id = null;
-      checks.push(check('matched_id_known', false, reason));
+      checks.push(check('matched_id_known', false, reason, { observed: proposedId }));
     } else {
-      checks.push(check('matched_id_known', true));
+      checks.push(check('matched_id_known', true, null, { observed: proposedId }));
       if (analysis.document_type !== undefined && row.type_key !== null) {
         const agrees = row.type_key === analysis.document_type;
         if (!agrees) {
           result = false;
-          rejectedId = analysis.matched_document_id;
+          rejectedId = proposedId;
           reason = `matched id "${rejectedId}" is of type "${row.type_key}" but the file was classified as "${analysis.document_type}"`;
           analysis.matched_document_id = null;
         }
-        checks.push(check('matched_type_agrees', agrees, reason));
+        checks.push(check('matched_type_agrees', agrees, reason, { observed: analysis.document_type, expected: row.type_key }));
       }
     }
   }
   const quarantined = classificationQuarantined(analysis);
   const quarantineReason = !quarantined ? null : analysis.injection_suspected ? 'injection suspected' : 'illegible';
-  checks.push(check('not_injection_suspected', analysis.injection_suspected !== true, 'injection suspected'));
-  checks.push(check('legible', analysis.legible !== false, 'illegible'));
+  checks.push(
+    check('not_injection_suspected', analysis.injection_suspected !== true, 'injection suspected', {
+      observed: analysis.injection_suspected === true ? 'injection_suspected: true' : 'injection_suspected: false',
+    }),
+  );
+  checks.push(
+    check('legible', analysis.legible !== false, 'illegible', {
+      observed: analysis.legible === false ? 'legible: false' : 'legible: true',
+    }),
+  );
   return { analysis, result, reason, rejectedId, quarantined, quarantineReason, checks };
 }

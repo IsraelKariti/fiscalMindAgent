@@ -17,9 +17,10 @@ describe('validate_message check list (gateDecision)', () => {
   it('a valid answer passes both checks', () => {
     const { decision, checks } = gateDecision(JSON.stringify(baseRaw()), schema, ctx);
     assert.equal(decision.decision, 'follow_up');
+    const text = JSON.stringify(baseRaw());
     assert.deepEqual(checks, [
-      { key: 'json_schema', passed: true, note: null },
-      { key: 'business_rules', passed: true, note: null },
+      { key: 'json_schema', passed: true, note: null, observed: `${text.length} chars`, expected: null },
+      { key: 'business_rules', passed: true, note: null, observed: 'follow_up / email', expected: null },
     ]);
   });
 
@@ -53,6 +54,7 @@ describe('validate_message check list (gateDecision)', () => {
           [['json_schema', true], ['business_rules', false]],
         );
         assert.match(err.checks[1]!.note ?? '', /requires evidence/);
+        assert.equal(err.checks[1]!.observed, 'follow_up / email');
         return true;
       },
     );

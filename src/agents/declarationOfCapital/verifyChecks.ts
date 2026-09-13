@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { VerificationChecks } from './catalog.js';
+import { maskId } from '../shared/gateChecks.js';
 
 /**
  * The deterministic half of the verification pipeline: pure code checks over
@@ -88,6 +89,8 @@ export interface CheckContext {
   /** Verification time — the notExpired check is judged against this. */
   now: Date;
   checks: VerificationChecks;
+  /** The required document's name (checklist row) — the expected_type check's reference, when known. */
+  documentName?: string | null;
 }
 
 export interface CheckResult {
@@ -95,6 +98,10 @@ export interface CheckResult {
   passed: boolean;
   /** Hebrew failure reason; null when passed. */
   reason: string | null;
+  /** The value the check inspected (also on a pass); ids masked to their last three digits. */
+  observed: string | null;
+  /** What `observed` was compared with, when the check has a reference. */
+  expected: string | null;
 }
 
 export interface ChecksVerdict {
@@ -140,6 +147,14 @@ export function namesLooselyMatch(a: string, b: string): boolean {
 }
 
 const MAX_SANE_AMOUNT = 1e12;
+/** How many amounts the audit row's observed value lists before "(+N)". */
+const MAX_AMOUNTS_SHOWN = 6;
+
+/** `יתרת עו"ש 52,340.55 ILS` — one amount as the trace shows it. */
+function renderAmount(a: { label: string; value: number; currency: string }): string {
+  const value = Number.isFinite(a.value) ? a.value.toLocaleString('en-US') : String(a.value);
+  return [a.label.trim(), value, a.currency.trim()].filter(Boolean).join(' ');
+}
 
 /** Local-time "YYYY-MM-DD" — comparable lexicographically with extracted dates. */
 function localDateString(d: Date): string {
@@ -148,15 +163,17 @@ function localDateString(d: Date): string {
 
 export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVerdict {
   const checks: CheckResult[] = [];
-  const add = (key: string, passed: boolean, reason: string) =>
-    checks.push({ key, passed, reason: passed ? null : reason });
+  const add = (key: string, passed: boolean, reason: string, observed: string | null, expected: string | null = null) =>
+    checks.push({ key, passed, reason: passed ? null : reason, observed, expected });
 
   // Type + legibility apply to every document.
-  add('legible', fields.legible, 'הקובץ אינו קריא דיו כדי לאמת את תוכנו');
+  add('legible', fields.legible, 'הקובץ אינו קריא דיו כדי לאמת את תוכנו', fields.legible ? 'קריא' : 'לא קריא');
   add(
     'expected_type',
     fields.is_expected_type,
     `הקובץ אינו המסמך הנדרש (זוהה: ${fields.actual_kind || 'לא ידוע'})`,
+    fields.actual_kind || 'לא ידוע',
+    ctx.documentName ?? null,
   );
 
   if (ctx.checks.subjectMatch) {
@@ -164,15 +181,17 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
     const normalizedCredId = ctx.credentialIdNumber?.replace(/\D/g, '') ?? '';
     const idMatches = normalizedDocId !== '' && normalizedCredId !== '' && normalizedDocId === normalizedCredId;
     if (idMatches) {
-      add('subject', true, '');
+      add('subject', true, '', `ת"ז ${maskId(normalizedDocId)} תואמת ללקוח`, ctx.clientName);
     } else if (fields.subject_name) {
       add(
         'subject',
         namesLooselyMatch(fields.subject_name, ctx.clientName),
         `המסמך רשום על שם "${fields.subject_name}" ואינו תואם את שם הלקוח`,
+        fields.subject_name,
+        ctx.clientName,
       );
     } else {
-      add('subject', false, 'שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח');
+      add('subject', false, 'שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח', 'לא מצוין', ctx.clientName);
     }
   }
 
@@ -180,13 +199,15 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
   // the one on file — regardless of whether subjectMatch applies to the type.
   if (fields.subject_id_number) {
     const normalizedDocId = fields.subject_id_number.replace(/\D/g, '');
-    add('id_checksum', isValidIsraeliId(normalizedDocId), 'מספר תעודת הזהות המופיע במסמך אינו תקין');
+    add('id_checksum', isValidIsraeliId(normalizedDocId), 'מספר תעודת הזהות המופיע במסמך אינו תקין', maskId(normalizedDocId));
     const normalizedCredId = ctx.credentialIdNumber?.replace(/\D/g, '') ?? '';
     if (normalizedCredId !== '') {
       add(
         'id_matches_client',
         normalizedDocId === normalizedCredId,
         'מספר תעודת הזהות במסמך אינו תואם את זה הרשום ללקוח',
+        maskId(normalizedDocId),
+        maskId(normalizedCredId),
       );
     }
   }
@@ -197,6 +218,8 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
       'as_of_date',
       fields.as_of_date === expected,
       `המסמך מתייחס לתאריך ${fields.as_of_date ?? 'שאינו מצוין בו'} במקום ליום 31.12.${ctx.taxYear} (המועד הקובע)`,
+      fields.as_of_date ?? 'לא מצוין',
+      expected,
     );
   }
 
@@ -210,19 +233,39 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
     const validUntil =
       fields.valid_until && /^\d{4}-\d{2}-\d{2}$/.test(fields.valid_until) ? fields.valid_until : null;
     if (validUntil) {
+      const today = localDateString(ctx.now);
       add(
         'not_expired',
-        validUntil >= localDateString(ctx.now),
+        validUntil >= today,
         `המסמך בתוקף עד ${validUntil} — תוקפו פג; יש לשלוח עותק עדכני בתוקף`,
+        validUntil,
+        today,
       );
     }
   }
 
   if (ctx.checks.amounts) {
-    const sane =
-      fields.amounts.length > 0 &&
-      fields.amounts.every((a) => Number.isFinite(a.value) && a.value >= 0 && a.value < MAX_SANE_AMOUNT);
-    add('amounts', sane, 'לא זוהו במסמך סכומים כספיים תקינים');
+    // The exact failing condition, naming the offending amount, so the trace
+    // shows why — not just that — the amounts were rejected.
+    const shown = fields.amounts.slice(0, MAX_AMOUNTS_SHOWN).map(renderAmount).join(' · ');
+    const observed =
+      fields.amounts.length === 0
+        ? 'לא נמצאו סכומים'
+        : fields.amounts.length > MAX_AMOUNTS_SHOWN
+          ? `${shown} (+${fields.amounts.length - MAX_AMOUNTS_SHOWN})`
+          : shown;
+    let problem: string | null = null;
+    if (fields.amounts.length === 0) {
+      problem = 'לא זוהו במסמך סכומים כספיים';
+    } else {
+      const notNumber = fields.amounts.find((a) => !Number.isFinite(a.value));
+      const negative = fields.amounts.find((a) => Number.isFinite(a.value) && a.value < 0);
+      const tooLarge = fields.amounts.find((a) => Number.isFinite(a.value) && a.value >= MAX_SANE_AMOUNT);
+      if (notNumber) problem = `הסכום "${notNumber.label}" אינו מספר`;
+      else if (negative) problem = `הסכום "${negative.label}" (${renderAmount(negative)}) שלילי`;
+      else if (tooLarge) problem = `הסכום "${tooLarge.label}" (${renderAmount(tooLarge)}) גדול מהתקרה הסבירה (${MAX_SANE_AMOUNT.toLocaleString('en-US')})`;
+    }
+    add('amounts', problem === null, problem ?? '', observed);
   }
 
   const failed = checks.filter((c) => !c.passed);

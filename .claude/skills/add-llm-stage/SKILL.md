@@ -31,15 +31,18 @@ Study `src/agents/declarationOfCapital/analyzeFile.ts` + `analyzeFileRules.ts` f
 
 1. **Pure rules module** `<name>Rules.ts`: the zod schema of the model output and the gate
    `validate<Name>(raw, context)` returning `{ result: boolean, reason: string | null, checks: GateCheck[], ...checked }`.
-   `checks` (`agents/shared/gateChecks.ts`, build entries with `check(key, passed, note)`) lists
-   only the checks that actually ran, in order — a check that did not apply is absent, never
-   "passed"; a failed entry carries its reason as `note`. Give each check a stable snake_case key.
+   `checks` (`agents/shared/gateChecks.ts`, build entries with
+   `check(key, passed, note, { observed, expected })`) lists only the checks that actually ran, in
+   order — a check that did not apply is absent, never "passed"; a failed entry carries its reason
+   as `note`; every entry carries `observed` (the value the check looked at, as short text, also on
+   a pass) and `expected` (the reference, when there is one). National ids go through `maskId`.
+   Give each check a stable snake_case key.
    No imports of `gemini/`, `db/`, `audit/`. Tests must run with no API key and no database.
    Strings the model quotes as evidence must appear **verbatim** in the text the model saw
    (whitespace-normalized) — see `validateInjectionScan`, `validateFormResolutions`.
 2. **Tests** `tests/<name>Rules.test.ts` (`node:test`, `assert/strict`): one passing case, one per
    rejection reason, one boundary case, and one that asserts the exact `checks` list (keys, order,
-   `passed`, `note`) for a pass and for a failure. Add the file to the `test` script in `package.json`, run `npm test`.
+   `passed`, `note`, `observed`, `expected`) for a pass and for a failure. Add the file to the `test` script in `package.json`, run `npm test`.
 3. **Runtime module**: `export const <NAME>_PROMPT` (template, placeholders `{{name}}`, fence token
    `{{token}}`); trusted instructions in `systemInstruction`, only untrusted data in the user turn,
    inside nonce fences from `agents/shared/promptSafety.ts`. `export function build<Name>Call(...)`

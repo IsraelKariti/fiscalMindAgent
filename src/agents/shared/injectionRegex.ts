@@ -67,6 +67,7 @@ export function injectionRegexLabels(text: string): string[] {
 export function injectionRegexChecks(text: string): GateCheck[] {
   return INJECTION_PATTERNS.map(({ kind, pattern }) => {
     const m = pattern.exec(text);
-    return check(kind, m === null, m?.[0].slice(0, 300));
+    const match = m?.[0].slice(0, 300) ?? null;
+    return check(kind, m === null, match, { observed: match });
   });
 }

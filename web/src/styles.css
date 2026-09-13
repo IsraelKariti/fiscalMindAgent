@@ -4170,8 +4170,16 @@ button.meta-chip:hover {
 .gate-check-key {
   font-size: 0.72rem;
 }
+.gate-check-value {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
 .gate-check-note {
   font-size: 0.85rem;
+  color: #fb7185;
   overflow-wrap: anywhere;
 }
 .gate-modal-raw summary {

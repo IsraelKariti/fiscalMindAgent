@@ -179,6 +179,7 @@ export async function verifyCollectedDocument(
     taxYear,
     now,
     checks,
+    documentName: doc.name,
   });
   // Step verify_extraction: the code checks after extract_document, one row per
   // attempt with the per-check table (reasons are our own Hebrew strings).
@@ -197,7 +198,7 @@ export async function verifyCollectedDocument(
       attempt: attempts + 1,
       result: verdict.passed,
       issuer: extracted.issuer,
-      checks: verdict.checks.map((c) => ({ key: c.key, passed: c.passed, note: c.reason })),
+      checks: verdict.checks.map((c) => ({ key: c.key, passed: c.passed, note: c.reason, observed: c.observed, expected: c.expected })),
       reasons: verdict.reasons,
     },
   });

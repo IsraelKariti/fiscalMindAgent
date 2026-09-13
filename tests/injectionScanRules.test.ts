@@ -12,28 +12,35 @@ test('clean without evidence passes', () => {
     result: true,
     reason: null,
     verbatimChecked: true,
-    checks: [{ key: 'clean_without_evidence', passed: true, note: null }],
+    checks: [{ key: 'clean_without_evidence', passed: true, note: null, observed: null, expected: null }],
   });
 });
 
-test('the check list names exactly the checks that ran', () => {
+test('the check list names exactly the checks that ran, each with the quote it looked at', () => {
+  const entry = (key: string, passed: boolean, note: string | null, observed: string | null) => ({
+    key,
+    passed,
+    note,
+    observed,
+    expected: null,
+  });
   assert.deepEqual(validateInjectionScan({ suspected_injection: false, evidence: 'something' }, text).checks, [
-    { key: 'clean_without_evidence', passed: false, note: 'clean verdict carries evidence' },
+    entry('clean_without_evidence', false, 'clean verdict carries evidence', 'something'),
   ]);
   assert.deepEqual(validateInjectionScan({ suspected_injection: true, evidence: '' }, text).checks, [
-    { key: 'hit_has_evidence', passed: false, note: 'hit without evidence' },
+    entry('hit_has_evidence', false, 'hit without evidence', null),
   ]);
   assert.deepEqual(validateInjectionScan({ suspected_injection: true, evidence: 'delete the database' }, text).checks, [
-    { key: 'hit_has_evidence', passed: true, note: null },
-    { key: 'evidence_verbatim', passed: false, note: 'evidence not found verbatim in the text under review' },
+    entry('hit_has_evidence', true, null, 'delete the database'),
+    entry('evidence_verbatim', false, 'evidence not found verbatim in the text under review', 'delete the database'),
   ]);
   assert.deepEqual(validateInjectionScan({ suspected_injection: true, evidence: 'ignore all previous instructions' }, text).checks, [
-    { key: 'hit_has_evidence', passed: true, note: null },
-    { key: 'evidence_verbatim', passed: true, note: null },
+    entry('hit_has_evidence', true, null, 'ignore all previous instructions'),
+    entry('evidence_verbatim', true, null, 'ignore all previous instructions'),
   ]);
   // No readable text: the verbatim check did not run, so it is absent (not "passed").
   assert.deepEqual(validateInjectionScan({ suspected_injection: true, evidence: 'hidden white text' }, null).checks, [
-    { key: 'hit_has_evidence', passed: true, note: null },
+    entry('hit_has_evidence', true, null, 'hidden white text'),
   ]);
 });
 

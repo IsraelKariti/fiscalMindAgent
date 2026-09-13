@@ -687,19 +687,23 @@ export function gateDecision(
   ctx: DecisionContext,
 ): { decision: NormalizedDecision; checks: GateCheck[] } {
   const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 500);
+  // What each check looked at: the raw answer's size, then the decision it proposed.
+  const answerSize = `${text.length} chars`;
   let parsed: DecisionResponse;
   try {
     parsed = restorePrunedNulls(schema.parse(JSON.parse(text)));
   } catch (err) {
     const message = messageOf(err);
-    throw new DecisionRejectedError(message, [check('json_schema', false, message)]);
+    throw new DecisionRejectedError(message, [check('json_schema', false, message, { observed: answerSize })]);
   }
+  const proposed = `${parsed.decision} / ${parsed.channel ?? '—'}`;
+  const schemaCheck = check('json_schema', true, null, { observed: answerSize });
   try {
     const decision = normalizeDecision(parsed, ctx);
-    return { decision, checks: [check('json_schema', true), check('business_rules', true)] };
+    return { decision, checks: [schemaCheck, check('business_rules', true, null, { observed: proposed })] };
   } catch (err) {
     const message = messageOf(err);
-    throw new DecisionRejectedError(message, [check('json_schema', true), check('business_rules', false, message)]);
+    throw new DecisionRejectedError(message, [schemaCheck, check('business_rules', false, message, { observed: proposed })]);
   }
 }
 

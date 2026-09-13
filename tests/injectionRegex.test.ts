@@ -42,7 +42,11 @@ test('injectionRegexChecks lists every pattern as a check, in pattern order, wit
   assert.equal(failed.length, 1);
   assert.equal(failed[0]!.key, 'ignore_instructions');
   assert.equal(failed[0]!.note, 'ignore all previous instructions');
-  for (const c of checks.filter((c) => c.passed)) assert.equal(c.note, null);
+  assert.equal(failed[0]!.observed, 'ignore all previous instructions');
+  for (const c of checks.filter((c) => c.passed)) {
+    assert.equal(c.note, null);
+    assert.equal(c.observed, null);
+  }
 
   const clean = injectionRegexChecks('Hi, attached is my bank statement for 2025.');
   assert.equal(clean.length, 11);

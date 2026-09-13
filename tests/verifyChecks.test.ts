@@ -68,6 +68,68 @@ describe('runChecks', () => {
     assert.deepEqual(verdict.reasons, []);
   });
 
+  it('records what every check looked at, and the reference it was compared with', () => {
+    const verdict = runChecks(baseFields, { ...baseCtx, documentName: 'אישור יתרות בנק לאומי ליום 31.12.2025' });
+    const byKey = Object.fromEntries(verdict.checks.map((c) => [c.key, c]));
+    assert.deepEqual(
+      verdict.checks.map((c) => [c.key, c.observed, c.expected]),
+      [
+        ['legible', 'קריא', null],
+        ['expected_type', 'אישור יתרות מבנק לאומי', 'אישור יתרות בנק לאומי ליום 31.12.2025'],
+        ['subject', 'ישראל ישראלי', 'ישראל ישראלי'],
+        ['as_of_date', '2025-12-31', '2025-12-31'],
+        ['amounts', 'יתרת עו"ש 52,340.55 ILS', null],
+      ],
+    );
+    assert.ok(verdict.checks.every((c) => c.observed !== null && c.reason === null));
+    assert.equal(byKey['as_of_date']!.passed, true);
+  });
+
+  it('amounts: names the exact failing amount and condition, and lists what was found', () => {
+    const negative = runChecks(
+      { ...baseFields, amounts: [{ label: 'יתרת עו"ש', value: 12_340, currency: 'ILS' }, { label: 'פיקדון', value: -5, currency: 'ILS' }] },
+      baseCtx,
+    );
+    const amounts = negative.checks.find((c) => c.key === 'amounts')!;
+    assert.equal(amounts.passed, false);
+    assert.equal(amounts.observed, 'יתרת עו"ש 12,340 ILS · פיקדון -5 ILS');
+    assert.match(amounts.reason ?? '', /"פיקדון"/);
+    assert.match(amounts.reason ?? '', /שלילי/);
+
+    const none = runChecks({ ...baseFields, amounts: [] }, baseCtx).checks.find((c) => c.key === 'amounts')!;
+    assert.equal(none.passed, false);
+    assert.equal(none.observed, 'לא נמצאו סכומים');
+    assert.match(none.reason ?? '', /לא זוהו/);
+
+    const huge = runChecks({ ...baseFields, amounts: [{ label: 'סה"כ', value: 5e12, currency: 'ILS' }] }, baseCtx).checks.find(
+      (c) => c.key === 'amounts',
+    )!;
+    assert.equal(huge.passed, false);
+    assert.match(huge.reason ?? '', /"סה"כ"/);
+    assert.match(huge.reason ?? '', /התקרה/);
+
+    const nan = runChecks({ ...baseFields, amounts: [{ label: 'x', value: Number.NaN, currency: 'ILS' }] }, baseCtx).checks.find(
+      (c) => c.key === 'amounts',
+    )!;
+    assert.match(nan.reason ?? '', /אינו מספר/);
+  });
+
+  it('a printed id never appears unmasked in any check text', () => {
+    const verdict = runChecks(
+      { ...baseFields, subject_name: null, subject_id_number: VALID_ID },
+      { ...baseCtx, clientName: 'שם אחר', credentialIdNumber: VALID_ID },
+    );
+    const byKey = Object.fromEntries(verdict.checks.map((c) => [c.key, c]));
+    assert.equal(byKey['subject']!.passed, true);
+    assert.equal(byKey['subject']!.observed, 'ת"ז ••••••782 תואמת ללקוח');
+    assert.equal(byKey['id_checksum']!.observed, '••••••782');
+    assert.equal(byKey['id_matches_client']!.observed, '••••••782');
+    assert.equal(byKey['id_matches_client']!.expected, '••••••782');
+    for (const c of verdict.checks) {
+      for (const s of [c.observed, c.expected, c.reason]) assert.ok(!(s ?? '').includes(VALID_ID), `${c.key}: ${s}`);
+    }
+  });
+
   it('fails on wrong type and illegibility, with reasons', () => {
     const verdict = runChecks({ ...baseFields, is_expected_type: false, legible: false }, baseCtx);
     assert.equal(verdict.passed, false);

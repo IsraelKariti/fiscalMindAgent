@@ -9,7 +9,13 @@ export interface GateCheckView {
   key: string;
   passed: boolean;
   note: string | null;
+  /** The value the check inspected; null on rows recorded before values were kept. */
+  observed: string | null;
+  /** What the value was compared with, when the check has a reference. */
+  expected: string | null;
 }
+
+const optionalText = (value: unknown): string | null => (typeof value === 'string' && value !== '' ? value : null);
 
 /** True for a well-formed `detail.checks` list; anything else means "no checks recorded". */
 export function isGateCheckList(value: unknown): value is GateCheckView[] {
@@ -29,7 +35,13 @@ export function isGateCheckList(value: unknown): value is GateCheckView[] {
 export function gateChecksOf(step: AdminConversationStep): GateCheckView[] | null {
   const checks = step.detail['checks'];
   if (!isGateCheckList(checks)) return null;
-  return checks.map((c) => ({ key: c.key, passed: c.passed, note: typeof c.note === 'string' && c.note !== '' ? c.note : null }));
+  return checks.map((c) => ({
+    key: c.key,
+    passed: c.passed,
+    note: optionalText(c.note),
+    observed: optionalText((c as { observed?: unknown }).observed),
+    expected: optionalText((c as { expected?: unknown }).expected),
+  }));
 }
 
 /** The step's overall result badge value, or null when the row has none. */
@@ -100,8 +112,22 @@ export function GateChecksModal({ step, checks, onClose }: { step: AdminConversa
                   </span>
                   <span className="gate-sr-only">{c.passed ? t.gateCheckPassed : t.gateCheckFailed}</span>
                 </span>
+                {(c.observed || c.expected) && (
+                  <span className="gate-check-value">
+                    {c.observed && (
+                      <span>
+                        <span className="muted">{t.gateCheckObserved}</span> <span dir="auto">{c.observed}</span>
+                      </span>
+                    )}
+                    {c.expected && (
+                      <span>
+                        <span className="muted">{t.gateCheckExpected}</span> <span dir="auto">{c.expected}</span>
+                      </span>
+                    )}
+                  </span>
+                )}
                 {!c.passed && c.note && (
-                  <span className="muted gate-check-note" dir="auto">
+                  <span className="gate-check-note" dir="auto">
                     {c.note}
                   </span>
                 )}

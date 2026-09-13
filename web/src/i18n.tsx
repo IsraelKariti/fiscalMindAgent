@@ -758,6 +758,8 @@ const he = {
   gateModalOpen: 'הצגת הבדיקות שבוצעו',
   gateCheckPassed: 'עבר',
   gateCheckFailed: 'נכשל',
+  gateCheckObserved: 'נבדק:',
+  gateCheckExpected: 'צפוי:',
   // The gate step key, title-cased like llmPurposeLabels (kept in English on
   // purpose). Unknown keys fall back to humanizePurpose() at the call sites.
   codeGateLabels: {

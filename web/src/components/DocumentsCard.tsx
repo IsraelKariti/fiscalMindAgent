@@ -3,6 +3,7 @@ import { ApiError, type ClientDocument, type DocumentFile, type DocumentStatus }
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
 import { FileViewModal } from './FileViewModal';
+import { LOCALE, formatFileSize } from '../format';
 import { useT, type Messages } from '../i18n';
 
 interface Props {
@@ -47,6 +48,60 @@ function FileActions({ clientId, file, onView }: { clientId: string; file: Docum
   );
 }
 
+/** The content-analysis verdict line under a file, or a status badge when there is none. */
+function AnalysisLine({ file }: { file: DocumentFile }) {
+  const { t } = useT();
+  if (file.analysis_status === 'blocked') {
+    return (
+      <span className="badge badge-danger" title={t.analysisBlockedTitle}>
+        {t.analysisBlocked}
+      </span>
+    );
+  }
+  if (file.analysis_status !== 'done' || !file.analysis) {
+    const label =
+      file.analysis_status === 'failed'
+        ? t.analysisFailed
+        : file.analysis_status === 'unsupported'
+          ? t.analysisUnsupported
+          : t.analysisPending;
+    return <span className="badge badge-neutral">{label}</span>;
+  }
+  const a = file.analysis;
+  const details = [a.tax_year ? t.analysisTaxYear(a.tax_year) : null, a.subject_name].filter(Boolean).join(' · ');
+  return (
+    <span className="doc-desc muted" title={a.summary}>
+      {t.analysisIdentified(a.document_kind)}
+      {details ? ` · ${details}` : ''}
+      {a.injection_suspected && (
+        <span className="badge badge-danger" title={t.analysisSuspiciousTitle}>
+          {' '}
+          {t.analysisSuspicious}
+        </span>
+      )}
+      {!a.legible && <span className="badge badge-pending"> {t.analysisNotLegible}</span>}
+    </span>
+  );
+}
+
+/** One received file: name, size · date, analysis verdict, and the view/download pair. */
+function FileItem({ clientId, file, onView }: { clientId: string; file: DocumentFile; onView: (file: DocumentFile) => void }) {
+  return (
+    <li className="doc-file-item">
+      <span className="doc-file-text">
+        <span className="doc-file-label" title={file.filename}>
+          {file.label ?? file.filename}
+        </span>
+        <span className="doc-desc muted">
+          {formatFileSize(file.size_bytes)} · {new Date(file.created_at).toLocaleDateString(LOCALE)}
+        </span>
+        <AnalysisLine file={file} />
+      </span>
+      <FileActions clientId={clientId} file={file} onView={onView} />
+    </li>
+  );
+}
+
 /** One compact "issuer · date · amount" line from the verification verdict of an approved row. */
 function extractedSummary(doc: ClientDocument): string | null {
   const extracted = doc.verification?.extracted;
@@ -84,6 +139,8 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
   // created_at ascending). A tax-fetched multi-employer year links several
   // 106s to the one item — every one of them must stay visible.
   const filesFor = (docId: string): DocumentFile[] => files.filter((f) => f.client_document_id === docId);
+  // Files whose analysis matched no checklist item — the accountant must see these.
+  const unmatched = files.filter((f) => f.client_document_id === null);
 
   // Capital flow: done = verified; not_required/retired rows are outside the goal.
   const inGoal = capital
@@ -134,9 +191,9 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
 
   /** One row of the capital-declaration flow: status-specific controls + verification detail. */
   const capitalRow = (doc: ClientDocument) => {
+    // Every linked file gets its own sub-row: the analysis verdict belongs
+    // next to the file it describes (two uploads of one document must stay apart).
     const linked = filesFor(doc.id);
-    const showFileList = linked.length > 1 || Boolean(linked[0]?.label);
-    const inlineFile = showFileList ? null : (linked[0] ?? null);
     const failed = doc.verification?.passed === false;
     const stalled = doc.verification?.stalled === true || doc.verification?.unavailable === true;
     const reasons = doc.verification?.reasons?.join('; ') ?? '';
@@ -176,22 +233,16 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
             <span className="doc-name">{doc.name}</span>
             {doc.description && <span className="doc-desc muted">{doc.description}</span>}
           </span>
-          {inlineFile && <FileActions clientId={clientId} file={inlineFile} onView={setViewing} />}
           {badge}
           {controls}
           <button className="chip-x" title={t.removeDocument} disabled={busy} onClick={() => run(() => api.deleteDocument(clientId, doc.id))}>
             ×
           </button>
         </div>
-        {showFileList && (
+        {linked.length > 0 && (
           <ul className="doc-file-list">
             {linked.map((file) => (
-              <li key={file.id} className="doc-file-item">
-                <span className="doc-file-label" title={file.filename}>
-                  {file.label ?? file.filename}
-                </span>
-                <FileActions clientId={clientId} file={file} onView={setViewing} />
-              </li>
+              <FileItem key={file.id} clientId={clientId} file={file} onView={setViewing} />
             ))}
           </ul>
         )}
@@ -210,7 +261,9 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
     );
   };
 
-  /** The original flat flow (doc collector): checkbox + status badge per row. */
+  /** The original flat flow (doc collector): checkbox + status badge per row.
+   *  Unreachable in the current single-agent setup (declaration_of_capital always
+   *  passes `capital`); it keeps the old inline-file layout on purpose. */
   const classicRow = (doc: ClientDocument) => {
     const linked = filesFor(doc.id);
     const showFileList = linked.length > 1 || Boolean(linked[0]?.label);
@@ -308,6 +361,20 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
           })
         ) : (
           <ul className="doc-list">{documents.map(classicRow)}</ul>
+        )}
+        {capital && unmatched.length > 0 && (
+          <div className="doc-group">
+            <div className="doc-group-title">{`${t.groupUnmatchedFiles} (${unmatched.length})`}</div>
+            <ul className="doc-list">
+              <li className="doc-row">
+                <ul className="doc-file-list">
+                  {unmatched.map((file) => (
+                    <FileItem key={file.id} clientId={clientId} file={file} onView={setViewing} />
+                  ))}
+                </ul>
+              </li>
+            </ul>
+          </div>
         )}
         {viewing && <FileViewModal clientId={clientId} file={viewing} onClose={() => setViewing(null)} />}
       </div>

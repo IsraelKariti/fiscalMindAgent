@@ -1759,14 +1759,25 @@ textarea {
 
 .doc-file-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+  padding: 4px 0;
   font-size: 13px;
   color: var(--text-muted);
 }
 
+/* Name / size · date / analysis verdict stacked; actions stay on the end side. */
+.doc-file-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
 .doc-file-label {
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

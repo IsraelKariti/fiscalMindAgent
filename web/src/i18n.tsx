@@ -431,6 +431,7 @@ const he = {
   groupApproved: 'אומתו',
   groupNotRequired: 'לא נדרשים',
   groupRetired: 'הוחלפו במסמכים אחרים',
+  groupUnmatchedFiles: 'קבצים ללא התאמה למסמך נדרש',
   markRequired: 'נדרש',
   markNotRequired: 'לא נדרש',
   approveManually: 'אישור ידני',
@@ -454,7 +455,7 @@ const he = {
   docDescAria: 'תיאור המסמך',
   addDocument: 'הוספת מסמך',
 
-  // FilesCard
+  // Dashboard chart title + per-file analysis lines (DocumentsCard)
   filesReceived: 'קבצים שהתקבלו',
   analysisPending: 'טרם נותח',
   analysisFailed: 'הניתוח נכשל',

@@ -4,7 +4,6 @@ import { ClientHeader } from '../components/ClientHeader';
 import { ClientImportSettings } from '../components/ClientSourcesSettings';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
-import { FilesCard } from '../components/FilesCard';
 import { StatTiles } from '../components/StatTiles';
 import { Timeline } from '../components/Timeline';
 import { DashboardCharts } from '../components/charts/DashboardCharts';
@@ -100,7 +99,6 @@ const clientTabs: ClientTab[] = [
               await ctx.onClientUpdated();
             }}
           />
-          <FilesCard clientId={ctx.client.id} files={ctx.files} documents={ctx.documents} />
         </div>
       );
     },

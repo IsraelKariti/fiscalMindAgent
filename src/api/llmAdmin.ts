@@ -86,7 +86,8 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
   // keeps the row), so any unsent outbound row other than the live job's
   // draft is a discarded one. Its `send_reply` step and the generate_message
   // call that drafted it are flagged so the timeline can drop them too — a
-  // planning step whose only output was thrown away is noise.
+  // planning step whose only output was thrown away is noise. (A call whose
+  // cycle also applied state changes is kept, see below.)
   const liveDraftId = job?.bullmq_job_id.split(':')[2] ?? null;
   const discardedDraftIds = new Set(
     thread
@@ -109,7 +110,17 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
     discardedStepIds.add(s.id);
     // The call that drafted it: the last generate_message started before the step.
     const call = generateCalls.filter((c) => c.startedAt <= s.occurred_at.getTime()).pop();
-    if (call) discardedCallIds.add(call.id);
+    if (!call) continue;
+    // The same call also decides the apply_* state changes, and those survive
+    // the replan — keep the call visible when its cycle applied anything, or
+    // the apply_* rows would show with no LLM stage that decided them.
+    const applied = steps.some(
+      (a) =>
+        a.action.startsWith('apply_') &&
+        a.occurred_at.getTime() >= call.startedAt &&
+        a.occurred_at.getTime() <= s.occurred_at.getTime(),
+    );
+    if (!applied) discardedCallIds.add(call.id);
   }
   res.json({
     client: toAdminClient(client),

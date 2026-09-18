@@ -1,7 +1,7 @@
 ## 1. ActionMenu component
 
 - [x] 1.1 Create `web/src/components/ActionMenu.tsx` modeled on `Dropdown.tsx` (portal to body, fixed placement from the trigger rect, upward flip, reposition on capture-phase scroll + resize, close on blur/Escape with focus back to the trigger, arrow-key focus, `role="menu"`/`menuitem`, props `items`/`label`/`disabled`, per-item `danger` and `title`). Verify: `npm run typecheck` passes.
-- [ ] 1.2 Clamp the menu's horizontal position to the viewport (design decision 2). Verify: in the running app, at a narrow window width in RTL, the open menu is fully visible and not cut at either edge.
+- [x] 1.2 Clamp the menu's horizontal position to the viewport (design decision 2). Verify: in the running app, at a narrow window width in RTL, the open menu is fully visible and not cut at either edge.
 - [x] 1.3 Add styles to `web/src/styles.css`: icon-only three-dot trigger (reusing `icon-btn`), content-width menu reusing the `dropdown-option` look, divider + danger color for the destructive item. Verify: the menu matches the app theme next to an open `Dropdown` elsewhere in the app.
 
 ## 2. Strings
@@ -15,6 +15,6 @@
 
 ## 4. End-to-end verification
 
-- [ ] 4.1 Drive the running dev stack on a test client: from the menu, move a pending row to not required and back, mark an unresolved row as required, and remove a manually added row. Verify: each row lands in the expected group and the progress badge (`n / m`) changes as it did before this change.
-- [ ] 4.2 Check menu behavior: Escape closes and returns focus, click outside closes, Enter/arrow keys operate it, opening a second row's menu closes the first, a row at the bottom of the viewport opens its menu upward. Verify: all scenarios of the spec requirement "The actions menu is an in-app, keyboard-operable popover" hold.
+- [x] 4.1 Drive the running dev stack on a test client: from the menu, move a pending row to not required and back, mark an unresolved row as required, and remove a manually added row. Verify: each row lands in the expected group and the progress badge (`n / m`) changes as it did before this change.
+- [x] 4.2 Check menu behavior: Escape closes and returns focus, click outside closes, Enter/arrow keys operate it, opening a second row's menu closes the first, a row at the bottom of the viewport opens its menu upward. Verify: all scenarios of the spec requirement "The actions menu is an in-app, keyboard-operable popover" hold.
 - [ ] 4.3 Run `npm run build:gui` and open the client in the monday custom object. Verify: the menu opens fully inside the iframe and actions work.

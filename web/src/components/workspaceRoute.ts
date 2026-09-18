@@ -28,6 +28,8 @@ export type WorkspaceRoute =
   | { kind: 'settings'; agentId: string }
   | { kind: 'client'; agentId: string; clientId: string };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function routeHash(route: WorkspaceRoute, base: string[]): string {
   const segs = [...base];
   switch (route.kind) {
@@ -50,11 +52,17 @@ function routeHash(route: WorkspaceRoute, base: string[]): string {
 }
 
 function parseHash(hash: string, base: string[]): WorkspaceRoute {
-  const parts = hash
-    .replace(/^#\/?/, '')
-    .split('/')
-    .filter(Boolean)
-    .map(decodeURIComponent);
+  let parts: string[];
+  try {
+    parts = hash
+      .replace(/^#\/?/, '')
+      .split('/')
+      .filter(Boolean)
+      .map(decodeURIComponent);
+  } catch {
+    // A stray "%" makes decodeURIComponent throw.
+    return { kind: 'boot' };
+  }
   // A hash outside this workspace's namespace (admin-panel leftovers, another
   // accountant's /as/ link) means boot; resolution rewrites it in place.
   if (base.some((seg, i) => parts[i] !== seg)) return { kind: 'boot' };
@@ -62,7 +70,13 @@ function parseHash(hash: string, base: string[]): WorkspaceRoute {
   if (rest[0] !== 'agents') return { kind: 'boot' };
   const agentId = rest[1];
   if (!agentId) return { kind: 'home' };
-  if (rest[2] === 'clients' && rest[3]) return { kind: 'client', agentId, clientId: rest[3] };
+  // Ids go straight into API paths. A mangled one (e.g. a hand-edited link with
+  // "?x=1" glued on) would hit a different endpoint and return the wrong shape —
+  // fall back to the nearest valid level instead.
+  if (!UUID.test(agentId)) return { kind: 'boot' };
+  if (rest[2] === 'clients' && rest[3]) {
+    return UUID.test(rest[3]) ? { kind: 'client', agentId, clientId: rest[3] } : { kind: 'agent', agentId };
+  }
   if (rest[2] === 'settings') return { kind: 'settings', agentId };
   return { kind: 'agent', agentId };
 }

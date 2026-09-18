@@ -273,6 +273,11 @@ const he = {
   clientSectionsAria: 'מקטעי לקוח',
   clientLoadFailed: 'טעינת הלקוח נכשלה.',
 
+  // ErrorBoundary
+  crashTitle: 'משהו השתבש',
+  crashText: 'אירעה שגיאה בלתי צפויה בתצוגה. טעינה מחדש של העמוד אמורה לפתור את הבעיה.',
+  crashReload: 'טעינה מחדש',
+
   // ClientHeader
   saveFailed: 'השמירה נכשלה.',
   allDocsReceived: 'כל המסמכים התקבלו',

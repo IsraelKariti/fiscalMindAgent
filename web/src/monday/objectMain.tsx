@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { configureApi } from '../api';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { I18nProvider } from '../i18n';
 import { MondayObject } from './MondayObject';
 import { getSessionToken } from './sdk';
@@ -20,7 +21,9 @@ configureApi({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <I18nProvider>
-      <MondayObject />
+      <ErrorBoundary>
+        <MondayObject />
+      </ErrorBoundary>
     </I18nProvider>
   </React.StrictMode>,
 );

@@ -62,6 +62,10 @@ const EnvSchema = z.object({
   // process refuses to start without it — see src/api/auth.ts); in dev a
   // random per-process secret is used and sessions reset on every restart.
   DASHBOARD_SESSION_SECRET: z.string().min(16).optional(),
+  // Idle timeout of an admin's "view as accountant" session: user activity
+  // extends it, and it ends after this long without any (background refreshes
+  // don't count — see src/api/auth.ts). Lower it to bound a stolen admin cookie.
+  IMPERSONATION_IDLE_MINUTES: z.coerce.number().int().positive().default(1440),
   // Encrypts secrets at rest in Postgres (client tax-portal credentials,
   // Google/monday OAuth tokens) — AES-256-GCM via src/crypto/secretBox.ts.
   // 32 bytes base64 (`openssl rand -base64 32`). Required: without it the app

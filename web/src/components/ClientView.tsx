@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Client, ClientDocument, DocumentFile, Email, NextScheduled } from '../api';
+import {
+  ImpersonationEndedError,
+  type Client,
+  type ClientDocument,
+  type DocumentFile,
+  type Email,
+  type NextScheduled,
+  type RequestOpts,
+} from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { AgentTypeUI, ClientTabContext } from '../agents/types';
 import { useT } from '../i18n';
@@ -41,12 +49,14 @@ export function ClientView({
     lastViewedTab.set(clientId, tab);
   };
 
-  const load = useCallback(async () => {
+  // `background`: the app's own refresh (interval, SSE tick, tab re-shown), not
+  // something the user did — it must not keep an admin's view-as session alive.
+  const load = useCallback(async (opts?: RequestOpts) => {
     try {
       const [detail, thread, received] = await Promise.all([
-        api.getClient(clientId),
-        api.listEmails(clientId),
-        api.listFiles(clientId),
+        api.getClient(clientId, opts),
+        api.listEmails(clientId, opts),
+        api.listFiles(clientId, opts),
       ]);
       setClient(detail.client);
       setNextScheduled(detail.nextScheduled);
@@ -55,6 +65,8 @@ export function ClientView({
       setFiles(received.files);
       setError(null);
     } catch (err) {
+      // The app shell shows its own dialog for an ended view-as session.
+      if (err instanceof ImpersonationEndedError) return;
       // Surface the underlying cause — "failed" alone is undebuggable across
       // the two surfaces (SPA, monday object) this view runs in.
       console.error('client load failed', err);
@@ -76,7 +88,13 @@ export function ClientView({
     api.eventsUrl(clientId).then((url) => {
       if (cancelled) return;
       events = new EventSource(url);
-      events.onmessage = () => load();
+      events.onmessage = () => load({ background: true });
+      // A rejected stream (e.g. the view-as session ended) carries no readable
+      // status — one ordinary request surfaces the reason. CLOSED = the server
+      // refused it; a dropped connection stays CONNECTING and retries by itself.
+      events.onerror = () => {
+        if (events?.readyState === EventSource.CLOSED) load({ background: true });
+      };
     });
     return () => {
       cancelled = true;
@@ -107,7 +125,7 @@ export function ClientView({
   useEffect(() => {
     load();
     const refreshIfVisible = () => {
-      if (document.visibilityState === 'visible') load();
+      if (document.visibilityState === 'visible') load({ background: true });
     };
     // No fast poll once drafting failed/stalled — nothing changes until the user retries.
     const interval = setInterval(refreshIfVisible, drafting && !draftFailed && !draftStale ? 3_000 : 15_000);

@@ -5,7 +5,9 @@ import { env } from '../config/env.js';
 import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
+import { recordAudit } from '../audit/audit.js';
 import { logger } from '../util/logger.js';
+import { evaluateImpersonationCookie, type ImpersonationCookieState } from './impersonationCookie.js';
 import { verifyMondayLinkToken } from './mondayAuth.js';
 
 declare global {
@@ -25,9 +27,14 @@ const STATE_COOKIE = 'fm_oauth_state';
 const IMPERSONATION_COOKIE = 'fm_impersonate';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const STATE_TTL_MS = 10 * 60 * 1000;
-// Deliberately short: a stolen admin cookie should not buy hours of acting as
-// an accountant. Admins re-enter impersonation from the admin panel when it lapses.
-const IMPERSONATION_TTL_MS = 30 * 60 * 1000;
+// Sliding idle timeout: user activity re-issues the cookie with a fresh expiry
+// (see requireAuth); it ends only after this long with none. Lower
+// IMPERSONATION_IDLE_MINUTES to bound what a stolen admin cookie buys.
+const IMPERSONATION_IDLE_MS = env.IMPERSONATION_IDLE_MINUTES * 60 * 1000;
+// The browser must keep the cookie past its embedded expiry: only a cookie the
+// server still receives can be told apart as "expired" (audited, reported to
+// the workspace) rather than "never started".
+const IMPERSONATION_COOKIE_MAX_AGE_MS = IMPERSONATION_IDLE_MS + 7 * 24 * 60 * 60 * 1000;
 
 // Signs every auth cookie. Production must set it explicitly — a random
 // per-process fallback would silently log everyone out on each restart and
@@ -169,13 +176,13 @@ function setSessionCookie(res: Response, userId: string): void {
  * the cookie only takes effect when its adminUserId matches the real session user.
  */
 export function setImpersonationCookie(res: Response, adminUserId: string, targetUserId: string): void {
-  const expiresAt = String(Date.now() + IMPERSONATION_TTL_MS);
+  const expiresAt = String(Date.now() + IMPERSONATION_IDLE_MS);
   const payload = `${adminUserId}.${targetUserId}.${expiresAt}`;
   res.cookie(IMPERSONATION_COOKIE, `${payload}.${sign(payload)}`, {
     httpOnly: true,
     sameSite: 'lax',
     secure: env.APP_BASE_URL.startsWith('https://'),
-    maxAge: IMPERSONATION_TTL_MS,
+    maxAge: IMPERSONATION_COOKIE_MAX_AGE_MS,
     path: '/',
   });
 }
@@ -184,23 +191,49 @@ export function clearImpersonationCookie(res: Response): void {
   res.clearCookie(IMPERSONATION_COOKIE, { path: '/' });
 }
 
-function impersonationTarget(req: Request, realUserId: string): string | null {
-  const cookie = readCookie(req, IMPERSONATION_COOKIE);
-  if (!cookie) return null;
-  const [adminUserId, targetUserId, expiresAt, signature] = cookie.split('.');
-  if (!adminUserId || !targetUserId || !expiresAt || !signature) return null;
-  if (!/^\d+$/.test(expiresAt) || Number(expiresAt) < Date.now()) return null;
-  if (!timingSafeEqual(signature, sign(`${adminUserId}.${targetUserId}.${expiresAt}`))) return null;
-  if (adminUserId !== realUserId) return null;
-  return targetUserId;
+function impersonationState(req: Request, realUserId: string): ImpersonationCookieState {
+  return evaluateImpersonationCookie(
+    readCookie(req, IMPERSONATION_COOKIE),
+    realUserId,
+    Date.now(),
+    IMPERSONATION_IDLE_MS,
+    sign,
+    timingSafeEqual,
+  );
 }
 
 /** Resolves the signed-in user plus the effective user (the impersonated one, when active). */
-export function resolveIdentity(req: Request): { realUserId: string; effectiveUserId: string } | null {
+export function resolveIdentity(
+  req: Request,
+): { realUserId: string; effectiveUserId: string; impersonation: ImpersonationCookieState } | null {
   const realUserId = sessionUserId(req);
   if (!realUserId) return null;
-  const target = impersonationTarget(req, realUserId);
-  return { realUserId, effectiveUserId: target ?? realUserId };
+  const impersonation = impersonationState(req, realUserId);
+  return {
+    realUserId,
+    effectiveUserId: impersonation.state === 'active' ? impersonation.targetUserId : realUserId,
+    impersonation,
+  };
+}
+
+/**
+ * User activity slides the view-as session; the workspace's own traffic must
+ * not, or an open tab would never idle out. The SPA marks its periodic
+ * refreshes with X-FM-Background, and EventSource sets the SSE Accept header
+ * by itself. (Not a security boundary — a client that drops the marker only
+ * extends a session it could extend with real requests anyway.)
+ */
+function countsAsActivity(req: Request): boolean {
+  if (req.headers['x-fm-background']) return false;
+  return !(req.headers.accept ?? '').includes('text/event-stream');
+}
+
+/** The accountant the SPA believes it is showing: a header, or a query param on header-less URLs (SSE, downloads). */
+function declaredViewAs(req: Request): string | null {
+  const header = req.headers['x-fm-view-as'];
+  if (typeof header === 'string' && header) return header;
+  const query = req.query.viewAs;
+  return typeof query === 'string' && query ? query : null;
 }
 
 /** GET /api/auth/google — kick off the Google sign-in consent redirect. */
@@ -343,6 +376,31 @@ export const requireAuth: RequestHandler = (req, res, next) => {
   const identity = resolveIdentity(req);
   if (!identity) {
     res.status(401).json({ error: 'Not authenticated.' });
+    return;
+  }
+  const { impersonation } = identity;
+  if (impersonation.state === 'expired') {
+    // Clearing on first sight keeps the audit to the requests already in flight.
+    clearImpersonationCookie(res);
+    recordAudit({
+      actorType: 'admin',
+      action: 'admin.impersonation_expired',
+      actorUserId: identity.realUserId,
+      targetType: 'user',
+      targetId: impersonation.targetUserId,
+      detail: { idleMinutes: env.IMPERSONATION_IDLE_MINUTES },
+    });
+    logger.info('impersonation expired', { adminUserId: identity.realUserId, targetUserId: impersonation.targetUserId });
+  } else if (impersonation.state === 'active' && impersonation.refresh && countsAsActivity(req)) {
+    setImpersonationCookie(res, identity.realUserId, impersonation.targetUserId);
+  }
+  // A workspace that still believes it is viewing as someone must never be
+  // served under another identity (the admin's own after idle expiry or an
+  // exit in another tab; another accountant's after a switch). The admin panel
+  // is exempt so a new session can be started.
+  const declared = declaredViewAs(req);
+  if (declared && declared !== identity.effectiveUserId && !req.path.startsWith('/admin/')) {
+    res.status(409).json({ error: 'The view-as session ended.', code: 'impersonation_ended' });
     return;
   }
   req.userId = identity.effectiveUserId;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { agentApi, api, type AgentInstance, type Client, type MailboxStatus } from '../api';
+import { agentApi, api, type AgentInstance, type Client, type MailboxStatus, type RequestOpts } from '../api';
 import { ClientsRefreshProvider, WorkspaceApiProvider } from '../agents/ApiContext';
 import { getAgentUI } from '../agents/registry';
 import { AgentsHome } from './AgentsHome';
@@ -109,9 +109,9 @@ export function Workspace({
   // Per-agent so switching agents restores each one's last viewed client.
   const lastClientKey = agent ? `fm.lastClientId.${agent.id}` : null;
 
-  const loadClients = useCallback(async () => {
+  const loadClients = useCallback(async (opts?: RequestOpts) => {
     if (!wsApi || !lastClientKey) return;
-    const { clients: list } = await wsApi.listClients();
+    const { clients: list } = await wsApi.listClients(opts);
     setClients(list);
     // An agent-level route — and a link to a client that no longer exists —
     // resolves to the screen viewed before a refresh: settings (which owns the
@@ -151,7 +151,8 @@ export function Workspace({
     wsApi.clientsEventsUrl().then((url) => {
       if (cancelled) return;
       events = new EventSource(url);
-      events.onmessage = () => loadClients().catch(console.error);
+      // Background: a server tick is not user activity (view-as idle timeout).
+      events.onmessage = () => loadClients({ background: true }).catch(console.error);
     });
     return () => {
       cancelled = true;

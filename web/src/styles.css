@@ -1161,6 +1161,16 @@ textarea {
     var(--gradient) border-box;
 }
 
+/* View-as session ended: two long button labels side by side */
+.modal-view-as-ended {
+  width: 460px;
+  max-width: calc(100vw - 32px);
+}
+
+.modal-view-as-ended .btn {
+  white-space: nowrap;
+}
+
 .modal-highlight {
   background: var(--gradient);
   -webkit-background-clip: text;

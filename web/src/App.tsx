@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { api, type Me } from './api';
+import { api, setViewAs, type Me } from './api';
 import { Login } from './components/Login';
 import { Workspace } from './components/Workspace';
 import { ViewerProvider } from './agents/ApiContext';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AccessPending } from './components/AccessPending';
+import { ImpersonationEndedModal } from './components/ImpersonationEndedModal';
 import { LogoutConfirmModal } from './components/LogoutConfirmModal';
 import { useT } from './i18n';
 
@@ -17,6 +18,8 @@ export function App() {
   const [impersonating, setImpersonating] = useState<Me['impersonating'] | null>(null);
   const [envName, setEnvName] = useState<string | null>(null);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+  // The server rejected a workspace request because the view-as session ended.
+  const [impersonationEnded, setImpersonationEnded] = useState(false);
 
   // Admins have no agent, clients, or mailbox of their own — they get the platform
   // overview shell instead, and only enter the accountant workspace by impersonating.
@@ -31,6 +34,10 @@ export function App() {
         setUser(me ?? null);
         setIsAdmin(admin ?? false);
         setWhitelisted(allowed ?? false);
+        // Before the workspace mounts and fires its first requests: they must
+        // name the accountant, so an ended session is reported instead of served
+        // under the admin's own identity. Many rejected requests → one dialog.
+        setViewAs(viewing?.id ?? null, () => setImpersonationEnded(true));
         setImpersonating(viewing ?? null);
         // Drop a stale ?login_error= once signed in (keep any workspace deep link).
         if (authenticated && window.location.search)
@@ -95,6 +102,14 @@ export function App() {
     window.location.reload();
   };
 
+  // The #/as/:email/agents/:id/clients/:id hash survives the reload, so the
+  // workspace reopens on the same agent + client under the new session.
+  const restartImpersonating = async () => {
+    if (!impersonating) return;
+    await api.impersonate(impersonating.id);
+    window.location.reload();
+  };
+
   return (
     <>
       {envBanner}
@@ -110,6 +125,9 @@ export function App() {
         />
       </ViewerProvider>
       {logoutModal}
+      {impersonationEnded && impersonating && (
+        <ImpersonationEndedModal email={impersonating.email} onRestart={restartImpersonating} onExit={stopImpersonating} />
+      )}
     </>
   );
 }

@@ -227,6 +227,12 @@ const he = {
   impersonationTitle: 'אתם צופים בדשבורד של המשתמש הזה כמנהל',
   viewingAs: 'צפייה בתור',
   exitImpersonation: 'יציאה',
+  // ImpersonationEndedModal
+  viewAsEndedTitle: 'הצפייה בחשבון הסתיימה',
+  viewAsEndedText: 'הצפייה בתור רואה החשבון הסתיימה — עקב חוסר פעילות ממושך, או משום שהסתיימה או הוחלפה בלשונית אחרת. כדי להמשיך מאותה נקודה, התחילו צפייה חדשה.',
+  viewAsRestart: 'התחלת צפייה חדשה',
+  viewAsBackToAdmin: 'חזרה לממשק הניהול',
+  viewAsRestartFailed: 'הפעולה נכשלה. נסו שוב, או טענו מחדש את העמוד.',
   googleAccountTitle: 'חשבון Google שאיתו התחברתם',
   accountMenuTitle: 'תפריט חשבון',
   logout: 'התנתקות',

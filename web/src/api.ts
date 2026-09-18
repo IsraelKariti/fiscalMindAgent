@@ -217,22 +217,68 @@ export function configureApi(next: ApiTransport): void {
   transport = next;
 }
 
+/**
+ * Admin "view as accountant": every workspace request names the accountant the
+ * SPA believes it is showing, and the server rejects it (409, code
+ * impersonation_ended) when its own view-as session says otherwise — idled
+ * out, exited in another tab, or switched to another accountant. The app shell
+ * sets the id after /api/me and listens for the ended signal.
+ */
+let viewAsUserId: string | null = null;
+let onImpersonationEnded: (() => void) | null = null;
+
+export function setViewAs(userId: string | null, onEnded: (() => void) | null): void {
+  viewAsUserId = userId;
+  onImpersonationEnded = onEnded;
+}
+
+/**
+ * The view-as session ended. The app shell shows its dialog through the
+ * listener; the message is empty so the many `err instanceof ApiError ?
+ * err.message : …` call sites render no banner for it.
+ */
+export class ImpersonationEndedError extends ApiError {
+  constructor() {
+    super(409, '');
+  }
+}
+
+export interface RequestOpts {
+  /**
+   * The app's own traffic (interval refreshes, SSE-triggered reloads) rather
+   * than something the user did. The server does not count it as activity, so
+   * an untouched open tab still idles out of a view-as session — every new
+   * timer-driven call must pass it.
+   */
+  background?: boolean;
+}
+
 /** Appends the transport's URL token for header-less consumers (EventSource, downloads). */
 async function tokenizedUrl(path: string): Promise<string> {
   const token = transport.getUrlToken ? await transport.getUrlToken() : null;
-  return `${transport.basePath}${path}${token ? `?sessionToken=${encodeURIComponent(token)}` : ''}`;
+  const params = [
+    token ? `sessionToken=${encodeURIComponent(token)}` : null,
+    viewAsUserId ? `viewAs=${encodeURIComponent(viewAsUserId)}` : null,
+  ].filter(Boolean);
+  return `${transport.basePath}${path}${params.length > 0 ? `?${params.join('&')}` : ''}`;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts): Promise<T> {
   const auth = transport.getAuthHeaders ? await transport.getAuthHeaders() : undefined;
   const res = await fetch(transport.basePath + path, {
     ...init,
     headers: {
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(viewAsUserId ? { 'X-FM-View-As': viewAsUserId } : {}),
+      ...(opts?.background ? { 'X-FM-Background': '1' } : {}),
       ...auth,
     },
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 409 && (data as { code?: string }).code === 'impersonation_ended') {
+    onImpersonationEnded?.();
+    throw new ImpersonationEndedError();
+  }
   if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? `Request failed (${res.status})`);
   return data as T;
 }
@@ -712,8 +758,8 @@ export interface AgentTypeEmailInfo {
 /** The agent-workspace endpoints of one agent instance, rooted at `/agents/<id>`. */
 function makeWorkspaceApi(prefix: string) {
   return {
-    dashboard: () => request<DashboardSummary>(`${prefix}/dashboard`),
-    listClients: () => request<{ clients: Client[] }>(`${prefix}/clients`),
+    dashboard: (opts?: RequestOpts) => request<DashboardSummary>(`${prefix}/dashboard`, undefined, opts),
+    listClients: (opts?: RequestOpts) => request<{ clients: Client[] }>(`${prefix}/clients`, undefined, opts),
     createClient: (args: {
       name: string;
       email: string;
@@ -723,9 +769,11 @@ function makeWorkspaceApi(prefix: string) {
       /** Optional collection deadline ("YYYY-MM-DD"); the agent paces follow-ups toward it. */
       dueDate?: string | null;
     }) => request<{ client: Client }>(`${prefix}/clients`, { method: 'POST', body: JSON.stringify(args) }),
-    getClient: (id: string) =>
+    getClient: (id: string, opts?: RequestOpts) =>
       request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(
         `${prefix}/clients/${id}`,
+        undefined,
+        opts,
       ),
     addDocument: (clientId: string, args: { name: string; description?: string | null }) =>
       request<{ document: ClientDocument }>(`${prefix}/clients/${clientId}/documents`, {
@@ -750,7 +798,8 @@ function makeWorkspaceApi(prefix: string) {
       request<{ client: Client }>(`${prefix}/clients/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(args) }),
     waSenderStatus: () => request<WaSenderStatus>(`${prefix}/wa-sender`),
     emailSender: () => request<EmailSenderStatus>(`${prefix}/email-sender`),
-    listEmails: (clientId: string) => request<{ emails: Email[] }>(`${prefix}/clients/${clientId}/emails`),
+    listEmails: (clientId: string, opts?: RequestOpts) =>
+      request<{ emails: Email[] }>(`${prefix}/clients/${clientId}/emails`, undefined, opts),
     sendScheduledNow: (clientId: string) =>
       request<{ ok: true }>(`${prefix}/clients/${clientId}/send-now`, { method: 'POST' }),
     setPaused: (clientId: string, paused: boolean) =>
@@ -764,7 +813,8 @@ function makeWorkspaceApi(prefix: string) {
     retryDraft: (clientId: string) => request<{ ok: true }>(`${prefix}/clients/${clientId}/redraft`, { method: 'POST' }),
     /** Re-fires a scheduled send whose attempt failed, keeping the same draft. */
     retrySend: (clientId: string) => request<{ ok: true }>(`${prefix}/clients/${clientId}/retry-send`, { method: 'POST' }),
-    listFiles: (clientId: string) => request<{ files: DocumentFile[] }>(`${prefix}/clients/${clientId}/files`),
+    listFiles: (clientId: string, opts?: RequestOpts) =>
+      request<{ files: DocumentFile[] }>(`${prefix}/clients/${clientId}/files`, undefined, opts),
     /** Async because the monday transport appends a freshly fetched ?sessionToken=. */
     fileDownloadUrl: (clientId: string, fileId: string) =>
       tokenizedUrl(`${prefix}/clients/${clientId}/files/${fileId}/download`),
@@ -874,8 +924,8 @@ export const api = {
     }),
   adminListInstanceClients: (agentInstanceId: string) =>
     request<{ clients: AdminClient[] }>(`/admin/agents/${agentInstanceId}/clients`),
-  adminGetClientConversation: (clientId: string) =>
-    request<AdminConversation>(`/admin/clients/${clientId}/conversation`),
+  adminGetClientConversation: (clientId: string, opts?: RequestOpts) =>
+    request<AdminConversation>(`/admin/clients/${clientId}/conversation`, undefined, opts),
   adminListLlmCalls: (filters: LlmCallFilters) => {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {

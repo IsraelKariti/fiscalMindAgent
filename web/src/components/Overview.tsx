@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { type DashboardSummary } from '../api';
+import { ImpersonationEndedError, type DashboardSummary, type RequestOpts } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import { displayClientName, LOCALE } from '../format';
 import { useT } from '../i18n';
@@ -19,21 +19,27 @@ export function Overview({ onSelectClient }: Props) {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setData(await api.dashboard());
-      setError(null);
-    } catch {
-      setError(t.dashboardLoadFailed);
-    }
-  }, [api, t]);
+  const load = useCallback(
+    async (opts?: RequestOpts) => {
+      try {
+        setData(await api.dashboard(opts));
+        setError(null);
+      } catch (err) {
+        // The app shell shows its own dialog for an ended view-as session.
+        if (err instanceof ImpersonationEndedError) return;
+        setError(t.dashboardLoadFailed);
+      }
+    },
+    [api, t],
+  );
 
   // Keep the numbers current while the user watches: refetch every 30s when
   // the tab is visible, and immediately when it becomes visible again.
   useEffect(() => {
     load();
+    // Background: the app's own refresh must not keep a view-as session alive.
     const refreshIfVisible = () => {
-      if (document.visibilityState === 'visible') load();
+      if (document.visibilityState === 'visible') load({ background: true });
     };
     const interval = setInterval(refreshIfVisible, 30_000);
     document.addEventListener('visibilitychange', refreshIfVisible);

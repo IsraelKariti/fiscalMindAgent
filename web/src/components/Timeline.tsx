@@ -309,8 +309,11 @@ export function Timeline({
       return;
     }
     let cancelled = false;
+    // Background: this follows every reload of the thread, including the 15s
+    // refresh — unmarked, it would keep an admin's view-as session alive forever.
+    // (Opening a client is still counted through the client/thread requests.)
     api
-      .adminGetClientConversation(clientId)
+      .adminGetClientConversation(clientId, { background: true })
       .then((c) => {
         if (!cancelled) {
           setTrace(c);

@@ -374,6 +374,38 @@ linked client. monday surfaces don't get hash routing (the iframe URL
 belongs to monday) — `Workspace` falls back to in-memory navigation there
 (`hashRouting` prop, set only by the standalone `App.tsx`).
 
+### Admin "view as" session
+
+The view-as session is a stateless signed cookie (`fm_impersonate`,
+`src/api/auth.ts` + the pure `src/api/impersonationCookie.ts`) with a
+**sliding idle timeout**: user activity re-issues it, and it ends after
+`IMPERSONATION_IDLE_MINUTES` (default 1440 = 24h) with none. Three rules keep
+that honest:
+
+- **Background traffic does not count as activity.** Anything the SPA fetches
+  on its own — interval refreshes, SSE-triggered reloads, a re-shown tab —
+  must pass `{ background: true }` (`RequestOpts`, `web/src/api.ts`), which
+  sends `X-FM-Background: 1`; SSE requests are recognized by their `Accept`
+  header. **Every new timer-driven call must pass it**, or an untouched open
+  tab keeps the session alive forever. Today: `ClientView`, `Overview`, the
+  sidebar roster stream in `Workspace`, and the admin trace reload in
+  `Timeline` (it follows every thread reload, so it is always background).
+- **The workspace declares whose workspace it shows.** While viewing as an
+  accountant, `request()` sends `X-FM-View-As: <userId>` and header-less URLs
+  (SSE, downloads) carry `?viewAs=`. `requireAuth` answers `409 { code:
+  'impersonation_ended' }` when its own view-as session disagrees (idled out,
+  exited or switched in another tab) instead of serving the request as the
+  admin — which used to surface as a misleading "Agent not found.".
+  `/admin/*` is exempt so a new session can be started.
+- **One reaction on the client.** `request()` turns that 409 into
+  `ImpersonationEndedError` (empty message, so the usual `err instanceof
+  ApiError ? err.message : …` banners stay silent) and signals `App.tsx`, which
+  shows `ImpersonationEndedModal`: start a new session (reload keeps the
+  `/as/…` hash → same agent + client) or go back to the admin panel.
+
+Idle expiry is audited as `admin.impersonation_expired` (start/stop come from
+the admin route map); extensions are not audited.
+
 ## Adding an agent type (checklist)
 
 1. `src/agents/<type>/index.ts` — the `AgentTypeDefinition` (see

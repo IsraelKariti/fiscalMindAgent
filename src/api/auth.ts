@@ -216,6 +216,9 @@ export function resolveIdentity(
   };
 }
 
+/** Expired view-as cookies already audited by this process (see requireAuth). */
+const auditedExpiredCookies = new Set<string>();
+
 /**
  * User activity slides the view-as session; the workspace's own traffic must
  * not, or an open tab would never idle out. The SPA marks its periodic
@@ -380,17 +383,23 @@ export const requireAuth: RequestHandler = (req, res, next) => {
   }
   const { impersonation } = identity;
   if (impersonation.state === 'expired') {
-    // Clearing on first sight keeps the audit to the requests already in flight.
     clearImpersonationCookie(res);
-    recordAudit({
-      actorType: 'admin',
-      action: 'admin.impersonation_expired',
-      actorUserId: identity.realUserId,
-      targetType: 'user',
-      targetId: impersonation.targetUserId,
-      detail: { idleMinutes: env.IMPERSONATION_IDLE_MINUTES },
-    });
-    logger.info('impersonation expired', { adminUserId: identity.realUserId, targetUserId: impersonation.targetUserId });
+    // The workspace fires its requests in parallel, so several carry the same
+    // expired cookie before the clear lands — audit that cookie once.
+    const expiredCookie = readCookie(req, IMPERSONATION_COOKIE) ?? '';
+    if (!auditedExpiredCookies.has(expiredCookie)) {
+      if (auditedExpiredCookies.size >= 500) auditedExpiredCookies.clear();
+      auditedExpiredCookies.add(expiredCookie);
+      recordAudit({
+        actorType: 'admin',
+        action: 'admin.impersonation_expired',
+        actorUserId: identity.realUserId,
+        targetType: 'user',
+        targetId: impersonation.targetUserId,
+        detail: { idleMinutes: env.IMPERSONATION_IDLE_MINUTES },
+      });
+      logger.info('impersonation expired', { adminUserId: identity.realUserId, targetUserId: impersonation.targetUserId });
+    }
   } else if (impersonation.state === 'active' && impersonation.refresh && countsAsActivity(req)) {
     setImpersonationCookie(res, identity.realUserId, impersonation.targetUserId);
   }

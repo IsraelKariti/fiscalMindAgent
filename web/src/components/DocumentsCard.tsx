@@ -1,7 +1,8 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ApiError, type ClientDocument, type DocumentFile, type DocumentStatus } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
+import { ActionMenu, type ActionMenuItem } from './ActionMenu';
 import { FileViewModal } from './FileViewModal';
 import { LOCALE, formatFileSize } from '../format';
 import { useT, type Messages } from '../i18n';
@@ -184,18 +185,6 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
     });
   };
 
-  const smallBtn = (label: string, onClick: () => void, opts: { title?: string; primary?: boolean } = {}) => (
-    <button
-      className={`btn btn-small ${opts.primary ? 'btn-primary' : 'btn-ghost'}`}
-      type="button"
-      title={opts.title}
-      disabled={busy}
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  );
-
   /** One row of the capital-declaration flow: status-specific controls + verification detail. */
   const capitalRow = (doc: ClientDocument) => {
     // Every linked file gets its own sub-row: the analysis verdict belongs
@@ -206,32 +195,45 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
     const reasons = doc.verification?.reasons?.join('; ') ?? '';
     const summary = doc.status === 'approved' ? extractedSummary(doc) : null;
 
-    const controls: ReactNode[] = [];
+    // The badge is the row's only status wording; every action sits in the
+    // "⋯" menu under a verb label, the one the accountant is expected to take first.
+    const actions: ActionMenuItem[] = [];
     if (doc.status === 'unresolved') {
-      controls.push(smallBtn(t.markRequired, () => setStatus(doc, 'pending'), { primary: true }));
-      controls.push(smallBtn(t.markNotRequired, () => setStatus(doc, 'not_required')));
+      actions.push({ key: 'required', label: t.markRequired, onSelect: () => setStatus(doc, 'pending') });
+      actions.push({ key: 'not_required', label: t.markNotRequired, onSelect: () => setStatus(doc, 'not_required') });
     } else if (doc.status === 'pending') {
-      controls.push(smallBtn(t.markNotRequired, () => setStatus(doc, 'not_required')));
+      actions.push({ key: 'not_required', label: t.markNotRequired, onSelect: () => setStatus(doc, 'not_required') });
     } else if (doc.status === 'claimed') {
-      controls.push(smallBtn(t.confirmClaimedReceipt, () => setStatus(doc, 'approved'), { title: t.confirmClaimedTitle, primary: true }));
+      actions.push({
+        key: 'confirm',
+        label: t.confirmClaimedReceipt,
+        title: t.confirmClaimedTitle,
+        onSelect: () => setStatus(doc, 'approved'),
+      });
     } else if (doc.status === 'collected') {
-      controls.push(smallBtn(t.approveManually, () => setStatus(doc, 'approved'), { primary: stalled }));
+      actions.push({ key: 'approve', label: t.approveManually, onSelect: () => setStatus(doc, 'approved') });
     } else if (doc.status === 'approved' || doc.status === 'not_required' || doc.status === 'retired') {
-      controls.push(smallBtn(t.reopenDocument, () => setStatus(doc, 'pending')));
+      actions.push({ key: 'reopen', label: t.reopenDocument, onSelect: () => setStatus(doc, 'pending') });
     }
+    actions.push({
+      key: 'remove',
+      label: t.removeDocument,
+      danger: true,
+      onSelect: () => run(() => api.deleteDocument(clientId, doc.id)),
+    });
 
-    const badge =
-      doc.status === 'approved' ? (
-        <span className="badge badge-success">{t.approvedStatus}</span>
-      ) : doc.status === 'collected' ? (
-        <span className={`badge ${stalled ? 'badge-danger' : 'badge-note'}`}>
-          {stalled ? t.verificationFailedStatus : t.inVerificationStatus}
-        </span>
-      ) : doc.status === 'claimed' ? (
-        <span className="badge badge-warning">{t.claimedStatus}</span>
-      ) : doc.status === 'retired' ? (
-        <span className="badge badge-note">{t.retiredStatus}</span>
-      ) : null;
+    const badges: Record<DocumentStatus, { className: string; label: string }> = {
+      unresolved: { className: 'badge-warning', label: t.unresolvedStatus },
+      pending: { className: 'badge-pending', label: t.awaitingClientStatus },
+      claimed: { className: 'badge-warning', label: t.claimedStatus },
+      collected: stalled
+        ? { className: 'badge-danger', label: t.verificationFailedStatus }
+        : { className: 'badge-note', label: t.inVerificationStatus },
+      approved: { className: 'badge-success', label: t.approvedStatus },
+      not_required: { className: 'badge-neutral', label: t.notRequiredStatus },
+      retired: { className: 'badge-note', label: t.retiredStatus },
+    };
+    const badge = badges[doc.status];
 
     return (
       <li key={doc.id} className={`doc-row ${doc.status}`}>
@@ -240,11 +242,8 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
             <span className="doc-name">{doc.name}</span>
             {doc.description && <span className="doc-desc muted">{doc.description}</span>}
           </span>
-          {badge}
-          {controls}
-          <button className="chip-x" title={t.removeDocument} disabled={busy} onClick={() => run(() => api.deleteDocument(clientId, doc.id))}>
-            ×
-          </button>
+          <span className={`badge ${badge.className}`}>{badge.label}</span>
+          <ActionMenu items={actions} label={t.rowActions} disabled={busy} />
         </div>
         {linked.length > 0 && (
           <ul className="doc-file-list">

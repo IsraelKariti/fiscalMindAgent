@@ -912,6 +912,41 @@ textarea {
   font-weight: 600;
 }
 
+/* Row actions menu ("⋯"): the Dropdown list look, but as wide as its longest
+   label — its left edge is set inline and clamped to the viewport. */
+.action-menu {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.action-menu .icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.action-menu-list {
+  min-width: 170px;
+  max-width: calc(100vw - 16px);
+}
+
+.action-menu-item {
+  white-space: nowrap;
+}
+
+.action-menu-item.danger {
+  color: var(--error);
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  padding-top: 10px;
+}
+
+.action-menu-item.danger:hover,
+.action-menu-item.danger:focus {
+  background: var(--error-bg);
+}
+
 /* Buttons */
 .btn {
   position: relative;
@@ -1730,7 +1765,7 @@ textarea {
 }
 
 /* Capital-declaration rows put .doc-text directly in the row (no .doc-check
-   wrapper) — let it absorb the free space so the badge/buttons/× of every row
+   wrapper) — let it absorb the free space so the badge/actions menu of every row
    line up in one column at the row's end instead of trailing the text. */
 .doc-row-main > .doc-text {
   flex: 1;

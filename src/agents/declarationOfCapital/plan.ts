@@ -224,27 +224,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
   }
 
-  if (decision.suspected_injection) {
-    logger.warn('planner: LLM flagged suspected prompt injection — suppressing state changes this cycle', {
-      clientId,
-      reasoning: decision.reasoning,
-    });
-    recordAudit({
-      actorType: 'agent',
-      action: 'injection.cycle_suppressed',
-      agentInstanceId: client.agent_instance_id,
-      clientId,
-      severity: 'critical',
-      suspectedInjection: true,
-      detail: { agent: agentType, clientName: client.name, reasoning: decision.reasoning },
-    });
-  }
-
   // Intake resolutions + ladder actions (capital declaration): already
   // validated against the resolvable/typed rows and the evidence quotes
-  // (decisionSchema); the DB guards re-check the statuses. Suppressed
-  // wholesale under suspected injection — a hostile message must not be able
-  // to shrink the declaration.
+  // (decisionSchema); the DB guards re-check the statuses. The planner gives
+  // no injection verdict — that is the dedicated screens' job, before it runs.
   // Rows created directly as 'claimed' (the client says the office already
   // holds the document) feed the same accountant notification as claim-marks.
   const claimedAtCreation: string[] = [];
@@ -268,7 +251,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     return f ? (f.label ?? f.filename) : undefined;
   };
   let stepBase = applied;
-  if (!decision.suspected_injection && decision.resolutions.length > 0) {
+  if (decision.resolutions.length > 0) {
     for (const resolution of decision.resolutions) {
       if (resolution.resolution === 'not_required') {
         const row = await clientDocuments.resolveNotRequired(resolution.documentId, clientId, resolution.evidence);
@@ -319,7 +302,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
 
   // Instance additions after resolution (capital declaration): the
   // requirements-ladder escalation and late discoveries.
-  if (!decision.suspected_injection && decision.addedInstances.length > 0) {
+  if (decision.addedInstances.length > 0) {
     for (const addition of decision.addedInstances) {
       const rows = await clientDocuments.addInstances(addition.anchorDocumentId, clientId, addition.instances);
       if (!rows || rows.length === 0) continue;
@@ -349,7 +332,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // Document retirements (capital declaration): the ladder replaced these rows
   // with different documents (evidence-backed; collected/approved rows are
   // valid targets per the office's unit rule).
-  if (!decision.suspected_injection && decision.retired.length > 0) {
+  if (decision.retired.length > 0) {
     for (const retirement of decision.retired) {
       const row = await clientDocuments.retire(retirement.documentId, clientId, retirement.evidence);
       if (!row) continue;
@@ -397,7 +380,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
 
   // Attestation confirmation (capital declaration): validated to cite a real
   // post-summary inbound message; record it with its evidence.
-  if (!decision.suspected_injection && decision.attestation?.action === 'confirmed') {
+  if (decision.attestation?.action === 'confirmed') {
     await clients.setAttestationConfirmed(clientId, decision.attestation.evidence);
     attestationConfirmed = true;
     recordAudit({
@@ -419,15 +402,13 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const pendingIds = new Set(documents.filter((d) => d.status === 'pending').map((d) => d.id));
   const fileById = new Map(files.map((f) => [f.id, f]));
   const documentIds = new Set(documents.map((d) => d.id));
-  const proposedPairs = decision.suspected_injection
-    ? []
-    : decision.matched_files.filter((m) => fileById.has(m.file_id) && documentIds.has(m.document_id));
+  const proposedPairs = decision.matched_files.filter((m) => fileById.has(m.file_id) && documentIds.has(m.document_id));
   const newlyCollected: string[] = [];
   const newlyClaimed: string[] = [];
   // A cycle triggered by a verification verdict reports the outcome only: no
   // new file arrived, so nothing may be collected (and therefore nothing can
   // be verified again — the rerun cannot loop).
-  if (!decision.suspected_injection && !ctx.hints?.afterVerification) {
+  if (!ctx.hints?.afterVerification) {
     for (const id of decision.collected_document_ids) {
       if (!pendingIds.has(id)) continue;
       const strongMatch = files.some((f) => fileMatchesDocument(f, id));
@@ -518,14 +499,9 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     documents.length > 0 &&
     documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired');
   const allCollected =
-    documents.length > 0
-      ? allSettled && attestationConfirmed
-      : decision.decision === 'goal_complete' && !decision.suspected_injection;
+    documents.length > 0 ? allSettled && attestationConfirmed : decision.decision === 'goal_complete';
 
-  // Under suspected injection the fetch may only be cancelled — an injected
-  // message must not be able to offer/agree/start a login (it triggers a real OTP).
-  const taxFetchDecision =
-    decision.suspected_injection && decision.tax_fetch?.action !== 'cancel' ? null : decision.tax_fetch;
+  const taxFetchDecision = decision.tax_fetch;
   const taxFetchTargetCtx = taxFetchDecision
     ? (taxFetchContexts.find((c) => c.provider === taxFetchDecision.provider) ?? null)
     : null;
@@ -598,7 +574,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // Attestation request (capital declaration): this very draft is the closing
   // summary. Stamped by email id — the confirmation validator only trusts it
   // once the row actually sent, so an abandoned draft never becomes a request.
-  if (!decision.suspected_injection && decision.attestation?.action === 'request') {
+  if (decision.attestation?.action === 'request') {
     await clients.setAttestationRequest(clientId, emailId);
     recordAudit({
       actorType: 'agent',

@@ -30,13 +30,15 @@ import {
 } from '../src/agents/declarationOfCapital/verifyChecks.js';
 import { buildDecisionCall } from '../src/agents/declarationOfCapital/decide.js';
 import {
+  allowedTaxFetchActions,
   normalizeDecision,
   restorePrunedNulls,
   type DecisionContext,
   type DecisionResponse,
   type IntakeDecisionState,
 } from '../src/agents/declarationOfCapital/decisionSchema.js';
-import { buildPrompt, type IntakePromptInput, type WaChannelState } from '../src/agents/declarationOfCapital/prompt.js';
+import { buildPrompt, type IntakePromptInput, type TaxFetchPromptInput, type WaChannelState } from '../src/agents/declarationOfCapital/prompt.js';
+import { getProviderSpec } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
 import { env } from '../src/config/env.js';
 import { zonedTimeToUtc } from '../src/util/time.js';
 import type { LlmCallPurpose } from '../src/gemini/modelCatalog.js';
@@ -472,6 +474,11 @@ interface DecideCase {
   thread: DecideMessageInput[];
   /** Shown to the model in the UNSENT DRAFTS block, oldest first; never part of the thread. */
   unsent_drafts?: DecideUnsentDraftInput[];
+  /**
+   * Fetch providers shown in the DOCUMENT FETCH block (credentials on file). Per-document status is derived from the
+   * checklist like the app does (taxFetch/flow.ts); the client counts as live on WhatsApp when the window is open.
+   */
+  tax_fetch?: { provider: string; state: string }[];
   attestation?: {
     /** ISO instant the attestation summary was SENT; null = not requested. */
     requestedAt: string | null;
@@ -487,7 +494,6 @@ interface DecideCase {
     /** Catalog type key -> exact number of instances added to that type (exactly this set of types; any row of the type may be the anchor). */
     added_instances?: Record<string, number>;
     attestation?: 'request' | 'confirmed' | null;
-    suspected_injection?: boolean;
     /** Row id -> substrings that must NOT appear in the message (the row is settled and must not be brought up). */
     no_settled_rows_mentioned?: Record<string, string[]>;
     /** Default true for follow_up: the message names 31.12.<taxYear>. */
@@ -680,23 +686,51 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
     allSettled: intake.allSettled,
     attestation: attestationConfirmed ? 'confirmed' : requestedAt ? 'requested' : 'none',
   };
+  const clientOnWhatsapp = waState.windowOpen && history.some((m) => m.direction === 'inbound');
+  const taxFetchPrompt: TaxFetchPromptInput[] = (c.tax_fetch ?? []).map((t) => {
+    const spec = getProviderSpec(t.provider);
+    return {
+      provider: spec.id,
+      siteNameHe: spec.siteNameHe,
+      otpChannel: spec.otpChannel,
+      state: t.state,
+      available: true,
+      allowedActions: allowedTaxFetchActions(t.state, true, clientOnWhatsapp),
+      documentTypes: spec.documents.map((type) => {
+        const matching = documents.filter((d) => type.matchesRequiredDocument(d));
+        return {
+          key: type.key,
+          descriptionHe: type.documentDescriptionHe,
+          pending: matching.some((d) => d.status === 'pending'),
+          collected: matching.some((d) => d.status === 'collected'),
+        };
+      }),
+    };
+  });
   const decisionCtx: DecisionContext = {
     emailAllowed: false,
     whatsappAllowed: true,
     windowOpen: waState.windowOpen,
     templates,
+    taxFetch: taxFetchPrompt.map((p) => ({
+      provider: p.provider,
+      state: p.state,
+      available: p.available,
+      clientOnWhatsapp,
+      documentKeys: p.documentTypes.filter((d) => d.pending).map((d) => d.key),
+    })),
     intake,
   };
-  return { taxYear, now, client, history, documents, files, waState, intakePrompt, decisionCtx };
+  return { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx };
 }
 
 const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
   purpose: 'generate_message',
   load: () => readCases('generate_message'),
   build(c, ctx) {
-    const { taxYear, now, client, history, documents, files, waState, intakePrompt, decisionCtx } = decideInputs(c, ctx);
+    const { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
-    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, [], taxYear, intakePrompt, unsentDraftRows(c));
+    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPrompt, taxYear, intakePrompt, unsentDraftRows(c));
     const { spec, schema } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
     return { spec, parse: (text) => restorePrunedNulls(schema.parse(JSON.parse(text))) };
   },
@@ -717,7 +751,6 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
     }
     checks.push({ key: 'gate', expected: 'accepted', actual: 'accepted', pass: true });
     checks.push(eq('decision', e.decision, decision.decision));
-    if (e.suspected_injection !== undefined) checks.push(eq('suspected_injection', e.suspected_injection, decision.suspected_injection));
 
     if (decision.decision === 'follow_up') {
       const message = decision.message;

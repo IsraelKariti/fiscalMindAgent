@@ -49,7 +49,6 @@ describe('toAnthropicSchema', () => {
       'decision',
       'matched_files',
       'reasoning',
-      'suspected_injection',
     ]);
     const props = converted.properties as Record<string, Record<string, unknown>>;
     assert.equal(props.email_subject!.type, 'string');
@@ -92,7 +91,6 @@ describe('restoreOmittedNulls', () => {
     const answer = {
       decision: 'goal_complete',
       reasoning: 'all documents are in',
-      suspected_injection: false,
       collected_document_ids: ['doc-1'],
       matched_files: [],
     };
@@ -108,7 +106,6 @@ describe('restoreOmittedNulls', () => {
     const answer = {
       decision: 'follow_up',
       reasoning: 'ask for the missing bank statement',
-      suspected_injection: false,
       collected_document_ids: [],
       matched_files: [],
       channel: 'whatsapp',
@@ -134,7 +131,6 @@ describe('restoreOmittedNulls', () => {
     const answer = {
       decision: 'follow_up',
       reasoning: 'r',
-      suspected_injection: false,
       collected_document_ids: [],
       matched_files: [],
       channel: 'email',
@@ -252,7 +248,6 @@ describe('decisionSchemaForContext', () => {
     const parsed = decisionSchemaForContext(CAPITAL_DECLARATION_CONTEXT).parse({
       decision: 'follow_up',
       reasoning: 'ask the opening questions',
-      suspected_injection: false,
       collected_document_ids: [],
       matched_files: [],
       channel: 'whatsapp',

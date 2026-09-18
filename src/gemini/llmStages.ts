@@ -5,7 +5,7 @@ import { FORM_INTAKE_PROMPT } from '../agents/declarationOfCapital/formIntakeCal
 import { buildFormIntakeSchema } from '../agents/declarationOfCapital/formIntakeRules.js';
 import { CAPITAL_DOCUMENT_CATALOG } from '../agents/declarationOfCapital/catalog.js';
 import { EXTRACTION_PROMPT, extractionJsonSchema } from '../agents/declarationOfCapital/verifyChecks.js';
-import { PROMPT_TEMPLATE } from '../agents/declarationOfCapital/prompt.js';
+import { PLATFORM_SECTIONS, PROMPT_TEMPLATE } from '../agents/declarationOfCapital/prompt.js';
 import { FILE_SCREEN_PROMPT, InjectionScreenSchema, SCREEN_PROMPT } from '../agents/shared/injectionScreen.js';
 import { ANALYSIS_PROMPT, YEAR_CONTEXT } from '../agents/declarationOfCapital/analyzeFile.js';
 import { CapitalFileAnalysisSchema } from '../agents/declarationOfCapital/analyzeFileRules.js';
@@ -131,7 +131,7 @@ const STAGES: StageStatic[] = [
     prompts: [
       {
         variant: 'template + untrusted-data doctrine',
-        systemPrompt: `${PROMPT_TEMPLATE}\n\n${buildUntrustedDataDoctrine('{{token}}', true)}`,
+        systemPrompt: `${PROMPT_TEMPLATE}\n\n${buildUntrustedDataDoctrine('{{token}}', Object.values(PLATFORM_SECTIONS))}`,
       },
     ],
     query: [

@@ -15,6 +15,17 @@ import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
 import { formatUpcomingDates } from '../shared/upcomingDates.js';
 import { getCatalogType } from './catalog.js';
 
+/**
+ * The fenced sections the platform itself writes. The input-safety rule names
+ * them as trusted: their guidance is binding, unlike client-sourced content.
+ */
+export const PLATFORM_SECTIONS = {
+  whatsapp: 'WHATSAPP CHANNEL',
+  documentFetch: 'DOCUMENT FETCH',
+  deadline: 'COLLECTION DEADLINE',
+  intake: 'INTAKE STATUS',
+} as const;
+
 /** Everything the prompt tells the LLM about the WhatsApp channel's current availability. */
 export interface WaChannelState {
   /** Client opted in + sender number assigned + something is actually sendable. */
@@ -125,13 +136,13 @@ export function buildSystemPrompt(
     tax_year: String(taxYear ?? now.getFullYear() - 1),
   });
   const withContract = `${rendered}\n\n${KEEPALIVE_CONTRACT}`;
-  return fenceToken ? `${withContract}\n\n${buildUntrustedDataDoctrine(fenceToken, true)}` : withContract;
+  return fenceToken ? `${withContract}\n\n${buildUntrustedDataDoctrine(fenceToken, Object.values(PLATFORM_SECTIONS))}` : withContract;
 }
 
 /** Lives in `contents` (like the documents section) so the system prompt stays static and cacheable. */
 export function buildWhatsAppSection(token: string, wa: WaChannelState): string {
   if (!wa.allowed) {
-    return `${fence(token, 'WHATSAPP CHANNEL')}\nstatus: UNAVAILABLE (${wa.unavailableReason ?? 'unavailable'}) — use email only\n${endFence(token, 'WHATSAPP CHANNEL')}`;
+    return `${fence(token, PLATFORM_SECTIONS.whatsapp)}\nstatus: UNAVAILABLE (${wa.unavailableReason ?? 'unavailable'}) — use email only\n${endFence(token, PLATFORM_SECTIONS.whatsapp)}`;
   }
   const windowLine = wa.windowOpen
     ? `24h window: OPEN — free-form messages (whatsapp_text) allowed until ${
@@ -144,7 +155,7 @@ export function buildWhatsAppSection(token: string, wa: WaChannelState): string 
       : wa.templates
           .map((t) => `[template_id: ${t.content_sid}] ${t.name} — "${t.body}" (${t.variable_count} variables)`)
           .join('\n');
-  return `${fence(token, 'WHATSAPP CHANNEL')}\nstatus: ENABLED — the client agreed to receive WhatsApp messages\n${windowLine}\napproved templates:\n${templates}\n${endFence(token, 'WHATSAPP CHANNEL')}`;
+  return `${fence(token, PLATFORM_SECTIONS.whatsapp)}\nstatus: ENABLED — the client agreed to receive WhatsApp messages\n${windowLine}\napproved templates:\n${templates}\n${endFence(token, PLATFORM_SECTIONS.whatsapp)}`;
 }
 
 /** Per-state Hebrew note, parameterized by the provider's site + OTP channel. */
@@ -213,13 +224,13 @@ export function buildTaxFetchSection(token: string, providers: TaxFetchPromptInp
   });
 
   return [
-    fence(token, 'DOCUMENT FETCH'),
+    fence(token, PLATFORM_SECTIONS.documentFetch),
     taxFetchPreamble(),
     '',
     blocks.join('\n\n'),
     '',
     'בכל מצב אחר, או כשאין פעולה לבצע, השאר את tax_fetch_action, tax_fetch_provider ו-tax_fetch_document_keys כולם null.',
-    endFence(token, 'DOCUMENT FETCH'),
+    endFence(token, PLATFORM_SECTIONS.documentFetch),
   ].join('\n');
 }
 
@@ -239,7 +250,7 @@ export function buildDeadlineSection(token: string, client: ClientRow, now: Date
   if (!dueDate) return '';
   const daysLeft = Math.ceil((Date.parse(dueDate) - now.getTime()) / 86_400_000);
   const distance = daysLeft > 0 ? `${daysLeft} day(s) from now` : daysLeft === 0 ? 'TODAY' : `${-daysLeft} day(s) OVERDUE`;
-  return `${fence(token, 'COLLECTION DEADLINE')}\nAll documents should be collected by: ${dueDate} (${distance})\n${endFence(token, 'COLLECTION DEADLINE')}`;
+  return `${fence(token, PLATFORM_SECTIONS.deadline)}\nAll documents should be collected by: ${dueDate} (${distance})\n${endFence(token, PLATFORM_SECTIONS.deadline)}`;
 }
 
 /** Lives in `contents` (not the template) so the system prompt stays static and cacheable. */
@@ -336,10 +347,10 @@ export function buildIntakeSection(token: string, intake?: IntakePromptInput): s
           ? 'אישור סופיות (attestation): כל המסמכים הוסדרו — ההודעה הבאה צריכה להיות הודעת הסיכום (attestation="request").'
           : 'אישור סופיות (attestation): עדיין לא רלוונטי — יש מסמכים שטרם הוסדרו.';
   return [
-    fence(token, 'INTAKE STATUS'),
+    fence(token, PLATFORM_SECTIONS.intake),
     `שאלות בירור פתוחות (status: unresolved): ${intake.unresolvedCount}`,
     attestationLine,
-    endFence(token, 'INTAKE STATUS'),
+    endFence(token, PLATFORM_SECTIONS.intake),
   ].join('\n');
 }
 

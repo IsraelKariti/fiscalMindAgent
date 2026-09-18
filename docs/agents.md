@@ -556,9 +556,14 @@ touching prompt builders or planners:
   appended to every agent's system instruction **outside** any
   accountant-editable template; inbound messages that trip the regex heuristics
   (`detectInjectionHeuristics`, also logged at ingestion in the webhooks) get a
-  SECURITY NOTE annotation in the transcript. Every planner schema carries
-  `suspected_injection` — when the LLM sets it, that cycle's state changes are
-  suppressed (and tax-fetch actions except `cancel` are dropped).
+  SECURITY NOTE annotation in the transcript. The doctrine names the
+  platform-written sections (`PLATFORM_SECTIONS` in `prompt.ts`: WhatsApp
+  channel, document fetch, deadline, intake status) as trusted — their
+  guidance is binding; client-sourced content never is. The planner gives
+  **no** injection verdict (its schema has no `suspected_injection`; removed
+  2026-09-18 after it flagged the platform's own DOCUMENT FETCH block):
+  detection belongs only to the dedicated screens below, which run before the
+  planner, and every planner state change stays behind the code gates.
 - **Analyzer isolation + quarantine** (`analyzeFile`/`analyzeReceipt`): the
   file analyzers see only the file bytes (never the conversation), are told
   the file is untrusted, report `injection_suspected`, and their

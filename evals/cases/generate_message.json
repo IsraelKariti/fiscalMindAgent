@@ -499,6 +499,148 @@
         "mentions_valuation_date": false
       },
       "notes": "burst of client messages (bug 2026-09-18): every earlier reply was replaced before sending, so the thread is client-only and the replies sit in UNSENT DRAFTS; the last message is a fragment naming two new pension funds (Meitav, Menora) — both must be added as instances of the already-resolved pension type, not only named in the reply"
+    },
+    {
+      "id": "dec_09",
+      "now": "2026-09-18T16:09:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-19T16:08:40Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "type_key": "bank_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "securities_portfolio",
+          "status": "not_required"
+        },
+        {
+          "type_key": "study_fund",
+          "status": "not_required"
+        },
+        {
+          "type_key": "life_insurance_savings",
+          "status": "not_required"
+        },
+        {
+          "type_key": "real_estate",
+          "status": "not_required"
+        },
+        {
+          "type_key": "mortgage_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_taken",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_given",
+          "status": "not_required"
+        },
+        {
+          "type_key": "vehicle",
+          "status": "not_required"
+        },
+        {
+          "type_key": "contents_insurance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "crypto",
+          "status": "not_required"
+        },
+        {
+          "type_key": "private_investment",
+          "status": "not_required"
+        },
+        {
+          "type_key": "poa_account",
+          "status": "not_required"
+        },
+        {
+          "type_key": "prior_declaration",
+          "status": "not_required"
+        },
+        {
+          "type_key": "other_assets",
+          "status": "not_required"
+        },
+        {
+          "type_key": "business_ownership",
+          "status": "not_required"
+        },
+        {
+          "id": "doc-pension-altshuler",
+          "type_key": "pension_provident",
+          "status": "pending",
+          "name": "פנסיה באלטשולר",
+          "description": null
+        }
+      ],
+      "tax_fetch": [
+        {
+          "provider": "altshuler_shaham",
+          "state": "none"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן"
+        },
+        {
+          "id": "msg-3",
+          "direction": "inbound",
+          "at": "2026-09-18T13:51:19Z",
+          "body": "נזכרתי שיש לי פנסיה באלטשולר"
+        },
+        {
+          "id": "msg-4",
+          "direction": "outbound",
+          "at": "2026-09-18T13:53:00Z",
+          "body": "תודה ישראל, רשמתי. להצהרת ההון ליום 31.12.2025 נצטרך אישור יתרה של הפנסיה באלטשולר נכון ל-31.12.2025. אפשר לשלוח אותו לכאן כשנוח לך."
+        },
+        {
+          "id": "msg-5",
+          "direction": "inbound",
+          "at": "2026-09-18T16:08:40Z",
+          "body": "נזכרתי שיש לי גם פנסיה במור"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "added_instances": {
+          "pension_provident": 1
+        }
+      },
+      "notes": "Incident 2026-09-18: with a DOCUMENT FETCH block in the prompt, the planner read the platform's own fetch guidance as an injection and the new pension (Mor, not a fetch provider) was dropped. Proves the instance is added while the fetch block is present; the planner gives no injection verdict any more."
     }
   ]
 }

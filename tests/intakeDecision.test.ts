@@ -24,6 +24,25 @@ describe('validate_message check list (gateDecision)', () => {
     ]);
   });
 
+  it('an answer that still carries the retired suspected_injection field is accepted and the field has no effect', () => {
+    const raw = {
+      ...baseRaw({
+        resolved_documents: [
+          {
+            document_id: 'doc-vehicle',
+            resolution: 'not_required',
+            instances: null,
+            evidence: { message_id: 'msg-1', quote: 'אין לי רכב בכלל' },
+          },
+        ],
+      }),
+      suspected_injection: true,
+    };
+    const { decision } = gateDecision(JSON.stringify(raw), schema, ctx);
+    assert.equal('suspected_injection' in decision, false);
+    assert.equal(decision.resolutions.length, 1);
+  });
+
   it('a schema-invalid answer fails json_schema only — business_rules never ran', () => {
     for (const text of ['not json at all', JSON.stringify({ decision: 'follow_up' })]) {
       assert.throws(
@@ -66,7 +85,6 @@ function baseRaw(overrides: Partial<DecisionResponse> = {}): DecisionResponse {
   return {
     decision: 'follow_up',
     reasoning: 'test',
-    suspected_injection: false,
     collected_document_ids: [],
     matched_files: [],
     channel: 'email',

@@ -14,7 +14,6 @@ const incidentAnswer = JSON.stringify({
   decision: 'follow_up',
   reasoning:
     'The assistant just sent message #9, which announced the initiation of the Altshuler Shaham pension document fetch. No new message is needed as the client is expected to provide the SMS code in response to the last message.',
-  suspected_injection: false,
   collected_document_ids: [],
   matched_files: [],
   channel: null,

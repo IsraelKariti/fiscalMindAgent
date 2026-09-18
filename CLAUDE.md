@@ -37,6 +37,12 @@ Always read `openspec/specs/` for the affected capability before planning;
 never create a change folder by hand (use `openspec new change`); never
 delete an `openspec/changes/` folder — archive it.
 
+## Notion
+
+Before creating or editing any Notion page, read `STYLE.md` (repo root) and
+follow it. It holds the user's layout preferences for Notion — first rule:
+cards (big title, small inner data) instead of table rows.
+
 ## Dev stack
 
 The user runs `npm run dev` in their own terminal — never start it (or its

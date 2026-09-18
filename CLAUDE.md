@@ -43,6 +43,11 @@ Before creating or editing any Notion page, read `STYLE.md` (repo root) and
 follow it. It holds the user's layout preferences for Notion — first rule:
 cards (big title, small inner data) instead of table rows.
 
+When the user makes a style request about a Notion page (layout, wording,
+diagrams, text size), also record it as a rule in `STYLE.md` in the same
+turn, so the next sessions follow it. Update an existing rule instead of
+adding a duplicate.
+
 ## Dev stack
 
 The user runs `npm run dev` in their own terminal — never start it (or its

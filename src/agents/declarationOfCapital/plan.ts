@@ -31,6 +31,9 @@ import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
 import type { ClientRow } from '../../db/types.js';
 
+/** Covers a realistic burst of client messages; older drafts add nothing the documents list doesn't already show. */
+const MAX_UNSENT_DRAFTS = 5;
+
 /**
  * What the agent may do on WhatsApp right now: the client must be opted in
  * with a valid number, the accountant must have a sender, and there must be
@@ -165,11 +168,32 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     attestationConfirmed,
   };
 
-  const { systemInstruction, contents } = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPromptInputs, taxYear, {
-    unresolvedCount: intake.resolvable.filter((r) => r.status === 'unresolved').length,
-    allSettled: intake.allSettled,
-    attestation: intake.attestationConfirmed ? 'confirmed' : intake.attestationRequested ? 'requested' : 'none',
-  });
+  // The model's own drafts that never went out (replaced by a newer plan, or
+  // parked for review) since its last delivered reply — prompt context only.
+  // `history` stays delivered-only: every rule above reads what the client saw.
+  const lastDeliveredOutboundAt = history.reduce<Date | null>(
+    (latest, m) => (m.direction === 'outbound' && m.sent_at && (!latest || m.sent_at > latest) ? m.sent_at : latest),
+    null,
+  );
+  const unsentDrafts = await emails.listUnsentDraftsForClient(clientId, lastDeliveredOutboundAt, MAX_UNSENT_DRAFTS);
+
+  const { systemInstruction, contents } = buildPrompt(
+    client,
+    accountant,
+    history,
+    documents,
+    files,
+    now,
+    waState,
+    taxFetchPromptInputs,
+    taxYear,
+    {
+      unresolvedCount: intake.resolvable.filter((r) => r.status === 'unresolved').length,
+      allSettled: intake.allSettled,
+      attestation: intake.attestationConfirmed ? 'confirmed' : intake.attestationRequested ? 'requested' : 'none',
+    },
+    unsentDrafts,
+  );
   const decisionCtx: DecisionContext = {
     // WhatsApp-only: the planner may never choose email.
     emailAllowed: false,

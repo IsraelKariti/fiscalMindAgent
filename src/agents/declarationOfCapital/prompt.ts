@@ -382,6 +382,26 @@ function formatFileAnalysis(file: DocumentFileRow): string {
   return `content analysis (from the file's actual contents): ${parts.join(' | ')}`;
 }
 
+const UNSENT_DRAFT_BODY_MAX = 1_500;
+
+/**
+ * The agent's own outbound drafts that never reached the client (replaced by a
+ * newer plan, or parked for review). Kept out of the thread on purpose: the
+ * thread is the record of what the client actually saw. Empty list → no block.
+ */
+export function buildUnsentDraftsSection(token: string, drafts: EmailRow[]): string {
+  if (drafts.length === 0) return '';
+  const name = 'UNSENT DRAFTS (your own earlier replies — NEVER DELIVERED, the client has not read them)';
+  const lines = drafts.map((draft, i) => {
+    const reason =
+      draft.status === 'held' || draft.review_status === 'pending' ? 'held for review' : 'replaced by a newer plan';
+    // A draft can echo client text — same fence-safe sanitizing as inbound bodies.
+    const body = sanitizeUntrusted(draft.body, UNSENT_DRAFT_BODY_MAX);
+    return `[draft ${i + 1}] ${draft.created_at.toISOString()} | via: ${draft.channel} | NOT DELIVERED (${reason})\n${body}`;
+  });
+  return `${fence(token, name)}\n${lines.join('\n\n')}\n${endFence(token, name)}`;
+}
+
 export function buildThreadTranscript(token: string, history: EmailRow[], files: DocumentFileRow[] = []): string {
   if (history.length === 0) {
     return `${fence(token, 'MESSAGE THREAD')}\n(no messages yet)\n${endFence(token, 'MESSAGE THREAD')}\n\nDecide the next action now.`;
@@ -456,6 +476,7 @@ export function buildPrompt(
   taxFetch: TaxFetchPromptInput[] = [],
   taxYear?: number,
   intake?: IntakePromptInput,
+  unsentDrafts: EmailRow[] = [],
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
@@ -465,6 +486,7 @@ export function buildPrompt(
     buildDeadlineSection(token, client, now),
     buildWhatsAppSection(token, waState),
     buildTaxFetchSection(token, taxFetch),
+    buildUnsentDraftsSection(token, unsentDrafts),
     buildThreadTranscript(token, history, files),
   ].filter((s) => s !== '');
   return {

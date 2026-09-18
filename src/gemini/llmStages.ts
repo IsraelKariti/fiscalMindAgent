@@ -140,7 +140,7 @@ const STAGES: StageStatic[] = [
         parts: [
           {
             kind: 'text',
-            body: '--- REQUIRED DOCUMENTS [{{token}}] --- … --- SUBMITTED QUESTIONNAIRE [{{token}}] --- … --- INTAKE STATUS [{{token}}] --- … --- MESSAGE THREAD [{{token}}] --- …\n\nDecide the next action now.',
+            body: '--- REQUIRED DOCUMENTS [{{token}}] --- … --- SUBMITTED QUESTIONNAIRE [{{token}}] --- … --- INTAKE STATUS [{{token}}] --- … --- UNSENT DRAFTS [{{token}}] --- (only when the agent has undelivered drafts) … --- MESSAGE THREAD [{{token}}] --- …\n\nDecide the next action now.',
           },
         ],
       },

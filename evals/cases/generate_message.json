@@ -1,6 +1,6 @@
 {
   "stage": "generate_message",
-  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected; for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, attestation equals the expected action. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
+  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected; for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
   "taxYear": 2025,
   "accountant": { "name": "Cohen & Co. CPA", "hebrew_name": "כהן ושות' רואי חשבון", "email": "office@cohen-cpa.example" },
   "templates": [
@@ -249,6 +249,256 @@
       "attestation": { "requestedAt": "2026-02-10T07:00:00Z", "confirmed": false },
       "expects": { "decision": "goal_complete", "resolved_documents": [], "attestation": "confirmed" },
       "notes": "the client confirmed the sent summary verbatim: attestation='confirmed' with evidence citing msg-6 (post-request), and the goal is complete"
+    },
+    {
+      "id": "dec_08",
+      "now": "2026-09-18T14:42:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "נכסי נדל\"ן",
+              "answer": "לא"
+            },
+            {
+              "question": "מטבעות דיגיטליים",
+              "answer": "לא"
+            },
+            {
+              "question": "ביטוח תכולה",
+              "answer": "לא"
+            },
+            {
+              "question": "בעל מניות",
+              "answer": "יש לי מניות בחברה שאני עובד בה, וגם בחברה הקודמת שעבדתי בה"
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-19T14:41:53Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "type_key": "bank_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "securities_portfolio",
+          "status": "not_required"
+        },
+        {
+          "type_key": "study_fund",
+          "status": "not_required"
+        },
+        {
+          "type_key": "life_insurance_savings",
+          "status": "not_required"
+        },
+        {
+          "type_key": "real_estate",
+          "status": "not_required"
+        },
+        {
+          "type_key": "mortgage_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_taken",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_given",
+          "status": "not_required"
+        },
+        {
+          "type_key": "vehicle",
+          "status": "not_required"
+        },
+        {
+          "type_key": "contents_insurance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "crypto",
+          "status": "not_required"
+        },
+        {
+          "type_key": "private_investment",
+          "status": "not_required"
+        },
+        {
+          "type_key": "poa_account",
+          "status": "not_required"
+        },
+        {
+          "type_key": "prior_declaration",
+          "status": "not_required"
+        },
+        {
+          "type_key": "other_assets",
+          "status": "not_required"
+        },
+        {
+          "id": "doc-shares-current",
+          "type_key": "business_ownership",
+          "status": "pending",
+          "name": "כרטיס חו\"ז בעלים - החברה הנוכחית",
+          "description": null
+        },
+        {
+          "id": "doc-shares-previous",
+          "type_key": "business_ownership",
+          "status": "pending",
+          "name": "כרטיס חו\"ז בעלים - החברה הקודמת",
+          "description": null
+        },
+        {
+          "id": "doc-pension-altshuler",
+          "type_key": "pension_provident",
+          "status": "pending",
+          "name": "פנסיה באלטשולר",
+          "description": null
+        },
+        {
+          "id": "doc-pension-phoenix",
+          "type_key": "pension_provident",
+          "status": "pending",
+          "name": "פנסיה בהפניקס",
+          "description": null
+        },
+        {
+          "id": "doc-pension-harel",
+          "type_key": "pension_provident",
+          "status": "pending",
+          "name": "פנסיה בהראל",
+          "description": null
+        },
+        {
+          "id": "doc-pension-clal",
+          "type_key": "pension_provident",
+          "status": "pending",
+          "name": "פנסיה בכלל",
+          "description": null
+        },
+        {
+          "id": "doc-pension-migdal",
+          "type_key": "pension_provident",
+          "status": "pending",
+          "name": "פנסיה במגדל",
+          "description": null
+        },
+        {
+          "id": "doc-pension-mor",
+          "type_key": "pension_provident",
+          "status": "pending",
+          "name": "פנסיה במור",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן"
+        },
+        {
+          "id": "msg-3",
+          "direction": "inbound",
+          "at": "2026-09-18T13:51:19Z",
+          "body": "נזכרתי שיש לי פנסיה באלטשולר"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-18T14:16:19Z",
+          "body": "נזכרתי שיש לי פנסיה בהפניקס"
+        },
+        {
+          "id": "msg-5",
+          "direction": "inbound",
+          "at": "2026-09-18T14:18:14Z",
+          "body": "נזכרתי שיש לי פנסיה בהראל"
+        },
+        {
+          "id": "msg-6",
+          "direction": "inbound",
+          "at": "2026-09-18T14:21:03Z",
+          "body": "נזכרתי שיש לי פנסיה בכלל"
+        },
+        {
+          "id": "msg-7",
+          "direction": "inbound",
+          "at": "2026-09-18T14:31:07Z",
+          "body": "נזכרתי שיש לי פנסיה במגדל"
+        },
+        {
+          "id": "msg-8",
+          "direction": "inbound",
+          "at": "2026-09-18T14:38:44Z",
+          "body": "נזכרתי שיש לי פנסיה במור"
+        },
+        {
+          "id": "msg-9",
+          "direction": "inbound",
+          "at": "2026-09-18T14:41:53Z",
+          "body": "וגם במיטב ומנורה"
+        }
+      ],
+      "unsent_drafts": [
+        {
+          "at": "2026-09-18T14:17:01Z",
+          "body": "היי ישראל, מעולה. הוספתי את הפנסיה בהפניקס. אשמח אם תוכל לצרף לכאן אישור יתרות להצהרת הון ליום 31.12.2025 מהאזור האישי שלהם (או את העמוד האחרון של הדוח השנתי)."
+        },
+        {
+          "at": "2026-09-18T14:19:05Z",
+          "body": "היי ישראל, מעולה, הוספתי את הפנסיה בהראל לרשימה.\nבינתיים, תוכל לצרף לכאן את אישורי הפנסיה מהפניקס ומהראל ליום 31.12.2025 (אישור ייעודי להצהרת הון או העמוד האחרון של הדוח השנתי)?"
+        },
+        {
+          "at": "2026-09-18T14:21:51Z",
+          "body": "היי ישראל, מעולה, הוספתי את הפנסיה בכלל לרשימה (יחד עם אלטשולר, הפניקס והראל).\n\nאשמח אם תוכל להפיק ולשלוח לכאן את אישורי היתרה להצהרת הון ליום 31.12.2025."
+        },
+        {
+          "at": "2026-09-18T14:34:20Z",
+          "body": "היי ישראל, מעולה, הוספתי את כל הפנסיות שציינת לרשימה. תוכל בינתיים להפיק את אישורי הפנסיה (ליום 31.12.2025) מכל החברות (אלטשולר, הפניקס, הראל, כלל ומגדל) ולשלוח לי כאן?"
+        },
+        {
+          "at": "2026-09-18T14:39:22Z",
+          "body": "היי ישראל, מעולה, הוספתי את כל קופות הפנסיה שציינת.\nאשמח אם תוכל לצרף לכאן את אישורי הפנסיה של כל החברות (אלטשולר, הפניקס, הראל, כלל, מגדל ומור) ליום 31.12.2025 - אישור ייעודי להצהרת הון או העמוד האחרון של הדוח השנתי המקוצר.",
+          "held": true
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "resolved_documents": [],
+        "added_instances": {
+          "pension_provident": 2
+        },
+        "mentions_valuation_date": false
+      },
+      "notes": "burst of client messages (bug 2026-09-18): every earlier reply was replaced before sending, so the thread is client-only and the replies sit in UNSENT DRAFTS; the last message is a fragment naming two new pension funds (Meitav, Menora) — both must be added as instances of the already-resolved pension type, not only named in the reply"
     }
   ]
 }

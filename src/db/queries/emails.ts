@@ -26,6 +26,28 @@ export async function listFullThreadForClient(clientId: string): Promise<EmailRo
   return rows;
 }
 
+/**
+ * The agent's own outbound rows that never reached the client — replaced by a
+ * newer plan ('draft') or parked for review ('held') — newest `limit` of them,
+ * oldest first. `after` = the last delivered outbound send; older drafts
+ * describe a state that reply already replaced. Prompt context only: never
+ * merge these into listForClient, whose callers rely on delivered-only.
+ */
+export async function listUnsentDraftsForClient(clientId: string, after: Date | null, limit: number): Promise<EmailRow[]> {
+  const { rows } = await pool.query<EmailRow>(
+    `SELECT * FROM (
+       SELECT * FROM emails
+       WHERE client_id = $1 AND direction = 'outbound' AND status IN ('draft', 'held')
+         AND ($2::timestamptz IS NULL OR created_at > $2)
+       ORDER BY created_at DESC
+       LIMIT $3
+     ) recent
+     ORDER BY created_at ASC`,
+    [clientId, after, limit],
+  );
+  return rows;
+}
+
 /** Latest message instant per client (sent/received only) — the admin client list's activity column. */
 export async function lastMessageAtByClient(clientIds: string[]): Promise<Map<string, Date>> {
   if (clientIds.length === 0) return new Map();

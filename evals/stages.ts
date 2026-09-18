@@ -439,6 +439,14 @@ interface DecideMessageInput {
   wa_content_sid?: string | null;
   wa_content_variables?: string[] | null;
 }
+/** One of the agent's own replies that never reached the client (plan.ts: listUnsentDraftsForClient). */
+interface DecideUnsentDraftInput {
+  body: string;
+  /** ISO instant the draft was written. */
+  at: string;
+  /** true = parked for admin review; default = replaced by a newer plan. */
+  held?: boolean;
+}
 interface DecideCase {
   id: string;
   /** ISO instant "now" — every date in the prompt (and the send_at check) derives from it. */
@@ -462,6 +470,8 @@ interface DecideCase {
   documents: DecideDocumentInput[];
   seedCatalog?: boolean;
   thread: DecideMessageInput[];
+  /** Shown to the model in the UNSENT DRAFTS block, oldest first; never part of the thread. */
+  unsent_drafts?: DecideUnsentDraftInput[];
   attestation?: {
     /** ISO instant the attestation summary was SENT; null = not requested. */
     requestedAt: string | null;
@@ -474,6 +484,8 @@ interface DecideCase {
     resolved_documents?: string[] | Record<string, 'required' | 'not_required'>;
     /** Per resolved id: the exact number of instances. */
     instances?: Record<string, number>;
+    /** Catalog type key -> exact number of instances added to that type (exactly this set of types; any row of the type may be the anchor). */
+    added_instances?: Record<string, number>;
     attestation?: 'request' | 'confirmed' | null;
     suspected_injection?: boolean;
     /** Row id -> substrings that must NOT appear in the message (the row is settled and must not be brought up). */
@@ -591,6 +603,28 @@ function threadRows(c: DecideCase): EmailRow[] {
   });
 }
 
+function unsentDraftRows(c: DecideCase): EmailRow[] {
+  return (c.unsent_drafts ?? []).map((d, i) => ({
+    id: `draft-${i + 1}`,
+    client_id: 'client-eval',
+    direction: 'outbound',
+    status: d.held ? 'held' : 'draft',
+    channel: 'whatsapp',
+    message_id: null,
+    resend_id: null,
+    subject: '',
+    body: d.body,
+    wa_content_sid: null,
+    wa_content_variables: null,
+    reasoning: null,
+    review_status: d.held ? 'pending' : null,
+    held_at: d.held ? new Date(d.at) : null,
+    blocked: null,
+    sent_at: null,
+    created_at: new Date(d.at),
+  }));
+}
+
 function templateRows(c: DecideCase, ctx: DecideCtx): WaTemplateRow[] {
   return c.wa.templates.map((name) => {
     const t = ctx.templates.find((x) => x.name === name);
@@ -662,7 +696,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
   build(c, ctx) {
     const { taxYear, now, client, history, documents, files, waState, intakePrompt, decisionCtx } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
-    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, [], taxYear, intakePrompt);
+    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, [], taxYear, intakePrompt, unsentDraftRows(c));
     const { spec, schema } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
     return { spec, parse: (text) => restorePrunedNulls(schema.parse(JSON.parse(text))) };
   },
@@ -729,6 +763,16 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
     for (const [id, count] of Object.entries(e.instances ?? {})) {
       const r = decision.resolutions.find((x) => x.documentId === id);
       checks.push(eq(`instances.${id}`, count, r && r.resolution === 'required' ? r.instances.length : 0));
+    }
+    if (e.added_instances !== undefined) {
+      const addedByType: Record<string, number> = {};
+      for (const addition of decision.addedInstances) {
+        const typeKey = documents.find((d) => d.id === addition.anchorDocumentId)?.type_key ?? `unknown:${addition.anchorDocumentId}`;
+        addedByType[typeKey] = (addedByType[typeKey] ?? 0) + addition.instances.length;
+      }
+      info.added_instance_names = decision.addedInstances.flatMap((a) => a.instances.map((i) => i.name));
+      const sortKeys = (o: Record<string, number>) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
+      checks.push({ key: 'added_instances', expected: sortKeys(e.added_instances), actual: sortKeys(addedByType), pass: JSON.stringify(sortKeys(e.added_instances)) === JSON.stringify(sortKeys(addedByType)) });
     }
     if (e.attestation !== undefined) checks.push(eq('attestation', e.attestation, decision.attestation?.action ?? null));
     info.attestation = decision.attestation;

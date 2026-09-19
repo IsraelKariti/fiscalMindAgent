@@ -26,7 +26,9 @@ Owner decision (2026-09-19): the list of required documents is an agreement with
 
 ### Modified Capabilities
 
-None as a delta file. (The new `issuer_matches_item` check of `validate_classification` is specified inside `unlisted-files`; adding it to the check list of the `code-gates` spec needs a new delta file and is left to a follow-up planning step before archive. `code-gates` already describes `validate_message` `business_rules` as covering "evidence quotes"; the new evidence rules are reported through that same check.)
+- `code-gates`: the check list of `validate_classification` gains `issuer_matches_item` (added before archive).
+
+(`code-gates` already describes `validate_message` `business_rules` as covering "evidence quotes"; the new evidence rules are reported through that same check.)
 
 ## Impact
 

@@ -1,29 +1,4 @@
-# code-gates Specification
-
-## Purpose
-
-The audit record every code gate leaves behind: the overall verdict of the gate and the ordered list of individual code checks it ran, so a reviewer can see exactly which check passed and which failed without reading raw JSON.
-
-## Requirements
-
-### Requirement: Every code gate records the list of checks it ran
-Each run of a code gate (`injection_detection_regex`, `validate_injection_scan`, `validate_form_resolutions`, `validate_classification`, `validate_message`, `verify_extraction`, and any gate added later) SHALL write one audit row whose detail carries, in addition to the overall `result` (`true`/`false`), a `checks` list. Each entry SHALL have a stable `key` naming the check, `passed` (`true`/`false`), `note`: a short human-readable reason when the check failed, `null` when it passed, `observed`: the value the check inspected, as short human-readable text (`null` only when the check had no value to show), and `expected`: what the observed value was compared with, when the check compares against a reference (`null` otherwise). `observed` and `expected` are recorded on passed checks too. Text values are capped; a national-id number SHALL never appear in full: it is masked to its last three digits (for example `••••••782`). The list SHALL contain only checks that actually ran in that execution, in the order they ran. A gate whose result is `false` SHALL have at least one entry with `passed: false`. A gate never flips a security verdict: a check that reports quarantine or a suspected injection is listed as a failed check, and the row's `suspectedInjection` and severity keep their existing meaning.
-
-#### Scenario: Gate passes
-- **WHEN** a gate runs and every check it performed passes
-- **THEN** the audit row has `result: true` and a `checks` list where every entry has `passed: true`, `note: null`, and its `observed` value (and `expected`, where the check compares against a reference)
-
-#### Scenario: Id number in a check value
-- **WHEN** a check inspects a national-id number printed on a document or stored for the client
-- **THEN** the entry's `observed` / `expected` show only the last three digits of that number, never the full number
-
-#### Scenario: Gate fails on one check
-- **WHEN** a gate runs and one of its checks fails
-- **THEN** the audit row has `result: false`, and the `checks` list contains that check with `passed: false` and a non-empty `note` explaining why, alongside the other checks with their own outcomes
-
-#### Scenario: Conditional check did not run
-- **WHEN** a gate skips a check because it does not apply (for example, no id number was printed on the document, so the id checksum check has nothing to test)
-- **THEN** that check is absent from the `checks` list rather than listed as passed
+## MODIFIED Requirements
 
 ### Requirement: Checks reported by each existing gate
 The gates SHALL report the following checks (keys are stable identifiers; the human labels live in the UI):
@@ -75,29 +50,3 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
 #### Scenario: Classification drops a match to another company
 - **WHEN** the classifier matches a study fund certificate issued by Harel to the row "study fund — Altshuler Shaham"
 - **THEN** the `validate_classification` row has `result: false`, `matched_id_known` and `matched_type_agrees` passed, and `issuer_matches_item` failed with `observed: "Harel"`, `expected: "Altshuler Shaham"` and a note that the companies differ
-
-### Requirement: Checks reported by validate_file_split
-The `validate_file_split` gate SHALL write its audit row on the inbound file it checked (the parent), with `result`, `reason`, the file's page count, the number of documents proposed, the proposed page ranges, and the `checks` list. It SHALL report these checks, in this order, listing only the checks that ran:
-
-- `document_count_within_cap`: `observed` = the number of documents the model proposed; `expected` = the cap (20). Fails when the number is zero or above the cap. When it fails, the checks below are absent.
-- `ranges_inside_file`: `observed` = the proposed ranges as short text (for example "1-3, 4-5"); `expected` = the file's page count. Fails when a range starts before page 1, ends after the last page, or has its first page after its last page; the `note` names the offending range.
-- `ranges_ordered_no_overlap`: `observed` = the proposed ranges. Fails when the ranges are not in ascending order or two ranges share a page; the `note` names the two ranges. Absent when `ranges_inside_file` failed.
-- `all_pages_covered`: `observed` = the pages that belong to no range, or "none"; `expected` = "none". Fails when at least one page belongs to no range. Absent when an earlier range check failed.
-
-A `result: true` row with one proposed document means the file was not cut. The row's severity SHALL be `info` when the result is true and `warning` when it is false.
-
-#### Scenario: Accepted split
-- **WHEN** the model proposes pages 1-3 and 4-5 for a five-page file
-- **THEN** the row has `result: true` and four checks, all passed, with `ranges_inside_file` observed "1-3, 4-5" and expected "5"
-
-#### Scenario: Range past the last page
-- **WHEN** the model proposes pages 1-3 and 4-7 for a five-page file
-- **THEN** the row has `result: false`, `ranges_inside_file` failed with a note naming the range 4-7, and `ranges_ordered_no_overlap` and `all_pages_covered` are absent
-
-#### Scenario: Page left out
-- **WHEN** the model proposes pages 1-2 and 4-5 for a five-page file
-- **THEN** the row has `result: false` and `all_pages_covered` failed with `observed` "3"
-
-#### Scenario: Too many documents
-- **WHEN** the model proposes 25 documents
-- **THEN** the row has `result: false`, `document_count_within_cap` failed with `observed` "25" and `expected` "20", and no other check is listed

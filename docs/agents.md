@@ -758,6 +758,19 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   row, its `checks` list (✓ / ✗ per check, "נבדק:" / "צפוי:" value lines,
   the note under a failure; labels in `i18n.gateCheckLabels`), then the raw
   JSON collapsed.
+  Every step has its own link, `<site>/#/steps/<audit row id>`
+  (`stepLink.ts`). `App.tsx` handles that hash before the admin / workspace
+  split (the workspace router would rewrite it) and, for an admin only,
+  mounts `StepLinkPage`, which loads the row from
+  `GET /api/admin/audit-events/:id` (requireAdmin; same step shape as the
+  conversation endpoint, no `discarded`) and shows the same modal, or an
+  in-app "step not found" card. The modal has no close button (it closes on
+  the backdrop and Escape); at its top, beside the title, sit two copy
+  buttons: "copy link",
+  and "copy details" (the link, then the whole step as JSON — the way to hand
+  a step from sandbox / production to Claude, whose shell reads only the
+  local database). Locally, `npm run step -- "<link-or-id>"`
+  (`scripts/showStep.ts`) prints the row as JSON.
   A gate never flips a security verdict: it drops or rejects, it does not
   make a "suspected" answer "clean". Pure rules modules (no llm/db/audit
   imports, tests run without an API key): `shared/injectionRegex.ts`,

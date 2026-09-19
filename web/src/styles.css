@@ -307,6 +307,18 @@ code {
   color: var(--success);
 }
 
+/* CopyButton with a visible label (step detail modal) */
+.copy-btn-labelled {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copy-btn-success,
+.copy-btn-success:not(:disabled):hover {
+  color: var(--success);
+}
+
 /* Section headings: micro-caps label + hairline rule filling the row */
 .side-heading {
   display: flex;
@@ -4168,6 +4180,21 @@ button.meta-chip:hover {
 /* The checks modal. */
 .gate-modal {
   width: min(640px, 94vw);
+}
+/* The dialog takes focus on open (it has no close button). */
+.gate-modal:focus {
+  outline: none;
+}
+/* Title with the copy buttons on the opposite side; they wrap under it on a phone. */
+.gate-modal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.gate-modal-copy {
+  flex-shrink: 0;
 }
 .gate-modal-meta {
   display: flex;

@@ -47,6 +47,7 @@ import {
   adminSetClientAdminPause,
 } from './reviewAdmin.js';
 import {
+  adminGetAuditEvent,
   adminGetClientConversation,
   adminGetLlmCall,
   adminListLlmStages,
@@ -136,6 +137,7 @@ apiRouter.post('/admin/clients/:clientId/admin-pause', wrap(requireAdmin), wrap(
 // Per-call LLM observability (049): admin-only conversation and call browsers.
 apiRouter.get('/admin/agents/:agentInstanceId/clients', wrap(requireAdmin), wrap(adminListInstanceClients));
 apiRouter.get('/admin/clients/:clientId/conversation', wrap(requireAdmin), wrap(adminGetClientConversation));
+apiRouter.get('/admin/audit-events/:id', wrap(requireAdmin), wrap(adminGetAuditEvent));
 apiRouter.get('/admin/llm-calls', wrap(requireAdmin), wrap(adminListLlmCalls));
 apiRouter.get('/admin/llm-calls/:id', wrap(requireAdmin), wrap(adminGetLlmCall));
 apiRouter.get('/admin/llm-stages', wrap(requireAdmin), wrap(adminListLlmStages));

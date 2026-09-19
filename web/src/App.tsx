@@ -7,6 +7,8 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AccessPending } from './components/AccessPending';
 import { ImpersonationEndedModal } from './components/ImpersonationEndedModal';
 import { LogoutConfirmModal } from './components/LogoutConfirmModal';
+import { StepLinkPage } from './components/StepLinkPage';
+import { isStepHash } from './components/stepLink';
 import { useT } from './i18n';
 
 export function App() {
@@ -24,6 +26,16 @@ export function App() {
   // Admins have no agent, clients, or mailbox of their own — they get the platform
   // overview shell instead, and only enter the accountant workspace by impersonating.
   const adminMode = isAdmin && !impersonating;
+
+  // A step link (#/steps/:id) is handled here, before the admin / workspace
+  // split: an impersonating admin sees the workspace, whose router treats an
+  // unknown hash as boot and would rewrite it.
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
 
   useEffect(() => {
     api
@@ -84,6 +96,22 @@ export function App() {
       <>
         {envBanner}
         <AccessPending userEmail={user?.email ?? null} onLogout={logout} />
+      </>
+    );
+
+  // Admin only (impersonating or not). Anyone else falls through to their own
+  // workspace, which boots past the unknown hash. Closing goes to #/: the admin
+  // overview, or the workspace's default agent while impersonating.
+  if (isAdmin && isStepHash(hash))
+    return (
+      <>
+        {envBanner}
+        <StepLinkPage
+          hash={hash}
+          onClose={() => {
+            window.location.hash = '#/';
+          }}
+        />
       </>
     );
 

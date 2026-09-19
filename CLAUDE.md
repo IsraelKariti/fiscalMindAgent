@@ -55,6 +55,16 @@ parts) from Claude's shell. Dev ports are driven by the root `.env`
 (`PORT`, `GUI_PORT`, `LANDING_PORT`, `*_HOST_PORT`, `NGROK_DOMAIN`,
 `COMPOSE_PROJECT_NAME`).
 
+## Step links
+
+When the user pastes a step link (`<site>/#/steps/<id>`), read it with
+`npm run step -- "<link>"` — it prints that code step from the local
+database. Never fetch the link over HTTP (the site needs a login). The host
+says which environment the link belongs to: a link from a non-local host
+(sandbox, production) cannot be read from the shell, so ask the user for the
+modal's "copy details" text instead. Pasted "copy details" text (the link,
+then JSON) is complete on its own — no lookup needed.
+
 ## Multi-agent architecture
 
 The app is a multi-agent platform (agent-type registries, per-instance

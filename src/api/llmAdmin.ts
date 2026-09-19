@@ -134,19 +134,38 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
     // code step (gates, apply_*, send_reply) so the viewer can interleave them
     // with the messages into one timeline.
     calls: calls.map((c) => ({ ...toAdminCall(c), discarded: discardedCallIds.has(c.id) })),
-    steps: steps.map((e) => ({
-      id: e.id,
-      discarded: discardedStepIds.has(e.id),
-      occurredAt: e.occurred_at,
-      actorType: e.actor_type,
-      action: e.action,
-      targetType: e.target_type,
-      targetId: e.target_id,
-      severity: e.severity,
-      suspectedInjection: e.suspected_injection,
-      detail: e.detail,
-    })),
+    steps: steps.map((e) => ({ ...toAdminStep(e), discarded: discardedStepIds.has(e.id) })),
   });
+};
+
+/** One audit row as a trace step — the shape both the conversation and the single-step endpoint emit. */
+function toAdminStep(e: auditEvents.AuditEventListRow) {
+  return {
+    id: e.id,
+    occurredAt: e.occurred_at,
+    actorType: e.actor_type,
+    action: e.action,
+    targetType: e.target_type,
+    targetId: e.target_id,
+    severity: e.severity,
+    suspectedInjection: e.suspected_injection,
+    detail: e.detail,
+  };
+}
+
+/**
+ * GET /api/admin/audit-events/:id — one code step by id, for the step link
+ * (#/steps/:id). No `discarded` flag: that is computed from the whole thread
+ * and only decides whether the timeline hides a row.
+ */
+export const adminGetAuditEvent: RequestHandler = async (req, res) => {
+  const id = z.string().uuid().safeParse(req.params.id);
+  const row = id.success ? await auditEvents.getById(id.data) : null;
+  if (!row) {
+    res.status(404).json({ error: 'Step not found.' });
+    return;
+  }
+  res.json({ step: toAdminStep(row) });
 };
 
 const CallsQuerySchema = z.object({

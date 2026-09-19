@@ -783,6 +783,11 @@ const he = {
   gateModalSummaryEmpty: 'השלב לא רשם פרטים נוספים.',
   gateModalRawDetail: 'פרטים גולמיים (JSON)',
   gateModalOpen: 'הצגת פרטי השלב',
+  stepCopyLink: 'העתקת קישור',
+  stepCopyDetails: 'העתקת פרטים',
+  stepNotFound: 'השלב לא נמצא',
+  stepNotFoundHint: 'הקישור שגוי, או שהשלב לא קיים בסביבה הזו.',
+  stepBackToApp: 'חזרה למערכת',
   // Non-gate step actions (apply_*, document.*, review.*, …), title-cased in
   // English like codeGateLabels. Unknown actions fall back to humanizePurpose().
   stepActionLabels: {

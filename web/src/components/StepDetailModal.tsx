@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import type { AdminConversationStep } from '../api';
 import { formatTimestamp, humanizePurpose } from '../format';
 import { useT } from '../i18n';
+import { CopyButton } from './CopyButton';
+import { stepDetailsText, stepLinkOf } from './stepLink';
 import { isIsoDateTime, stepSummaryOf } from './stepSummary';
 
 /** One code check of a gate, as the audit row records it (`detail.checks`). */
@@ -65,8 +67,9 @@ export function stepActionLabel(labels: { gate: Record<string, string>; step: Re
  * Read-only drill-down of one audited code step: what the step did (its
  * detail as labelled rows), and, for a gate row, which checks ran, which
  * passed (✓) and which failed (✗) with the failure note. Rendered only where
- * the admin trace itself is rendered; closes on the button, the backdrop and
- * Escape.
+ * the admin trace itself is rendered. The copy buttons (link, details) sit at
+ * the top beside the title; there is no close button — it closes on the
+ * backdrop and Escape.
  */
 export function StepDetailModal({ step, onClose }: { step: AdminConversationStep; onClose: () => void }) {
   const { t } = useT();
@@ -79,7 +82,7 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
   const fieldLabel = (key: string) => t.stepFieldLabels[key] ?? humanizePurpose(key);
   const valueText = (value: string) => (isIsoDateTime(value) ? formatTimestamp(value) : value);
 
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -89,10 +92,10 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Focus the close button without scrolling: a plain autoFocus scrolls a
-  // long modal to its bottom on open, hiding the title and the summary.
+  // Focus the dialog itself (no close button to take it) so Escape and Tab
+  // start inside the modal; preventScroll keeps the title in view.
   useEffect(() => {
-    closeRef.current?.focus({ preventScroll: true });
+    dialogRef.current?.focus({ preventScroll: true });
   }, []);
 
   // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
@@ -104,9 +107,17 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id={titleId}>{label}</h2>
+        <div className="gate-modal-head">
+          <h2 id={titleId}>{label}</h2>
+          <div className="btn-row gate-modal-copy">
+            <CopyButton text={stepLinkOf(step.id, window.location.origin)} label={t.stepCopyLink} />
+            <CopyButton text={stepDetailsText(step, window.location.origin)} label={t.stepCopyDetails} />
+          </div>
+        </div>
         <div className="gate-modal-meta" dir="ltr">
           <span className="mono">{step.action}</span>
           <span className="muted">{formatTimestamp(step.occurredAt)}</span>
@@ -195,11 +206,6 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
             {JSON.stringify(step.detail, null, 2)}
           </pre>
         </details>
-        <div className="btn-row modal-actions">
-          <button ref={closeRef} className="btn btn-ghost" type="button" onClick={onClose}>
-            {t.closeViewer}
-          </button>
-        </div>
       </div>
     </div>,
     document.body,

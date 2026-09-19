@@ -14,8 +14,12 @@ const checkIcon = (
   </svg>
 );
 
-/** Icon-only copy-to-clipboard button that flashes a checkmark after copying. */
-export function CopyButton({ text, title }: { text: string; title?: string }) {
+/**
+ * Copy-to-clipboard button that flashes a checkmark after copying. Icon-only
+ * by default; with `label` it renders as a ghost button with the text beside
+ * the icon (the label is then its accessible name).
+ */
+export function CopyButton({ text, title, label }: { text: string; title?: string; label?: string }) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -26,6 +30,14 @@ export function CopyButton({ text, title }: { text: string; title?: string }) {
     clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => setCopied(false), 1600);
   };
+
+  if (label)
+    return (
+      <button type="button" className={`btn btn-ghost copy-btn-labelled ${copied ? 'copy-btn-success' : ''}`} onClick={copy}>
+        {copied ? checkIcon : copyIcon}
+        <span>{copied ? t.copied : label}</span>
+      </button>
+    );
 
   return (
     <button

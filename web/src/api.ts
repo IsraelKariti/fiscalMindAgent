@@ -931,6 +931,8 @@ export const api = {
     request<{ clients: AdminClient[] }>(`/admin/agents/${agentInstanceId}/clients`),
   adminGetClientConversation: (clientId: string, opts?: RequestOpts) =>
     request<AdminConversation>(`/admin/clients/${clientId}/conversation`, undefined, opts),
+  /** One code step by id — the step link (#/steps/:id). */
+  adminGetStep: (stepId: string) => request<{ step: AdminConversationStep }>(`/admin/audit-events/${stepId}`),
   adminListLlmCalls: (filters: LlmCallFilters) => {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {

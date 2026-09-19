@@ -13,7 +13,7 @@ import {
 } from '../shared/promptSafety.js';
 import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
 import { formatUpcomingDates } from '../shared/upcomingDates.js';
-import { getCatalogType } from './catalog.js';
+import { getCatalogType, isInstitutionBound } from './catalog.js';
 
 /**
  * The fenced sections the platform itself writes. The input-safety rule names
@@ -356,6 +356,27 @@ export function buildIntakeSection(token: string, intake?: IntakePromptInput): s
 }
 
 /**
+ * The accounts / policies the file shows (openspec `unlisted-files`), so the
+ * planner states what was found instead of asking for it. The count is ours;
+ * every text is file text (sanitized); the number is cut to its last 4
+ * characters — enough to tell two policies apart. Null for an older analysis,
+ * an empty list, or a type that is not institution-bound.
+ */
+function formatHoldings(a: NonNullable<DocumentFileRow['analysis']>): string | null {
+  if (!a.holdings || a.holdings.length === 0 || !isInstitutionBound(a.document_type)) return null;
+  const entries = a.holdings.map((h, i) => {
+    // Cut first, so the truncation marker never becomes the "last 4 characters".
+    const number = h.account_number ? sanitizeInline(h.account_number.slice(-40), 40).slice(-4) : '';
+    return [
+      `(${i + 1}) ${sanitizeInline(h.product, 100)}`,
+      `holder: ${h.holder_name ? sanitizeInline(h.holder_name, 100) : 'hidden in the file'}`,
+      `no. ${number ? `…${number}` : 'none'}`,
+    ].join(', ');
+  });
+  return `accounts/policies in file: ${a.holdings.length}${a.holdings_partial ? ' (partial list)' : ''} — ${entries.join('; ')}`;
+}
+
+/**
  * One-line verdict from the ingestion-time content analysis, shown under the
  * file in the transcript. Quarantined files (suspected injection / illegible)
  * render as an explicit warning instead of their analysis — their free-text
@@ -393,6 +414,7 @@ function formatFileAnalysis(file: DocumentFileRow, childCount = 0): string {
     // A closed catalog key (validated by the schema), so the planner files a new item under the right type.
     a.document_type ? `document type: ${a.document_type}` : null,
     a.issuer_name ? `issuer: ${sanitizeInline(a.issuer_name, 100)}` : null,
+    formatHoldings(a),
     a.matched_document_id
       ? `matches required document id: ${a.matched_document_id}`
       : a.match_dropped

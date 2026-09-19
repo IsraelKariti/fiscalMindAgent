@@ -1,6 +1,6 @@
 {
   "stage": "file_classification",
-  "judge": "After validateClassification (capital_declaration purpose, closed document_type enum): document_type, matched_document_id, legible and injection_suspected must equal expected when listed (a list means any of these is accepted); document_kind must contain at least one of document_kind_any (case-insensitive). issuer_key is the institutions-table key that code identifies from the answer's issuer_name (null = no company identified). Fields not listed are not checked. The checklist is a post-intake client's list: resolved instance rows with a type_key, as buildDocumentsSection would show them.",
+  "judge": "After validateClassification (capital_declaration purpose, closed document_type enum): document_type, matched_document_id, legible and injection_suspected must equal expected when listed (a list means any of these is accepted); document_kind must contain at least one of document_kind_any (case-insensitive). issuer_key is the institutions-table key that code identifies from the answer's issuer_name (null = no company identified). holdings_count is the length of the answer's accounts list after the gate (kept only for institution-bound types). holdings_holders lists the expected holders in any order: a string (or a list of accepted spellings) must be contained in one entry's holder_name, null stands for one entry with no readable name, and the number of nulls must be exact. Fields not listed are not checked. The checklist is a post-intake client's list: resolved instance rows with a type_key, as buildDocumentsSection would show them.",
   "taxYear": 2025,
   "checklist": [
     { "id": "doc_1", "type_key": "bank_balance", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
@@ -98,6 +98,30 @@
       "filename": "whatsapp-media-1.pdf",
       "expected": { "issuer_key": "harel", "document_type": "study_fund", "matched_document_id": null, "legible": true, "injection_suspected": false },
       "notes": "openspec unlisted-files (live finding 2026-09-19): a study fund certificate of Harel while the list holds only the Altshuler Shaham study fund row. Same type, another company: it must match nothing, whether the model says so itself or the company check of validate_classification drops the match."
+    },
+    {
+      "id": "cls_12",
+      "file": "clal_insurance_two_holders_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1.pdf",
+      "expected": { "issuer_key": "clal", "document_type": "life_insurance_savings", "matched_document_id": null, "legible": true, "injection_suspected": false, "holdings_count": 2, "holdings_holders": [["Israel Israeli", "ישראל ישראלי"], ["Ronit", "רונית"]] },
+      "notes": "openspec confirm-file-findings (live finding 2026-09-19: the client sent insurer reports and the agent asked how many policies there are and in whose name): one Clal report with two managers-insurance policies of two holders. The file check must list both policies with the holder printed next to each, so the planner can state them and ask only for confirmation. The names are printed in English and Hebrew; either spelling is accepted."
+    },
+    {
+      "id": "cls_13",
+      "file": "yelin_study_fund_hidden_holder_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "קרן השתלמות ישראל ישראלי.pdf",
+      "expected": { "issuer_key": "yelin_lapidot", "document_type": "study_fund", "matched_document_id": null, "legible": true, "injection_suspected": false, "holdings_count": 2, "holdings_holders": [null, null] },
+      "notes": "openspec confirm-file-findings: a Yelin Lapidot study fund report with two accounts, the member name and ID blacked out (as in the live files of 2026-09-19). Both holders must be null. The name in the FILE NAME is a trap: a holder is copied only from what is printed on the file, never from the file name or the list."
+    },
+    {
+      "id": "cls_14",
+      "file": "vehicle_licence_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "רישיון רכב.pdf",
+      "expected": { "document_type": ["vehicle", "other"], "matched_document_id": null, "injection_suspected": false, "holdings_count": 0 },
+      "notes": "openspec confirm-file-findings: a vehicle licence is not issued by a financial institution, so the accounts list must be empty (the model leaves it empty, or the gate drops it). A synthetic licence may be typed vehicle or other; the list rule holds either way."
     }
   ]
 }

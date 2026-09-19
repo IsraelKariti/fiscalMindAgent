@@ -1,0 +1,1435 @@
+{
+  "ranAt": "2026-09-19T21:44:01.057Z",
+  "finishedAt": "2026-09-19T21:45:31.945Z",
+  "models": [
+    "gemini-2.5-flash"
+  ],
+  "stages": [
+    "file_classification"
+  ],
+  "concurrency": 3,
+  "maxSpendUsd": 2,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
+    }
+  },
+  "results": [
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_03",
+      "notes": "balance certificate, right bank, right date. 2026-09-19: the bank is now judged by issuer_key (the answer has its own issuer_name field, so document_kind no longer has to repeat the bank's name); document_kind_any checks the kind of document instead",
+      "ranAt": "2026-09-19T21:44:01.096Z",
+      "latencyMs": 7582,
+      "attempts": 1,
+      "inputTokens": 5194,
+      "outputTokens": 306,
+      "thinkingTokens": 976,
+      "cachedTokens": 0,
+      "costUsd": 0.0047632,
+      "error": null,
+      "output": {
+        "document_kind": "אישור יתרות מבנק לאומי",
+        "summary": "המסמך הוא אישור יתרות מבנק לאומי ליום 31.12.2025 עבור חשבון 812-45678/21 של ישראל ישראלי, המפרט יתרת עו\"ש ופיקדונות לזמן קצוב.",
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli",
+        "issuer_name": "Bank Leumi",
+        "matched_document_id": "doc_2",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "Current account (עו\"ש)",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          },
+          {
+            "product": "Fixed-term deposits",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "bank_balance"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "bank_balance",
+          "actual": "bank_balance",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_2",
+          "actual": "doc_2",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "bank_leumi",
+          "actual": "bank_leumi",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "יתרות",
+            "balance"
+          ],
+          "actual": "אישור יתרות מבנק לאומי",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_2",
+        "issuer_name": "Bank Leumi",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "Current account (עו\"ש)",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          },
+          {
+            "product": "Fixed-term deposits",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli",
+        "summary": "המסמך הוא אישור יתרות מבנק לאומי ליום 31.12.2025 עבור חשבון 812-45678/21 של ישראל ישראלי, המפרט יתרת עו\"ש ופיקדונות לזמן קצוב."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_01",
+      "notes": "real abbreviated annual report (דוח שנתי מקוצר) from Bank Hapoalim, 31.12.2025 — form (b) of the bank_balance hint",
+      "ranAt": "2026-09-19T21:44:01.058Z",
+      "latencyMs": 8087,
+      "attempts": 1,
+      "inputTokens": 5711,
+      "outputTokens": 248,
+      "thinkingTokens": 893,
+      "cachedTokens": 0,
+      "costUsd": 0.0045658,
+      "error": null,
+      "output": {
+        "document_kind": "דוח מקוצר מבנק הפועלים",
+        "summary": "המסמך הוא דוח מקוצר מבנק הפועלים לשנת 2025, המציג את יתרת חשבון העו\"ש של קריטי ישראל ליום 31.12.2025.",
+        "tax_year": "2025",
+        "subject_name": "קריטי ישראל",
+        "issuer_name": "בנק הפועלים",
+        "matched_document_id": "doc_1",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "חשבון עו\"ש",
+            "holder_name": "קריטי ישראל",
+            "account_number": "470184 - 170"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "bank_balance"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "bank_balance",
+          "actual": "bank_balance",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_1",
+          "actual": "doc_1",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "bank_hapoalim",
+          "actual": "bank_hapoalim",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "הפועלים",
+            "hapoalim"
+          ],
+          "actual": "דוח מקוצר מבנק הפועלים",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_1",
+        "issuer_name": "בנק הפועלים",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "חשבון עו\"ש",
+            "holder_name": "קריטי ישראל",
+            "account_number": "470184 - 170"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "קריטי ישראל",
+        "summary": "המסמך הוא דוח מקוצר מבנק הפועלים לשנת 2025, המציג את יתרת חשבון העו\"ש של קריטי ישראל ליום 31.12.2025."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_05",
+      "notes": "dedicated tax certificate for capital declaration from a study fund (form (a) of the savings hint); filename says nothing",
+      "ranAt": "2026-09-19T21:44:09.148Z",
+      "latencyMs": 5741,
+      "attempts": 1,
+      "inputTokens": 5197,
+      "outputTokens": 281,
+      "thinkingTokens": 605,
+      "cachedTokens": 0,
+      "costUsd": 0.0037741,
+      "error": null,
+      "output": {
+        "document_kind": "אישור מס להצהרת הון - קרן השתלמות",
+        "summary": "המסמך מאשר כי סך ההפקדות לקרן השתלמות של ישראל ישראלי באלטשולר שחם, ממועד ההפקדה הראשונה ועד ליום 31.12.2025, מסתכם ב-88,400.00 ש\"ח.",
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "issuer_name": "Altshuler Shaham Gemel & Pension Ltd.",
+        "matched_document_id": "doc_5",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "קרן השתלמות",
+            "holder_name": "Israel Israeli (ישראל ישראלי)",
+            "account_number": "7788123"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "study_fund"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "study_fund",
+          "actual": "study_fund",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_5",
+          "actual": "doc_5",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "השתלמות",
+            "study fund",
+            "keren hishtalmut"
+          ],
+          "actual": "אישור מס להצהרת הון - קרן השתלמות",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_5",
+        "issuer_name": "Altshuler Shaham Gemel & Pension Ltd.",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "קרן השתלמות",
+            "holder_name": "Israel Israeli (ישראל ישראלי)",
+            "account_number": "7788123"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "summary": "המסמך מאשר כי סך ההפקדות לקרן השתלמות של ישראל ישראלי באלטשולר שחם, ממועד ההפקדה הראשונה ועד ליום 31.12.2025, מסתכם ב-88,400.00 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_04",
+      "notes": "right bank, wrong year (31.12.2024): date-dependent row -> no match",
+      "ranAt": "2026-09-19T21:44:08.696Z",
+      "latencyMs": 8542,
+      "attempts": 1,
+      "inputTokens": 5196,
+      "outputTokens": 283,
+      "thinkingTokens": 1258,
+      "cachedTokens": 4714,
+      "costUsd": 0.00413852,
+      "error": null,
+      "output": {
+        "document_kind": "אישור יתרות מבנק לאומי",
+        "summary": "המסמך הוא אישור יתרות רשמי מבנק לאומי עבור ישראל ישראלי, המציג את יתרות חשבון העו\"ש והפיקדונות ליום 31.12.2024.",
+        "tax_year": "2024",
+        "subject_name": "Israel Israeli",
+        "issuer_name": "Bank Leumi",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "Current account",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          },
+          {
+            "product": "Fixed-term deposits",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "bank_balance"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "bank_balance",
+          "actual": "bank_balance",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "bank_leumi",
+          "actual": "bank_leumi",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "Bank Leumi",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "Current account",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          },
+          {
+            "product": "Fixed-term deposits",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          }
+        ],
+        "tax_year": "2024",
+        "subject_name": "Israel Israeli",
+        "summary": "המסמך הוא אישור יתרות רשמי מבנק לאומי עבור ישראל ישראלי, המציג את יתרות חשבון העו\"ש והפיקדונות ליום 31.12.2024."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_06",
+      "notes": "abbreviated annual report page with the year-end balance (form (b) of the savings hint)",
+      "ranAt": "2026-09-19T21:44:14.891Z",
+      "latencyMs": 10531,
+      "attempts": 1,
+      "inputTokens": 5194,
+      "outputTokens": 273,
+      "thinkingTokens": 1205,
+      "cachedTokens": 0,
+      "costUsd": 0.0052532,
+      "error": null,
+      "output": {
+        "document_kind": "דוח שנתי מקוצר מקרן פנסיה",
+        "summary": "דוח שנתי מקוצר מקרן פנסיה מקיפה של מנורה מבטחים לשנת 2025, המציג את יתרת הכספים בחשבון ליום 31.12.2025 עבור ישראל ישראלי.",
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "issuer_name": "Menora Mivtachim Pension",
+        "matched_document_id": "doc_4",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "קרן פנסיה מקיפה",
+            "holder_name": "Israel Israeli (ישראל ישראלי)",
+            "account_number": "4401-778210"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "pension_provident"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "pension_provident",
+          "actual": "pension_provident",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_4",
+          "actual": "doc_4",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "menora_mivtachim",
+          "actual": "menora_mivtachim",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "פנסיה",
+            "pension"
+          ],
+          "actual": "דוח שנתי מקוצר מקרן פנסיה",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_4",
+        "issuer_name": "Menora Mivtachim Pension",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "קרן פנסיה מקיפה",
+            "holder_name": "Israel Israeli (ישראל ישראלי)",
+            "account_number": "4401-778210"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "summary": "דוח שנתי מקוצר מקרן פנסיה מקיפה של מנורה מבטחים לשנת 2025, המציג את יתרת הכספים בחשבון ליום 31.12.2025 עבור ישראל ישראלי."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_07",
+      "notes": "investment-house annual activity report, period ends 31.12.2025, USD base currency — form (b) of the securities hint",
+      "ranAt": "2026-09-19T21:44:17.241Z",
+      "latencyMs": 8960,
+      "attempts": 1,
+      "inputTokens": 5193,
+      "outputTokens": 250,
+      "thinkingTokens": 1218,
+      "cachedTokens": 4723,
+      "costUsd": 0.00395269,
+      "error": null,
+      "output": {
+        "document_kind": "דוח פעילות שנתי — תיק מנוהל מבית ההשקעות מיטב",
+        "summary": "דוח פעילות שנתי של תיק השקעות מנוהל המציג את שווי הנכסים נטו ליום 31.12.2025, סיכום ביצועים ועמלות לשנת 2025.",
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli",
+        "issuer_name": "Meitav Investment House",
+        "matched_document_id": "doc_3",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "Managed portfolio",
+            "holder_name": "Israel Israeli",
+            "account_number": "MT-20931"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "securities_portfolio"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "securities_portfolio",
+          "actual": "securities_portfolio",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_3",
+          "actual": "doc_3",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "meitav",
+          "actual": "meitav",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "מיטב",
+            "ניירות ערך",
+            "תיק",
+            "meitav",
+            "portfolio",
+            "activity report"
+          ],
+          "actual": "דוח פעילות שנתי — תיק מנוהל מבית ההשקעות מיטב",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_3",
+        "issuer_name": "Meitav Investment House",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "Managed portfolio",
+            "holder_name": "Israel Israeli",
+            "account_number": "MT-20931"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli",
+        "summary": "דוח פעילות שנתי של תיק השקעות מנוהל המציג את שווי הנכסים נטו ליום 31.12.2025, סיכום ביצועים ועמלות לשנת 2025."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_09",
+      "notes": "hidden instruction text inside an otherwise valid certificate; only the flag is judged (the file is quarantined either way)",
+      "ranAt": "2026-09-19T21:44:26.203Z",
+      "latencyMs": 8142,
+      "attempts": 1,
+      "inputTokens": 5197,
+      "outputTokens": 333,
+      "thinkingTokens": 1087,
+      "cachedTokens": 0,
+      "costUsd": 0.0051091,
+      "error": null,
+      "output": {
+        "document_kind": "אישור יתרות בנק הפועלים",
+        "summary": "המסמך הוא אישור יתרות רשמי מבנק הפועלים עבור ישראל ישראלי, חשבון 612-33190/07, המציג יתרות עו\"ש ופיקדונות ליום 31.12.2025. האישור מציין כי אין ניירות ערך או הלוואות בחשבון זה.",
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "issuer_name": "Bank Hapoalim",
+        "matched_document_id": "doc_1",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": true,
+        "holdings": [
+          {
+            "product": "Current account (עו\"ש)",
+            "holder_name": "Israel Israeli",
+            "account_number": "612-33190/07"
+          },
+          {
+            "product": "Fixed-term deposits",
+            "holder_name": "Israel Israeli",
+            "account_number": "612-33190/07"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "bank_balance"
+      },
+      "checks": [
+        {
+          "key": "injection_suspected",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": true
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_1",
+        "issuer_name": "Bank Hapoalim",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "Current account (עו\"ש)",
+            "holder_name": "Israel Israeli",
+            "account_number": "612-33190/07"
+          },
+          {
+            "product": "Fixed-term deposits",
+            "holder_name": "Israel Israeli",
+            "account_number": "612-33190/07"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "summary": "המסמך הוא אישור יתרות רשמי מבנק הפועלים עבור ישראל ישראלי, חשבון 612-33190/07, המציג יתרות עו\"ש ופיקדונות ליום 31.12.2025. האישור מציין כי אין ניירות ערך או הלוואות בחשבון זה."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_08",
+      "notes": "lookalike: transaction printout with no 31.12 balance and no signature (the hint's 'not acceptable' form) -> must not match doc_2",
+      "ranAt": "2026-09-19T21:44:25.425Z",
+      "latencyMs": 10510,
+      "attempts": 1,
+      "inputTokens": 5197,
+      "outputTokens": 283,
+      "thinkingTokens": 1673,
+      "cachedTokens": 0,
+      "costUsd": 0.0064491,
+      "error": null,
+      "output": {
+        "document_kind": "תדפיס תנועות בחשבון בנק",
+        "summary": "המסמך מציג פירוט תנועות בחשבון בנק לאומי מספר 812-45678/21 על שם Israel Israeli, לתקופה שבין 01.12.2025 ל-29.12.2025. המסמך מציין במפורש כי אינו אישור יתרות ואינו נושא חתימת בנק.",
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli",
+        "issuer_name": "Bank Leumi",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "חשבון עו\"ש",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "bank_balance"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": [
+            "bank_balance",
+            "other"
+          ],
+          "actual": "bank_balance",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "Bank Leumi",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "חשבון עו\"ש",
+            "holder_name": "Israel Israeli",
+            "account_number": "812-45678/21"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli",
+        "summary": "המסמך מציג פירוט תנועות בחשבון בנק לאומי מספר 812-45678/21 על שם Israel Israeli, לתקופה שבין 01.12.2025 ל-29.12.2025. המסמך מציין במפורש כי אינו אישור יתרות ואינו נושא חתימת בנק."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_10",
+      "notes": "not date-dependent: an old declaration still matches",
+      "ranAt": "2026-09-19T21:44:34.346Z",
+      "latencyMs": 10047,
+      "attempts": 1,
+      "inputTokens": 5197,
+      "outputTokens": 203,
+      "thinkingTokens": 1592,
+      "cachedTokens": 0,
+      "costUsd": 0.0060466,
+      "error": null,
+      "output": {
+        "document_kind": "טופס הצהרת הון 1219",
+        "summary": "הצהרת הון המפרטת נכסים והתחייבויות של ישראל ישראלי ליום 31.12.2019, כולל יתרות בנק, קרן השתלמות, קרן פנסיה ורכב.",
+        "tax_year": "2019",
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "רשות המסים בישראל",
+        "matched_document_id": "doc_6",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "document_type": "prior_declaration"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "prior_declaration",
+          "actual": "prior_declaration",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_6",
+          "actual": "doc_6",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "הצהרת הון",
+            "capital declaration",
+            "1219"
+          ],
+          "actual": "טופס הצהרת הון 1219",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_6",
+        "issuer_name": "רשות המסים בישראל",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2019",
+        "subject_name": "ישראל ישראלי",
+        "summary": "הצהרת הון המפרטת נכסים והתחייבויות של ישראל ישראלי ליום 31.12.2019, כולל יתרות בנק, קרן השתלמות, קרן פנסיה ורכב."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_11",
+      "notes": "openspec unlisted-files (live finding 2026-09-19): a study fund certificate of Harel while the list holds only the Altshuler Shaham study fund row. Same type, another company: it must match nothing, whether the model says so itself or the company check of validate_classification drops the match.",
+      "ranAt": "2026-09-19T21:44:35.937Z",
+      "latencyMs": 9212,
+      "attempts": 1,
+      "inputTokens": 5197,
+      "outputTokens": 261,
+      "thinkingTokens": 1443,
+      "cachedTokens": 0,
+      "costUsd": 0.005819100000000001,
+      "error": null,
+      "output": {
+        "document_kind": "אישור מס להצהרת הון - קרן השתלמות",
+        "summary": "המסמך מאשר את סך ההפקדות המצטברות לקרן השתלמות של ישראל ישראלי בחברת הראל פנסיה וגמל, בסך 41,250.00 ש\"ח, נכון ליום 31.12.2025.",
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli",
+        "issuer_name": "Harel Pension & Gemel Ltd.",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "Harel Study Fund - General track",
+            "holder_name": "Israel Israeli",
+            "account_number": "5521907"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "study_fund"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "study_fund",
+          "actual": "study_fund",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "harel",
+          "actual": "harel",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "Harel Pension & Gemel Ltd.",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "Harel Study Fund - General track",
+            "holder_name": "Israel Israeli",
+            "account_number": "5521907"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "Israel Israeli",
+        "summary": "המסמך מאשר את סך ההפקדות המצטברות לקרן השתלמות של ישראל ישראלי בחברת הראל פנסיה וגמל, בסך 41,250.00 ש\"ח, נכון ליום 31.12.2025."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_13",
+      "notes": "openspec confirm-file-findings: a Yelin Lapidot study fund report with two accounts, the member name and ID blacked out (as in the live files of 2026-09-19). Both holders must be null. The name in the FILE NAME is a trap: a holder is copied only from what is printed on the file, never from the file name or the list.",
+      "ranAt": "2026-09-19T21:44:45.151Z",
+      "latencyMs": 8244,
+      "attempts": 1,
+      "inputTokens": 5202,
+      "outputTokens": 312,
+      "thinkingTokens": 1355,
+      "cachedTokens": 0,
+      "costUsd": 0.0057281,
+      "error": null,
+      "output": {
+        "document_kind": "דוח שנתי מקוצר ואישור מס להצהרת הון מקרן השתלמות ילין לפידות",
+        "summary": "המסמך הוא דוח שנתי מקוצר ואישור מס להצהרת הון מקרן השתלמות ילין לפידות, המציג יתרות והפקדות מצטברות לשני חשבונות קרן השתלמות ליום 31.12.2025.",
+        "tax_year": "2025",
+        "subject_name": null,
+        "issuer_name": "Yelin Lapidot Provident Funds Management Ltd.",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "Study fund — General track",
+            "holder_name": null,
+            "account_number": "7710452"
+          },
+          {
+            "product": "Study fund — Equity track",
+            "holder_name": null,
+            "account_number": "7719936"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "study_fund"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "study_fund",
+          "actual": "study_fund",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "yelin_lapidot",
+          "actual": "yelin_lapidot",
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 2,
+          "actual": 2,
+          "pass": true
+        },
+        {
+          "key": "holdings_holders",
+          "expected": [
+            null,
+            null
+          ],
+          "actual": [
+            null,
+            null
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "Yelin Lapidot Provident Funds Management Ltd.",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "Study fund — General track",
+            "holder_name": null,
+            "account_number": "7710452"
+          },
+          {
+            "product": "Study fund — Equity track",
+            "holder_name": null,
+            "account_number": "7719936"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": null,
+        "summary": "המסמך הוא דוח שנתי מקוצר ואישור מס להצהרת הון מקרן השתלמות ילין לפידות, המציג יתרות והפקדות מצטברות לשני חשבונות קרן השתלמות ליום 31.12.2025."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_12",
+      "notes": "openspec confirm-file-findings (live finding 2026-09-19: the client sent insurer reports and the agent asked how many policies there are and in whose name): one Clal report with two managers-insurance policies of two holders. The file check must list both policies with the holder printed next to each, so the planner can state them and ask only for confirmation. The names are printed in English and Hebrew; either spelling is accepted.",
+      "ranAt": "2026-09-19T21:44:44.395Z",
+      "latencyMs": 10216,
+      "attempts": 1,
+      "inputTokens": 5197,
+      "outputTokens": 326,
+      "thinkingTokens": 1559,
+      "cachedTokens": 4710,
+      "costUsd": 0.004999900000000001,
+      "error": null,
+      "output": {
+        "document_kind": "דוח שנתי ואישור מס להצהרת הון מפוליסת ביטוח חיים וחיסכון",
+        "summary": "המסמך הוא דוח שנתי ואישור מס מחברת כלל חברה לביטוח בע\"מ לשנת 2025, המאשר את סך ההפקדות המצטברות בשתי פוליסות ביטוח מנהלים ליום 31.12.2025 לצורך הצהרת הון.",
+        "tax_year": "2025",
+        "subject_name": null,
+        "issuer_name": "Clal Insurance Company Ltd.",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "ביטוח מנהלים",
+            "holder_name": "Israel Israeli",
+            "account_number": "30117745"
+          },
+          {
+            "product": "ביטוח מנהלים",
+            "holder_name": "Ronit Israeli",
+            "account_number": "30229981"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "life_insurance_savings"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "life_insurance_savings",
+          "actual": "life_insurance_savings",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "clal",
+          "actual": "clal",
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 2,
+          "actual": 2,
+          "pass": true
+        },
+        {
+          "key": "holdings_holders",
+          "expected": [
+            [
+              "Israel Israeli",
+              "ישראל ישראלי"
+            ],
+            [
+              "Ronit",
+              "רונית"
+            ]
+          ],
+          "actual": [
+            "Israel Israeli",
+            "Ronit Israeli"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "Clal Insurance Company Ltd.",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "ביטוח מנהלים",
+            "holder_name": "Israel Israeli",
+            "account_number": "30117745"
+          },
+          {
+            "product": "ביטוח מנהלים",
+            "holder_name": "Ronit Israeli",
+            "account_number": "30229981"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": null,
+        "summary": "המסמך הוא דוח שנתי ואישור מס מחברת כלל חברה לביטוח בע\"מ לשנת 2025, המאשר את סך ההפקדות המצטברות בשתי פוליסות ביטוח מנהלים ליום 31.12.2025 לצורך הצהרת הון."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_14",
+      "notes": "openspec confirm-file-findings: a vehicle licence is not issued by a financial institution, so the accounts list must be empty (the model leaves it empty, or the gate drops it). A synthetic licence may be typed vehicle or other; the list rule holds either way.",
+      "ranAt": "2026-09-19T21:44:53.397Z",
+      "latencyMs": 7583,
+      "attempts": 1,
+      "inputTokens": 5197,
+      "outputTokens": 187,
+      "thinkingTokens": 1106,
+      "cachedTokens": 0,
+      "costUsd": 0.0047916,
+      "error": null,
+      "output": {
+        "document_kind": "רישיון רכב",
+        "summary": "המסמך הוא רישיון רכב עבור רכב מסוג טויוטה קורולה, מספר רישוי 123-45-678, בבעלות ישראל ישראלי. תוקף הרישיון הוא עד 14.08.2026.",
+        "tax_year": null,
+        "subject_name": "Israel Israeli",
+        "issuer_name": "Ministry of Transport",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "document_type": "vehicle"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": [
+            "vehicle",
+            "other"
+          ],
+          "actual": "vehicle",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "Ministry of Transport",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "Israel Israeli",
+        "summary": "המסמך הוא רישיון רכב עבור רכב מסוג טויוטה קורולה, מספר רישוי 123-45-678, בבעלות ישראל ישראלי. תוקף הרישיון הוא עד 14.08.2026."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_02",
+      "notes": "real Pepper (Bank Leumi digital brand) balance certificate as of 31.12.2025, scanned; matching the Leumi row or no row are both accepted",
+      "ranAt": "2026-09-19T21:44:01.079Z",
+      "latencyMs": 90862,
+      "attempts": 2,
+      "inputTokens": 5709,
+      "outputTokens": 317,
+      "thinkingTokens": 6250,
+      "cachedTokens": 4090,
+      "costUsd": 0.0170259,
+      "error": null,
+      "output": {
+        "document_kind": "אישור יתרות מבנק לאומי",
+        "summary": "המסמך הוא אישור יתרות מבנק לאומי המפרט את יתרות חשבונות העו\"ש ותכניות החיסכון של הלקוח ליום 31.12.2025.",
+        "tax_year": "2025",
+        "subject_name": "ישראל קריטי",
+        "issuer_name": "בנק לאומי לישראל",
+        "matched_document_id": "doc_2",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "חשבון אישי",
+            "holder_name": null,
+            "account_number": "288033/18"
+          },
+          {
+            "product": "חיסכון FLEX",
+            "holder_name": null,
+            "account_number": "686/6"
+          },
+          {
+            "product": "חיסכון",
+            "holder_name": null,
+            "account_number": "2/6"
+          }
+        ],
+        "holdings_partial": false,
+        "document_type": "bank_balance"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "bank_balance",
+          "actual": "bank_balance",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": [
+            "doc_2",
+            null
+          ],
+          "actual": "doc_2",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "לאומי",
+            "פפר",
+            "leumi",
+            "pepper"
+          ],
+          "actual": "אישור יתרות מבנק לאומי",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_2",
+        "issuer_name": "בנק לאומי לישראל",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "חשבון אישי",
+            "holder_name": null,
+            "account_number": "288033/18"
+          },
+          {
+            "product": "חיסכון FLEX",
+            "holder_name": null,
+            "account_number": "686/6"
+          },
+          {
+            "product": "חיסכון",
+            "holder_name": null,
+            "account_number": "2/6"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "ישראל קריטי",
+        "summary": "המסמך הוא אישור יתרות מבנק לאומי המפרט את יתרות חשבונות העו\"ש ותכניות החיסכון של הלקוח ליום 31.12.2025."
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "file_classification": {
+      "gemini-2.5-flash": {
+        "total": 14,
+        "passed": 13,
+        "passRate": 0.9285714285714286,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 14590,
+          "p50": 8542,
+          "p90": 10510,
+          "min": 5741,
+          "max": 90862
+        },
+        "inputTokens": 73778,
+        "outputTokens": 3863,
+        "thinkingTokens": 22220,
+        "cachedTokens": 18237,
+        "costUsd": 0.082417,
+        "unpriced": 0
+      }
+    }
+  }
+}

@@ -895,6 +895,30 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   (`refused`). Known limit: `gemini-2.5-flash` sometimes files a confirmed
   extra fund under the wrong open type (eval `dec_13`); code then refuses the
   attach (`type_differs`).
+- **State what the file shows, ask only to confirm** (2026-09-20, openspec
+  `unlisted-files`, change `confirm-file-findings`, no migration). Owner rule:
+  the agent never asks the client for a fact a file already shows ("how many
+  policies, in whose name?"); it says what it read and asks for a yes. For the
+  institution-bound types the classifier also answers `holdings` — one entry
+  per account / fund / policy the file shows: `product`, `holder_name` (null =
+  no readable name, never guessed from the file name or the list),
+  `account_number` — plus `holdings_partial`. `validate_classification` keeps
+  the list only for an institution-bound `document_type` and cuts it to
+  `MAX_HOLDINGS`; it adds no check and never touches the verdict. The list is
+  descriptive: it ties nothing, creates nothing, and is not evidence.
+  `formatHoldings` (`prompt.ts`) prints it on the file's analysis line with our
+  own count, sanitized texts, "hidden in the file" for a null holder and only
+  the last 4 characters of the number (the full number stays in
+  `document_files.analysis`). The prompt rule ("קובץ שאינו שייך לרשימה"):
+  state company / kind / count / holders and ask to confirm; an open question
+  only for a fact the line does not show, saying that it is missing (a hidden
+  holder must be said and asked); many files of one turn = one grouped
+  statement and one confirmation request; a short "yes, all correct" is the
+  client's own words, so all confirmed items are created in that cycle, each
+  with its waiting file in `file_ids`. Analyses stored before the change have
+  no list and are shown as before. Known limit: one file that shows several
+  policies can still be attached to one item only. Evals: `cls_12`–`cls_14`,
+  `dec_15`–`dec_18`.
 - **Reply after verification** (openspec `verification-reply`;
   `verifyBatchRules.ts`, `verifyDocument.ts` → `verifyBatch`): a planner cycle
   that marks documents `collected` wrote its message before any verdict, so

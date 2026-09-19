@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   CAPITAL_DOCUMENT_TYPE_VALUES,
   CapitalFileAnalysisSchema,
+  MAX_HOLDINGS,
   classifierCandidates,
   validateClassification,
   type ClassifiableDocument,
@@ -195,6 +196,50 @@ describe('validate_classification (validateClassification)', () => {
     );
   });
 
+  describe('accounts list (holdings)', () => {
+    const two = [
+      { product: 'ביטוח מנהלים', holder_name: 'תמיר ניב', account_number: '12345678' },
+      { product: 'ביטוח מנהלים', holder_name: null, account_number: null },
+    ];
+
+    it('is kept for an institution-bound type, without touching the verdict or the checks', () => {
+      const without = validate(raw());
+      const g = validate(raw({ holdings: two, holdings_partial: false }));
+      assert.deepEqual(g.analysis.holdings, two);
+      assert.equal(g.analysis.holdings_partial, false);
+      assert.equal(g.result, without.result);
+      assert.deepEqual(g.checks, without.checks);
+    });
+
+    it('is dropped for a type that is not institution-bound, same checks as before', () => {
+      const vehicle = raw({ matched_document_id: 'doc-5', document_type: 'vehicle', issuer_name: null });
+      const g = validate({ ...vehicle, holdings: two, holdings_partial: true });
+      assert.deepEqual(g.analysis.holdings, []);
+      assert.equal(g.analysis.holdings_partial, false);
+      assert.equal(g.result, true);
+      assert.deepEqual(g.checks, validate(vehicle).checks);
+    });
+
+    it('is cut to the maximum and flagged partial', () => {
+      const many = Array.from({ length: MAX_HOLDINGS + 3 }, (_, i) => ({ product: 'קרן השתלמות', holder_name: null, account_number: String(i) }));
+      const g = validate(raw({ holdings: many, holdings_partial: false }));
+      assert.equal(g.analysis.holdings?.length, MAX_HOLDINGS);
+      assert.equal(g.analysis.holdings_partial, true);
+    });
+
+    it('an analysis stored before the list existed passes through without it', () => {
+      const g = validate(raw());
+      assert.equal(g.analysis.holdings, undefined);
+      assert.equal(g.analysis.holdings_partial, undefined);
+    });
+
+    it('the answer schema requires the list; a null holder and number are valid', () => {
+      assert.throws(() => CapitalFileAnalysisSchema.parse(raw()));
+      const parsed = CapitalFileAnalysisSchema.parse(raw({ holdings: two, holdings_partial: false }));
+      assert.equal(parsed.holdings[1]!.holder_name, null);
+    });
+  });
+
   it('never mutates the input', () => {
     const input = raw({ matched_document_id: 'doc-99' });
     validate(input, rows);
@@ -204,6 +249,6 @@ describe('validate_classification (validateClassification)', () => {
   it('document_type is the closed catalog + other list', () => {
     assert.deepEqual(CAPITAL_DOCUMENT_TYPE_VALUES, [...CAPITAL_DOCUMENT_CATALOG.map((t) => t.key), 'other']);
     assert.throws(() => CapitalFileAnalysisSchema.parse(raw({ document_type: 'invoice' })));
-    assert.equal(CapitalFileAnalysisSchema.parse(raw({ document_type: 'other' })).document_type, 'other');
+    assert.equal(CapitalFileAnalysisSchema.parse(raw({ document_type: 'other', holdings: [], holdings_partial: false })).document_type, 'other');
   });
 });

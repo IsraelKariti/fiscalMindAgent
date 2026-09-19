@@ -129,6 +129,67 @@ const DOCS: Record<string, string> = {
      <p class="muted">This certificate is intended for the capital declaration submitted to the Israel Tax Authority and confirms cumulative deposits, not the accrued balance.</p>
      <div class="sig">Harel Pension & Gemel Ltd.<br><span class="stamp">הראל פנסיה וגמל</span></div>`,
   ),
+  // openspec confirm-file-findings: one report, two policies, two holders — the file check must list both.
+  'clal_insurance_two_holders_2025.pdf': page(
+    'Clal Insurance annual report — two policies',
+    `<div class="letterhead"><div class="logo" style="color:#c2185b">Clal Insurance Company Ltd.</div><div class="he"><div class="logo" style="color:#c2185b">כלל חברה לביטוח בע"מ</div></div></div>
+     <h1 class="he">דוח שנתי לשנת 2025 ואישור מס להצהרת הון — ביטוח חיים וחיסכון</h1>
+     <h1>Annual report for 2025 and tax certificate for capital declaration — life insurance and savings</h1>
+     <p class="muted">All data as of 31.12.2025</p>
+     <h2>Policy 1 &nbsp;·&nbsp; <span class="he">פוליסה 1</span></h2>
+     <table>
+       <tr><th>Insured name</th><td>${client.name} (${client.nameHe})</td></tr>
+       <tr><th>ID number</th><td>${client.id}</td></tr>
+       <tr><th>Product</th><td>Managers insurance (ביטוח מנהלים)</td></tr>
+       <tr><th>Policy number</th><td>30117745</td></tr>
+       <tr><th>Total deposits until 31.12.2025</th><td>184,300.00 ILS</td></tr>
+     </table>
+     <h2>Policy 2 &nbsp;·&nbsp; <span class="he">פוליסה 2</span></h2>
+     <table>
+       <tr><th>Insured name</th><td>Ronit Israeli (רונית ישראלי)</td></tr>
+       <tr><th>ID number</th><td>039337423</td></tr>
+       <tr><th>Product</th><td>Managers insurance (ביטוח מנהלים)</td></tr>
+       <tr><th>Policy number</th><td>30229981</td></tr>
+       <tr><th>Total deposits until 31.12.2025</th><td>97,650.00 ILS</td></tr>
+     </table>
+     <div class="box"><p class="he">הרינו לאשר את סך ההפקדות המצטברות בכל אחת מהפוליסות הנ"ל עד ליום 31.12.2025, לצורך הצהרת הון.</p></div>
+     <div class="sig">Clal Insurance Company Ltd.<br><span class="stamp">כלל ביטוח</span></div>`,
+  ),
+  // openspec confirm-file-findings: two accounts, the member's name and ID blacked out — holder must be null, never guessed.
+  'yelin_study_fund_hidden_holder_2025.pdf': page(
+    'Yelin Lapidot study fund annual report — member details redacted',
+    `<div class="letterhead"><div class="logo" style="color:#00695c">Yelin Lapidot Provident Funds</div><div class="he"><div class="logo" style="color:#00695c">ילין לפידות קופות גמל בע"מ</div></div></div>
+     <h1 class="he">דוח שנתי מקוצר לשנת 2025 ואישור מס להצהרת הון — קרן השתלמות</h1>
+     <h1>Abbreviated annual report for 2025 and tax certificate for capital declaration — study fund</h1>
+     <p class="muted">All data as of 31.12.2025</p>
+     <table>
+       <tr><th>Member name</th><td><span style="display:inline-block;width:180px;height:16px;background:#000"></span></td></tr>
+       <tr><th>ID number</th><td><span style="display:inline-block;width:110px;height:16px;background:#000"></span></td></tr>
+     </table>
+     <table>
+       <tr><th>Account number</th><th>Track</th><th>Balance 31.12.2025</th><th>Total deposits until 31.12.2025</th></tr>
+       <tr><td>7710452</td><td>Study fund — General track (קרן השתלמות מסלול כללי)</td><td>88,120.00 ILS</td><td>61,000.00 ILS</td></tr>
+       <tr><td>7719936</td><td>Study fund — Equity track (קרן השתלמות מסלול מניות)</td><td>23,480.00 ILS</td><td>18,500.00 ILS</td></tr>
+     </table>
+     <div class="sig">Yelin Lapidot Provident Funds Management Ltd.<br><span class="stamp">ילין לפידות</span></div>`,
+  ),
+  // openspec confirm-file-findings: not an institution-bound document — the accounts list must be empty.
+  'vehicle_licence_2025.pdf': page(
+    'Vehicle licence',
+    `<div class="letterhead"><div class="logo" style="color:#1a237e">State of Israel — Ministry of Transport</div><div class="he"><div class="logo" style="color:#1a237e">מדינת ישראל — משרד התחבורה והבטיחות בדרכים</div></div></div>
+     <h1 class="he">רישיון רכב</h1>
+     <h1>Vehicle licence</h1>
+     <table>
+       <tr><th>Registration number (מספר רכב)</th><td>123-45-678</td></tr>
+       <tr><th>Owner (שם בעל הרכב)</th><td>${client.name} (${client.nameHe})</td></tr>
+       <tr><th>Owner ID (ת.ז.)</th><td>${client.id}</td></tr>
+       <tr><th>Make and model (תוצר ודגם)</th><td>Toyota Corolla (טויוטה קורולה)</td></tr>
+       <tr><th>Year of manufacture (שנת ייצור)</th><td>2021</td></tr>
+       <tr><th>Ownership type (סוג בעלות)</th><td>Private (פרטי)</td></tr>
+       <tr><th>Valid until (בתוקף עד)</th><td>14.08.2026</td></tr>
+     </table>
+     <p class="muted">The licence fee was paid. This licence is valid only together with compulsory insurance.</p>`,
+  ),
   'menora_pension_2025.pdf': page(
     'Menora Mivtachim pension annual report',
     `<div class="letterhead"><div class="logo" style="color:#7a1fa2">Menora Mivtachim Pension</div><div class="he"><div class="logo" style="color:#7a1fa2">מנורה מבטחים פנסיה</div></div></div>

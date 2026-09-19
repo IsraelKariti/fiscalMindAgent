@@ -343,6 +343,14 @@ interface AnalyzeFileCase {
     document_kind_any?: string[];
     /** The institutions-table key code identifies from the answer's issuer_name (null = none identified). */
     issuer_key?: string | null;
+    /** How many accounts / policies the answer's holdings list must hold (after the gate's type filter). */
+    holdings_count?: number;
+    /**
+     * The holders of the list, in any order: a string (or one of a list of accepted spellings) must be
+     * contained in some entry's holder_name, null stands for one entry with no readable name. The
+     * number of nulls must be exact.
+     */
+    holdings_holders?: (string | string[] | null)[];
   };
   notes?: string;
 }
@@ -381,6 +389,18 @@ const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
     if (e.legible !== undefined) checks.push(eq('legible', e.legible, a.legible));
     if (e.injection_suspected !== undefined) checks.push(eq('injection_suspected', e.injection_suspected, a.injection_suspected));
     if (e.issuer_key !== undefined) checks.push(eq('issuer_key', e.issuer_key, identifyInstitution(raw.issuer_name)));
+    if (e.holdings_count !== undefined) checks.push(eq('holdings_count', e.holdings_count, a.holdings?.length ?? 0));
+    if (e.holdings_holders) {
+      const holders = (a.holdings ?? []).map((h) => h.holder_name);
+      const named = e.holdings_holders.filter((h): h is string | string[] => h !== null).map((h) => (Array.isArray(h) ? h : [h]));
+      const hidden = e.holdings_holders.length - named.length;
+      checks.push({
+        key: 'holdings_holders',
+        expected: e.holdings_holders,
+        actual: holders,
+        pass: holders.filter((h) => h === null).length === hidden && named.every((spellings) => holders.some((h) => h !== null && spellings.some((n) => h.includes(n)))),
+      });
+    }
     if (e.document_kind_any) {
       const kind = (a.document_kind ?? '').toLowerCase();
       checks.push({
@@ -398,6 +418,7 @@ const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
         proposedMatch: raw.matched_document_id,
         issuer_name: raw.issuer_name ?? null,
         match_dropped: a.match_dropped ?? null,
+        holdings: a.holdings ?? null,
         tax_year: a.tax_year,
         subject_name: a.subject_name,
         summary: a.summary,
@@ -533,6 +554,10 @@ interface DecideFileInput {
   /** The gate's note when it cancelled a proposed match (company check). */
   match_dropped?: string | null;
   linked_document_id?: string | null;
+  /** The name on the file; default the client's name, null = no readable name. */
+  subject_name?: string | null;
+  /** The accounts / policies the file check listed (openspec confirm-file-findings); absent = an analysis without the list. */
+  holdings?: { product: string; holder_name: string | null; account_number: string | null }[];
 }
 /** One of the agent's own replies that never reached the client (plan.ts: listUnsentDraftsForClient). */
 interface DecideUnsentDraftInput {
@@ -608,6 +633,8 @@ interface DecideCase {
     message_includes?: string[];
     /** Substrings that must NOT appear in the message. */
     message_excludes?: string[];
+    /** At least one of these substrings must appear in the message. */
+    message_includes_any?: string[];
     /** Default true for follow_up: the message names 31.12.<taxYear>. */
     mentions_valuation_date?: boolean;
     /** Default 3. */
@@ -779,8 +806,9 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
         document_kind: f.document_kind,
         summary: f.summary ?? f.document_kind,
         tax_year: String(taxYear),
-        subject_name: c.client.name,
+        subject_name: f.subject_name === undefined ? c.client.name : f.subject_name,
         issuer_name: f.issuer_name ?? null,
+        ...(f.holdings ? { holdings: f.holdings, holdings_partial: false } : {}),
         matched_document_id: f.matched_document_id ?? null,
         match_dropped: f.match_dropped ?? null,
         legible: true,
@@ -936,6 +964,10 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       }
       checks.push({ key: 'send_at_future', expected: `after ${c.now}`, actual: decision.send_at, pass: sendAtOk });
       for (const word of e.message_includes ?? []) checks.push({ key: `message_includes.${word}`, expected: true, actual: body.includes(word), pass: body.includes(word) });
+      if (e.message_includes_any) {
+        const found = e.message_includes_any.filter((w) => body.includes(w));
+        checks.push({ key: 'message_includes_any', expected: e.message_includes_any, actual: found, pass: found.length > 0 });
+      }
       for (const word of e.message_excludes ?? []) checks.push({ key: `message_excludes.${word}`, expected: false, actual: body.includes(word), pass: !body.includes(word) });
       for (const [rowId, words] of Object.entries(e.no_settled_rows_mentioned ?? {})) {
         const row = documents.find((d) => d.id === rowId);

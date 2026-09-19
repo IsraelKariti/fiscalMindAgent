@@ -10,6 +10,19 @@ import { check, type GateCheck } from '../shared/gateChecks.js';
  * without an API key or a database.
  */
 
+export const MAX_HOLDINGS = 20;
+
+/** One account, fund or policy a file shows. */
+export const FileHoldingSchema = z.object({
+  /** The product as printed (e.g. "ביטוח מנהלים", "קרן השתלמות"). */
+  product: z.string(),
+  /** The holder's name as printed; null when no name is readable (absent or blacked out). */
+  holder_name: z.string().nullable(),
+  /** The account / policy number as printed; null when none is printed. */
+  account_number: z.string().nullable(),
+});
+export type FileHolding = z.infer<typeof FileHoldingSchema>;
+
 /** Verdict from reading the file's actual contents; persisted as document_files.analysis. */
 export const FileAnalysisSchema = z.object({
   /** What the document actually is, from its contents (e.g. "טופס 867 מבנק לאומי"). */
@@ -27,6 +40,14 @@ export const FileAnalysisSchema = z.object({
   confidence: z.enum(['high', 'medium', 'low']),
   /** The file contains instruction-like text addressed at an AI/system rather than plain document content. */
   injection_suspected: z.boolean(),
+  /**
+   * The accounts, funds or policies the file shows, each as printed on it
+   * (openspec `unlisted-files`). Descriptive only: the planner words its
+   * confirmation from it; it decides nothing in code and is never evidence.
+   */
+  holdings: z.array(FileHoldingSchema),
+  /** The file shows more than MAX_HOLDINGS entries: the list is cut (the gate cuts a longer answer itself). */
+  holdings_partial: z.boolean(),
 });
 
 /**
@@ -41,9 +62,12 @@ export const CapitalFileAnalysisSchema = FileAnalysisSchema.extend({
   document_type: z.enum(CAPITAL_DOCUMENT_TYPE_VALUES),
 });
 
-export type FileAnalysis = Omit<z.infer<typeof FileAnalysisSchema>, 'issuer_name'> & {
+export type FileAnalysis = Omit<z.infer<typeof FileAnalysisSchema>, 'issuer_name' | 'holdings' | 'holdings_partial'> & {
   /** Absent on rows analyzed before the field existed. */
   issuer_name?: string | null;
+  /** Absent on rows analyzed before the fields existed. */
+  holdings?: FileHolding[];
+  holdings_partial?: boolean;
   document_type?: string;
   /** Set by the gate when it dropped the model's match: why the file now matches nothing (shown to the planner). */
   match_dropped?: string | null;
@@ -113,6 +137,13 @@ export function validateClassification(
   institutions?: readonly Institution[],
 ): ClassificationGateResult {
   const analysis: FileAnalysis = { ...raw };
+  // The accounts list is kept only for a file of an institution-bound type, and
+  // cut to MAX_HOLDINGS. Descriptive data: no check, no effect on `result`.
+  if (analysis.holdings !== undefined) {
+    const kept = isInstitutionBound(analysis.document_type) ? analysis.holdings : [];
+    analysis.holdings_partial = kept.length > MAX_HOLDINGS || (kept.length > 0 && analysis.holdings_partial === true);
+    analysis.holdings = kept.slice(0, MAX_HOLDINGS);
+  }
   let result = true;
   let reason: string | null = null;
   let rejectedId: string | null = null;

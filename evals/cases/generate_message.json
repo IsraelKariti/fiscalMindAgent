@@ -1,6 +1,6 @@
 {
   "stage": "generate_message",
-  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected; for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, tax_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain. The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
+  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected; for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, tax_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain; message_includes_any passes when at least one of its substrings appears. A file of the snapshot may carry holdings (the accounts list of the file check) and subject_name (null = no readable name). The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
   "taxYear": 2025,
   "accountant": { "name": "Cohen & Co. CPA", "hebrew_name": "כהן ושות' רואי חשבון", "email": "office@cohen-cpa.example" },
   "templates": [
@@ -1219,6 +1219,710 @@
         "mentions_valuation_date": false
       },
       "notes": "Change confirm-unlisted-files (live finding 2026-09-19): pension was never discussed (the pension row is still an open question) and the client sends, with no text, a Menora Mivtachim pension report. Before the change the agent settled the question and collected the file on its own. Now the question must stay open: no list change, no pairing, and the reply mentions the Menora file and asks."
+    },
+    {
+      "id": "dec_15",
+      "now": "2026-09-19T09:12:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-20T09:10:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study-altshuler",
+          "type_key": "study_fund",
+          "status": "approved",
+          "name": "אישור קרן השתלמות באלטשולר שחם ליום 31.12.2025",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן. ההצהרה משותפת לי ולאשתי רונית"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-09-18T08:30:00Z",
+          "body": "תודה ישראל, אישור היתרות מבנק לאומי והאישור על קרן ההשתלמות באלטשולר שחם התקבלו ואומתו. נמשיך: האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-19T09:10:00Z",
+          "body": ""
+        }
+      ],
+      "files": [
+        {
+          "id": "file-harel",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - ביטוח מנהלים",
+          "document_type": "life_insurance_savings",
+          "issuer_name": "הראל חברה לביטוח בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מהראל עבור פוליסות ביטוח מנהלים, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "holdings": [
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "20114471"
+            },
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "רונית ישראלי",
+              "account_number": "20118852"
+            }
+          ]
+        },
+        {
+          "id": "file-clal",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - ביטוח מנהלים",
+          "document_type": "life_insurance_savings",
+          "issuer_name": "כלל חברה לביטוח בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מכלל עבור פוליסות ביטוח מנהלים, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "holdings": [
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "30117745"
+            },
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "רונית ישראלי",
+              "account_number": "30229981"
+            }
+          ]
+        },
+        {
+          "id": "file-migdal",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - ביטוח מנהלים",
+          "document_type": "life_insurance_savings",
+          "issuer_name": "מגדל חברה לביטוח בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 ממגדל עבור פוליסות ביטוח מנהלים, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "holdings": [
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "40551203"
+            },
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "רונית ישראלי",
+              "account_number": "40557719"
+            }
+          ]
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "no_list_change": true,
+        "matched_file_ids": [],
+        "message_includes": [
+          "הראל",
+          "כלל",
+          "מגדל",
+          "רונית"
+        ],
+        "message_excludes": [
+          "כמה פוליסות",
+          "על שם מי"
+        ],
+        "max_question_marks": 3,
+        "mentions_valuation_date": false
+      },
+      "notes": "Change confirm-file-findings (live finding 2026-09-19, client Niv): the client sends, with no text, insurer reports of Harel, Clal and Migdal; life insurance was never discussed. Each file's analysis lists two managers-insurance policies, one in the client's name and one in his wife's name. Before the change the agent asked 'how many policies are there in each company, and in whose name is each one?'. Now it must STATE what the files show (the three companies, the wife's name) and ask only for confirmation: neither forbidden question may appear, the list does not change, nothing is paired."
+    },
+    {
+      "id": "dec_16",
+      "now": "2026-09-19T09:12:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-20T09:10:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study-altshuler",
+          "type_key": "study_fund",
+          "status": "approved",
+          "name": "אישור קרן השתלמות באלטשולר שחם ליום 31.12.2025",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן. ההצהרה משותפת לי ולאשתי רונית"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-09-18T08:30:00Z",
+          "body": "תודה ישראל, אישור היתרות מבנק לאומי והאישור על קרן ההשתלמות באלטשולר שחם התקבלו ואומתו. נמשיך: האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-19T09:10:00Z",
+          "body": ""
+        }
+      ],
+      "files": [
+        {
+          "id": "file-yelin",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי מקוצר ואישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "ילין לפידות קופות גמל בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מקרן ההשתלמות של ילין לפידות, שני חשבונות, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": null,
+          "holdings": [
+            {
+              "product": "קרן השתלמות מסלול כללי",
+              "holder_name": null,
+              "account_number": "7710452"
+            },
+            {
+              "product": "קרן השתלמות מסלול מניות",
+              "holder_name": null,
+              "account_number": "7719936"
+            }
+          ]
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "no_list_change": true,
+        "matched_file_ids": [],
+        "message_includes": [
+          "ילין"
+        ],
+        "message_includes_any": [
+          "מוסתר",
+          "הוסתר",
+          "מושחר",
+          "לא מופיע",
+          "אינו מופיע",
+          "לא מצוין",
+          "חסר",
+          "בלי שם",
+          "ללא שם"
+        ],
+        "message_excludes": [
+          "כמה חשבונות",
+          "כמה קרנות",
+          "7710452",
+          "7719936"
+        ],
+        "max_question_marks": 3,
+        "mentions_valuation_date": false
+      },
+      "notes": "Change confirm-file-findings: a Yelin Lapidot study fund report with two accounts whose holder is hidden in the file (as in the live files of 2026-09-19). The count is known, so the agent must not ask how many accounts there are; the holder is NOT known, so an open question is allowed only for that, and the reply must say that the name is missing from the file. Full account numbers must not be quoted to the client."
+    },
+    {
+      "id": "dec_17",
+      "now": "2026-09-19T09:12:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-20T09:10:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study-altshuler",
+          "type_key": "study_fund",
+          "status": "approved",
+          "name": "אישור קרן השתלמות באלטשולר שחם ליום 31.12.2025",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן. ההצהרה משותפת לי ולאשתי רונית"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-09-18T08:30:00Z",
+          "body": "תודה ישראל, אישור היתרות מבנק לאומי והאישור על קרן ההשתלמות באלטשולר שחם התקבלו ואומתו. נמשיך: האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-19T09:10:00Z",
+          "body": ""
+        }
+      ],
+      "files": [
+        {
+          "id": "file-harel",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - ביטוח מנהלים",
+          "document_type": "life_insurance_savings",
+          "issuer_name": "הראל חברה לביטוח בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מהראל עבור פוליסות ביטוח מנהלים, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "holdings": [
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "20114471"
+            },
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "רונית ישראלי",
+              "account_number": "20118852"
+            }
+          ]
+        },
+        {
+          "id": "file-clal",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - ביטוח מנהלים",
+          "document_type": "life_insurance_savings",
+          "issuer_name": "כלל חברה לביטוח בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מכלל עבור פוליסות ביטוח מנהלים, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "holdings": [
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "30117745"
+            },
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "רונית ישראלי",
+              "account_number": "30229981"
+            }
+          ]
+        },
+        {
+          "id": "file-migdal",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - ביטוח מנהלים",
+          "document_type": "life_insurance_savings",
+          "issuer_name": "מגדל חברה לביטוח בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 ממגדל עבור פוליסות ביטוח מנהלים, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "holdings": [
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "40551203"
+            },
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "רונית ישראלי",
+              "account_number": "40557719"
+            }
+          ]
+        },
+        {
+          "id": "file-phoenix-pension",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - קרן פנסיה",
+          "document_type": "pension_provident",
+          "issuer_name": "הפניקס פנסיה וגמל בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מהפניקס, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "ישראל ישראלי",
+          "holdings": [
+            {
+              "product": "קרן פנסיה מקיפה",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "5510021"
+            }
+          ]
+        },
+        {
+          "id": "file-altshuler-gemel",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - קופת גמל להשקעה",
+          "document_type": "pension_provident",
+          "issuer_name": "אלטשולר שחם גמל ופנסיה בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מאלטשולר שחם, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "ישראל ישראלי",
+          "holdings": [
+            {
+              "product": "קופת גמל להשקעה",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "6620034"
+            }
+          ]
+        },
+        {
+          "id": "file-mor-study",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "מור גמל ופנסיה בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 ממור, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "ישראל ישראלי",
+          "holdings": [
+            {
+              "product": "קרן השתלמות",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "7730045"
+            }
+          ]
+        },
+        {
+          "id": "file-phoenix-study",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "הפניקס פנסיה וגמל בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מהפניקס, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "רונית ישראלי",
+          "holdings": [
+            {
+              "product": "קרן השתלמות",
+              "holder_name": "רונית ישראלי",
+              "account_number": "7730099"
+            }
+          ]
+        },
+        {
+          "id": "file-meitav-study-1",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "מיטב גמל ופנסיה בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 ממיטב, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "ישראל ישראלי",
+          "holdings": [
+            {
+              "product": "קרן השתלמות",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "8840051"
+            }
+          ]
+        },
+        {
+          "id": "file-meitav-study-2",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "מיטב גמל ופנסיה בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 ממיטב, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "רונית ישראלי",
+          "holdings": [
+            {
+              "product": "קרן השתלמות",
+              "holder_name": "רונית ישראלי",
+              "account_number": "8840077"
+            }
+          ]
+        },
+        {
+          "id": "file-yelin-study",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "ילין לפידות קופות גמל בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מילין לפידות, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "ישראל ישראלי",
+          "holdings": [
+            {
+              "product": "קרן השתלמות",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "9950012"
+            }
+          ]
+        },
+        {
+          "id": "file-menora-pension",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - קרן פנסיה",
+          "document_type": "pension_provident",
+          "issuer_name": "מנורה מבטחים פנסיה וגמל בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 ממנורה מבטחים, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "רונית ישראלי",
+          "holdings": [
+            {
+              "product": "קרן פנסיה מקיפה",
+              "holder_name": "רונית ישראלי",
+              "account_number": "4401778"
+            }
+          ]
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "no_list_change": true,
+        "matched_file_ids": [],
+        "message_includes": [
+          "הראל",
+          "כלל",
+          "מגדל",
+          "הפניקס",
+          "מיטב"
+        ],
+        "message_excludes": [
+          "כמה פוליסות",
+          "על שם מי"
+        ],
+        "max_question_marks": 3,
+        "mentions_valuation_date": false
+      },
+      "notes": "Change confirm-file-findings (live finding 2026-09-19: one PDF was split into 11 files and the agent asked open questions): eleven files of one turn match no agreed item, every holder is readable. The reply must be ONE grouped statement of what was found, ending with one confirmation request (at most 3 question marks in the whole message: the confirmation, a possible missing-fact question, and the interview question that was already open in the thread) - not a question per file, and none of the forbidden open questions. No list change, nothing paired."
+    },
+    {
+      "id": "dec_18",
+      "now": "2026-09-19T10:02:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-20T09:10:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study-altshuler",
+          "type_key": "study_fund",
+          "status": "approved",
+          "name": "אישור קרן השתלמות באלטשולר שחם ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-life-menora",
+          "type_key": "life_insurance_savings",
+          "status": "approved",
+          "name": "אישור להצהרת הון — ביטוח מנהלים במנורה מבטחים ליום 31.12.2025",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן. ההצהרה משותפת לי ולאשתי רונית"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-09-18T08:30:00Z",
+          "body": "תודה ישראל, אישור היתרות מבנק לאומי והאישור על קרן ההשתלמות באלטשולר שחם התקבלו ואומתו. נמשיך: האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-19T09:10:00Z",
+          "body": ""
+        },
+        {
+          "id": "msg-5",
+          "direction": "outbound",
+          "at": "2026-09-19T09:20:00Z",
+          "body": "תודה ישראל, קיבלתי שלושה דוחות של ביטוח מנהלים לשנת 2025: פוליסה בהראל על שמך, פוליסה בכלל על שמך, ופוליסה במגדל על שם רונית. ברשימה שלנו מופיע רק ביטוח המנהלים במנורה מבטחים - האם שלוש הפוליסות האלה נכונות וצריכות להיכלל בהצהרה?"
+        },
+        {
+          "id": "msg-6",
+          "direction": "inbound",
+          "at": "2026-09-19T10:00:00Z",
+          "body": "כן, הכול נכון, שלושתן נכנסות להצהרה"
+        }
+      ],
+      "files": [
+        {
+          "id": "file-harel",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - ביטוח מנהלים",
+          "document_type": "life_insurance_savings",
+          "issuer_name": "הראל חברה לביטוח בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מהראל, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "ישראל ישראלי",
+          "holdings": [
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "20114471"
+            }
+          ]
+        },
+        {
+          "id": "file-clal",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - ביטוח מנהלים",
+          "document_type": "life_insurance_savings",
+          "issuer_name": "כלל חברה לביטוח בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 מכלל, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "ישראל ישראלי",
+          "holdings": [
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "ישראל ישראלי",
+              "account_number": "30117745"
+            }
+          ]
+        },
+        {
+          "id": "file-migdal",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון - ביטוח מנהלים",
+          "document_type": "life_insurance_savings",
+          "issuer_name": "מגדל חברה לביטוח בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 ממגדל, כולל אישור מס להצהרת הון ליום 31.12.2025.",
+          "matched_document_id": null,
+          "subject_name": "רונית ישראלי",
+          "holdings": [
+            {
+              "product": "ביטוח מנהלים",
+              "holder_name": "רונית ישראלי",
+              "account_number": "40557719"
+            }
+          ]
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "added_instances": {
+          "life_insurance_savings": 3
+        },
+        "new_instance_file_ids": [
+          "file-clal",
+          "file-harel",
+          "file-migdal"
+        ],
+        "mentions_valuation_date": false
+      },
+      "notes": "Change confirm-file-findings: the agent stated what it found in three waiting insurer files and asked for confirmation; the client answers with a short 'yes, all correct'. That short answer is the client's own words: all three items are created in this cycle with that quote as evidence (the gate rejects the answer otherwise), each naming its waiting file in file_ids, under the life-insurance type that already holds a settled row (so added_instances, not a new resolution)."
     }
   ]
 }

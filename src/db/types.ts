@@ -201,6 +201,14 @@ export interface FileAnalysis {
   injection_suspected?: boolean;
   /** Capital-declaration files only: closed classification (a catalog type key or 'other'), cross-checked against the matched row's type. */
   document_type?: string;
+  /**
+   * The accounts, funds or policies the file shows, as printed (files of an
+   * institution-bound type; absent on rows analyzed before the field existed).
+   * holder_name null = no readable name on the file.
+   */
+  holdings?: { product: string; holder_name: string | null; account_number: string | null }[];
+  /** The file shows more entries than the list holds. */
+  holdings_partial?: boolean;
 }
 
 /** A file received from the client; bytes live in Azure Blob Storage under blob_key. */

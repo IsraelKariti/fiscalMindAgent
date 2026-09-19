@@ -18,7 +18,7 @@ import { isSyntheticWaEmail } from '../../../util/syntheticEmail.js';
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientRow } from '../../../db/types.js';
-import { verifyCollectedDocument } from '../../declarationOfCapital/verifyDocument.js';
+import { verifyBatchAndReplan } from '../../declarationOfCapital/verifyDocument.js';
 import { getProviderSpec, typeOwnsFetched } from './providers.js';
 import { sanitizeFilename, type FetchedDocument } from './types.js';
 import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js';
@@ -126,15 +126,15 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   if (collectedDocIds.size > 0) {
     await clientDocuments.markCollected(client.id, [...collectedDocIds]);
     // Verification pipeline (capital declaration): machine-fetched documents
-    // are verified like any other received file. Fire-and-forget — delivery
-    // must complete regardless.
+    // are verified like any other received file — as ONE batch, followed by
+    // one planning cycle that reports the outcomes (openspec
+    // `verification-reply`). Fire-and-forget — delivery must complete regardless.
     const owningInstance = client.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
     if (owningInstance?.agent_type === 'declaration_of_capital') {
-      void (async () => {
-        for (const [docId, fileId] of verifyPairs) {
-          await verifyCollectedDocument(client, owningInstance, docId, fileId);
-        }
-      })().catch((err) => logger.error('tax-fetch verification pipeline failed', err, { clientId: client.id }));
+      const targets = [...verifyPairs].map(([documentId, fileId]) => ({ documentId, fileId }));
+      void verifyBatchAndReplan(client, owningInstance, targets).catch((err) =>
+        logger.error('tax-fetch verification pipeline failed', err, { clientId: client.id }),
+      );
     }
   }
 

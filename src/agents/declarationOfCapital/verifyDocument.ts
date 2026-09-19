@@ -24,6 +24,12 @@ import { crmIdNumber } from './crmIdentity.js';
 import { clientIdNumber, type ClientIdOnFile } from './taxFetch/clientId.js';
 import type { AgentInstanceRow, ClientRow, ClientDocumentRow } from '../../db/types.js';
 import type { Readable } from 'node:stream';
+import {
+  runVerificationBatch,
+  type VerificationOutcome,
+  type VerificationResult,
+  type VerificationTarget,
+} from './verifyBatchRules.js';
 
 type IdOnFile = ClientIdOnFile;
 
@@ -127,24 +133,25 @@ async function stall(
 }
 
 /**
- * Verifies one just-collected document against its linked file. Fire-and-forget
- * from the callers (planner tiers A/B, tax-fetch delivery) — a verification
- * error must never fail the action that triggered it.
+ * Verifies one just-collected document against its linked file and returns
+ * the outcome. It never re-plans: the caller verifies its whole batch
+ * (verifyBatch) and then runs ONE follow-up planning cycle (openspec
+ * `verification-reply`).
  */
 export async function verifyCollectedDocument(
   client: ClientRow,
   instance: AgentInstanceRow | null,
   documentId: string,
   fileId: string,
-): Promise<void> {
+): Promise<VerificationOutcome> {
   if (await isKillSwitchOn()) {
     logger.warn('platform kill switch on, skipping document verification', { clientId: client.id, documentId });
-    return;
+    return 'skipped';
   }
   const doc = await clientDocuments.getForClient(documentId, client.id);
-  if (!doc || doc.status !== 'collected') return;
+  if (!doc || doc.status !== 'collected') return 'skipped';
   const attempts = previousAttempts(doc);
-  if (doc.verification?.['stalled'] === true) return; // dead-ended; the accountant owns it now
+  if (doc.verification?.['stalled'] === true) return 'skipped'; // dead-ended; the accountant owns it now
 
   const now = new Date();
   const base = { attempts, file_id: fileId, verified_at: now.toISOString() };
@@ -152,7 +159,7 @@ export async function verifyCollectedDocument(
   const file = await documentFiles.getForClient(fileId, client.id);
   if (!file) {
     await stall(client, doc, { ...base, passed: false, unavailable: true, reasons: ['הקובץ המקושר לא נמצא במערכת'] });
-    return;
+    return 'stalled';
   }
   if (isQuarantined(file)) {
     await stall(
@@ -161,7 +168,7 @@ export async function verifyCollectedDocument(
       { ...base, passed: false, unavailable: true, reasons: ['הקובץ סומן כחשוד או בלתי קריא בניתוח התוכן'] },
       { suspectedInjection: file.analysis?.injection_suspected === true },
     );
-    return;
+    return 'stalled';
   }
   if (!isAnalyzable(file.content_type, Number(file.size_bytes))) {
     await stall(client, doc, {
@@ -170,7 +177,7 @@ export async function verifyCollectedDocument(
       unavailable: true,
       reasons: ['סוג הקובץ או גודלו אינם נתמכים באימות אוטומטי'],
     });
-    return;
+    return 'stalled';
   }
 
   const checks = checksFor(doc);
@@ -193,7 +200,7 @@ export async function verifyCollectedDocument(
     // with no verdict — it does not burn an attempt, and the accountant can
     // always approve manually if it never recovers.
     logger.error('document verification: extraction failed', err, { clientId: client.id, documentId, fileId });
-    return;
+    return 'skipped';
   }
 
   if (extracted.injection_suspected) {
@@ -203,7 +210,7 @@ export async function verifyCollectedDocument(
       { ...base, passed: false, unavailable: true, reasons: ['הקובץ מכיל טקסט שמנסה להנחות מערכת AI'] },
       { suspectedInjection: true },
     );
-    return;
+    return 'stalled';
   }
 
   // Validate — deterministic code against ground truth. The ת"ז may come from
@@ -250,7 +257,7 @@ export async function verifyCollectedDocument(
       extracted,
     };
     const approved = await clientDocuments.markApproved(doc.id, client.id, record);
-    if (!approved) return; // status changed underneath us — leave it be
+    if (!approved) return 'skipped'; // status changed underneath us — leave it be
     recordAudit({
       actorType: 'system',
       action: 'document.verified',
@@ -262,8 +269,7 @@ export async function verifyCollectedDocument(
     });
     publishClientUpdated(client.id);
     logger.info('document verified and approved', { clientId: client.id, documentId: doc.id, fileId });
-    await replanAfterVerification(client, doc, 'approved');
-    return;
+    return 'approved';
   }
 
   const failedAttempts = attempts + 1;
@@ -283,11 +289,10 @@ export async function verifyCollectedDocument(
       attempts: failedAttempts,
       reasons: verdict.reasons,
     });
-    await replanAfterVerification(client, doc, 'stalled');
-    return;
+    return 'stalled';
   }
   const reopened = await clientDocuments.revertToPending(doc.id, client.id, record);
-  if (!reopened) return;
+  if (!reopened) return 'skipped';
   recordAudit({
     actorType: 'system',
     action: 'document.verification_failed',
@@ -304,35 +309,68 @@ export async function verifyCollectedDocument(
     attempt: failedAttempts,
     reasons: verdict.reasons,
   });
-  await replanAfterVerification(client, doc, 'reopened');
+  return 'reopened';
 }
 
 /**
- * One extra planning cycle once a verdict lands, so the agent reports the
- * outcome (approved / please resend / handed to the office) right away
- * instead of waiting for the client's next message. The cycle runs with the
- * afterVerification hint: it cannot collect files, so it cannot verify again
- * — no loop. Waits for the client lock, i.e. for the planning cycle that
- * kicked this verification off to finish scheduling its draft, then replaces
- * that draft with one that has the verdict in view. Best-effort: the verdict
- * itself is already recorded.
+ * Verifies a batch of just-collected documents, one after the other. A
+ * verification that throws is logged and never stops the batch or the reply.
  */
-async function replanAfterVerification(client: ClientRow, doc: ClientDocumentRow, outcome: 'approved' | 'reopened' | 'stalled'): Promise<void> {
+export async function verifyBatch(
+  client: ClientRow,
+  instance: AgentInstanceRow | null,
+  targets: readonly VerificationTarget[],
+): Promise<VerificationResult[]> {
+  return runVerificationBatch(targets, (t) => verifyCollectedDocument(client, instance, t.documentId, t.fileId), {
+    // A long batch must not push the workspace's "drafting…" placeholder past its stale limit.
+    beforeEach: () => clients.markDraftingStarted(client.id),
+    onError: (t, err) => logger.error('document verification failed', err, { clientId: client.id, documentId: t.documentId, fileId: t.fileId }),
+  });
+}
+
+/** The one `planner.rerun_after_verification` step of a batch: every document with its outcome. */
+export async function recordRerunAfterVerification(client: ClientRow, results: readonly VerificationResult[]): Promise<void> {
+  const docs = await clientDocuments.listForClient(client.id);
   recordAudit({
     actorType: 'system',
     action: 'planner.rerun_after_verification',
     agentInstanceId: client.agent_instance_id,
     clientId: client.id,
     targetType: 'client_document',
-    targetId: doc.id,
-    detail: { clientName: client.name, name: doc.name, outcome },
+    targetId: results.length === 1 ? results[0]!.documentId : undefined,
+    detail: {
+      clientName: client.name,
+      documents: results.map((r) => ({
+        documentId: r.documentId,
+        name: docs.find((d) => d.id === r.documentId)?.name ?? r.documentId,
+        outcome: r.outcome,
+      })),
+    },
   });
+}
+
+/**
+ * For batches started OUTSIDE a planning cycle (fetch delivery): verify, then
+ * one planning cycle so the agent reports the outcomes right away instead of
+ * waiting for the client's next message. The cycle runs with the
+ * afterVerification hint: it cannot collect files, so it cannot verify again
+ * — no loop. Best-effort: the verdicts themselves are already recorded.
+ * (The planner verifies its own batch inline — see plan.ts.)
+ */
+export async function verifyBatchAndReplan(
+  client: ClientRow,
+  instance: AgentInstanceRow | null,
+  targets: readonly VerificationTarget[],
+): Promise<void> {
+  if (targets.length === 0) return;
+  const results = await verifyBatch(client, instance, targets);
+  await recordRerunAfterVerification(client, results);
   try {
     await withClientLock(client.id, async () => {
       await removeFutureEmail(client.id);
       await setFutureEmail(client.id, { afterVerification: true });
     });
   } catch (err) {
-    logger.error('post-verification re-plan failed', err, { clientId: client.id, documentId: doc.id, outcome });
+    logger.error('post-verification re-plan failed', err, { clientId: client.id, documentIds: targets.map((t) => t.documentId) });
   }
 }

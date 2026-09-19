@@ -55,6 +55,9 @@ export type AuditAction =
   | 'apply_collections'
   | 'apply_attestation'
   | 'send_reply'
+  // The collecting cycle's draft is never stored: the reply waits for the
+  // verification verdicts (openspec `verification-reply`).
+  | 'withhold_reply'
   | 'client.auto_enrolled'
   | 'client.kickoff_triggered'
   | 'agent.auto_provisioned'

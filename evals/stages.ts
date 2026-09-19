@@ -560,6 +560,8 @@ interface DecideCase {
     /** Catalog type key -> exact number of instances added to that type (exactly this set of types; any row of the type may be the anchor). */
     added_instances?: Record<string, number>;
     attestation?: 'request' | 'confirmed' | null;
+    /** The decision's document-fetch action (null = none), e.g. 'client_agreed'. */
+    tax_fetch_action?: string | null;
     /** Row id -> substrings that must NOT appear in the message (the row is settled and must not be brought up). */
     no_settled_rows_mentioned?: Record<string, string[]>;
     /** Default true for follow_up: the message names 31.12.<taxYear>. */
@@ -874,6 +876,8 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       checks.push({ key: 'added_instances', expected: sortKeys(e.added_instances), actual: sortKeys(addedByType), pass: JSON.stringify(sortKeys(e.added_instances)) === JSON.stringify(sortKeys(addedByType)) });
     }
     if (e.attestation !== undefined) checks.push(eq('attestation', e.attestation, decision.attestation?.action ?? null));
+    if (e.tax_fetch_action !== undefined) checks.push(eq('tax_fetch_action', e.tax_fetch_action, decision.tax_fetch?.action ?? null));
+    info.tax_fetch = decision.tax_fetch ?? null;
     info.attestation = decision.attestation;
     info.collected_document_ids = decision.collected_document_ids;
     info.addedInstances = decision.addedInstances.length;

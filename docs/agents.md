@@ -825,13 +825,27 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   closed `document_type` (catalog keys + `other`, `CAPITAL_DOCUMENT_TYPE_VALUES`);
   `validateClassification` drops a matched id the model was not shown or
   whose row type disagrees with `document_type`.
-- **Rerun after verification** (`verifyDocument.ts` → `replanAfterVerification`):
-  once a verdict lands (approved / reopened pending / stalled) the planner
-  runs one extra cycle with the `afterVerification` hint (`PlanHints` on
-  `AgentContext`, passed through `setFutureEmail(clientId, hints)`), so the
-  agent reports the outcome right away instead of waiting for the client's
-  next message. That cycle cannot collect files, so it cannot verify again —
-  no loop. Audited as `planner.rerun_after_verification`.
+- **Reply after verification** (openspec `verification-reply`;
+  `verifyBatchRules.ts`, `verifyDocument.ts` → `verifyBatch`): a planner cycle
+  that marks documents `collected` wrote its message before any verdict, so
+  that message is **withheld** — never stored or scheduled (step
+  `withhold_reply`; the text survives only in `llm_calls.response`). The cycle
+  applies its message-independent state changes, verifies every just-collected
+  document inline (one after the other, under the caller's client lock and
+  inside the same `setFutureEmail` drafting attempt, so a restart cannot lose
+  the reply; a throwing verification is logged and skipped), records ONE
+  `planner.rerun_after_verification` step listing each document with its
+  outcome (approved / reopened / stalled / skipped / error), and calls
+  `planFollowUp` once more with the `afterVerification` hint (`PlanHints` on
+  `AgentContext`). That follow-up cycle writes the single reply with every
+  verdict in view; it cannot collect files, so it cannot verify again — no
+  loop. Message-bound actions of the withheld cycle (attestation request,
+  fetch action — `client_agreed` assumes this cycle's message is the intro) are
+  NOT applied; the follow-up decides them again. `verifyCollectedDocument`
+  only returns its outcome and never re-plans. Batches started outside a
+  planning cycle (fetch delivery, `taxFetch/deliver.ts`) use
+  `verifyBatchAndReplan`: verify the batch, then one locked re-plan with the
+  hint.
 - **Spend cap** (`gemini/budget.ts`, admin Settings → "תקרת הוצאה למודלים",
   `GET/PUT /api/admin/llm-budget`): two daily USD ceilings in `app_settings`
   (`llm_budget_daily_usd` platform-wide, `llm_budget_daily_instance_usd` per

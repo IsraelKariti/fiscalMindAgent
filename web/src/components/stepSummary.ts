@@ -127,6 +127,15 @@ const MAPPINGS: Record<string, Mapping> = {
     rows: list('documents', strList(d['names']) ?? strList(d['documentIds'])),
     consumed: ['names', 'documentIds'],
   }),
+  withhold_reply: (d) => ({
+    rows: list('documents', strList(d['names']) ?? strList(d['documentIds'])),
+    consumed: ['names', 'documentIds'],
+  }),
+  'planner.rerun_after_verification': (d) => {
+    const documents = Array.isArray(d['documents']) ? d['documents'] : [];
+    const items = documents.map((r) => (isRecord(r) ? `${docLabel(r)} — ${str(r['outcome']) ?? '?'}` : docLabel(r)));
+    return { rows: list('documents', items), consumed: ['documents'] };
+  },
 };
 
 /** The labelled rows of one step's detail, mapped keys first, then everything else in recorded order. */

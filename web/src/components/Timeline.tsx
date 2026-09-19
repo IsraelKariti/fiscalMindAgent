@@ -152,7 +152,7 @@ function StepRow({ step: s }: { step: AdminConversationStep }) {
   const [open, setOpen] = useState(false);
   const result = gateResultOf(s);
   const reason = gateReasonOf(s);
-  const glyph = s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' ? '⚙️' : '🛡️';
+  const glyph = s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' || s.action === 'withhold_reply' ? '⚙️' : '🛡️';
   return (
     <li className={`timeline-trace timeline-trace-step ${s.severity === 'critical' ? 'timeline-trace-critical' : ''}`} dir="ltr">
       <button type="button" className="timeline-trace-gate" aria-label={`${t.gateModalOpen}: ${s.action}`} onClick={() => setOpen(true)}>

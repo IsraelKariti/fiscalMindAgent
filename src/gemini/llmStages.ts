@@ -129,7 +129,7 @@ const STAGES: StageStatic[] = [
   {
     purpose: 'generate_message',
     title: 'Conversation planner',
-    file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md)',
+    file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md) — a cycle that marks documents collected withholds its message (step withhold_reply), verifies them (extract_document), then runs once more and that second call writes the reply',
     gate: 'validate_message',
     prompts: [
       {
@@ -171,7 +171,7 @@ const STAGES: StageStatic[] = [
   {
     purpose: 'extract_document',
     title: 'Extraction for verification',
-    file: 'src/agents/declarationOfCapital/verifyDocument.ts · verifyCollectedDocument (prompt: extractionCall.ts / verifyChecks.ts)',
+    file: 'src/agents/declarationOfCapital/verifyDocument.ts · verifyCollectedDocument, run per batch by verifyBatch — inline in the collecting planner cycle, or after a fetch delivery; one follow-up generate_message per batch (prompt: extractionCall.ts / verifyChecks.ts)',
     gate: 'verify_extraction',
     prompts: [{ variant: 'default', systemPrompt: EXTRACTION_PROMPT.replace('{{filename}}', '') }],
     query: [{ variant: 'default', parts: [{ kind: 'binary', body: 'the file bytes (PDF / image)' }, { kind: 'text', body: 'שם הקובץ כפי שנשלח: <filename>' }] }],

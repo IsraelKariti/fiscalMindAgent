@@ -225,7 +225,7 @@ function AdminStepRow({ step: s }: { step: AdminConversationStep }) {
       style={{ textAlign: 'left', marginBottom: 6 }}
     >
       <button type="button" className="timeline-trace-gate" aria-label={`${t.gateModalOpen}: ${s.action}`} onClick={() => setOpen(true)}>
-        {s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' ? '⚙️' : '🛡️'}{' '}
+        {s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' || s.action === 'withhold_reply' ? '⚙️' : '🛡️'}{' '}
         {formatTimestamp(s.occurredAt)} · <span className="mono">{s.action}</span>
         {result !== null && (
           <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`} style={{ marginInlineStart: 6 }}>

@@ -119,6 +119,11 @@ export async function setBlocked(id: string, blocked: InjectionBlock): Promise<v
   );
 }
 
+/** Sets or clears the display label of a file (a split child is named after its matched list document). */
+export async function setLabel(id: string, label: string | null): Promise<void> {
+  await pool.query('UPDATE document_files SET label = $2 WHERE id = $1 AND label IS DISTINCT FROM $2', [id, label]);
+}
+
 /** Records which required document a file satisfies (no-op if the file isn't the client's). */
 export async function linkToDocument(id: string, clientId: string, clientDocumentId: string): Promise<void> {
   await pool.query(

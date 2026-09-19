@@ -415,12 +415,14 @@ export function Timeline({
   }, [files]);
 
   const attachmentLabel = (file: DocumentFile): string => {
-    if (file.label) return file.label;
-    // A child cut out of a multi-document PDF: the original's name plus its pages.
+    // A child cut out of a multi-document PDF: the original's name plus its pages,
+    // after the name of the list document it matched (its label) when it has one.
     const parent = file.parent_file_id ? files.find((f) => f.id === file.parent_file_id) : undefined;
     if (parent && file.page_from != null && file.page_to != null) {
-      return `${attachmentLabel(parent)} · ${t.splitPagesShort(file.page_from, file.page_to)}`;
+      const source = `${attachmentLabel(parent)} · ${t.splitPagesShort(file.page_from, file.page_to)}`;
+      return file.label ? `${file.label} · ${source}` : source;
     }
+    if (file.label) return file.label;
     if (!hasSyntheticName(file)) return file.filename;
     if (file.content_type.startsWith('image/')) return t.attachmentImage;
     if (file.content_type === 'application/pdf') return t.attachmentPdf;

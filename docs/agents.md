@@ -821,6 +821,20 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   on; a child chip reads "<original's name> · pages X–Y". Known limit: ranges
   are consecutive pages, so a scan with pages in mixed order will not split
   correctly.
+- **A matched child is named after its list document** (2026-09-19, openspec
+  `file-splitting`, no migration). When the classifier matches a child and
+  `validate_classification` keeps the match (and the child is not
+  quarantined), `classifyAndStore` writes the matched row's name to
+  `document_files.label` (`splitChildNames.ts` `childDisplayName`; our own
+  list text only, never the model's `kind` or the file's text). No match,
+  quarantine or a failed analysis → `label = NULL` and the page-range name
+  stays. The label follows a planner link to another row (`plan.ts`, after
+  `linkToDocument`). The stored `filename`, the blob key and what the planner
+  sees do not change. Shown as: documents tab = label + "pages X–Y of
+  <original>"; conversation chip = "<label> · <original's name> · pages X–Y";
+  viewer title = "<label> · <stored name>"; download =
+  `<label> (<original base> pX-Y).pdf` (`childDownloadName`, illegal file-name
+  characters replaced). Files that were never split get no label from this.
 - **Classification cross-check**: capital-declaration files answer with a
   closed `document_type` (catalog keys + `other`, `CAPITAL_DOCUMENT_TYPE_VALUES`);
   `validateClassification` drops a matched id the model was not shown or

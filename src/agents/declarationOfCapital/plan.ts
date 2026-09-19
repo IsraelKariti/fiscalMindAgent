@@ -15,6 +15,7 @@ import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { getCatalogType } from './catalog.js';
 import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
 import { shouldWithholdDraft } from './verifyBatchRules.js';
+import { childDisplayName } from './splitChildNames.js';
 import { additionsStepDetail, collectionsStepDetail, resolutionsStepDetail, retirementsStepDetail } from './applyStepDetails.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
@@ -479,6 +480,11 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     const file = fileById.get(match.file_id);
     if (!file || isQuarantined(file)) continue;
     await documentFiles.linkToDocument(match.file_id, clientId, match.document_id);
+    // A child cut out of a multi-document PDF carries the name of its list
+    // document: keep it in step when the planner files it under another row.
+    if (file.parent_file_id !== null) {
+      await documentFiles.setLabel(file.id, childDisplayName(docName(match.document_id)));
+    }
     logger.info('file linked to document', { clientId, fileId: match.file_id, documentId: match.document_id });
   }
 

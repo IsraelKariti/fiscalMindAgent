@@ -28,6 +28,7 @@ import { MONDAY_STATUS_AGENT_WORKING, syncMondayStatus } from '../agents/shared/
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { capitalClientTaxYear, defaultTaxYear } from '../agents/shared/taxYear.js';
 import { applyFormIntake, type FormAnswer } from '../agents/declarationOfCapital/formIntake.js';
+import { childDownloadName } from '../agents/declarationOfCapital/splitChildNames.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { DueDateSchema } from './schemas.js';
@@ -459,10 +460,16 @@ function serveFile(disposition: 'attachment' | 'inline'): RequestHandler {
     res.setHeader('Content-Type', file.content_type);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     if (blob.contentLength) res.setHeader('Content-Length', blob.contentLength);
+    // A named child of a split PDF saves under its list document's name plus its source.
+    let downloadName = file.filename;
+    if (file.label && file.parent_file_id && file.page_from !== null && file.page_to !== null) {
+      const parent = await documentFiles.getForClient(file.parent_file_id, client!.id);
+      downloadName = childDownloadName(file.label, parent?.filename ?? '', file.page_from, file.page_to);
+    }
     // RFC 5987 encoding: filenames are sanitized ASCII at ingest, but stay defensive.
     res.setHeader(
       'Content-Disposition',
-      `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(downloadName)}`,
     );
     blob.stream.pipe(res);
   });

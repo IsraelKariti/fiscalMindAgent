@@ -5,6 +5,7 @@ import * as llmUsage from '../../db/queries/llmUsage.js';
 import { analyzeFile, isAnalyzable } from './analyzeFile.js';
 import { cutPdf, readPdfPageCount, type PageRange } from './pdfPages.js';
 import { splitFile } from './splitFile.js';
+import { childDisplayName } from './splitChildNames.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { recordAudit } from '../../audit/audit.js';
 import { extractFileText } from '../shared/fileText.js';
@@ -287,6 +288,13 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
       },
     });
     await documentFiles.setAnalysis(file.id, 'done', analysis);
+    // A child cut out of a multi-document PDF is shown under the name of the
+    // list document it matched (our own text). The gate has already cleared a
+    // dropped match; a quarantined or unmatched child keeps its page-range name.
+    if (file.parent_file_id !== null) {
+      const matched = gate.quarantined ? undefined : requiredDocuments.find((d) => d.id === analysis.matched_document_id);
+      await documentFiles.setLabel(file.id, childDisplayName(matched?.name));
+    }
     if (ctx.client.user_id) {
       await llmUsage.add(ctx.client.user_id, ctx.client.agent_instance_id, model, usage);
     }
@@ -299,6 +307,7 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
     });
   } catch (err) {
     await documentFiles.setAnalysis(file.id, 'failed', null).catch(() => {});
+    if (file.parent_file_id !== null) await documentFiles.setLabel(file.id, null).catch(() => {});
     logger.error('attachment content analysis failed', err, { clientId, fileId: file.id });
   }
 }

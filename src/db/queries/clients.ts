@@ -272,6 +272,22 @@ export async function clearDraftingState(id: string): Promise<void> {
   await pool.query('UPDATE clients SET drafting_since = NULL, draft_failed_at = NULL WHERE id = $1', [id]);
 }
 
+/**
+ * Clients whose planning attempt started within the last `withinSeconds` and
+ * that have nothing scheduled — on worker boot these are turns whose deferred
+ * re-plan may have been lost with Redis (see recoverLostReplans).
+ */
+export async function listDraftingWithoutSchedule(withinSeconds: number): Promise<string[]> {
+  const { rows } = await pool.query<{ id: string }>(
+    `SELECT c.id FROM clients c
+     WHERE c.drafting_since > now() - make_interval(secs => $1)
+       AND c.goal_status = 'pending' AND NOT c.paused
+       AND NOT EXISTS (SELECT 1 FROM scheduled_jobs s WHERE s.client_id = c.id)`,
+    [withinSeconds],
+  );
+  return rows.map((r) => r.id);
+}
+
 /** Deletes the client; documents, files, emails and the scheduled-job row go with it via FK cascades. */
 export async function removeForUser(id: string, userId: string): Promise<boolean> {
   const { rowCount } = await pool.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [id, userId]);

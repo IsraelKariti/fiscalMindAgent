@@ -10,6 +10,8 @@ import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { recordAudit } from '../audit/audit.js';
 import { detectInjectionHeuristics } from '../agents/shared/promptSafety.js';
 import { ingestWaMedia, type WaMediaItem } from './ingestWaMedia.js';
+import { withInboundInFlight } from '../orchestration/inboundTurn.js';
+import type { ClientRow } from '../db/types.js';
 import { logger } from '../util/logger.js';
 
 /** The fields of a Twilio inbound-message webhook POST this handler uses. */
@@ -75,7 +77,7 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
     return;
   }
 
-  let client = await clients.getByWaPhoneForInstance(instance.id, clientNumber);
+  const client = await clients.getByWaPhoneForInstance(instance.id, clientNumber);
   if (!client) {
     // Clients are pre-created (import scan / kickoff webhook), so an unknown
     // sender is ignored: no client row, no LLM call.
@@ -83,6 +85,14 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
     return;
   }
 
+  // Everything below counts as in-flight work of the client's turn: the
+  // planner runs once per turn, only after all of it is done (openspec
+  // `inbound-turn`). WhatsApp delivers the text and each file of one turn as
+  // separate webhooks, so several of these run side by side.
+  await withInboundInFlight(client.id, () => handleClientMessage(params, client, clientNumber));
+}
+
+async function handleClientMessage(params: TwilioInboundParams, client: ClientRow, clientNumber: string): Promise<void> {
   const body = params.Body ?? '';
   // Injection tripwires (telemetry only — the structural defenses live in the
   // prompt builders): flag inbound content that looks like it addresses the LLM.
@@ -116,6 +126,8 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
     // pending send right away — before the slow media ingestion below — and
     // signal the UI (same contract as inbound email).
     await withClientLock(client.id, () => removeFutureEmail(client.id));
+    // The planner runs later, once for the whole turn — show "drafting" from now.
+    if (!client.paused && client.goal_status === 'pending') await clients.markDraftingStarted(client.id);
     publishClientUpdated(client.id);
   }
 

@@ -1,6 +1,4 @@
-import { withClientLock } from '../../db/withClientLock.js';
-import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
-import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
+import { requestReplan } from '../../orchestration/requestReplan.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { planFollowUp } from './plan.js';
 import { analyzeInboundFile } from './analyzeInboundFile.js';
@@ -45,13 +43,11 @@ export const declarationOfCapitalAgent: AgentTypeDefinition = {
     // The three injection layers on the message text, before any planning: a
     // hit withholds the text from the planner and answers with a fixed reply.
     await screenInboundMessage(ctx, evt);
-    // A reply (or backfilled files) always obsoletes the pending send; the
-    // re-plan drafts the next one. Locked so a concurrent worker send and this
-    // re-plan can't interleave.
-    await withClientLock(ctx.client.id, async () => {
-      await removeFutureEmail(ctx.client.id);
-      await setFutureEmail(ctx.client.id);
-    });
+    // The planner does not run here: WhatsApp delivers the text and each file
+    // of one client turn as separate webhooks, so the re-plan is deferred and
+    // runs once, after the quiet window and after every file of the turn is
+    // processed (openspec `inbound-turn`, src/queue/replanWorker.ts).
+    await requestReplan(ctx.client.id);
   },
   analyzeInboundFile,
   buildRouter,

@@ -292,6 +292,25 @@ calendar, yom tov only — chol hamoed/Chanukah/Purim stay open) via
 in the `{{upcoming_dates}}` prompt calendar. New scheduling planners must
 apply the same guard.
 
+**One planner run per client turn** (openspec `inbound-turn`): WhatsApp
+delivers the text and each file of one client turn as separate webhooks, so an
+inbound webhook never runs the planner itself. The webhook half wraps its work
+in `withInboundInFlight` (`src/orchestration/inboundTurn.ts` — a per-client
+Redis counter plus a last-inbound stamp), cancels the outdated pending send at
+once, stamps `drafting_since`, and the agent's `onInboundMessage` ends with
+`requestReplan(clientId)` — a delayed BullMQ job `replan-<clientId>` that every
+further webhook of the client pushes `INBOUND_QUIET_SECONDS` (15) into the
+future. The job (`src/queue/replanWorker.ts`) plans only when the turn is
+settled (`inboundTurnRules.ts`: no handler in flight, no recent
+`analysis_status='pending'` file row, quiet window passed); otherwise it looks
+again every 2 s and plans anyway after `INBOUND_MAX_WAIT_SECONDS` (300, logged
+as a warning). An inbound that lands while the planner runs leaves a dirty
+flag and the same job plans again after the quiet window. Not deferred: the
+tax-fetch OTP fast path (returns before `requestReplan`) and the fixed reply
+to a blocked message. Worker boot re-requests a lost job for clients with a
+recent `drafting_since` and nothing scheduled (`recoverLostReplans`). New
+inbound reactions must call `requestReplan`, never `setFutureEmail` directly.
+
 Dispatch seams: `src/orchestration/setFutureEmail.ts` (generic dispatcher),
 `src/webhook/onInbound{Email,WhatsApp}.ts` (reaction half),
 `src/webhook/analyzeStoredFile.ts`, `src/agents/resolve.ts`

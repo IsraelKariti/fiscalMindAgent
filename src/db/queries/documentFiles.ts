@@ -66,6 +66,20 @@ export async function insertIfNew(args: {
   return rows[0] ?? null;
 }
 
+/**
+ * Files of the client still waiting for an analysis result, stored within the
+ * last `sinceSeconds` — the deferred re-plan waits for them (openspec
+ * `inbound-turn`). Older pending rows are abandoned analyses, not a running turn.
+ */
+export async function countRecentPendingForClient(clientId: string, sinceSeconds: number): Promise<number> {
+  const { rows } = await pool.query<{ count: string }>(
+    `SELECT count(*) AS count FROM document_files
+     WHERE client_id = $1 AND analysis_status = 'pending' AND created_at > now() - make_interval(secs => $2)`,
+    [clientId, sinceSeconds],
+  );
+  return Number(rows[0]?.count ?? 0);
+}
+
 /** The children cut out of a split file, in page order. */
 export async function listChildren(parentFileId: string): Promise<DocumentFileRow[]> {
   const { rows } = await pool.query<DocumentFileRow>(

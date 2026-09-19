@@ -12,6 +12,8 @@ import { loadAgentContext } from '../agents/resolve.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { detectInjectionHeuristics } from '../agents/shared/promptSafety.js';
 import { ingestAttachments } from './ingestAttachments.js';
+import { withInboundInFlight } from '../orchestration/inboundTurn.js';
+import type { ClientRow } from '../db/types.js';
 import { logger } from '../util/logger.js';
 
 /** `data` of a Resend `email.received` webhook event (metadata only — the body is fetched by id). */
@@ -87,6 +89,13 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
     return;
   }
 
+  // Everything below counts as in-flight work of the client's turn: the
+  // planner runs once per turn, only after all of it is done (openspec `inbound-turn`).
+  const known = client;
+  await withInboundInFlight(known.id, () => handleClientEmail(data, resendId, known, fromAddress));
+}
+
+async function handleClientEmail(data: ResendInboundData, resendId: string, client: ClientRow, fromAddress: string): Promise<void> {
   // The webhook event carries metadata only; the body lives behind the receiving API.
   const { data: full, error } = await resend.emails.receiving.get(resendId);
   if (error || !full) {
@@ -125,6 +134,8 @@ export async function onInboundEmail(data: ResendInboundData): Promise<void> {
     // timeline must never show the reply alongside the scheduled email it obsoletes, and
     // should show its "drafting" placeholder for the whole time the agent is deciding.
     await withClientLock(client.id, () => removeFutureEmail(client.id));
+    // The planner runs later, once for the whole turn — show "drafting" from now.
+    if (!client.paused && client.goal_status === 'pending') await clients.markDraftingStarted(client.id);
     publishClientUpdated(client.id);
   }
 

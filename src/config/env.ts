@@ -66,6 +66,13 @@ const EnvSchema = z.object({
   // extends it, and it ends after this long without any (background refreshes
   // don't count — see src/api/auth.ts). Lower it to bound a stolen admin cookie.
   IMPERSONATION_IDLE_MINUTES: z.coerce.number().int().positive().default(1440),
+  // One planner run per client turn (openspec `inbound-turn`): the planner
+  // waits this long after the client's last inbound webhook, so the text and
+  // every file of one turn are all in before the reply is written.
+  INBOUND_QUIET_SECONDS: z.coerce.number().int().positive().default(15),
+  // Upper bound of that wait, counted from the first inbound of the turn: past
+  // it the planner runs with whatever is finished (a hung file can't block a reply).
+  INBOUND_MAX_WAIT_SECONDS: z.coerce.number().int().positive().default(300),
   // Encrypts secrets at rest in Postgres (client tax-portal credentials,
   // Google/monday OAuth tokens) — AES-256-GCM via src/crypto/secretBox.ts.
   // 32 bytes base64 (`openssl rand -base64 32`). Required: without it the app

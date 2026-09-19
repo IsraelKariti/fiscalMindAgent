@@ -6,6 +6,7 @@ import { createClientImportScanWorker, ensureClientImportScanScheduler } from '.
 import { createTaxFetchWorker, sweepOrphanedTaxFetchSessions } from './queue/taxFetchWorker.js';
 import { createAnomalyScanWorker, ensureAnomalyScanScheduler } from './queue/anomalyScanWorker.js';
 import { createDebugCleanupWorker, ensureDebugCleanupScheduler } from './queue/debugCleanupWorker.js';
+import { createReplanWorker, recoverLostReplans } from './queue/replanWorker.js';
 import { env } from './config/env.js';
 import { runOverdueScan } from './agents/declarationOfCapital/overdueScan.js';
 import { runClientImportScan } from './agents/shared/clientImportScan.js';
@@ -33,6 +34,11 @@ if (env.WORKER_HEALTH_PORT) {
 await resyncScheduledJobs();
 const worker = createSendEmailWorker();
 logger.info('send_email worker started');
+
+const replanWorker = createReplanWorker();
+logger.info('replan worker started');
+// A turn that was waiting for its deferred re-plan when Redis lost the job.
+recoverLostReplans().catch((err) => logger.error('boot replan recovery failed', err));
 
 await ensureOverdueScanScheduler();
 const overdueWorker = createOverdueScanWorker();
@@ -63,6 +69,7 @@ async function shutdown(): Promise<void> {
   logger.info('shutting down worker...');
   await Promise.all([
     worker.close(),
+    replanWorker.close(),
     overdueWorker.close(),
     clientImportScanWorker.close(),
     anomalyScanWorker.close(),

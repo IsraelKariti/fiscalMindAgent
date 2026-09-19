@@ -52,6 +52,13 @@ export interface CapitalDocumentType {
   multiInstance: boolean;
   /** The document must state balances/holdings as of 31.12.{{tax_year}} (the valuation date). */
   dateDependent: boolean;
+  /**
+   * Always issued by a bank / fund manager / insurer, and each list item names
+   * one such company: code compares the file's issuer with the item's company
+   * before a file is tied to the item (institutions.ts, openspec `unlisted-files`).
+   * Defaults to false.
+   */
+  institutionBound?: boolean;
   checks: VerificationChecks;
 }
 
@@ -67,6 +74,7 @@ const SAVINGS_CERTIFICATE_HINT_HE =
 export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'bank_balance',
+    institutionBound: true,
     nameHe: 'אישור יתרות בנק ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרות רשמי מהבנק (עו"ש, מזומן, פיקדונות וחסכונות) ליום 31.12.{{tax_year}} — מתקבלים גם ריכוז יתרות, דוח שנתי מקוצר או "תעודת זהות בנקאית". נדרש אישור נפרד לכל חשבון בנק, בארץ ובחו"ל. אישור יתרות אחד עשוי לכלול באותו קובץ גם את יתרות ניירות הערך וההלוואות של החשבון.',
@@ -80,6 +88,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'securities_portfolio',
+    institutionBound: true,
     nameHe: 'תדפיס תיק ניירות ערך ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרה או דוח אחזקות של תיק ניירות הערך ליום 31.12.{{tax_year}} — מהבנק או מבית ההשקעות (אקסלנס, מיטב, IBI וכו\'), לכל תיק בנפרד. מתקבל גם דוח הפעילות השנתי של בית ההשקעות, ובלבד שתקופתו מסתיימת ביום 31.12.{{tax_year}} והוא מציג את שווי הנכסים ליום זה. בהצהרה מצוינת יתרת התיק המנוהל.',
@@ -93,6 +102,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'pension_provident',
+    institutionBound: true,
     nameHe: 'אישור יתרות קופות גמל ופנסיה ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור ייעודי להצהרת הון (מופק מהאזור האישי באתר הקופה) או העמוד האחרון של הדוח השנתי המקוצר, המשקף את היתרה הצבורה בכל קופת גמל וקרן פנסיה (כולל קופת גמל להשקעה) ליום 31.12.{{tax_year}} — כולל קופות של בן/בת הזוג. חשבונות "חיסכון לכל ילד" אינם דורשים אישור כלל (מופקדים על ידי ביטוח לאומי).',
@@ -104,6 +114,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'study_fund',
+    institutionBound: true,
     nameHe: 'אישור יתרת קרן השתלמות ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרה צבורה מכל קרן השתלמות ליום 31.12.{{tax_year}} — אישור ייעודי להצהרת הון מאתר הקופה או העמוד האחרון של הדוח השנתי המקוצר.',
@@ -115,6 +126,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'life_insurance_savings',
+    institutionBound: true,
     nameHe: 'אישור להצהרת הון — ביטוח מנהלים / פוליסת חיסכון ליום 31.12.{{tax_year}}',
     descriptionHe:
       'לכל פוליסה בחברת ביטוח הכוללת מרכיב חיסכון (ביטוח מנהלים, פוליסת חיסכון) — אישור ייעודי להצהרת הון מהאזור האישי באתר חברת הביטוח, או העמוד האחרון של הדוח השנתי המקוצר, ליום 31.12.{{tax_year}}.',
@@ -141,6 +153,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'mortgage_balance',
+    institutionBound: true,
     nameHe: 'אישור יתרת משכנתא ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרת הלוואת משכנתא (יתרת החוב ליום 31.12.{{tax_year}}) מהבנק או מהגוף המלווה, לכל משכנתא בנפרד — בדרך כלל אישור היתרות לסוף שנה שהבנק מפיק. המשכנתא אינה כלולה באישור יתרות העו"ש הרגיל — נדרש לה אישור נפרד.',
@@ -293,4 +306,9 @@ export function catalogSeedRows(taxYear: number): CatalogSeedRow[] {
     name: t.nameHe.replaceAll('{{tax_year}}', year),
     description: t.descriptionHe.replaceAll('{{tax_year}}', year),
   }));
+}
+
+/** Whether items of this type name one issuing company that code can compare (false for unknown / ad-hoc types). */
+export function isInstitutionBound(typeKey: string | null | undefined): boolean {
+  return typeKey ? (getCatalogType(typeKey)?.institutionBound ?? false) : false;
 }

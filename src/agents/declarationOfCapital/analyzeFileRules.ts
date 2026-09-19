@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { CAPITAL_DOCUMENT_CATALOG } from './catalog.js';
+import { CAPITAL_DOCUMENT_CATALOG, isInstitutionBound } from './catalog.js';
+import { compareCompanies, institutionLabel, type Institution } from './institutions.js';
 import { check, type GateCheck } from '../shared/gateChecks.js';
 
 /**
@@ -18,6 +19,8 @@ export const FileAnalysisSchema = z.object({
   tax_year: z.string().nullable(),
   /** The person/business the document is about, if stated. */
   subject_name: z.string().nullable(),
+  /** The company that issued the document (bank, fund manager, insurer), as printed on it; null when none is printed. */
+  issuer_name: z.string().nullable(),
   /** Id from the required-documents list this file satisfies, or null if none. */
   matched_document_id: z.string().nullable(),
   legible: z.boolean(),
@@ -38,12 +41,33 @@ export const CapitalFileAnalysisSchema = FileAnalysisSchema.extend({
   document_type: z.enum(CAPITAL_DOCUMENT_TYPE_VALUES),
 });
 
-export type FileAnalysis = z.infer<typeof FileAnalysisSchema> & { document_type?: string };
+export type FileAnalysis = Omit<z.infer<typeof FileAnalysisSchema>, 'issuer_name'> & {
+  /** Absent on rows analyzed before the field existed. */
+  issuer_name?: string | null;
+  document_type?: string;
+  /** Set by the gate when it dropped the model's match: why the file now matches nothing (shown to the planner). */
+  match_dropped?: string | null;
+};
 
 /** The subset of a checklist row the gate needs. */
 export interface ClassifiableDocument {
   id: string;
+  /** The item's name: for an institution-bound type it names the company (institutions.ts). */
+  name: string;
   type_key: string | null;
+}
+
+/** Statuses of list items a file can never satisfy: not agreed with the client (yet, or any more). */
+const NOT_MATCHABLE_STATUSES = new Set(['unresolved', 'not_required', 'retired']);
+
+/**
+ * The list items offered to the classifier as match candidates (openspec
+ * `unlisted-files`): only items agreed with the client as needed, in any state
+ * of collection. An open question, a "not needed" item and a replaced item are
+ * never candidates — a file alone never changes the list.
+ */
+export function classifierCandidates<T extends { status: string }>(rows: readonly T[]): T[] {
+  return rows.filter((r) => !NOT_MATCHABLE_STATUSES.has(r.status));
 }
 
 export interface ClassificationGateResult {
@@ -58,7 +82,7 @@ export interface ClassificationGateResult {
   quarantineReason: 'injection suspected' | 'illegible' | null;
   /**
    * The checks that ran, for the audit row: `matched_id_known` /
-   * `matched_type_agrees` (drop rules — these decide `result`), then
+   * `matched_type_agrees` / `issuer_matches_item` (drop rules — these decide `result`), then
    * `not_injection_suspected` / `legible` (quarantine — reported, never flipped).
    */
   checks: GateCheck[];
@@ -75,11 +99,19 @@ export function classificationQuarantined(analysis: Pick<FileAnalysis, 'injectio
  *   1. matched_document_id must be one of the ids it was shown, else dropped;
  *   2. when the answer carries a closed document_type, the matched row's
  *      type_key must agree with it, else dropped;
- *   3. suspected injection / illegible → quarantined (reported, never flipped).
+ *   3. for an item of an institution-bound type, the company printed on the
+ *      file and the company the item names must both be identified and be the
+ *      same company, else dropped (strict form, openspec `unlisted-files`);
+ *   4. suspected injection / illegible → quarantined (reported, never flipped).
  * The gate never changes document_type or a security verdict: it drops or
  * rejects, it does not make a "suspected" answer "clean".
  */
-export function validateClassification(raw: FileAnalysis, requiredDocuments: ClassifiableDocument[]): ClassificationGateResult {
+export function validateClassification(
+  raw: FileAnalysis,
+  requiredDocuments: ClassifiableDocument[],
+  /** The institutions table; the tests pass a small one. */
+  institutions?: readonly Institution[],
+): ClassificationGateResult {
   const analysis: FileAnalysis = { ...raw };
   let result = true;
   let reason: string | null = null;
@@ -105,6 +137,30 @@ export function validateClassification(raw: FileAnalysis, requiredDocuments: Cla
           analysis.matched_document_id = null;
         }
         checks.push(check('matched_type_agrees', agrees, reason, { observed: analysis.document_type, expected: row.type_key }));
+      }
+      if (analysis.matched_document_id !== null && isInstitutionBound(row.type_key)) {
+        const comparison = compareCompanies(analysis.issuer_name, row.name, institutions);
+        const same = comparison.verdict === 'same';
+        let note: string | null = null;
+        if (!same) {
+          note =
+            comparison.verdict === 'different'
+              ? `companies differ: the file is from ${institutionLabel(comparison.fileKey, institutions)}, the item names ${institutionLabel(comparison.itemKey, institutions)}`
+              : comparison.verdict === 'file_unidentified'
+                ? 'file company not identified'
+                : 'item company not identified';
+          result = false;
+          rejectedId = proposedId;
+          reason = `matched id "${proposedId}" dropped — ${note}`;
+          analysis.matched_document_id = null;
+          analysis.match_dropped = note;
+        }
+        checks.push(
+          check('issuer_matches_item', same, note, {
+            observed: comparison.fileKey ? institutionLabel(comparison.fileKey, institutions) : (analysis.issuer_name ?? 'none'),
+            expected: comparison.itemKey ? institutionLabel(comparison.itemKey, institutions) : 'not identified',
+          }),
+        );
       }
     }
   }

@@ -390,7 +390,15 @@ function formatFileAnalysis(file: DocumentFileRow, childCount = 0): string {
     `verified content: ${sanitizeInline(a.document_kind, 200)}`,
     a.tax_year ? `tax year: ${sanitizeInline(a.tax_year, 20)}` : null,
     a.subject_name ? `subject: ${sanitizeInline(a.subject_name, 100)}` : null,
-    a.matched_document_id ? `matches required document id: ${a.matched_document_id}` : 'matches no required document',
+    // A closed catalog key (validated by the schema), so the planner files a new item under the right type.
+    a.document_type ? `document type: ${a.document_type}` : null,
+    a.issuer_name ? `issuer: ${sanitizeInline(a.issuer_name, 100)}` : null,
+    a.matched_document_id
+      ? `matches required document id: ${a.matched_document_id}`
+      : a.match_dropped
+        ? // Our own code's note (institutions.ts), not file text.
+          `matches no required document (the platform cancelled a proposed match: ${a.match_dropped})`
+        : 'matches no required document',
     `confidence: ${a.confidence}`,
     sanitizeInline(a.summary, 400),
   ].filter((p): p is string => p !== null);

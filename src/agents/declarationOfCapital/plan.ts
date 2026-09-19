@@ -16,6 +16,7 @@ import { getCatalogType } from './catalog.js';
 import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
 import { shouldWithholdDraft } from './verifyBatchRules.js';
 import { childDisplayName } from './splitChildNames.js';
+import { assignFilesToNewRows, filterPairsByCompany, type NewRowFiles } from './fileTies.js';
 import { additionsStepDetail, collectionsStepDetail, resolutionsStepDetail, retirementsStepDetail } from './applyStepDetails.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
@@ -273,6 +274,9 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     return f ? (f.label ?? f.filename) : undefined;
   };
   let stepBase = applied;
+  // Rows created in this cycle on the client's quoted words, with the waiting
+  // files the model named for them (openspec `unlisted-files`).
+  const createdWithFiles: NewRowFiles[] = [];
   if (decision.resolutions.length > 0) {
     for (const resolution of decision.resolutions) {
       if (resolution.resolution === 'not_required') {
@@ -295,9 +299,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
           },
         });
       } else {
-        const rows = await clientDocuments.resolveRequired(resolution.documentId, clientId, resolution.instances);
+        const rows = await clientDocuments.resolveRequired(resolution.documentId, clientId, resolution.instances, resolution.evidence);
         if (!rows) continue;
         applied += 1;
+        rows.forEach((row, i) => createdWithFiles.push({ row, fileIds: resolution.instances[i]?.fileIds ?? [] }));
         claimedAtCreation.push(...rows.filter((r) => r.status === 'claimed').map((r) => r.name));
         recordAudit({
           actorType: 'agent',
@@ -311,6 +316,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
             typeKey: rows[0]?.type_key ?? null,
             resolution: 'required',
             instances: rows.map((r) => r.name),
+            evidence: resolution.evidence,
           },
         });
       }
@@ -326,9 +332,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // requirements-ladder escalation and late discoveries.
   if (decision.addedInstances.length > 0) {
     for (const addition of decision.addedInstances) {
-      const rows = await clientDocuments.addInstances(addition.anchorDocumentId, clientId, addition.instances);
+      const rows = await clientDocuments.addInstances(addition.anchorDocumentId, clientId, addition.instances, addition.evidence);
       if (!rows || rows.length === 0) continue;
       applied += 1;
+      rows.forEach((row, i) => createdWithFiles.push({ row, fileIds: addition.instances[i]?.fileIds ?? [] }));
       claimedAtCreation.push(...rows.filter((r) => r.status === 'claimed').map((r) => r.name));
       recordAudit({
         actorType: 'agent',
@@ -341,6 +348,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
           clientName: client.name,
           typeKey: rows[0]?.type_key ?? null,
           instances: rows.map((r) => r.name),
+          evidence: addition.evidence,
         },
       });
     }
@@ -425,20 +433,34 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const fileById = new Map(files.map((f) => [f.id, f]));
   const documentIds = new Set(documents.map((d) => d.id));
   // A split parent (058) is never paired: its children are, each on its own.
-  const proposedPairs = applicableFilePairs(decision.matched_files, fileById, documentIds);
+  // The company check (institutions.ts) then refuses a pair between two
+  // different companies, and a pair with an unidentified company unless the
+  // client's own words back it.
+  const companyChecked = filterPairsByCompany(applicableFilePairs(decision.matched_files, fileById, documentIds), fileById, documents);
+  // Files the model named for rows it created in this cycle: code decides which
+  // of them a new row may take; an accepted file makes the row collectable now.
+  const newRowFiles = ctx.hints?.afterVerification ? { pairs: [], refused: [] } : assignFilesToNewRows(createdWithFiles, fileById);
+  const proposedPairs: { file_id: string; document_id: string }[] = [...companyChecked.allowed, ...newRowFiles.pairs];
+  const refusedTies = [...companyChecked.refused, ...newRowFiles.refused];
+  if (refusedTies.length > 0) logger.warn('file-to-document ties refused', { clientId, refusedTies });
+  const proposedCollected = [...new Set([...decision.collected_document_ids, ...newRowFiles.pairs.map((p) => p.document_id)])];
   const newlyCollected: string[] = [];
   const newlyClaimed: string[] = [];
   // A cycle triggered by a verification verdict reports the outcome only: no
   // new file arrived, so nothing may be collected (and therefore nothing can
   // be verified again — the rerun cannot loop).
   if (!ctx.hints?.afterVerification) {
-    for (const id of decision.collected_document_ids) {
+    for (const id of proposedCollected) {
       if (!pendingIds.has(id)) continue;
       const strongMatch = files.some((f) => fileMatchesDocument(f, id));
       const paired = proposedPairs.find((m) => m.document_id === id);
       const pairedFile = paired ? fileById.get(paired.file_id) : undefined;
       if (strongMatch || (pairedFile && isVerifiedLegibleFile(pairedFile))) {
         newlyCollected.push(id);
+      } else if (refusedTies.some((r) => r.document_id === id)) {
+        // The model rested this on a file code refused to tie to the document:
+        // that is not a "delivered another way" claim — the row stays pending.
+        continue;
       } else {
         newlyClaimed.push(id);
       }
@@ -488,11 +510,11 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     logger.info('file linked to document', { clientId, fileId: match.file_id, documentId: match.document_id });
   }
 
-  if (newlyCollected.length + newlyClaimed.length + proposedPairs.length > 0) {
+  if (newlyCollected.length + newlyClaimed.length + proposedPairs.length + refusedTies.length > 0) {
     step(
       'apply_collections',
       collectionsStepDetail(
-        { proposed: decision.collected_document_ids, collected: newlyCollected, claimed: newlyClaimed, pairs: proposedPairs },
+        { proposed: proposedCollected, collected: newlyCollected, claimed: newlyClaimed, pairs: proposedPairs, refused: refusedTies },
         docName,
         fileName,
       ),

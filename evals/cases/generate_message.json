@@ -945,6 +945,280 @@
           "outcome": "reopened"
         }
       ]
+    },
+    {
+      "id": "dec_12",
+      "now": "2026-09-19T09:12:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-20T09:10:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study-altshuler",
+          "type_key": "study_fund",
+          "status": "approved",
+          "name": "אישור קרן השתלמות באלטשולר שחם ליום 31.12.2025",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-09-18T08:30:00Z",
+          "body": "תודה ישראל, אישור היתרות מבנק לאומי והאישור על קרן ההשתלמות באלטשולר שחם התקבלו ואומתו. נמשיך: האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-19T09:10:00Z",
+          "body": ""
+        }
+      ],
+      "files": [
+        {
+          "id": "file-harel",
+          "message_id": "msg-4",
+          "document_kind": "אישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "הראל פנסיה וגמל בע\"מ",
+          "summary": "אישור מס להצהרת הון מקרן ההשתלמות של הראל על שם ישראל ישראלי: סך ההפקדות עד ליום 31.12.2025 הוא 41,250 ש\"ח.",
+          "matched_document_id": null
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "no_list_change": true,
+        "matched_file_ids": [],
+        "message_includes": [
+          "הראל"
+        ],
+        "mentions_valuation_date": false
+      },
+      "notes": "Change confirm-unlisted-files (live finding 2026-09-19): the list holds one study fund (Altshuler Shaham, approved) and the client sends, with no text, a study fund certificate of Harel. The file matches no agreed item. A file alone never changes the list: the decision must create no item and pair the file with nothing, and the reply must mention the Harel file and ask about it."
+    },
+    {
+      "id": "dec_13",
+      "now": "2026-09-19T10:02:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-20T09:10:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study-altshuler",
+          "type_key": "study_fund",
+          "status": "approved",
+          "name": "אישור קרן השתלמות באלטשולר שחם ליום 31.12.2025",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-09-18T08:30:00Z",
+          "body": "תודה ישראל, אישור היתרות מבנק לאומי והאישור על קרן ההשתלמות באלטשולר שחם התקבלו ואומתו. נמשיך: האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-19T09:10:00Z",
+          "body": ""
+        },
+        {
+          "id": "msg-5",
+          "direction": "outbound",
+          "at": "2026-09-19T09:20:00Z",
+          "body": "תודה ישראל, קיבלתי אישור מקרן השתלמות בהראל. ברשימה שלנו מופיעה רק קרן ההשתלמות באלטשולר שחם - האם יש לך גם קרן השתלמות בהראל שצריכה להיכלל בהצהרה?"
+        },
+        {
+          "id": "msg-6",
+          "direction": "inbound",
+          "at": "2026-09-19T10:00:00Z",
+          "body": "כן, יש לי גם קרן השתלמות בהראל, שכחתי להזכיר אותה"
+        }
+      ],
+      "files": [
+        {
+          "id": "file-harel",
+          "message_id": "msg-4",
+          "document_kind": "אישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "הראל פנסיה וגמל בע\"מ",
+          "summary": "אישור מס להצהרת הון מקרן ההשתלמות של הראל על שם ישראל ישראלי: סך ההפקדות עד ליום 31.12.2025 הוא 41,250 ש\"ח.",
+          "matched_document_id": null
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "added_instances": {
+          "study_fund": 1
+        },
+        "new_instance_file_ids": [
+          "file-harel"
+        ],
+        "mentions_valuation_date": false
+      },
+      "notes": "Change confirm-unlisted-files: after the agent asked about the waiting Harel file, the client confirms in words. Only now the item is created (added_instances on the study fund type, with the client's quote as evidence — the gate rejects the answer otherwise) and the new instance names the waiting file in file_ids, so code attaches and verifies it in the same cycle. 2026-09-19: gemini-3.1-pro-preview (the production model) passes; gemini-2.5-flash fails it by settling the open pension question with a 'Harel study fund' item instead of adding to the study fund type - code then refuses to attach the file (type differs), so the damage is a misfiled item, not a wrong approval."
+    },
+    {
+      "id": "dec_14",
+      "now": "2026-09-19T09:12:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-20T09:10:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study-altshuler",
+          "type_key": "study_fund",
+          "status": "approved",
+          "name": "אישור קרן השתלמות באלטשולר שחם ליום 31.12.2025",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-09-18T08:30:00Z",
+          "body": "תודה ישראל, אישור היתרות מבנק לאומי והאישור על קרן ההשתלמות באלטשולר שחם התקבלו ואומתו. נמשיך: האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-19T09:10:00Z",
+          "body": ""
+        }
+      ],
+      "files": [
+        {
+          "id": "file-menora",
+          "message_id": "msg-4",
+          "document_kind": "דוח שנתי מקוצר מקרן פנסיה",
+          "document_type": "pension_provident",
+          "issuer_name": "מנורה מבטחים פנסיה וגמל בע\"מ",
+          "summary": "דוח שנתי מקוצר לשנת 2025 מקרן הפנסיה המקיפה של מנורה מבטחים על שם ישראל ישראלי, כולל יתרת הכספים ליום 31.12.2025.",
+          "matched_document_id": null
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "no_list_change": true,
+        "matched_file_ids": [],
+        "message_includes": [
+          "מנורה"
+        ],
+        "mentions_valuation_date": false
+      },
+      "notes": "Change confirm-unlisted-files (live finding 2026-09-19): pension was never discussed (the pension row is still an open question) and the client sends, with no text, a Menora Mivtachim pension report. Before the change the agent settled the question and collected the file on its own. Now the question must stay open: no list change, no pairing, and the reply mentions the Menora file and asks."
     }
   ]
 }

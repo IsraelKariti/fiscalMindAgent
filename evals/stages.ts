@@ -21,6 +21,7 @@ import {
 import { CAPITAL_DOCUMENT_CATALOG, getCatalogType } from '../src/agents/declarationOfCapital/catalog.js';
 import { buildAnalysisCall } from '../src/agents/declarationOfCapital/analyzeFile.js';
 import { CapitalFileAnalysisSchema, validateClassification, type FileAnalysis } from '../src/agents/declarationOfCapital/analyzeFileRules.js';
+import { identifyInstitution } from '../src/agents/declarationOfCapital/institutions.js';
 import { buildFileSplitCall } from '../src/agents/declarationOfCapital/splitFile.js';
 import { FileSplitSchema, validateFileSplit, type FileSplit } from '../src/agents/declarationOfCapital/splitFileRules.js';
 import { readPdfPageCount } from '../src/agents/declarationOfCapital/pdfPages.js';
@@ -340,6 +341,8 @@ interface AnalyzeFileCase {
     injection_suspected?: boolean;
     /** document_kind must contain one of these (case-insensitive). */
     document_kind_any?: string[];
+    /** The institutions-table key code identifies from the answer's issuer_name (null = none identified). */
+    issuer_key?: string | null;
   };
   notes?: string;
 }
@@ -377,6 +380,7 @@ const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
     if (e.matched_document_id !== undefined) checks.push(eq('matched_document_id', e.matched_document_id, a.matched_document_id));
     if (e.legible !== undefined) checks.push(eq('legible', e.legible, a.legible));
     if (e.injection_suspected !== undefined) checks.push(eq('injection_suspected', e.injection_suspected, a.injection_suspected));
+    if (e.issuer_key !== undefined) checks.push(eq('issuer_key', e.issuer_key, identifyInstitution(raw.issuer_name)));
     if (e.document_kind_any) {
       const kind = (a.document_kind ?? '').toLowerCase();
       checks.push({
@@ -392,6 +396,8 @@ const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
         gate: { result: gate.result, reason: gate.reason, rejectedId: gate.rejectedId, quarantined: gate.quarantined },
         confidence: a.confidence,
         proposedMatch: raw.matched_document_id,
+        issuer_name: raw.issuer_name ?? null,
+        match_dropped: a.match_dropped ?? null,
         tax_year: a.tax_year,
         subject_name: a.subject_name,
         summary: a.summary,
@@ -513,6 +519,21 @@ interface DecideMessageInput {
   wa_content_sid?: string | null;
   wa_content_variables?: string[] | null;
 }
+/** A file the client sent, as the planner sees it: stored, analysed, attached to nothing unless `linked_document_id` is set. */
+interface DecideFileInput {
+  id: string;
+  /** The inbound thread message the file arrived on. */
+  message_id: string;
+  filename?: string;
+  document_kind: string;
+  document_type: string;
+  issuer_name?: string | null;
+  summary?: string;
+  matched_document_id?: string | null;
+  /** The gate's note when it cancelled a proposed match (company check). */
+  match_dropped?: string | null;
+  linked_document_id?: string | null;
+}
 /** One of the agent's own replies that never reached the client (plan.ts: listUnsentDraftsForClient). */
 interface DecideUnsentDraftInput {
   body: string;
@@ -544,6 +565,8 @@ interface DecideCase {
   documents: DecideDocumentInput[];
   seedCatalog?: boolean;
   thread: DecideMessageInput[];
+  /** Received files shown under their inbound message, each with its content-analysis line. */
+  files?: DecideFileInput[];
   /** Shown to the model in the UNSENT DRAFTS block, oldest first; never part of the thread. */
   unsent_drafts?: DecideUnsentDraftInput[];
   /**
@@ -570,6 +593,12 @@ interface DecideCase {
     instances?: Record<string, number>;
     /** Catalog type key -> exact number of instances added to that type (exactly this set of types; any row of the type may be the anchor). */
     added_instances?: Record<string, number>;
+    /** true: the decision creates no list item at all (no resolution, no addition, no retirement) — a file alone never changes the list. */
+    no_list_change?: boolean;
+    /** File ids that some newly created instance must name in its file_ids (exactly this set). */
+    new_instance_file_ids?: string[];
+    /** Exactly the file ids the decision pairs with an existing document (matched_files). */
+    matched_file_ids?: string[];
     attestation?: 'request' | 'confirmed' | null;
     /** The decision's document-fetch action (null = none), e.g. 'client_agreed'. */
     tax_fetch_action?: string | null;
@@ -729,7 +758,44 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
   const client = clientRow(c);
   const history = threadRows(c);
   const documents = documentRows(c, taxYear);
-  const files: DocumentFileRow[] = [];
+  const files: DocumentFileRow[] = (c.files ?? []).map((f) => {
+    const message = c.thread.find((m) => m.id === f.message_id);
+    if (!message) throw new Error(`generate_message case ${c.id}: file ${f.id} names an unknown message ${f.message_id}`);
+    const at = new Date(message.at);
+    return {
+      id: f.id,
+      client_id: 'client-eval',
+      email_id: f.message_id,
+      client_document_id: f.linked_document_id ?? null,
+      provider_attachment_id: `eval-${f.id}`,
+      blob_key: `eval/${f.id}`,
+      filename: f.filename ?? 'whatsapp-media-1.pdf',
+      label: null,
+      content_type: 'application/pdf',
+      size_bytes: '65000',
+      sha256: '0'.repeat(64),
+      analysis_status: 'done',
+      analysis: {
+        document_kind: f.document_kind,
+        summary: f.summary ?? f.document_kind,
+        tax_year: String(taxYear),
+        subject_name: c.client.name,
+        issuer_name: f.issuer_name ?? null,
+        matched_document_id: f.matched_document_id ?? null,
+        match_dropped: f.match_dropped ?? null,
+        legible: true,
+        confidence: 'high',
+        injection_suspected: false,
+        document_type: f.document_type,
+      },
+      analyzed_at: at,
+      blocked: null,
+      parent_file_id: null,
+      page_from: null,
+      page_to: null,
+      created_at: at,
+    } as DocumentFileRow;
+  });
   const templates = templateRows(c, ctx);
   const waState: WaChannelState = {
     allowed: true,
@@ -904,6 +970,27 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       const sortKeys = (o: Record<string, number>) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
       checks.push({ key: 'added_instances', expected: sortKeys(e.added_instances), actual: sortKeys(addedByType), pass: JSON.stringify(sortKeys(e.added_instances)) === JSON.stringify(sortKeys(addedByType)) });
     }
+    if (e.no_list_change !== undefined) {
+      const changes = decision.resolutions.length + decision.addedInstances.length + decision.retired.length;
+      checks.push({ key: 'no_list_change', expected: e.no_list_change ? 0 : '>0', actual: changes, pass: e.no_list_change ? changes === 0 : changes > 0 });
+    }
+    if (e.new_instance_file_ids !== undefined) {
+      const named = [
+        ...decision.resolutions.flatMap((r) => (r.resolution === 'required' ? r.instances.flatMap((i) => i.fileIds) : [])),
+        ...decision.addedInstances.flatMap((a) => a.instances.flatMap((i) => i.fileIds)),
+      ].sort();
+      const wanted = e.new_instance_file_ids.slice().sort();
+      checks.push({ key: 'new_instance_file_ids', expected: wanted, actual: named, pass: JSON.stringify(wanted) === JSON.stringify(named) });
+    }
+    if (e.matched_file_ids !== undefined) {
+      const paired = decision.matched_files.map((m) => m.file_id).sort();
+      const wanted = e.matched_file_ids.slice().sort();
+      checks.push({ key: 'matched_file_ids', expected: wanted, actual: paired, pass: JSON.stringify(wanted) === JSON.stringify(paired) });
+    }
+    info.evidence_quotes = [
+      ...decision.resolutions.map((r) => r.evidence.quote),
+      ...decision.addedInstances.map((a) => a.evidence.quote),
+    ];
     if (e.attestation !== undefined) checks.push(eq('attestation', e.attestation, decision.attestation?.action ?? null));
     if (e.tax_fetch_action !== undefined) checks.push(eq('tax_fetch_action', e.tax_fetch_action, decision.tax_fetch?.action ?? null));
     info.tax_fetch = decision.tax_fetch ?? null;

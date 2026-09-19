@@ -1,6 +1,6 @@
 {
-  "ranAt": "2026-09-19T16:01:15.465Z",
-  "finishedAt": "2026-09-19T16:01:44.031Z",
+  "ranAt": "2026-09-19T18:07:55.538Z",
+  "finishedAt": "2026-09-19T18:08:47.635Z",
   "models": [
     "gemini-2.5-flash"
   ],
@@ -29,21 +29,127 @@
       "stage": "generate_message",
       "model": "gemini-2.5-flash",
       "provider": "gemini",
-      "caseId": "dec_11",
-      "notes": "Change reply-after-verification (2026-09-19 live test): two files of THIS turn were rejected by verification, yet the single reply said they were 'received and passed on for checking', because the row note only says 'a previous file failed'. With the VERIFICATION RESULTS block (case input verification_results) the reply must name both documents and must not call them received-for-checking or verified.",
-      "ranAt": "2026-09-19T16:01:15.935Z",
-      "latencyMs": 18393,
+      "caseId": "dec_01",
+      "notes": "first contact: empty thread, window closed -> the opening message must be the approved template with the tax year filled in, nothing resolved, send_at in the future",
+      "ranAt": "2026-09-19T18:07:55.856Z",
+      "latencyMs": 8778,
       "attempts": 1,
-      "inputTokens": 18495,
-      "outputTokens": 332,
-      "thinkingTokens": 898,
+      "inputTokens": 20041,
+      "outputTokens": 252,
+      "thinkingTokens": 520,
       "cachedTokens": 0,
-      "costUsd": 0.0086235,
+      "costUsd": 0.007942300000000001,
       "error": null,
       "output": {
         "email_subject": null,
         "email_body": null,
-        "whatsapp_text": "היי ישראל, תודה ששלחת את האישורים.\nרק רציתי לעדכן שהמסמכים מבנק דיסקונט ומאלטשולר שחם רשומים על שם \"Israel Israeli\", וזה לא תואם את שמך המלא, ישראל ישראלי.\nתוכל בבקשה לשלוח שוב את האישורים, ולוודא שהם מופיעים על שמך המלא, ישראל ישראלי, ליום 31.12.2025?\nאני כאן אם תצטרך עזרה בהפקה.",
+        "whatsapp_text": null,
+        "whatsapp_template": {
+          "template_id": "HXEVAL0001",
+          "variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "זוהי הפנייה הראשונה ללקוח. חלון ה-24 שעות סגור, ולכן יש לשלוח תבנית פתיחה מאושרת. תזמון ההודעה הוא למועד המוקדם ביותר המותר ביום עבודה.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "2026-02-10 10:35"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "template",
+          "actual": "template",
+          "pass": true
+        },
+        {
+          "key": "mentions_valuation_date",
+          "expected": "31.12.2025",
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 3",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "after 2026-02-10T08:30:00Z",
+          "actual": "2026-02-10 10:35",
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "זוהי הפנייה הראשונה ללקוח. חלון ה-24 שעות סגור, ולכן יש לשלוח תבנית פתיחה מאושרת. תזמון ההודעה הוא למועד המוקדם ביותר המותר ביום עבודה.",
+        "send_at": "2026-02-10 10:35",
+        "message": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_04",
+      "notes": "the client asks what is still needed: the answer names the pending documents with the valuation date and never brings up rows already settled as not_required",
+      "ranAt": "2026-09-19T18:07:55.912Z",
+      "latencyMs": 10113,
+      "attempts": 1,
+      "inputTokens": 19526,
+      "outputTokens": 245,
+      "thinkingTokens": 522,
+      "cachedTokens": 0,
+      "costUsd": 0.007775300000000001,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "היי ישראל, בטח. אשמח אם תוכל לשלוח לי את אישור היתרות מבנק הפועלים ליום 31.12.2025. אפשר להפיק אותו בקלות מהאזור האישי באתר הבנק.",
         "whatsapp_template": null,
         "tax_fetch_action": null,
         "tax_fetch_provider": null,
@@ -54,11 +160,428 @@
         "attestation": null,
         "attestation_evidence": null,
         "decision": "follow_up",
-        "reasoning": "The client sent two documents, but both were rejected due to a name mismatch (registered as 'Israel Israeli' instead of 'ישראל ישראלי'). I need to inform the client about the rejection, explain the reason, and ask for corrected documents with the proper name. Since the client just sent a message, I am responding immediately.",
+        "reasoning": "The client asked for a reminder of what to send. I need to remind him about the Bank Hapoalim statement and how to obtain it. The 24h window is open, so a free-form message is appropriate. Responding quickly to maintain momentum.",
         "collected_document_ids": [],
         "matched_files": [],
         "channel": "whatsapp",
-        "send_at": "2026-09-19 12:15"
+        "send_at": "2026-02-10 10:35"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "mentions_valuation_date",
+          "expected": "31.12.2025",
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 3",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "after 2026-02-10T08:30:00Z",
+          "actual": "2026-02-10 10:35",
+          "pass": true
+        },
+        {
+          "key": "no_settled_rows_mentioned.doc-crypto",
+          "expected": "settled row, none of [\"קריפטו\",\"מטבעות דיגיטליים\"]",
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "no_settled_rows_mentioned.doc-vehicle",
+          "expected": "settled row, none of [\"רכב\"]",
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "no_settled_rows_mentioned.doc-real_estate",
+          "expected": "settled row, none of [\"נדל\\\"ן\",\"דירה\"]",
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "no_settled_rows_mentioned.doc-prior_declaration",
+          "expected": "settled row, none of [\"הצהרת הון קודמת\",\"הצהרה קודמת\"]",
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client asked for a reminder of what to send. I need to remind him about the Bank Hapoalim statement and how to obtain it. The 24h window is open, so a free-form message is appropriate. Responding quickly to maintain momentum.",
+        "send_at": "2026-02-10 10:35",
+        "message": "היי ישראל, בטח. אשמח אם תוכל לשלוח לי את אישור היתרות מבנק הפועלים ליום 31.12.2025. אפשר להפיק אותו בקלות מהאזור האישי באתר הבנק.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_03",
+      "notes": "explicit answers resolve exactly the three rows asked: two bank instances (one per account), two not_required rows with verbatim quotes from msg-4; nothing else is guessed",
+      "ranAt": "2026-09-19T18:07:55.910Z",
+      "latencyMs": 15964,
+      "attempts": 1,
+      "inputTokens": 20538,
+      "outputTokens": 638,
+      "thinkingTokens": 1240,
+      "cachedTokens": 0,
+      "costUsd": 0.0108564,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "מעולה ישראל, תודה על המידע! \n\nעכשיו אשמח לדעת באילו קופות גמל וקרנות פנסיה אתה חבר, והאם יש לך קרן השתלמות אחת או יותר? \n\nבנוסף, האם יש לך ביטוח מנהלים או פוליסת חיסכון בחברת ביטוח, ובאילו חברות? אם משהו לא קיים, מספיק לכתוב 'אין'.",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": [
+          {
+            "document_id": "doc-bank_balance",
+            "resolution": "required",
+            "instances": [
+              {
+                "name": "אישור יתרות בנק הפועלים ליום 31.12.2025",
+                "description": null,
+                "already_provided": false,
+                "file_ids": []
+              },
+              {
+                "name": "אישור יתרות בנק דיסקונט ליום 31.12.2025",
+                "description": null,
+                "already_provided": false,
+                "file_ids": []
+              }
+            ],
+            "evidence": {
+              "message_id": "msg-4",
+              "quote": "יש לי חשבון אחד בבנק הפועלים ועוד חשבון בדיסקונט."
+            }
+          },
+          {
+            "document_id": "doc-securities_portfolio",
+            "resolution": "not_required",
+            "instances": null,
+            "evidence": {
+              "message_id": "msg-4",
+              "quote": "אין לי תיק ניירות ערך"
+            }
+          },
+          {
+            "document_id": "doc-crypto",
+            "resolution": "not_required",
+            "instances": null,
+            "evidence": {
+              "message_id": "msg-4",
+              "quote": "ואין לי קריפטו."
+            }
+          }
+        ],
+        "added_instances": null,
+        "retired_documents": null,
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client provided information about bank accounts, securities portfolios, and crypto. I have updated the document list accordingly. Now I need to ask the next set of related questions regarding pension, provident, and life insurance savings.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "2026-02-10 10:35"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 3",
+          "actual": 2,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "after 2026-02-10T08:30:00Z",
+          "actual": "2026-02-10 10:35",
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [
+            "doc-bank_balance",
+            "doc-crypto",
+            "doc-securities_portfolio"
+          ],
+          "actual": [
+            "doc-bank_balance",
+            "doc-crypto",
+            "doc-securities_portfolio"
+          ],
+          "pass": true
+        },
+        {
+          "key": "resolution.doc-bank_balance",
+          "expected": "required",
+          "actual": "required",
+          "pass": true
+        },
+        {
+          "key": "resolution.doc-securities_portfolio",
+          "expected": "not_required",
+          "actual": "not_required",
+          "pass": true
+        },
+        {
+          "key": "resolution.doc-crypto",
+          "expected": "not_required",
+          "actual": "not_required",
+          "pass": true
+        },
+        {
+          "key": "instances.doc-bank_balance",
+          "expected": 2,
+          "actual": 2,
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client provided information about bank accounts, securities portfolios, and crypto. I have updated the document list accordingly. Now I need to ask the next set of related questions regarding pension, provident, and life insurance savings.",
+        "send_at": "2026-02-10 10:35",
+        "message": "מעולה ישראל, תודה על המידע! \n\nעכשיו אשמח לדעת באילו קופות גמל וקרנות פנסיה אתה חבר, והאם יש לך קרן השתלמות אחת או יותר? \n\nבנוסף, האם יש לך ביטוח מנהלים או פוליסת חיסכון בחברת ביטוח, ובאילו חברות? אם משהו לא קיים, מספיק לכתוב 'אין'.",
+        "resolutions": [
+          {
+            "id": "doc-bank_balance",
+            "resolution": "required",
+            "instances": [
+              "אישור יתרות בנק הפועלים ליום 31.12.2025",
+              "אישור יתרות בנק דיסקונט ליום 31.12.2025"
+            ]
+          },
+          {
+            "id": "doc-securities_portfolio",
+            "resolution": "not_required",
+            "quote": "אין לי תיק ניירות ערך"
+          },
+          {
+            "id": "doc-crypto",
+            "resolution": "not_required",
+            "quote": "ואין לי קריפטו."
+          }
+        ],
+        "evidence_quotes": [
+          "יש לי חשבון אחד בבנק הפועלים ועוד חשבון בדיסקונט.",
+          "אין לי תיק ניירות ערך",
+          "ואין לי קריפטו."
+        ],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_05",
+      "notes": "the client promised 'tomorrow' five days ago and went quiet: the window is closed, so the reminder must be the approved reminder template (with the tax year), scheduled in the future",
+      "ranAt": "2026-09-19T18:08:04.638Z",
+      "latencyMs": 8119,
+      "attempts": 1,
+      "inputTokens": 19540,
+      "outputTokens": 238,
+      "thinkingTokens": 499,
+      "cachedTokens": 0,
+      "costUsd": 0.0077045,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": null,
+        "whatsapp_template": {
+          "template_id": "HXEVAL0002",
+          "variables": [
+            "ישראל",
+            "2025"
+          ]
+        },
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client promised to send the bank statement on Feb 6th but has not done so. It's now Feb 10th and the 24-hour window is closed, so a gentle reminder using an approved template is appropriate. The 'capital_reminder' template is suitable. The send_at is set for today during working hours.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "2026-02-10 10:45"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "template",
+          "actual": "template",
+          "pass": true
+        },
+        {
+          "key": "mentions_valuation_date",
+          "expected": "31.12.2025",
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 3",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "after 2026-02-10T08:30:00Z",
+          "actual": "2026-02-10 10:45",
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client promised to send the bank statement on Feb 6th but has not done so. It's now Feb 10th and the 24-hour window is closed, so a gentle reminder using an approved template is appropriate. The 'capital_reminder' template is suitable. The send_at is set for today during working hours.",
+        "send_at": "2026-02-10 10:45",
+        "message": "שלום ישראל, רק מזכיר בעדינות לגבי המסמכים להצהרת ההון ליום 31.12.2025 - אשמח לעדכון כשנוח לך.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_02",
+      "notes": "the client just said 'let's start': first free-form message = a small group of 2-3 discovery questions, nothing resolved yet (the questionnaire may not be cited as evidence — the gate rejects it), no re-introduction",
+      "ranAt": "2026-09-19T18:07:55.905Z",
+      "latencyMs": 18544,
+      "attempts": 1,
+      "inputTokens": 20320,
+      "outputTokens": 289,
+      "thinkingTokens": 1905,
+      "cachedTokens": 0,
+      "costUsd": 0.011581000000000001,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "היי ישראל, מעולה! בוא נתחיל. לגבי חשבון הבנק בלאומי, אשמח אם תוכל לשלוח לנו אישור יתרות ליום 31.12.2025. אפשר להפיק אותו מהאזור האישי באתר הבנק, או לשלוח את הדוח השנתי המקוצר. בנוסף, רציתי לשאול האם יש לך קופות גמל או קרנות פנסיה, וקרנות השתלמות, ובאילו חברות?",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client confirmed readiness to proceed. I am requesting the pending bank statement and clarifying the existence of pension/provident funds and study funds, which are common financial assets.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "2026-02-10 10:35"
       },
       "checks": [
         {
@@ -93,46 +616,23 @@
         },
         {
           "key": "send_at_future",
-          "expected": "after 2026-09-19T09:12:00Z",
-          "actual": "2026-09-19 12:15",
+          "expected": "after 2026-02-10T08:30:00Z",
+          "actual": "2026-02-10 10:35",
           "pass": true
         },
         {
-          "key": "message_includes.דיסקונט",
-          "expected": true,
-          "actual": true,
-          "pass": true
-        },
-        {
-          "key": "message_includes.אלטשולר",
-          "expected": true,
-          "actual": true,
-          "pass": true
-        },
-        {
-          "key": "message_excludes.לבדיקה",
-          "expected": false,
-          "actual": false,
-          "pass": true
-        },
-        {
-          "key": "message_excludes.בבדיקה",
-          "expected": false,
-          "actual": false,
-          "pass": true
-        },
-        {
-          "key": "message_excludes.התקבלו ואומתו",
-          "expected": false,
-          "actual": false,
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
           "pass": true
         }
       ],
       "info": {
-        "reasoning": "The client sent two documents, but both were rejected due to a name mismatch (registered as 'Israel Israeli' instead of 'ישראל ישראלי'). I need to inform the client about the rejection, explain the reason, and ask for corrected documents with the proper name. Since the client just sent a message, I am responding immediately.",
-        "send_at": "2026-09-19 12:15",
-        "message": "היי ישראל, תודה ששלחת את האישורים.\nרק רציתי לעדכן שהמסמכים מבנק דיסקונט ומאלטשולר שחם רשומים על שם \"Israel Israeli\", וזה לא תואם את שמך המלא, ישראל ישראלי.\nתוכל בבקשה לשלוח שוב את האישורים, ולוודא שהם מופיעים על שמך המלא, ישראל ישראלי, ליום 31.12.2025?\nאני כאן אם תצטרך עזרה בהפקה.",
+        "reasoning": "The client confirmed readiness to proceed. I am requesting the pending bank statement and clarifying the existence of pension/provident funds and study funds, which are common financial assets.",
+        "send_at": "2026-02-10 10:35",
+        "message": "היי ישראל, מעולה! בוא נתחיל. לגבי חשבון הבנק בלאומי, אשמח אם תוכל לשלוח לנו אישור יתרות ליום 31.12.2025. אפשר להפיק אותו מהאזור האישי באתר הבנק, או לשלוח את הדוח השנתי המקוצר. בנוסף, רציתי לשאול האם יש לך קופות גמל או קרנות פנסיה, וקרנות השתלמות, ובאילו חברות?",
         "resolutions": [],
+        "evidence_quotes": [],
         "tax_fetch": null,
         "attestation": null,
         "collected_document_ids": [],
@@ -145,38 +645,119 @@
       "stage": "generate_message",
       "model": "gemini-2.5-flash",
       "provider": "gemini",
-      "caseId": "dec_10",
-      "notes": "Change reply-after-verification (2026-09-19): the cycle that collects a file withholds its message and does NOT apply the fetch action; the follow-up cycle (this snapshot: the bank row is already approved, the client's consent to the Altshuler fetch is in the same turn) must propose client_agreed again, or the consent would be lost.",
-      "ranAt": "2026-09-19T16:01:15.841Z",
-      "latencyMs": 28187,
+      "caseId": "dec_07",
+      "notes": "the client confirmed the sent summary verbatim: attestation='confirmed' with evidence citing msg-6 (post-request), and the goal is complete",
+      "ranAt": "2026-09-19T18:08:11.880Z",
+      "latencyMs": 5835,
       "attempts": 1,
-      "inputTokens": 19885,
-      "outputTokens": 340,
-      "thinkingTokens": 1420,
+      "inputTokens": 19909,
+      "outputTokens": 182,
+      "thinkingTokens": 250,
       "cachedTokens": 0,
-      "costUsd": 0.0103655,
+      "costUsd": 0.007052699999999999,
       "error": null,
       "output": {
         "email_subject": null,
         "email_body": null,
-        "whatsapp_text": "מעולה ישראל, תודה! לגבי אישור בנק לאומי, הוא כבר התקבל ואומת אצלנו. \nלגבי הפנסיה באלטשולר שחם, מעולה שאישרת. כשנתחיל את המשיכה, יישלח אליך קוד לנייד. ברגע שתקבל אותו, אנא העבר אותו אליי כאן בוואטסאפ.",
+        "whatsapp_text": null,
         "whatsapp_template": null,
-        "tax_fetch_action": "client_agreed",
-        "tax_fetch_provider": "altshuler_shaham",
-        "tax_fetch_document_keys": [
-          "pension_annual"
-        ],
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
         "resolved_documents": null,
         "added_instances": null,
         "retired_documents": null,
-        "attestation": null,
+        "attestation": "confirmed",
+        "attestation_evidence": {
+          "message_id": "msg-6",
+          "quote": "מאשר, הרשימה מלאה ואין לי נכסים או התחייבויות נוספים"
+        },
+        "decision": "goal_complete",
+        "reasoning": "All documents are either approved or not_required, and the client has confirmed the completeness of the list.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": null,
+        "send_at": null
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "goal_complete",
+          "actual": "goal_complete",
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "attestation",
+          "expected": "confirmed",
+          "actual": "confirmed",
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "All documents are either approved or not_required, and the client has confirmed the completeness of the list.",
+        "send_at": null,
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": {
+          "action": "confirmed",
+          "evidence": {
+            "message_id": "msg-6",
+            "quote": "מאשר, הרשימה מלאה ואין לי נכסים או התחייבויות נוספים"
+          }
+        },
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_06",
+      "notes": "every row is approved / not_required and no summary was sent yet: the next message IS the closing summary (attestation='request'), still a follow_up",
+      "ranAt": "2026-09-19T18:08:06.032Z",
+      "latencyMs": 25511,
+      "attempts": 1,
+      "inputTokens": 19653,
+      "outputTokens": 611,
+      "thinkingTokens": 1845,
+      "cachedTokens": 0,
+      "costUsd": 0.0120359,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "היי ישראל, \n\nכן, הגענו לשלב הסיכום! \n\nאני שמח לעדכן שהמסמכים הבאים התקבלו ואומתו: \n- אישור יתרות בנק הפועלים ליום 31.12.2025\n- אישור יתרת קרן השתלמות אלטשולר שחם ליום 31.12.2025\n\nלגבי שאר הסעיפים, ממה שמילאת בשאלון ומהשיחות שלנו, הבנתי שאין לך את הנכסים או ההתחייבויות הבאים: \n- תיקי ניירות ערך\n- קופות גמל ופנסיה\n- ביטוחי מנהלים או פוליסות חיסכון\n- נכסי נדל\"ן\n- משכנתאות\n- הלוואות שנטלת\n- הלוואות שנתת\n- כלי רכב\n- פוליסת ביטוח תכולה (התכולה תירשם בערך סמלי של 1 ש\"ח)\n- בעלות בעסק או בחברה\n- מטבעות דיגיטליים\n- השקעות פרטיות\n- חשבונות בנק של אחרים שאתה מיופה כוח בהם\n- הצהרת הון קודמת\n- נכסים או התחייבויות נוספים בעלי ערך משמעותי\n\nאשמח אם תוכל לאשר לי שהרשימה הזו מלאה ואין לך נכסים או התחייבויות נוספים שצריך לכלול בהצהרת ההון.\n\nתודה רבה על שיתוף הפעולה!",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "attestation": "request",
         "attestation_evidence": null,
         "decision": "follow_up",
-        "reasoning": "The client agreed to pull the pension document from Altshuler Shaham. I need to set the tax_fetch_action to client_agreed and explain the code process. I also need to acknowledge that the Bank Leumi document is already approved, as the client mentioned it again.",
+        "reasoning": "All documents are resolved (approved or not_required). The client's last message asks if anything else is needed, which is a prompt to send the summary and request final attestation. The 24h window is open, so a free-form message is used to provide the summary and ask for confirmation.",
         "collected_document_ids": [],
         "matched_files": [],
         "channel": "whatsapp",
-        "send_at": "2026-09-19 12:15"
+        "send_at": "2026-02-10 10:35"
       },
       "checks": [
         {
@@ -211,32 +792,290 @@
         },
         {
           "key": "send_at_future",
-          "expected": "after 2026-09-19T09:12:00Z",
-          "actual": "2026-09-19 12:15",
+          "expected": "after 2026-02-10T08:30:00Z",
+          "actual": "2026-02-10 10:35",
           "pass": true
         },
         {
-          "key": "tax_fetch_action",
-          "expected": "client_agreed",
-          "actual": "client_agreed",
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "attestation",
+          "expected": "request",
+          "actual": "request",
           "pass": true
         }
       ],
       "info": {
-        "reasoning": "The client agreed to pull the pension document from Altshuler Shaham. I need to set the tax_fetch_action to client_agreed and explain the code process. I also need to acknowledge that the Bank Leumi document is already approved, as the client mentioned it again.",
-        "send_at": "2026-09-19 12:15",
-        "message": "מעולה ישראל, תודה! לגבי אישור בנק לאומי, הוא כבר התקבל ואומת אצלנו. \nלגבי הפנסיה באלטשולר שחם, מעולה שאישרת. כשנתחיל את המשיכה, יישלח אליך קוד לנייד. ברגע שתקבל אותו, אנא העבר אותו אליי כאן בוואטסאפ.",
+        "reasoning": "All documents are resolved (approved or not_required). The client's last message asks if anything else is needed, which is a prompt to send the summary and request final attestation. The 24h window is open, so a free-form message is used to provide the summary and ask for confirmation.",
+        "send_at": "2026-02-10 10:35",
+        "message": "היי ישראל, \n\nכן, הגענו לשלב הסיכום! \n\nאני שמח לעדכן שהמסמכים הבאים התקבלו ואומתו: \n- אישור יתרות בנק הפועלים ליום 31.12.2025\n- אישור יתרת קרן השתלמות אלטשולר שחם ליום 31.12.2025\n\nלגבי שאר הסעיפים, ממה שמילאת בשאלון ומהשיחות שלנו, הבנתי שאין לך את הנכסים או ההתחייבויות הבאים: \n- תיקי ניירות ערך\n- קופות גמל ופנסיה\n- ביטוחי מנהלים או פוליסות חיסכון\n- נכסי נדל\"ן\n- משכנתאות\n- הלוואות שנטלת\n- הלוואות שנתת\n- כלי רכב\n- פוליסת ביטוח תכולה (התכולה תירשם בערך סמלי של 1 ש\"ח)\n- בעלות בעסק או בחברה\n- מטבעות דיגיטליים\n- השקעות פרטיות\n- חשבונות בנק של אחרים שאתה מיופה כוח בהם\n- הצהרת הון קודמת\n- נכסים או התחייבויות נוספים בעלי ערך משמעותי\n\nאשמח אם תוכל לאשר לי שהרשימה הזו מלאה ואין לך נכסים או התחייבויות נוספים שצריך לכלול בהצהרת ההון.\n\nתודה רבה על שיתוף הפעולה!",
         "resolutions": [],
-        "tax_fetch": {
-          "action": "client_agreed",
-          "provider": "altshuler_shaham",
-          "documentKeys": [
-            "pension_annual"
-          ]
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": {
+          "action": "request"
         },
-        "attestation": null,
         "collected_document_ids": [],
         "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_09",
+      "notes": "Incident 2026-09-18: with a DOCUMENT FETCH block in the prompt, the planner read the platform's own fetch guidance as an injection and the new pension (Mor, not a fetch provider) was dropped. Proves the instance is added while the fetch block is present; the planner gives no injection verdict any more.",
+      "ranAt": "2026-09-19T18:08:14.451Z",
+      "latencyMs": 32472,
+      "attempts": 1,
+      "inputTokens": 21350,
+      "outputTokens": 445,
+      "thinkingTokens": 3781,
+      "cachedTokens": 0,
+      "costUsd": 0.01697,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "היי ישראל, מעולה, תודה שעדכנת אותי לגבי הפנסיה במור.\nגם עבורה נצטרך אישור יתרה ליום 31.12.2025. תוכל לשלוח אותו לכאן?\nלגבי הפנסיה באלטשולר, אם תרצה, אני יכול לנסות למשוך את האישור ישירות מהאתר שלהם. זה יחסוך לך זמן. מה דעתך?",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": [
+          {
+            "anchor_document_id": "doc-pension-altshuler",
+            "instances": [
+              {
+                "name": "אישור יתרת פנסיה במור ליום 31.12.2025",
+                "description": null,
+                "already_provided": false,
+                "file_ids": []
+              }
+            ],
+            "evidence": {
+              "message_id": "msg-5",
+              "quote": "נזכרתי שיש לי גם פנסיה במור"
+            }
+          }
+        ],
+        "retired_documents": null,
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "Client provided new information about a pension at Mor. Adding it as a new instance and requesting the document. Also offering to fetch the Altshuler pension document.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "2026-09-18 19:10"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "mentions_valuation_date",
+          "expected": "31.12.2025",
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 3",
+          "actual": 2,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "after 2026-09-18T16:09:00Z",
+          "actual": "2026-09-18 19:10",
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {
+            "pension_provident": 1
+          },
+          "actual": {
+            "pension_provident": 1
+          },
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "Client provided new information about a pension at Mor. Adding it as a new instance and requesting the document. Also offering to fetch the Altshuler pension document.",
+        "send_at": "2026-09-18 19:10",
+        "message": "היי ישראל, מעולה, תודה שעדכנת אותי לגבי הפנסיה במור.\nגם עבורה נצטרך אישור יתרה ליום 31.12.2025. תוכל לשלוח אותו לכאן?\nלגבי הפנסיה באלטשולר, אם תרצה, אני יכול לנסות למשוך את האישור ישירות מהאתר שלהם. זה יחסוך לך זמן. מה דעתך?",
+        "resolutions": [],
+        "added_instance_names": [
+          "אישור יתרת פנסיה במור ליום 31.12.2025"
+        ],
+        "evidence_quotes": [
+          "נזכרתי שיש לי גם פנסיה במור"
+        ],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 1,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_08",
+      "notes": "burst of client messages (bug 2026-09-18): every earlier reply was replaced before sending, so the thread is client-only and the replies sit in UNSENT DRAFTS; the last message is a fragment naming two new pension funds (Meitav, Menora) — both must be added as instances of the already-resolved pension type, not only named in the reply",
+      "ranAt": "2026-09-19T18:08:12.760Z",
+      "latencyMs": 34873,
+      "attempts": 1,
+      "inputTokens": 21617,
+      "outputTokens": 495,
+      "thinkingTokens": 1867,
+      "cachedTokens": 0,
+      "costUsd": 0.012390100000000001,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "היי ישראל, מעולה, תודה על העדכון! הוספתי את כל קופות הפנסיה שציינת (אלטשולר, הפניקס, הראל, כלל, מגדל, מור, מיטב ומנורה) לרשימה.\nאשמח אם תוכל לצרף לכאן את אישורי היתרה מכל החברות ליום 31.12.2025 - אפשר אישור ייעודי להצהרת הון מהאזור האישי שלהם, או את העמוד האחרון של הדוח השנתי המקוצר.",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": [
+          {
+            "anchor_document_id": "doc-pension-altshuler",
+            "instances": [
+              {
+                "name": "פנסיה במיטב",
+                "description": null,
+                "already_provided": false,
+                "file_ids": []
+              },
+              {
+                "name": "פנסיה במנורה",
+                "description": null,
+                "already_provided": false,
+                "file_ids": []
+              }
+            ],
+            "evidence": {
+              "message_id": "msg-9",
+              "quote": "וגם במיטב ומנורה"
+            }
+          }
+        ],
+        "retired_documents": null,
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client provided additional pension funds (Meitav and Menora) in the latest message. I need to add these to the document list and then request all the pension fund documents for the specified date. The 24-hour window is open, and the client just sent a message, so I should respond immediately.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "2026-09-18 17:43"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 3",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "after 2026-09-18T14:42:00Z",
+          "actual": "2026-09-18 17:43",
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {
+            "pension_provident": 2
+          },
+          "actual": {
+            "pension_provident": 2
+          },
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client provided additional pension funds (Meitav and Menora) in the latest message. I need to add these to the document list and then request all the pension fund documents for the specified date. The 24-hour window is open, and the client just sent a message, so I should respond immediately.",
+        "send_at": "2026-09-18 17:43",
+        "message": "היי ישראל, מעולה, תודה על העדכון! הוספתי את כל קופות הפנסיה שציינת (אלטשולר, הפניקס, הראל, כלל, מגדל, מור, מיטב ומנורה) לרשימה.\nאשמח אם תוכל לצרף לכאן את אישורי היתרה מכל החברות ליום 31.12.2025 - אפשר אישור ייעודי להצהרת הון מהאזור האישי שלהם, או את העמוד האחרון של הדוח השנתי המקוצר.",
+        "resolutions": [],
+        "added_instance_names": [
+          "פנסיה במיטב",
+          "פנסיה במנורה"
+        ],
+        "evidence_quotes": [
+          "וגם במיטב ומנורה"
+        ],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 1,
         "retired": 0
       },
       "pass": true
@@ -245,22 +1084,22 @@
   "summary": {
     "generate_message": {
       "gemini-2.5-flash": {
-        "total": 2,
-        "passed": 2,
+        "total": 9,
+        "passed": 9,
         "passRate": 1,
         "errors": 0,
         "latencyMs": {
-          "avg": 23290,
-          "p50": 18393,
-          "p90": 18393,
-          "min": 18393,
-          "max": 28187
+          "avg": 17801,
+          "p50": 15964,
+          "p90": 32472,
+          "min": 5835,
+          "max": 34873
         },
-        "inputTokens": 38380,
-        "outputTokens": 672,
-        "thinkingTokens": 2318,
+        "inputTokens": 182494,
+        "outputTokens": 3395,
+        "thinkingTokens": 12429,
         "cachedTokens": 0,
-        "costUsd": 0.018989,
+        "costUsd": 0.094308,
         "unpriced": 0
       }
     }

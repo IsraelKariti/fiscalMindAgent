@@ -20,7 +20,7 @@ test('apply_resolutions rows carry the document name next to the id, and the quo
   const detail = resolutionsStepDetail(
     [
       { documentId: 'd1', resolution: 'not_required', evidence },
-      { documentId: 'd2', resolution: 'required', instances: [{ name: 'x', description: null, alreadyProvided: false }] },
+      { documentId: 'd2', resolution: 'required', instances: [{ name: 'x', description: null, alreadyProvided: false, fileIds: [] }], evidence },
     ],
     docName,
     2,
@@ -28,7 +28,7 @@ test('apply_resolutions rows carry the document name next to the id, and the quo
   assert.equal(detail.count, 2);
   assert.deepEqual(detail.rows, [
     { id: 'd1', name: 'אישור יתרות — בנק הפועלים', resolution: 'not_required', quote: evidence.quote },
-    { id: 'd2', name: 'קרן השתלמות — אלטשולר', resolution: 'required', instances: ['x'] },
+    { id: 'd2', name: 'קרן השתלמות — אלטשולר', resolution: 'required', quote: evidence.quote, instances: ['x'] },
   ]);
 });
 
@@ -38,9 +38,10 @@ test('apply_additions entries name the anchor document and list the instance nam
       {
         anchorDocumentId: 'd3',
         instances: [
-          { name: 'טופס 106 — מעסיק א', description: null, alreadyProvided: false },
-          { name: 'טופס 106 — מעסיק ב', description: null, alreadyProvided: true },
+          { name: 'טופס 106 — מעסיק א', description: null, alreadyProvided: false, fileIds: [] },
+          { name: 'טופס 106 — מעסיק ב', description: null, alreadyProvided: true, fileIds: [] },
         ],
+        evidence,
       },
     ],
     docName,
@@ -48,7 +49,7 @@ test('apply_additions entries name the anchor document and list the instance nam
   );
   assert.deepEqual(detail, {
     count: 1,
-    entries: [{ anchorId: 'd3', anchorName: 'טופס 106', instances: ['טופס 106 — מעסיק א', 'טופס 106 — מעסיק ב'] }],
+    entries: [{ anchorId: 'd3', anchorName: 'טופס 106', instances: ['טופס 106 — מעסיק א', 'טופס 106 — מעסיק ב'], quote: evidence.quote }],
   });
 });
 
@@ -69,7 +70,13 @@ test('apply_retirements rows carry id, name and the evidence quote; unknown ids 
 
 test('apply_collections names the proposed, collected and claimed documents and both sides of each pair', () => {
   const detail = collectionsStepDetail(
-    { proposed: ['d1', 'd2'], collected: ['d1'], claimed: ['d2'], pairs: [{ file_id: 'f1', document_id: 'd1' }] },
+    {
+      proposed: ['d1', 'd2'],
+      collected: ['d1'],
+      claimed: ['d2'],
+      pairs: [{ file_id: 'f1', document_id: 'd1' }],
+      refused: [{ file_id: 'f1', document_id: 'd2', reason: 'companies_differ' }],
+    },
     docName,
     fileName,
   );
@@ -81,5 +88,8 @@ test('apply_collections names the proposed, collected and claimed documents and 
     claimed: ['d2'],
     claimedNames: ['קרן השתלמות — אלטשולר'],
     pairs: [{ fileId: 'f1', fileName: 'statement.pdf', documentId: 'd1', documentName: 'אישור יתרות — בנק הפועלים' }],
+    refused: [
+      { fileId: 'f1', fileName: 'statement.pdf', documentId: 'd2', documentName: 'קרן השתלמות — אלטשולר', reason: 'companies_differ' },
+    ],
   });
 });

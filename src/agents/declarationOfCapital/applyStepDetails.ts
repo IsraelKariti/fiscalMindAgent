@@ -1,4 +1,5 @@
-import type { DocumentResolution, InstanceAddition, DocumentRetirement, MatchedFile } from './decisionSchema.js';
+import type { DocumentResolution, InstanceAddition, DocumentRetirement } from './decisionSchema.js';
+import type { RefusedTie } from './fileTies.js';
 
 /**
  * The audit detail of each `apply_*` step the planner records (plan.ts).
@@ -20,7 +21,9 @@ export function resolutionsStepDetail(resolutions: DocumentResolution[], docName
       id: r.documentId,
       name: named(docName, r.documentId),
       resolution: r.resolution,
-      ...(r.resolution === 'not_required' ? { quote: r.evidence.quote } : { instances: r.instances.map((i) => i.name) }),
+      // Every resolution rests on the client's own words (openspec `unlisted-files`).
+      quote: r.evidence.quote,
+      ...(r.resolution === 'required' ? { instances: r.instances.map((i) => i.name) } : {}),
     })),
   };
 }
@@ -32,6 +35,7 @@ export function additionsStepDetail(additions: InstanceAddition[], docName: Name
       anchorId: a.anchorDocumentId,
       anchorName: named(docName, a.anchorDocumentId),
       instances: a.instances.map((i) => i.name),
+      quote: a.evidence.quote,
     })),
   };
 }
@@ -44,7 +48,14 @@ export function retirementsStepDetail(retired: DocumentRetirement[], docName: Na
 }
 
 export function collectionsStepDetail(
-  args: { proposed: string[]; collected: string[]; claimed: string[]; pairs: MatchedFile[] },
+  args: {
+    proposed: string[];
+    collected: string[];
+    claimed: string[];
+    pairs: { file_id: string; document_id: string }[];
+    /** Ties code refused (company check, or a file named for a new row that may not take it). */
+    refused?: RefusedTie[];
+  },
   docName: NameLookup,
   fileName: NameLookup,
 ) {
@@ -61,6 +72,13 @@ export function collectionsStepDetail(
       fileName: named(fileName, m.file_id),
       documentId: m.document_id,
       documentName: named(docName, m.document_id),
+    })),
+    refused: (args.refused ?? []).map((r) => ({
+      fileId: r.file_id,
+      fileName: named(fileName, r.file_id),
+      documentId: r.document_id,
+      documentName: named(docName, r.document_id),
+      reason: r.reason,
     })),
   };
 }

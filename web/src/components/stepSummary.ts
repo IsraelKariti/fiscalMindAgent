@@ -77,8 +77,8 @@ const MAPPINGS: Record<string, Mapping> = {
       const quote = str(r['quote']);
       const instances = strList(r['instances']);
       let text = parts.join(' — ');
+      if (instances && instances.length > 0) text += ` · ${instances.join(', ')}`;
       if (quote) text += ` · "${quote}"`;
-      else if (instances && instances.length > 0) text += ` · ${instances.join(', ')}`;
       return text;
     });
     return { rows: list('resolved_documents', items), consumed: ['rows', 'count'] };
@@ -89,7 +89,8 @@ const MAPPINGS: Record<string, Mapping> = {
       if (!isRecord(e)) return JSON.stringify(e);
       const anchor = str(e['anchorName']) ?? str(e['anchorId']) ?? '?';
       const instances = strList(e['instances']) ?? [];
-      return `${anchor}: ${instances.join(', ')}`;
+      const quote = str(e['quote']);
+      return quote ? `${anchor}: ${instances.join(', ')} · "${quote}"` : `${anchor}: ${instances.join(', ')}`;
     });
     return { rows: list('added_instances', items), consumed: ['entries', 'count'] };
   },
@@ -109,14 +110,22 @@ const MAPPINGS: Record<string, Mapping> = {
       const doc = str(p['documentName']) ?? str(p['documentId']) ?? '?';
       return `${file} → ${doc}`;
     });
+    const refused = Array.isArray(d['refused']) ? d['refused'] : [];
+    const refusedItems = refused.map((r) => {
+      if (!isRecord(r)) return JSON.stringify(r);
+      const file = str(r['fileName']) ?? str(r['fileId']) ?? '?';
+      const doc = str(r['documentName']) ?? str(r['documentId']) ?? '?';
+      return `${file} ↛ ${doc} (${str(r['reason']) ?? '?'})`;
+    });
     return {
       rows: [
         ...list('collected', strList(d['collectedNames']) ?? strList(d['collected'])),
         ...list('claimed', strList(d['claimedNames']) ?? strList(d['claimed'])),
         ...list('proposed', strList(d['proposedNames']) ?? strList(d['proposed'])),
         ...list('pairs', pairItems),
+        ...list('refused_ties', refusedItems),
       ],
-      consumed: ['collected', 'collectedNames', 'claimed', 'claimedNames', 'proposed', 'proposedNames', 'pairs'],
+      consumed: ['collected', 'collectedNames', 'claimed', 'claimedNames', 'proposed', 'proposedNames', 'pairs', 'refused'],
     };
   },
   'document.collected': (d) => ({

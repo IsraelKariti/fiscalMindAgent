@@ -132,24 +132,28 @@ export interface DocumentInstance {
  * can't leave half the client's cars on the checklist. A 'not_required' row is
  * also a valid target (the client corrected themselves — "actually I do have a
  * car"); its old evidence is cleared. An instance the client says the office
- * already holds starts as 'claimed' instead of 'pending'. Returns all
- * resulting rows, or null when the target isn't the client's resolvable row.
+ * already holds starts as 'claimed' instead of 'pending'. `evidence` is the
+ * client statement a planner resolution rests on, stored on every resulting
+ * row (null for the questionnaire / accountant paths). Returns all resulting
+ * rows in instance order, or null when the target isn't the client's resolvable row.
  */
 export async function resolveRequired(
   id: string,
   clientId: string,
   instances: DocumentInstance[],
+  evidence: ResolutionEvidence | null = null,
 ): Promise<ClientDocumentRow[] | null> {
   if (instances.length === 0) throw new Error('resolveRequired: at least one instance is required');
   const conn = await pool.connect();
   try {
     await conn.query('BEGIN');
     const first = instances[0]!;
+    const evidenceJson = evidence === null ? null : JSON.stringify(evidence);
     const { rows: updated } = await conn.query<ClientDocumentRow>(
       `UPDATE client_documents
-       SET status = $5, name = $3, description = $4, resolution_evidence = NULL, updated_at = now()
+       SET status = $5, name = $3, description = $4, resolution_evidence = $6, updated_at = now()
        WHERE id = $1 AND client_id = $2 AND status IN ('unresolved', 'not_required') RETURNING *`,
-      [id, clientId, first.name, first.description, first.alreadyProvided ? 'claimed' : 'pending'],
+      [id, clientId, first.name, first.description, first.alreadyProvided ? 'claimed' : 'pending', evidenceJson],
     );
     const head = updated[0];
     if (!head) {
@@ -159,9 +163,9 @@ export async function resolveRequired(
     const result = [head];
     for (const instance of instances.slice(1)) {
       const { rows } = await conn.query<ClientDocumentRow>(
-        `INSERT INTO client_documents (client_id, name, description, type_key, status)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [clientId, instance.name, instance.description, head.type_key, instance.alreadyProvided ? 'claimed' : 'pending'],
+        `INSERT INTO client_documents (client_id, name, description, type_key, status, resolution_evidence)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [clientId, instance.name, instance.description, head.type_key, instance.alreadyProvided ? 'claimed' : 'pending', evidenceJson],
       );
       if (rows[0]) result.push(rows[0]);
     }
@@ -181,13 +185,15 @@ export async function resolveRequired(
  * escalation ("can't find the contract" → assessment + Tabu rows) and late
  * discoveries ("actually there's a third account"). The anchor must be the
  * client's own catalog row that already left 'unresolved'; the new rows share
- * its type_key. Returns the created rows, or null when the anchor doesn't
- * qualify.
+ * its type_key. `evidence` is the client statement a planner addition rests
+ * on, stored on every created row. Returns the created rows in instance
+ * order, or null when the anchor doesn't qualify.
  */
 export async function addInstances(
   anchorId: string,
   clientId: string,
   instances: DocumentInstance[],
+  evidence: ResolutionEvidence | null = null,
 ): Promise<ClientDocumentRow[] | null> {
   if (instances.length === 0) throw new Error('addInstances: at least one instance is required');
   const conn = await pool.connect();
@@ -206,9 +212,9 @@ export async function addInstances(
     const result: ClientDocumentRow[] = [];
     for (const instance of instances) {
       const { rows } = await conn.query<ClientDocumentRow>(
-        `INSERT INTO client_documents (client_id, name, description, type_key, status)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [clientId, instance.name, instance.description, anchor.type_key, instance.alreadyProvided ? 'claimed' : 'pending'],
+        `INSERT INTO client_documents (client_id, name, description, type_key, status, resolution_evidence)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [clientId, instance.name, instance.description, anchor.type_key, instance.alreadyProvided ? 'claimed' : 'pending', evidence === null ? null : JSON.stringify(evidence)],
       );
       if (rows[0]) result.push(rows[0]);
     }

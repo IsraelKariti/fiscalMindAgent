@@ -839,6 +839,49 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   closed `document_type` (catalog keys + `other`, `CAPITAL_DOCUMENT_TYPE_VALUES`);
   `validateClassification` drops a matched id the model was not shown or
   whose row type disagrees with `document_type`.
+- **Files that belong to no agreed item** (2026-09-19, openspec
+  `unlisted-files`, no migration). Owner rule: the document list is an
+  agreement with the client; a received file never changes it. Four pieces:
+  1. *Candidates* — `classifyAndStore` offers the classifier only
+     `classifierCandidates(rows)` (`analyzeFileRules.ts`): rows that are not
+     `unresolved` / `not_required` / `retired`. A file of a type never discussed
+     therefore ends as "matches no required document".
+  2. *Company check in code (strict)* — for the institution-bound types
+     (`institutionBound` in `catalog.ts`: bank_balance, securities_portfolio,
+     pension_provident, study_fund, life_insurance_savings, mortgage_balance)
+     the classifier also answers `issuer_name`; `institutions.ts`
+     (`identifyInstitution`, whole-word aliases, Hebrew prefix letters, longer
+     alias wins, two companies in one text = ambiguous) maps the issuer and the
+     row's name to a key of `institutionsTable.ts`. `validate_classification`
+     keeps a match only when both are identified and equal, else drops it
+     (check `issuer_matches_item`, reason stored as `analysis.match_dropped` and
+     shown to the planner). The table is a snapshot of the public registers
+     (`INSTITUTIONS_AS_OF`, sources and every entry's origin in
+     `docs/institutions-register.md`) — refresh it by editing the table, never
+     from memory. One key per brand, not per legal entity.
+  3. *Items only on the client's quoted words* — `decisionSchema.ts`: every
+     `required` resolution and every `added_instances` entry needs `evidence`
+     (stored inbound message id + verbatim quote); a file-only message has no
+     text to quote, the questionnaire / file names / analysis text are never
+     evidence. The quote is stored in `resolution_evidence` of every created row
+     and shown in the `apply_resolutions` / `apply_additions` step. The prompt
+     tells the planner to mention a relevant unmatched file and ask, and not to
+     ask again after a "no".
+  4. *Same-cycle attach* — each new instance carries `file_ids`; after the rows
+     are created `assignFilesToNewRows` (`fileTies.ts`) lets a row take a named
+     file only when it is the client's, not a split parent, verified legible,
+     unattached, of the row's type, not taken twice, the row is `pending`, and
+     the company check allows it. Accepted pairs join the cycle's pairs and
+     collected ids, so the normal path links, verifies, withholds the draft and
+     runs one follow-up cycle. This lifts the old limit "a row created in a
+     cycle cannot be collected in that cycle" for this case only.
+  The same company check guards planner pairs (`filterPairsByCompany`): two
+  identified, different companies are always refused; an unidentified company
+  needs `matched_files[].evidence` (the client's quoted words). A refused tie
+  never turns the row `claimed`; refusals are listed in `apply_collections`
+  (`refused`). Known limit: `gemini-2.5-flash` sometimes files a confirmed
+  extra fund under the wrong open type (eval `dec_13`); code then refuses the
+  attach (`type_differs`).
 - **Reply after verification** (openspec `verification-reply`;
   `verifyBatchRules.ts`, `verifyDocument.ts` → `verifyBatch`): a planner cycle
   that marks documents `collected` wrote its message before any verdict, so

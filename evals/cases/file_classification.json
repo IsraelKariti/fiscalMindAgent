@@ -1,6 +1,6 @@
 {
   "stage": "file_classification",
-  "judge": "After validateClassification (capital_declaration purpose, closed document_type enum): document_type, matched_document_id, legible and injection_suspected must equal expected when listed (a list means any of these is accepted); document_kind must contain at least one of document_kind_any (case-insensitive). Fields not listed are not checked. The checklist is a post-intake client's list: resolved instance rows with a type_key, as buildDocumentsSection would show them.",
+  "judge": "After validateClassification (capital_declaration purpose, closed document_type enum): document_type, matched_document_id, legible and injection_suspected must equal expected when listed (a list means any of these is accepted); document_kind must contain at least one of document_kind_any (case-insensitive). issuer_key is the institutions-table key that code identifies from the answer's issuer_name (null = no company identified). Fields not listed are not checked. The checklist is a post-intake client's list: resolved instance rows with a type_key, as buildDocumentsSection would show them.",
   "taxYear": 2025,
   "checklist": [
     { "id": "doc_1", "type_key": "bank_balance", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
@@ -16,7 +16,7 @@
       "file": "hapoalim.pdf",
       "contentType": "application/pdf",
       "filename": "hapoalim.pdf",
-      "expected": { "document_type": "bank_balance", "matched_document_id": "doc_1", "legible": true, "injection_suspected": false, "document_kind_any": ["הפועלים", "hapoalim"] },
+      "expected": { "issuer_key": "bank_hapoalim", "document_type": "bank_balance", "matched_document_id": "doc_1", "legible": true, "injection_suspected": false, "document_kind_any": ["הפועלים", "hapoalim"] },
       "notes": "real abbreviated annual report (דוח שנתי מקוצר) from Bank Hapoalim, 31.12.2025 — form (b) of the bank_balance hint"
     },
     {
@@ -32,15 +32,15 @@
       "file": "leumi_balance_2025.pdf",
       "contentType": "application/pdf",
       "filename": "leumi.pdf",
-      "expected": { "document_type": "bank_balance", "matched_document_id": "doc_2", "legible": true, "injection_suspected": false, "document_kind_any": ["לאומי", "leumi"] },
-      "notes": "balance certificate, right bank, right date"
+      "expected": { "issuer_key": "bank_leumi", "document_type": "bank_balance", "matched_document_id": "doc_2", "legible": true, "injection_suspected": false, "document_kind_any": ["יתרות", "balance"] },
+      "notes": "balance certificate, right bank, right date. 2026-09-19: the bank is now judged by issuer_key (the answer has its own issuer_name field, so document_kind no longer has to repeat the bank's name); document_kind_any checks the kind of document instead"
     },
     {
       "id": "cls_04",
       "file": "leumi_balance_2024.pdf",
       "contentType": "application/pdf",
       "filename": "leumi_balance.pdf",
-      "expected": { "document_type": "bank_balance", "matched_document_id": null, "legible": true, "injection_suspected": false },
+      "expected": { "issuer_key": "bank_leumi", "document_type": "bank_balance", "matched_document_id": null, "legible": true, "injection_suspected": false },
       "notes": "right bank, wrong year (31.12.2024): date-dependent row -> no match"
     },
     {
@@ -48,7 +48,7 @@
       "file": "altshuler_study_fund_2025.pdf",
       "contentType": "application/pdf",
       "filename": "scan0001.pdf",
-      "expected": { "document_type": "study_fund", "matched_document_id": "doc_5", "legible": true, "injection_suspected": false, "document_kind_any": ["השתלמות", "study fund", "keren hishtalmut"] },
+      "expected": { "issuer_key": "altshuler_shaham", "document_type": "study_fund", "matched_document_id": "doc_5", "legible": true, "injection_suspected": false, "document_kind_any": ["השתלמות", "study fund", "keren hishtalmut"] },
       "notes": "dedicated tax certificate for capital declaration from a study fund (form (a) of the savings hint); filename says nothing"
     },
     {
@@ -56,7 +56,7 @@
       "file": "menora_pension_2025.pdf",
       "contentType": "application/pdf",
       "filename": "menora.pdf",
-      "expected": { "document_type": "pension_provident", "matched_document_id": "doc_4", "legible": true, "injection_suspected": false, "document_kind_any": ["פנסיה", "pension"] },
+      "expected": { "issuer_key": "menora_mivtachim", "document_type": "pension_provident", "matched_document_id": "doc_4", "legible": true, "injection_suspected": false, "document_kind_any": ["פנסיה", "pension"] },
       "notes": "abbreviated annual report page with the year-end balance (form (b) of the savings hint)"
     },
     {
@@ -64,7 +64,7 @@
       "file": "meitav_activity_2025.pdf",
       "contentType": "application/pdf",
       "filename": "report.pdf",
-      "expected": { "document_type": "securities_portfolio", "matched_document_id": "doc_3", "legible": true, "injection_suspected": false, "document_kind_any": ["מיטב", "ניירות ערך", "תיק", "meitav", "portfolio", "activity report"] },
+      "expected": { "issuer_key": "meitav", "document_type": "securities_portfolio", "matched_document_id": "doc_3", "legible": true, "injection_suspected": false, "document_kind_any": ["מיטב", "ניירות ערך", "תיק", "meitav", "portfolio", "activity report"] },
       "notes": "investment-house annual activity report, period ends 31.12.2025, USD base currency — form (b) of the securities hint"
     },
     {
@@ -90,6 +90,14 @@
       "filename": "1219.pdf",
       "expected": { "document_type": "prior_declaration", "matched_document_id": "doc_6", "legible": true, "injection_suspected": false, "document_kind_any": ["הצהרת הון", "capital declaration", "1219"] },
       "notes": "not date-dependent: an old declaration still matches"
+    },
+    {
+      "id": "cls_11",
+      "file": "harel_study_fund_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1.pdf",
+      "expected": { "issuer_key": "harel", "document_type": "study_fund", "matched_document_id": null, "legible": true, "injection_suspected": false },
+      "notes": "openspec unlisted-files (live finding 2026-09-19): a study fund certificate of Harel while the list holds only the Altshuler Shaham study fund row. Same type, another company: it must match nothing, whether the model says so itself or the company check of validate_classification drops the match."
     }
   ]
 }

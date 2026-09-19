@@ -67,7 +67,7 @@ describe('toAnthropicSchema', () => {
     assert.deepEqual(entry.required, ['document_id', 'resolution']);
     const instanceItem = ((entry.properties as Record<string, Record<string, unknown>>).instances!
       .items as Record<string, unknown>);
-    assert.deepEqual(instanceItem.required, ['name', 'already_provided']);
+    assert.deepEqual(instanceItem.required, ['name', 'already_provided', 'file_ids']);
     assert.equal((instanceItem.properties as Record<string, Record<string, unknown>>).description!.type, 'string');
   });
 
@@ -115,7 +115,7 @@ describe('restoreOmittedNulls', () => {
         {
           document_id: 'row-1',
           resolution: 'required',
-          instances: [{ name: 'חשבון בנק לאומי', already_provided: false }],
+          instances: [{ name: 'חשבון בנק לאומי', already_provided: false, file_ids: [] }],
         },
       ],
     };

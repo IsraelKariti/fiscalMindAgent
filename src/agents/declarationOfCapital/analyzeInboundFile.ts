@@ -3,6 +3,7 @@ import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { analyzeFile, isAnalyzable } from './analyzeFile.js';
+import { classifierCandidates } from './analyzeFileRules.js';
 import { cutPdf, readPdfPageCount, type PageRange } from './pdfPages.js';
 import { splitFile } from './splitFile.js';
 import { childDisplayName } from './splitChildNames.js';
@@ -246,7 +247,9 @@ async function storeChild(parent: DocumentFileRow, range: PageRange, bytes: Buff
 async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<void> {
   const clientId = ctx.client.id;
   try {
-    const requiredDocuments = await clientDocuments.listForClient(clientId);
+    // Only items already agreed with the client are match candidates (openspec
+    // `unlisted-files`): a file never settles an open question on its own.
+    const requiredDocuments = classifierCandidates(await clientDocuments.listForClient(clientId));
     // The client carries its own declaration year (the instance has none) —
     // frame the classifier around it, like plan.ts and verifyDocument.ts do.
     const taxYear = capitalClientTaxYear(ctx.client, new Date());

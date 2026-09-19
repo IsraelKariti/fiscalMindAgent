@@ -190,7 +190,11 @@ export interface FileAnalysis {
   summary: string;
   tax_year: string | null;
   subject_name: string | null;
+  /** The company that issued the document, as printed (capital-declaration files; absent on older rows). */
+  issuer_name?: string | null;
   matched_document_id: string | null;
+  /** Why validate_classification dropped the model's match (company check); absent when nothing was dropped. */
+  match_dropped?: string | null;
   legible: boolean;
   confidence: 'high' | 'medium' | 'low';
   /** The analyzer saw instruction-like text addressed at an AI inside the file; absent on rows analyzed before this field existed. */

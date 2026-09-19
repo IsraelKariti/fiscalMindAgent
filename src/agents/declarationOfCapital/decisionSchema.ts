@@ -14,7 +14,18 @@ export const DecisionResponseSchema = z.object({
   /** Ids from the REQUIRED DOCUMENTS list the thread shows the client has now provided. */
   collected_document_ids: z.array(z.string()),
   /** Which received file satisfies which required document (both by id); empty when nothing new matches. */
-  matched_files: z.array(z.object({ file_id: z.string(), document_id: z.string() })),
+  matched_files: z.array(
+    z.object({
+      file_id: z.string(),
+      document_id: z.string(),
+      /**
+       * The client's own words that this file is this document (a real inbound
+       * message_id + verbatim quote). Needed only when code cannot confirm the
+       * company of the file or of the item (institutions.ts); null otherwise.
+       */
+      evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
+    }),
+  ),
   /** Which channel the follow-up goes out on; null/'email' unless the prompt offered WhatsApp. */
   channel: z.enum(['email', 'whatsapp']).nullable(),
   email_subject: z.string().nullable(),
@@ -48,8 +59,9 @@ export const DecisionResponseSchema = z.object({
   /**
    * Capital-declaration intake resolutions (null/empty for other agents): each
    * entry settles one catalog row based on an explicit client statement.
-   * 'not_required' requires evidence (a verbatim quote from a stored inbound
-   * message); 'required' turns the row into 1..N concrete pending documents.
+   * Every entry requires evidence (a verbatim quote from a stored inbound
+   * message) — a received file alone never changes the list (openspec
+   * `unlisted-files`); 'required' turns the row into 1..N concrete pending documents.
    */
   resolved_documents: z
     .array(
@@ -64,10 +76,12 @@ export const DecisionResponseSchema = z.object({
               description: z.string().nullable(),
               /** The client says the office already holds this document — it starts as 'claimed' (awaits the accountant) instead of being requested. */
               already_provided: z.boolean(),
+              /** Ids of already-received files that ARE this document: code attaches them to the new row in this cycle. Empty when none. */
+              file_ids: z.array(z.string()),
             }),
           )
           .nullable(),
-        /** For 'not_required': the client statement this rests on — a real inbound message_id + verbatim quote. */
+        /** The client statement this rests on — a real inbound message_id + verbatim quote. Required for both resolutions. */
         evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
       }),
     )
@@ -84,8 +98,16 @@ export const DecisionResponseSchema = z.object({
       z.object({
         anchor_document_id: z.string(),
         instances: z.array(
-          z.object({ name: z.string(), description: z.string().nullable(), already_provided: z.boolean() }),
+          z.object({
+            name: z.string(),
+            description: z.string().nullable(),
+            already_provided: z.boolean(),
+            /** Ids of already-received files that ARE this document (see resolved_documents). Empty when none. */
+            file_ids: z.array(z.string()),
+          }),
         ),
+        /** The client statement the addition rests on — a real inbound message_id + verbatim quote. */
+        evidence: z.object({ message_id: z.string(), quote: z.string() }),
       }),
     )
     .nullable(),
@@ -189,6 +211,8 @@ export function restorePrunedNulls(parsed: Partial<DecisionResponse>): DecisionR
 export interface MatchedFile {
   file_id: string;
   document_id: string;
+  /** Validated client statement that this file is this document; null when the model gave none. */
+  evidence: EvidenceRef | null;
 }
 
 export type FollowUpMessage =
@@ -217,17 +241,20 @@ export interface ResolvedInstance {
   name: string;
   description: string | null;
   alreadyProvided: boolean;
+  /** Already-received files the model says are this document; code decides which the new row may take. */
+  fileIds: string[];
 }
 
 /** One validated intake resolution (capital declaration). */
 export type DocumentResolution =
   | { documentId: string; resolution: 'not_required'; evidence: EvidenceRef }
-  | { documentId: string; resolution: 'required'; instances: ResolvedInstance[] };
+  | { documentId: string; resolution: 'required'; instances: ResolvedInstance[]; evidence: EvidenceRef };
 
 /** One validated instance addition to an already-resolved type (capital declaration). */
 export interface InstanceAddition {
   anchorDocumentId: string;
   instances: ResolvedInstance[];
+  evidence: EvidenceRef;
 }
 
 /** One validated document retirement (capital declaration): the ladder replaced it. */
@@ -508,14 +535,16 @@ function validateResolutions(raw: DecisionResponse, ctx: DecisionContext): Docum
       continue;
     }
     const instances = normalizeInstances(entry.instances ?? [], row.multiInstance, `required resolution of ${entry.document_id}`);
-    result.push({ documentId: entry.document_id, resolution: 'required', instances });
+    // A list item is created only on the client's quoted words — never on a file alone.
+    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `required resolution of ${entry.document_id}`);
+    result.push({ documentId: entry.document_id, resolution: 'required', instances, evidence });
   }
   return result;
 }
 
 /** Shared instance normalization + caps for resolutions and post-resolution additions. */
 function normalizeInstances(
-  raw: { name: string; description: string | null; already_provided: boolean }[],
+  raw: { name: string; description: string | null; already_provided: boolean; file_ids?: string[] | null }[],
   multiInstance: boolean,
   what: string,
 ): ResolvedInstance[] {
@@ -523,6 +552,7 @@ function normalizeInstances(
     name: i.name.trim(),
     description: i.description?.trim() || null,
     alreadyProvided: i.already_provided,
+    fileIds: [...new Set(i.file_ids ?? [])],
   }));
   if (instances.length === 0) {
     throw new Error(`${what} needs at least one instance ({name, description})`);
@@ -537,6 +567,27 @@ function normalizeInstances(
     throw new Error(`${what}: at most ${MAX_RESOLUTION_INSTANCES} instances`);
   }
   return instances;
+}
+
+/**
+ * File-to-document pairs: the evidence of a pair is kept only when it is a
+ * verbatim quote of a stored inbound message. A pair with missing or invalid
+ * evidence is not an error — it simply carries none, and plan.ts then refuses
+ * it where the company check needs the client's words (institutions.ts).
+ */
+function validateMatchedFiles(raw: DecisionResponse, ctx: DecisionContext): MatchedFile[] {
+  const inboundTexts = ctx.intake?.inboundTexts;
+  return raw.matched_files.map((m) => {
+    let evidence: EvidenceRef | null = null;
+    if (m.evidence && inboundTexts) {
+      try {
+        evidence = validateEvidence(m.evidence, inboundTexts, `matched file ${m.file_id}`);
+      } catch {
+        evidence = null;
+      }
+    }
+    return { file_id: m.file_id, document_id: m.document_id, evidence };
+  });
 }
 
 /**
@@ -568,7 +619,8 @@ function validateAddedInstances(raw: DecisionResponse, ctx: DecisionContext): In
       throw new Error(`added_instances: the type of document ${entry.anchor_document_id} allows a single instance only`);
     }
     const instances = normalizeInstances(entry.instances, true, `added_instances for ${entry.anchor_document_id}`);
-    result.push({ anchorDocumentId: entry.anchor_document_id, instances });
+    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `added_instances for ${entry.anchor_document_id}`);
+    result.push({ anchorDocumentId: entry.anchor_document_id, instances, evidence });
   }
   return result;
 }
@@ -709,12 +761,13 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
   const addedInstances = validateAddedInstances(raw, ctx);
   const retired = validateRetirements(raw, ctx);
   const attestation = validateAttestation(raw, ctx);
+  const matchedFiles = validateMatchedFiles(raw, ctx);
   if (raw.decision === 'goal_complete') {
     return {
       decision: 'goal_complete',
       reasoning: raw.reasoning,
       collected_document_ids: raw.collected_document_ids,
-      matched_files: raw.matched_files,
+      matched_files: matchedFiles,
       tax_fetch: taxFetch,
       resolutions,
       addedInstances,
@@ -729,7 +782,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
     decision: 'follow_up',
     reasoning: raw.reasoning,
     collected_document_ids: raw.collected_document_ids,
-    matched_files: raw.matched_files,
+    matched_files: matchedFiles,
     message: normalizeFollowUpMessage(raw, ctx),
     send_at: raw.send_at.trim(),
     tax_fetch: taxFetch,

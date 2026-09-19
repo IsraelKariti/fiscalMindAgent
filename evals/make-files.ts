@@ -110,6 +110,25 @@ const DOCS: Record<string, string> = {
      <p class="muted">This certificate is intended for the capital declaration submitted to the Israel Tax Authority and confirms cumulative deposits, not the accrued balance.</p>
      <div class="sig">Altshuler Shaham Gemel & Pension Ltd.<br><span class="stamp">אלטשולר שחם</span></div>`,
   ),
+  // A second study fund, of another managing company: must NOT match a list that holds only the Altshuler row.
+  'harel_study_fund_2025.pdf': page(
+    'Harel study fund certificate',
+    `<div class="letterhead"><div class="logo" style="color:#0b4da2">Harel Pension & Gemel</div><div class="he"><div class="logo" style="color:#0b4da2">הראל פנסיה וגמל</div></div></div>
+     <h1 class="he">אישור מס להצהרת הון — קרן השתלמות</h1>
+     <h1>Tax certificate for capital declaration — study fund</h1>
+     <p class="muted">Issued from the member's personal area on 14.01.2026</p>
+     <table>
+       <tr><th>Member name</th><td>${client.name} (${client.nameHe})</td></tr>
+       <tr><th>ID number</th><td>${client.id}</td></tr>
+       <tr><th>Fund</th><td>Harel Study Fund — General track</td></tr>
+       <tr><th>Account number</th><td>5521907</td></tr>
+       <tr><th>Withholding file number</th><td>937455120</td></tr>
+     </table>
+     <div class="box"><p>We hereby certify that the total deposits to the above account, from the first deposit date until <b>31.12.2025</b>, amount to <b>41,250.00 ILS</b>.</p>
+     <p class="he">הרינו לאשר כי סך ההפקדות לחשבון הנ"ל, ממועד ההפקדה הראשונה ועד ליום 31.12.2025, הינו 41,250.00 ש"ח.</p></div>
+     <p class="muted">This certificate is intended for the capital declaration submitted to the Israel Tax Authority and confirms cumulative deposits, not the accrued balance.</p>
+     <div class="sig">Harel Pension & Gemel Ltd.<br><span class="stamp">הראל פנסיה וגמל</span></div>`,
+  ),
   'menora_pension_2025.pdf': page(
     'Menora Mivtachim pension annual report',
     `<div class="letterhead"><div class="logo" style="color:#7a1fa2">Menora Mivtachim Pension</div><div class="he"><div class="logo" style="color:#7a1fa2">מנורה מבטחים פנסיה</div></div></div>

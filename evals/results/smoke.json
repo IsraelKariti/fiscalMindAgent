@@ -1,6 +1,6 @@
 {
-  "ranAt": "2026-09-19T15:31:23.932Z",
-  "finishedAt": "2026-09-19T15:31:53.800Z",
+  "ranAt": "2026-09-19T16:01:15.465Z",
+  "finishedAt": "2026-09-19T16:01:44.031Z",
   "models": [
     "gemini-2.5-flash"
   ],
@@ -29,21 +29,137 @@
       "stage": "generate_message",
       "model": "gemini-2.5-flash",
       "provider": "gemini",
-      "caseId": "dec_10",
-      "notes": "Change reply-after-verification (2026-09-19): the cycle that collects a file withholds its message and does NOT apply the fetch action; the follow-up cycle (this snapshot: the bank row is already approved, the client's consent to the Altshuler fetch is in the same turn) must propose client_agreed again, or the consent would be lost.",
-      "ranAt": "2026-09-19T15:31:24.307Z",
-      "latencyMs": 29487,
+      "caseId": "dec_11",
+      "notes": "Change reply-after-verification (2026-09-19 live test): two files of THIS turn were rejected by verification, yet the single reply said they were 'received and passed on for checking', because the row note only says 'a previous file failed'. With the VERIFICATION RESULTS block (case input verification_results) the reply must name both documents and must not call them received-for-checking or verified.",
+      "ranAt": "2026-09-19T16:01:15.935Z",
+      "latencyMs": 18393,
       "attempts": 1,
-      "inputTokens": 19667,
-      "outputTokens": 351,
-      "thinkingTokens": 3064,
+      "inputTokens": 18495,
+      "outputTokens": 332,
+      "thinkingTokens": 898,
       "cachedTokens": 0,
-      "costUsd": 0.014437600000000002,
+      "costUsd": 0.0086235,
       "error": null,
       "output": {
         "email_subject": null,
         "email_body": null,
-        "whatsapp_text": "מעולה ישראל, תודה!\nלגבי הפנסיה באלטשולר שחם – כשנתחיל את המשיכה, יישלח אליך קוד אימות ב-SMS לנייד. ברגע שתקבל אותו, אשמח שתעביר לי אותו כאן בוואטסאפ כדי שאוכל להמשיך.\nאת אישור היתרה מבנק לאומי כבר קיבלנו ואומת, אז זה בסדר גמור.",
+        "whatsapp_text": "היי ישראל, תודה ששלחת את האישורים.\nרק רציתי לעדכן שהמסמכים מבנק דיסקונט ומאלטשולר שחם רשומים על שם \"Israel Israeli\", וזה לא תואם את שמך המלא, ישראל ישראלי.\nתוכל בבקשה לשלוח שוב את האישורים, ולוודא שהם מופיעים על שמך המלא, ישראל ישראלי, ליום 31.12.2025?\nאני כאן אם תצטרך עזרה בהפקה.",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client sent two documents, but both were rejected due to a name mismatch (registered as 'Israel Israeli' instead of 'ישראל ישראלי'). I need to inform the client about the rejection, explain the reason, and ask for corrected documents with the proper name. Since the client just sent a message, I am responding immediately.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "2026-09-19 12:15"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 3",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "after 2026-09-19T09:12:00Z",
+          "actual": "2026-09-19 12:15",
+          "pass": true
+        },
+        {
+          "key": "message_includes.דיסקונט",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "message_includes.אלטשולר",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.לבדיקה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.בבדיקה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.התקבלו ואומתו",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client sent two documents, but both were rejected due to a name mismatch (registered as 'Israel Israeli' instead of 'ישראל ישראלי'). I need to inform the client about the rejection, explain the reason, and ask for corrected documents with the proper name. Since the client just sent a message, I am responding immediately.",
+        "send_at": "2026-09-19 12:15",
+        "message": "היי ישראל, תודה ששלחת את האישורים.\nרק רציתי לעדכן שהמסמכים מבנק דיסקונט ומאלטשולר שחם רשומים על שם \"Israel Israeli\", וזה לא תואם את שמך המלא, ישראל ישראלי.\nתוכל בבקשה לשלוח שוב את האישורים, ולוודא שהם מופיעים על שמך המלא, ישראל ישראלי, ליום 31.12.2025?\nאני כאן אם תצטרך עזרה בהפקה.",
+        "resolutions": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_10",
+      "notes": "Change reply-after-verification (2026-09-19): the cycle that collects a file withholds its message and does NOT apply the fetch action; the follow-up cycle (this snapshot: the bank row is already approved, the client's consent to the Altshuler fetch is in the same turn) must propose client_agreed again, or the consent would be lost.",
+      "ranAt": "2026-09-19T16:01:15.841Z",
+      "latencyMs": 28187,
+      "attempts": 1,
+      "inputTokens": 19885,
+      "outputTokens": 340,
+      "thinkingTokens": 1420,
+      "cachedTokens": 0,
+      "costUsd": 0.0103655,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "מעולה ישראל, תודה! לגבי אישור בנק לאומי, הוא כבר התקבל ואומת אצלנו. \nלגבי הפנסיה באלטשולר שחם, מעולה שאישרת. כשנתחיל את המשיכה, יישלח אליך קוד לנייד. ברגע שתקבל אותו, אנא העבר אותו אליי כאן בוואטסאפ.",
         "whatsapp_template": null,
         "tax_fetch_action": "client_agreed",
         "tax_fetch_provider": "altshuler_shaham",
@@ -56,7 +172,7 @@
         "attestation": null,
         "attestation_evidence": null,
         "decision": "follow_up",
-        "reasoning": "The client agreed to fetch the pension document from Altshuler Shaham. Setting tax_fetch_action to client_agreed and explaining the next step for the code. Acknowledging the Bank Leumi document is already approved. Responding immediately as the client just sent a message.",
+        "reasoning": "The client agreed to pull the pension document from Altshuler Shaham. I need to set the tax_fetch_action to client_agreed and explain the code process. I also need to acknowledge that the Bank Leumi document is already approved, as the client mentioned it again.",
         "collected_document_ids": [],
         "matched_files": [],
         "channel": "whatsapp",
@@ -107,9 +223,9 @@
         }
       ],
       "info": {
-        "reasoning": "The client agreed to fetch the pension document from Altshuler Shaham. Setting tax_fetch_action to client_agreed and explaining the next step for the code. Acknowledging the Bank Leumi document is already approved. Responding immediately as the client just sent a message.",
+        "reasoning": "The client agreed to pull the pension document from Altshuler Shaham. I need to set the tax_fetch_action to client_agreed and explain the code process. I also need to acknowledge that the Bank Leumi document is already approved, as the client mentioned it again.",
         "send_at": "2026-09-19 12:15",
-        "message": "מעולה ישראל, תודה!\nלגבי הפנסיה באלטשולר שחם – כשנתחיל את המשיכה, יישלח אליך קוד אימות ב-SMS לנייד. ברגע שתקבל אותו, אשמח שתעביר לי אותו כאן בוואטסאפ כדי שאוכל להמשיך.\nאת אישור היתרה מבנק לאומי כבר קיבלנו ואומת, אז זה בסדר גמור.",
+        "message": "מעולה ישראל, תודה! לגבי אישור בנק לאומי, הוא כבר התקבל ואומת אצלנו. \nלגבי הפנסיה באלטשולר שחם, מעולה שאישרת. כשנתחיל את המשיכה, יישלח אליך קוד לנייד. ברגע שתקבל אותו, אנא העבר אותו אליי כאן בוואטסאפ.",
         "resolutions": [],
         "tax_fetch": {
           "action": "client_agreed",
@@ -129,22 +245,22 @@
   "summary": {
     "generate_message": {
       "gemini-2.5-flash": {
-        "total": 1,
-        "passed": 0,
-        "passRate": 0,
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
         "errors": 0,
         "latencyMs": {
-          "avg": 29487,
-          "p50": 29487,
-          "p90": 29487,
-          "min": 29487,
-          "max": 29487
+          "avg": 23290,
+          "p50": 18393,
+          "p90": 18393,
+          "min": 18393,
+          "max": 28187
         },
-        "inputTokens": 19667,
-        "outputTokens": 351,
-        "thinkingTokens": 3064,
+        "inputTokens": 38380,
+        "outputTokens": 672,
+        "thinkingTokens": 2318,
         "cachedTokens": 0,
-        "costUsd": 0.014438,
+        "costUsd": 0.018989,
         "unpriced": 0
       }
     }

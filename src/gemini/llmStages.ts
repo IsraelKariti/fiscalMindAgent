@@ -143,7 +143,7 @@ const STAGES: StageStatic[] = [
         parts: [
           {
             kind: 'text',
-            body: '--- REQUIRED DOCUMENTS [{{token}}] --- … --- SUBMITTED QUESTIONNAIRE [{{token}}] --- … --- INTAKE STATUS [{{token}}] --- … --- UNSENT DRAFTS [{{token}}] --- (only when the agent has undelivered drafts) … --- MESSAGE THREAD [{{token}}] --- …\n\nDecide the next action now.',
+            body: '--- REQUIRED DOCUMENTS [{{token}}] --- … --- SUBMITTED QUESTIONNAIRE [{{token}}] --- … --- INTAKE STATUS [{{token}}] --- … --- UNSENT DRAFTS [{{token}}] --- (only when the agent has undelivered drafts) … --- VERIFICATION RESULTS [{{token}}] --- (only in the follow-up cycle after a verification batch: each file of this turn with APPROVED / REJECTED + reasons / HANDED TO THE OFFICE / NOT VERIFIED YET) … --- MESSAGE THREAD [{{token}}] --- …\n\nDecide the next action now.',
           },
         ],
       },

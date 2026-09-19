@@ -21,9 +21,18 @@
 - [x] 4.2 Update the verification pipeline section of `docs/agents.md`; verify the text matches `specs/verification-reply/spec.md`
 - [x] 4.3 Add a `generate_message` eval case with the `add-eval-case` skill: follow-up cycle (documents already `collected`, a fetch offer accepted in the same client turn) must propose the `client_agreed` fetch action; verify with the `run-evals` skill that the case passes and no other case regresses
 
+## 6. Verification results in the follow-up prompt
+
+- [x] 6.1 `src/agents/types.ts`: add `verificationResults` to `PlanHints`; pass the batch results from `plan.ts` (recursion) and from `verifyBatchAndReplan`; verify `npm run typecheck` passes
+- [x] 6.2 `prompt.ts`: add `PLATFORM_SECTIONS.verification` and `buildVerificationResultsSection` (one line per document: ids, names, fixed result words, sanitized reasons; empty list → no block) and place it before the thread in `buildPrompt`; verify with `tests/verificationResultsSection.test.ts` (empty → '', approved / rejected with reasons / stalled / not verified lines, reasons sanitized, block sits before the thread)
+- [x] 6.3 `plan.ts`: build the block rows from the reloaded documents and files when the hint carries results; verify `npm run typecheck` passes
+- [x] 6.4 `prompt.md`: rewrite the "document just passed verification" rule to trigger on the VERIFICATION RESULTS block (rejected is never "received" or "being checked"); update the `generate_message` query description in `src/gemini/llmStages.ts`; verify `npm test` passes
+- [x] 6.5 Evals: `verification_results` case input, `message_includes` / `message_excludes` asserts in `evals/stages.ts`, new case `dec_11` (two files of this turn rejected for a name mismatch), README row; verify with one paid run that `dec_11` passes and `dec_10` still passes
+- [x] 6.6 Update `docs/agents.md`; verify the text matches the spec
+
 ## 5. End-to-end check
 
 - [x] 5.1 On the local stack (user runs `npm run dev`; instance in review mode; test client `ZZ turn e2e test`, unpause it first): drive `onInboundWhatsApp` with one valid PDF (patched Twilio media fetch, as in `reply-after-full-turn`); verify exactly one outbound draft row for the turn, created after the `extract_document` call, and one `withhold_reply` + one `planner.rerun_after_verification` step
 - [x] 5.2 Same with two PDFs for two different documents in one turn; verify two `extract_document` calls, two `generate_message` calls in total, and one draft (verified 2026-09-19 on the first test client, whose two rows were already pending: two extractions, one rerun step with two outcomes, one draft. On a fresh client only one row was collected — a row created in a cycle cannot be collected in the same cycle; that is unchanged behaviour)
-- [ ] 5.3 Same with a PDF that fails verification (wrong year, e.g. `evals/files/leumi_balance_2024.pdf`); verify the single draft asks for a corrected document and no draft treats it as received
-- [ ] 5.4 Pause the test client again, run `npm run typecheck` and `npm test`; verify both pass
+- [x] 5.3 Same with files that fail verification (the first test client, whose name does not match the synthetic PDFs; a wrong-year file is caught by the planner before verification); verify the single draft reports the just-sent files as rejected with the reason and does not call them received or being checked
+- [x] 5.4 Pause the test client again, run `npm run typecheck` and `npm test`; verify both pass

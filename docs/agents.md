@@ -845,7 +845,15 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   only returns its outcome and never re-plans. Batches started outside a
   planning cycle (fetch delivery, `taxFetch/deliver.ts`) use
   `verifyBatchAndReplan`: verify the batch, then one locked re-plan with the
-  hint.
+  hint. The follow-up cycle is told which verdicts just landed:
+  `PlanHints.verificationResults` becomes the **VERIFICATION RESULTS** prompt
+  block (`buildVerificationResultsSection`, a trusted `PLATFORM_SECTIONS`
+  entry, placed before the thread; absent in every other cycle) — one line per
+  document with the file of this turn and `APPROVED` / `REJECTED: <reasons>` /
+  `HANDED TO THE OFFICE` / `NOT VERIFIED YET`. Without it the model only saw
+  the row note "קובץ קודם נפסל באימות" and described just-rejected files as
+  "received, being checked" (live test 2026-09-19). `prompt.md` keys its
+  report-the-verdict rule on this block, not on "the last message is yours".
 - **Spend cap** (`gemini/budget.ts`, admin Settings → "תקרת הוצאה למודלים",
   `GET/PUT /api/admin/llm-budget`): two daily USD ceilings in `app_settings`
   (`llm_budget_daily_usd` platform-wide, `llm_budget_daily_instance_usd` per

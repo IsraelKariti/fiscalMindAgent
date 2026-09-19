@@ -5,7 +5,7 @@ import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as emails from '../../db/queries/emails.js';
 import * as waSenders from '../../db/queries/waSenders.js';
 import * as waTemplates from '../../db/queries/waTemplates.js';
-import { buildPrompt, type WaChannelState } from './prompt.js';
+import { buildPrompt, type VerificationResultPromptInput, type WaChannelState } from './prompt.js';
 import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccountant.js';
 import { applicableFilePairs, fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
@@ -178,6 +178,25 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   );
   const unsentDrafts = await emails.listUnsentDraftsForClient(clientId, lastDeliveredOutboundAt, MAX_UNSENT_DRAFTS);
 
+  // Follow-up cycle after a verification batch: tell the model which files of
+  // THIS turn were just approved or rejected (the reasons live on the rows).
+  const verificationResults: VerificationResultPromptInput[] = (ctx.hints?.verificationResults ?? []).flatMap((r) => {
+    const doc = documents.find((d) => d.id === r.documentId);
+    if (!doc) return [];
+    const file = files.find((f) => f.id === r.fileId);
+    const reasons = (doc.verification as { reasons?: unknown } | null)?.reasons;
+    return [
+      {
+        documentId: doc.id,
+        documentName: doc.name,
+        fileId: r.fileId,
+        fileName: file ? (file.label ?? file.filename) : r.fileId,
+        outcome: r.outcome,
+        reasons: Array.isArray(reasons) ? reasons.filter((x): x is string => typeof x === 'string') : [],
+      },
+    ];
+  });
+
   const { systemInstruction, contents } = buildPrompt(
     client,
     accountant,
@@ -194,6 +213,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       attestation: intake.attestationConfirmed ? 'confirmed' : intake.attestationRequested ? 'requested' : 'none',
     },
     unsentDrafts,
+    verificationResults,
   );
   const decisionCtx: DecisionContext = {
     // WhatsApp-only: the planner may never choose email.
@@ -503,7 +523,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     const fresh = await clients.getById(clientId);
     if (!fresh) return;
     // The hint blocks collecting, so the follow-up has no targets: depth 1, no loop.
-    return planFollowUp({ ...ctx, client: fresh, hints: { ...ctx.hints, afterVerification: true } });
+    return planFollowUp({ ...ctx, client: fresh, hints: { ...ctx.hints, afterVerification: true, verificationResults: results } });
   }
 
   // Completion is derived from the documents, not the LLM's decision field:

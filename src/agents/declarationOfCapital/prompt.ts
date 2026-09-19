@@ -24,6 +24,7 @@ export const PLATFORM_SECTIONS = {
   documentFetch: 'DOCUMENT FETCH',
   deadline: 'COLLECTION DEADLINE',
   intake: 'INTAKE STATUS',
+  verification: 'VERIFICATION RESULTS',
 } as const;
 
 /** Everything the prompt tells the LLM about the WhatsApp channel's current availability. */
@@ -396,6 +397,42 @@ function formatFileAnalysis(file: DocumentFileRow, childCount = 0): string {
   return `content analysis (from the file's actual contents): ${parts.join(' | ')}`;
 }
 
+/** One just-verified file of this turn, as the follow-up planning cycle is told about it. */
+export interface VerificationResultPromptInput {
+  documentId: string;
+  documentName: string;
+  fileId: string;
+  fileName: string;
+  outcome: 'approved' | 'reopened' | 'stalled' | 'skipped' | 'error';
+  /** Our own code's Hebrew check reasons (client_documents.verification.reasons); empty unless rejected/stalled. */
+  reasons: string[];
+}
+
+/**
+ * The verdicts of the files the client sent in THIS turn (openspec
+ * `verification-reply`). The row note "קובץ קודם נפסל באימות" cannot tell the
+ * model that the rejected file is the one it is answering about; this block
+ * can. Platform-written (trusted); empty list → no block.
+ */
+export function buildVerificationResultsSection(token: string, results: VerificationResultPromptInput[]): string {
+  if (results.length === 0) return '';
+  const name = PLATFORM_SECTIONS.verification;
+  const lines = results.map((r) => {
+    const reasons = r.reasons.map((x) => sanitizeInline(x, 200)).filter((x) => x !== '').join('; ');
+    const verdict =
+      r.outcome === 'approved'
+        ? 'APPROVED — the document is closed'
+        : r.outcome === 'reopened'
+          ? `REJECTED${reasons ? `: ${reasons}` : ''} — this file does NOT count as received; ask for a corrected document`
+          : r.outcome === 'stalled'
+            ? `HANDED TO THE OFFICE${reasons ? `: ${reasons}` : ''} — automatic verification could not approve it; the office will check it, do not ask for it again`
+            : 'NOT VERIFIED YET — received, the automatic check has not run; do not call it approved or rejected';
+    return `[document id: ${r.documentId}] ${sanitizeInline(r.documentName, 200)} | file just received: [file_id: ${r.fileId}] ${sanitizeInline(r.fileName, 150)} | result: ${verdict}`;
+  });
+  const intro = 'The automatic verification of the files the client sent in this turn has just finished. Report every line below in your message.';
+  return `${fence(token, name)}\n${intro}\n${lines.join('\n')}\n${endFence(token, name)}`;
+}
+
 const UNSENT_DRAFT_BODY_MAX = 1_500;
 
 /**
@@ -497,6 +534,7 @@ export function buildPrompt(
   taxYear?: number,
   intake?: IntakePromptInput,
   unsentDrafts: EmailRow[] = [],
+  verificationResults: VerificationResultPromptInput[] = [],
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
@@ -507,6 +545,7 @@ export function buildPrompt(
     buildWhatsAppSection(token, waState),
     buildTaxFetchSection(token, taxFetch),
     buildUnsentDraftsSection(token, unsentDrafts),
+    buildVerificationResultsSection(token, verificationResults),
     buildThreadTranscript(token, history, files),
   ].filter((s) => s !== '');
   return {

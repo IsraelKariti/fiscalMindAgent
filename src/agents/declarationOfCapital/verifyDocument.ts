@@ -368,7 +368,7 @@ export async function verifyBatchAndReplan(
   try {
     await withClientLock(client.id, async () => {
       await removeFutureEmail(client.id);
-      await setFutureEmail(client.id, { afterVerification: true });
+      await setFutureEmail(client.id, { afterVerification: true, verificationResults: results });
     });
   } catch (err) {
     logger.error('post-verification re-plan failed', err, { clientId: client.id, documentIds: targets.map((t) => t.documentId) });

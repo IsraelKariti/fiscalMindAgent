@@ -41,6 +41,21 @@ The planning cycle that collects documents SHALL apply all of its validated stat
 - **WHEN** the collecting cycle proposes the client-agreed fetch action and its draft is withheld
 - **THEN** no fetch session state changes in that cycle, and the follow-up cycle applies the fetch action together with the message it drafts
 
+### Requirement: The follow-up cycle knows the verdicts of this turn
+The follow-up planning cycle SHALL be given, for every document of the batch, the document, the file that was verified, the outcome, and the failure reasons when the file was rejected. The reply SHALL report a rejected file as rejected, with its reason, and SHALL NOT describe it as received, pending, or still being checked.
+
+#### Scenario: Two files of this turn are rejected
+- **WHEN** a client sends two files in one turn and verification rejects both
+- **THEN** the single reply names both documents as not accepted, gives the reason, and asks for corrected documents
+
+#### Scenario: One approved and one rejected
+- **WHEN** a client sends two files in one turn, one is approved and one is rejected
+- **THEN** the single reply confirms the approved document and asks for a corrected version of the rejected one
+
+#### Scenario: Verification could not run
+- **WHEN** the verification of a file was skipped or ended with an error
+- **THEN** the reply treats that file as received and not yet verified, and does not call it approved or rejected
+
 ### Requirement: A verification problem never blocks the reply
 If the verification of a document ends with an error, or is skipped because the platform kill switch is on, the follow-up planning cycle SHALL still run once the rest of the batch is finished.
 

@@ -40,7 +40,13 @@ import {
   type DecisionResponse,
   type IntakeDecisionState,
 } from '../src/agents/declarationOfCapital/decisionSchema.js';
-import { buildPrompt, type IntakePromptInput, type TaxFetchPromptInput, type WaChannelState } from '../src/agents/declarationOfCapital/prompt.js';
+import {
+  buildPrompt,
+  type IntakePromptInput,
+  type TaxFetchPromptInput,
+  type VerificationResultPromptInput,
+  type WaChannelState,
+} from '../src/agents/declarationOfCapital/prompt.js';
 import { getProviderSpec } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
 import { env } from '../src/config/env.js';
 import { zonedTimeToUtc } from '../src/util/time.js';
@@ -545,6 +551,11 @@ interface DecideCase {
    * checklist like the app does (taxFetch/flow.ts); the client counts as live on WhatsApp when the window is open.
    */
   tax_fetch?: { provider: string; state: string }[];
+  /**
+   * Follow-up cycle after a verification batch: the verdicts that just landed, shown in the VERIFICATION RESULTS
+   * block. The reasons come from the row's `verification.reasons`, like in the app.
+   */
+  verification_results?: { document_id: string; file_name: string; outcome: 'approved' | 'reopened' | 'stalled' | 'skipped' | 'error' }[];
   attestation?: {
     /** ISO instant the attestation summary was SENT; null = not requested. */
     requestedAt: string | null;
@@ -564,6 +575,10 @@ interface DecideCase {
     tax_fetch_action?: string | null;
     /** Row id -> substrings that must NOT appear in the message (the row is settled and must not be brought up). */
     no_settled_rows_mentioned?: Record<string, string[]>;
+    /** Substrings that must ALL appear in the message. */
+    message_includes?: string[];
+    /** Substrings that must NOT appear in the message. */
+    message_excludes?: string[];
     /** Default true for follow_up: the message names 31.12.<taxYear>. */
     mentions_valuation_date?: boolean;
     /** Default 3. */
@@ -798,7 +813,19 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
   build(c, ctx) {
     const { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
-    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPrompt, taxYear, intakePrompt, unsentDraftRows(c));
+    const verificationResults: VerificationResultPromptInput[] = (c.verification_results ?? []).map((r, i) => {
+      const doc = documents.find((d) => d.id === r.document_id);
+      const reasons = (doc?.verification as { reasons?: unknown } | null)?.reasons;
+      return {
+        documentId: r.document_id,
+        documentName: doc?.name ?? r.document_id,
+        fileId: `file-eval-${i + 1}`,
+        fileName: r.file_name,
+        outcome: r.outcome,
+        reasons: Array.isArray(reasons) ? reasons.filter((x): x is string => typeof x === 'string') : [],
+      };
+    });
+    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPrompt, taxYear, intakePrompt, unsentDraftRows(c), verificationResults);
     const { spec, schema } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
     return { spec, parse: (text) => restorePrunedNulls(schema.parse(JSON.parse(text))) };
   },
@@ -842,6 +869,8 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
         sendAtOk = false;
       }
       checks.push({ key: 'send_at_future', expected: `after ${c.now}`, actual: decision.send_at, pass: sendAtOk });
+      for (const word of e.message_includes ?? []) checks.push({ key: `message_includes.${word}`, expected: true, actual: body.includes(word), pass: body.includes(word) });
+      for (const word of e.message_excludes ?? []) checks.push({ key: `message_excludes.${word}`, expected: false, actual: body.includes(word), pass: !body.includes(word) });
       for (const [rowId, words] of Object.entries(e.no_settled_rows_mentioned ?? {})) {
         const row = documents.find((d) => d.id === rowId);
         const settled = row !== undefined && SETTLED_STATUSES.has(row.status);

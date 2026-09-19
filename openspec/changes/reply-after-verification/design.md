@@ -44,6 +44,14 @@ When the draft is withheld the cycle returns before: the `send_at` handling, `sc
 ### 5. Drafting state
 No change needed for the replan worker and the manual redraft: `setFutureEmail` stamps `drafting_since` before `planFollowUp` and clears it after, and both cycles run inside that one call. During a long batch the stamp can pass the workspace's 3-minute "stale" limit, so `verifyBatch` re-stamps `markDraftingStarted` before each document.
 
+### 6. The follow-up cycle gets a VERIFICATION RESULTS block
+Found in the live test: the row note `קובץ קודם נפסל באימות` ("a previous file failed") does not tell the model that the rejected file is the one from this turn, and the system-prompt rule for reporting a verdict is conditioned on "the last message in the thread is yours" — true in the old flow (the early draft had been sent), false now.
+- `PlanHints` gains `verificationResults: { documentId, fileId, outcome }[]` next to `afterVerification`. Both callers pass the batch results (`plan.ts` recursion, `verifyBatchAndReplan` → `setFutureEmail(hints)`).
+- `buildVerificationResultsSection(token, rows)` in `prompt.ts`, a platform section (`PLATFORM_SECTIONS.verification = 'VERIFICATION RESULTS'`, so the untrusted-data doctrine lists it as trusted). One line per document: document id + name, file id + name, and the result in fixed words — `APPROVED`, `REJECTED: <reasons>` (our own Hebrew check reasons from `verification.reasons`, sanitized as today), `HANDED TO THE OFFICE` (stalled), `NOT VERIFIED YET` (skipped / error). Empty list → no block, so every other cycle's prompt is unchanged.
+- `plan.ts` builds the rows from the freshly loaded documents and files; the reasons are read from the row, not carried in the hint.
+- `prompt.md`: the "document just passed verification" rule is rewritten to trigger on the block, and says: report every listed file; a REJECTED file is never "received" or "being checked"; NOT VERIFIED YET is "received, will be checked".
+- Evals: a `generate_message` case can supply `verification_results`; the judge gains `message_includes` / `message_excludes` substring asserts (same style as `no_settled_rows_mentioned`). New case: two files of this turn rejected for a name mismatch.
+
 ## Risks / Trade-offs
 
 - [The follow-up cycle does not repeat a message-bound action the first cycle proposed (fetch `client_agreed`, attestation request)] → it reads the same conversation and the same session state, so the same rules lead to the same proposal; an eval case covers "client agrees to a fetch and sends a file in one turn". The combination is rare: an attestation request needs every row settled, which a collecting cycle never has.

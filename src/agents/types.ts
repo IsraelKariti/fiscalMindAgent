@@ -18,6 +18,12 @@ export interface PlanHints {
    * files in this cycle (nothing new arrived), so it cannot verify again.
    */
   afterVerification?: boolean;
+  /**
+   * The verdicts that just landed (openspec `verification-reply`): shown to
+   * the planner in the VERIFICATION RESULTS block so it reports THIS turn's
+   * files — a rejected file is never "received" or "being checked".
+   */
+  verificationResults?: { documentId: string; fileId: string; outcome: 'approved' | 'reopened' | 'stalled' | 'skipped' | 'error' }[];
 }
 
 /** Everything a hook needs to act for one client of one agent instance. */

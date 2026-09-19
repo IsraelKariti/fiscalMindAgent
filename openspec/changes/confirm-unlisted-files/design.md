@@ -13,11 +13,11 @@ See proposal.md for the motivation and the two live findings. What shapes the ap
 
 **Goals:**
 - A file can never change the list: enforced in code, not only in the prompt.
-- The file check stops matching files to items that were never agreed, and is told not to match across institutions.
+- The file check stops matching files to items that were never agreed, and code cancels every match it cannot confirm as the same company.
 - After the client's confirmation the waiting file is attached and verified in the same turn.
 
 **Non-Goals:**
-- A code check of the institution name. The classifier decides it; a wrong cross-institution match is still possible and is a known residual risk (see Risks).
+- A complete registry of Israeli financial institutions. The table starts with the common banks, investment houses and insurers and grows by code change.
 - Changing how the online questionnaire or the accountant create items.
 - Asking about files that are plainly not declaration documents.
 - A new UI surface for "files waiting for the client's answer" — the existing unmatched-files group is enough.
@@ -31,6 +31,15 @@ See proposal.md for the motivation and the two live findings. What shapes the ap
 
 ### 2. Institution rule in the classifier prompt
 One sentence added to `ANALYSIS_PROMPT` next to the `matched_document_id` field: a row names a specific institution / account / asset; another bank, fund, insurer, company or asset of the same type → `null`. Backed by one new `file_classification` eval case (Harel certificate against a list holding only the Altshuler row → `matched_document_id: null`, `document_type: study_fund`). The Harel PDF is added to `evals/make-files.ts` as a synthetic file.
+
+### 2a. Company comparison in code (strict form, owner decision)
+- **Table.** New pure module `institutions.ts`: a list of `{ key, he: string[], en: string[] }` for the common banks (Leumi, Hapoalim, Discount, Mizrahi-Tefahot, First International, Mercantile, Yahav, Jerusalem, Massad, Otsar Ha-Hayal, One Zero), investment / pension houses and insurers (Altshuler Shaham, Harel, Migdal, Menora Mivtachim, Clal, Phoenix, Meitav, Psagot, More, Analyst, Yelin Lapidot, IBI, Excellence, Halman-Aldubi, Ayalon, Hachshara, Infinity). `identifyInstitution(text)` normalizes (lower-case, strips quotes / punctuation / niqqud, collapses whitespace) and returns the single key whose alias appears as a whole-word run; when one alias contains another the longer one wins; two different keys in one text → `null` (ambiguous).
+- **Which types.** `catalog.ts` gains `institutionBound: true` on `bank_balance`, `securities_portfolio`, `pension_provident`, `study_fund`, `life_insurance_savings`, `mortgage_balance`. All other types never run the check.
+- **Classifier answer.** `issuer_name: string | null` ("the company that issued the document, as printed; null when none is printed"). It is attacker-controlled text: sanitized, capped, used only as input to `identifyInstitution` and shown sanitized in the planner's analysis line.
+- **Gate.** `validateClassification` reads the matched row's `name` and `type_key` (`ClassifiableDocument` is extended with `name`). For an institution-bound row: `fileKey = identifyInstitution(issuer_name)`, `itemKey = identifyInstitution(row.name)`; the match is kept only when both are non-null and equal; else it is dropped with `rejectedId` and the check `issuer_matches_item` (observed = issuer / key, expected = item key, note = `companies differ` | `file company not identified` | `item company not identified`). The reason of a dropped match is stored on the analysis so `formatFileAnalysis` can tell the planner why the file matches nothing.
+- **Planner ties.** One pure function `tieAllowed(file, row, hasEvidence)` used by the pair filter in `plan.ts` and by the `file_ids` helper of decision 4: not institution-bound → allowed; both keys known and equal → allowed; both known and different → refused; otherwise allowed only with evidence. `matched_files[]` gains an optional `evidence { message_id, quote }`, validated by `validateEvidence`; for `file_ids` the item's own evidence is the evidence.
+*Alternative considered:* fuzzy string similarity between issuer and item name — rejected: Hebrew / English forms of one company share no characters, and similarity scores are not explainable in the step detail.
+*Alternative considered:* the lenient form (keep the match when a company is unknown) — rejected by the owner in favour of asking the client.
 
 ### 3. Evidence becomes mandatory for every "needed" proposal
 - `resolved_documents[].evidence` (already in the schema, nullable) is validated with `validateEvidence` for `required` too.
@@ -53,7 +62,9 @@ Each instance in `resolved_documents[].instances` and `added_instances[].instanc
 
 ## Risks / Trade-offs
 
-- [The classifier still matches a Harel file to the Altshuler item] → the prompt rule and the eval case reduce it; when it happens the file is attached to the wrong item and verification does not compare institutions today. Accepted for this change; a code check of the issuer is a possible follow-up.
+- [A company missing from the table blocks every automatic match of its files] → intended by the owner (the agent asks the client, then attaches on the client's quoted words); the dropped-match note names the unidentified company so the table can be extended; unit tests list every alias.
+- [An item named without its company (for example from a vague questionnaire answer) never matches automatically] → same path: the agent asks and attaches on the client's words; the prompt tells the planner to name the company in every item it creates for an institution-bound type.
+- [The classifier reports a wrong issuer] → a wrong issuer of a known other company cancels a correct match (safe side: the agent asks); a wrong issuer equal to the item's company would need the classifier to be wrong twice.
 - [The model quotes an unrelated client sentence to push a file-triggered item through] → the quote must exist verbatim in a client message, so the item at least rests on stored client text that the accountant can read in the step detail; the prompt rule and eval case (a) cover the behaviour. Code cannot judge meaning.
 - [Evidence requirement makes the interview stricter: a rejected answer costs a retry] → the gate already retries once with the rejection message; the prompt states the rule explicitly; eval re-run shows the rejection rate before shipping.
 - [Files analysed before this change keep matches to open questions] → only local test data exists; no backfill.

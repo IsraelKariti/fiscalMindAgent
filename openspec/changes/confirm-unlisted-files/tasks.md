@@ -4,6 +4,14 @@
 - [ ] 1.2 Add the institution rule to `ANALYSIS_PROMPT` (`analyzeFile.ts`) next to `matched_document_id`; verify `tests/llmStages.test.ts` still passes (prompt text is described there)
 - [ ] 1.3 Add `harel_study_fund_2025.pdf` to `evals/make-files.ts`, run `npm run evals:files`, and add a `file_classification` case (list holds only the Altshuler row → `matched_document_id: null`, `document_type: study_fund`) per the add-eval-case skill; verify the case passes on `gemini-2.5-flash` via a `--out evals/results/smoke.json` run, and restore `latest.json` / `report.html` if the run touched them
 
+## 1b. Company comparison in code
+
+- [ ] 1b.1 Add the pure module `institutions.ts` (table, `identifyInstitution`, comparison) and `tests/institutions.test.ts` (in the `npm test` list): every alias resolves to its key, Hebrew and English forms of one company agree, two companies in one text → null, longer alias wins, unknown text → null. Verify `npm test` passes
+- [ ] 1b.2 `catalog.ts`: `institutionBound` on the six types of design.md decision 2a; verify `tests/capitalCatalog.test.ts` passes with an added assertion listing them
+- [ ] 1b.3 Classifier: `issuer_name` in `FileAnalysisSchema`, the JSON schema and `ANALYSIS_PROMPT`; `validateClassification` runs the strict comparison for institution-bound rows, reports `issuer_matches_item`, stores the dropped-match reason; `formatFileAnalysis` (`prompt.ts`) shows the issuer and a dropped match. Verify with new cases in `tests/analyzeFileRules.test.ts` for each scenario of the spec requirement, and add the check's label to `web/src/i18n.tsx`
+- [ ] 1b.4 Planner ties: `tieAllowed` pure function + tests; optional `evidence` on `matched_files[]` in all three schemas, validated in `decisionSchema.ts`; the pair filter in `plan.ts` and the `file_ids` helper (task 3.1) use it; refused pairs are listed in the `apply_collections` step detail; `prompt.md` explains the issuer line, the dropped match, and when a pair needs a quote. Verify with unit tests for the outcomes: not bound / same / different / unidentified with and without evidence
+- [ ] 1b.5 Extend the `file_classification` eval judge with `issuer_key` (the key code identifies from the answer's `issuer_name`) and set it on the existing synthetic bank / fund cases and the new Harel case; verify on `gemini-2.5-flash` via a smoke run
+
 ## 2. Decision gate: items only on the client's quoted words
 
 - [ ] 2.1 `decisionSchema.ts`: add `evidence` to `added_instances[]` and `file_ids` to every instance (both resolved and added) in the zod schema, the Gemini JSON schema and the Anthropic variant; verify `tests/anthropicSchema.test.ts` passes
@@ -24,6 +32,7 @@
 ## 5. Live check (user's dev stack, test client in review mode)
 
 - [ ] 5.1 Send the Harel certificate with no text to the paused test client `d4abab00…` after removing its Harel item and unlinking the file (test data): the file ends "matches no document", no item is created, the held draft asks about the Harel fund. Write Hebrew output to a scratchpad file
+- [ ] 5.1b Read the `validate_classification` audit row of the Harel file: `issuer_matches_item` is absent when the classifier matched nothing, or failed with the note that the companies differ when it matched the Altshuler item; in both cases the stored analysis has no matched item
 - [ ] 5.2 Send the text confirmation: the Harel item is created with the quote, the waiting file is attached, verified and approved in that same turn, and the turn has one draft. Then send a pension-type file to a client whose pension question is open: no match, no resolution, the draft asks. Pause the client and delete the scratch script after
 
 ## 6. Docs and wrap-up

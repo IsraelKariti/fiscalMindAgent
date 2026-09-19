@@ -414,8 +414,13 @@ export function Timeline({
     return map;
   }, [files]);
 
-  const attachmentLabel = (file: DocumentFile) => {
+  const attachmentLabel = (file: DocumentFile): string => {
     if (file.label) return file.label;
+    // A child cut out of a multi-document PDF: the original's name plus its pages.
+    const parent = file.parent_file_id ? files.find((f) => f.id === file.parent_file_id) : undefined;
+    if (parent && file.page_from != null && file.page_to != null) {
+      return `${attachmentLabel(parent)} · ${t.splitPagesShort(file.page_from, file.page_to)}`;
+    }
     if (!hasSyntheticName(file)) return file.filename;
     if (file.content_type.startsWith('image/')) return t.attachmentImage;
     if (file.content_type === 'application/pdf') return t.attachmentPdf;
@@ -654,7 +659,9 @@ export function Timeline({
                               ? t.analysisBlockedTitle
                               : file.analysis?.injection_suspected
                                 ? t.analysisSuspiciousTitle
-                                : file.filename
+                                : file.analysis_status === 'split'
+                                  ? t.analysisSplitTitle
+                                  : file.filename
                           }
                           onClick={() => setViewingFile(file)}
                         >

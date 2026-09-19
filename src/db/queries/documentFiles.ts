@@ -37,10 +37,14 @@ export async function insertIfNew(args: {
   sha256: string;
   /** 'not_needed' for files the platform fetched itself (already linked; content analysis does not apply). Default 'pending'. */
   analysisStatus?: 'pending' | 'not_needed';
+  /** A child cut out of a multi-document PDF (058): its parent and its 1-based, inclusive page range. */
+  parentFileId?: string | null;
+  pageFrom?: number | null;
+  pageTo?: number | null;
 }): Promise<DocumentFileRow | null> {
   const { rows } = await pool.query<DocumentFileRow>(
-    `INSERT INTO document_files (client_id, email_id, provider_attachment_id, blob_key, filename, label, content_type, size_bytes, sha256, analysis_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `INSERT INTO document_files (client_id, email_id, provider_attachment_id, blob_key, filename, label, content_type, size_bytes, sha256, analysis_status, parent_file_id, page_from, page_to)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      ON CONFLICT (provider_attachment_id) DO NOTHING
      RETURNING *`,
     [
@@ -54,9 +58,35 @@ export async function insertIfNew(args: {
       args.sizeBytes,
       args.sha256,
       args.analysisStatus ?? 'pending',
+      args.parentFileId ?? null,
+      args.pageFrom ?? null,
+      args.pageTo ?? null,
     ],
   );
   return rows[0] ?? null;
+}
+
+/** The children cut out of a split file, in page order. */
+export async function listChildren(parentFileId: string): Promise<DocumentFileRow[]> {
+  const { rows } = await pool.query<DocumentFileRow>(
+    'SELECT * FROM document_files WHERE parent_file_id = $1 ORDER BY page_from, id',
+    [parentFileId],
+  );
+  return rows;
+}
+
+/** Removes the children of a split that failed half-way (the parent is then classified whole). Returns their blob keys. */
+export async function deleteChildren(parentFileId: string): Promise<string[]> {
+  const { rows } = await pool.query<{ blob_key: string }>(
+    'DELETE FROM document_files WHERE parent_file_id = $1 RETURNING blob_key',
+    [parentFileId],
+  );
+  return rows.map((r) => r.blob_key);
+}
+
+/** The file was cut into one child per document (058): it is never classified itself. */
+export async function setSplit(id: string): Promise<void> {
+  await pool.query(`UPDATE document_files SET analysis_status = 'split', analysis = NULL, analyzed_at = now() WHERE id = $1`, [id]);
 }
 
 /** Stores the content-analysis verdict for a file (analysis is null unless status is 'done'). */

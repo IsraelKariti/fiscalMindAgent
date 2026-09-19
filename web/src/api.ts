@@ -94,7 +94,7 @@ export interface ClientDocument {
 
 /** 'blocked': the injection screen flagged the file before classification — quarantined, never analyzed. */
 /** 'not_needed': the platform fetched the file itself — content analysis does not apply. */
-export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked' | 'not_needed';
+export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked' | 'not_needed' | 'split';
 
 /** What the injection screen found on a withheld message / blocked file. */
 export interface InjectionBlock {
@@ -130,6 +130,10 @@ export interface DocumentFile {
   analysis: FileAnalysis | null;
   /** Set with analysis_status 'blocked'. */
   blocked?: InjectionBlock | null;
+  /** Set on a child cut out of a multi-document PDF: the file it came from and its 1-based, inclusive page range. */
+  parent_file_id?: string | null;
+  page_from?: number | null;
+  page_to?: number | null;
   analyzed_at: string | null;
   created_at: string;
 }
@@ -359,6 +363,7 @@ export const LLM_CALL_PURPOSES = [
   'generate_message',
   'questionnaire_schema_mapping',
   'injection_detection_llm',
+  'file_splitting',
   'file_classification',
   'extract_document',
 ] as const;

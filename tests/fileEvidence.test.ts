@@ -1,6 +1,12 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../src/agents/shared/fileEvidence.js';
+import {
+  applicableFilePairs,
+  fileMatchesDocument,
+  isQuarantined,
+  isSplitParent,
+  isVerifiedLegibleFile,
+} from '../src/agents/shared/fileEvidence.js';
 import type { DocumentFileRow, FileAnalysis } from '../src/db/types.js';
 
 function fileWith(analysis: Partial<FileAnalysis> | null, status: DocumentFileRow['analysis_status'] = 'done'): DocumentFileRow {
@@ -18,6 +24,9 @@ function fileWith(analysis: Partial<FileAnalysis> | null, status: DocumentFileRo
     sha256: 'x',
     analysis_status: status,
     blocked: null,
+    parent_file_id: null,
+    page_from: null,
+    page_to: null,
     analysis:
       analysis === null
         ? null
@@ -81,4 +90,35 @@ test('a file the injection screen blocked (054) is quarantined regardless of ana
   assert.equal(isQuarantined(blocked), true);
   assert.equal(isVerifiedLegibleFile(blocked), false);
   assert.equal(fileMatchesDocument(blocked, 'doc-1'), false);
+});
+
+test('the parent of a split PDF (058) is neither quarantined nor evidence', () => {
+  const parent = fileWith(null, 'split');
+  assert.equal(isSplitParent(parent), true);
+  assert.equal(isQuarantined(parent), false);
+  assert.equal(isVerifiedLegibleFile(parent), false);
+  assert.equal(fileMatchesDocument(parent, 'doc-9'), false);
+});
+
+test('a planner pair with a split parent is dropped; the pair with its child is kept', () => {
+  const parent = { ...fileWith(null, 'split'), id: 'parent' };
+  const child = { ...fileWith({ matched_document_id: null }), id: 'child', parent_file_id: 'parent', page_from: 1, page_to: 3 };
+  const fileById = new Map([parent, child].map((f) => [f.id, f]));
+  const documentIds = new Set(['doc-9']);
+  const pairs = applicableFilePairs(
+    [
+      { file_id: 'parent', document_id: 'doc-9' },
+      { file_id: 'child', document_id: 'doc-9' },
+      { file_id: 'unknown-file', document_id: 'doc-9' },
+      { file_id: 'child', document_id: 'unknown-doc' },
+    ],
+    fileById,
+    documentIds,
+  );
+  assert.deepEqual(pairs, [{ file_id: 'child', document_id: 'doc-9' }]);
+  // With only the parent paired, nothing backs a "collected" proposal: no
+  // strong match and no tier-B file, so the document is not collected by it.
+  const parentOnly = applicableFilePairs([{ file_id: 'parent', document_id: 'doc-9' }], fileById, documentIds);
+  assert.deepEqual(parentOnly, []);
+  assert.equal([parent].some((f) => fileMatchesDocument(f, 'doc-9')), false);
 });

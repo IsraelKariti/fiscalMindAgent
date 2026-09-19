@@ -7,7 +7,7 @@ import * as waSenders from '../../db/queries/waSenders.js';
 import * as waTemplates from '../../db/queries/waTemplates.js';
 import { buildPrompt, type WaChannelState } from './prompt.js';
 import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccountant.js';
-import { fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
+import { applicableFilePairs, fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
 import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/mondayStatusSync.js';
@@ -402,7 +402,8 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const pendingIds = new Set(documents.filter((d) => d.status === 'pending').map((d) => d.id));
   const fileById = new Map(files.map((f) => [f.id, f]));
   const documentIds = new Set(documents.map((d) => d.id));
-  const proposedPairs = decision.matched_files.filter((m) => fileById.has(m.file_id) && documentIds.has(m.document_id));
+  // A split parent (058) is never paired: its children are, each on its own.
+  const proposedPairs = applicableFilePairs(decision.matched_files, fileById, documentIds);
   const newlyCollected: string[] = [];
   const newlyClaimed: string[] = [];
   // A cycle triggered by a verification verdict reports the outcome only: no

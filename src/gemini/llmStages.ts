@@ -9,6 +9,8 @@ import { PLATFORM_SECTIONS, PROMPT_TEMPLATE } from '../agents/declarationOfCapit
 import { FILE_SCREEN_PROMPT, InjectionScreenSchema, SCREEN_PROMPT } from '../agents/shared/injectionScreen.js';
 import { ANALYSIS_PROMPT, YEAR_CONTEXT } from '../agents/declarationOfCapital/analyzeFile.js';
 import { CapitalFileAnalysisSchema } from '../agents/declarationOfCapital/analyzeFileRules.js';
+import { FILE_SPLIT_PROMPT, FILE_SPLIT_TEMPERATURE } from '../agents/declarationOfCapital/splitFile.js';
+import { FileSplitSchema } from '../agents/declarationOfCapital/splitFileRules.js';
 import { decisionSchemaForContext, type DecisionContext } from '../agents/declarationOfCapital/decisionSchema.js';
 import { buildUntrustedDataDoctrine } from '../agents/shared/promptSafety.js';
 
@@ -53,6 +55,7 @@ const TEMPERATURES: Record<LlmCallPurpose, number> = {
   generate_message: 0.3,
   questionnaire_schema_mapping: 0,
   injection_detection_llm: 0,
+  file_splitting: FILE_SPLIT_TEMPERATURE,
   file_classification: 0.1,
   extract_document: 0,
 };
@@ -146,6 +149,15 @@ const STAGES: StageStatic[] = [
       },
     ],
     schema: jsonSchema(decisionSchemaForContext(CAPITAL_DECISION_CONTEXT)),
+  },
+  {
+    purpose: 'file_splitting',
+    title: 'File splitting (multi-document PDFs)',
+    file: 'src/agents/declarationOfCapital/splitFile.ts · splitFile (called from analyzeInboundFile.ts for a PDF with 2+ pages)',
+    gate: 'validate_file_split',
+    prompts: [{ variant: 'default', systemPrompt: FILE_SPLIT_PROMPT }],
+    query: [{ variant: 'default', parts: [{ kind: 'binary', body: 'the file bytes (PDF, 2+ pages)' }, { kind: 'text', body: 'שם הקובץ כפי שנשלח: <filename>' }] }],
+    schema: jsonSchema(FileSplitSchema),
   },
   {
     purpose: 'file_classification',

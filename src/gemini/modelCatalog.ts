@@ -71,6 +71,7 @@ export const LLM_CALL_PURPOSES = [
   'generate_message',
   'questionnaire_schema_mapping',
   'injection_detection_llm',
+  'file_splitting',
   'file_classification',
   'extract_document',
 ] as const;

@@ -34,7 +34,11 @@ const stages = new Map<string, ReturnType<typeof loadStage>>();
 let changed = 0;
 for (const row of run.results) {
   if (!row.output) continue;
-  if (!stages.has(row.stage)) stages.set(row.stage, loadStage(row.stage));
+  if (!stages.has(row.stage)) {
+    const loaded = loadStage(row.stage);
+    await loaded.stage.prepare?.();
+    stages.set(row.stage, loaded);
+  }
   const { stage, ctx, cases } = stages.get(row.stage)!;
   const c = cases.find((x) => x.id === row.caseId);
   if (!c) continue;

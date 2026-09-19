@@ -41,6 +41,7 @@ export type AuditAction =
   | 'injection_detection_regex'
   | 'validate_injection_scan'
   | 'validate_form_resolutions'
+  | 'validate_file_split'
   | 'validate_classification'
   | 'validate_message'
   | 'verify_extraction'

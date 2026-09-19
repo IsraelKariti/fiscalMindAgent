@@ -17,10 +17,36 @@ import type { DocumentFileRow } from '../../db/types.js';
 export function isQuarantined(file: DocumentFileRow): boolean {
   // The injection screen blocked it before classification (054).
   if (file.analysis_status === 'blocked') return true;
-  // 'not_needed' (platform-fetched, 057) is neither quarantined nor evidence:
-  // it falls through the `!== 'done'` checks below and in the helpers after.
+  // 'not_needed' (platform-fetched, 057) and 'split' (the parent of a cut
+  // multi-document PDF, 058) are neither quarantined nor evidence: they fall
+  // through the `!== 'done'` checks below and in the helpers after.
   if (file.analysis_status !== 'done' || !file.analysis) return false;
   return file.analysis.injection_suspected === true || !file.analysis.legible;
+}
+
+/**
+ * The parent of a multi-document PDF that was cut into one child per document
+ * (058). It is kept only as the original the client sent: never evidence and
+ * never filed under a document — its children are, each on its own.
+ */
+export function isSplitParent(file: DocumentFileRow): boolean {
+  return file.analysis_status === 'split';
+}
+
+/**
+ * The planner's file↔document pairs that may be applied at all: both ids are
+ * known, and the file is not a split parent. (Quarantined files stay in the
+ * list — they never count as evidence and are skipped at filing time.)
+ */
+export function applicableFilePairs<T extends { file_id: string; document_id: string }>(
+  pairs: readonly T[],
+  fileById: ReadonlyMap<string, DocumentFileRow>,
+  documentIds: ReadonlySet<string>,
+): T[] {
+  return pairs.filter((m) => {
+    const file = fileById.get(m.file_id);
+    return file !== undefined && documentIds.has(m.document_id) && !isSplitParent(file);
+  });
 }
 
 /**

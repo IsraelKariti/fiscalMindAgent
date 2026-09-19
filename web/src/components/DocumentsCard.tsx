@@ -50,8 +50,16 @@ function FileActions({ clientId, file, onView }: { clientId: string; file: Docum
 }
 
 /** The content-analysis verdict line under a file, or a status badge when there is none. */
-function AnalysisLine({ file }: { file: DocumentFile }) {
+function AnalysisLine({ file, childCount }: { file: DocumentFile; childCount: number }) {
   const { t } = useT();
+  // The original of a multi-document PDF: its documents are listed as their own files.
+  if (file.analysis_status === 'split') {
+    return (
+      <span className="badge badge-neutral" title={t.analysisSplitTitle}>
+        {t.analysisSplit(childCount)}
+      </span>
+    );
+  }
   if (file.analysis_status === 'blocked') {
     return (
       <span className="badge badge-danger" title={t.analysisBlockedTitle}>
@@ -93,7 +101,21 @@ function AnalysisLine({ file }: { file: DocumentFile }) {
 }
 
 /** One received file: name, size · date, analysis verdict, and the view/download pair. */
-function FileItem({ clientId, file, onView }: { clientId: string; file: DocumentFile; onView: (file: DocumentFile) => void }) {
+function FileItem({
+  clientId,
+  file,
+  files,
+  onView,
+}: {
+  clientId: string;
+  file: DocumentFile;
+  /** Every file of the client — a split parent counts its children, a child names its parent. */
+  files: DocumentFile[];
+  onView: (file: DocumentFile) => void;
+}) {
+  const { t } = useT();
+  const parent = file.parent_file_id ? files.find((f) => f.id === file.parent_file_id) : undefined;
+  const childCount = files.filter((f) => f.parent_file_id === file.id).length;
   return (
     <li className="doc-file-item">
       <span className="doc-file-text">
@@ -103,7 +125,10 @@ function FileItem({ clientId, file, onView }: { clientId: string; file: Document
         <span className="doc-desc muted">
           {formatFileSize(file.size_bytes)} · {new Date(file.created_at).toLocaleDateString(LOCALE)}
         </span>
-        <AnalysisLine file={file} />
+        {parent && file.page_from != null && file.page_to != null && (
+          <span className="doc-desc muted">{t.splitChildPages(file.page_from, file.page_to, parent.label ?? parent.filename)}</span>
+        )}
+        <AnalysisLine file={file} childCount={childCount} />
       </span>
       <FileActions clientId={clientId} file={file} onView={onView} />
     </li>
@@ -248,7 +273,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         {linked.length > 0 && (
           <ul className="doc-file-list">
             {linked.map((file) => (
-              <FileItem key={file.id} clientId={clientId} file={file} onView={setViewing} />
+              <FileItem key={file.id} clientId={clientId} file={file} files={files} onView={setViewing} />
             ))}
           </ul>
         )}
@@ -375,7 +400,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
               <li className="doc-row">
                 <ul className="doc-file-list">
                   {unmatched.map((file) => (
-                    <FileItem key={file.id} clientId={clientId} file={file} onView={setViewing} />
+                    <FileItem key={file.id} clientId={clientId} file={file} files={files} onView={setViewing} />
                   ))}
                 </ul>
               </li>

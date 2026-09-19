@@ -173,7 +173,8 @@ export interface ClientDocumentRow {
 
 /** 'blocked' (054): the injection screen flagged the file before classification — quarantined, never analyzed. */
 /** 'not_needed': the platform fetched the file itself and linked it — content analysis does not apply (057). */
-export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked' | 'not_needed';
+/** 'split' (058): the parent of a file cut into one child per document — never classified, never evidence, never linked. */
+export type FileAnalysisStatus = 'pending' | 'done' | 'failed' | 'unsupported' | 'blocked' | 'not_needed' | 'split';
 
 /** What the injection screen found on a withheld message / blocked file (054). */
 export interface InjectionBlock {
@@ -216,6 +217,10 @@ export interface DocumentFileRow {
   analysis: FileAnalysis | null;
   /** Set with analysis_status 'blocked' (054). */
   blocked: InjectionBlock | null;
+  /** Set on a child cut out of a multi-document PDF (058): the file it came from and its 1-based, inclusive page range. */
+  parent_file_id: string | null;
+  page_from: number | null;
+  page_to: number | null;
   analyzed_at: Date | null;
   created_at: Date;
 }

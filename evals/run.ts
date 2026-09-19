@@ -303,6 +303,7 @@ async function runGroup(loaded: ReturnType<typeof loadStage>, stageName: string,
 console.log(`[evals] ${stages.length} stage(s) x ${models.length} model(s), concurrency ${args.concurrency}, spend cap $${MAX_SPEND_USD} -> ${outFile}`);
 for (const stageName of stages) {
   const loaded = loadStage(stageName);
+  await loaded.stage.prepare?.();
   const selected = args.cases ? loaded.cases.filter((c) => args.cases!.includes(c.id)) : loaded.cases;
   if (selected.length === 0) continue;
   for (const model of models) {

@@ -21,6 +21,9 @@ import {
 import { CAPITAL_DOCUMENT_CATALOG, getCatalogType } from '../src/agents/declarationOfCapital/catalog.js';
 import { buildAnalysisCall } from '../src/agents/declarationOfCapital/analyzeFile.js';
 import { CapitalFileAnalysisSchema, validateClassification, type FileAnalysis } from '../src/agents/declarationOfCapital/analyzeFileRules.js';
+import { buildFileSplitCall } from '../src/agents/declarationOfCapital/splitFile.js';
+import { FileSplitSchema, validateFileSplit, type FileSplit } from '../src/agents/declarationOfCapital/splitFileRules.js';
+import { readPdfPageCount } from '../src/agents/declarationOfCapital/pdfPages.js';
 import { buildExtractionCall, checksFor } from '../src/agents/declarationOfCapital/extractionCall.js';
 import {
   ExtractionSchema,
@@ -86,6 +89,8 @@ export interface StageAdapter<C = unknown, Ctx = unknown> {
   purpose: LlmCallPurpose;
   /** The raw case file: `cases` plus the shared context (everything else). */
   load(): { cases: C[] } & Ctx;
+  /** Async setup a stage needs before build/judge (both are sync). Callers await it right after loadStage(). */
+  prepare?(): Promise<void>;
   build(c: C, ctx: Ctx): BuiltCall;
   judge(c: C, output: unknown, ctx: Ctx): Judgement;
 }
@@ -248,6 +253,67 @@ const formIntake: StageAdapter<FormIntakeCase, FormIntakeCtx> = {
           resolution: v.resolution,
           ...(v.resolution === 'required' ? { instances: v.instances.map((i) => i.name) } : { evidence: v.evidence }),
         })),
+      },
+    };
+  },
+};
+
+// ---------------------------------------------------------------------------
+// file_splitting
+
+interface SplitFileCase {
+  id: string;
+  file: string;
+  filename: string;
+  expected: {
+    /** The accepted ranges as text ("1-3, 4-5"); a list means any of these is accepted. */
+    ranges: string | string[];
+  };
+  notes?: string;
+}
+
+/**
+ * The page count is read by code from the PDF, exactly like the call site does
+ * — never taken from the case file. The PDF library only loads asynchronously,
+ * so `prepare()` resolves every case file's count once before build/judge run.
+ */
+const splitPageCounts = new Map<string, number>();
+function splitPageCount(name: string): number {
+  const count = splitPageCounts.get(name);
+  if (count === undefined) throw new Error(`page count of ${name} is unknown — the stage's prepare() did not run`);
+  return count;
+}
+
+const splitFileStage: StageAdapter<SplitFileCase, Record<string, never>> = {
+  purpose: 'file_splitting',
+  load: () => readCases('file_splitting'),
+  async prepare() {
+    const { cases } = readCases<{ cases: SplitFileCase[] }>('file_splitting');
+    for (const c of cases) {
+      if (!splitPageCounts.has(c.file)) splitPageCounts.set(c.file, await readPdfPageCount(readFile(c.file)));
+    }
+  },
+  build(c) {
+    const spec = buildFileSplitCall({ bytes: readFile(c.file), filename: c.filename, pageCount: splitPageCount(c.file) });
+    return { spec, parse: (text) => FileSplitSchema.parse(JSON.parse(text)) };
+  },
+  judge(c, output) {
+    const raw = output as FileSplit;
+    const pageCount = splitPageCount(c.file);
+    const gate = validateFileSplit(raw, pageCount);
+    const proposed = gate.proposed.map((r) => `${r.from}-${r.to}`).join(', ');
+    const checks: Check[] = [
+      // Every case is a well-formed file: a rejected answer is a model failure.
+      eq('gate_result', true, gate.result),
+      eq('ranges', c.expected.ranges, gate.result ? gate.ranges.map((r) => `${r.from}-${r.to}`).join(', ') : null),
+    ];
+    return {
+      checks,
+      info: {
+        gate: { result: gate.result, reason: gate.reason, failed: gate.checks.filter((k) => !k.passed).map((k) => k.key) },
+        pageCount,
+        proposed,
+        kinds: raw.documents.map((d) => d.kind),
       },
     };
   },
@@ -821,6 +887,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
 export const STAGES: Record<string, StageAdapter<never, never>> = {
   injection_detection_llm: injectionScreen as StageAdapter<never, never>,
   questionnaire_schema_mapping: formIntake as StageAdapter<never, never>,
+  file_splitting: splitFileStage as StageAdapter<never, never>,
   file_classification: analyzeFile as StageAdapter<never, never>,
   extract_document: verifyDocument as StageAdapter<never, never>,
   generate_message: conversationDecide as StageAdapter<never, never>,

@@ -662,7 +662,7 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   `LlmCallLogContext` (fire-and-forget; logging never fails the call). **Every
   new LLM call site should pass a `LlmCallLogContext` to `generateWithRetry`**
   alongside the existing `llmUsage.add` obligation (today wired: the
-  the agent's five sites — `generate_message`, `questionnaire_schema_mapping`, `injection_detection_llm`, `file_classification`, `extract_document`).
+  the agent's six sites — `generate_message`, `questionnaire_schema_mapping`, `injection_detection_llm`, `file_splitting`, `file_classification`, `extract_document`).
   Like `audit_events`, `llm_calls` has no FKs — call history outlives clients.
 - **Audit trail + anomaly detection** (migrations 031-032): `audit_events` is
   the per-action forensic record — one row per outbound email/WhatsApp,
@@ -717,7 +717,9 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   note), `validate_injection_scan` (`clean_without_evidence` |
   `hit_has_evidence` + `evidence_verbatim` when the text was readable),
   `validate_form_resolutions` (one check per proposed catalog type key, drop
-  reason as note), `validate_classification` (`matched_id_known`,
+  reason as note), `validate_file_split` (`document_count_within_cap`, then
+  `ranges_inside_file`, `ranges_ordered_no_overlap`, `all_pages_covered` — a
+  failed check ends the list), `validate_classification` (`matched_id_known`,
   `matched_type_agrees`, then `not_injection_suspected` / `legible` — the
   quarantine checks are reported but never change `result`),
   `validate_message` (one row per decide attempt: `json_schema`, then
@@ -740,12 +742,12 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   A gate never flips a security verdict: it drops or rejects, it does not
   make a "suspected" answer "clean". Pure rules modules (no llm/db/audit
   imports, tests run without an API key): `shared/injectionRegex.ts`,
-  `shared/injectionScanRules.ts`, `analyzeFileRules.ts`,
+  `shared/injectionScanRules.ts`, `splitFileRules.ts`, `analyzeFileRules.ts`,
   `formIntakeRules.ts`, `verifyChecks.ts`,
   `decisionSchema.ts`.
 - **Request builders**: each stage exports the exact `generate()` request it
   sends (`buildFormIntakeCall`, `buildInjectionScreenCall` /
-  `buildFileScreenCall`, `buildAnalysisCall`, `buildExtractionCall`,
+  `buildFileScreenCall`, `buildFileSplitCall`, `buildAnalysisCall`, `buildExtractionCall`,
   `buildDecisionCall`) and the runtime does `runLlmCall(build…(), { log })`
   (`gemini/llmCall.ts`). The evals harness (`evals/`) calls the same builders
   with a per-call `model` override and a file log sink, so it tests what the
@@ -772,6 +774,34 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `inbound_file_screen`). Stage purposes carry the sibling's names too since
   migration 056: `injection_detection_llm`, `questionnaire_schema_mapping`,
   `generate_message`, `file_classification`, `extract_document`.
+- **Multi-document PDFs are split before classification** (2026-09-19,
+  migration 058, openspec `file-splitting`). Inbound-file order in
+  `analyzeInboundFile.ts`: analyzable check → the three injection layers on
+  the whole file → for a PDF whose page count (read by code,
+  `pdfPages.ts` — the only module importing `pdf-lib`) is 2 or more, the
+  `file_splitting` stage (`splitFile.ts`: "which pages form each document";
+  the answer is page numbers plus an audit-only `kind`) → the
+  `validate_file_split` gate (`splitFileRules.ts`: 1..20 documents, every
+  range inside the file, ascending with no shared page, every page in exactly
+  one range; audited on the parent file) → when 2+ documents are accepted,
+  `cutPdf` makes one child PDF per range, each stored as an ordinary
+  `document_files` row (`parent_file_id`, `page_from`, `page_to`, the parent's
+  `email_id`, attachment id `<parent>#p<from>-<to>` so a re-run inserts
+  nothing) → the parent gets `analysis_status = 'split'` → **each child goes
+  through the unchanged classifier** (one file, one verdict) and then links and
+  verifies like any file. Children skip the injection layers (the whole parent
+  passed them); the classifier's and the extractor's own flags still apply per
+  child. Anything else — an image, a one-page PDF, a PDF the library cannot
+  open, a rejected answer, a single accepted document, any error — cuts nothing
+  and classifies the whole file as before. The parent is kept as the original
+  the client sent: never classified, never evidence (`isSplitParent`), never
+  paired by the planner (`applicableFilePairs` drops it; the transcript tells
+  the planner to judge the children), shown in the documents tab's unmatched
+  group with a "split into N documents" badge. The conversation shows the
+  parent and every child as attachment chips under the message the file came
+  on; a child chip reads "<original's name> · pages X–Y". Known limit: ranges
+  are consecutive pages, so a scan with pages in mixed order will not split
+  correctly.
 - **Classification cross-check**: capital-declaration files answer with a
   closed `document_type` (catalog keys + `other`, `CAPITAL_DOCUMENT_TYPE_VALUES`);
   `validateClassification` drops a matched id the model was not shown or

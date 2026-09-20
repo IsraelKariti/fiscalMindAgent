@@ -59,4 +59,12 @@ describe('capital-declaration catalog', () => {
     }
     assert.ok(rows.some((r) => r.name.includes('31.12.2025')));
   });
+
+  it('every type has a short name that states no date or year', () => {
+    for (const type of CAPITAL_DOCUMENT_CATALOG) {
+      assert.ok(type.shortNameHe.trim().length > 0, type.key);
+      assert.ok(!/\d/.test(type.shortNameHe), type.key);
+      assert.ok(!type.shortNameHe.includes('{{'), type.key);
+    }
+  });
 });

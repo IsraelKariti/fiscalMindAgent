@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { compareCompanies, identifyInstitution, normalizeCompanyText, tieAllowedByCompany } from '../src/agents/declarationOfCapital/institutions.js';
+import { compareCompanies, identifyInstitution, institutionLabelHe, normalizeCompanyText, tieAllowedByCompany } from '../src/agents/declarationOfCapital/institutions.js';
 import { INSTITUTIONS, INSTITUTIONS_AS_OF } from '../src/agents/declarationOfCapital/institutionsTable.js';
 import { CAPITAL_DOCUMENT_CATALOG, isInstitutionBound } from '../src/agents/declarationOfCapital/catalog.js';
 
@@ -16,6 +16,17 @@ describe('institutions table', () => {
       assert.ok(entry.aliases.length > 0, entry.key);
       for (const alias of entry.aliases) assert.ok(normalizeCompanyText(alias).trim().length >= 3, `${entry.key}: "${alias}"`);
     }
+  });
+
+  it('a Hebrew brand name is always one of the entry\'s own aliases', () => {
+    for (const entry of INSTITUTIONS) {
+      const hasHebrewAlias = entry.aliases.some((alias) => /[֐-׿]/.test(alias));
+      if (entry.nameHe === undefined) assert.ok(!hasHebrewAlias, `${entry.key}: has a Hebrew alias but no nameHe`);
+      else assert.ok(entry.aliases.includes(entry.nameHe), `${entry.key}: "${entry.nameHe}"`);
+    }
+    assert.equal(institutionLabelHe('harel'), 'הראל');
+    assert.equal(institutionLabelHe('hsbc'), 'HSBC');
+    assert.equal(institutionLabelHe('no_such_company'), 'no_such_company');
   });
 
   it('no normalized alias belongs to two companies', () => {

@@ -35,6 +35,11 @@ export interface VerificationChecks {
 export interface CapitalDocumentType {
   /** Stable id, persisted in client_documents.type_key. */
   key: string;
+  /**
+   * A few words naming the type, with no date or year: the display name of a
+   * split child file that matched no list document (splitChildNames.ts).
+   */
+  shortNameHe: string;
   /** Row-name template; {{tax_year}} is rendered at seeding time. */
   nameHe: string;
   /** What exactly to obtain/ask the institution for; also rendered per {{tax_year}}. */
@@ -75,6 +80,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'bank_balance',
     institutionBound: true,
+    shortNameHe: 'חשבון בנק',
     nameHe: 'אישור יתרות בנק ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרות רשמי מהבנק (עו"ש, מזומן, פיקדונות וחסכונות) ליום 31.12.{{tax_year}} — מתקבלים גם ריכוז יתרות, דוח שנתי מקוצר או "תעודת זהות בנקאית". נדרש אישור נפרד לכל חשבון בנק, בארץ ובחו"ל. אישור יתרות אחד עשוי לכלול באותו קובץ גם את יתרות ניירות הערך וההלוואות של החשבון.',
@@ -89,6 +95,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'securities_portfolio',
     institutionBound: true,
+    shortNameHe: 'תיק ניירות ערך',
     nameHe: 'תדפיס תיק ניירות ערך ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרה או דוח אחזקות של תיק ניירות הערך ליום 31.12.{{tax_year}} — מהבנק או מבית ההשקעות (אקסלנס, מיטב, IBI וכו\'), לכל תיק בנפרד. מתקבל גם דוח הפעילות השנתי של בית ההשקעות, ובלבד שתקופתו מסתיימת ביום 31.12.{{tax_year}} והוא מציג את שווי הנכסים ליום זה. בהצהרה מצוינת יתרת התיק המנוהל.',
@@ -103,6 +110,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'pension_provident',
     institutionBound: true,
+    shortNameHe: 'קופת גמל / פנסיה',
     nameHe: 'אישור יתרות קופות גמל ופנסיה ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור ייעודי להצהרת הון (מופק מהאזור האישי באתר הקופה) או העמוד האחרון של הדוח השנתי המקוצר, המשקף את היתרה הצבורה בכל קופת גמל וקרן פנסיה (כולל קופת גמל להשקעה) ליום 31.12.{{tax_year}} — כולל קופות של בן/בת הזוג. חשבונות "חיסכון לכל ילד" אינם דורשים אישור כלל (מופקדים על ידי ביטוח לאומי).',
@@ -115,6 +123,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'study_fund',
     institutionBound: true,
+    shortNameHe: 'קרן השתלמות',
     nameHe: 'אישור יתרת קרן השתלמות ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרה צבורה מכל קרן השתלמות ליום 31.12.{{tax_year}} — אישור ייעודי להצהרת הון מאתר הקופה או העמוד האחרון של הדוח השנתי המקוצר.',
@@ -127,6 +136,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'life_insurance_savings',
     institutionBound: true,
+    shortNameHe: 'ביטוח מנהלים / פוליסת חיסכון',
     nameHe: 'אישור להצהרת הון — ביטוח מנהלים / פוליסת חיסכון ליום 31.12.{{tax_year}}',
     descriptionHe:
       'לכל פוליסה בחברת ביטוח הכוללת מרכיב חיסכון (ביטוח מנהלים, פוליסת חיסכון) — אישור ייעודי להצהרת הון מהאזור האישי באתר חברת הביטוח, או העמוד האחרון של הדוח השנתי המקוצר, ליום 31.12.{{tax_year}}.',
@@ -138,6 +148,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'real_estate',
+    shortNameHe: 'נכס נדל"ן',
     nameHe: 'מסמכי נכס נדל"ן',
     descriptionHe:
       'לכל נכס נדל"ן בבעלותך (דירה, בית, מגרש, נכס מסחרי), בארץ או בחו"ל, כולל בבעלות חלקית — בהצהרה מצוינים סוג הנכס, כתובת מלאה ועלות הרכישה. המסמכים נקבעים לפי אופן קבלת הנכס: ' +
@@ -154,6 +165,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'mortgage_balance',
     institutionBound: true,
+    shortNameHe: 'משכנתא',
     nameHe: 'אישור יתרת משכנתא ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרת הלוואת משכנתא (יתרת החוב ליום 31.12.{{tax_year}}) מהבנק או מהגוף המלווה, לכל משכנתא בנפרד — בדרך כלל אישור היתרות לסוף שנה שהבנק מפיק. המשכנתא אינה כלולה באישור יתרות העו"ש הרגיל — נדרש לה אישור נפרד.',
@@ -167,6 +179,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'loan_taken',
+    shortNameHe: 'הלוואה',
     nameHe: 'אישור יתרת הלוואה ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרת הלוואה ליום 31.12.{{tax_year}} לכל הלוואה פעילה שאינה משכנתא — מבנק, מחברת אשראי או מגוף חוץ-בנקאי (מקס, הראל, כלל וכו\'), וכן הלוואה פרטית — בציון שם הגוף המלווה.',
@@ -177,6 +190,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'loan_given',
+    shortNameHe: 'הלוואה שניתנה',
     nameHe: 'אסמכתא להלוואה שניתנה — יתרה ליום 31.12.{{tax_year}}',
     descriptionHe:
       'הסכם הלוואה חתום או פסק דין לכל הלוואה או חוב שאחרים חייבים לך (כולל הלוואות לבני משפחה או לחברה בבעלותך) — בציון זהות החייב, סכום החוב והיתרה ליום 31.12.{{tax_year}}.',
@@ -189,6 +203,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'vehicle',
+    shortNameHe: 'כלי רכב',
     nameHe: 'מסמכי כלי רכב',
     descriptionHe:
       'לכל כלי רכב בבעלותך (פרטי, מסחרי, אופנוע) — בהצהרה מצוינים יצרן, דגם, שנת ייצור, מספר רישוי ועלות הרכישה. שני מסמכים לכל רכב: ' +
@@ -204,6 +219,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'contents_insurance',
+    shortNameHe: 'ביטוח תכולה',
     nameHe: 'פוליסת ביטוח תכולה',
     descriptionHe:
       'העתק פוליסת ביטוח התכולה (לרוב פוליסת "ביטוח דירה" משולבת מבנה + תכולה) שהייתה בתוקף ביום 31.12.{{tax_year}} — העמוד המציג את סכום ביטוח התכולה, הוא הערך שנרשם בהצהרה. אם אין פוליסת ביטוח תכולה — אין צורך לשלוח מסמך כלל: התכולה נרשמת בהצהרה בערך סמלי של 1 ש"ח.',
@@ -218,6 +234,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'business_ownership',
+    shortNameHe: 'בעלות בעסק או בחברה',
     nameHe: 'אסמכתת בעלות בעסק או בחברה',
     descriptionHe:
       'לכל חברה שאתה מחזיק במניותיה (בבעלות מלאה או חלקית): כרטיס חו"ז בעלים מעודכן מהנהלת החשבונות של החברה — בהצהרה מצוינים שם החברה, מספר הח"פ ואחוז האחזקה. לעסק שאינו חברה: תדפיס רשם החברות או הסכם מייסדים, ומאזן ליום 31.12.{{tax_year}} אם קיים.',
@@ -228,6 +245,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'crypto',
+    shortNameHe: 'מטבעות דיגיטליים',
     nameHe: 'דוח אחזקות מטבעות דיגיטליים ליום 31.12.{{tax_year}}',
     descriptionHe:
       'אישור יתרת מטבעות מכל זירת מסחר או ארנק דיגיטלי (ביטקוין וכדומה) ליום 31.12.{{tax_year}} — בציון כמות המטבעות, סוגם ושווי השוק ליום זה.',
@@ -239,6 +257,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'private_investment',
+    shortNameHe: 'השקעה פרטית',
     nameHe: 'אסמכתת השקעה פרטית',
     descriptionHe:
       'כרטיס הנהלת חשבונות או כרטיס חו"ז בתאגיד, המוכיח את גובה ההשקעה, לכל השקעה פרטית (שאינה ניירות ערך) בחברה, בתאגיד או במיזם, בארץ או בחו"ל — בהצהרה מצוין הסכום שהושקע. בהיעדרם — הסכם ההשקעה.',
@@ -249,6 +268,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'poa_account',
+    shortNameHe: 'חשבון ביפוי כוח',
     nameHe: 'אישור ניהול חשבון — יפוי כוח',
     descriptionHe:
       'אישור ניהול חשבון לכל חשבון בנק של אדם אחר (למשל הורים או ילדים) שבו הינך מורשה חתימה, מיופה כוח או אפוטרופוס — החשבון נרשם בהצהרה בערך נומינלי של 1 ש"ח, כדי למנוע כפילויות בהצלבות המידע של רשות המסים ולהבהיר שהכסף אינו שלך.',
@@ -261,6 +281,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'prior_declaration',
+    shortNameHe: 'הצהרת הון קודמת',
     nameHe: 'הצהרת הון קודמת',
     descriptionHe:
       'עותק של הצהרת ההון האחרונה שהוגשה לרשות המסים — נדרש רק אם ההצהרה הקודמת נערכה במשרד אחר. הצהרה קודמת שנערכה במשרדנו כבר שמורה במערכת המשרד ואין צורך שהלקוח ישלח אותה.',
@@ -272,6 +293,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   },
   {
     key: 'other_assets',
+    shortNameHe: 'נכסים או התחייבויות נוספים',
     nameHe: 'נכסים או התחייבויות נוספים',
     descriptionHe:
       'אסמכתת עלות רכישה לכל נכס או התחייבות בעלי ערך משמעותי שאינם מכוסים בסעיפים האחרים (יאכטה, מטוס, שינויים מבניים בנכס וכדומה), או לכל הפחות תיאור מפורט להערה בדוח — הסעיף קיים כדי ששום נכס לא יישאר מחוץ להצהרה.',

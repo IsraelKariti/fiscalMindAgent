@@ -839,10 +839,24 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `validate_classification` keeps the match (and the child is not
   quarantined), `classifyAndStore` writes the matched row's name to
   `document_files.label` (`splitChildNames.ts` `childDisplayName`; our own
-  list text only, never the model's `kind` or the file's text). No match,
-  quarantine or a failed analysis → `label = NULL` and the page-range name
-  stays. The label follows a planner link to another row (`plan.ts`, after
-  `linkToDocument`). The stored `filename`, the blob key and what the planner
+  list text only, never the model's `kind` or the file's text). Quarantine or
+  a failed analysis → `label = NULL` and the page-range name stays. The label
+  follows a planner link to another row (`plan.ts`, after `linkToDocument`).
+- **An unmatched child is named after its type and company** (2026-09-20,
+  openspec `file-splitting`, no migration). With no kept match,
+  `splitChildNames.ts` `childLabel` builds the label from two of our own word
+  lists: the catalog's `shortNameHe` of the file's `document_type` (a few
+  words, never a date — no code has checked the date of an unmatched file)
+  and, when `identifyInstitution(issuer_name)` finds exactly one company, that
+  entry's `nameHe` from the institutions table (always one of its own
+  `aliases`; English `name` for the foreign banks) — "קרן השתלמות — הראל".
+  Unknown company or two companies → the type words alone; type `other` →
+  no label. The model's `issuer_name` is only looked up, never shown. A label
+  is display only: it links nothing and the planner's view is unchanged. Two
+  children of the same type and company get the same label; the page range
+  next to it tells them apart. Children analysed before this change:
+  `npm run db:backfill-child-labels` (idempotent).
+- **Child names, common rules.** The stored `filename`, the blob key and what the planner
   sees do not change. Shown as: documents tab = label + "pages X–Y of
   <original>"; conversation chip = "<label> · <original's name> · pages X–Y";
   viewer title = "<label> · <stored name>"; download =

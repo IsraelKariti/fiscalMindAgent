@@ -6,7 +6,7 @@ import { analyzeFile, isAnalyzable } from './analyzeFile.js';
 import { classifierCandidates } from './analyzeFileRules.js';
 import { cutPdf, readPdfPageCount, type PageRange } from './pdfPages.js';
 import { splitFile } from './splitFile.js';
-import { childDisplayName } from './splitChildNames.js';
+import { childLabel } from './splitChildNames.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { recordAudit } from '../../audit/audit.js';
 import { extractFileText } from '../shared/fileText.js';
@@ -292,11 +292,20 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
     });
     await documentFiles.setAnalysis(file.id, 'done', analysis);
     // A child cut out of a multi-document PDF is shown under the name of the
-    // list document it matched (our own text). The gate has already cleared a
-    // dropped match; a quarantined or unmatched child keeps its page-range name.
+    // list document it matched; with no match (the gate has already cleared a
+    // dropped one), under its document type and the company on it. Our own
+    // words either way. A quarantined child keeps its page-range name.
     if (file.parent_file_id !== null) {
-      const matched = gate.quarantined ? undefined : requiredDocuments.find((d) => d.id === analysis.matched_document_id);
-      await documentFiles.setLabel(file.id, childDisplayName(matched?.name));
+      const matched = requiredDocuments.find((d) => d.id === analysis.matched_document_id);
+      await documentFiles.setLabel(
+        file.id,
+        childLabel({
+          matchedDocumentName: matched?.name,
+          documentType: analysis.document_type,
+          issuerName: analysis.issuer_name,
+          quarantined: gate.quarantined,
+        }),
+      );
     }
     if (ctx.client.user_id) {
       await llmUsage.add(ctx.client.user_id, ctx.client.agent_instance_id, model, usage);

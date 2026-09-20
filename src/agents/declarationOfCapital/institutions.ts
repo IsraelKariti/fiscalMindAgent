@@ -79,6 +79,12 @@ export function institutionLabel(key: string, table: readonly Institution[] = IN
   return table.find((e) => e.key === key)?.name ?? key;
 }
 
+/** The table's Hebrew brand name of a key, for names shown to the accountant; the English name when it has none. */
+export function institutionLabelHe(key: string, table: readonly Institution[] = INSTITUTIONS): string {
+  const entry = table.find((e) => e.key === key);
+  return entry?.nameHe ?? entry?.name ?? key;
+}
+
 export type CompanyComparison =
   | { verdict: 'same'; fileKey: string; itemKey: string }
   | { verdict: 'different'; fileKey: string; itemKey: string }

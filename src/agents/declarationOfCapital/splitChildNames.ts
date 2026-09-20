@@ -1,10 +1,16 @@
 /**
  * Pure rules for the display name of a child file cut out of a multi-document
  * PDF (openspec `file-splitting`): a child that matches a document on the
- * client's list is shown under that document's name. The name comes from our
- * own list only — never from the model's free text or from the file itself.
+ * client's list is shown under that document's name; a child that matches
+ * nothing is shown under its document type and the company on it. The words
+ * come from our own lists only (the client's documents, the catalog, the
+ * institutions table) — never from the model's free text or from the file.
  * No imports of llm/db/audit, so the tests run without a database.
  */
+
+import { getCatalogType } from './catalog.js';
+import { identifyInstitution, institutionLabelHe } from './institutions.js';
+import type { Institution } from './institutionsTable.js';
 
 /** Longest display name stored on a file row. */
 export const MAX_CHILD_DISPLAY_NAME = 150;
@@ -24,6 +30,34 @@ export function childDisplayName(documentName: string | null | undefined): strin
   const name = clean(documentName ?? '');
   if (name === '') return null;
   return name.length > MAX_CHILD_DISPLAY_NAME ? `${name.slice(0, MAX_CHILD_DISPLAY_NAME - 1).trimEnd()}…` : name;
+}
+
+/** What the classifier gate left of a child's verdict; all a name may be built from. */
+export interface ChildLabelInput {
+  /** Name of the list document the child matched; null/undefined when no match survived the gate. */
+  matchedDocumentName?: string | null;
+  /** The closed type value of the analysis: a catalog key or 'other'. */
+  documentType?: string | null;
+  /** The company as the model wrote it. Only looked up in the institutions table, never shown. */
+  issuerName?: string | null;
+  quarantined: boolean;
+}
+
+/**
+ * The label of a child file: the matched list document's name; with no match,
+ * the catalog's short type name plus the table's name of the company on the
+ * file when it names exactly one known company. Null for a quarantined child
+ * and for the catch-all 'other' type — those keep the page-range file name.
+ */
+export function childLabel(input: ChildLabelInput, institutions?: readonly Institution[]): string | null {
+  if (input.quarantined) return null;
+  const matched = childDisplayName(input.matchedDocumentName);
+  if (matched !== null) return matched;
+  const type = input.documentType ? getCatalogType(input.documentType) : undefined;
+  if (!type) return null;
+  const companyKey = identifyInstitution(input.issuerName, institutions);
+  const company = companyKey === null ? null : institutionLabelHe(companyKey, institutions);
+  return childDisplayName(company === null ? type.shortNameHe : `${type.shortNameHe} — ${company}`);
 }
 
 /** The file name a named child downloads under: `<label> (<original base> p<from>-<to>).pdf`. */

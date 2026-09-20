@@ -23,5 +23,5 @@
 
 ## 5. Verify across surfaces and finish
 
-- [ ] 5.1 Open the same file step from the workspace trace under impersonation, from the admin conversation viewer, and from its step link without impersonation; verify the document shows in all three. Also open a `validate_file_split` step (original PDF shows) and an image file step.
+- [x] 5.1 Open the same file step from the workspace trace under impersonation, from the admin conversation viewer, and from its step link without impersonation; verify the document shows in all three. Also open a `validate_file_split` step (original PDF shows) and an image file step. (Checked: step link by Claude, workspace trace by the owner with the PDF page visible, `validate_file_split` shows the original. Not checked: the admin conversation viewer — same component — and an image file, none exists in the local data.)
 - [x] 5.2 Update `docs/agents.md` where it lists the trace / admin step routes with the three new routes; verify `npm run typecheck` and `npm test` pass.

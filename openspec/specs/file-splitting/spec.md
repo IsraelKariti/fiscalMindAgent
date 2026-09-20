@@ -119,37 +119,61 @@ In the client's conversation view, the message a split file arrived on SHALL sho
 - **THEN** the message shows that one attachment, as before
 
 ### Requirement: A child file that matches a list document is named after that document
-When the classifier matches a child file to a document on the client's list and `validate_classification` accepts the match, the child SHALL get a display name equal to the name of the matched document. The display name SHALL be taken from the client's document list only; text the model wrote about the file and text from the file itself SHALL NOT be used as a name. A child with no accepted match, a quarantined child (not legible or suspected injection) and a child whose analysis failed SHALL have no display name and SHALL be shown by its page-range file name as before. When the classifier runs again on the same child, the display name SHALL follow the new verdict, and SHALL be removed when the new verdict has no accepted match. When the planner links a child to a list document other than the one that gave it its display name, the display name SHALL change to the name of the linked document.
+When the classifier matches a child file to a document on the client's list and `validate_classification` accepts the match, the child SHALL get a display name equal to the name of the matched document.
 
-The display name SHALL be what the documents list and the file viewer show as the file's name, and the original file's name and the child's page range SHALL stay visible next to it. The stored file name of the child, the file name the planner sees, and the child's identity for idempotent creation SHALL NOT change. A file that was never split SHALL NOT get a display name from this rule.
+When a child file has no accepted match, is not quarantined, and the classifier put it in one of the known document types (not the catch-all "other" type), the child SHALL get a display name built from the platform's own fixed words only: the platform's short name of that document type, followed by " — " and the company's name from the institutions table when the company printed on the file is recognised as exactly one company of that table. When the company is not recognised, or the text names two different companies, the display name SHALL be the short type name alone. The short type name SHALL NOT state a date or a year.
+
+A display name SHALL be taken from the client's document list, the platform's list of document types and the institutions table only; text the model wrote about the file (its description, its summary, the company name as the model wrote it) and text from the file itself SHALL NOT be used as a name. A quarantined child (not legible or suspected injection), a child whose analysis failed, and an unmatched child of the catch-all "other" type SHALL have no display name and SHALL be shown by its page-range file name as before. When the classifier runs again on the same child, the display name SHALL follow the new verdict. When the planner links a child to a list document, the display name SHALL become the name of the linked document, also when the child carried a type-based name before.
+
+The display name SHALL be what the documents list and the file viewer show as the file's name, and the original file's name and the child's page range SHALL stay visible next to it, so two children with the same display name can still be told apart. The stored file name of the child, the file name the planner sees, and the child's identity for idempotent creation SHALL NOT change. A file that was never split SHALL NOT get a display name from this rule. A display name SHALL NOT count as a match: it SHALL NOT link the child to a list document, SHALL NOT collect a document and SHALL NOT change what the planner is told about the file.
 
 #### Scenario: Two children match two list documents
 - **WHEN** "scan.pdf" is split into pages 1-2 and pages 3-4, the first child is matched to the list document "אישור יתרות - בנק לאומי" and the second to "צילום תעודת זהות", and the gate accepts both matches
 - **THEN** the documents list shows the first child as "אישור יתרות - בנק לאומי" and the second as "צילום תעודת זהות", each with a line that says it is pages 1-2 / 3-4 of "scan.pdf"
 
+#### Scenario: Unmatched child with a recognised company
+- **WHEN** a child of "scan.pdf" covering pages 20-21 matches no document on the list, the classifier typed it as a study fund, and the company printed on it is recognised as Harel
+- **THEN** the child's display name is "קרן השתלמות — הראל", and the line next to it still says it is pages 20-21 of "scan.pdf"
+
+#### Scenario: Unmatched child with no recognised company
+- **WHEN** a child matches no document on the list, the classifier typed it as a study fund, and the company printed on it is not in the institutions table
+- **THEN** the child's display name is "קרן השתלמות"
+
 #### Scenario: A child matches nothing
-- **WHEN** a child of "scan.pdf" covering pages 5-6 matches no document on the list
+- **WHEN** a child of "scan.pdf" covering pages 5-6 matches no document on the list and the classifier typed it as "other"
 - **THEN** the child has no display name and is shown as "scan-p5-6.pdf" as before
 
 #### Scenario: The gate drops the match
-- **WHEN** the classifier proposes a document id that `validate_classification` rejects
-- **THEN** the child gets no display name
+- **WHEN** the classifier proposes a match for a child it typed as life insurance savings from a recognised company, and `validate_classification` drops the match because the list item names no company
+- **THEN** the child is not linked to the list item, and its display name is the type-based name (the short name of life insurance savings and the company's name), not the list item's name
+
+#### Scenario: Two children of the same type and company
+- **WHEN** two unmatched children of "scan.pdf", pages 34-35 and pages 36-37, are both study fund reports of the same recognised company
+- **THEN** both get the same display name, and each is told apart by its page range shown next to the name
+
+#### Scenario: Model text is not used
+- **WHEN** the classifier describes an unmatched child as "דוח שנתי ואישור מס להצהרת הון - קרן השתלמות" and writes the company as "הראל פנסיה וגמל בע"מ"
+- **THEN** the display name is "קרן השתלמות — הראל", built from the platform's type name and the institutions table, and contains neither of the model's two texts
 
 #### Scenario: Quarantined child
-- **WHEN** the classifier judges a child not legible while also proposing a match
+- **WHEN** the classifier judges a child not legible while also proposing a match or a type
 - **THEN** the child is quarantined as today and gets no display name
 
 #### Scenario: Planner links the child to another document
 - **WHEN** a child named "אישור יתרות - בנק לאומי" by the classifier is linked by the planner to the list document "אישור יתרות - בנק דיסקונט"
 - **THEN** the child's display name becomes "אישור יתרות - בנק דיסקונט"
 
+#### Scenario: Planner links a child that had a type-based name
+- **WHEN** a child named "קרן השתלמות — הראל" is later linked by the planner to the list document "אישור יתרת קרן השתלמות ליום 31.12.2025 — הראל"
+- **THEN** the child's display name becomes the name of that list document
+
 #### Scenario: File that was not split
-- **WHEN** a client sends a one-page PDF "balance.pdf" that the classifier matches to a list document
+- **WHEN** a client sends a one-page PDF "balance.pdf" that the classifier matches to a list document, or matches to nothing
 - **THEN** the file is still shown as "balance.pdf"
 
 #### Scenario: Planner's view
-- **WHEN** the planner cycle runs after a child got a display name
-- **THEN** the planner still sees the child under its stored file name with its page range and parent file id
+- **WHEN** the planner cycle runs after a child got a display name of either kind
+- **THEN** the planner still sees the child under its stored file name with its page range and parent file id, and with the same content-analysis line as before
 
 ### Requirement: A named child file downloads under a meaningful file name
 Downloading a child file that has a display name SHALL save it under a file name built from the display name, the base name of the original file and the page range, ending in `.pdf` (for example `אישור יתרות - בנק לאומי (scan p1-2).pdf`). Characters that are not allowed in file names SHALL be replaced. A child with no display name, and every file that is not a child, SHALL download under its stored file name as today.

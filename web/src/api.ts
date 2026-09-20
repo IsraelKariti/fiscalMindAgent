@@ -429,6 +429,15 @@ export interface AdminConversationStep {
   discarded?: boolean;
 }
 
+/** The received file a code step is about — what the step detail modal's document pane shows. */
+export interface StepFile {
+  id: string;
+  filename: string;
+  label: string | null;
+  parentFileId: string | null;
+  contentType: string;
+}
+
 /** One LLM API call (payloads excluded — the list view). */
 export interface LlmCallSummary {
   id: string;
@@ -933,6 +942,11 @@ export const api = {
     request<AdminConversation>(`/admin/clients/${clientId}/conversation`, undefined, opts),
   /** One code step by id — the step link (#/steps/:id). */
   adminGetStep: (stepId: string) => request<{ step: AdminConversationStep }>(`/admin/audit-events/${stepId}`),
+  /** The received file a step checked (404 when the step is not about a file, or the file is gone). */
+  adminGetStepFile: (stepId: string) => request<{ file: StepFile }>(`/admin/audit-events/${stepId}/file`),
+  /** Plain same-origin URLs (cookie session): admin pages never run inside monday, so no ?sessionToken=. */
+  adminStepFileViewUrl: (stepId: string) => `${transport.basePath}/admin/audit-events/${stepId}/file/view`,
+  adminStepFileDownloadUrl: (stepId: string) => `${transport.basePath}/admin/audit-events/${stepId}/file/download`,
   adminListLlmCalls: (filters: LlmCallFilters) => {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {

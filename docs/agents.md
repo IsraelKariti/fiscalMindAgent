@@ -771,6 +771,19 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   a step from sandbox / production to Claude, whose shell reads only the
   local database). Locally, `npm run step -- "<link-or-id>"`
   (`scripts/showStep.ts`) prints the row as JSON.
+  A step about a received file (audit target `document_file`:
+  `validate_classification`, `validate_file_split`,
+  `injection.cycle_suppressed`, `email.document_sent`) opens as a two-pane
+  modal: the details on one side, the document itself on the other (PDF in
+  the browser's viewer, image as a picture, "download" and "open full size"
+  above it; stacked under 900px). The file is read by the step id alone —
+  `GET /api/admin/audit-events/:id/file` (name and type), `/file/view`
+  (inline) and `/file/download` (requireAdmin; `stepFile.ts` resolves step →
+  file, 404 for a non-file step or a deleted file) — so it also works from a
+  step link with no impersonation. The modal asks for it only on open. The
+  streaming and the inline-type allowlist live in `src/api/fileStream.ts` /
+  `fileDisposition.ts`, shared with the workspace file routes — never copy
+  them: an HTML or SVG file served inline would run script on the API origin.
   A gate never flips a security verdict: it drops or rejects, it does not
   make a "suspected" answer "clean". Pure rules modules (no llm/db/audit
   imports, tests run without an API key): `shared/injectionRegex.ts`,

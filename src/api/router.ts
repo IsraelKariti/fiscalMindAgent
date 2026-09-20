@@ -48,6 +48,8 @@ import {
 } from './reviewAdmin.js';
 import {
   adminGetAuditEvent,
+  adminGetStepFile,
+  adminServeStepFile,
   adminGetClientConversation,
   adminGetLlmCall,
   adminListLlmStages,
@@ -138,6 +140,9 @@ apiRouter.post('/admin/clients/:clientId/admin-pause', wrap(requireAdmin), wrap(
 apiRouter.get('/admin/agents/:agentInstanceId/clients', wrap(requireAdmin), wrap(adminListInstanceClients));
 apiRouter.get('/admin/clients/:clientId/conversation', wrap(requireAdmin), wrap(adminGetClientConversation));
 apiRouter.get('/admin/audit-events/:id', wrap(requireAdmin), wrap(adminGetAuditEvent));
+apiRouter.get('/admin/audit-events/:id/file', wrap(requireAdmin), wrap(adminGetStepFile));
+apiRouter.get('/admin/audit-events/:id/file/view', wrap(requireAdmin), wrap(adminServeStepFile('inline')));
+apiRouter.get('/admin/audit-events/:id/file/download', wrap(requireAdmin), wrap(adminServeStepFile('attachment')));
 apiRouter.get('/admin/llm-calls', wrap(requireAdmin), wrap(adminListLlmCalls));
 apiRouter.get('/admin/llm-calls/:id', wrap(requireAdmin), wrap(adminGetLlmCall));
 apiRouter.get('/admin/llm-stages', wrap(requireAdmin), wrap(adminListLlmStages));

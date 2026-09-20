@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { AdminConversationStep } from '../api';
+import { api, type AdminConversationStep, type StepFile } from '../api';
 import { formatTimestamp, humanizePurpose } from '../format';
 import { useT } from '../i18n';
 import { CopyButton } from './CopyButton';
+import { canPreview, fileDisplayName } from './FileViewModal';
 import { stepDetailsText, stepLinkOf } from './stepLink';
 import { isIsoDateTime, stepSummaryOf } from './stepSummary';
 
@@ -70,6 +71,10 @@ export function stepActionLabel(labels: { gate: Record<string, string>; step: Re
  * the admin trace itself is rendered. The copy buttons (link, details) sit at
  * the top beside the title; there is no close button — it closes on the
  * backdrop and Escape.
+ *
+ * A step about a received file (target `document_file`) shows that document
+ * beside the details, in a second pane: the checks and the page they read are
+ * in view together. The document is requested only here, on open.
  */
 export function StepDetailModal({ step, onClose }: { step: AdminConversationStep; onClose: () => void }) {
   const { t } = useT();
@@ -83,6 +88,29 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
   const valueText = (value: string) => (isIsoDateTime(value) ? formatTimestamp(value) : value);
 
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  // 'none' = not a file step (no request at all); 'missing' = the file is gone.
+  const isFileStep = step.targetType === 'document_file' && step.targetId !== null;
+  const [doc, setDoc] = useState<StepFile | 'none' | 'loading' | 'missing'>(isFileStep ? 'loading' : 'none');
+
+  useEffect(() => {
+    setDoc(isFileStep ? 'loading' : 'none');
+    if (!isFileStep) return;
+    let stale = false;
+    api
+      .adminGetStepFile(step.id)
+      .then((res) => {
+        if (!stale) setDoc(res.file);
+      })
+      .catch(() => {
+        if (!stale) setDoc('missing');
+      });
+    return () => {
+      stale = true;
+    };
+  }, [step.id, isFileStep]);
+
+  const twoPane = doc !== 'none' && doc !== 'missing';
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -103,7 +131,7 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="card modal gate-modal"
+        className={`card modal gate-modal${twoPane ? ' gate-modal-with-doc' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -111,101 +139,138 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="gate-modal-head">
-          <h2 id={titleId}>{label}</h2>
-          <div className="btn-row gate-modal-copy">
-            <CopyButton text={stepLinkOf(step.id, window.location.origin)} label={t.stepCopyLink} />
-            <CopyButton text={stepDetailsText(step, window.location.origin)} label={t.stepCopyDetails} />
+        <div className="gate-modal-details">
+          <div className="gate-modal-head">
+            <h2 id={titleId}>{label}</h2>
+            <div className="btn-row gate-modal-copy">
+              <CopyButton text={stepLinkOf(step.id, window.location.origin)} label={t.stepCopyLink} />
+              <CopyButton text={stepDetailsText(step, window.location.origin)} label={t.stepCopyDetails} />
+            </div>
           </div>
-        </div>
-        <div className="gate-modal-meta" dir="ltr">
-          <span className="mono">{step.action}</span>
-          <span className="muted">{formatTimestamp(step.occurredAt)}</span>
-          {result !== null && <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`}>result: {String(result)}</span>}
-        </div>
-        {reason && (
-          <p className="muted gate-modal-reason">
-            <span>{t.gateModalReason}</span> <span dir="auto">{reason}</span>
-          </p>
-        )}
-        <h3 className="gate-modal-section">{t.gateModalSummary}</h3>
-        {summary.length === 0 ? (
-          <p className="muted gate-summary-empty">{t.gateModalSummaryEmpty}</p>
-        ) : (
-          <dl className="gate-summary-list">
-            {summary.map((row) => (
-              <div key={row.key} className="gate-summary-row">
-                <dt>
-                  {fieldLabel(row.key)}
-                  <span className="mono muted gate-check-key" dir="ltr">
-                    {row.key}
-                  </span>
-                </dt>
-                <dd>
-                  {'items' in row ? (
-                    <ul className="gate-summary-items">
-                      {row.items.map((item, i) => (
-                        <li key={i} dir="auto">
-                          {valueText(item)}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <span dir="auto">{valueText(row.value)}</span>
-                  )}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        {checks && (
-          <>
-            <h3 className="gate-modal-section">{t.gateModalChecks}</h3>
-            <ul className="gate-check-list">
-              {checks.map((c, i) => (
-                <li key={`${c.key}-${i}`} className={`gate-check ${c.passed ? 'gate-check-pass' : 'gate-check-fail'}`}>
-                  <span className="gate-check-glyph" aria-hidden="true">
-                    {c.passed ? '✓' : '✗'}
-                  </span>
-                  <span className="gate-check-body">
-                    <span className="gate-check-label">
-                      {t.gateCheckLabels[c.key] ?? humanizePurpose(c.key)}
-                      <span className="mono muted gate-check-key" dir="ltr">
-                        {c.key}
-                      </span>
-                      <span className="gate-sr-only">{c.passed ? t.gateCheckPassed : t.gateCheckFailed}</span>
+          <div className="gate-modal-meta" dir="ltr">
+            <span className="mono">{step.action}</span>
+            <span className="muted">{formatTimestamp(step.occurredAt)}</span>
+            {result !== null && <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`}>result: {String(result)}</span>}
+          </div>
+          {reason && (
+            <p className="muted gate-modal-reason">
+              <span>{t.gateModalReason}</span> <span dir="auto">{reason}</span>
+            </p>
+          )}
+          {doc === 'missing' && <p className="muted gate-modal-doc-missing">{t.stepDocMissing}</p>}
+          <h3 className="gate-modal-section">{t.gateModalSummary}</h3>
+          {summary.length === 0 ? (
+            <p className="muted gate-summary-empty">{t.gateModalSummaryEmpty}</p>
+          ) : (
+            <dl className="gate-summary-list">
+              {summary.map((row) => (
+                <div key={row.key} className="gate-summary-row">
+                  <dt>
+                    {fieldLabel(row.key)}
+                    <span className="mono muted gate-check-key" dir="ltr">
+                      {row.key}
                     </span>
-                    {(c.observed || c.expected) && (
-                      <span className="gate-check-value">
-                        {c.observed && (
-                          <span>
-                            <span className="muted">{t.gateCheckObserved}</span> <span dir="auto">{c.observed}</span>
-                          </span>
-                        )}
-                        {c.expected && (
-                          <span>
-                            <span className="muted">{t.gateCheckExpected}</span> <span dir="auto">{c.expected}</span>
-                          </span>
-                        )}
-                      </span>
+                  </dt>
+                  <dd>
+                    {'items' in row ? (
+                      <ul className="gate-summary-items">
+                        {row.items.map((item, i) => (
+                          <li key={i} dir="auto">
+                            {valueText(item)}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span dir="auto">{valueText(row.value)}</span>
                     )}
-                    {!c.passed && c.note && (
-                      <span className="gate-check-note" dir="auto">
-                        {c.note}
-                      </span>
-                    )}
-                  </span>
-                </li>
+                  </dd>
+                </div>
               ))}
-            </ul>
-          </>
+            </dl>
+          )}
+          {checks && (
+            <>
+              <h3 className="gate-modal-section">{t.gateModalChecks}</h3>
+              <ul className="gate-check-list">
+                {checks.map((c, i) => (
+                  <li key={`${c.key}-${i}`} className={`gate-check ${c.passed ? 'gate-check-pass' : 'gate-check-fail'}`}>
+                    <span className="gate-check-glyph" aria-hidden="true">
+                      {c.passed ? '✓' : '✗'}
+                    </span>
+                    <span className="gate-check-body">
+                      <span className="gate-check-label">
+                        {t.gateCheckLabels[c.key] ?? humanizePurpose(c.key)}
+                        <span className="mono muted gate-check-key" dir="ltr">
+                          {c.key}
+                        </span>
+                        <span className="gate-sr-only">{c.passed ? t.gateCheckPassed : t.gateCheckFailed}</span>
+                      </span>
+                      {(c.observed || c.expected) && (
+                        <span className="gate-check-value">
+                          {c.observed && (
+                            <span>
+                              <span className="muted">{t.gateCheckObserved}</span> <span dir="auto">{c.observed}</span>
+                            </span>
+                          )}
+                          {c.expected && (
+                            <span>
+                              <span className="muted">{t.gateCheckExpected}</span> <span dir="auto">{c.expected}</span>
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {!c.passed && c.note && (
+                        <span className="gate-check-note" dir="auto">
+                          {c.note}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <details className="gate-modal-raw">
+            <summary className="muted">{t.gateModalRawDetail}</summary>
+            <pre className="mono" dir="ltr">
+              {JSON.stringify(step.detail, null, 2)}
+            </pre>
+          </details>
+        </div>
+        {twoPane && (
+          <section className="gate-modal-doc" aria-label={t.stepDocPane}>
+            {doc === 'loading' ? (
+              <div className="gate-modal-doc-body">
+                <p className="muted">{t.stepDocLoading}</p>
+              </div>
+            ) : (
+              <>
+                <div className="gate-modal-doc-head">
+                  <h3 title={doc.filename} dir="auto">
+                    {fileDisplayName(doc)}
+                  </h3>
+                  <a className="btn btn-ghost" href={api.adminStepFileDownloadUrl(step.id)}>
+                    {t.downloadFile}
+                  </a>
+                  {canPreview({ content_type: doc.contentType }) && (
+                    <a className="btn btn-ghost" href={api.adminStepFileViewUrl(step.id)} target="_blank" rel="noopener noreferrer">
+                      {t.stepDocOpenFull}
+                    </a>
+                  )}
+                </div>
+                <div className="gate-modal-doc-body">
+                  {!canPreview({ content_type: doc.contentType }) ? (
+                    <p className="muted">{t.previewUnavailable}</p>
+                  ) : doc.contentType.startsWith('image/') ? (
+                    <img src={api.adminStepFileViewUrl(step.id)} alt={doc.filename} />
+                  ) : (
+                    <iframe src={api.adminStepFileViewUrl(step.id)} title={doc.filename} />
+                  )}
+                </div>
+              </>
+            )}
+          </section>
         )}
-        <details className="gate-modal-raw">
-          <summary className="muted">{t.gateModalRawDetail}</summary>
-          <pre className="mono" dir="ltr">
-            {JSON.stringify(step.detail, null, 2)}
-          </pre>
-        </details>
       </div>
     </div>,
     document.body,

@@ -5,11 +5,19 @@ import { useWorkspaceApi } from '../agents/ApiContext';
 import { useT } from '../i18n';
 
 /** Mirrors the server's INLINE_VIEW_TYPES — anything else won't render in the iframe. */
-export function canPreview(file: DocumentFile): boolean {
+export function canPreview(file: { content_type: string }): boolean {
   return (
     file.content_type === 'application/pdf' ||
     ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.content_type)
   );
+}
+
+/**
+ * A named child of a split PDF keeps its source in view: its stored name holds
+ * the original's name and the pages.
+ */
+export function fileDisplayName(file: { filename: string; label: string | null; parentFileId: string | null }): string {
+  return file.label && file.parentFileId ? `${file.label} · ${file.filename}` : (file.label ?? file.filename);
 }
 
 interface Props {
@@ -50,9 +58,12 @@ export function FileViewModal({ clientId, file, onClose }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="card modal modal-viewer" onClick={(e) => e.stopPropagation()}>
         <div className="modal-viewer-header">
-          {/* A named child of a split PDF keeps its source in view: its stored name holds the original's name and the pages. */}
           <h2 title={file.filename}>
-            {file.label && file.parent_file_id ? `${file.label} · ${file.filename}` : (file.label ?? file.filename)}
+            {fileDisplayName({
+              filename: file.filename,
+              label: file.label,
+              parentFileId: file.parent_file_id ?? null,
+            })}
           </h2>
           <button
             className="btn btn-ghost"

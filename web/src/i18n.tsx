@@ -788,6 +788,11 @@ const he = {
   stepNotFound: 'השלב לא נמצא',
   stepNotFoundHint: 'הקישור שגוי, או שהשלב לא קיים בסביבה הזו.',
   stepBackToApp: 'חזרה למערכת',
+  // The document pane of a file step (the modal shows the checked file beside the details).
+  stepDocPane: 'המסמך שנבדק',
+  stepDocLoading: 'טוען את המסמך…',
+  stepDocMissing: 'המסמך כבר לא זמין.',
+  stepDocOpenFull: 'פתיחה בגודל מלא',
   // Non-gate step actions (apply_*, document.*, review.*, …), title-cased in
   // English like codeGateLabels. Unknown actions fall back to humanizePurpose().
   stepActionLabels: {

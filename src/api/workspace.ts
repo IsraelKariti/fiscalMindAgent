@@ -5,7 +5,7 @@ import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as dashboard from '../db/queries/dashboard.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
-import { deleteBlob, downloadBlob } from '../storage/blob.js';
+import { deleteBlob } from '../storage/blob.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import { normalizeE164 } from '../util/phone.js';
@@ -28,9 +28,9 @@ import { MONDAY_STATUS_AGENT_WORKING, syncMondayStatus } from '../agents/shared/
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { capitalClientTaxYear, defaultTaxYear } from '../agents/shared/taxYear.js';
 import { applyFormIntake, type FormAnswer } from '../agents/declarationOfCapital/formIntake.js';
-import { childDownloadName } from '../agents/declarationOfCapital/splitChildNames.js';
 import { logger } from '../util/logger.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
+import { streamFile } from './fileStream.js';
 import { DueDateSchema } from './schemas.js';
 import { toWorkspaceClient, toWorkspaceEmail } from './workspaceSerialize.js';
 
@@ -438,13 +438,9 @@ workspaceRouter.get(
   }),
 );
 
-// Only these render inline in the viewer modal. Everything else (notably
-// text/html and image/svg+xml, which can carry script) downloads as an
-// attachment — an inline response executes on the API origin, cookie and all.
-const INLINE_VIEW_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp']);
-
-// Streams the blob through the API so the container stays private and access
-// rides the dashboard session (no SAS URLs to leak).
+// The streaming, the inline-type allowlist and the download name live in
+// fileStream.ts (shared with the admin step-file routes); this route only
+// decides that the file belongs to a client of this instance.
 function serveFile(disposition: 'attachment' | 'inline'): RequestHandler {
   return wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
@@ -455,23 +451,7 @@ function serveFile(disposition: 'attachment' | 'inline'): RequestHandler {
       res.status(404).json({ error: 'File not found.' });
       return;
     }
-    const inline = disposition === 'inline' && INLINE_VIEW_TYPES.has(file.content_type);
-    const blob = await downloadBlob(file.blob_key);
-    res.setHeader('Content-Type', file.content_type);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    if (blob.contentLength) res.setHeader('Content-Length', blob.contentLength);
-    // A named child of a split PDF saves under its list document's name plus its source.
-    let downloadName = file.filename;
-    if (file.label && file.parent_file_id && file.page_from !== null && file.page_to !== null) {
-      const parent = await documentFiles.getForClient(file.parent_file_id, client!.id);
-      downloadName = childDownloadName(file.label, parent?.filename ?? '', file.page_from, file.page_to);
-    }
-    // RFC 5987 encoding: filenames are sanitized ASCII at ingest, but stay defensive.
-    res.setHeader(
-      'Content-Disposition',
-      `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(downloadName)}`,
-    );
-    blob.stream.pipe(res);
+    await streamFile(res, file, disposition);
   });
 }
 

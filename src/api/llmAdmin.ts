@@ -4,11 +4,14 @@ import type { RequestHandler } from 'express';
 import * as agentInstances from '../db/queries/agentInstances.js';
 import * as auditEvents from '../db/queries/auditEvents.js';
 import * as clients from '../db/queries/clients.js';
+import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import * as users from '../db/queries/users.js';
 import type { ClientRow, EmailRow } from '../db/types.js';
+import { streamFile } from './fileStream.js';
+import { resolveStepFile } from './stepFile.js';
 
 /**
  * Admin-only LLM observability surface (049): the per-call log browser (the
@@ -167,6 +170,44 @@ export const adminGetAuditEvent: RequestHandler = async (req, res) => {
   }
   res.json({ step: toAdminStep(row) });
 };
+
+/** The received file a step is about (its audit row targets a document_file), or null. */
+const stepFileOf = (stepId: string | undefined) =>
+  resolveStepFile(stepId, { getStep: auditEvents.getById, getFile: documentFiles.getById });
+
+/**
+ * GET /api/admin/audit-events/:id/file — name and type of the file a step
+ * checked, for the step detail modal's document pane. Keyed by the step id so
+ * it works wherever the step opens (a step link needs no impersonation).
+ */
+export const adminGetStepFile: RequestHandler = async (req, res) => {
+  const file = await stepFileOf(req.params.id);
+  if (!file) {
+    res.status(404).json({ error: 'File not found.' });
+    return;
+  }
+  res.json({
+    file: {
+      id: file.id,
+      filename: file.filename,
+      label: file.label,
+      parentFileId: file.parent_file_id,
+      contentType: file.content_type,
+    },
+  });
+};
+
+/** GET /api/admin/audit-events/:id/file/view | /download — the file itself, streamed under the admin session. */
+export function adminServeStepFile(disposition: 'attachment' | 'inline'): RequestHandler {
+  return async (req, res) => {
+    const file = await stepFileOf(req.params.id);
+    if (!file) {
+      res.status(404).json({ error: 'File not found.' });
+      return;
+    }
+    await streamFile(res, file, disposition);
+  };
+}
 
 const CallsQuerySchema = z.object({
   agentInstanceId: z.string().uuid().optional(),

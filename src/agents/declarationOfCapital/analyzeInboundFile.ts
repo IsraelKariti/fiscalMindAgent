@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
+import * as clients from '../../db/queries/clients.js';
 import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as llmUsage from '../../db/queries/llmUsage.js';
 import { analyzeFile, isAnalyzable } from './analyzeFile.js';
@@ -19,6 +20,23 @@ import type { DocumentFileRow, InjectionBlock } from '../../db/types.js';
 import type { Readable } from 'node:stream';
 
 const PDF_CONTENT_TYPE = 'application/pdf';
+
+/**
+ * Refreshes the client's drafting stamp before each slow model call of the
+ * analysis. The file is analyzed inside the inbound webhook, before the turn's
+ * re-plan job exists to keep the stamp fresh (replanWorker does that only
+ * while it waits), and a split file with many children takes longer than the
+ * workspace's stale limit — without this the accountant sees "drafting stuck"
+ * while the agent is still working (openspec `inbound-turn`: the client shows
+ * drafting from the first webhook until the planner run ends). Same guard as
+ * the webhook's own stamp: a paused or finished client is not drafting.
+ */
+async function keepDrafting(ctx: AgentContext): Promise<void> {
+  if (ctx.client.paused || ctx.client.goal_status !== 'pending') return;
+  await clients.markDraftingStarted(ctx.client.id).catch((err) => {
+    logger.warn('could not refresh the drafting stamp during file analysis', { clientId: ctx.client.id, err: String(err) });
+  });
+}
 
 function isPdf(contentType: string): boolean {
   return (contentType.toLowerCase().split(';')[0] ?? '').trim() === PDF_CONTENT_TYPE;
@@ -60,6 +78,7 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
   };
   const textLayer = sanitizeUntrusted(extractFileText(body, file.content_type), 20_000);
   let block: InjectionBlock | null = null;
+  await keepDrafting(ctx);
   const regexHit = runInjectionRegexStep(`${sanitizeInline(file.filename, 150)}\n${textLayer}`, screenCtx);
   if (regexHit) {
     block = { detector: 'regex', kind: regexHit.kind, evidence: regexHit.evidence };
@@ -107,11 +126,13 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
   // step means "no split": the whole file is classified exactly as before.
   let children: DocumentFileRow[] | null = null;
   try {
+    await keepDrafting(ctx);
     children = await splitIntoChildren(ctx, file, body);
   } catch (err) {
     logger.error('file splitting failed — classifying the whole file', err, { clientId, fileId: file.id });
   }
   if (children === null) {
+    await keepDrafting(ctx);
     await classifyAndStore(ctx, file, body);
     return;
   }
@@ -120,6 +141,7 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
   for (const child of children) {
     if (child.analysis_status !== 'pending') continue; // a re-run: already classified
     try {
+      await keepDrafting(ctx);
       await classifyAndStore(ctx, child, await readBlob(child.blob_key));
     } catch (err) {
       await documentFiles.setAnalysis(child.id, 'failed', null).catch(() => {});

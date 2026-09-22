@@ -153,7 +153,11 @@ export type ResolutionEvidence =
   | { message_id: string; quote: string }
   | { source: 'form'; question: string; quote: string }
   // A questionnaire question the client left empty — "I don't have this".
-  | { source: 'form_empty'; question: string };
+  | { source: 'form_empty'; question: string }
+  // A row the per-company split made for a file tied to an item that named
+  // no company (openspec `unlisted-files`): the file, and the issuer printed
+  // on it as the classifier reported it (audit only — never used as a name).
+  | { source: 'file'; file_id: string; issuer: string };
 
 export interface ClientDocumentRow {
   id: string;

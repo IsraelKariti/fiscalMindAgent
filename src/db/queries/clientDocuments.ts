@@ -228,6 +228,66 @@ export async function addInstances(
   }
 }
 
+/** One item of the per-company split: the head's new name and the sibling rows to insert next to it. */
+export interface CompanySplitItem {
+  documentId: string;
+  newName: string;
+  siblings: { name: string; evidence: ResolutionEvidence }[];
+}
+
+/**
+ * Per-company split (capital declaration, openspec `unlisted-files`): an item
+ * that named no company is renamed after the first company whose file was
+ * tied to it, and one sibling row per further company is inserted sharing
+ * its type_key and description, status 'pending', with the creating file as
+ * evidence. One transaction, so a crash cannot leave a renamed head without
+ * its siblings. A head that is no longer pending/claimed/collected (raced to
+ * approved or retired) is skipped whole — nothing of that item changes — and
+ * reported under `skipped`. Returns the created rows per item, in plan order.
+ */
+export async function splitByCompany(
+  clientId: string,
+  items: readonly CompanySplitItem[],
+): Promise<{ created: ClientDocumentRow[][]; skipped: string[] }> {
+  const created: ClientDocumentRow[][] = [];
+  const skipped: string[] = [];
+  if (items.length === 0) return { created, skipped };
+  const conn = await pool.connect();
+  try {
+    await conn.query('BEGIN');
+    for (const item of items) {
+      const { rows: heads } = await conn.query<ClientDocumentRow>(
+        `UPDATE client_documents SET name = $3, updated_at = now()
+         WHERE id = $1 AND client_id = $2 AND status IN ('pending', 'claimed', 'collected') RETURNING *`,
+        [item.documentId, clientId, item.newName],
+      );
+      const head = heads[0];
+      if (!head) {
+        skipped.push(item.documentId);
+        created.push([]);
+        continue;
+      }
+      const rows: ClientDocumentRow[] = [];
+      for (const sibling of item.siblings) {
+        const { rows: inserted } = await conn.query<ClientDocumentRow>(
+          `INSERT INTO client_documents (client_id, name, description, type_key, status, resolution_evidence)
+           VALUES ($1, $2, $3, $4, 'pending', $5) RETURNING *`,
+          [clientId, sibling.name, head.description, head.type_key, JSON.stringify(sibling.evidence)],
+        );
+        if (inserted[0]) rows.push(inserted[0]);
+      }
+      created.push(rows);
+    }
+    await conn.query('COMMIT');
+    return { created, skipped };
+  } catch (err) {
+    await conn.query('ROLLBACK').catch(() => undefined);
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 /**
  * Requirements-ladder retirement (capital declaration): the document is no
  * longer needed because different documents replaced it (e.g. the contract +

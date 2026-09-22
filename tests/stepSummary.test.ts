@@ -129,3 +129,31 @@ test('isIsoDateTime recognizes ISO datetimes only', () => {
   assert.equal(isIsoDateTime('2026-09-13'), false);
   assert.equal(isIsoDateTime('whatsapp'), false);
 });
+
+test('apply_collections: the per-company split renders the rename and the created rows, nothing left over', () => {
+  const rows = stepSummaryOf('apply_collections', {
+    clientName: 'ניב',
+    proposed: ['d1'],
+    proposedNames: ['ביטוח מנהלים ניב — הראל'],
+    collected: ['d1', 'd-clal'],
+    collectedNames: ['ביטוח מנהלים ניב — הראל', 'ביטוח מנהלים ניב — כלל'],
+    claimed: [],
+    claimedNames: [],
+    pairs: [
+      { fileId: 'f1', fileName: 'scan-p1-9.pdf', documentId: 'd1', documentName: 'ביטוח מנהלים ניב — הראל' },
+      { fileId: 'f-clal', fileName: 'scan-p10-11.pdf', documentId: 'd-clal', documentName: 'ביטוח מנהלים ניב — כלל' },
+    ],
+    refused: [],
+    split: {
+      renamed: [{ documentId: 'd1', oldName: 'ביטוח מנהלים ניב', newName: 'ביטוח מנהלים ניב — הראל' }],
+      created: [{ documentId: 'd-clal', name: 'ביטוח מנהלים ניב — כלל', fromDocumentId: 'd1', fromName: 'ביטוח מנהלים ניב', fileId: 'f-clal', fileName: 'scan-p10-11.pdf' }],
+    },
+  });
+  assert.deepEqual(rows, [
+    { key: 'collected', items: ['ביטוח מנהלים ניב — הראל', 'ביטוח מנהלים ניב — כלל'] },
+    { key: 'proposed', items: ['ביטוח מנהלים ניב — הראל'] },
+    { key: 'pairs', items: ['scan-p1-9.pdf → ביטוח מנהלים ניב — הראל', 'scan-p10-11.pdf → ביטוח מנהלים ניב — כלל'] },
+    { key: 'renamed_by_company', items: ['ביטוח מנהלים ניב → ביטוח מנהלים ניב — הראל'] },
+    { key: 'created_by_company', items: ['ביטוח מנהלים ניב — כלל ← scan-p10-11.pdf'] },
+  ]);
+});

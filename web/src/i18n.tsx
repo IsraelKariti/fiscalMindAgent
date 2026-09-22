@@ -840,6 +840,8 @@ const he = {
     proposed: 'המודל הציע',
     pairs: 'קבצים ששויכו למסמכים',
     refused_ties: 'שיוכים שהמערכת דחתה',
+    renamed_by_company: 'מסמכים ששמם עודכן לפי החברה',
+    created_by_company: 'מסמכים שנוצרו לפי החברה (מסמך ← קובץ)',
     documents: 'מסמכים',
     count: 'מספר שינויים',
     action: 'פעולה',

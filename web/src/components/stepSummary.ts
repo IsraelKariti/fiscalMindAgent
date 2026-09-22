@@ -117,6 +117,16 @@ const MAPPINGS: Record<string, Mapping> = {
       const doc = str(r['documentName']) ?? str(r['documentId']) ?? '?';
       return `${file} ↛ ${doc} (${str(r['reason']) ?? '?'})`;
     });
+    // The per-company split of an item that named no company (openspec `unlisted-files`).
+    const split = isRecord(d['split']) ? d['split'] : {};
+    const renamedItems = (Array.isArray(split['renamed']) ? split['renamed'] : []).map((r) => {
+      if (!isRecord(r)) return JSON.stringify(r);
+      return `${str(r['oldName']) ?? str(r['documentId']) ?? '?'} → ${str(r['newName']) ?? '?'}`;
+    });
+    const createdItems = (Array.isArray(split['created']) ? split['created'] : []).map((c) => {
+      if (!isRecord(c)) return JSON.stringify(c);
+      return `${str(c['name']) ?? str(c['documentId']) ?? '?'} ← ${str(c['fileName']) ?? str(c['fileId']) ?? '?'}`;
+    });
     return {
       rows: [
         ...list('collected', strList(d['collectedNames']) ?? strList(d['collected'])),
@@ -124,8 +134,10 @@ const MAPPINGS: Record<string, Mapping> = {
         ...list('proposed', strList(d['proposedNames']) ?? strList(d['proposed'])),
         ...list('pairs', pairItems),
         ...list('refused_ties', refusedItems),
+        ...list('renamed_by_company', renamedItems),
+        ...list('created_by_company', createdItems),
       ],
-      consumed: ['collected', 'collectedNames', 'claimed', 'claimedNames', 'proposed', 'proposedNames', 'pairs', 'refused'],
+      consumed: ['collected', 'collectedNames', 'claimed', 'claimedNames', 'proposed', 'proposedNames', 'pairs', 'refused', 'split'],
     };
   },
   'document.collected': (d) => ({

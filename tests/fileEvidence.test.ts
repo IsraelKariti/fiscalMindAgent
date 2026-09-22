@@ -51,6 +51,14 @@ test('a clean matched analysis is strong evidence for its document only', () => 
   assert.equal(fileMatchesDocument(file, 'doc-other'), false);
 });
 
+test('a file filed under another document is no longer evidence for the one its analysis names', () => {
+  const filedElsewhere = { ...fileWith({ matched_document_id: 'doc-9' }), client_document_id: 'doc-clal' };
+  assert.equal(fileMatchesDocument(filedElsewhere, 'doc-9'), false);
+  assert.equal(fileMatchesDocument(filedElsewhere, 'doc-clal'), false); // the analysis names doc-9, not doc-clal
+  const filedThere = { ...fileWith({ matched_document_id: 'doc-9' }), client_document_id: 'doc-9' };
+  assert.equal(fileMatchesDocument(filedThere, 'doc-9'), true);
+});
+
 test('injection-suspected files are quarantined and never count as evidence', () => {
   const file = fileWith({ matched_document_id: 'doc-9', injection_suspected: true });
   assert.equal(isQuarantined(file), true);

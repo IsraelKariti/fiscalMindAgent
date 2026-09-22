@@ -47,6 +47,12 @@ export function retirementsStepDetail(retired: DocumentRetirement[], docName: Na
   };
 }
 
+/** What the per-company split of this cycle did (openspec `unlisted-files`), as plan.ts collects it. */
+export interface CompanySplitDetail {
+  renamed: { documentId: string; oldName: string; newName: string }[];
+  created: { documentId: string; name: string; fromDocumentId: string; fileId: string }[];
+}
+
 export function collectionsStepDetail(
   args: {
     proposed: string[];
@@ -55,12 +61,28 @@ export function collectionsStepDetail(
     pairs: { file_id: string; document_id: string }[];
     /** Ties code refused (company check, or a file named for a new row that may not take it). */
     refused?: RefusedTie[];
+    /** The per-company split, when this cycle made one. */
+    split?: CompanySplitDetail;
   },
   docName: NameLookup,
   fileName: NameLookup,
 ) {
   const names = (ids: string[]) => ids.map((id) => named(docName, id));
+  const split = args.split
+    ? {
+        renamed: args.split.renamed.map((r) => ({ documentId: r.documentId, oldName: r.oldName, newName: r.newName })),
+        created: args.split.created.map((c) => ({
+          documentId: c.documentId,
+          name: c.name,
+          fromDocumentId: c.fromDocumentId,
+          fromName: args.split?.renamed.find((r) => r.documentId === c.fromDocumentId)?.oldName ?? named(docName, c.fromDocumentId),
+          fileId: c.fileId,
+          fileName: named(fileName, c.fileId),
+        })),
+      }
+    : undefined;
   return {
+    ...(split ? { split } : {}),
     proposed: args.proposed,
     proposedNames: names(args.proposed),
     collected: args.collected,

@@ -80,6 +80,7 @@ test('apply_collections names the proposed, collected and claimed documents and 
     docName,
     fileName,
   );
+  assert.equal('split' in detail, false); // no split this cycle: the key is absent, not empty
   assert.deepEqual(detail, {
     proposed: ['d1', 'd2'],
     proposedNames: ['אישור יתרות — בנק הפועלים', 'קרן השתלמות — אלטשולר'],
@@ -92,4 +93,38 @@ test('apply_collections names the proposed, collected and claimed documents and 
       { fileId: 'f1', fileName: 'statement.pdf', documentId: 'd2', documentName: 'קרן השתלמות — אלטשולר', reason: 'companies_differ' },
     ],
   });
+});
+
+test('apply_collections records the per-company split with names: the rename and each created row with its file', () => {
+  const detail = collectionsStepDetail(
+    {
+      proposed: ['d1'],
+      collected: ['d1', 'd-clal'],
+      claimed: [],
+      pairs: [
+        { file_id: 'f1', document_id: 'd1' },
+        { file_id: 'f-clal', document_id: 'd-clal' },
+      ],
+      split: {
+        renamed: [{ documentId: 'd1', oldName: 'ביטוח מנהלים ניב', newName: 'ביטוח מנהלים ניב — הראל' }],
+        created: [{ documentId: 'd-clal', name: 'ביטוח מנהלים ניב — כלל', fromDocumentId: 'd1', fileId: 'f-clal' }],
+      },
+    },
+    (id) => (id === 'd-clal' ? 'ביטוח מנהלים ניב — כלל' : id === 'd1' ? 'ביטוח מנהלים ניב — הראל' : undefined),
+    (id) => (id === 'f-clal' ? 'scan-p10-11.pdf' : undefined),
+  );
+  assert.deepEqual(detail.split, {
+    renamed: [{ documentId: 'd1', oldName: 'ביטוח מנהלים ניב', newName: 'ביטוח מנהלים ניב — הראל' }],
+    created: [
+      {
+        documentId: 'd-clal',
+        name: 'ביטוח מנהלים ניב — כלל',
+        fromDocumentId: 'd1',
+        fromName: 'ביטוח מנהלים ניב',
+        fileId: 'f-clal',
+        fileName: 'scan-p10-11.pdf',
+      },
+    ],
+  });
+  assert.deepEqual(detail.collectedNames, ['ביטוח מנהלים ניב — הראל', 'ביטוח מנהלים ניב — כלל']);
 });

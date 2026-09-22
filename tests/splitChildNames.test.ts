@@ -1,6 +1,22 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_CHILD_DISPLAY_NAME, childDisplayName, childDownloadName, childLabel } from '../src/agents/declarationOfCapital/splitChildNames.js';
+import { MAX_CHILD_DISPLAY_NAME, childDisplayName, childDownloadName, childLabel, companySuffixedName } from '../src/agents/declarationOfCapital/splitChildNames.js';
+
+describe('companySuffixedName', () => {
+  it('appends the table\'s Hebrew name of the file\'s company to an item that names none', () => {
+    assert.equal(companySuffixedName('ביטוח מנהלים ניב', 'הראל חברה לביטוח', 'life_insurance_savings'), 'ביטוח מנהלים ניב — הראל');
+    assert.equal(companySuffixedName('קרן השתלמות ניב', 'Meitav Gemel & Pension', 'study_fund'), 'קרן השתלמות ניב — מיטב');
+  });
+
+  it('leaves the name alone when the item names a company, the file\'s company is unknown, or the type is not institution-bound', () => {
+    assert.equal(companySuffixedName('קרן השתלמות — מיטב', 'הראל', 'study_fund'), 'קרן השתלמות — מיטב');
+    assert.equal(companySuffixedName('קרן השתלמות ניב', 'קופה קטנה בע"מ', 'study_fund'), 'קרן השתלמות ניב');
+    assert.equal(companySuffixedName('קרן השתלמות ניב', null, 'study_fund'), 'קרן השתלמות ניב');
+    assert.equal(companySuffixedName('קרן השתלמות ניב', 'הראל ומגדל', 'study_fund'), 'קרן השתלמות ניב');
+    assert.equal(companySuffixedName('מסמכי כלי רכב', 'הראל', 'vehicle'), 'מסמכי כלי רכב');
+    assert.equal(companySuffixedName('קרן השתלמות ניב', 'הראל', null), 'קרן השתלמות ניב');
+  });
+});
 
 describe('childDisplayName', () => {
   it('keeps a plain Hebrew document name', () => {
@@ -31,9 +47,42 @@ describe('childLabel', () => {
 
   it('takes the matched list document\'s name first', () => {
     assert.equal(
-      childLabel({ ...studyFund, matchedDocumentName: 'אישור יתרת קרן השתלמות ליום 31.12.2025 — הראל', issuerName: 'הראל פנסיה וגמל בע"מ' }),
+      childLabel({
+        ...studyFund,
+        matchedDocumentName: 'אישור יתרת קרן השתלמות ליום 31.12.2025 — הראל',
+        matchedDocumentTypeKey: 'study_fund',
+        issuerName: 'הראל פנסיה וגמל בע"מ',
+      }),
       'אישור יתרת קרן השתלמות ליום 31.12.2025 — הראל',
     );
+  });
+
+  it('adds the file\'s company when the matched document names none', () => {
+    const matched = { ...studyFund, matchedDocumentName: 'אישור יתרת קרן השתלמות ליום 31.12.2025 — ניב', matchedDocumentTypeKey: 'study_fund' };
+    assert.equal(childLabel({ ...matched, issuerName: 'הראל פנסיה וגמל בע"מ' }), 'אישור יתרת קרן השתלמות ליום 31.12.2025 — ניב — הראל');
+    assert.equal(
+      childLabel({ documentType: 'life_insurance_savings', quarantined: false, matchedDocumentName: 'ביטוח מנהלים ניב', matchedDocumentTypeKey: 'life_insurance_savings', issuerName: 'כלל חברה לביטוח בע"מ' }),
+      'ביטוח מנהלים ניב — כלל',
+    );
+  });
+
+  it('keeps the matched document\'s name when the file\'s company is unknown or the item names a company', () => {
+    const matched = { ...studyFund, matchedDocumentName: 'קרן השתלמות ניב', matchedDocumentTypeKey: 'study_fund' };
+    assert.equal(childLabel({ ...matched, issuerName: 'חברה שאינה בטבלה בע"מ' }), 'קרן השתלמות ניב');
+    assert.equal(childLabel({ ...matched, issuerName: null }), 'קרן השתלמות ניב');
+    assert.equal(childLabel({ ...matched, issuerName: 'הראל ומגדל' }), 'קרן השתלמות ניב');
+    assert.equal(
+      childLabel({ ...studyFund, matchedDocumentName: 'קרן השתלמות — מיטב', matchedDocumentTypeKey: 'study_fund', issuerName: 'הראל' }),
+      'קרן השתלמות — מיטב',
+    );
+  });
+
+  it('never suffixes a matched document of a type that no institution issues', () => {
+    assert.equal(
+      childLabel({ documentType: 'vehicle', quarantined: false, matchedDocumentName: 'מסמכי כלי רכב', matchedDocumentTypeKey: 'vehicle', issuerName: 'הראל' }),
+      'מסמכי כלי רכב',
+    );
+    assert.equal(childLabel({ ...studyFund, matchedDocumentName: 'קרן השתלמות ניב', issuerName: 'הראל' }), 'קרן השתלמות ניב');
   });
 
   it('names an unmatched child by its type and the recognised company', () => {

@@ -855,6 +855,13 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   list text only, never the model's `kind` or the file's text). Quarantine or
   a failed analysis → `label = NULL` and the page-range name stays. The label
   follows a planner link to another row (`plan.ts`, after `linkToDocument`).
+  Since 2026-09-22 (change `name-matched-files-by-company`) a matched row of
+  an institution-bound type that names no company gets the file's company
+  appended — `companySuffixedName` in `splitChildNames.ts`: "<row name> —
+  <institutions-table nameHe>" when `identifyInstitution(issuer_name)` finds
+  exactly one company, the row's name alone otherwise. The same function
+  names the rows the per-company split makes (below), so a child's label and
+  the row it ends under carry the same string.
 - **An unmatched child is named after its type and company** (2026-09-20,
   openspec `file-splitting`, no migration). With no kept match,
   `splitChildNames.ts` `childLabel` builds the label from two of our own word
@@ -902,9 +909,9 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      `validate_classification` reports check `issuer_matches_item` (a kept
      no-company row shows as passed with expected "not identified"); a drop
      reason is stored as `analysis.match_dropped` and shown to the planner.
-     Known limit, accepted by the owner: a person-named row can collect files
-     from several companies — the documents tab tells them apart by the
-     company on each file. The table is a snapshot of the public registers
+     A person-named row that collects files from several companies is split
+     by company at tie time (item 5 below), so the list ends with one row per
+     company. The table is a snapshot of the public registers
      (`INSTITUTIONS_AS_OF`, sources and every entry's origin in
      `docs/institutions-register.md`) — refresh it by editing the table, never
      from memory. One key per brand, not per legal entity.
@@ -924,6 +931,34 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      collected ids, so the normal path links, verifies, withholds the draft and
      runs one follow-up cycle. This lifts the old limit "a row created in a
      cycle cannot be collected in that cycle" for this case only.
+  5. *Per-company split* (2026-09-22, change `name-matched-files-by-company`,
+     no migration). The one code-made exception to rule 3: when the cycle's
+     allowed pairs tie files of recognised companies to a row of an
+     institution-bound type that names no company, `planCompanySplit`
+     (`companySplit.ts`, pure) renames the row after the first company (by
+     pair order) and plans one sibling per further company, each "<row name>
+     — <nameHe>"; files of one company share a row, a file of an unrecognised
+     company stays on the head. `clientDocuments.splitByCompany` applies it in
+     one transaction (head `name` only, siblings copy `type_key` and
+     `description`, born `pending` with `resolution_evidence = {source:'file',
+     file_id, issuer}`); a head no longer pending/claimed/collected is skipped
+     whole and its files fall back to it. `plan.ts` runs this before the
+     collect decision (never in the after-verification follow-up), redirects
+     the pairs, adds the created ids to `pendingIds` and — when the model
+     proposed the head collected — to the proposed set, so each row is
+     collected on its own tied file and verified against it (an item the split
+     touched takes this cycle's pair as its verification file, not a strong
+     match from the pre-link `files` snapshot). Created rows are audited as
+     `document.instances_added` with `reason: 'company_split'`; the
+     `apply_collections` detail carries `split.renamed` / `split.created`,
+     shown in the step modal as "old → new" and "row ← file". Consequence,
+     accepted by the owner: after the split every row names a company, so a
+     later file of a fourth company matches none of them and the agent asks
+     the client as for any unmatched file. Companion rule in
+     `fileEvidence.ts`: `fileMatchesDocument` also requires the file to be
+     unfiled or filed under that same row, so a sibling's file (whose stored
+     `matched_document_id` still names the head) is no longer evidence for the
+     head in later cycles.
   The same company check guards planner pairs (`filterPairsByCompany`): two
   identified, different companies are always refused; a file of an
   unidentified company needs `matched_files[].evidence` (the client's quoted

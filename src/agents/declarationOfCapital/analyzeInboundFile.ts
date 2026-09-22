@@ -301,6 +301,7 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
         file.id,
         childLabel({
           matchedDocumentName: matched?.name,
+          matchedDocumentTypeKey: matched?.type_key,
           documentType: analysis.document_type,
           issuerName: analysis.issuer_name,
           quarantined: gate.quarantined,

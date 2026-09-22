@@ -52,14 +52,19 @@ export function applicableFilePairs<T extends { file_id: string; document_id: st
 /**
  * Strong evidence: the isolated analyzer itself matched this file to the
  * document (it saw only the file bytes and the required list, never the
- * conversation). Enough to auto-mark the document collected.
+ * conversation). Enough to auto-mark the document collected. A file already
+ * filed under another document is evidence for that one only — e.g. a Clal
+ * child the classifier matched to "ביטוח מנהלים ניב" and the per-company
+ * split then filed under the Clal item (openspec `unlisted-files`) no longer
+ * backs the renamed Harel item its stored analysis still names.
  */
 export function fileMatchesDocument(file: DocumentFileRow, documentId: string): boolean {
   return (
     file.analysis_status === 'done' &&
     file.analysis !== null &&
     !isQuarantined(file) &&
-    file.analysis.matched_document_id === documentId
+    file.analysis.matched_document_id === documentId &&
+    (file.client_document_id === null || file.client_document_id === documentId)
   );
 }
 

@@ -17,7 +17,14 @@ import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
 import { shouldWithholdDraft } from './verifyBatchRules.js';
 import { childDisplayName } from './splitChildNames.js';
 import { assignFilesToNewRows, filterPairsByCompany, type NewRowFiles } from './fileTies.js';
-import { additionsStepDetail, collectionsStepDetail, resolutionsStepDetail, retirementsStepDetail } from './applyStepDetails.js';
+import { planCompanySplit } from './companySplit.js';
+import {
+  additionsStepDetail,
+  collectionsStepDetail,
+  resolutionsStepDetail,
+  retirementsStepDetail,
+  type CompanySplitDetail,
+} from './applyStepDetails.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState } from './decisionSchema.js';
@@ -438,13 +445,87 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // unless the client's own words back it; an item that names no company is
   // paired on the type agreement alone.
   const companyChecked = filterPairsByCompany(applicableFilePairs(decision.matched_files, fileById, documentIds), fileById, documents);
+  // Per-company split (openspec `unlisted-files`): an item that names no
+  // company ("ביטוח מנהלים ניב") takes the name of the first company whose
+  // file is tied to it, and every further company gets its own sibling row —
+  // code over this cycle's allowed pairs, before the collect decision, so each
+  // resulting row is collected and verified on its own file. Skipped in the
+  // follow-up cycle after verification (no new file arrived).
+  const split = ctx.hints?.afterVerification
+    ? { renames: [], created: [], pairs: companyChecked.allowed }
+    : planCompanySplit(companyChecked.allowed, fileById, documents);
+  const splitPairs: { file_id: string; document_id: string }[] = [];
+  const splitDetail: CompanySplitDetail = { renamed: [], created: [] };
+  if (split.renames.length > 0) {
+    const items = split.renames.map((r) => ({
+      documentId: r.documentId,
+      newName: r.newName,
+      siblings: split.created.filter((c) => c.fromDocumentId === r.documentId).map((c) => ({ name: c.name, evidence: c.evidence })),
+    }));
+    const { created, skipped } = await clientDocuments.splitByCompany(clientId, items);
+    items.forEach((item, i) => {
+      const siblings = split.created.filter((c) => c.fromDocumentId === item.documentId);
+      const rows = created[i] ?? [];
+      if (skipped.includes(item.documentId)) {
+        // The head raced out of a live status: nothing of this item changed,
+        // so the files planned for siblings go back to the head as before.
+        for (const c of siblings) for (const fileId of c.fileIds) splitPairs.push({ file_id: fileId, document_id: item.documentId });
+        return;
+      }
+      splitDetail.renamed.push(split.renames[i]!);
+      siblings.forEach((c, j) => {
+        const row = rows[j];
+        if (!row) {
+          for (const fileId of c.fileIds) splitPairs.push({ file_id: fileId, document_id: item.documentId });
+          return;
+        }
+        for (const fileId of c.fileIds) splitPairs.push({ file_id: fileId, document_id: row.id });
+        splitDetail.created.push({ documentId: row.id, name: row.name, fromDocumentId: item.documentId, fileId: c.evidence.file_id });
+        recordAudit({
+          actorType: 'system',
+          action: 'document.instances_added',
+          agentInstanceId: client.agent_instance_id,
+          clientId,
+          targetType: 'client_document',
+          targetId: item.documentId,
+          detail: {
+            clientName: client.name,
+            typeKey: row.type_key,
+            instances: [row.name],
+            evidence: c.evidence,
+            reason: 'company_split',
+            fromName: split.renames[i]!.oldName,
+          },
+        });
+      });
+    });
+    logger.info('items split by company', {
+      clientId,
+      renamed: splitDetail.renamed.map((r) => ({ id: r.documentId, name: r.newName })),
+      created: splitDetail.created.map((c) => ({ id: c.documentId, name: c.name })),
+      skipped,
+    });
+    documents = await clientDocuments.listForClient(clientId);
+    publishClientUpdated(clientId);
+  }
+  /** Items the split renamed or created: their verification file is this cycle's pair, never a stale strong match. */
+  const splitTouched = new Set([...splitDetail.renamed.map((r) => r.documentId), ...splitDetail.created.map((c) => c.documentId)]);
+  for (const c of splitDetail.created) pendingIds.add(c.documentId); // born pending, after the snapshot above
   // Files the model named for rows it created in this cycle: code decides which
   // of them a new row may take; an accepted file makes the row collectable now.
   const newRowFiles = ctx.hints?.afterVerification ? { pairs: [], refused: [] } : assignFilesToNewRows(createdWithFiles, fileById);
-  const proposedPairs: { file_id: string; document_id: string }[] = [...companyChecked.allowed, ...newRowFiles.pairs];
+  const proposedPairs: { file_id: string; document_id: string }[] = [...split.pairs, ...splitPairs, ...newRowFiles.pairs];
   const refusedTies = [...companyChecked.refused, ...newRowFiles.refused];
   if (refusedTies.length > 0) logger.warn('file-to-document ties refused', { clientId, refusedTies });
-  const proposedCollected = [...new Set([...decision.collected_document_ids, ...newRowFiles.pairs.map((p) => p.document_id)])];
+  const modelCollected = new Set(decision.collected_document_ids);
+  const proposedCollected = [
+    ...new Set([
+      ...decision.collected_document_ids,
+      ...newRowFiles.pairs.map((p) => p.document_id),
+      // A row the split created is collected when its source item was.
+      ...splitDetail.created.filter((c) => modelCollected.has(c.fromDocumentId)).map((c) => c.documentId),
+    ]),
+  ];
   const newlyCollected: string[] = [];
   const newlyClaimed: string[] = [];
   // A cycle triggered by a verification verdict reports the outcome only: no
@@ -515,7 +596,14 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     step(
       'apply_collections',
       collectionsStepDetail(
-        { proposed: proposedCollected, collected: newlyCollected, claimed: newlyClaimed, pairs: proposedPairs, refused: refusedTies },
+        {
+          proposed: proposedCollected,
+          collected: newlyCollected,
+          claimed: newlyClaimed,
+          pairs: proposedPairs,
+          refused: refusedTies,
+          split: splitDetail.renamed.length > 0 ? splitDetail : undefined,
+        },
         docName,
         fileName,
       ),
@@ -534,7 +622,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const verificationTargets = newlyCollected.flatMap((id) => {
     const tierA = files.find((f) => fileMatchesDocument(f, id));
     const paired = proposedPairs.find((m) => m.document_id === id);
-    const fileId = tierA?.id ?? paired?.file_id;
+    // An item the split touched is verified against the file tied to it in
+    // this cycle: `files` is the pre-link snapshot, so a sibling's file (whose
+    // stored match still names the head) would otherwise pass as the head's.
+    const fileId = splitTouched.has(id) ? (paired?.file_id ?? tierA?.id) : (tierA?.id ?? paired?.file_id);
     return fileId ? [{ documentId: id, fileId }] : [];
   });
   if (shouldWithholdDraft({ afterVerification: ctx.hints?.afterVerification === true, targets: verificationTargets })) {

@@ -1,8 +1,8 @@
 {
-  "ranAt": "2026-09-19T22:00:54.496Z",
-  "finishedAt": "2026-09-19T22:01:19.646Z",
+  "ranAt": "2026-09-19T22:00:17.170Z",
+  "finishedAt": "2026-09-19T22:00:50.076Z",
   "models": [
-    "gemini-3.1-pro-preview"
+    "gemini-2.5-flash"
   ],
   "stages": [
     "injection_detection_llm",
@@ -16,34 +16,34 @@
   "maxSpendUsd": 2,
   "accountantTimezone": "Asia/Jerusalem",
   "pricing": {
-    "gemini-3.1-pro-preview": {
-      "model": "gemini-3.1-pro-preview",
-      "inputCostPerToken": 0.000002,
-      "outputCostPerToken": 0.000012,
-      "thinkingCostPerToken": 0.000012,
-      "cachedCostPerToken": 2e-7
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
     }
   },
   "results": [
     {
       "stage": "generate_message",
-      "model": "gemini-3.1-pro-preview",
+      "model": "gemini-2.5-flash",
       "provider": "gemini",
       "caseId": "dec_02",
       "notes": "the client just said 'let's start': first free-form message = a small group of 2-3 discovery questions, nothing resolved yet (the questionnaire may not be cited as evidence — the gate rejects it), no re-introduction",
-      "ranAt": "2026-09-19T22:00:54.824Z",
-      "latencyMs": 20368,
+      "ranAt": "2026-09-19T22:00:17.542Z",
+      "latencyMs": 17999,
       "attempts": 1,
       "inputTokens": 21146,
-      "outputTokens": 299,
-      "thinkingTokens": 2157,
+      "outputTokens": 296,
+      "thinkingTokens": 1307,
       "cachedTokens": 0,
-      "costUsd": 0.071764,
+      "costUsd": 0.0103513,
       "error": null,
       "output": {
         "email_subject": null,
         "email_body": null,
-        "whatsapp_text": "מעולה ישראל, בוא נתחיל!\n\nכדי שנוכל להכין רשימה מדויקת, אשמח לדעת:\n1. האם יש לך תיק ניירות ערך או חשבון השקעות (בבנק או בבית השקעות)?\n2. באילו קופות גמל, קרנות פנסיה או קרנות השתלמות אתה חבר?\n(אם משהו לא קיים, מספיק לכתוב \"אין\")",
+        "whatsapp_text": "היי ישראל, מעולה! בוא נתחיל.\n\nאשמח אם תוכל לספר לי אם יש לך תיקי ניירות ערך או חשבונות השקעות בבנקים או בבתי השקעות.\nוגם, באילו קופות גמל, קרנות פנסיה או קרנות השתלמות אתה חבר? אם אין לך משהו מהרשימה, פשוט תגיד 'אין'.",
         "whatsapp_template": null,
         "tax_fetch_action": null,
         "tax_fetch_provider": null,
@@ -54,11 +54,11 @@
         "attestation": null,
         "attestation_evidence": null,
         "decision": "follow_up",
-        "reasoning": "The client agreed to start the process. I will acknowledge his response warmly and ask the first small group of clarification questions regarding securities, pension, and study funds. Since he replied just 5 minutes ago, I am scheduling the message to be sent immediately to maintain momentum.",
+        "reasoning": "The client responded positively to the initial greeting. I need to start the clarification process by asking about the most common and significant financial assets (securities, pension, provident, study funds) in a concise and friendly WhatsApp message. The WhatsApp window is open, and the client just responded, so a quick reply is appropriate.",
         "collected_document_ids": [],
         "matched_files": [],
         "channel": "whatsapp",
-        "send_at": "2026-02-10 10:32"
+        "send_at": "2026-02-10 10:35"
       },
       "checks": [
         {
@@ -88,13 +88,13 @@
         {
           "key": "question_marks",
           "expected": "<= 3",
-          "actual": 2,
+          "actual": 1,
           "pass": true
         },
         {
           "key": "send_at_future",
           "expected": "after 2026-02-10T08:30:00Z",
-          "actual": "2026-02-10 10:32",
+          "actual": "2026-02-10 10:35",
           "pass": true
         },
         {
@@ -105,9 +105,9 @@
         }
       ],
       "info": {
-        "reasoning": "The client agreed to start the process. I will acknowledge his response warmly and ask the first small group of clarification questions regarding securities, pension, and study funds. Since he replied just 5 minutes ago, I am scheduling the message to be sent immediately to maintain momentum.",
-        "send_at": "2026-02-10 10:32",
-        "message": "מעולה ישראל, בוא נתחיל!\n\nכדי שנוכל להכין רשימה מדויקת, אשמח לדעת:\n1. האם יש לך תיק ניירות ערך או חשבון השקעות (בבנק או בבית השקעות)?\n2. באילו קופות גמל, קרנות פנסיה או קרנות השתלמות אתה חבר?\n(אם משהו לא קיים, מספיק לכתוב \"אין\")",
+        "reasoning": "The client responded positively to the initial greeting. I need to start the clarification process by asking about the most common and significant financial assets (securities, pension, provident, study funds) in a concise and friendly WhatsApp message. The WhatsApp window is open, and the client just responded, so a quick reply is appropriate.",
+        "send_at": "2026-02-10 10:35",
+        "message": "היי ישראל, מעולה! בוא נתחיל.\n\nאשמח אם תוכל לספר לי אם יש לך תיקי ניירות ערך או חשבונות השקעות בבנקים או בבתי השקעות.\nוגם, באילו קופות גמל, קרנות פנסיה או קרנות השתלמות אתה חבר? אם אין לך משהו מהרשימה, פשוט תגיד 'אין'.",
         "resolutions": [],
         "evidence_quotes": [],
         "tax_fetch": null,
@@ -120,23 +120,23 @@
     },
     {
       "stage": "generate_message",
-      "model": "gemini-3.1-pro-preview",
+      "model": "gemini-2.5-flash",
       "provider": "gemini",
       "caseId": "dec_18",
       "notes": "Change confirm-file-findings: the agent stated what it found in three waiting insurer files and asked for confirmation; the client answers with a short 'yes, all correct'. That short answer is the client's own words: all three items are created in this cycle with that quote as evidence (the gate rejects the answer otherwise), each naming its waiting file in file_ids, under the life-insurance type that already holds a settled row (so added_instances, not a new resolution).",
-      "ranAt": "2026-09-19T22:00:54.887Z",
-      "latencyMs": 24215,
+      "ranAt": "2026-09-19T22:00:17.629Z",
+      "latencyMs": 22432,
       "attempts": 1,
       "inputTokens": 22019,
-      "outputTokens": 622,
-      "thinkingTokens": 2385,
+      "outputTokens": 562,
+      "thinkingTokens": 2191,
       "cachedTokens": 0,
-      "costUsd": 0.080122,
+      "costUsd": 0.013488200000000002,
       "error": null,
       "output": {
         "email_subject": null,
         "email_body": null,
-        "whatsapp_text": "מעולה, הוספתי את שלוש הפוליסות להצהרה והמסמכים שלהן הועברו לבדיקה.\n\nנחזור לשאלה הקודמת - כמה כלי רכב (פרטי, מסחרי, אופנוע) היו רשומים על שמכם ביום 31.12.2025? ובנוסף, אילו נכסי נדל\"ן (דירה, מגרש וכו') רשומים על שמכם?",
+        "whatsapp_text": "מעולה ישראל, תודה על האישור! אני רואה ששלוש פוליסות ביטוח המנהלים (בהראל, בכלל ובמגדל) התקבלו. \nלגבי השאלה הקודמת שלי, האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?",
         "whatsapp_template": null,
         "tax_fetch_action": null,
         "tax_fetch_provider": null,
@@ -147,7 +147,7 @@
             "anchor_document_id": "doc-life-menora",
             "instances": [
               {
-                "name": "ביטוח מנהלים בהראל - ישראל",
+                "name": "ביטוח מנהלים בהראל ליום 31.12.2025 - ישראל ישראלי",
                 "description": null,
                 "already_provided": false,
                 "file_ids": [
@@ -155,7 +155,7 @@
                 ]
               },
               {
-                "name": "ביטוח מנהלים בכלל - ישראל",
+                "name": "ביטוח מנהלים בכלל ליום 31.12.2025 - ישראל ישראלי",
                 "description": null,
                 "already_provided": false,
                 "file_ids": [
@@ -163,7 +163,7 @@
                 ]
               },
               {
-                "name": "ביטוח מנהלים במגדל - רונית",
+                "name": "ביטוח מנהלים במגדל ליום 31.12.2025 - רונית ישראלי",
                 "description": null,
                 "already_provided": false,
                 "file_ids": [
@@ -181,7 +181,7 @@
         "attestation": null,
         "attestation_evidence": null,
         "decision": "follow_up",
-        "reasoning": "הלקוח אישר ששלוש הפוליסות (הראל, כלל, מגדל) שייכות להצהרה. אני מוסיף אותן כמופעים חדשים תחת סוג ביטוח מנהלים/חיים ומשייך את הקבצים. מכיוון שהלקוח התעלם מהשאלה הקודמת לגבי כלי רכב, אחזור עליה ואוסיף שאלת בירור לגבי נדל\"ן. הלקוח זמין כעת ולכן אשיב מיד.",
+        "reasoning": "The client confirmed the three life insurance policies. I am adding these as new instances anchored to the existing life insurance document type. Then, I am re-asking about vehicles, as the previous question was not addressed by the client's last message. The response is immediate due to client's recent activity.",
         "collected_document_ids": [],
         "matched_files": [],
         "channel": "whatsapp",
@@ -215,7 +215,7 @@
         {
           "key": "question_marks",
           "expected": "<= 3",
-          "actual": 2,
+          "actual": 1,
           "pass": true
         },
         {
@@ -250,14 +250,14 @@
         }
       ],
       "info": {
-        "reasoning": "הלקוח אישר ששלוש הפוליסות (הראל, כלל, מגדל) שייכות להצהרה. אני מוסיף אותן כמופעים חדשים תחת סוג ביטוח מנהלים/חיים ומשייך את הקבצים. מכיוון שהלקוח התעלם מהשאלה הקודמת לגבי כלי רכב, אחזור עליה ואוסיף שאלת בירור לגבי נדל\"ן. הלקוח זמין כעת ולכן אשיב מיד.",
+        "reasoning": "The client confirmed the three life insurance policies. I am adding these as new instances anchored to the existing life insurance document type. Then, I am re-asking about vehicles, as the previous question was not addressed by the client's last message. The response is immediate due to client's recent activity.",
         "send_at": "2026-09-19 13:05",
-        "message": "מעולה, הוספתי את שלוש הפוליסות להצהרה והמסמכים שלהן הועברו לבדיקה.\n\nנחזור לשאלה הקודמת - כמה כלי רכב (פרטי, מסחרי, אופנוע) היו רשומים על שמכם ביום 31.12.2025? ובנוסף, אילו נכסי נדל\"ן (דירה, מגרש וכו') רשומים על שמכם?",
+        "message": "מעולה ישראל, תודה על האישור! אני רואה ששלוש פוליסות ביטוח המנהלים (בהראל, בכלל ובמגדל) התקבלו. \nלגבי השאלה הקודמת שלי, האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?",
         "resolutions": [],
         "added_instance_names": [
-          "ביטוח מנהלים בהראל - ישראל",
-          "ביטוח מנהלים בכלל - ישראל",
-          "ביטוח מנהלים במגדל - רונית"
+          "ביטוח מנהלים בהראל ליום 31.12.2025 - ישראל ישראלי",
+          "ביטוח מנהלים בכלל ליום 31.12.2025 - ישראל ישראלי",
+          "ביטוח מנהלים במגדל ליום 31.12.2025 - רונית ישראלי"
         ],
         "evidence_quotes": [
           "כן, הכול נכון, שלושתן נכנסות להצהרה"
@@ -272,40 +272,40 @@
     },
     {
       "stage": "generate_message",
-      "model": "gemini-3.1-pro-preview",
+      "model": "gemini-2.5-flash",
       "provider": "gemini",
       "caseId": "dec_08",
       "notes": "burst of client messages (bug 2026-09-18): every earlier reply was replaced before sending, so the thread is client-only and the replies sit in UNSENT DRAFTS; the last message is a fragment naming two new pension funds (Meitav, Menora) — both must be added as instances of the already-resolved pension type, not only named in the reply",
-      "ranAt": "2026-09-19T22:00:54.881Z",
-      "latencyMs": 24762,
+      "ranAt": "2026-09-19T22:00:17.623Z",
+      "latencyMs": 32450,
       "attempts": 1,
       "inputTokens": 22458,
-      "outputTokens": 478,
-      "thinkingTokens": 2771,
-      "cachedTokens": 0,
-      "costUsd": 0.083904,
+      "outputTokens": 550,
+      "thinkingTokens": 3470,
+      "cachedTokens": 13148,
+      "costUsd": 0.01323744,
       "error": null,
       "output": {
         "email_subject": null,
         "email_body": null,
-        "whatsapp_text": "היי ישראל, מעולה, הוספתי גם את מיטב ומנורה.\nאשמח אם תוכל להפיק ולצרף לכאן את אישורי היתרה להצהרת הון ליום 31.12.2025 מכל חברות הפנסיה שציינת (אלטשולר, הפניקס, הראל, כלל, מגדל, מור, מיטב ומנורה) - אישור ייעודי או העמוד האחרון של הדוח השנתי המקוצר. בהמשך נטפל גם במסמכים של המניות.",
+        "whatsapp_text": "היי ישראל, מעולה, תודה על העדכון! הוספתי את כל קופות הפנסיה שציינת (אלטשולר, הפניקס, הראל, כלל, מגדל, מור, מיטב ומנורה).\nאשמח אם תוכל לצרף לכאן את אישורי הפנסיה של כל החברות ליום 31.12.2025 - אישור ייעודי להצהרת הון או העמוד האחרון של הדוח השנתי המקוצר.",
         "whatsapp_template": null,
         "tax_fetch_action": null,
         "tax_fetch_provider": null,
         "tax_fetch_document_keys": null,
-        "resolved_documents": null,
+        "resolved_documents": [],
         "added_instances": [
           {
             "anchor_document_id": "doc-pension-altshuler",
             "instances": [
               {
-                "name": "פנסיה במיטב",
+                "name": "אישור פנסיה במיטב ליום 31.12.2025",
                 "description": null,
                 "already_provided": false,
                 "file_ids": []
               },
               {
-                "name": "פנסיה במנורה",
+                "name": "אישור פנסיה במנורה ליום 31.12.2025",
                 "description": null,
                 "already_provided": false,
                 "file_ids": []
@@ -317,15 +317,15 @@
             }
           }
         ],
-        "retired_documents": null,
+        "retired_documents": [],
         "attestation": null,
         "attestation_evidence": null,
         "decision": "follow_up",
-        "reasoning": "The client mentioned two additional pension funds (Meitav and Menora). I am adding them to the list using an existing pension document as an anchor, and asking the client to provide the required balance confirmations for all the pension funds they have listed.",
+        "reasoning": "הלקוח עדכן על קופות פנסיה נוספות (מיטב ומנורה) ואישר את קיומן של קופות נוספות שכבר היו ברשימה. יש להוסיף את הקופות החדשות ולבקש את אישורי הפנסיה מכל החברות. חלון ה-24 שעות פתוח והלקוח הגיב לאחרונה, לכן יש להגיב מיד בהודעה חופשית.",
         "collected_document_ids": [],
         "matched_files": [],
         "channel": "whatsapp",
-        "send_at": "2026-09-18 17:44"
+        "send_at": "2026-09-18 17:45"
       },
       "checks": [
         {
@@ -361,7 +361,7 @@
         {
           "key": "send_at_future",
           "expected": "after 2026-09-18T14:42:00Z",
-          "actual": "2026-09-18 17:44",
+          "actual": "2026-09-18 17:45",
           "pass": true
         },
         {
@@ -382,13 +382,13 @@
         }
       ],
       "info": {
-        "reasoning": "The client mentioned two additional pension funds (Meitav and Menora). I am adding them to the list using an existing pension document as an anchor, and asking the client to provide the required balance confirmations for all the pension funds they have listed.",
-        "send_at": "2026-09-18 17:44",
-        "message": "היי ישראל, מעולה, הוספתי גם את מיטב ומנורה.\nאשמח אם תוכל להפיק ולצרף לכאן את אישורי היתרה להצהרת הון ליום 31.12.2025 מכל חברות הפנסיה שציינת (אלטשולר, הפניקס, הראל, כלל, מגדל, מור, מיטב ומנורה) - אישור ייעודי או העמוד האחרון של הדוח השנתי המקוצר. בהמשך נטפל גם במסמכים של המניות.",
+        "reasoning": "הלקוח עדכן על קופות פנסיה נוספות (מיטב ומנורה) ואישר את קיומן של קופות נוספות שכבר היו ברשימה. יש להוסיף את הקופות החדשות ולבקש את אישורי הפנסיה מכל החברות. חלון ה-24 שעות פתוח והלקוח הגיב לאחרונה, לכן יש להגיב מיד בהודעה חופשית.",
+        "send_at": "2026-09-18 17:45",
+        "message": "היי ישראל, מעולה, תודה על העדכון! הוספתי את כל קופות הפנסיה שציינת (אלטשולר, הפניקס, הראל, כלל, מגדל, מור, מיטב ומנורה).\nאשמח אם תוכל לצרף לכאן את אישורי הפנסיה של כל החברות ליום 31.12.2025 - אישור ייעודי להצהרת הון או העמוד האחרון של הדוח השנתי המקוצר.",
         "resolutions": [],
         "added_instance_names": [
-          "פנסיה במיטב",
-          "פנסיה במנורה"
+          "אישור פנסיה במיטב ליום 31.12.2025",
+          "אישור פנסיה במנורה ליום 31.12.2025"
         ],
         "evidence_quotes": [
           "וגם במיטב ומנורה"
@@ -404,23 +404,23 @@
   ],
   "summary": {
     "generate_message": {
-      "gemini-3.1-pro-preview": {
+      "gemini-2.5-flash": {
         "total": 3,
         "passed": 3,
         "passRate": 1,
         "errors": 0,
         "latencyMs": {
-          "avg": 23115,
-          "p50": 24215,
-          "p90": 24215,
-          "min": 20368,
-          "max": 24762
+          "avg": 24294,
+          "p50": 22432,
+          "p90": 22432,
+          "min": 17999,
+          "max": 32450
         },
         "inputTokens": 65623,
-        "outputTokens": 1399,
-        "thinkingTokens": 7313,
-        "cachedTokens": 0,
-        "costUsd": 0.23579,
+        "outputTokens": 1408,
+        "thinkingTokens": 6968,
+        "cachedTokens": 13148,
+        "costUsd": 0.037077,
         "unpriced": 0
       }
     }

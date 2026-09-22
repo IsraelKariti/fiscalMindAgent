@@ -25,9 +25,9 @@ The file classifier SHALL be offered as match candidates only the list items a f
 - **THEN** the file's analysis says it matches no document
 
 ### Requirement: Code compares the company of the file with the company of the item
-For list items of a document type that is always issued by a financial institution (bank balance, securities portfolio, pension or provident fund, study fund, life-insurance savings, mortgage balance), the file classifier SHALL report the name of the company that issued the file as printed on it, and code SHALL compare companies before a file is tied to such an item. Code SHALL hold a table of known banks, investment houses and insurers, each with its Hebrew and English name forms, and SHALL identify the company of the file from the reported issuer and the company of the item from the item's name. `validate_classification` SHALL keep a match to such an item only when both companies are identified and are the same company; when the companies differ, or when either cannot be identified, the match SHALL be dropped and the file SHALL end as matching no document. The gate SHALL report this as the check `issuer_matches_item`, with the file's issuer as the observed value, the item's company as the expected value, and a note that says whether the companies differ or which side could not be identified; the check SHALL be absent when no item was matched or the matched item's type is not institution-bound. The planner SHALL see, in the file's analysis line, the reported issuer and, when a match was dropped by this check, that it was dropped and why.
+For list items of a document type that is always issued by a financial institution (bank balance, securities portfolio, pension or provident fund, study fund, life-insurance savings, mortgage balance), the file classifier SHALL report the name of the company that issued the file as printed on it, and code SHALL compare companies before a file is tied to such an item. Code SHALL hold a table of known banks, investment houses and insurers, each with its Hebrew and English name forms, and SHALL identify the company of the file from the reported issuer and the company of the item from the item's name. `validate_classification` SHALL keep a match to such an item when both companies are identified and are the same company, and also when the file's company is identified but the item names no company the table knows (an item named after a person or a product only, such as "קרן השתלמות ניב") — the file's document type already had to equal the item's type for the match to reach this check. When the companies differ, or when the file's company cannot be identified, the match SHALL be dropped and the file SHALL end as matching no document. The gate SHALL report this as the check `issuer_matches_item`, with the file's issuer as the observed value and the item's company (or that it is not identified) as the expected value; on a drop the note SHALL say whether the companies differ or that the file's company could not be identified; a match kept because the item names no company SHALL be reported as passed with the expected value "not identified" and no note, so the step detail still shows that the comparison was one-sided; the check SHALL be absent when no item was matched or the matched item's type is not institution-bound. The planner SHALL see, in the file's analysis line, the reported issuer and, when a match was dropped by this check, that it was dropped and why.
 
-The same comparison SHALL guard every tie the planner proposes between a file and an institution-bound item (a file paired with an existing item, and a file named for a new item): a tie between two identified, different companies SHALL always be refused; a tie where a company cannot be identified SHALL be accepted only when the proposal carries evidence — a stored inbound message of the client and a verbatim quote from it. Items of other document types are not affected by this requirement.
+The same comparison SHALL guard every tie the planner proposes between a file and an institution-bound item (a file paired with an existing item, and a file named for a new item): a tie between two identified, different companies SHALL always be refused; a tie where the file's company cannot be identified SHALL be accepted only when the proposal carries evidence — a stored inbound message of the client and a verbatim quote from it; a tie where the file's company is identified but the item names no company SHALL be accepted when the file's analysed document type equals the item's type, and refused otherwise. Items of other document types are not affected by this requirement.
 
 #### Scenario: Different companies
 - **WHEN** the classifier matches a file whose issuer is "Harel Pension & Gemel" to the item "אישור להצהרת הון — קרן השתלמות באלטשולר שחם"
@@ -42,8 +42,12 @@ The same comparison SHALL guard every tie the planner proposes between a file an
 - **THEN** the match is dropped, the note says the file's company could not be identified, and the planner's next reply asks the client about the file
 
 #### Scenario: Item names no company
-- **WHEN** the matched item is named "אישור יתרות בנק" with no bank name
-- **THEN** the match is dropped and the note says the item's company could not be identified
+- **WHEN** the classifier matches a Harel study fund report to the item "אישור יתרת קרן השתלמות ליום 31.12.2025 — קרן השתלמות ניב", which names a person and no company
+- **THEN** the match is kept, `issuer_matches_item` is reported passed with observed "Harel", expected "not identified" and no note, and the file's analysis carries no dropped-match reason
+
+#### Scenario: Item names no company and the types differ
+- **WHEN** the classifier matches a Harel pension report to the item "קרן השתלמות ניב", which names no company
+- **THEN** the match is dropped by the type check as before, and `issuer_matches_item` is absent
 
 #### Scenario: Type that is not institution-bound
 - **WHEN** the classifier matches a vehicle licence to the vehicle item
@@ -60,6 +64,14 @@ The same comparison SHALL guard every tie the planner proposes between a file an
 #### Scenario: Planner pairs a file of an unidentified company without a quote
 - **WHEN** the same pair carries no evidence
 - **THEN** the pair is refused and the file stays unattached
+
+#### Scenario: Planner pairs a file with an item that names no company
+- **WHEN** the planner pairs a Harel study fund file (analysed type "study fund") with the item "קרן השתלמות ניב", without a client quote
+- **THEN** the pair is accepted, the file is attached and the item is marked received
+
+#### Scenario: Planner pairs a file of another type with an item that names no company
+- **WHEN** the planner pairs a Harel pension file (analysed type "pension") with the item "קרן השתלמות ניב"
+- **THEN** the pair is refused because the types differ, and the file stays unattached
 
 ### Requirement: A list item is created only on the client's quoted words
 Every planner proposal that makes a list item needed — settling an open question as needed, or adding an item to a type that is already settled — SHALL carry evidence: the id of a stored inbound message of this client and a quote that appears verbatim in that message's text. The decision gate SHALL reject a proposal without evidence, with a message id that is not a stored inbound message of the client, or with a quote that is not found in that message, and the rejection SHALL be reported through the `business_rules` check of `validate_message`. Text from a received file, from a file name, from the online questionnaire or from the agent's own messages SHALL NOT be accepted as evidence. The accepted evidence SHALL be stored with the created items and shown in the step's detail. Items created by the office's own processing of the online questionnaire and items the accountant adds by hand are not planner proposals and are not affected.

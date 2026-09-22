@@ -144,8 +144,12 @@ The display name SHALL be what the documents list and the file viewer show as th
 - **THEN** the child has no display name and is shown as "scan-p5-6.pdf" as before
 
 #### Scenario: The gate drops the match
-- **WHEN** the classifier proposes a match for a child it typed as life insurance savings from a recognised company, and `validate_classification` drops the match because the list item names no company
+- **WHEN** the classifier proposes a match for a child it typed as life insurance savings from a recognised company, and `validate_classification` drops the match because the list item names a different company
 - **THEN** the child is not linked to the list item, and its display name is the type-based name (the short name of life insurance savings and the company's name), not the list item's name
+
+#### Scenario: The list item names no company
+- **WHEN** the classifier matches a child it typed as life insurance savings from Harel to the list item "ביטוח מנהלים ניב", which names no company, and `validate_classification` keeps the match
+- **THEN** the child is linked to the list item and its display name is the list item's name
 
 #### Scenario: Two children of the same type and company
 - **WHEN** two unmatched children of "scan.pdf", pages 34-35 and pages 36-37, are both study fund reports of the same recognised company

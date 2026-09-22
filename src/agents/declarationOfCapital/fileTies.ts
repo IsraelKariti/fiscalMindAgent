@@ -7,7 +7,8 @@ import type { ClientDocumentRow, DocumentFileRow } from '../../db/types.js';
  * Pure rules for the ties the planner proposes between a received file and a
  * list item (openspec `unlisted-files`). The model proposes; code decides:
  *  - a tie to an item of an institution-bound type passes the company check
- *    (same company, or the client's quoted words when a company cannot be
+ *    (same company; an item that names no company when the document types
+ *    agree; the client's quoted words when the file's company cannot be
  *    identified; two identified, different companies never);
  *  - a file named for an item created in this cycle is attached only when it is
  *    a real, readable, unattached file of the item's type.
@@ -28,7 +29,11 @@ export type TieRefusal =
   | 'file_already_taken'
   | 'row_not_pending';
 
-/** The company check of one tie; null = allowed. Items of other types are never refused here. */
+/**
+ * The company check of one tie; null = allowed. Items of other types are never
+ * refused here. An item that names no company is tied on the type agreement
+ * instead, so that case alone also checks the file's analysed type.
+ */
 export function companyRefusal(
   file: DocumentFileRow,
   doc: TieDocument,
@@ -38,6 +43,7 @@ export function companyRefusal(
 ): TieRefusal | null {
   if (!isInstitutionBound(doc.type_key)) return null;
   const comparison = compareCompanies(file.analysis?.issuer_name, doc.name, institutions);
+  if (comparison.verdict === 'item_unidentified' && file.analysis?.document_type !== doc.type_key) return 'type_differs';
   if (tieAllowedByCompany(comparison, hasEvidence)) return null;
   return comparison.verdict === 'different' ? 'companies_differ' : 'company_unidentified_no_client_quote';
 }
@@ -78,7 +84,7 @@ export interface NewRowFiles {
  * Which named files the rows created in this cycle may take. A file goes to at
  * most one row (the first that names it), a row takes at most one file, and a
  * row born 'claimed' takes none. The row's own evidence is the client's words,
- * so an unidentified company does not block the tie — two identified,
+ * so an unidentified file company does not block the tie — two identified,
  * different companies still do.
  */
 export function assignFilesToNewRows(

@@ -434,8 +434,9 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const documentIds = new Set(documents.map((d) => d.id));
   // A split parent (058) is never paired: its children are, each on its own.
   // The company check (institutions.ts) then refuses a pair between two
-  // different companies, and a pair with an unidentified company unless the
-  // client's own words back it.
+  // different companies, and a pair with a file of an unidentified company
+  // unless the client's own words back it; an item that names no company is
+  // paired on the type agreement alone.
   const companyChecked = filterPairsByCompany(applicableFilePairs(decision.matched_files, fileById, documentIds), fileById, documents);
   // Files the model named for rows it created in this cycle: code decides which
   // of them a new row may take; an accepted file makes the row collectable now.

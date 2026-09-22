@@ -53,38 +53,51 @@ describe('companyRefusal', () => {
     assert.equal(companyRefusal(file('f'), altshuler, true, TABLE), 'companies_differ');
   });
 
-  it('an unidentified company needs the client\'s quoted words', () => {
+  it('an unidentified file company needs the client\'s quoted words', () => {
     const unknownIssuer = file('f', {}, { issuer_name: 'קרן ההנדסאים' });
     assert.equal(companyRefusal(unknownIssuer, smallFund, false, TABLE), 'company_unidentified_no_client_quote');
     assert.equal(companyRefusal(unknownIssuer, smallFund, true, TABLE), null);
-    // The item names no known company.
-    assert.equal(companyRefusal(file('f'), smallFund, false, TABLE), 'company_unidentified_no_client_quote');
     // A file analysed before issuer_name existed.
     const { issuer_name: _omit, ...old } = file('f').analysis!;
     assert.equal(companyRefusal(file('f', { analysis: old as FileAnalysis }), harel, false, TABLE), 'company_unidentified_no_client_quote');
+  });
+
+  it('an item that names no company is tied on the type agreement, without the client\'s words', () => {
+    assert.equal(companyRefusal(file('f'), smallFund, false, TABLE), null);
+    assert.equal(companyRefusal(file('f'), smallFund, true, TABLE), null);
+    // The file's analysed type must be the item's type.
+    assert.equal(companyRefusal(file('f', {}, { document_type: 'pension_provident' }), smallFund, false, TABLE), 'type_differs');
+    assert.equal(companyRefusal(file('f', {}, { document_type: 'pension_provident' }), smallFund, true, TABLE), 'type_differs');
   });
 });
 
 describe('filterPairsByCompany', () => {
   it('splits the planner\'s pairs into allowed and refused', () => {
-    const files = new Map([['f1', file('f1')]]);
+    const files = new Map([
+      ['f1', file('f1')],
+      ['f2', file('f2', {}, { issuer_name: 'קרן ההנדסאים' })],
+    ]);
     const quote = { message_id: 'm', quote: 'q' };
     const result = filterPairsByCompany(
       [
         { file_id: 'f1', document_id: 'd-harel', evidence: null },
         { file_id: 'f1', document_id: 'd-alt', evidence: quote },
         { file_id: 'f1', document_id: 'd-small', evidence: null },
-        { file_id: 'f1', document_id: 'd-small', evidence: quote },
+        { file_id: 'f2', document_id: 'd-small', evidence: null },
+        { file_id: 'f2', document_id: 'd-small', evidence: quote },
         { file_id: 'f1', document_id: 'd-car', evidence: null },
       ],
       files,
       [altshuler, harel, smallFund, vehicle],
       TABLE,
     );
-    assert.deepEqual(result.allowed.map((p) => `${p.document_id}:${p.evidence !== null}`), ['d-harel:false', 'd-small:true', 'd-car:false']);
+    assert.deepEqual(
+      result.allowed.map((p) => `${p.file_id}:${p.document_id}:${p.evidence !== null}`),
+      ['f1:d-harel:false', 'f1:d-small:false', 'f2:d-small:true', 'f1:d-car:false'],
+    );
     assert.deepEqual(result.refused, [
       { file_id: 'f1', document_id: 'd-alt', reason: 'companies_differ' },
-      { file_id: 'f1', document_id: 'd-small', reason: 'company_unidentified_no_client_quote' },
+      { file_id: 'f2', document_id: 'd-small', reason: 'company_unidentified_no_client_quote' },
     ]);
   });
 });

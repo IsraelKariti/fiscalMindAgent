@@ -101,12 +101,15 @@ export function compareCompanies(issuerName: string | null | undefined, itemName
 }
 
 /**
- * May the planner tie this file to this item of an institution-bound type?
- * Same company: yes. Two identified, different companies: never. A company
- * that cannot be identified: only on the client's quoted words.
+ * May a file be tied to this item of an institution-bound type (the file
+ * check's gate and the planner's pairs share this rule)? Same company: yes.
+ * Two identified, different companies: never. An item that names no company
+ * the table knows (named after a person or a product, "קרן השתלמות ניב"): yes —
+ * the callers already require the document types to agree. A file whose own
+ * company cannot be identified: only on the client's quoted words.
  */
 export function tieAllowedByCompany(comparison: CompanyComparison, hasEvidence: boolean): boolean {
-  if (comparison.verdict === 'same') return true;
+  if (comparison.verdict === 'same' || comparison.verdict === 'item_unidentified') return true;
   if (comparison.verdict === 'different') return false;
   return hasEvidence;
 }

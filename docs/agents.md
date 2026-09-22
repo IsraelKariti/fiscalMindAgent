@@ -886,16 +886,25 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      `classifierCandidates(rows)` (`analyzeFileRules.ts`): rows that are not
      `unresolved` / `not_required` / `retired`. A file of a type never discussed
      therefore ends as "matches no required document".
-  2. *Company check in code (strict)* — for the institution-bound types
+  2. *Company check in code* — for the institution-bound types
      (`institutionBound` in `catalog.ts`: bank_balance, securities_portfolio,
      pension_provident, study_fund, life_insurance_savings, mortgage_balance)
      the classifier also answers `issuer_name`; `institutions.ts`
      (`identifyInstitution`, whole-word aliases, Hebrew prefix letters, longer
      alias wins, two companies in one text = ambiguous) maps the issuer and the
-     row's name to a key of `institutionsTable.ts`. `validate_classification`
-     keeps a match only when both are identified and equal, else drops it
-     (check `issuer_matches_item`, reason stored as `analysis.match_dropped` and
-     shown to the planner). The table is a snapshot of the public registers
+     row's name to a key of `institutionsTable.ts`. One rule,
+     `tieAllowedByCompany`, serves the gate and the planner: same company →
+     kept; two identified, different companies → never; the row names no
+     company the table knows (questionnaire rows are often named after a
+     person, "קרן השתלמות ניב") → kept on the type agreement alone (change
+     `accept-match-without-item-company`, 2026-09-22); the file's company not
+     identified → only on the client's quoted words, which the gate never has.
+     `validate_classification` reports check `issuer_matches_item` (a kept
+     no-company row shows as passed with expected "not identified"); a drop
+     reason is stored as `analysis.match_dropped` and shown to the planner.
+     Known limit, accepted by the owner: a person-named row can collect files
+     from several companies — the documents tab tells them apart by the
+     company on each file. The table is a snapshot of the public registers
      (`INSTITUTIONS_AS_OF`, sources and every entry's origin in
      `docs/institutions-register.md`) — refresh it by editing the table, never
      from memory. One key per brand, not per legal entity.
@@ -916,8 +925,10 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      runs one follow-up cycle. This lifts the old limit "a row created in a
      cycle cannot be collected in that cycle" for this case only.
   The same company check guards planner pairs (`filterPairsByCompany`): two
-  identified, different companies are always refused; an unidentified company
-  needs `matched_files[].evidence` (the client's quoted words). A refused tie
+  identified, different companies are always refused; a file of an
+  unidentified company needs `matched_files[].evidence` (the client's quoted
+  words); a row that names no company takes the file when the analysed
+  `document_type` equals the row's type (else `type_differs`). A refused tie
   never turns the row `claimed`; refusals are listed in `apply_collections`
   (`refused`). Known limit: `gemini-2.5-flash` sometimes files a confirmed
   extra fund under the wrong open type (eval `dec_13`); code then refuses the

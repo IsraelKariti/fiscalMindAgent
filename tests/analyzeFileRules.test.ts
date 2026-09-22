@@ -171,11 +171,22 @@ describe('validate_classification (validateClassification)', () => {
     }
   });
 
-  it('company check (strict): an item that names no company drops the match', () => {
+  it('company check: an item that names no company keeps the match on the type agreement', () => {
     const g = validate(raw({ matched_document_id: 'doc-4' }));
-    assert.equal(g.result, false);
-    assert.equal(g.analysis.match_dropped, 'item company not identified');
-    assert.equal(g.checks.find((c) => c.key === 'issuer_matches_item')?.expected, 'not identified');
+    assert.equal(g.result, true);
+    assert.equal(g.analysis.matched_document_id, 'doc-4');
+    assert.equal(g.analysis.match_dropped, undefined);
+    assert.deepEqual(g.checks.find((c) => c.key === 'issuer_matches_item'), {
+      key: 'issuer_matches_item',
+      passed: true,
+      note: null,
+      observed: 'Bank Leumi',
+      expected: 'not identified',
+    });
+    // The type check still runs first: a file of another type is dropped before the company check.
+    const typed = validate(raw({ matched_document_id: 'doc-4', document_type: 'study_fund' }));
+    assert.equal(typed.result, false);
+    assert.equal(typed.checks.some((c) => c.key === 'issuer_matches_item'), false);
   });
 
   it('company check does not run for types that are not institution-bound, nor without a match', () => {

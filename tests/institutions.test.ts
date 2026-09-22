@@ -110,10 +110,12 @@ describe('compareCompanies / tieAllowedByCompany', () => {
     assert.equal(compareCompanies('Harel', 'קרן השתלמות').verdict, 'item_unidentified');
   });
 
-  it('same always, different never, unidentified only on the client\'s words', () => {
+  it('same always, different never, item without a company always, file without a company only on the client\'s words', () => {
     const verdict = (issuer: string | null, item: string) => compareCompanies(issuer, item);
     assert.equal(tieAllowedByCompany(verdict('Harel', 'בהראל'), false), true);
     assert.equal(tieAllowedByCompany(verdict('Harel', 'במגדל'), true), false);
+    assert.equal(tieAllowedByCompany(verdict('Harel', 'קרן השתלמות ניב'), false), true);
+    assert.equal(tieAllowedByCompany(verdict('Harel', 'קרן השתלמות ניב'), true), true);
     assert.equal(tieAllowedByCompany(verdict(null, 'בהראל'), false), false);
     assert.equal(tieAllowedByCompany(verdict(null, 'בהראל'), true), true);
   });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CAPITAL_DOCUMENT_CATALOG, isInstitutionBound } from './catalog.js';
-import { compareCompanies, institutionLabel, type Institution } from './institutions.js';
+import { compareCompanies, institutionLabel, tieAllowedByCompany, type Institution } from './institutions.js';
 import { check, type GateCheck } from '../shared/gateChecks.js';
 
 /**
@@ -124,8 +124,9 @@ export function classificationQuarantined(analysis: Pick<FileAnalysis, 'injectio
  *   2. when the answer carries a closed document_type, the matched row's
  *      type_key must agree with it, else dropped;
  *   3. for an item of an institution-bound type, the company printed on the
- *      file and the company the item names must both be identified and be the
- *      same company, else dropped (strict form, openspec `unlisted-files`);
+ *      file must be identified and be the company the item names; an item
+ *      that names no company keeps the match on the type agreement of rule 2
+ *      (openspec `unlisted-files`);
  *   4. suspected injection / illegible → quarantined (reported, never flipped).
  * The gate never changes document_type or a security verdict: it drops or
  * rejects, it does not make a "suspected" answer "clean".
@@ -171,15 +172,17 @@ export function validateClassification(
       }
       if (analysis.matched_document_id !== null && isInstitutionBound(row.type_key)) {
         const comparison = compareCompanies(analysis.issuer_name, row.name, institutions);
-        const same = comparison.verdict === 'same';
+        // The gate never has the client's words: a file of an unidentified company is dropped.
+        const allowed = tieAllowedByCompany(comparison, false);
+        // An item that names no company keeps the match on the type agreement
+        // checked above; the step detail shows the one-sided comparison as
+        // expected "not identified" next to a passed check.
         let note: string | null = null;
-        if (!same) {
+        if (!allowed) {
           note =
             comparison.verdict === 'different'
               ? `companies differ: the file is from ${institutionLabel(comparison.fileKey, institutions)}, the item names ${institutionLabel(comparison.itemKey, institutions)}`
-              : comparison.verdict === 'file_unidentified'
-                ? 'file company not identified'
-                : 'item company not identified';
+              : 'file company not identified';
           result = false;
           rejectedId = proposedId;
           reason = `matched id "${proposedId}" dropped — ${note}`;
@@ -187,7 +190,7 @@ export function validateClassification(
           analysis.match_dropped = note;
         }
         checks.push(
-          check('issuer_matches_item', same, note, {
+          check('issuer_matches_item', allowed, note, {
             observed: comparison.fileKey ? institutionLabel(comparison.fileKey, institutions) : (analysis.issuer_name ?? 'none'),
             expected: comparison.itemKey ? institutionLabel(comparison.itemKey, institutions) : 'not identified',
           }),

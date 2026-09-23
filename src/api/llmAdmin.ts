@@ -11,7 +11,7 @@ import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import * as users from '../db/queries/users.js';
 import type { ClientRow, EmailRow } from '../db/types.js';
 import { streamFile } from './fileStream.js';
-import { resolveStepFile } from './stepFile.js';
+import { resolveCallFile, resolveStepFile } from './stepFile.js';
 
 /**
  * Admin-only LLM observability surface (049): the per-call log browser (the
@@ -175,32 +175,36 @@ export const adminGetAuditEvent: RequestHandler = async (req, res) => {
 const stepFileOf = (stepId: string | undefined) =>
   resolveStepFile(stepId, { getStep: auditEvents.getById, getFile: documentFiles.getById });
 
-/**
- * GET /api/admin/audit-events/:id/file — name and type of the file a step
- * checked, for the step detail modal's document pane. Keyed by the step id so
- * it works wherever the step opens (a step link needs no impersonation).
- */
-export const adminGetStepFile: RequestHandler = async (req, res) => {
-  const file = await stepFileOf(req.params.id);
-  if (!file) {
-    res.status(404).json({ error: 'File not found.' });
-    return;
-  }
-  res.json({
-    file: {
-      id: file.id,
-      filename: file.filename,
-      label: file.label,
-      parentFileId: file.parent_file_id,
-      contentType: file.content_type,
-    },
-  });
-};
+/** The received file an LLM call read (llm_calls.document_file_id), or null. */
+const callFileOf = (callId: string | undefined) =>
+  resolveCallFile(callId, { getCall: llmCalls.getFileRef, getFile: documentFiles.getById });
 
-/** GET /api/admin/audit-events/:id/file/view | /download — the file itself, streamed under the admin session. */
-export function adminServeStepFile(disposition: 'attachment' | 'inline'): RequestHandler {
+type FileOf = (id: string | undefined) => Promise<Awaited<ReturnType<typeof documentFiles.getById>>>;
+
+/** Name and type of the file a row is about, for a detail modal's document pane; 404 when there is none. */
+function fileMetaHandler(fileOf: FileOf): RequestHandler {
   return async (req, res) => {
-    const file = await stepFileOf(req.params.id);
+    const file = await fileOf(req.params.id);
+    if (!file) {
+      res.status(404).json({ error: 'File not found.' });
+      return;
+    }
+    res.json({
+      file: {
+        id: file.id,
+        filename: file.filename,
+        label: file.label,
+        parentFileId: file.parent_file_id,
+        contentType: file.content_type,
+      },
+    });
+  };
+}
+
+/** The file itself, streamed under the admin session. */
+function fileServeHandler(fileOf: FileOf, disposition: 'attachment' | 'inline'): RequestHandler {
+  return async (req, res) => {
+    const file = await fileOf(req.params.id);
     if (!file) {
       res.status(404).json({ error: 'File not found.' });
       return;
@@ -208,6 +212,26 @@ export function adminServeStepFile(disposition: 'attachment' | 'inline'): Reques
     await streamFile(res, file, disposition);
   };
 }
+
+/**
+ * GET /api/admin/audit-events/:id/file — name and type of the file a step
+ * checked, for the step detail modal's document pane. Keyed by the step id so
+ * it works wherever the step opens (a step link needs no impersonation).
+ */
+export const adminGetStepFile: RequestHandler = fileMetaHandler(stepFileOf);
+
+/** GET /api/admin/audit-events/:id/file/view | /download — the file itself, streamed under the admin session. */
+export const adminServeStepFile = (disposition: 'attachment' | 'inline'): RequestHandler => fileServeHandler(stepFileOf, disposition);
+
+/**
+ * GET /api/admin/llm-calls/:id/file — name and type of the file an LLM call
+ * read, for the call detail modal's document pane. Keyed by the call id, like
+ * the step endpoints: the browser never names a file id.
+ */
+export const adminGetCallFile: RequestHandler = fileMetaHandler(callFileOf);
+
+/** GET /api/admin/llm-calls/:id/file/view | /download — the file itself, streamed under the admin session. */
+export const adminServeCallFile = (disposition: 'attachment' | 'inline'): RequestHandler => fileServeHandler(callFileOf, disposition);
 
 const CallsQuerySchema = z.object({
   agentInstanceId: z.string().uuid().optional(),

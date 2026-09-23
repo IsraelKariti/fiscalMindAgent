@@ -10,6 +10,7 @@ import {
 import { displayClientName, formatTimestamp, formatUsd, humanizePurpose, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { CopyButton } from '../CopyButton';
+import { DocumentPane, isTwoPane, useDocumentOf } from '../DocumentPane';
 import { Dropdown } from '../Dropdown';
 import { MODEL_LABELS } from './shared';
 
@@ -109,6 +110,12 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [callId]);
 
+  // A call that read a file shows it beside the details, like a file step's
+  // modal. The document is asked for (by call id) once the call says it has
+  // one; a call without a file asks for nothing.
+  const doc = useDocumentOf(call?.documentFileId ? call.id : null, api.adminGetCallFile);
+  const twoPane = isTwoPane(doc);
+
   const schema = call?.request?.config?.['responseJsonSchema'];
   const { history, query } = splitContents(call?.request?.contents);
   const response = call?.response != null && call.response.trim() !== '' ? maybePrettyJson(call.response) : null;
@@ -116,131 +123,135 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="card modal"
+        className={`card modal${twoPane ? ' gate-modal-with-doc' : ''}`}
         onClick={(e) => e.stopPropagation()}
-        style={{ width: 'min(860px, 94vw)', maxHeight: '88vh', overflowY: 'auto' }}
+        style={twoPane ? undefined : { width: 'min(860px, 94vw)', maxHeight: '88vh', overflowY: 'auto' }}
       >
-        <h2>{t.adminLlmCallTitle}</h2>
-        {error && <div className="error-banner">{error}</div>}
-        {!call && !error && <p className="muted">{t.loading}</p>}
-        {call && (
-          <>
-            {/* Stage header: the human label, the technical key, the outcome. */}
-            <div className="llm-meta-head">
-              <span className="llm-meta-stage">{t.llmPurposeLabels[call.purpose] ?? humanizePurpose(call.purpose)}</span>
-              <span className="badge badge-neutral mono" dir="ltr" title={t.adminLlmCallStageKey}>
-                {call.purpose}
-              </span>
-              {call.documentFileName && (
-                <span className="badge badge-neutral" dir="auto" title={t.adminLlmCallFile}>
-                  {call.documentFileName}
+        <div className="gate-modal-details">
+          <h2>{t.adminLlmCallTitle}</h2>
+          {error && <div className="error-banner">{error}</div>}
+          {!call && !error && <p className="muted">{t.loading}</p>}
+          {call && (
+            <>
+              {doc === 'missing' && <p className="muted gate-modal-doc-missing">{t.stepDocMissing}</p>}
+              {/* Stage header: the human label, the technical key, the outcome. */}
+              <div className="llm-meta-head">
+                <span className="llm-meta-stage">{t.llmPurposeLabels[call.purpose] ?? humanizePurpose(call.purpose)}</span>
+                <span className="badge badge-neutral mono" dir="ltr" title={t.adminLlmCallStageKey}>
+                  {call.purpose}
                 </span>
-              )}
-              {call.status === 'error' ? (
-                <span className="badge badge-danger">{t.adminLlmCallsStatusError}</span>
-              ) : (
-                <span className="badge badge-success">{t.adminLlmCallStatusOk}</span>
-              )}
-            </div>
-
-            {/* Who / when / what — labelled fields, not a dotted sentence. */}
-            <dl className="detail-grid llm-meta-grid">
-              <div>
-                <dt>{t.adminLlmCallsColWhen}</dt>
-                <dd>{formatTimestamp(call.createdAt)}</dd>
-              </div>
-              <div>
-                <dt>{t.adminLlmCallsColModel}</dt>
-                <dd>{MODEL_LABELS[call.model] ?? call.model}</dd>
-              </div>
-              <div>
-                <dt>{t.adminLlmCallsColClient}</dt>
-                <dd>{call.clientName ? displayClientName(call.clientName) : '—'}</dd>
-              </div>
-              <div>
-                <dt>{t.adminLlmCallMetaAttempts}</dt>
-                <dd>{call.attempts}</dd>
-              </div>
-              <div>
-                <dt>{t.adminLlmCallsColDuration}</dt>
-                <dd>{call.durationMs !== null ? `${(call.durationMs / 1000).toFixed(1)}s` : '—'}</dd>
-              </div>
-            </dl>
-
-            {/* Tokens by kind, each with the price it was billed at, plus the total. */}
-            <div className="llm-meta-tiles">
-              {(
-                [
-                  [t.inputTokens, call.inputTokens, call.inputPricePerToken],
-                  [t.outputTokens, call.outputTokens, call.outputPricePerToken],
-                  [t.thinkingTokens, call.thinkingTokens, call.thinkingPricePerToken],
-                  [t.cachedTokens, call.cachedTokens, call.cachedPricePerToken],
-                ] as const
-              ).map(([label, count, rate]) => (
-                <div key={label} className="llm-meta-tile">
-                  <span className="stat-label">{label}</span>
-                  <span className="llm-meta-value">{count.toLocaleString(LOCALE)}</span>
-                  <span className="llm-meta-sub" dir="ltr">
-                    {perMillion(rate)} {t.adminLlmCallPerMillion}
+                {call.documentFileName && (
+                  <span className="badge badge-neutral" dir="auto" title={t.adminLlmCallFile}>
+                    {call.documentFileName}
                   </span>
+                )}
+                {call.status === 'error' ? (
+                  <span className="badge badge-danger">{t.adminLlmCallsStatusError}</span>
+                ) : (
+                  <span className="badge badge-success">{t.adminLlmCallStatusOk}</span>
+                )}
+              </div>
+
+              {/* Who / when / what — labelled fields, not a dotted sentence. */}
+              <dl className="detail-grid llm-meta-grid">
+                <div>
+                  <dt>{t.adminLlmCallsColWhen}</dt>
+                  <dd>{formatTimestamp(call.createdAt)}</dd>
                 </div>
-              ))}
-              <div className="llm-meta-tile llm-meta-tile-total">
-                <span className="stat-label">{t.totalCost}</span>
-                <span className="llm-meta-value" dir="ltr">{call.cost !== null ? formatUsd(call.cost) : '—'}</span>
-                <span className="llm-meta-sub">{t.adminLlmCallPricesTitle}</span>
-              </div>
-            </div>
-            {call.error && (
-              <div className="error-banner" dir="ltr">
-                {t.adminLlmCallErrorLabel}: {call.error}
-              </div>
-            )}
+                <div>
+                  <dt>{t.adminLlmCallsColModel}</dt>
+                  <dd>{MODEL_LABELS[call.model] ?? call.model}</dd>
+                </div>
+                <div>
+                  <dt>{t.adminLlmCallsColClient}</dt>
+                  <dd>{call.clientName ? displayClientName(call.clientName) : '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t.adminLlmCallMetaAttempts}</dt>
+                  <dd>{call.attempts}</dd>
+                </div>
+                <div>
+                  <dt>{t.adminLlmCallsColDuration}</dt>
+                  <dd>{call.durationMs !== null ? `${(call.durationMs / 1000).toFixed(1)}s` : '—'}</dd>
+                </div>
+              </dl>
 
-            {call.request?.systemInstruction && (
-              <>
-                <h3>{t.adminLlmCallSystemInstruction}</h3>
-                <CallPane tone="system" text={call.request.systemInstruction} copyTitle={t.copyText} />
-              </>
-            )}
-
-            {history.length > 0 && (
-              <>
-                <h3>{t.adminLlmCallHistory}</h3>
-                {history.map((turn, i) => (
-                  <div key={i} className="llm-history-turn">
-                    <span className="badge badge-neutral mono">{turn.role}</span>
-                    <CallPane tone="input" text={turn.text} copyTitle={t.copyText} />
+              {/* Tokens by kind, each with the price it was billed at, plus the total. */}
+              <div className="llm-meta-tiles">
+                {(
+                  [
+                    [t.inputTokens, call.inputTokens, call.inputPricePerToken],
+                    [t.outputTokens, call.outputTokens, call.outputPricePerToken],
+                    [t.thinkingTokens, call.thinkingTokens, call.thinkingPricePerToken],
+                    [t.cachedTokens, call.cachedTokens, call.cachedPricePerToken],
+                  ] as const
+                ).map(([label, count, rate]) => (
+                  <div key={label} className="llm-meta-tile">
+                    <span className="stat-label">{label}</span>
+                    <span className="llm-meta-value">{count.toLocaleString(LOCALE)}</span>
+                    <span className="llm-meta-sub" dir="ltr">
+                      {perMillion(rate)} {t.adminLlmCallPerMillion}
+                    </span>
                   </div>
                 ))}
-              </>
-            )}
+                <div className="llm-meta-tile llm-meta-tile-total">
+                  <span className="stat-label">{t.totalCost}</span>
+                  <span className="llm-meta-value" dir="ltr">{call.cost !== null ? formatUsd(call.cost) : '—'}</span>
+                  <span className="llm-meta-sub">{t.adminLlmCallPricesTitle}</span>
+                </div>
+              </div>
+              {call.error && (
+                <div className="error-banner" dir="ltr">
+                  {t.adminLlmCallErrorLabel}: {call.error}
+                </div>
+              )}
 
-            <h3>{t.adminLlmCallQuery}</h3>
-            <CallPane tone="input" text={query} copyTitle={t.copyText} />
+              {call.request?.systemInstruction && (
+                <>
+                  <h3>{t.adminLlmCallSystemInstruction}</h3>
+                  <CallPane tone="system" text={call.request.systemInstruction} copyTitle={t.copyText} />
+                </>
+              )}
 
-            {schema !== undefined && (
-              <details>
-                <summary className="muted" style={{ cursor: 'pointer' }}>
-                  {t.adminLlmCallSchema}
-                </summary>
-                <CallPane tone="schema" text={JSON.stringify(schema, null, 2)} ltr copyTitle={t.copyText} />
-              </details>
-            )}
+              {history.length > 0 && (
+                <>
+                  <h3>{t.adminLlmCallHistory}</h3>
+                  {history.map((turn, i) => (
+                    <div key={i} className="llm-history-turn">
+                      <span className="badge badge-neutral mono">{turn.role}</span>
+                      <CallPane tone="input" text={turn.text} copyTitle={t.copyText} />
+                    </div>
+                  ))}
+                </>
+              )}
 
-            <h3>{t.adminLlmCallResponse}</h3>
-            {response === null ? (
-              <p className="muted">{t.adminLlmCallNoResponse}</p>
-            ) : (
-              <CallPane tone="response" text={response.text} ltr={response.isJson} copyTitle={t.copyText} />
-            )}
-          </>
-        )}
-        <div className="btn-row modal-actions">
-          <button className="btn btn-ghost" type="button" onClick={onClose}>
-            {t.cancel}
-          </button>
+              <h3>{t.adminLlmCallQuery}</h3>
+              <CallPane tone="input" text={query} copyTitle={t.copyText} />
+
+              {schema !== undefined && (
+                <details>
+                  <summary className="muted" style={{ cursor: 'pointer' }}>
+                    {t.adminLlmCallSchema}
+                  </summary>
+                  <CallPane tone="schema" text={JSON.stringify(schema, null, 2)} ltr copyTitle={t.copyText} />
+                </details>
+              )}
+
+              <h3>{t.adminLlmCallResponse}</h3>
+              {response === null ? (
+                <p className="muted">{t.adminLlmCallNoResponse}</p>
+              ) : (
+                <CallPane tone="response" text={response.text} ltr={response.isJson} copyTitle={t.copyText} />
+              )}
+            </>
+          )}
+          <div className="btn-row modal-actions">
+            <button className="btn btn-ghost" type="button" onClick={onClose}>
+              {t.cancel}
+            </button>
+          </div>
         </div>
+        {twoPane && <DocumentPane doc={doc} viewUrl={api.adminCallFileViewUrl(callId)} downloadUrl={api.adminCallFileDownloadUrl(callId)} />}
       </div>
     </div>,
     document.body,

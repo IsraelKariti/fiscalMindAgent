@@ -969,6 +969,10 @@ export const api = {
   },
   adminListLlmStages: () => request<{ stages: LlmStage[] }>('/admin/llm-stages'),
   adminGetLlmCall: (id: string) => request<{ call: LlmCallDetail }>(`/admin/llm-calls/${id}`),
+  /** The file an LLM call read, by call id — the call-keyed twins of the step file helpers above. */
+  adminGetCallFile: (callId: string) => request<{ file: StepFile }>(`/admin/llm-calls/${callId}/file`),
+  adminCallFileViewUrl: (callId: string) => `${transport.basePath}/admin/llm-calls/${callId}/file/view`,
+  adminCallFileDownloadUrl: (callId: string) => `${transport.basePath}/admin/llm-calls/${callId}/file/download`,
   adminEnableAgent: (userId: string, agentType: string, emailLocalPart?: string, taxYear?: number) =>
     request<{ agent: AgentInstance }>(`/admin/accountants/${userId}/agents`, {
       method: 'POST',

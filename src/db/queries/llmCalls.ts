@@ -160,6 +160,12 @@ export async function list(filters: LlmCallFilters): Promise<LlmCallListRow[]> {
   return rows;
 }
 
+/** Only the file a call read — for serving that document by call id without loading the payloads. */
+export async function getFileRef(id: string): Promise<{ document_file_id: string | null } | null> {
+  const { rows } = await pool.query<{ document_file_id: string | null }>('SELECT document_file_id FROM llm_calls WHERE id = $1', [id]);
+  return rows[0] ?? null;
+}
+
 /** One call with its full request/response payloads — the admin drill-down. */
 export async function getById(id: string): Promise<LlmCallRow | null> {
   const { rows } = await pool.query<LlmCallRow>(

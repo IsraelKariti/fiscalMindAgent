@@ -22,3 +22,23 @@ export async function resolveStepFile<Step extends { target_type: string | null;
   if (!step || step.target_type !== 'document_file' || !step.target_id || !UUID.test(step.target_id)) return null;
   return lookups.getFile(step.target_id);
 }
+
+export interface CallFileLookups<Call extends { document_file_id: string | null }, File> {
+  getCall: (id: string) => Promise<Call | null>;
+  getFile: (id: string) => Promise<File | null>;
+}
+
+/**
+ * The received file an LLM call read (`llm_calls.document_file_id`), addressed
+ * by the call id alone — the call-keyed twin of resolveStepFile. Null for a
+ * malformed id, an unknown call, a call that read no file, or a file that is gone.
+ */
+export async function resolveCallFile<Call extends { document_file_id: string | null }, File>(
+  callId: string | undefined,
+  lookups: CallFileLookups<Call, File>,
+): Promise<File | null> {
+  if (!callId || !UUID.test(callId)) return null;
+  const call = await lookups.getCall(callId);
+  if (!call || !call.document_file_id || !UUID.test(call.document_file_id)) return null;
+  return lookups.getFile(call.document_file_id);
+}

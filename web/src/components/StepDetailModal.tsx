@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { api, type AdminConversationStep, type StepFile } from '../api';
+import { api, type AdminConversationStep } from '../api';
 import { formatTimestamp, humanizePurpose } from '../format';
 import { useT } from '../i18n';
 import { CopyButton } from './CopyButton';
-import { canPreview, fileDisplayName } from './FileViewModal';
+import { DocumentPane, isTwoPane, useDocumentOf } from './DocumentPane';
 import { stepDetailsText, stepLinkOf } from './stepLink';
 import { isIsoDateTime, stepSummaryOf } from './stepSummary';
 
@@ -89,28 +89,10 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // 'none' = not a file step (no request at all); 'missing' = the file is gone.
+  // A file step asks for its document (by step id) on open; any other step asks for nothing.
   const isFileStep = step.targetType === 'document_file' && step.targetId !== null;
-  const [doc, setDoc] = useState<StepFile | 'none' | 'loading' | 'missing'>(isFileStep ? 'loading' : 'none');
-
-  useEffect(() => {
-    setDoc(isFileStep ? 'loading' : 'none');
-    if (!isFileStep) return;
-    let stale = false;
-    api
-      .adminGetStepFile(step.id)
-      .then((res) => {
-        if (!stale) setDoc(res.file);
-      })
-      .catch(() => {
-        if (!stale) setDoc('missing');
-      });
-    return () => {
-      stale = true;
-    };
-  }, [step.id, isFileStep]);
-
-  const twoPane = doc !== 'none' && doc !== 'missing';
+  const doc = useDocumentOf(isFileStep ? step.id : null, api.adminGetStepFile);
+  const twoPane = isTwoPane(doc);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -237,40 +219,7 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
             </pre>
           </details>
         </div>
-        {twoPane && (
-          <section className="gate-modal-doc" aria-label={t.stepDocPane}>
-            {doc === 'loading' ? (
-              <div className="gate-modal-doc-body">
-                <p className="muted">{t.stepDocLoading}</p>
-              </div>
-            ) : (
-              <>
-                <div className="gate-modal-doc-head">
-                  <h3 title={doc.filename} dir="auto">
-                    {fileDisplayName(doc)}
-                  </h3>
-                  <a className="btn btn-ghost" href={api.adminStepFileDownloadUrl(step.id)}>
-                    {t.downloadFile}
-                  </a>
-                  {canPreview({ content_type: doc.contentType }) && (
-                    <a className="btn btn-ghost" href={api.adminStepFileViewUrl(step.id)} target="_blank" rel="noopener noreferrer">
-                      {t.stepDocOpenFull}
-                    </a>
-                  )}
-                </div>
-                <div className="gate-modal-doc-body">
-                  {!canPreview({ content_type: doc.contentType }) ? (
-                    <p className="muted">{t.previewUnavailable}</p>
-                  ) : doc.contentType.startsWith('image/') ? (
-                    <img src={api.adminStepFileViewUrl(step.id)} alt={doc.filename} />
-                  ) : (
-                    <iframe src={api.adminStepFileViewUrl(step.id)} title={doc.filename} />
-                  )}
-                </div>
-              </>
-            )}
-          </section>
-        )}
+        {twoPane && <DocumentPane doc={doc} viewUrl={api.adminStepFileViewUrl(step.id)} downloadUrl={api.adminStepFileDownloadUrl(step.id)} />}
       </div>
     </div>,
     document.body,

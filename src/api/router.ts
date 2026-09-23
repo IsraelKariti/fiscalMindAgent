@@ -49,7 +49,9 @@ import {
 import {
   adminGetAuditEvent,
   adminGetStepFile,
+  adminGetCallFile,
   adminServeStepFile,
+  adminServeCallFile,
   adminGetClientConversation,
   adminGetLlmCall,
   adminListLlmStages,
@@ -145,6 +147,9 @@ apiRouter.get('/admin/audit-events/:id/file/view', wrap(requireAdmin), wrap(admi
 apiRouter.get('/admin/audit-events/:id/file/download', wrap(requireAdmin), wrap(adminServeStepFile('attachment')));
 apiRouter.get('/admin/llm-calls', wrap(requireAdmin), wrap(adminListLlmCalls));
 apiRouter.get('/admin/llm-calls/:id', wrap(requireAdmin), wrap(adminGetLlmCall));
+apiRouter.get('/admin/llm-calls/:id/file', wrap(requireAdmin), wrap(adminGetCallFile));
+apiRouter.get('/admin/llm-calls/:id/file/view', wrap(requireAdmin), wrap(adminServeCallFile('inline')));
+apiRouter.get('/admin/llm-calls/:id/file/download', wrap(requireAdmin), wrap(adminServeCallFile('attachment')));
 apiRouter.get('/admin/llm-stages', wrap(requireAdmin), wrap(adminListLlmStages));
 apiRouter.get('/admin/wa-senders', wrap(requireAdmin), wrap(adminListWaSenders));
 apiRouter.post('/admin/wa-senders', wrap(requireAdmin), wrap(adminUpsertWaSender));

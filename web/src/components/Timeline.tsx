@@ -42,9 +42,9 @@ function isTimelineAttachment(file: DocumentFile): boolean {
 }
 
 // WhatsApp media carries no real filename — ingestion synthesizes
-// "whatsapp-media-N.ext", which means nothing to the accountant.
+// "whatsapp-media-<yyyymmdd-hhmmss>[-N].ext", which means nothing to the accountant.
 function hasSyntheticName(file: DocumentFile): boolean {
-  return /^whatsapp-media-\d+\./.test(file.filename);
+  return /^whatsapp-media-[\d-]+\./.test(file.filename);
 }
 
 /**

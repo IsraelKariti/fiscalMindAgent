@@ -226,6 +226,8 @@ function toAdminCall(r: Omit<llmCalls.LlmCallRow, 'request' | 'response'> & { cl
     agentInstanceId: r.agent_instance_id,
     clientId: r.client_id,
     clientName: 'client_name' in r ? (r.client_name ?? null) : null,
+    documentFileId: r.document_file_id,
+    documentFileName: r.document_filename,
     purpose: r.purpose,
     provider: r.provider,
     model: r.model,

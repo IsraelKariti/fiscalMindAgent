@@ -59,6 +59,12 @@ export interface LlmCallLogContext {
   userId: string | null;
   agentInstanceId: string | null;
   clientId: string | null;
+  /**
+   * The received file the call reads, when it reads exactly one (splitting,
+   * classification, extraction) — the admin trace names the file on the
+   * stage chip. Omit for calls that read no single file.
+   */
+  documentFileId?: string | null;
   /** e.g. 'generate_message' | 'questionnaire_schema_mapping' | 'extract_document' | 'file_classification'. */
   purpose: string;
   /**
@@ -96,6 +102,7 @@ async function recordCall(
       userId: log.userId,
       agentInstanceId: log.agentInstanceId,
       clientId: log.clientId,
+      documentFileId: log.documentFileId ?? null,
       purpose: log.purpose,
       provider,
       model: request.model,

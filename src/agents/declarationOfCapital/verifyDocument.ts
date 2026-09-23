@@ -191,7 +191,7 @@ export async function verifyCollectedDocument(
     const bytes = await streamToBuffer((await downloadBlob(file.blob_key)).stream);
     const { text, usage, model } = await runLlmCall(
       buildExtractionCall({ doc, bytes, contentType: file.content_type, filename: file.filename, taxYear }),
-      { log: { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id } },
+      { log: { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id, documentFileId: file.id } },
     );
     if (client.user_id) {
       await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);

@@ -186,6 +186,7 @@ async function splitIntoChildren(ctx: AgentContext, file: DocumentFileRow, body:
       userId: ctx.client.user_id,
       agentInstanceId: ctx.client.agent_instance_id,
       clientId,
+      documentFileId: file.id,
       purpose: 'file_splitting',
     },
   });
@@ -280,6 +281,7 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
         userId: ctx.client.user_id,
         agentInstanceId: ctx.client.agent_instance_id,
         clientId,
+        documentFileId: file.id,
         purpose: 'file_classification',
       },
     });

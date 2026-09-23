@@ -4153,6 +4153,15 @@ button.meta-chip:hover {
   border-color: rgba(251, 113, 133, 0.7);
   background: rgba(251, 113, 133, 0.14);
 }
+/* The file a per-file call read, after the stage name — clipped like an
+   attachment chip's name so a long filename cannot stretch the row. */
+.timeline-trace-chip-file {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
 
 /* Code-step row: the whole row is a button that opens the step detail modal
    (what the step did; the check list too for a gate row). */

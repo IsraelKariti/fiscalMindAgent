@@ -731,6 +731,7 @@ const he = {
   adminLlmCallErrorLabel: 'שגיאה',
   adminLlmCallNoResponse: 'אין תשובה (הקריאה נכשלה).',
   adminLlmCallStageKey: 'שם טכני של השלב',
+  adminLlmCallFile: 'הקובץ שהקריאה קראה',
   // The stage key, title-cased (the sibling agent's names, kept in English on
   // purpose). Unknown keys fall back to humanizePurpose() at the call sites.
   llmPurposeLabels: {

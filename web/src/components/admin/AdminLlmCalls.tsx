@@ -131,6 +131,11 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
               <span className="badge badge-neutral mono" dir="ltr" title={t.adminLlmCallStageKey}>
                 {call.purpose}
               </span>
+              {call.documentFileName && (
+                <span className="badge badge-neutral" dir="auto" title={t.adminLlmCallFile}>
+                  {call.documentFileName}
+                </span>
+              )}
               {call.status === 'error' ? (
                 <span className="badge badge-danger">{t.adminLlmCallsStatusError}</span>
               ) : (

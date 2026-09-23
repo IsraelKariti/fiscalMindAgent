@@ -13,6 +13,10 @@ export interface LlmCallRow {
   user_id: string | null;
   agent_instance_id: string | null;
   client_id: string | null;
+  /** The received file the call read (splitting, classification, extraction); NULL otherwise and on rows older than migration 059. */
+  document_file_id: string | null;
+  /** The file's stored name, joined at read time; NULL when the call read no file or the file is gone. */
+  document_filename: string | null;
   purpose: string;
   provider: string;
   model: string;
@@ -40,6 +44,8 @@ export interface InsertLlmCall {
   userId: string | null;
   agentInstanceId: string | null;
   clientId: string | null;
+  /** The received file the call read, when it read exactly one. */
+  documentFileId: string | null;
   purpose: string;
   provider: string;
   model: string;
@@ -74,16 +80,17 @@ export async function spentSince(since: Date, agentInstanceId?: string): Promise
 export async function insert(call: InsertLlmCall): Promise<void> {
   await pool.query(
     `INSERT INTO llm_calls (
-       user_id, agent_instance_id, client_id, purpose, provider, model,
+       user_id, agent_instance_id, client_id, document_file_id, purpose, provider, model,
        status, error, attempts, duration_ms,
        input_tokens, output_tokens, thinking_tokens, cached_tokens,
        input_price_per_token, output_price_per_token, thinking_price_per_token, cached_price_per_token,
        cost, request, response
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
     [
       call.userId,
       call.agentInstanceId,
       call.clientId,
+      call.documentFileId,
       call.purpose,
       call.provider,
       call.model,
@@ -132,6 +139,7 @@ export async function list(filters: LlmCallFilters): Promise<LlmCallListRow[]> {
   params.push(filters.limit);
   const { rows } = await pool.query<LlmCallListRow>(
     `SELECT lc.id, lc.created_at, lc.user_id, lc.agent_instance_id, lc.client_id,
+            lc.document_file_id, df.filename AS document_filename,
             lc.purpose, lc.provider, lc.model, lc.status, lc.error, lc.attempts, lc.duration_ms,
             lc.input_tokens::float8 AS input_tokens,
             lc.output_tokens::float8 AS output_tokens,
@@ -143,6 +151,7 @@ export async function list(filters: LlmCallFilters): Promise<LlmCallListRow[]> {
             c.name AS client_name
      FROM llm_calls lc
      LEFT JOIN clients c ON c.id = lc.client_id
+     LEFT JOIN document_files df ON df.id = lc.document_file_id
      ${where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''}
      ORDER BY lc.created_at DESC
      LIMIT $${params.length}`,
@@ -154,16 +163,19 @@ export async function list(filters: LlmCallFilters): Promise<LlmCallListRow[]> {
 /** One call with its full request/response payloads — the admin drill-down. */
 export async function getById(id: string): Promise<LlmCallRow | null> {
   const { rows } = await pool.query<LlmCallRow>(
-    `SELECT id, created_at, user_id, agent_instance_id, client_id,
-            purpose, provider, model, status, error, attempts, duration_ms,
-            input_tokens::float8 AS input_tokens,
-            output_tokens::float8 AS output_tokens,
-            thinking_tokens::float8 AS thinking_tokens,
-            cached_tokens::float8 AS cached_tokens,
-            input_price_per_token, output_price_per_token,
-            thinking_price_per_token, cached_price_per_token,
-            cost, request, response
-     FROM llm_calls WHERE id = $1`,
+    `SELECT lc.id, lc.created_at, lc.user_id, lc.agent_instance_id, lc.client_id,
+            lc.document_file_id, df.filename AS document_filename,
+            lc.purpose, lc.provider, lc.model, lc.status, lc.error, lc.attempts, lc.duration_ms,
+            lc.input_tokens::float8 AS input_tokens,
+            lc.output_tokens::float8 AS output_tokens,
+            lc.thinking_tokens::float8 AS thinking_tokens,
+            lc.cached_tokens::float8 AS cached_tokens,
+            lc.input_price_per_token, lc.output_price_per_token,
+            lc.thinking_price_per_token, lc.cached_price_per_token,
+            lc.cost, lc.request, lc.response
+     FROM llm_calls lc
+     LEFT JOIN document_files df ON df.id = lc.document_file_id
+     WHERE lc.id = $1`,
     [id],
   );
   return rows[0] ?? null;

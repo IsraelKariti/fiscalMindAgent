@@ -114,7 +114,14 @@ function ConversationModal({ clientId, onClose }: { clientId: string; onClose: (
               const c = entry.call;
               return (
                 <p key={`c-${c.id}`} className="muted admin-timeline-call" dir="ltr" style={{ textAlign: 'left', marginBottom: 6 }}>
-                  🤖 {formatTimestamp(c.createdAt)} · <span className="mono">{c.purpose}</span> · {c.model} ·{' '}
+                  🤖 {formatTimestamp(c.createdAt)} · <span className="mono">{c.purpose}</span>
+                  {c.documentFileName && (
+                    <>
+                      {' · '}
+                      <span dir="auto">{c.documentFileName}</span>
+                    </>
+                  )}{' '}
+                  · {c.model} ·{' '}
                   {c.inputTokens.toLocaleString(LOCALE)}/{c.outputTokens.toLocaleString(LOCALE)} tok · {c.cost === null ? '—' : formatUsd(c.cost)}
                   {c.status === 'error' && <span className="badge badge-danger">error</span>}{' '}
                   <a href={`#/llm-calls/${encodeURIComponent(c.id)}`}>{t.adminConversationOpenCall}</a>

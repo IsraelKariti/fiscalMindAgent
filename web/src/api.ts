@@ -454,6 +454,10 @@ export interface LlmCallSummary {
   agentInstanceId: string | null;
   clientId: string | null;
   clientName: string | null;
+  /** The received file the call read (splitting, classification, extraction); null for other calls and rows older than migration 059. */
+  documentFileId: string | null;
+  /** That file's stored name; null when the call read no file or the file is gone. */
+  documentFileName: string | null;
   purpose: string;
   provider: string;
   model: string;

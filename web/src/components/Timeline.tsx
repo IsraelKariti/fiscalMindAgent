@@ -105,16 +105,24 @@ function readTraceToggle(kind: TraceKind): boolean {
 }
 
 /**
- * An LLM call: just its stage name in a clickable chip; the click opens the
- * call's drill-down (metadata, system prompt, history, query, answer). The
- * numbers live in the chip's tooltip.
+ * An LLM call: its stage name in a clickable chip, plus the file it read when
+ * it read one (splitting, classification, extraction — openspec
+ * `conversation-trace`); the click opens the call's drill-down (metadata,
+ * system prompt, history, query, answer). The numbers live in the chip's tooltip.
  */
-function CallChip({ call }: { call: LlmCallSummary }) {
+function CallChip({ call, files }: { call: LlmCallSummary; files: StepFilesProps }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   // The human label; the technical stage key lives inside the modal.
   const label = t.llmPurposeLabels[call.purpose] ?? humanizePurpose(call.purpose);
+  // The file's label as its attachment chip shows it (display name, split page
+  // range); the stored name when the timeline no longer has the file; nothing
+  // for a call that read no file or a row older than the file column.
+  const file = call.documentFileId ? files.byId.get(call.documentFileId) : undefined;
+  const fileLabel = file ? files.attachmentLabel(file) : (call.documentFileName ?? null);
+  // The file label leads the tooltip too: the chip clips a long one.
   const tooltip = [
+    ...(fileLabel ? [fileLabel] : []),
     formatTimestamp(call.createdAt),
     call.model,
     `${call.inputTokens.toLocaleString(LOCALE)}/${call.outputTokens.toLocaleString(LOCALE)} tok`,
@@ -131,14 +139,26 @@ function CallChip({ call }: { call: LlmCallSummary }) {
       >
         <span className="timeline-trace-icon" aria-hidden="true">🤖</span>
         <span dir="ltr">{label}</span>
+        {fileLabel && (
+          <>
+            <span className="muted" aria-hidden="true">·</span>
+            <span className="timeline-trace-chip-file" dir="auto">{fileLabel}</span>
+          </>
+        )}
       </button>
       {open && <CallDetailModal callId={call.id} onClose={() => setOpen(false)} />}
     </li>
   );
 }
 
-/** What a step row needs to list the files a split step produced (openspec `file-splitting`). */
+/**
+ * What a trace row needs from the client's files: a step row lists the files a
+ * split step produced (openspec `file-splitting`); a call chip names the file
+ * the call read (openspec `conversation-trace`).
+ */
 interface StepFilesProps {
+  /** Every file of the client by id. */
+  byId: Map<string, DocumentFile>;
   /** Children cut out of a parent file, keyed by parent id, in page order. */
   childrenByParent: Map<string, DocumentFile[]>;
   attachmentLabel: (file: DocumentFile) => string;
@@ -146,7 +166,7 @@ interface StepFilesProps {
 }
 
 function TraceRow({ entry, files }: { entry: TraceEntry; files: StepFilesProps }) {
-  if (entry.kind === 'call') return <CallChip call={entry.call} />;
+  if (entry.kind === 'call') return <CallChip call={entry.call} files={files} />;
   return <StepRow step={entry.step} files={files} />;
 }
 
@@ -465,6 +485,8 @@ export function Timeline({
     return map;
   }, [files]);
 
+  const filesById = useMemo(() => new Map(files.map((file) => [file.id, file])), [files]);
+
   const childrenByParent = useMemo(() => {
     const map = new Map<string, DocumentFile[]>();
     for (const file of files) {
@@ -688,7 +710,7 @@ export function Timeline({
                 <TraceRow
                   key={`${row.kind}-${row.kind === 'call' ? row.call.id : row.step.id}`}
                   entry={row}
-                  files={{ childrenByParent, attachmentLabel, onOpenFile: setViewingFile }}
+                  files={{ byId: filesById, childrenByParent, attachmentLabel, onOpenFile: setViewingFile }}
                 />
               );
             }

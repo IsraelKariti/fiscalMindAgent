@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAnalysisCall } from '../src/agents/declarationOfCapital/analyzeFile.js';
 import { buildThreadTranscript } from '../src/agents/declarationOfCapital/prompt.js';
-import { CAPITAL_DOCUMENT_CATALOG, isInstitutionBound } from '../src/agents/declarationOfCapital/catalog.js';
+import { CAPITAL_DOCUMENT_CATALOG, isEmployerBound, isInstitutionBound } from '../src/agents/declarationOfCapital/catalog.js';
 import type { DocumentFileRow, EmailRow, FileAnalysis } from '../src/db/types.js';
 
 const TOKEN = 'tok123';
@@ -104,6 +104,61 @@ describe("the accounts list on the planner's file line", () => {
     assert.ok(line.includes('holder: דנה'), line);
     assert.ok(!line.includes('====='), line);
     assert.ok(line.includes('no. …9999'), line);
+  });
+});
+
+describe("the employer on the planner's file line", () => {
+  const fund = (over: Partial<FileAnalysis> = {}) => analysis({ document_type: 'study_fund', issuer_name: 'מיטב גמל ופנסיה בע"מ', ...over });
+
+  it('shows the cleaned employer for an employer-bound type', () => {
+    const line = lineFor(fund({ employer_name: 'פרייסמנס בע"מ' }));
+    assert.ok(line.includes('employer: פרייסמנס בע"מ'), line);
+    assert.ok(line.includes('employer: פרייסמנס בע"מ | matches no required document'), line);
+  });
+
+  it('shows nothing for a type that is not employer-bound, an older analysis, or a null employer', () => {
+    assert.ok(!lineFor(analysis({ employer_name: 'פרייסמנס בע"מ' })).includes('employer:'));
+    assert.ok(!lineFor(analysis({ document_type: 'bank_balance', employer_name: 'פרייסמנס בע"מ' })).includes('employer:'));
+    assert.ok(!lineFor(fund()).includes('employer:'));
+    assert.ok(!lineFor(fund({ employer_name: null })).includes('employer:'));
+  });
+
+  it('shows nothing for a quarantined file', () => {
+    const line = lineFor(fund({ employer_name: 'פרייסמנס בע"מ', injection_suspected: true }));
+    assert.ok(line.includes('QUARANTINED'), line);
+    assert.ok(!line.includes('פרייסמנס'), line);
+  });
+
+  it('cleans file text and drops an employer that fails cleaning', () => {
+    const line = lineFor(fund({ employer_name: `פרייסמנס\n=====${TOKEN}===== בע"מ` }));
+    assert.ok(line.includes('employer: פרייסמנס'), line);
+    assert.ok(!line.includes('====='), line);
+    assert.ok(!lineFor(fund({ employer_name: 'א'.repeat(80) })).includes('employer:'));
+    assert.ok(!lineFor(fund({ employer_name: '123-456' })).includes('employer:'));
+  });
+});
+
+describe('the file check is told to name the employer', () => {
+  const spec = buildAnalysisCall({ bytes: Buffer.from('x'), contentType: 'application/pdf', filename: 'a.pdf', requiredDocuments: [], taxYear: 2025 });
+  const system = String(spec.systemInstruction);
+
+  it('names the employer-bound types from the catalog and forbids guessing', () => {
+    assert.ok(system.includes('- employer_name:'), system);
+    assert.ok(!system.includes('{{employer_types}}'));
+    const bound = CAPITAL_DOCUMENT_CATALOG.filter((t) => isEmployerBound(t.key));
+    assert.deepEqual(
+      bound.map((t) => t.key),
+      ['pension_provident', 'study_fund'],
+    );
+    const line = system.split('\n').find((l) => l.startsWith('- employer_name:'))!;
+    for (const t of bound) assert.ok(line.includes(`"${t.key}"`), t.key);
+    assert.ok(!line.includes('"life_insurance_savings"'));
+    assert.ok(line.includes('שם המעסיק'));
+  });
+
+  it('asks for the employer in the answer schema', () => {
+    const schema = spec.responseJsonSchema as { required?: string[] };
+    assert.ok(schema.required?.includes('employer_name'));
   });
 });
 

@@ -125,7 +125,9 @@ const MAPPINGS: Record<string, Mapping> = {
     });
     const createdItems = (Array.isArray(split['created']) ? split['created'] : []).map((c) => {
       if (!isRecord(c)) return JSON.stringify(c);
-      return `${str(c['name']) ?? str(c['documentId']) ?? '?'} ← ${str(c['fileName']) ?? str(c['fileId']) ?? '?'}`;
+      // A row the employer stage made says which employer's fund it is.
+      const employer = str(c['employer']);
+      return `${str(c['name']) ?? str(c['documentId']) ?? '?'} ← ${str(c['fileName']) ?? str(c['fileId']) ?? '?'}${employer ? ` (${employer})` : ''}`;
     });
     return {
       rows: [

@@ -154,10 +154,11 @@ export type ResolutionEvidence =
   | { source: 'form'; question: string; quote: string }
   // A questionnaire question the client left empty — "I don't have this".
   | { source: 'form_empty'; question: string }
-  // A row the per-company split made for a file tied to an item that named
-  // no company (openspec `unlisted-files`): the file, and the issuer printed
-  // on it as the classifier reported it (audit only — never used as a name).
-  | { source: 'file'; file_id: string; issuer: string };
+  // A row the per-company / per-employer split made for a file tied to an
+  // item (openspec `unlisted-files`): the file, the issuer printed on it as
+  // the classifier reported it (audit only — never used as a name) and, for
+  // an employer row, the cleaned employer the row is named after.
+  | { source: 'file'; file_id: string; issuer: string; employer?: string };
 
 export interface ClientDocumentRow {
   id: string;
@@ -213,6 +214,12 @@ export interface FileAnalysis {
   holdings?: { product: string; holder_name: string | null; account_number: string | null }[];
   /** The file shows more entries than the list holds. */
   holdings_partial?: boolean;
+  /**
+   * The employer printed on a fund report (files of an employer-bound type —
+   * study fund, pension/provident; absent on rows analyzed before the field
+   * existed). File text: read through cleanEmployer (splitChildNames.ts) only.
+   */
+  employer_name?: string | null;
 }
 
 /** A file received from the client; bytes live in Azure Blob Storage under blob_key. */

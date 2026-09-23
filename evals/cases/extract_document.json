@@ -244,6 +244,25 @@
         "verdict": { "passed": false, "failed_keys": ["period_covers_valuation_date"] }
       },
       "notes": "openspec type-specific-extraction-fields: the same policy whose period ended on 30.11.2025 — the fields read fine (type_fields passes) but 31.12.2025 is outside the period, so period_covers_valuation_date fails and the document is not approved"
+    },
+    {
+      "id": "ext_15",
+      "file": "meitav_study_fund_preismans_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1-p32-33.pdf",
+      "doc": { "type_key": "study_fund", "name": "אישור יתרת קרן השתלמות ליום 31.12.2025 — ניב — מיטב — פרייסמנס בע\"מ", "description": "קרן השתלמות ניב" },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "amount": { "value": 91679, "currency": "ILS" },
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "account_number": "033-258-250917-000", "closing_balance": 91679, "total_deposits": 35713 },
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec name-items-by-employer: a Meitav annual report of one fund against the per-employer row the split made (the row name carries the company and the employer). The report's own account number is the one the savings fields must read, not one of the three the certificate lists; the closing balance comes from the report table and the deposits total from the certificate."
     }
   ]
 }

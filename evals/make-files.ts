@@ -202,6 +202,43 @@ const DOCS: Record<string, string> = {
      </table>
      <div class="sig">Yelin Lapidot Provident Funds Management Ltd.<br><span class="stamp">ילין לפידות</span></div>`,
   ),
+  // openspec name-items-by-employer: a Meitav study fund annual report of ONE fund — the first section names the
+  // employer the fund belongs to ("שם המעסיק"), the tax certificate below lists every account of the member at the
+  // company (three), the way the real report does. The employer, not the accounts list, tells this report apart from
+  // the member's other Meitav reports.
+  'meitav_study_fund_preismans_2025.pdf': page(
+    'Meitav study fund annual report — Preismans',
+    `<div class="letterhead"><div class="logo" style="color:#4b2c82">Meitav Gemel & Pension</div><div class="he"><div class="logo" style="color:#4b2c82">מיטב גמל ופנסיה בע"מ</div></div></div>
+     <h1 class="he">דוח שנתי לעמית בקרן השתלמות מיטב השתלמות לשנת 2025</h1>
+     <h1>Annual report to the member — Meitav study fund — 2025</h1>
+     <p class="muted">Report date: 31.12.2025 (תאריך הדוח: 31.12.2025)</p>
+     <table>
+       <tr><th>Member name (שם העמית)</th><td>${client.name} (${client.nameHe})</td></tr>
+       <tr><th>ID number (מספר ת.ז.)</th><td>${client.id}</td></tr>
+       <tr><th>Account number (מספר חשבון)</th><td>033-258-250917-000</td></tr>
+       <tr><th>Employer (שם המעסיק)</th><td class="he">פרייסמנס בע"מ</td></tr>
+     </table>
+     <h2 class="he">ב. תנועות בחשבונך בשנת 2025</h2>
+     <table>
+       <tr><th>Item</th><th class="n">ILS</th></tr>
+       <tr><td>Balance at the start of the year (יתרת הכספים בחשבון בתחילת השנה)</td><td class="n">89,355</td></tr>
+       <tr><td>Deposits during the year (כספים שהופקדו לחשבון)</td><td class="n">0</td></tr>
+       <tr><td>Net returns after management fees (רווחים בניכוי דמי ניהול והוצאות)</td><td class="n">2,324</td></tr>
+       <tr><td><b>Balance at the end of the year (יתרת הכספים בחשבון בסוף השנה)</b></td><td class="n"><b>91,679</b></td></tr>
+     </table>
+     <h2 class="he">אישור מס עבור קרן השתלמות — אישור מס להצהרת הון</h2>
+     <h2>Tax certificate for the study fund — tax certificate for capital declaration</h2>
+     <table>
+       <tr><th>Member name (שם העמית)</th><td>${client.name} (${client.nameHe})</td></tr>
+       <tr><th>ID number (מספר תעודת זהות)</th><td>${client.id}</td></tr>
+       <tr><th>Withholding file number (מספר תיק ניכויים)</th><td>935748376</td></tr>
+       <tr><th>Fund (שם קופת הגמל)</th><td>Meitav Study Fund (מיטב השתלמות)</td></tr>
+       <tr><th>Account numbers (מספרי חשבונות)</th><td>033-131-500082-000, 033-258-250917-000, 033-258-254108-001</td></tr>
+     </table>
+     <div class="box"><p>We hereby certify that the total deposits to the study fund (fund only), including transfers from other funds and net of withdrawals and transfers to other funds, from the first deposit date until <b>31.12.2025</b>, amount to <b>35,713 ILS</b>.</p>
+     <p class="he">הרינו לאשר כי סך ההפקדות לקרן ההשתלמות (קרן בלבד), לרבות העברות מקרנות אחרות ובניכוי משיכות והעברות לקופות גמל אחרות, מיום ההפקדה הראשונה ועד ליום 31.12.2025 הן בסך 35,713 ש"ח.</p></div>
+     <div class="sig">Meitav Gemel & Pension Ltd.<br><span class="stamp">מיטב</span></div>`,
+  ),
   // openspec confirm-file-findings: not an institution-bound document — the accounts list must be empty.
   'vehicle_licence_2025.pdf': page(
     'Vehicle licence',

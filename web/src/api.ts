@@ -87,7 +87,15 @@ export interface ClientDocument {
   type_key: string | null;
   verification: DocumentVerification | null;
   /** The client quote behind an agent-made 'not_required' — from a stored inbound message or the intake questionnaire; or the file behind a per-company split row. */
-  resolution_evidence: { message_id?: string; source?: 'form' | 'form_empty' | 'file'; question?: string; quote?: string; file_id?: string; issuer?: string } | null;
+  resolution_evidence: {
+    message_id?: string;
+    source?: 'form' | 'form_empty' | 'file';
+    question?: string;
+    quote?: string;
+    file_id?: string;
+    issuer?: string;
+    employer?: string;
+  } | null;
   created_at: string;
   updated_at: string;
 }

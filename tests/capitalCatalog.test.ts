@@ -4,6 +4,8 @@ import {
   CAPITAL_DOCUMENT_CATALOG,
   catalogSeedRows,
   getCatalogType,
+  isEmployerBound,
+  isInstitutionBound,
 } from '../src/agents/declarationOfCapital/catalog.js';
 
 describe('capital-declaration catalog', () => {
@@ -114,6 +116,17 @@ describe('capital-declaration catalog', () => {
     assert.deepEqual(getCatalogType('study_fund')!.fieldsAnyOf, ['closing_balance', 'total_deposits']);
     assert.deepEqual(getCatalogType('contents_insurance')!.checks.periodCoversValuationDate, { from: 'period_from', to: 'period_to' });
     assert.ok(getCatalogType('vehicle')!.fields!.find((f) => f.key === 'license_plate')!.pattern!.test('1234567'));
+  });
+
+  it('exactly the study fund and the pension/provident fund are employer-bound, and both are institution-bound', () => {
+    const employerBound = CAPITAL_DOCUMENT_CATALOG.filter((t) => t.employerBound === true).map((t) => t.key);
+    assert.deepEqual(employerBound, ['pension_provident', 'study_fund']);
+    for (const key of employerBound) assert.equal(isEmployerBound(key), true, key);
+    for (const key of employerBound) assert.equal(isInstitutionBound(key), true, key);
+    assert.equal(isEmployerBound('life_insurance_savings'), false);
+    assert.equal(isEmployerBound('bank_balance'), false);
+    assert.equal(isEmployerBound(null), false);
+    assert.equal(isEmployerBound('no_such_type'), false);
   });
 
   it('every type has a short name that states no date or year', () => {

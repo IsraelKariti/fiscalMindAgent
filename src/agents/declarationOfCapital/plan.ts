@@ -456,11 +456,16 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     : planCompanySplit(companyChecked.allowed, fileById, documents);
   const splitPairs: { file_id: string; document_id: string }[] = [];
   const splitDetail: CompanySplitDetail = { renamed: [], created: [] };
-  if (split.renames.length > 0) {
-    const items = split.renames.map((r) => ({
-      documentId: r.documentId,
-      newName: r.newName,
-      siblings: split.created.filter((c) => c.fromDocumentId === r.documentId).map((c) => ({ name: c.name, evidence: c.evidence })),
+  if (split.renames.length > 0 || split.created.length > 0) {
+    // Every item the split touched: renamed, given siblings, or both (an item
+    // that already names its company is divided by employer without a rename;
+    // its unchanged name still goes through the write, which is what checks
+    // the row is live).
+    const touchedIds = [...new Set([...split.renames.map((r) => r.documentId), ...split.created.map((c) => c.fromDocumentId)])];
+    const items = touchedIds.map((documentId) => ({
+      documentId,
+      newName: split.renames.find((r) => r.documentId === documentId)?.newName ?? (docName(documentId) ?? ''),
+      siblings: split.created.filter((c) => c.fromDocumentId === documentId).map((c) => ({ name: c.name, evidence: c.evidence })),
     }));
     const { created, skipped } = await clientDocuments.splitByCompany(clientId, items);
     items.forEach((item, i) => {
@@ -472,7 +477,8 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
         for (const c of siblings) for (const fileId of c.fileIds) splitPairs.push({ file_id: fileId, document_id: item.documentId });
         return;
       }
-      splitDetail.renamed.push(split.renames[i]!);
+      const rename = split.renames.find((r) => r.documentId === item.documentId);
+      if (rename) splitDetail.renamed.push(rename);
       siblings.forEach((c, j) => {
         const row = rows[j];
         if (!row) {
@@ -480,7 +486,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
           return;
         }
         for (const fileId of c.fileIds) splitPairs.push({ file_id: fileId, document_id: row.id });
-        splitDetail.created.push({ documentId: row.id, name: row.name, fromDocumentId: item.documentId, fileId: c.evidence.file_id });
+        splitDetail.created.push({ documentId: row.id, name: row.name, fromDocumentId: item.documentId, fileId: c.evidence.file_id, employer: c.employer });
         recordAudit({
           actorType: 'system',
           action: 'document.instances_added',
@@ -493,13 +499,13 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
             typeKey: row.type_key,
             instances: [row.name],
             evidence: c.evidence,
-            reason: 'company_split',
-            fromName: split.renames[i]!.oldName,
+            reason: c.employer !== null ? 'employer_split' : 'company_split',
+            fromName: rename?.oldName ?? item.newName,
           },
         });
       });
     });
-    logger.info('items split by company', {
+    logger.info('items split by company and employer', {
       clientId,
       renamed: splitDetail.renamed.map((r) => ({ id: r.documentId, name: r.newName })),
       created: splitDetail.created.map((c) => ({ id: c.documentId, name: c.name })),
@@ -602,7 +608,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
           claimed: newlyClaimed,
           pairs: proposedPairs,
           refused: refusedTies,
-          split: splitDetail.renamed.length > 0 ? splitDetail : undefined,
+          split: splitDetail.renamed.length > 0 || splitDetail.created.length > 0 ? splitDetail : undefined,
         },
         docName,
         fileName,

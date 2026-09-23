@@ -13,7 +13,8 @@ import {
 } from '../shared/promptSafety.js';
 import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
 import { formatUpcomingDates } from '../shared/upcomingDates.js';
-import { getCatalogType, isInstitutionBound } from './catalog.js';
+import { getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
+import { MAX_EMPLOYER, cleanEmployer } from './splitChildNames.js';
 
 /**
  * The fenced sections the platform itself writes. The input-safety rule names
@@ -377,6 +378,18 @@ function formatHoldings(a: NonNullable<DocumentFileRow['analysis']>): string | n
 }
 
 /**
+ * The employer printed on a fund report (openspec `unlisted-files`): the same
+ * cleaned word the names carry, so the planner can say which fund a file is.
+ * Null for a type that is not employer-bound, an older analysis, or an
+ * employer that fails cleaning.
+ */
+function formatEmployer(a: NonNullable<DocumentFileRow['analysis']>): string | null {
+  if (!isEmployerBound(a.document_type)) return null;
+  const employer = cleanEmployer(a.employer_name);
+  return employer === null ? null : `employer: ${sanitizeInline(employer, MAX_EMPLOYER)}`;
+}
+
+/**
  * One-line verdict from the ingestion-time content analysis, shown under the
  * file in the transcript. Quarantined files (suspected injection / illegible)
  * render as an explicit warning instead of their analysis — their free-text
@@ -415,6 +428,7 @@ function formatFileAnalysis(file: DocumentFileRow, childCount = 0): string {
     a.document_type ? `document type: ${a.document_type}` : null,
     a.issuer_name ? `issuer: ${sanitizeInline(a.issuer_name, 100)}` : null,
     formatHoldings(a),
+    formatEmployer(a),
     a.matched_document_id
       ? `matches required document id: ${a.matched_document_id}`
       : a.match_dropped

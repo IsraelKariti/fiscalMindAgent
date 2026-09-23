@@ -128,3 +128,39 @@ test('apply_collections records the per-company split with names: the rename and
   });
   assert.deepEqual(detail.collectedNames, ['ביטוח מנהלים ניב — הראל', 'ביטוח מנהלים ניב — כלל']);
 });
+
+test('apply_collections records an employer row of the split with its employer, and leaves the key off a company row', () => {
+  const detail = collectionsStepDetail(
+    {
+      proposed: ['d1'],
+      collected: ['d1', 'd-e2', 'd-mor'],
+      claimed: [],
+      pairs: [
+        { file_id: 'f-e1', document_id: 'd1' },
+        { file_id: 'f-e2', document_id: 'd-e2' },
+        { file_id: 'f-mor', document_id: 'd-mor' },
+      ],
+      split: {
+        renamed: [{ documentId: 'd1', oldName: 'קרן השתלמות ניב', newName: 'קרן השתלמות ניב — מיטב — פרייסמנס בע"מ' }],
+        created: [
+          { documentId: 'd-e2', name: 'קרן השתלמות ניב — מיטב — ראנדקום בע"מ', fromDocumentId: 'd1', fileId: 'f-e2', employer: 'ראנדקום בע"מ' },
+          { documentId: 'd-mor', name: 'קרן השתלמות ניב — מור', fromDocumentId: 'd1', fileId: 'f-mor', employer: null },
+        ],
+      },
+    },
+    (id) => (id === 'd1' ? 'קרן השתלמות ניב — מיטב — פרייסמנס בע"מ' : undefined),
+    (id) => (id === 'f-e2' ? 'scan-p34-35.pdf' : id === 'f-mor' ? 'scan-p20-21.pdf' : undefined),
+  );
+  assert.deepEqual(detail.split!.created, [
+    {
+      documentId: 'd-e2',
+      name: 'קרן השתלמות ניב — מיטב — ראנדקום בע"מ',
+      fromDocumentId: 'd1',
+      fromName: 'קרן השתלמות ניב',
+      fileId: 'f-e2',
+      fileName: 'scan-p34-35.pdf',
+      employer: 'ראנדקום בע"מ',
+    },
+    { documentId: 'd-mor', name: 'קרן השתלמות ניב — מור', fromDocumentId: 'd1', fromName: 'קרן השתלמות ניב', fileId: 'f-mor', fileName: 'scan-p20-21.pdf' },
+  ]);
+});

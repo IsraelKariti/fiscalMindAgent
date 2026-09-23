@@ -50,7 +50,8 @@ export function retirementsStepDetail(retired: DocumentRetirement[], docName: Na
 /** What the per-company split of this cycle did (openspec `unlisted-files`), as plan.ts collects it. */
 export interface CompanySplitDetail {
   renamed: { documentId: string; oldName: string; newName: string }[];
-  created: { documentId: string; name: string; fromDocumentId: string; fileId: string }[];
+  /** `employer` is set for a row the employer stage made (a fund of one company divided per employer). */
+  created: { documentId: string; name: string; fromDocumentId: string; fileId: string; employer?: string | null }[];
 }
 
 export function collectionsStepDetail(
@@ -78,6 +79,7 @@ export function collectionsStepDetail(
           fromName: args.split?.renamed.find((r) => r.documentId === c.fromDocumentId)?.oldName ?? named(docName, c.fromDocumentId),
           fileId: c.fileId,
           fileName: named(fileName, c.fileId),
+          ...(c.employer ? { employer: c.employer } : {}),
         })),
       }
     : undefined;

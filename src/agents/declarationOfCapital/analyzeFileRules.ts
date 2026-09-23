@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CAPITAL_DOCUMENT_CATALOG, isInstitutionBound } from './catalog.js';
+import { CAPITAL_DOCUMENT_CATALOG, isEmployerBound, isInstitutionBound } from './catalog.js';
 import { compareCompanies, institutionLabel, tieAllowedByCompany, type Institution } from './institutions.js';
 import { check, type GateCheck } from '../shared/gateChecks.js';
 
@@ -48,6 +48,14 @@ export const FileAnalysisSchema = z.object({
   holdings: z.array(FileHoldingSchema),
   /** The file shows more than MAX_HOLDINGS entries: the list is cut (the gate cuts a longer answer itself). */
   holdings_partial: z.boolean(),
+  /**
+   * The employer of the fund as printed on a study-fund / pension report
+   * ("שם המעסיק"); null when none is printed or the file shows funds of
+   * several employers. Kept for employer-bound types only (catalog). File
+   * text: cleaned by `cleanEmployer` (splitChildNames.ts) before any use —
+   * it tells apart several funds of one client at one company.
+   */
+  employer_name: z.string().nullable(),
 });
 
 /**
@@ -62,12 +70,14 @@ export const CapitalFileAnalysisSchema = FileAnalysisSchema.extend({
   document_type: z.enum(CAPITAL_DOCUMENT_TYPE_VALUES),
 });
 
-export type FileAnalysis = Omit<z.infer<typeof FileAnalysisSchema>, 'issuer_name' | 'holdings' | 'holdings_partial'> & {
+export type FileAnalysis = Omit<z.infer<typeof FileAnalysisSchema>, 'issuer_name' | 'holdings' | 'holdings_partial' | 'employer_name'> & {
   /** Absent on rows analyzed before the field existed. */
   issuer_name?: string | null;
   /** Absent on rows analyzed before the fields existed. */
   holdings?: FileHolding[];
   holdings_partial?: boolean;
+  /** Absent on rows analyzed before the field existed. */
+  employer_name?: string | null;
   document_type?: string;
   /** Set by the gate when it dropped the model's match: why the file now matches nothing (shown to the planner). */
   match_dropped?: string | null;
@@ -145,6 +155,9 @@ export function validateClassification(
     analysis.holdings_partial = kept.length > MAX_HOLDINGS || (kept.length > 0 && analysis.holdings_partial === true);
     analysis.holdings = kept.slice(0, MAX_HOLDINGS);
   }
+  // The employer is kept only for a file of an employer-bound type (a fund
+  // opened per employer). Descriptive data too: no check, no effect on `result`.
+  if (analysis.employer_name !== undefined && !isEmployerBound(analysis.document_type)) analysis.employer_name = null;
   let result = true;
   let reason: string | null = null;
   let rejectedId: string | null = null;

@@ -95,6 +95,13 @@ export interface CapitalDocumentType {
    * Defaults to false.
    */
   institutionBound?: boolean;
+  /**
+   * A fund of this type is opened per employer, and the institution prints the
+   * employer on each fund's report: the classifier reads it, and the employer
+   * tells apart several funds of one client at one company (splitChildNames.ts,
+   * companySplit.ts, openspec `unlisted-files`). Defaults to false.
+   */
+  employerBound?: boolean;
   checks: VerificationChecks;
   /**
    * Type-specific extraction fields, merged into the common answer schema as
@@ -235,6 +242,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'pension_provident',
     institutionBound: true,
+    employerBound: true,
     shortNameHe: 'קופת גמל / פנסיה',
     nameHe: 'אישור יתרות קופות גמל ופנסיה ליום 31.12.{{tax_year}}',
     descriptionHe:
@@ -250,6 +258,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
     key: 'study_fund',
     institutionBound: true,
+    employerBound: true,
     shortNameHe: 'קרן השתלמות',
     nameHe: 'אישור יתרת קרן השתלמות ליום 31.12.{{tax_year}}',
     descriptionHe:
@@ -557,4 +566,9 @@ export function catalogSeedRows(taxYear: number): CatalogSeedRow[] {
 /** Whether items of this type name one issuing company that code can compare (false for unknown / ad-hoc types). */
 export function isInstitutionBound(typeKey: string | null | undefined): boolean {
   return typeKey ? (getCatalogType(typeKey)?.institutionBound ?? false) : false;
+}
+
+/** Whether a fund of this type is opened per employer, so its report names one (false for unknown / ad-hoc types). */
+export function isEmployerBound(typeKey: string | null | undefined): boolean {
+  return typeKey ? (getCatalogType(typeKey)?.employerBound ?? false) : false;
 }

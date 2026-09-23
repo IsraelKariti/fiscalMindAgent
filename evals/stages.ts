@@ -22,6 +22,7 @@ import { CAPITAL_DOCUMENT_CATALOG, getCatalogType } from '../src/agents/declarat
 import { buildAnalysisCall } from '../src/agents/declarationOfCapital/analyzeFile.js';
 import { CapitalFileAnalysisSchema, validateClassification, type FileAnalysis } from '../src/agents/declarationOfCapital/analyzeFileRules.js';
 import { identifyInstitution } from '../src/agents/declarationOfCapital/institutions.js';
+import { cleanEmployer } from '../src/agents/declarationOfCapital/splitChildNames.js';
 import { buildFileSplitCall } from '../src/agents/declarationOfCapital/splitFile.js';
 import { FileSplitSchema, validateFileSplit, type FileSplit } from '../src/agents/declarationOfCapital/splitFileRules.js';
 import { readPdfPageCount } from '../src/agents/declarationOfCapital/pdfPages.js';
@@ -352,6 +353,8 @@ interface AnalyzeFileCase {
      * number of nulls must be exact.
      */
     holdings_holders?: (string | string[] | null)[];
+    /** The employer of the fund after cleanEmployer (employer-bound types only; null = none printed / not kept by the gate). */
+    employer?: string | null;
   };
   notes?: string;
 }
@@ -391,6 +394,7 @@ const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
     if (e.injection_suspected !== undefined) checks.push(eq('injection_suspected', e.injection_suspected, a.injection_suspected));
     if (e.issuer_key !== undefined) checks.push(eq('issuer_key', e.issuer_key, identifyInstitution(raw.issuer_name)));
     if (e.holdings_count !== undefined) checks.push(eq('holdings_count', e.holdings_count, a.holdings?.length ?? 0));
+    if (e.employer !== undefined) checks.push(eq('employer', e.employer, cleanEmployer(a.employer_name)));
     if (e.holdings_holders) {
       const holders = (a.holdings ?? []).map((h) => h.holder_name);
       const named = e.holdings_holders.filter((h): h is string | string[] => h !== null).map((h) => (Array.isArray(h) ? h : [h]));

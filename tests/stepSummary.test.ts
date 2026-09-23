@@ -184,3 +184,28 @@ test('apply_collections: the per-company split renders the rename and the create
     { key: 'created_by_company', items: ['ביטוח מנהלים ניב — כלל ← scan-p10-11.pdf'] },
   ]);
 });
+
+test('apply_collections: an employer row of the split shows its employer after the file; a company row does not', () => {
+  const rows = stepSummaryOf('apply_collections', {
+    clientName: 'ניב',
+    proposed: [],
+    proposedNames: [],
+    collected: [],
+    collectedNames: [],
+    claimed: [],
+    claimedNames: [],
+    pairs: [],
+    refused: [],
+    split: {
+      renamed: [{ documentId: 'd1', oldName: 'קרן השתלמות ניב', newName: 'קרן השתלמות ניב — מיטב — פרייסמנס בע"מ' }],
+      created: [
+        { documentId: 'd-e2', name: 'קרן השתלמות ניב — מיטב — ראנדקום בע"מ', fromDocumentId: 'd1', fromName: 'קרן השתלמות ניב', fileId: 'f-e2', fileName: 'scan-p34-35.pdf', employer: 'ראנדקום בע"מ' },
+        { documentId: 'd-mor', name: 'קרן השתלמות ניב — מור', fromDocumentId: 'd1', fromName: 'קרן השתלמות ניב', fileId: 'f-mor', fileName: 'scan-p20-21.pdf' },
+      ],
+    },
+  });
+  assert.deepEqual(rows, [
+    { key: 'renamed_by_company', items: ['קרן השתלמות ניב → קרן השתלמות ניב — מיטב — פרייסמנס בע"מ'] },
+    { key: 'created_by_company', items: ['קרן השתלמות ניב — מיטב — ראנדקום בע"מ ← scan-p34-35.pdf (ראנדקום בע"מ)', 'קרן השתלמות ניב — מור ← scan-p20-21.pdf'] },
+  ]);
+});

@@ -995,6 +995,28 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      unfiled or filed under that same row, so a sibling's file (whose stored
      `matched_document_id` still names the head) is no longer evidence for the
      head in later cycles.
+  6. *Per-employer split* (2026-09-23, change `name-items-by-employer`, no
+     migration). Second stage of the same `planCompanySplit`, for
+     employer-bound rows only, run whether or not stage 1 renamed the row (a
+     row that already names its company, such as "… — ניב — מיטב", is divided
+     too): within each resulting row (the head and every stage-1 sibling) the
+     files are grouped by `cleanEmployer(analysis.employer_name)`; the first
+     employer whose text the row's name does not already contain renames the
+     row (or extends the sibling's planned name) to "<name> — <employer>", each
+     further employer gets one more sibling built on `employerBaseName` (the
+     name without a trailing employer part that follows the company part, so
+     a row "… — מיטב — פרייסמנס" spawns "… — מיטב — טבע", not a double
+     suffix); a file with no printed employer stays where it is, so does a
+     file whose employer the row already names. Created rows carry
+     `employer` (`CompanySplitCreated`), their evidence
+     `{source:'file', file_id, issuer, employer}` and the audit `reason:
+     'employer_split'`; the `apply_collections` detail's `split.created[]`
+     carries `employer` and the step modal shows "row ← file (employer)".
+     `plan.ts` writes through `splitByCompany` every touched row, also one
+     with no rename (its unchanged name is the live-status check). Owner
+     decision (2026-09-23): the employer is a classifier field, not a typed
+     extraction field — extraction runs after collection, too late for the
+     label and the split.
   The same company check guards planner pairs (`filterPairsByCompany`): two
   identified, different companies are always refused; a file of an
   unidentified company needs `matched_files[].evidence` (the client's quoted
@@ -1028,6 +1050,27 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   no list and are shown as before. Known limit: one file that shows several
   policies can still be attached to one item only. Evals: `cls_12`–`cls_14`,
   `dec_15`–`dec_18`.
+- **Employer on a fund report** (2026-09-23, openspec `unlisted-files` +
+  `file-splitting`, change `name-items-by-employer`, no migration). A study
+  fund or pension fund is opened per employer, so one client often holds
+  several funds at one company, each with its own report, while the tax
+  certificate page lists every account — `holdings` cannot tell the reports
+  apart, the employer can. For the two *employer-bound* catalog types
+  (`employerBound: true` on `study_fund` and `pension_provident`,
+  `isEmployerBound`) the classifier also answers `employer_name` — the
+  "שם המעסיק" line as printed, null when none is printed or the file shows
+  funds of several employers; `validate_classification` nulls it for every
+  other type and adds no check. It is the one word a name may carry from the
+  file: every use goes through `cleanEmployer` (`splitChildNames.ts` —
+  unprintables out, spaces collapsed, our " — " separator replaced, ≤
+  `MAX_EMPLOYER` = 60 characters or dropped, at least one letter), and
+  `employerSuffixedName` appends it after the company: a matched child of an
+  employer-bound row becomes "<row name> — <company> — <employer>", an
+  unmatched one "קרן השתלמות — מיטב — פרייסמנס בע"מ" (each part optional).
+  `formatEmployer` (`prompt.ts`) prints `employer: <cleaned>` on the file's
+  analysis line for those types only, and the planner prompt says the
+  platform divides such a row per employer in code (no question, no
+  instances). Older analyses have no employer and are shown as before.
 - **Reply after verification** (openspec `verification-reply`;
   `verifyBatchRules.ts`, `verifyDocument.ts` → `verifyBatch`): a planner cycle
   that marks documents `collected` wrote its message before any verdict, so

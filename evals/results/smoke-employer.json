@@ -1,0 +1,320 @@
+{
+  "ranAt": "2026-09-23T06:24:15.747Z",
+  "finishedAt": "2026-09-23T06:24:37.589Z",
+  "models": [
+    "gemini-2.5-flash"
+  ],
+  "stages": [
+    "injection_detection_llm",
+    "questionnaire_schema_mapping",
+    "file_splitting",
+    "file_classification",
+    "extract_document",
+    "generate_message"
+  ],
+  "concurrency": 2,
+  "maxSpendUsd": 1,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
+    }
+  },
+  "results": [
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_16",
+      "notes": "openspec name-items-by-employer (live finding 2026-09-23): a Meitav study fund annual report of one fund names its employer (\"שם המעסיק\") while its tax certificate lists all three of the member's Meitav accounts — the employer must be read from the report's own line, as printed, so the file can be told apart from the member's other Meitav reports. Another company than the list's study fund row: no match.",
+      "ranAt": "2026-09-23T06:24:16.275Z",
+      "latencyMs": 12707,
+      "attempts": 1,
+      "inputTokens": 5642,
+      "outputTokens": 444,
+      "thinkingTokens": 1809,
+      "cachedTokens": 0,
+      "costUsd": 0.0073251,
+      "error": null,
+      "output": {
+        "document_kind": "דוח שנתי ואישור מס להצהרת הון ממיטב גמל ופנסיה עבור קרן השתלמות",
+        "summary": "המסמך הוא דוח שנתי ואישור מס להצהרת הון ממיטב גמל ופנסיה עבור קרן השתלמות לשנת 2025, המציג את יתרת הכספים בסוף השנה וסך ההפקדות המצטברות.",
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "Meitav Gemel & Pension Ltd.",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "קרן השתלמות מיטב השתלמות",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "033-131-500082-000"
+          },
+          {
+            "product": "קרן השתלמות מיטב השתלמות",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "033-258-250917-000"
+          },
+          {
+            "product": "קרן השתלמות מיטב השתלמות",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "033-258-254108-001"
+          }
+        ],
+        "holdings_partial": false,
+        "employer_name": "פרייסמנס בע\"מ",
+        "document_type": "study_fund"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "study_fund",
+          "actual": "study_fund",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "meitav",
+          "actual": "meitav",
+          "pass": true
+        },
+        {
+          "key": "employer",
+          "expected": "פרייסמנס בע\"מ",
+          "actual": "פרייסמנס בע\"מ",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "Meitav Gemel & Pension Ltd.",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "קרן השתלמות מיטב השתלמות",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "033-131-500082-000"
+          },
+          {
+            "product": "קרן השתלמות מיטב השתלמות",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "033-258-250917-000"
+          },
+          {
+            "product": "קרן השתלמות מיטב השתלמות",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "033-258-254108-001"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "summary": "המסמך הוא דוח שנתי ואישור מס להצהרת הון ממיטב גמל ופנסיה עבור קרן השתלמות לשנת 2025, המציג את יתרת הכספים בסוף השנה וסך ההפקדות המצטברות."
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_15",
+      "notes": "openspec name-items-by-employer: a Meitav annual report of one fund against the per-employer row the split made (the row name carries the company and the employer). The report's own account number is the one the savings fields must read, not one of the three the certificate lists; the closing balance comes from the report table and the deposits total from the certificate.",
+      "ranAt": "2026-09-23T06:24:28.988Z",
+      "latencyMs": 8571,
+      "attempts": 1,
+      "inputTokens": 2065,
+      "outputTokens": 291,
+      "thinkingTokens": 1252,
+      "cachedTokens": 0,
+      "costUsd": 0.004477,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי ואישור מס לקרן השתלמות",
+        "issuer": "Meitav Gemel & Pension",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Balance at the end of the year",
+            "value": 91679,
+            "currency": "ILS"
+          },
+          {
+            "label": "Total deposits",
+            "value": 35713,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן השתלמות מיטב השתלמות",
+        "account_number": "033-258-250917-000",
+        "closing_balance": 91679,
+        "total_deposits": 35713
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 91679,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "Balance at the end of the year",
+              "value": 91679,
+              "currency": "ILS"
+            },
+            {
+              "label": "Total deposits",
+              "value": 35713,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "033-258-250917-000",
+          "actual": "033-258-250917-000",
+          "pass": true
+        },
+        {
+          "key": "fields.closing_balance",
+          "expected": 91679,
+          "actual": 91679,
+          "pass": true
+        },
+        {
+          "key": "fields.total_deposits",
+          "expected": 35713,
+          "actual": 35713,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי ואישור מס לקרן השתלמות",
+        "issuer": "Meitav Gemel & Pension"
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "file_classification": {
+      "gemini-2.5-flash": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 12707,
+          "p50": 12707,
+          "p90": 12707,
+          "min": 12707,
+          "max": 12707
+        },
+        "inputTokens": 5642,
+        "outputTokens": 444,
+        "thinkingTokens": 1809,
+        "cachedTokens": 0,
+        "costUsd": 0.007325,
+        "unpriced": 0
+      }
+    },
+    "extract_document": {
+      "gemini-2.5-flash": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 8571,
+          "p50": 8571,
+          "p90": 8571,
+          "min": 8571,
+          "max": 8571
+        },
+        "inputTokens": 2065,
+        "outputTokens": 291,
+        "thinkingTokens": 1252,
+        "cachedTokens": 0,
+        "costUsd": 0.004477,
+        "unpriced": 0
+      }
+    }
+  }
+}

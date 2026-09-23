@@ -246,8 +246,41 @@ describe('validate_classification (validateClassification)', () => {
 
     it('the answer schema requires the list; a null holder and number are valid', () => {
       assert.throws(() => CapitalFileAnalysisSchema.parse(raw()));
-      const parsed = CapitalFileAnalysisSchema.parse(raw({ holdings: two, holdings_partial: false }));
+      const parsed = CapitalFileAnalysisSchema.parse(raw({ holdings: two, holdings_partial: false, employer_name: null }));
       assert.equal(parsed.holdings[1]!.holder_name, null);
+    });
+  });
+
+  describe('employer (employer_name)', () => {
+    const fund = (over: Partial<FileAnalysis> = {}) =>
+      raw({ document_type: 'study_fund', matched_document_id: null, issuer_name: 'מיטב גמל ופנסיה בע"מ', ...over });
+
+    it('is kept for an employer-bound type, without touching the verdict or the checks', () => {
+      const without = validate(fund());
+      const g = validate(fund({ employer_name: 'פרייסמנס בע"מ' }));
+      assert.equal(g.analysis.employer_name, 'פרייסמנס בע"מ');
+      assert.equal(g.result, without.result);
+      assert.deepEqual(g.checks, without.checks);
+    });
+
+    it('is nulled for a type that is not employer-bound, same checks as before', () => {
+      const bank = raw();
+      const g = validate({ ...bank, employer_name: 'פרייסמנס בע"מ' });
+      assert.equal(g.analysis.employer_name, null);
+      assert.deepEqual(g.checks, validate(bank).checks);
+      const insurance = raw({ document_type: 'life_insurance_savings', matched_document_id: null, employer_name: 'פרייסמנס בע"מ' });
+      assert.equal(validate(insurance).analysis.employer_name, null);
+    });
+
+    it('an analysis stored before the field existed passes through without it', () => {
+      assert.equal(validate(fund()).analysis.employer_name, undefined);
+    });
+
+    it('the answer schema requires the field; null is valid', () => {
+      const two = [{ product: 'קרן השתלמות', holder_name: null, account_number: null }];
+      assert.throws(() => CapitalFileAnalysisSchema.parse(fund({ holdings: two, holdings_partial: false })));
+      const parsed = CapitalFileAnalysisSchema.parse(fund({ holdings: two, holdings_partial: false, employer_name: null }));
+      assert.equal(parsed.employer_name, null);
     });
   });
 
@@ -260,6 +293,9 @@ describe('validate_classification (validateClassification)', () => {
   it('document_type is the closed catalog + other list', () => {
     assert.deepEqual(CAPITAL_DOCUMENT_TYPE_VALUES, [...CAPITAL_DOCUMENT_CATALOG.map((t) => t.key), 'other']);
     assert.throws(() => CapitalFileAnalysisSchema.parse(raw({ document_type: 'invoice' })));
-    assert.equal(CapitalFileAnalysisSchema.parse(raw({ document_type: 'other', holdings: [], holdings_partial: false })).document_type, 'other');
+    assert.equal(
+      CapitalFileAnalysisSchema.parse(raw({ document_type: 'other', holdings: [], holdings_partial: false, employer_name: null })).document_type,
+      'other',
+    );
   });
 });

@@ -14,6 +14,10 @@ export interface ClientAgentFields {
   overdue_notified_at?: string;
   /** Set while the agent is stopped because the due date passed — the "handed off" UI state. */
   overdue_stopped_at?: string;
+  /** Capital declaration: the client's marital status from the questionnaire (openspec `spouse-identity`). */
+  marital_status?: 'married' | 'not_married';
+  /** Capital declaration: the one spouse on file (name / id / sources), shape owned by spouseIdentity.ts. */
+  spouse?: unknown;
 }
 
 export interface Client {

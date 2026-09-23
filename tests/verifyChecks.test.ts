@@ -131,7 +131,7 @@ describe('runChecks', () => {
     const match = verdict.checks.find((c) => c.key === 'id_matches_client')!;
     assert.equal(match.passed, true);
     assert.equal(match.observed, '••••••542');
-    assert.equal(match.expected, '••••••542 (monday CRM)');
+    assert.equal(match.expected, 'client ••••••542 (monday CRM)');
     assert.equal(verdict.checks.find((c) => c.key === 'subject')!.passed, true);
     // The reverse case: the CRM card dropped the zero, the document printed it.
     const reverse = runChecks(
@@ -146,12 +146,12 @@ describe('runChecks', () => {
       { ...baseFields, subject_id_number: VALID_ID },
       { ...baseCtx, credentialIdNumber: VALID_ID, credentialIdSource: 'monday_crm' },
     );
-    assert.equal(fromCrm.checks.find((c) => c.key === 'id_matches_client')!.expected, '••••••782 (monday CRM)');
+    assert.equal(fromCrm.checks.find((c) => c.key === 'id_matches_client')!.expected, 'client ••••••782 (monday CRM)');
     const fromCreds = runChecks(
       { ...baseFields, subject_id_number: VALID_ID },
       { ...baseCtx, credentialIdNumber: VALID_ID, credentialIdSource: 'credentials' },
     );
-    assert.equal(fromCreds.checks.find((c) => c.key === 'id_matches_client')!.expected, '••••••782 (credentials)');
+    assert.equal(fromCreds.checks.find((c) => c.key === 'id_matches_client')!.expected, 'client ••••••782 (credentials)');
     assert.equal(fromCreds.passed, true);
     assert.equal(fromCreds.checks.some((c) => c.key === 'client_id_on_file'), false);
   });
@@ -179,7 +179,7 @@ describe('runChecks', () => {
     assert.equal(byKey['subject']!.observed, 'ת"ז ••••••782 תואמת ללקוח');
     assert.equal(byKey['id_checksum']!.observed, '••••••782');
     assert.equal(byKey['id_matches_client']!.observed, '••••••782');
-    assert.equal(byKey['id_matches_client']!.expected, '••••••782');
+    assert.equal(byKey['id_matches_client']!.expected, 'client ••••••782');
     for (const c of verdict.checks) {
       for (const s of [c.observed, c.expected, c.reason]) assert.ok(!(s ?? '').includes(VALID_ID), `${c.key}: ${s}`);
     }
@@ -231,12 +231,25 @@ describe('runChecks', () => {
     assert.equal(verdict.passed, false);
   });
 
-  it('a printed id contradicting the credential on file fails', () => {
+  it('a printed id contradicting the credential on file fails for a client registered as not married', () => {
     const verdict = runChecks(
       { ...baseFields, subject_id_number: VALID_ID },
-      { ...baseCtx, credentialIdNumber: '987654321' },
+      { ...baseCtx, credentialIdNumber: '987654321', maritalStatus: 'not_married' },
     );
     assert.equal(verdict.passed, false);
+    assert.equal(verdict.adoptSpouse, null);
+  });
+
+  it('a printed id contradicting the credential on file is adopted as the spouse when nothing says otherwise', () => {
+    // openspec `spouse-identity`: no spouse on file, marital status unknown, checksum-valid → the spouse.
+    const verdict = runChecks(
+      { ...baseFields, subject_name: 'רות ישראלי', subject_id_number: VALID_ID },
+      { ...baseCtx, credentialIdNumber: '987654321' },
+    );
+    assert.equal(verdict.passed, true);
+    assert.equal(verdict.subjectMatched, 'spouse');
+    assert.deepEqual(verdict.adoptSpouse, { idNumber: VALID_ID, name: 'רות ישראלי' });
+    assert.equal(verdict.checks.find((c) => c.key === 'spouse_adopted')?.passed, true);
   });
 
   it('fails an expired validity-dated document (vehicle license) when the type requires validity', () => {

@@ -263,6 +263,40 @@
         "verdict": { "passed": true }
       },
       "notes": "openspec name-items-by-employer: a Meitav annual report of one fund against the per-employer row the split made (the row name carries the company and the employer). The report's own account number is the one the savings fields must read, not one of the three the certificate lists; the closing balance comes from the report table and the deposits total from the certificate."
+    },
+    {
+      "id": "ext_16",
+      "file": "menora_pension_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "menora.pdf",
+      "doc": { "type_key": "pension_provident", "name": "אישור יתרה — קרן פנסיה של רות במנורה מבטחים ליום 31.12.2025", "description": null },
+      "client": { "name": "ניב כהן", "idNumber": "025699448", "spouse": { "name": "ישראל ישראלי", "idNumber": "123456782" }, "maritalStatus": "married" },
+      "expected": {
+        "is_expected_type": true,
+        "subject_id_number": "123456782",
+        "subject_name_matches": true,
+        "legible": true,
+        "injection_suspected": false,
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes"
+    },
+    {
+      "id": "ext_17",
+      "file": "menora_pension_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "menora.pdf",
+      "doc": { "type_key": "pension_provident", "name": "אישור יתרה — קרן פנסיה מנורה מבטחים ליום 31.12.2025", "description": null },
+      "client": { "name": "ניב כהן", "idNumber": "025699448", "spouse": { "name": "מיכל כהן", "idNumber": "012345542" }, "maritalStatus": "married" },
+      "expected": {
+        "is_expected_type": true,
+        "subject_id_number": "123456782",
+        "subject_name_matches": false,
+        "legible": true,
+        "injection_suspected": false,
+        "verdict": { "passed": false, "failed_keys": ["id_matches_client", "subject"] }
+      },
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted"
     }
   ]
 }

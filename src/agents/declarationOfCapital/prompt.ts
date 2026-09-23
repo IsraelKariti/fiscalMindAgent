@@ -15,12 +15,14 @@ import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
 import { formatUpcomingDates } from '../shared/upcomingDates.js';
 import { getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
 import { MAX_EMPLOYER, cleanEmployer } from './splitChildNames.js';
+import { readMaritalStatus, readSpouse, type SpouseSource } from './spouseIdentity.js';
 
 /**
  * The fenced sections the platform itself writes. The input-safety rule names
  * them as trusted: their guidance is binding, unlike client-sourced content.
  */
 export const PLATFORM_SECTIONS = {
+  identity: 'CLIENT IDENTITY',
   whatsapp: 'WHATSAPP CHANNEL',
   documentFetch: 'DOCUMENT FETCH',
   deadline: 'COLLECTION DEADLINE',
@@ -329,6 +331,29 @@ export function buildFormAnswersSection(token: string, client: ClientRow): strin
   return `${fence(token, 'SUBMITTED QUESTIONNAIRE')}\n${lines}\n${endFence(token, 'SUBMITTED QUESTIONNAIRE')}`;
 }
 
+/**
+ * What the platform knows about the household (openspec `spouse-identity`):
+ * the client's name, whether an id is on file for them, the marital status
+ * and the one spouse on file. System-known facts, fenced apart from the
+ * client-typed questionnaire. The id digits never reach the model — only
+ * whether an id is known and where it came from.
+ */
+export function buildClientIdentitySection(token: string, client: ClientRow, clientIdOnFile: boolean | null): string {
+  const name = PLATFORM_SECTIONS.identity;
+  const spouse = readSpouse(client.agent_fields);
+  const marital = readMaritalStatus(client.agent_fields);
+  const idOnFile = clientIdOnFile ?? (typeof client.agent_fields?.['id_number'] === 'string' && client.agent_fields['id_number'] !== '');
+  const source = (s: SpouseSource | null): string => (s === 'questionnaire' ? 'questionnaire' : s === 'crm' ? 'CRM card' : s === 'document' ? 'a document the client sent' : 'unknown');
+  const lines = [
+    `Client: ${sanitizeInline(client.name, 120)} (national id on file: ${idOnFile ? 'yes' : 'no'})`,
+    `Marital status: ${marital === 'married' ? 'married (questionnaire)' : marital === 'not_married' ? 'not married (questionnaire)' : 'unknown'}`,
+    spouse.name || spouse.idNumber
+      ? `Spouse on file: ${spouse.name ? sanitizeInline(spouse.name, 120) : 'name unknown'}${spouse.name ? ` (name from ${source(spouse.nameSource)})` : ''}; national id: ${spouse.idNumber ? `known (from ${source(spouse.idSource)})` : 'not known'}`
+      : 'Spouse on file: none on file',
+  ];
+  return `${fence(token, name)}\n${lines.join('\n')}\n${endFence(token, name)}`;
+}
+
 /** The capital-declaration attestation gate's current state, for the template's closing-summary rules. */
 export interface IntakePromptInput {
   unresolvedCount: number;
@@ -592,10 +617,13 @@ export function buildPrompt(
   verificationResults: VerificationResultPromptInput[] = [],
   /** The follow-up cycle after a verification batch: the section renders even when the batch is empty. */
   afterVerification = false,
+  /** Whether a national id is on file for the client (credentials or CRM card); null = derive from agent_fields only. */
+  clientIdOnFile: boolean | null = null,
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
     buildDocumentsSection(token, documents, taxYear),
+    buildClientIdentitySection(token, client, clientIdOnFile),
     buildFormAnswersSection(token, client),
     buildIntakeSection(token, intake),
     buildDeadlineSection(token, client, now),

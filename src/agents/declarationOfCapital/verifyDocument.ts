@@ -22,6 +22,8 @@ import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { fetchItemDetails } from '../shared/mondayData.js';
 import { crmIdNumber } from './crmIdentity.js';
 import { clientIdNumber, type ClientIdOnFile } from './taxFetch/clientId.js';
+import { mergeSpouse, readMaritalStatus, readSpouse, spouseToStored } from './spouseIdentity.js';
+import { maskId } from '../shared/gateChecks.js';
 import type { AgentInstanceRow, ClientRow, ClientDocumentRow } from '../../db/types.js';
 import type { Readable } from 'node:stream';
 import {
@@ -219,10 +221,17 @@ export async function verifyCollectedDocument(
   // the tax-portal credentials or from the client's CRM card (declaration-of-
   // capital kickoff stores it in agent_fields.id_number).
   const idOnFile = await clientIdOnFile(client);
+  // The spouse on file is re-read for every verification: a batch verifies
+  // documents one after the other, and the first one may have just adopted the
+  // spouse the second one must be compared with (openspec `spouse-identity`).
+  const fresh = (await clients.getById(client.id)) ?? client;
+  const spouseOnFile = readSpouse(fresh.agent_fields);
   const verdict = runChecks(extracted, {
     clientName: client.name,
     credentialIdNumber: idOnFile?.id ?? null,
     credentialIdSource: idOnFile?.source ?? null,
+    spouse: spouseOnFile,
+    maritalStatus: readMaritalStatus(fresh.agent_fields),
     taxYear,
     now,
     checks,
@@ -233,6 +242,31 @@ export async function verifyCollectedDocument(
   // The type's fields with their Hebrew labels, so the step modal shows the
   // values by name; absent for a type that declares none.
   const labelledFields = typeFields?.map((f) => ({ key: f.key, label: f.labelHe, value: typeFieldValue(extracted, f) }));
+
+  // The printed id was adopted as the spouse's: stored before the next
+  // document of the batch is verified, whatever the other checks decided (the
+  // wife's pension that fails a typed field still teaches who the wife is).
+  if (verdict.adoptSpouse) {
+    const merged = mergeSpouse(spouseOnFile, verdict.adoptSpouse, 'document');
+    await clients.setDeclarationEngagement(client.id, { spouse: spouseToStored(merged) });
+    recordAudit({
+      actorType: 'system',
+      action: 'client.spouse_inferred',
+      agentInstanceId: client.agent_instance_id,
+      clientId: client.id,
+      targetType: 'client_document',
+      targetId: doc.id,
+      detail: {
+        clientName: client.name,
+        name: doc.name,
+        fileId,
+        spouseName: merged.name,
+        spouseId: maskId(verdict.adoptSpouse.idNumber),
+      },
+    });
+    publishClientUpdated(client.id);
+    logger.info('document verification: spouse adopted from the printed id', { clientId: client.id, documentId: doc.id, fileId });
+  }
   // Step verify_extraction: the code checks after extract_document, one row per
   // attempt with the per-check table (reasons are our own Hebrew strings).
   recordAudit({
@@ -250,6 +284,7 @@ export async function verifyCollectedDocument(
       attempt: attempts + 1,
       result: verdict.passed,
       issuer: extracted.issuer,
+      subject_matched: verdict.subjectMatched,
       ...(labelledFields && labelledFields.length > 0 ? { fields: labelledFields } : {}),
       checks: verdict.checks.map((c) => ({ key: c.key, passed: c.passed, note: c.reason, observed: c.observed, expected: c.expected })),
       reasons: verdict.reasons,

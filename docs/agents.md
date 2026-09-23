@@ -167,6 +167,41 @@ monday WorkForm is the only source of which documents a declaration needs):
   a well-formed date that is past at verification time; sibling instances of
   the same type carrying no validity date (receipt, cost declaration) are
   unaffected.
+- **Spouse identity** (2026-09-23; openspec `spouse-identity`): a client
+  has at most ONE spouse on file — `agent_fields.spouse = {name, id_number,
+  name_source, id_source}` (sources `questionnaire` > `crm` > `document`)
+  plus `agent_fields.marital_status` (`married` / `not_married`; absent =
+  unknown), no migration. `spouseIdentity.ts` owns the record (`readSpouse`,
+  `mergeSpouse` — a present value is replaced only by a strictly
+  higher-trust source, never cleared) and the pure identity rule
+  `resolveSubjectIdentity` that `runChecks` calls for the `subject` /
+  `id_matches_client` / `spouse_adopted` / `client_id_on_file` entries:
+  printed id = client → client; = spouse on file → spouse; otherwise, with
+  the client's id on file, the id is ADOPTED as the spouse's only when it
+  passes the checksum, no spouse id is on file yet, the client is not
+  `not_married`, and the printed name does not contradict a spouse name
+  from the form (`namesLooselyMatch`, which now lives in spouseIdentity.ts);
+  else `id_matches_client` (and `subject`) fail with the reason (third
+  person / not married / name mismatch). A name-only document passes
+  `subject` against the client's or the spouse's name; nothing is ever
+  inferred from a name. Sources: the kickoff reads spouse cells
+  (`crmIdentity.ts` `crmSpouse` — a `SPOUSE_TITLE` cell with an id title is
+  the id, without one the name — and `crmMaritalStatus`) from the
+  questionnaire item first and the CRM card second (`spouseFromCards`),
+  at enrollment and on every re-fired kickoff (`client.spouse_updated`
+  audit when anything changed; `crmIdNumber` now skips spouse-titled
+  cells); `verifyDocument.ts` re-reads the client before every verification
+  (a batch is sequential and the first document may have just adopted the
+  spouse), persists `verdict.adoptSpouse` whatever the other checks decided,
+  records `client.spouse_inferred` (masked id) and adds `subject_matched` to
+  the `verify_extraction` detail. The planner gets a fenced `CLIENT IDENTITY`
+  block (`buildClientIdentitySection`: name, id on file yes/no, marital
+  status, spouse name + whether an id is known and from where — never the
+  digits) and `prompt.md`'s household rules (spouse assets belong to the
+  declaration, spouse-owned instances carry the spouse's name, tie by the
+  printed holder, never ask for an id number). The capital documents card
+  shows one household line (masked id). Evals: `client.spouse` /
+  `client.maritalStatus` per `extract_document` case.
 - **Type-specific extraction fields** (2026-09-23; openspec
   `document-extraction`): a catalog type may declare `fields` — each an
   `ExtractionField` (`key`, `kind` text/number/date/year, `labelHe`,
@@ -777,8 +812,12 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `business_rules` via `gateDecision` in `decisionSchema.ts`; the second is
   absent when parsing failed), `verify_extraction` (the per-document table
   from `verifyChecks.ts`: `legible`, `expected_type`, `subject`,
-  `id_checksum`, `id_matches_client` (its `expected` names the source of the
-  id on file: `(credentials)` or `(monday CRM)`), `client_id_on_file` (when
+  `id_checksum`, `id_matches_client` (passes when the printed id is the
+  client's OR the one spouse's on file; its `expected` names the person
+  matched and the source of that id: `client ••••••448 (monday CRM)`,
+  `spouse ••••••821 (document)` — on a failure both persons on file), then
+  `spouse_adopted` (informational, only when the printed id was just adopted
+  as the spouse's — see "Spouse identity" below), `client_id_on_file` (when
   the document prints an id but none is on file — reported, never enforced),
   `as_of_date`, `not_expired`, `amounts`, then `type_fields` and
   `period_covers_valuation_date` for a type that declares extraction fields

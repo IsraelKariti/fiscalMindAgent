@@ -86,13 +86,31 @@ const clientTabs: ClientTab[] = [
           : typeof fields['attestation_request_email_id'] === 'string'
             ? ('requested' as const)
             : ('none' as const);
+      // The household on file (openspec `spouse-identity`): the spouse's id is masked
+      // here to its last three digits — the full number never renders.
+      const maritalRaw = fields['marital_status'];
+      const maritalStatus = maritalRaw === 'married' || maritalRaw === 'not_married' ? maritalRaw : null;
+      const spouseRaw = fields['spouse'];
+      const s = typeof spouseRaw === 'object' && spouseRaw !== null && !Array.isArray(spouseRaw) ? (spouseRaw as Record<string, unknown>) : null;
+      const text = (v: unknown) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
+      const spouseName = text(s?.['name']);
+      const spouseDigits = (text(s?.['id_number']) ?? '').replace(/\D/g, '');
+      const spouse =
+        spouseName || spouseDigits
+          ? {
+              name: spouseName,
+              maskedId: spouseDigits ? '•'.repeat(Math.max(spouseDigits.length - 3, 0)) + spouseDigits.slice(-3) : null,
+              nameSource: spouseName ? text(s?.['name_source']) : null,
+              idSource: spouseDigits ? text(s?.['id_source']) : null,
+            }
+          : null;
       return (
         <div className="tab-pane panel-stack" role="tabpanel">
           <DocumentsCard
             clientId={ctx.client.id}
             documents={ctx.documents}
             files={ctx.files}
-            capital={{ attestation }}
+            capital={{ attestation, household: { maritalStatus, spouse } }}
             onChanged={async () => {
               // A document change can flip goal_status and (re)schedule messages — refresh everything.
               await ctx.load();

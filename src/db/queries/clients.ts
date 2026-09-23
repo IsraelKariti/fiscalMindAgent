@@ -436,6 +436,9 @@ export async function setDeclarationEngagement(
     crmItemId?: string;
     formItemId?: string;
     formAnswers?: Array<{ question: string; answer: string }>;
+    /** The one spouse on file (openspec `spouse-identity`), already merged by spouseIdentity.mergeSpouse. */
+    spouse?: Record<string, unknown>;
+    maritalStatus?: 'married' | 'not_married';
   },
 ): Promise<void> {
   const patch: Record<string, unknown> = {};
@@ -445,6 +448,8 @@ export async function setDeclarationEngagement(
   if (fields.crmItemId !== undefined) patch['monday_crm_item_id'] = fields.crmItemId;
   if (fields.formItemId !== undefined) patch['monday_form_item_id'] = fields.formItemId;
   if (fields.formAnswers !== undefined) patch['form_answers'] = fields.formAnswers;
+  if (fields.spouse !== undefined) patch['spouse'] = fields.spouse;
+  if (fields.maritalStatus !== undefined) patch['marital_status'] = fields.maritalStatus;
   if (Object.keys(patch).length === 0) return;
   await pool.query(`UPDATE clients SET agent_fields = agent_fields || $2::jsonb WHERE id = $1`, [
     id,

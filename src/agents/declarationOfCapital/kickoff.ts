@@ -9,7 +9,10 @@ import { publishInstanceClientsUpdated } from '../../events/clientEvents.js';
 import { logger } from '../../util/logger.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { catalogSeedRows } from './catalog.js';
-import { crmIdNumber } from './crmIdentity.js';
+import { crmIdNumber, spouseFromCards } from './crmIdentity.js';
+import { EMPTY_SPOUSE, readMaritalStatus, readSpouse, sameSpouse, spouseToStored, type SpouseOnFile } from './spouseIdentity.js';
+import { maskId } from '../shared/gateChecks.js';
+import type { ItemColumnDetail } from '../shared/mondayData.js';
 import type { FormAnswer } from './formIntake.js';
 import type { BoardSource } from '../shared/clientSources.js';
 import type { AgentInstanceRow, ClientRow } from '../../db/types.js';
@@ -115,11 +118,13 @@ export async function resolveDeclarationClient(
   // responses-board item, as question (column title) / answer (cell text).
   const formItemId = column(board.formLinkColumnId)?.linkedItemIds[0];
   let formAnswers: FormAnswer[] = [];
+  let formColumns: ItemColumnDetail[] = [];
   if (formItemId) {
     const form = await fetchItemDetails(accessToken, formItemId);
     if (!form) {
       logger.warn('declaration kickoff: linked questionnaire item not found / not visible', { ...log, formItemId });
     } else {
+      formColumns = form.columns;
       // Empty cells are kept: a question the client left blank means "I don't
       // have this" and pre-resolves its type to not_required (formIntake.ts).
       formAnswers = form.columns
@@ -132,6 +137,11 @@ export async function resolveDeclarationClient(
 
   const storedAnswers = storableFormAnswers(formAnswers);
   let client = await clients.getByWaPhoneForInstance(instance.id, waPhone);
+  // The one spouse + marital status the cards state (openspec `spouse-identity`):
+  // questionnaire cells first, CRM cells second, merged onto what is on file.
+  const household = spouseFromCards(client ? readSpouse(client.agent_fields) : EMPTY_SPOUSE, formColumns, crm.columns);
+  const spouseAudit = (s: SpouseOnFile) =>
+    s.name || s.idNumber ? { spouseName: s.name, spouseId: s.idNumber ? maskId(s.idNumber) : null, spouseSources: [s.nameSource, s.idSource] } : {};
   if (!client) {
     try {
       client = await clients.insert({
@@ -150,6 +160,8 @@ export async function resolveDeclarationClient(
           tax_year: taxYear,
           ...(fileNumber ? { file_number: fileNumber } : {}),
           ...(idNumber ? { id_number: idNumber } : {}),
+          ...(household.spouse.name || household.spouse.idNumber ? { spouse: spouseToStored(household.spouse) } : {}),
+          ...(household.maritalStatus ? { marital_status: household.maritalStatus } : {}),
         },
       });
       // The catalog checklist, rendered for THIS row's declaration year.
@@ -168,7 +180,15 @@ export async function resolveDeclarationClient(
         action: 'client.auto_enrolled',
         agentInstanceId: instance.id,
         clientId: client.id,
-        detail: { clientName, waPhone, taxYear, ...(fileNumber ? { fileNumber } : {}), source: 'monday_kickoff' },
+        detail: {
+          clientName,
+          waPhone,
+          taxYear,
+          ...(fileNumber ? { fileNumber } : {}),
+          ...spouseAudit(household.spouse),
+          ...(household.maritalStatus ? { maritalStatus: household.maritalStatus } : {}),
+          source: 'monday_kickoff',
+        },
       });
       logger.info('declaration kickoff: client enrolled', { ...log, clientId: client.id, waPhone, taxYear });
     } catch (err) {
@@ -183,6 +203,9 @@ export async function resolveDeclarationClient(
     }
   } else {
     // Re-fired webhook / pre-existing client: keep the engagement identity fresh.
+    const previousSpouse = readSpouse(client.agent_fields);
+    const spouseChanged = !sameSpouse(previousSpouse, household.spouse);
+    const maritalChanged = household.maritalStatus !== null && household.maritalStatus !== readMaritalStatus(client.agent_fields);
     await clients
       .setDeclarationEngagement(client.id, {
         taxYear,
@@ -191,8 +214,27 @@ export async function resolveDeclarationClient(
         crmItemId,
         ...(formItemId ? { formItemId } : {}),
         ...(storedAnswers.length > 0 ? { formAnswers: storedAnswers } : {}),
+        ...(spouseChanged ? { spouse: spouseToStored(household.spouse) } : {}),
+        ...(maritalChanged && household.maritalStatus ? { maritalStatus: household.maritalStatus } : {}),
       })
       .catch((err) => logger.error('declaration kickoff: engagement backfill failed', err, { ...log, clientId: client!.id }));
+    if (spouseChanged || maritalChanged) {
+      // A card value replacing (or first stating) the spouse — including one
+      // that replaces a document-inferred id — is audited with both masked ids.
+      recordAudit({
+        actorType: 'system',
+        action: 'client.spouse_updated',
+        agentInstanceId: instance.id,
+        clientId: client.id,
+        detail: {
+          clientName: client.name,
+          previous: spouseAudit(previousSpouse),
+          ...spouseAudit(household.spouse),
+          ...(household.maritalStatus ? { maritalStatus: household.maritalStatus } : {}),
+          source: 'monday_kickoff',
+        },
+      });
+    }
   }
 
   if (!client.wa_phone) {

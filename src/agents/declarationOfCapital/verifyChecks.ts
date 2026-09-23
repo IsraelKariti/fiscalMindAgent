@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { ExtractionField, VerificationChecks } from './catalog.js';
 import { maskId } from '../shared/gateChecks.js';
+import { EMPTY_SPOUSE, resolveSubjectIdentity, type MaritalStatus, type SpouseOnFile } from './spouseIdentity.js';
+
+// The loose name rule lives with the identity rule (spouseIdentity.ts); kept
+// exported from here for its historical importers (tests, evals).
+export { namesLooselyMatch } from './spouseIdentity.js';
 
 /**
  * The deterministic half of the verification pipeline: pure code checks over
@@ -156,6 +161,10 @@ export interface CheckContext {
   credentialIdNumber: string | null;
   /** Where credentialIdNumber came from — shown next to the expected value of id_matches_client. */
   credentialIdSource?: 'credentials' | 'monday_crm' | null;
+  /** The one spouse on file (openspec `spouse-identity`); absent = nothing known. */
+  spouse?: SpouseOnFile;
+  /** The client's marital status from the questionnaire; null/absent = unknown. */
+  maritalStatus?: MaritalStatus | null;
   taxYear: number;
   /** Verification time — the notExpired check is judged against this. */
   now: Date;
@@ -184,6 +193,10 @@ export interface ChecksVerdict {
   /** The failed checks' reasons, in order. */
   reasons: string[];
   checks: CheckResult[];
+  /** Whom the document was accepted for (openspec `spouse-identity`); null when nobody matched. */
+  subjectMatched: 'client' | 'spouse' | null;
+  /** The printed id was adopted as the spouse's — the caller persists it before the next verification. */
+  adoptSpouse: { idNumber: string; name: string | null } | null;
 }
 
 /** Standard Israeli national-id check digit (9 digits, weights 1/2 alternating). */
@@ -209,27 +222,6 @@ export function normalizeIdNumber(raw: string | null | undefined): string {
   const digits = (raw ?? '').replace(/\D/g, '');
   if (digits === '' || digits.length > 9) return digits;
   return digits.padStart(9, '0');
-}
-
-/** Lowercase, strip punctuation/quotes, split to tokens of 2+ chars. */
-function nameTokens(name: string): string[] {
-  return name
-    .toLowerCase()
-    .replace(/["'`״׳.,()-]/g, ' ')
-    .split(/\s+/)
-    .filter((t) => t.length >= 2);
-}
-
-/**
- * Loose name comparison for "is this document about our client": true when the
- * two names share at least one real token. Deliberately forgiving — clients
- * appear as "ישראל ישראלי", "י. ישראלי" or with a spouse's name attached; the
- * check exists to catch a *different person's* document, not spelling drift.
- */
-export function namesLooselyMatch(a: string, b: string): boolean {
-  const ta = nameTokens(a);
-  const tb = new Set(nameTokens(b));
-  return ta.some((t) => tb.has(t));
 }
 
 const MAX_SANE_AMOUNT = 1e12;
@@ -273,52 +265,31 @@ export function runChecks(fields: ExtractedAnswer, ctx: CheckContext): ChecksVer
     ctx.documentName ?? null,
   );
 
-  if (ctx.checks.subjectMatch) {
-    const normalizedDocId = normalizeIdNumber(fields.subject_id_number);
-    const normalizedCredId = normalizeIdNumber(ctx.credentialIdNumber);
-    const idMatches = normalizedDocId !== '' && normalizedCredId !== '' && normalizedDocId === normalizedCredId;
-    if (idMatches) {
-      add('subject', true, '', `ת"ז ${maskId(normalizedDocId)} תואמת ללקוח`, ctx.clientName);
-    } else if (fields.subject_name) {
-      add(
-        'subject',
-        namesLooselyMatch(fields.subject_name, ctx.clientName),
-        `המסמך רשום על שם "${fields.subject_name}" ואינו תואם את שם הלקוח`,
-        fields.subject_name,
-        ctx.clientName,
-      );
-    } else {
-      add('subject', false, 'שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח', 'לא מצוין', ctx.clientName);
-    }
-  }
-
-  // An id printed on the document must be a real id, and must not contradict
-  // the one on file — regardless of whether subjectMatch applies to the type.
-  if (fields.subject_id_number) {
-    const normalizedDocId = normalizeIdNumber(fields.subject_id_number);
+  // Whom the document is about — the client or the one spouse on file
+  // (spouseIdentity.ts, openspec `spouse-identity`): `subject` (when the type
+  // requires it), then the id entries. An id printed on the document must also
+  // be a real id, regardless of whether subjectMatch applies to the type.
+  const normalizedDocId = normalizeIdNumber(fields.subject_id_number);
+  const identity = resolveSubjectIdentity(
+    {
+      subjectName: fields.subject_name,
+      printedId: normalizedDocId,
+      printedIdValid: normalizedDocId !== '' && isValidIsraeliId(normalizedDocId),
+    },
+    {
+      clientName: ctx.clientName,
+      clientId: normalizeIdNumber(ctx.credentialIdNumber),
+      clientIdSource: ctx.credentialIdSource ?? null,
+      spouse: ctx.spouse ?? EMPTY_SPOUSE,
+      maritalStatus: ctx.maritalStatus ?? null,
+      subjectMatch: ctx.checks.subjectMatch,
+    },
+  );
+  for (const c of identity.checks.filter((c) => c.key === 'subject')) checks.push(c);
+  if (normalizedDocId !== '') {
     add('id_checksum', isValidIsraeliId(normalizedDocId), 'מספר תעודת הזהות המופיע במסמך אינו תקין', maskId(normalizedDocId));
-    const normalizedCredId = normalizeIdNumber(ctx.credentialIdNumber);
-    if (normalizedCredId !== '') {
-      const source = ctx.credentialIdSource === 'monday_crm' ? ' (monday CRM)' : ctx.credentialIdSource === 'credentials' ? ' (credentials)' : '';
-      add(
-        'id_matches_client',
-        normalizedDocId === normalizedCredId,
-        'מספר תעודת הזהות במסמך אינו תואם את זה הרשום ללקוח',
-        maskId(normalizedDocId),
-        `${maskId(normalizedCredId)}${source}`,
-      );
-    } else {
-      // Nothing to compare against: reported so the trace shows why, but it
-      // never decides the verdict (see the filter below) — an accountant's
-      // CRM card without an id must not stall every document.
-      add(
-        'client_id_on_file',
-        false,
-        'ללקוח אין מספר תעודת זהות רשום — לא בפרטי הכניסה לרשות המסים ולא בכרטיס ה-CRM ב-monday — ולכן לא ניתן היה להשוות את המספר שבמסמך',
-        'none',
-      );
-    }
   }
+  for (const c of identity.checks.filter((c) => c.key !== 'subject')) checks.push(c);
 
   if (ctx.checks.asOfDate) {
     const expected = `${ctx.taxYear}-12-31`;
@@ -436,5 +407,7 @@ export function runChecks(fields: ExtractedAnswer, ctx: CheckContext): ChecksVer
     passed: failed.length === 0,
     reasons: failed.map((c) => c.reason!),
     checks,
+    subjectMatched: identity.matched,
+    adoptSpouse: identity.adopt,
   };
 }

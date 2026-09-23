@@ -18,7 +18,14 @@ interface Props {
   /** Empty-state override — for agents whose list starts empty by design. */
   emptyTextKey?: MessageStringKey;
   /** Capital-declaration flow: grouped statuses, verification badges, attestation state. */
-  capital?: { attestation: 'none' | 'requested' | 'confirmed' };
+  capital?: {
+    attestation: 'none' | 'requested' | 'confirmed';
+    /** The household on file (openspec `spouse-identity`); ids arrive already masked. */
+    household?: {
+      maritalStatus: 'married' | 'not_married' | null;
+      spouse: { name: string | null; maskedId: string | null; nameSource: string | null; idSource: string | null } | null;
+    };
+  };
 }
 
 /** The view/download icon pair for one received file. */
@@ -345,6 +352,24 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
     );
   };
 
+  // One line for the household on file; absent when nothing is known (openspec `spouse-identity`).
+  const household = capital?.household;
+  const sourceText = (s: string | null) =>
+    s === 'questionnaire' ? t.spouseSourceQuestionnaire : s === 'crm' ? t.spouseSourceCrm : s === 'document' ? t.spouseSourceDocument : '';
+  const householdText =
+    household && (household.maritalStatus !== null || household.spouse)
+      ? [
+          household.maritalStatus === 'married' ? t.maritalMarried : household.maritalStatus === 'not_married' ? t.maritalNotMarried : t.maritalUnknown,
+          household.spouse
+            ? `${t.spouseLabel}: ${household.spouse.name ?? t.spouseNameUnknown}${household.spouse.name && household.spouse.nameSource ? ` (${sourceText(household.spouse.nameSource)})` : ''}${
+                household.spouse.maskedId ? ` · ${t.spouseIdLabel} ${household.spouse.maskedId}${household.spouse.idSource ? ` (${sourceText(household.spouse.idSource)})` : ''}` : ''
+              }`
+            : null,
+        ]
+          .filter((s): s is string => s !== null)
+          .join(' · ')
+      : null;
+
   const attestationText =
     capital?.attestation === 'confirmed'
       ? t.attestationConfirmed
@@ -368,6 +393,11 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         {capital && (
           <div className={`doc-attestation ${capital.attestation}`}>
             <span className="muted">{t.attestationLabel}:</span> {attestationText}
+          </div>
+        )}
+        {householdText && (
+          <div className="doc-household muted">
+            <span>{t.householdLabel}:</span> {householdText}
           </div>
         )}
 

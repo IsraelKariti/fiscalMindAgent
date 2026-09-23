@@ -1,0 +1,2891 @@
+{
+  "ranAt": "2026-09-23T18:33:04.776Z",
+  "finishedAt": null,
+  "models": [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-2.5-pro",
+    "gemini-3.1-pro-preview",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "gpt-5-pro",
+    "gpt-5.1",
+    "gpt-5.2",
+    "gpt-5.2-pro",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+    "gpt-5.4-pro",
+    "gpt-5.5",
+    "gpt-5.5-pro",
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
+    "gpt-6-astra",
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-opus-4-1",
+    "claude-opus-4-20250514",
+    "claude-sonnet-4-20250514",
+    "claude-3-7-sonnet-20250219"
+  ],
+  "stages": [
+    "injection_detection_llm",
+    "questionnaire_schema_mapping",
+    "file_splitting",
+    "file_classification",
+    "extract_document",
+    "generate_message"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {},
+  "results": [
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:05.304Z",
+      "latencyMs": 9641,
+      "attempts": 1,
+      "inputTokens": 1863,
+      "outputTokens": 408,
+      "thinkingTokens": 1075,
+      "cachedTokens": 0,
+      "costUsd": 0.0042664,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר – קרן פנסיה מקיפה",
+        "issuer": "Menora Mivtachim Pension",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "January-December 2025 (total) Deposit",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "Israel Israeli",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר – קרן פנסיה מקיפה",
+        "issuer": "Menora Mivtachim Pension"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:05.321Z",
+      "latencyMs": 9653,
+      "attempts": 1,
+      "inputTokens": 1860,
+      "outputTokens": 333,
+      "thinkingTokens": 1165,
+      "cachedTokens": 0,
+      "costUsd": 0.004303,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 – קרן פנסיה מקיפה",
+        "issuer": "Menora Mivtachim Pension",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025 (total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "Israel Israeli (ישראל ישראלי)",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"Israel Israeli (ישראל ישראלי)\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 – קרן פנסיה מקיפה",
+        "issuer": "Menora Mivtachim Pension"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:14.992Z",
+      "latencyMs": 392,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:14.991Z",
+      "latencyMs": 401,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3-flash-preview",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:15.401Z",
+      "latencyMs": 10074,
+      "attempts": 1,
+      "inputTokens": 2125,
+      "outputTokens": 292,
+      "thinkingTokens": 1210,
+      "cachedTokens": 0,
+      "costUsd": 0.0055685,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה — קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "Israel Israeli",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3-flash-preview",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:15.402Z",
+      "latencyMs": 10972,
+      "attempts": 1,
+      "inputTokens": 2122,
+      "outputTokens": 292,
+      "thinkingTokens": 1102,
+      "cachedTokens": 0,
+      "costUsd": 0.005242999999999999,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה — קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "Israel Israeli",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"Israel Israeli\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:26.377Z",
+      "latencyMs": 2676,
+      "attempts": 1,
+      "inputTokens": 2122,
+      "outputTokens": 411,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.001147,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "January–December 2025 (total) deposits",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "Israel Israeli",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"Israel Israeli\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:26.376Z",
+      "latencyMs": 2685,
+      "attempts": 1,
+      "inputTokens": 2125,
+      "outputTokens": 427,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.00117175,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "Israel Israeli (ישראלי ישראל)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance (פיצויים)",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "January–December 2025 (total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "Israel Israeli (ישראלי ישראל)",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:29.072Z",
+      "latencyMs": 6271,
+      "attempts": 1,
+      "inputTokens": 2125,
+      "outputTokens": 440,
+      "thinkingTokens": 1304,
+      "cachedTokens": 0,
+      "costUsd": 0.0188835,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרת כספים בחשבון בסוף השנה",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "תגמולי עובד",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "תגמולי מעסיק",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "פיצויים",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "הפקדות במהלך השנה",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה - קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "ישראל ישראלי",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:29.072Z",
+      "latencyMs": 6443,
+      "attempts": 1,
+      "inputTokens": 2122,
+      "outputTokens": 427,
+      "thinkingTokens": 662,
+      "cachedTokens": 0,
+      "costUsd": 0.012983999999999999,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה - קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "ישראל ישראלי",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"ישראל ישראלי\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:35.517Z",
+      "latencyMs": 1973,
+      "attempts": 1,
+      "inputTokens": 2125,
+      "outputTokens": 427,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.001705,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר קרן פנסיה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "Israel Israeli (ישראלי ישראל)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance (פיצויים)",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "January–December 2025 (total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "Israel Israeli (ישראלי ישראל)",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר קרן פנסיה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:35.519Z",
+      "latencyMs": 2096,
+      "attempts": 1,
+      "inputTokens": 2122,
+      "outputTokens": 443,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.0017441000000000002,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "Israel Israeli (ישראלי ישראל)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance (פיצויים)",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "January–December 2025 (total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "Israel Israeli (ישראלי ישראל)",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"Israel Israeli (ישראלי ישראל)\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.6-flash",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:37.618Z",
+      "latencyMs": 6253,
+      "attempts": 1,
+      "inputTokens": 2122,
+      "outputTokens": 264,
+      "thinkingTokens": 876,
+      "cachedTokens": 0,
+      "costUsd": 0.0058665,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה - קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "ישראל ישראלי",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"ישראל ישראלי\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.6-flash",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:37.618Z",
+      "latencyMs": 6771,
+      "attempts": 1,
+      "inputTokens": 2125,
+      "outputTokens": 222,
+      "thinkingTokens": 953,
+      "cachedTokens": 0,
+      "costUsd": 0.006,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרת הכספים בחשבון בסוף השנה",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "הפקדות בשנת 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה - קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "ישראל ישראלי",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.7-flash",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:44.391Z",
+      "latencyMs": 4422,
+      "attempts": 1,
+      "inputTokens": 2125,
+      "outputTokens": 458,
+      "thinkingTokens": 654,
+      "cachedTokens": 0,
+      "costUsd": 0.00576375,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרת הכספים בחשבון בסוף השנה (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "תגמולי עובד",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "תגמולי מעביד",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "פיצויים",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "סך הפקדות לשנת 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה — קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "ישראל ישראלי",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.7-flash",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:44.392Z",
+      "latencyMs": 4927,
+      "attempts": 1,
+      "inputTokens": 2122,
+      "outputTokens": 459,
+      "thinkingTokens": 482,
+      "cachedTokens": 0,
+      "costUsd": 0.00512025,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרת הכספים בחשבון בסוף השנה (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "תגמולי עובד",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "תגמולי מעביד",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "פיצויים",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "סך הפקדות ינואר–דצמבר 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה — קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "Israel Israeli (ישראל ישראלי)",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"Israel Israeli (ישראל ישראלי)\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "דוח שנתי מקוצר — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-pro",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:49.322Z",
+      "latencyMs": 361,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-pro is no longer available to new users. Please update your code to use models/gemini-3.1-pro-preview for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-pro",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:49.323Z",
+      "latencyMs": 365,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-pro is no longer available to new users. Please update your code to use models/gemini-3.1-pro-preview for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:33:49.695Z",
+      "latencyMs": 11700,
+      "attempts": 1,
+      "inputTokens": 2125,
+      "outputTokens": 300,
+      "thinkingTokens": 1178,
+      "cachedTokens": 0,
+      "costUsd": 0.021986,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Balance of funds in the account at year end",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "ישראל ישראלי",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר - קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:33:49.696Z",
+      "latencyMs": 14256,
+      "attempts": 1,
+      "inputTokens": 2122,
+      "outputTokens": 428,
+      "thinkingTokens": 1465,
+      "cachedTokens": 0,
+      "costUsd": 0.02696,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance (פיצויים)",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "January–December 2025 (total) deposits",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "Israel Israeli (ישראל ישראלי)",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"Israel Israeli (ישראל ישראלי)\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gpt-5",
+      "provider": "openai",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:34:03.959Z",
+      "latencyMs": 28156,
+      "attempts": 1,
+      "inputTokens": 1986,
+      "outputTokens": 293,
+      "thinkingTokens": 1792,
+      "cachedTokens": 0,
+      "costUsd": 0.023332500000000003,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר של מנורה מבטחים — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "Israel Israeli (ישראלי ישראל)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025 (total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה מנורה מבטחים",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "Israel Israeli (ישראלי ישראל)",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"Israel Israeli (ישראלי ישראל)\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "דוח שנתי מקוצר של מנורה מבטחים — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gpt-5",
+      "provider": "openai",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:34:03.956Z",
+      "latencyMs": 30922,
+      "attempts": 1,
+      "inputTokens": 1990,
+      "outputTokens": 261,
+      "thinkingTokens": 1984,
+      "cachedTokens": 0,
+      "costUsd": 0.0249375,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה (עמוד יתרת סוף שנה)",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "ישראלי ישראל",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025 (total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה — קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "ישראלי ישראל",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה (עמוד יתרת סוף שנה)",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:34:34.880Z",
+      "latencyMs": 13302,
+      "attempts": 1,
+      "inputTokens": 2088,
+      "outputTokens": 278,
+      "thinkingTokens": 768,
+      "cachedTokens": 0,
+      "costUsd": 0.002614,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "Abbreviated annual report for 2025 — comprehensive pension fund (דוח שנתי מקוצר — קרן פנסיה מקיפה)",
+        "issuer": "Menora Mivtachim Pension (מנורה מבטחים פנסיה)",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025 (Jan–Dec total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "Menora Mivtachim Pension — comprehensive pension fund",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": 31140
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "Israel Israeli",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "Abbreviated annual report for 2025 — comprehensive pension fund (דוח שנתי מקוצר — קרן פנסיה מקיפה)",
+        "issuer": "Menora Mivtachim Pension (מנורה מבטחים פנסיה)"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:34:34.882Z",
+      "latencyMs": 21806,
+      "attempts": 1,
+      "inputTokens": 2084,
+      "outputTokens": 394,
+      "thinkingTokens": 1280,
+      "cachedTokens": 0,
+      "costUsd": 0.0038689999999999996,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "Abbreviated annual report for 2025 — comprehensive pension fund",
+        "issuer": "Menora Mivtachim Pension (מנורה מבטחים פנסיה)",
+        "subject_name": "Israel Israeli (ישראלי ישראל)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "January–December 2025 (total) — Deposits during 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "Menora Mivtachim Pension — קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": "Israel Israeli (ישראלי ישראל)",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"Israel Israeli (ישראלי ישראל)\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "Abbreviated annual report for 2025 — comprehensive pension fund",
+        "issuer": "Menora Mivtachim Pension (מנורה מבטחים פנסיה)"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gpt-5-nano",
+      "provider": "openai",
+      "caseId": "ext_16",
+      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes",
+      "ranAt": "2026-09-23T18:34:56.690Z",
+      "latencyMs": 30045,
+      "attempts": 1,
+      "inputTokens": 2164,
+      "outputTokens": 299,
+      "thinkingTokens": 3648,
+      "cachedTokens": 0,
+      "costUsd": 0.001687,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "Abbreviated annual report for 2025 — comprehensive pension fund",
+        "issuer": "Menora Mivtachim Pension",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end (31.12.2025)",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025 (January–December 2025 total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "Menora Mivtachim Pension",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": 31140
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "Israel Israeli",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "Abbreviated annual report for 2025 — comprehensive pension fund",
+        "issuer": "Menora Mivtachim Pension"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gpt-5-nano",
+      "provider": "openai",
+      "caseId": "ext_17",
+      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted",
+      "ranAt": "2026-09-23T18:34:56.693Z",
+      "latencyMs": 32285,
+      "attempts": 1,
+      "inputTokens": 2160,
+      "outputTokens": 241,
+      "thinkingTokens": 3648,
+      "cachedTokens": 0,
+      "costUsd": 0.0016635999999999999,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "Abbreviated annual report for 2025 — comprehensive pension fund",
+        "issuer": "Menora Mivtachim Pension",
+        "subject_name": null,
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance (פיצויים)",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025 (total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": 31140
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": false,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "id_matches_client",
+            "subject"
+          ],
+          "actual": [
+            "subject",
+            "id_matches_client"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject",
+            "id_matches_client"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"לא מצוין\" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג",
+            "מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר"
+          ]
+        },
+        "actual_kind": "Abbreviated annual report for 2025 — comprehensive pension fund",
+        "issuer": "Menora Mivtachim Pension"
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "extract_document": {
+      "gemini-2.5-flash": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 9647,
+          "p50": 9641,
+          "p90": 9641,
+          "min": 9641,
+          "max": 9653
+        },
+        "inputTokens": 3723,
+        "outputTokens": 741,
+        "thinkingTokens": 2240,
+        "cachedTokens": 0,
+        "costUsd": 0.008569,
+        "unpriced": 0
+      },
+      "gemini-2.5-flash-lite": {
+        "total": 2,
+        "passed": 0,
+        "passRate": 0,
+        "errors": 2,
+        "latencyMs": {
+          "avg": null,
+          "p50": null,
+          "p90": null,
+          "min": null,
+          "max": null
+        },
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": null,
+        "unpriced": 2
+      },
+      "gemini-3-flash-preview": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 10523,
+          "p50": 10074,
+          "p90": 10074,
+          "min": 10074,
+          "max": 10972
+        },
+        "inputTokens": 4247,
+        "outputTokens": 584,
+        "thinkingTokens": 2312,
+        "cachedTokens": 0,
+        "costUsd": 0.010811,
+        "unpriced": 0
+      },
+      "gemini-3.1-flash-lite": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 2681,
+          "p50": 2676,
+          "p90": 2676,
+          "min": 2676,
+          "max": 2685
+        },
+        "inputTokens": 4247,
+        "outputTokens": 838,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.002319,
+        "unpriced": 0
+      },
+      "gemini-3.5-flash": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 6357,
+          "p50": 6271,
+          "p90": 6271,
+          "min": 6271,
+          "max": 6443
+        },
+        "inputTokens": 4247,
+        "outputTokens": 867,
+        "thinkingTokens": 1966,
+        "cachedTokens": 0,
+        "costUsd": 0.031867,
+        "unpriced": 0
+      },
+      "gemini-3.5-flash-lite": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 2035,
+          "p50": 1973,
+          "p90": 1973,
+          "min": 1973,
+          "max": 2096
+        },
+        "inputTokens": 4247,
+        "outputTokens": 870,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.003449,
+        "unpriced": 0
+      },
+      "gemini-3.6-flash": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 6512,
+          "p50": 6253,
+          "p90": 6253,
+          "min": 6253,
+          "max": 6771
+        },
+        "inputTokens": 4247,
+        "outputTokens": 486,
+        "thinkingTokens": 1829,
+        "cachedTokens": 0,
+        "costUsd": 0.011867,
+        "unpriced": 0
+      },
+      "gemini-3.7-flash": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 4675,
+          "p50": 4422,
+          "p90": 4422,
+          "min": 4422,
+          "max": 4927
+        },
+        "inputTokens": 4247,
+        "outputTokens": 917,
+        "thinkingTokens": 1136,
+        "cachedTokens": 0,
+        "costUsd": 0.010884,
+        "unpriced": 0
+      },
+      "gemini-2.5-pro": {
+        "total": 2,
+        "passed": 0,
+        "passRate": 0,
+        "errors": 2,
+        "latencyMs": {
+          "avg": null,
+          "p50": null,
+          "p90": null,
+          "min": null,
+          "max": null
+        },
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": null,
+        "unpriced": 2
+      },
+      "gemini-3.1-pro-preview": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 12978,
+          "p50": 11700,
+          "p90": 11700,
+          "min": 11700,
+          "max": 14256
+        },
+        "inputTokens": 4247,
+        "outputTokens": 728,
+        "thinkingTokens": 2643,
+        "cachedTokens": 0,
+        "costUsd": 0.048946,
+        "unpriced": 0
+      },
+      "gpt-5": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 29539,
+          "p50": 28156,
+          "p90": 28156,
+          "min": 28156,
+          "max": 30922
+        },
+        "inputTokens": 3976,
+        "outputTokens": 554,
+        "thinkingTokens": 3776,
+        "cachedTokens": 0,
+        "costUsd": 0.04827,
+        "unpriced": 0
+      },
+      "gpt-5-mini": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 17554,
+          "p50": 13302,
+          "p90": 13302,
+          "min": 13302,
+          "max": 21806
+        },
+        "inputTokens": 4172,
+        "outputTokens": 672,
+        "thinkingTokens": 2048,
+        "cachedTokens": 0,
+        "costUsd": 0.006483,
+        "unpriced": 0
+      },
+      "gpt-5-nano": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 31165,
+          "p50": 30045,
+          "p90": 30045,
+          "min": 30045,
+          "max": 32285
+        },
+        "inputTokens": 4324,
+        "outputTokens": 540,
+        "thinkingTokens": 7296,
+        "cachedTokens": 0,
+        "costUsd": 0.003351,
+        "unpriced": 0
+      }
+    }
+  }
+}

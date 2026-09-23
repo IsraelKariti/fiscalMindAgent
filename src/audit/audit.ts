@@ -60,6 +60,10 @@ export type AuditAction =
   | 'withhold_reply'
   | 'client.auto_enrolled'
   | 'client.kickoff_triggered'
+  // The one spouse on file (openspec `spouse-identity`): adopted from a
+  // verified document's printed id / replaced by a questionnaire or CRM cell.
+  | 'client.spouse_inferred'
+  | 'client.spouse_updated'
   | 'agent.auto_provisioned'
   | 'wa_business.connected'
   | 'wa_business.disconnected'

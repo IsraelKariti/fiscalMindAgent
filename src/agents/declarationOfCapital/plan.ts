@@ -29,6 +29,7 @@ import { decide } from './decide.js';
 import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState } from './decisionSchema.js';
 import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys } from './taxFetch/flow.js';
 import { getProviderSpec } from './taxFetch/providers.js';
+import { clientIdNumber } from './taxFetch/clientId.js';
 import { getAgentTypeIfKnown } from '../registry.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { recordAudit, type AuditAction } from '../../audit/audit.js';
@@ -223,6 +224,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     unsentDrafts,
     verificationResults,
     ctx.hints?.afterVerification === true,
+    (await clientIdNumber(client, 'israel_tax_authority')) !== null,
   );
   const decisionCtx: DecisionContext = {
     // WhatsApp-only: the planner may never choose email.

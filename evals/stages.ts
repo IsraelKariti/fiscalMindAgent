@@ -441,7 +441,13 @@ interface VerifyDocumentCase {
   contentType: string;
   filename: string;
   doc: { type_key: string | null; name: string; description: string | null };
-  client: { name: string; idNumber: string | null };
+  client: {
+    name: string;
+    idNumber: string | null;
+    /** The one spouse on file (openspec `spouse-identity`); absent = nothing known. */
+    spouse?: { name: string | null; idNumber: string | null } | null;
+    maritalStatus?: 'married' | 'not_married' | null;
+  };
   expected: {
     is_expected_type?: boolean;
     legible?: boolean;
@@ -492,11 +498,15 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
         key: 'subject_name_matches',
         expected: e.subject_name_matches,
         actual: data.subject_name,
-        // The app's subject rule (runChecks): a printed ID that matches the client vouches for the subject;
-        // only otherwise does the (loosely matched) name decide. A Latin-script name on a Hebrew client is fine when the ID matches.
+        // The app's subject rule (runChecks): a printed ID that matches the client or the spouse on file vouches for
+        // the subject; only otherwise does the (loosely matched) name decide — against the client's or the spouse's
+        // name. A Latin-script name on a Hebrew client is fine when the ID matches.
         pass:
-          ((digits(data.subject_id_number) !== '' && digits(data.subject_id_number) === digits(c.client.idNumber)) ||
-            namesLooselyMatch(data.subject_name ?? '', c.client.name)) === e.subject_name_matches,
+          ((digits(data.subject_id_number) !== '' &&
+            (digits(data.subject_id_number) === digits(c.client.idNumber) ||
+              (digits(c.client.spouse?.idNumber ?? null) !== '' && digits(data.subject_id_number) === digits(c.client.spouse?.idNumber ?? null)))) ||
+            namesLooselyMatch(data.subject_name ?? '', c.client.name) ||
+            (!!c.client.spouse?.name && namesLooselyMatch(data.subject_name ?? '', c.client.spouse.name))) === e.subject_name_matches,
       });
     }
     if (e.amount) {
@@ -527,6 +537,10 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
     const verdict = runChecks(data, {
       clientName: c.client.name,
       credentialIdNumber: c.client.idNumber ?? null,
+      ...(c.client.spouse
+        ? { spouse: { name: c.client.spouse.name, idNumber: c.client.spouse.idNumber, nameSource: 'questionnaire' as const, idSource: 'questionnaire' as const } }
+        : {}),
+      maritalStatus: c.client.maritalStatus ?? null,
       taxYear: ctx.taxYear,
       now: new Date(ctx.now),
       checks: checksFor(c.doc),

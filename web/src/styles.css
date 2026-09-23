@@ -4120,6 +4120,14 @@ button.meta-chip:hover {
   overflow-wrap: anywhere;
 }
 
+/* The files a split step produced, listed under its row (not in the client's bubble). */
+.timeline-trace-attachments {
+  /* The row is a wrapping flex line: take the full width so the chips sit beneath the step button. */
+  flex-basis: 100%;
+  margin-top: 0;
+  direction: ltr;
+}
+
 /* LLM call chip in the admin trace: the stage name only, click → drill-down. */
 .timeline-trace-chip {
   display: inline-flex;

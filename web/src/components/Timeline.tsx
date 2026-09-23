@@ -137,9 +137,17 @@ function CallChip({ call }: { call: LlmCallSummary }) {
   );
 }
 
-function TraceRow({ entry }: { entry: TraceEntry }) {
+/** What a step row needs to list the files a split step produced (openspec `file-splitting`). */
+interface StepFilesProps {
+  /** Children cut out of a parent file, keyed by parent id, in page order. */
+  childrenByParent: Map<string, DocumentFile[]>;
+  attachmentLabel: (file: DocumentFile) => string;
+  onOpenFile: (file: DocumentFile) => void;
+}
+
+function TraceRow({ entry, files }: { entry: TraceEntry; files: StepFilesProps }) {
   if (entry.kind === 'call') return <CallChip call={entry.call} />;
-  return <StepRow step={entry.step} />;
+  return <StepRow step={entry.step} files={files} />;
 }
 
 /**
@@ -147,12 +155,17 @@ function TraceRow({ entry }: { entry: TraceEntry }) {
  * modal: what the step did (document names, evidence, channel, times) and,
  * for a gate row, its check list (✓ / ✗ per check).
  */
-function StepRow({ step: s }: { step: AdminConversationStep }) {
+function StepRow({ step: s, files }: { step: AdminConversationStep; files: StepFilesProps }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const result = gateResultOf(s);
   const reason = gateReasonOf(s);
   const glyph = s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' || s.action === 'withhold_reply' ? '⚙️' : '🛡️';
+  // The split step that cut a file lists the files it produced — they are the
+  // step's result, not something the client sent. A run that cut nothing
+  // (rejected answer, one document) shows no chips.
+  const children =
+    s.action === 'validate_file_split' && s.detail.cut === true && s.targetId ? (files.childrenByParent.get(s.targetId) ?? []) : [];
   return (
     <li className={`timeline-trace timeline-trace-step ${s.severity === 'critical' ? 'timeline-trace-critical' : ''}`} dir="ltr">
       <button type="button" className="timeline-trace-gate" aria-label={`${t.gateModalOpen}: ${s.action}`} onClick={() => setOpen(true)}>
@@ -162,8 +175,43 @@ function StepRow({ step: s }: { step: AdminConversationStep }) {
         {result !== null && <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`}>result: {String(result)}</span>}
         {reason && <span className="muted timeline-trace-reason">{reason}</span>}
       </button>
+      {children.length > 0 && (
+        <div className="bubble-attachments timeline-trace-attachments">
+          {children.map((file) => (
+            <AttachmentChip key={file.id} file={file} label={files.attachmentLabel(file)} onOpen={files.onOpenFile} />
+          ))}
+        </div>
+      )}
       {open && <StepDetailModal step={s} onClose={() => setOpen(false)} />}
     </li>
+  );
+}
+
+/** One received file as a clickable chip: in a message bubble, or under the split step that produced it. */
+function AttachmentChip({ file, label, onOpen }: { file: DocumentFile; label: string; onOpen: (file: DocumentFile) => void }) {
+  const { t } = useT();
+  return (
+    <button
+      type="button"
+      className={`attachment-chip ${file.analysis?.injection_suspected || file.analysis_status === 'blocked' ? 'attachment-chip-danger' : ''}`}
+      title={
+        file.analysis_status === 'blocked'
+          ? t.analysisBlockedTitle
+          : file.analysis?.injection_suspected
+            ? t.analysisSuspiciousTitle
+            : file.analysis_status === 'split'
+              ? t.analysisSplitTitle
+              : file.filename
+      }
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(file);
+      }}
+    >
+      <span className="attachment-chip-icon">{file.content_type.startsWith('image/') ? icon.image : icon.file}</span>
+      <span className="attachment-chip-name">{label}</span>
+      <span className="attachment-chip-size">{formatFileSize(file.size_bytes)}</span>
+    </button>
   );
 }
 
@@ -403,13 +451,30 @@ export function Timeline({
 
   // Files grouped under the message they arrived on. Chronological, so chip
   // order inside a bubble matches the order the attachments were sent in.
+  // A child cut out of a multi-document PDF shares the parent's email_id but
+  // was produced by the split step, not sent by the client — it is listed
+  // under that step's trace row instead (childrenByParent).
   const filesByEmail = useMemo(() => {
     const map = new Map<string, DocumentFile[]>();
     for (const file of files) {
-      if (!file.email_id || !isTimelineAttachment(file)) continue;
+      if (!file.email_id || file.parent_file_id || !isTimelineAttachment(file)) continue;
       const group = map.get(file.email_id);
       if (group) group.push(file);
       else map.set(file.email_id, [file]);
+    }
+    return map;
+  }, [files]);
+
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string, DocumentFile[]>();
+    for (const file of files) {
+      if (!file.parent_file_id) continue;
+      const group = map.get(file.parent_file_id);
+      if (group) group.push(file);
+      else map.set(file.parent_file_id, [file]);
+    }
+    for (const group of map.values()) {
+      group.sort((a, b) => (a.page_from ?? 0) - (b.page_from ?? 0) || a.id.localeCompare(b.id));
     }
     return map;
   }, [files]);
@@ -619,7 +684,13 @@ export function Timeline({
         <ol className="timeline" ref={listRef}>
           {mergeTrace(visibleEmails, traceOn ? trace : null, { calls: showCalls, steps: showSteps }).map((row) => {
             if (row.kind !== 'message') {
-              return <TraceRow key={`${row.kind}-${row.kind === 'call' ? row.call.id : row.step.id}`} entry={row} />;
+              return (
+                <TraceRow
+                  key={`${row.kind}-${row.kind === 'call' ? row.call.id : row.step.id}`}
+                  entry={row}
+                  files={{ childrenByParent, attachmentLabel, onOpenFile: setViewingFile }}
+                />
+              );
             }
             const { email, index: i } = row;
             const outbound = email.direction === 'outbound';
@@ -652,27 +723,7 @@ export function Timeline({
                   {attachments.length > 0 && (
                     <div className="bubble-attachments">
                       {attachments.map((file) => (
-                        <button
-                          key={file.id}
-                          type="button"
-                          className={`attachment-chip ${file.analysis?.injection_suspected || file.analysis_status === 'blocked' ? 'attachment-chip-danger' : ''}`}
-                          title={
-                            file.analysis_status === 'blocked'
-                              ? t.analysisBlockedTitle
-                              : file.analysis?.injection_suspected
-                                ? t.analysisSuspiciousTitle
-                                : file.analysis_status === 'split'
-                                  ? t.analysisSplitTitle
-                                  : file.filename
-                          }
-                          onClick={() => setViewingFile(file)}
-                        >
-                          <span className="attachment-chip-icon">
-                            {file.content_type.startsWith('image/') ? icon.image : icon.file}
-                          </span>
-                          <span className="attachment-chip-name">{attachmentLabel(file)}</span>
-                          <span className="attachment-chip-size">{formatFileSize(file.size_bytes)}</span>
-                        </button>
+                        <AttachmentChip key={file.id} file={file} label={attachmentLabel(file)} onOpen={setViewingFile} />
                       ))}
                     </div>
                   )}

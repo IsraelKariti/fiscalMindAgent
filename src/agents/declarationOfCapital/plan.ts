@@ -628,7 +628,10 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // request, fetch action) are absent from the collecting answer; the
   // follow-up cycle decides them.
   const verificationTargets = newlyCollected.flatMap((id) => {
-    const tierA = files.find((f) => fileMatchesDocument(f, id));
+    // `files` is oldest-first. When several files match the same item (a
+    // re-sent report after a failed check), the newest one is the file the
+    // client just sent, so it is the one to verify.
+    const tierA = [...files].reverse().find((f) => fileMatchesDocument(f, id));
     const paired = proposedPairs.find((m) => m.document_id === id);
     // An item the split touched is verified against the file tied to it in
     // this cycle: `files` is the pre-link snapshot, so a sibling's file (whose

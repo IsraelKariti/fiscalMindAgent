@@ -27,4 +27,6 @@
 ## 6. End to end
 
 - [x] 6.1 Run `npm test` and `npm run typecheck`; commit per the Git workflow.
-- [ ] 6.2 On the local test client, mark the Meitav item pending, re-analyse the three children and let the planner cycle run; verify the documents card shows three items "… — מיטב — <employer>", each with one child of the same display name, each downloading under its own file name, and the `apply_collections` step lists the rename and two employer siblings.
+- [x] 6.2 On the local test client, mark the Meitav item pending, re-analyse the three children and let the planner cycle run; verify the documents card shows three items "… — מיטב — <employer>", each with one child of the same display name, each downloading under its own file name, and the `apply_collections` step lists the rename and two employer siblings.
+
+Task 6.2 was skipped by owner decision on 2026-09-23 (no admin re-analysis action exists; the test client's Meitav item stays approved). Verify the employer names on the next real fund reports.

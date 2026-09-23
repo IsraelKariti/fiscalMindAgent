@@ -25,4 +25,4 @@
 ## 5. Docs and close
 
 - [x] 5.1 Document the spouse record, sources, precedence, the identity rule and the new check/audit keys in `docs/agents.md` (next to the kickoff and verification paragraphs); verify the section reads consistently with the delta specs.
-- [ ] 5.2 Run `npm test`, `npm run typecheck`, `npm run evals:rejudge`; re-collect the wife's stalled pension document for the local test client and confirm the only remaining failure is the account-number `type_fields` check; commit per the repo git workflow.
+- [x] 5.2 Run `npm test`, `npm run typecheck`, `npm run evals:rejudge`; re-collect the wife's stalled pension document for the local test client and confirm the only remaining failure is the account-number `type_fields` check; commit per the repo git workflow.

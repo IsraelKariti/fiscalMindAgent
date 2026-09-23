@@ -21,4 +21,4 @@
 
 ## 5. Wrap-up
 
-- [ ] 5.1 Run `npm run typecheck` and `npm test`, then commit per the repo's git workflow and note in the memory file that production needs migration 059
+- [x] 5.1 Run `npm run typecheck` and `npm test`, then commit per the repo's git workflow and note in the memory file that production needs migration 059

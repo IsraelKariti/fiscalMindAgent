@@ -458,9 +458,20 @@ export interface VerificationResultPromptInput {
  * model that the rejected file is the one it is answering about; this block
  * can. Platform-written (trusted); empty list → no block.
  */
-export function buildVerificationResultsSection(token: string, results: VerificationResultPromptInput[]): string {
-  if (results.length === 0) return '';
+export function buildVerificationResultsSection(
+  token: string,
+  results: VerificationResultPromptInput[],
+  afterVerification = false,
+): string {
   const name = PLATFORM_SECTIONS.verification;
+  if (results.length === 0) {
+    if (!afterVerification) return '';
+    // The follow-up cycle of a collecting answer whose batch stayed empty (every
+    // tie refused, or only claimed documents): the model must still reply now.
+    const note =
+      'The verification step of this turn has finished: no file of this turn was verified (no file was tied to a document, or the tie was refused). Write the reply now. This answer may not collect: the files of this turn were already handled.';
+    return `${fence(token, name)}\n${note}\n${endFence(token, name)}`;
+  }
   const lines = results.map((r) => {
     const reasons = r.reasons.map((x) => sanitizeInline(x, 200)).filter((x) => x !== '').join('; ');
     const verdict =
@@ -579,6 +590,8 @@ export function buildPrompt(
   intake?: IntakePromptInput,
   unsentDrafts: EmailRow[] = [],
   verificationResults: VerificationResultPromptInput[] = [],
+  /** The follow-up cycle after a verification batch: the section renders even when the batch is empty. */
+  afterVerification = false,
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
@@ -589,7 +602,7 @@ export function buildPrompt(
     buildWhatsAppSection(token, waState),
     buildTaxFetchSection(token, taxFetch),
     buildUnsentDraftsSection(token, unsentDrafts),
-    buildVerificationResultsSection(token, verificationResults),
+    buildVerificationResultsSection(token, verificationResults, afterVerification),
     buildThreadTranscript(token, history, files),
   ].filter((s) => s !== '');
   return {

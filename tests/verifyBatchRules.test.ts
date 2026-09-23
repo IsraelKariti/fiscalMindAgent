@@ -1,24 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { runVerificationBatch, shouldWithholdDraft, type VerificationTarget } from '../src/agents/declarationOfCapital/verifyBatchRules.js';
+import { runVerificationBatch, type VerificationTarget } from '../src/agents/declarationOfCapital/verifyBatchRules.js';
 
 const a: VerificationTarget = { documentId: 'doc-a', fileId: 'file-a' };
 const b: VerificationTarget = { documentId: 'doc-b', fileId: 'file-b' };
 const c: VerificationTarget = { documentId: 'doc-c', fileId: 'file-c' };
-
-describe('shouldWithholdDraft', () => {
-  it('withholds the draft of a cycle that collected documents', () => {
-    assert.equal(shouldWithholdDraft({ afterVerification: false, targets: [a] }), true);
-  });
-
-  it('keeps the draft of a cycle that collected nothing', () => {
-    assert.equal(shouldWithholdDraft({ afterVerification: false, targets: [] }), false);
-  });
-
-  it('keeps the draft of the follow-up cycle, so it cannot loop', () => {
-    assert.equal(shouldWithholdDraft({ afterVerification: true, targets: [a] }), false);
-  });
-});
 
 describe('runVerificationBatch', () => {
   it('verifies every target in order and returns each outcome', async () => {

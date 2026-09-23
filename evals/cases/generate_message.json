@@ -1,6 +1,6 @@
 {
   "stage": "generate_message",
-  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected; for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, tax_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain; message_includes_any passes when at least one of its substrings appears. A file of the snapshot may carry holdings (the accounts list of the file check) and subject_name (null = no readable name). The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
+  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected (collect = the answer ties a file or claims a document and carries no message: no_message checks that every message field and send_at are null); for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, tax_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain; message_includes_any passes when at least one of its substrings appears. A file of the snapshot may carry holdings (the accounts list of the file check) and subject_name (null = no readable name). The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
   "taxYear": 2025,
   "accountant": { "name": "Cohen & Co. CPA", "hebrew_name": "כהן ושות' רואי חשבון", "email": "office@cohen-cpa.example" },
   "templates": [
@@ -1121,17 +1121,15 @@
         }
       ],
       "expects": {
-        "decision": "follow_up",
-        "message_kind": "freeform",
+        "decision": "collect",
         "added_instances": {
           "study_fund": 1
         },
         "new_instance_file_ids": [
           "file-harel"
-        ],
-        "mentions_valuation_date": false
+        ]
       },
-      "notes": "Change confirm-unlisted-files: after the agent asked about the waiting Harel file, the client confirms in words. Only now the item is created (added_instances on the study fund type, with the client's quote as evidence — the gate rejects the answer otherwise) and the new instance names the waiting file in file_ids, so code attaches and verifies it in the same cycle. 2026-09-19: gemini-3.1-pro-preview (the production model) passes; gemini-2.5-flash fails it by settling the open pension question with a 'Harel study fund' item instead of adding to the study fund type - code then refuses to attach the file (type differs), so the damage is a misfiled item, not a wrong approval."
+      "notes": "Change confirm-unlisted-files: after the agent asked about the waiting Harel file, the client confirms in words. Only now the item is created (added_instances on the study fund type, with the client's quote as evidence — the gate rejects the answer otherwise) and the new instance names the waiting file in file_ids, so code attaches and verifies it in the same cycle. Change no-draft-when-collecting: an answer that ties a file is a collect decision with no message; the reply comes from the follow-up cycle after verification. 2026-09-19: gemini-3.1-pro-preview (the production model) passes; gemini-2.5-flash fails it by settling the open pension question with a 'Harel study fund' item instead of adding to the study fund type - code then refuses to attach the file (type differs), so the damage is a misfiled item, not a wrong approval."
     },
     {
       "id": "dec_14",
@@ -1910,8 +1908,7 @@
         }
       ],
       "expects": {
-        "decision": "follow_up",
-        "message_kind": "freeform",
+        "decision": "collect",
         "added_instances": {
           "life_insurance_savings": 3
         },
@@ -1919,10 +1916,181 @@
           "file-clal",
           "file-harel",
           "file-migdal"
+        ]
+      },
+      "notes": "Change confirm-file-findings: the agent stated what it found in three waiting insurer files and asked for confirmation; the client answers with a short 'yes, all correct'. That short answer is the client's own words: all three items are created in this cycle with that quote as evidence (the gate rejects the answer otherwise), each naming its waiting file in file_ids, under the life-insurance type that already holds a settled row (so added_instances, not a new resolution)."
+    },
+    {
+      "id": "dec_19",
+      "now": "2026-09-19T09:12:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-20T09:10:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study-altshuler",
+          "type_key": "study_fund",
+          "status": "pending",
+          "name": "אישור קרן השתלמות באלטשולר שחם ליום 31.12.2025",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-09-18T08:30:00Z",
+          "body": "תודה ישראל, אישור היתרות מבנק לאומי התקבל ואומת. נשאר האישור על קרן ההשתלמות באלטשולר שחם ליום 31.12.2025 - תוכל לשלוח אותו כאן?"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-19T09:10:00Z",
+          "body": ""
+        }
+      ],
+      "files": [
+        {
+          "id": "file-altshuler",
+          "message_id": "msg-4",
+          "document_kind": "אישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "אלטשולר שחם גמל ופנסיה בע\"מ",
+          "summary": "אישור מס להצהרת הון מקרן ההשתלמות של אלטשולר שחם על שם ישראל ישראלי: יתרת הקרן ליום 31.12.2025 היא 58,300 ש\"ח.",
+          "matched_document_id": "doc-study-altshuler"
+        }
+      ],
+      "expects": {
+        "decision": "collect",
+        "matched_file_ids": [
+          "file-altshuler"
+        ],
+        "no_list_change": true
+      },
+      "notes": "Change no-draft-when-collecting: the client sends the Altshuler Shaham study fund certificate for its own pending row and the content analysis already matches it. The answer must mark the row collected, pair the file in matched_files, change nothing else on the list, and be a collect decision: no message text, no send_at — the reply is written by the follow-up cycle after verification."
+    },
+    {
+      "id": "dec_20",
+      "now": "2026-09-19T09:14:00Z",
+      "after_verification": true,
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-09-15T00:20:00Z"
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-09-20T09:10:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study-altshuler",
+          "type_key": "study_fund",
+          "status": "approved",
+          "name": "אישור קרן השתלמות באלטשולר שחם ליום 31.12.2025",
+          "description": null
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-09-15T00:32:12Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-09-15T00:46:03Z",
+          "body": "אני מוכן"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-09-18T08:30:00Z",
+          "body": "תודה ישראל, אישור היתרות מבנק לאומי והאישור על קרן ההשתלמות באלטשולר שחם התקבלו ואומתו. נמשיך: האם היו בבעלותך כלי רכב ביום 31.12.2025, וכמה?"
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-09-19T09:10:00Z",
+          "body": ""
+        }
+      ],
+      "files": [
+        {
+          "id": "file-harel",
+          "message_id": "msg-4",
+          "document_kind": "אישור מס להצהרת הון - קרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "הראל פנסיה וגמל בע\"מ",
+          "summary": "אישור מס להצהרת הון מקרן ההשתלמות של הראל על שם ישראל ישראלי: סך ההפקדות עד ליום 31.12.2025 הוא 41,250 ש\"ח.",
+          "matched_document_id": null
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "no_list_change": true,
+        "matched_file_ids": [],
+        "message_includes": [
+          "הראל"
         ],
         "mentions_valuation_date": false
       },
-      "notes": "Change confirm-file-findings: the agent stated what it found in three waiting insurer files and asked for confirmation; the client answers with a short 'yes, all correct'. That short answer is the client's own words: all three items are created in this cycle with that quote as evidence (the gate rejects the answer otherwise), each naming its waiting file in file_ids, under the life-insurance type that already holds a settled row (so added_instances, not a new resolution)."
+      "notes": "Change no-draft-when-collecting: the follow-up cycle after a collecting answer whose batch stayed empty (the planner tried to tie the Harel file, the code refused the tie). The VERIFICATION RESULTS block says nothing was verified and the schema offers no collect value, so the answer must be a follow_up with a message that asks about the Harel file, and it must neither create an item nor pair the file."
     }
   ]
 }

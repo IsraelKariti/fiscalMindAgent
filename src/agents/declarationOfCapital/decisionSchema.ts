@@ -8,8 +8,20 @@ import type { WaTemplateRow } from '../../db/types.js';
 // outputs need every property always present; the "message fields only apply when
 // decision === 'follow_up'" rule is expressed as always-present nullable fields plus a
 // `decision` discriminator, documented in the prompt and re-checked below.
+//
+// The three decision values (openspec `verification-reply`):
+//   goal_complete — every row settled and the attestation confirmed; no message.
+//   follow_up     — the answer ties no file to any row; exactly one message + send_at.
+//   collect       — the answer ties a file to a row (collected_document_ids, matched_files,
+//                   or an instance's file_ids) or claims a document; NO message: the code
+//                   verifies the collected documents first and asks for the reply in a
+//                   second cycle, which may not choose 'collect' (its schema drops it).
+export const DECISION_VALUES = ['goal_complete', 'follow_up', 'collect'] as const;
+/** The values the follow-up cycle after verification may choose: it cannot collect again. */
+export const AFTER_VERIFICATION_DECISION_VALUES = ['goal_complete', 'follow_up'] as const;
+
 export const DecisionResponseSchema = z.object({
-  decision: z.enum(['goal_complete', 'follow_up']),
+  decision: z.enum(DECISION_VALUES),
   reasoning: z.string(),
   /** Ids from the REQUIRED DOCUMENTS list the thread shows the client has now provided. */
   collected_document_ids: z.array(z.string()),
@@ -197,10 +209,20 @@ export function prunedDecisionFields(ctx: DecisionContext): PrunableDecisionFiel
 
 /** The response contract actually sent for one context: the full schema minus its pruned groups. */
 export function decisionSchemaForContext(ctx: DecisionContext): z.ZodType<Partial<DecisionResponse>> {
+  // The follow-up cycle after a verification batch cannot collect again: the
+  // request schema itself withholds the value, so the model cannot loop.
+  const base = ctx.afterVerification
+    ? DecisionResponseSchema.extend({ decision: z.enum(AFTER_VERIFICATION_DECISION_VALUES) })
+    : DecisionResponseSchema;
   const pruned = prunedDecisionFields(ctx);
-  if (pruned.length === 0) return DecisionResponseSchema;
+  if (pruned.length === 0) return base as z.ZodType<Partial<DecisionResponse>>;
   const mask = Object.fromEntries(pruned.map((f) => [f, true as const])) as { [K in PrunableDecisionField]?: true };
-  return DecisionResponseSchema.omit(mask) as z.ZodType<Partial<DecisionResponse>>;
+  return base.omit(mask) as z.ZodType<Partial<DecisionResponse>>;
+}
+
+/** The cache key of a context's request schema: the pruned groups plus the decision values it offers. */
+export function decisionSchemaKey(ctx: DecisionContext): string {
+  return `${ctx.afterVerification ? 'after-verification' : 'full'}|${prunedDecisionFields(ctx).join(',')}`;
 }
 
 /** Puts explicit nulls back into the fields the request schema omitted, restoring the full contract. */
@@ -276,6 +298,20 @@ export type NormalizedDecision =
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
+      attestation: AttestationDecision | null;
+    }
+  | {
+      /** The answer ties a file to a row: no message; the reply comes from the follow-up cycle after verification. */
+      decision: 'collect';
+      reasoning: string;
+      collected_document_ids: string[];
+      matched_files: MatchedFile[];
+      /** Message-bound, so never set on a collecting answer (the follow-up cycle decides it). */
+      tax_fetch: null;
+      resolutions: DocumentResolution[];
+      addedInstances: InstanceAddition[];
+      retired: DocumentRetirement[];
+      /** Only 'confirmed' (a state change); a 'request' is message-bound and rejected. */
       attestation: AttestationDecision | null;
     }
   | {
@@ -357,6 +393,11 @@ export interface DecisionContext {
   taxFetch?: TaxFetchDecisionState[];
   /** Capital-declaration intake state; absent for other agent types. */
   intake?: IntakeDecisionState;
+  /**
+   * The follow-up cycle after a verification batch (openspec `verification-reply`):
+   * the request schema drops the 'collect' value and the gate rejects it.
+   */
+  afterVerification?: boolean;
 }
 
 export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, windowOpen: false, templates: [] };
@@ -707,7 +748,7 @@ export function correctionSuffix(invalidAnswer: string, err: unknown): string {
     'Your rejected answer:',
     invalidAnswer,
     `Validation error: ${message}`,
-    'Return a corrected, complete JSON decision now. Remember: every follow_up decision MUST include exactly one full message (the chosen channel\'s fields) and a future send_at — "no message needed" is never a valid state; when there is nothing new to say, schedule a gentle reminder instead.',
+    'Return a corrected, complete JSON decision now. Remember the three decision values: "collect" when the answer ties a file to a document (collected_document_ids, matched_files or an instance\'s file_ids) — then every message field and send_at MUST be null, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one full message (the chosen channel\'s fields) and a future send_at, "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed.',
   ].join('\n');
 }
 
@@ -755,13 +796,81 @@ export function gateDecision(
   }
 }
 
+/**
+ * Whether the answer ties a file to a checklist row or claims a document: any
+ * collected id, any matched_files pair, or a new instance naming file_ids. Such
+ * an answer must be a 'collect' decision (no message); a 'follow_up' answer
+ * must have none of these (openspec `verification-reply`).
+ */
+export function answerTiesFiles(raw: DecisionResponse): boolean {
+  if (raw.collected_document_ids.length > 0 || raw.matched_files.length > 0) return true;
+  const instanceFileIds = [
+    ...(raw.resolved_documents ?? []).flatMap((r) => r.instances ?? []),
+    ...(raw.added_instances ?? []).flatMap((a) => a.instances),
+  ].flatMap((i) => i.file_ids);
+  return instanceFileIds.length > 0;
+}
+
+/** The message-shaping fields a collecting answer must leave empty, by name, for the rejection message. */
+function filledMessageFields(raw: DecisionResponse): string[] {
+  const filled: string[] = [];
+  if (raw.whatsapp_text != null && raw.whatsapp_text.trim() !== '') filled.push('whatsapp_text');
+  if (raw.whatsapp_template != null) filled.push('whatsapp_template');
+  if (raw.email_subject != null && raw.email_subject.trim() !== '') filled.push('email_subject');
+  if (raw.email_body != null && raw.email_body.trim() !== '') filled.push('email_body');
+  if (raw.send_at != null) filled.push('send_at');
+  return filled;
+}
+
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {
+  const ties = answerTiesFiles(raw);
+  if (raw.decision === 'collect') {
+    if (ctx.afterVerification) {
+      throw new Error(
+        'decision "collect" is not allowed in this cycle: the files of this turn were already verified — answer follow_up with a message',
+      );
+    }
+    if (!ties) {
+      throw new Error(
+        'decision "collect" ties no file to any document (collected_document_ids, matched_files and every file_ids are empty) — either tie the file or answer follow_up with a message',
+      );
+    }
+    const filled = filledMessageFields(raw);
+    if (filled.length > 0) {
+      throw new Error(
+        `decision "collect" must carry no message: leave ${filled.join(', ')} null — the reply is written in the next cycle, after the verification of the collected documents`,
+      );
+    }
+    if (raw.tax_fetch_action) {
+      throw new Error('decision "collect" cannot carry a tax_fetch_action — the next cycle, which writes the message, decides it');
+    }
+    if (raw.attestation === 'request') {
+      throw new Error("decision \"collect\" cannot carry attestation 'request' — the next cycle, which writes the message, decides it");
+    }
+  } else if (raw.decision === 'follow_up' && ties) {
+    throw new Error(
+      'a follow_up answer must not tie files: collected_document_ids, matched_files or an instance\'s file_ids is filled — answer "collect" (with every message field and send_at null) instead',
+    );
+  }
   const taxFetch = validateTaxFetch(raw, ctx);
   const resolutions = validateResolutions(raw, ctx);
   const addedInstances = validateAddedInstances(raw, ctx);
   const retired = validateRetirements(raw, ctx);
   const attestation = validateAttestation(raw, ctx);
   const matchedFiles = validateMatchedFiles(raw, ctx);
+  if (raw.decision === 'collect') {
+    return {
+      decision: 'collect',
+      reasoning: raw.reasoning,
+      collected_document_ids: raw.collected_document_ids,
+      matched_files: matchedFiles,
+      tax_fetch: null,
+      resolutions,
+      addedInstances,
+      retired,
+      attestation,
+    };
+  }
   if (raw.decision === 'goal_complete') {
     return {
       decision: 'goal_complete',

@@ -638,13 +638,20 @@ interface DecideCase {
    * block. The reasons come from the row's `verification.reasons`, like in the app.
    */
   verification_results?: { document_id: string; file_name: string; outcome: 'approved' | 'reopened' | 'stalled' | 'skipped' | 'error' }[];
+  /**
+   * The follow-up cycle after a collecting answer whose batch stayed empty (every tie refused, or claimed-only):
+   * the VERIFICATION RESULTS block says nothing was verified and the schema offers no `collect`. Implied true
+   * when `verification_results` is given.
+   */
+  after_verification?: boolean;
   attestation?: {
     /** ISO instant the attestation summary was SENT; null = not requested. */
     requestedAt: string | null;
     confirmed?: boolean;
   };
   expects: {
-    decision: 'goal_complete' | 'follow_up';
+    /** 'collect' = the answer ties a file (or claims a document) and carries no message (openspec `verification-reply`). */
+    decision: 'goal_complete' | 'follow_up' | 'collect';
     message_kind?: 'freeform' | 'template';
     /** Ids the decision must resolve (exactly this set); an object also pins the resolution per id. */
     resolved_documents?: string[] | Record<string, 'required' | 'not_required'>;
@@ -918,8 +925,10 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
       }),
     };
   });
+  const afterVerification = c.after_verification === true || c.verification_results !== undefined;
   const decisionCtx: DecisionContext = {
     emailAllowed: false,
+    afterVerification,
     whatsappAllowed: true,
     windowOpen: waState.windowOpen,
     templates,
@@ -953,7 +962,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
         reasons: Array.isArray(reasons) ? reasons.filter((x): x is string => typeof x === 'string') : [],
       };
     });
-    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPrompt, taxYear, intakePrompt, unsentDraftRows(c), verificationResults);
+    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPrompt, taxYear, intakePrompt, unsentDraftRows(c), verificationResults, decisionCtx.afterVerification === true);
     const { spec, schema } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
     return { spec, parse: (text) => restorePrunedNulls(schema.parse(JSON.parse(text))) };
   },
@@ -974,6 +983,13 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
     }
     checks.push({ key: 'gate', expected: 'accepted', actual: 'accepted', pass: true });
     checks.push(eq('decision', e.decision, decision.decision));
+
+    if (decision.decision === 'collect') {
+      // The gate already refuses a message on a collecting answer; the check makes the rule visible in the report.
+      const messageFields = [raw.whatsapp_text, raw.whatsapp_template, raw.email_subject, raw.email_body, raw.send_at].filter((v) => v != null && v !== '');
+      checks.push({ key: 'no_message', expected: 'no message fields, send_at null', actual: messageFields.length === 0 ? 'none' : `${messageFields.length} filled`, pass: messageFields.length === 0 });
+      checks.push({ key: 'ties', expected: '>0', actual: decision.collected_document_ids.length + decision.matched_files.length, pass: true });
+    }
 
     if (decision.decision === 'follow_up') {
       const message = decision.message;

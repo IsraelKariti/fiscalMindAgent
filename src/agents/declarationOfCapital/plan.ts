@@ -14,7 +14,6 @@ import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/monday
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { getCatalogType } from './catalog.js';
 import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
-import { shouldWithholdDraft } from './verifyBatchRules.js';
 import { childDisplayName } from './splitChildNames.js';
 import { assignFilesToNewRows, filterPairsByCompany, type NewRowFiles } from './fileTies.js';
 import { planCompanySplit } from './companySplit.js';
@@ -223,10 +222,13 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     },
     unsentDrafts,
     verificationResults,
+    ctx.hints?.afterVerification === true,
   );
   const decisionCtx: DecisionContext = {
     // WhatsApp-only: the planner may never choose email.
     emailAllowed: false,
+    // The follow-up cycle after a verification batch may not collect again.
+    afterVerification: ctx.hints?.afterVerification === true,
     whatsappAllowed: waState.allowed,
     windowOpen: waState.windowOpen,
     templates: waState.templates,
@@ -618,13 +620,13 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
 
   // Verification pipeline (openspec `verification-reply`): each just-collected
   // document is verified against the file that earned it — the analyzer's own
-  // match (tier A), else the planner's pairing (tier B). This cycle's message
-  // was written BEFORE any verdict ("thank you, received" for a file that may
-  // be rejected a minute later), so it is withheld: never stored, never
-  // scheduled. The batch is verified inline — under the caller's client lock,
-  // inside the same drafting attempt, so a restart cannot lose the reply — and
-  // ONE follow-up cycle then writes the reply with every verdict in view.
-  // Message-bound actions (attestation request, fetch action) are left to it.
+  // match (tier A), else the planner's pairing (tier B). A collecting answer
+  // carries no message (the gate rejects one): the batch is verified inline —
+  // under the caller's client lock, inside the same drafting attempt, so a
+  // restart cannot lose the reply — and ONE follow-up cycle then writes the
+  // reply with every verdict in view. Message-bound actions (attestation
+  // request, fetch action) are absent from the collecting answer; the
+  // follow-up cycle decides them.
   const verificationTargets = newlyCollected.flatMap((id) => {
     const tierA = files.find((f) => fileMatchesDocument(f, id));
     const paired = proposedPairs.find((m) => m.document_id === id);
@@ -634,21 +636,27 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     const fileId = splitTouched.has(id) ? (paired?.file_id ?? tierA?.id) : (tierA?.id ?? paired?.file_id);
     return fileId ? [{ documentId: id, fileId }] : [];
   });
-  if (shouldWithholdDraft({ afterVerification: ctx.hints?.afterVerification === true, targets: verificationTargets })) {
+  // The branch keys on the decision value, not on the targets: a 'collect'
+  // answer has no message, so the follow-up cycle must run even when the code
+  // refused every tie or every collected document was claimed without a file
+  // (an empty batch). The follow-up cycle's schema has no 'collect', so this
+  // recursion is depth 1.
+  if (decision.decision === 'collect') {
     step('withhold_reply', {
       reason: 'awaiting_verification',
-      documentIds: verificationTargets.map((t) => t.documentId),
-      names: verificationTargets.map((t) => docName(t.documentId) ?? t.documentId),
+      documentIds: newlyCollected,
+      names: newlyCollected.map((id) => docName(id) ?? id),
+      verified: verificationTargets.length,
     });
-    logger.info('draft withheld until the collected documents are verified', {
+    logger.info('reply deferred until the collected documents are verified', {
       clientId,
-      documentIds: verificationTargets.map((t) => t.documentId),
+      documentIds: newlyCollected,
+      verified: verificationTargets.length,
     });
     const results = await verifyBatch(client, ctx.instance, verificationTargets);
     await recordRerunAfterVerification(client, results);
     const fresh = await clients.getById(clientId);
     if (!fresh) return;
-    // The hint blocks collecting, so the follow-up has no targets: depth 1, no loop.
     return planFollowUp({ ...ctx, client: fresh, hints: { ...ctx.hints, afterVerification: true, verificationResults: results } });
   }
 

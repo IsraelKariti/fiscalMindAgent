@@ -1,8 +1,9 @@
 /**
  * The pure rules of "reply after verification" (openspec `verification-reply`):
- * a planning cycle that collected documents withholds its draft, the
- * just-collected documents are verified as one batch, and one follow-up
- * planning cycle writes the reply. No I/O here — verifyDocument.ts binds it.
+ * a collecting answer (decision 'collect', decisionSchema.ts) carries no
+ * message; the just-collected documents are verified as one batch, and one
+ * follow-up planning cycle writes the reply. No I/O here — verifyDocument.ts
+ * binds it.
  */
 
 /** 'skipped' = no verdict was reached (kill switch, row no longer collected, already stalled, extraction hiccup). */
@@ -16,15 +17,6 @@ export interface VerificationTarget {
 export interface VerificationResult extends VerificationTarget {
   /** 'error' = the verification threw; it never blocks the rest of the batch or the reply. */
   outcome: VerificationOutcome | 'error';
-}
-
-/**
- * The collecting cycle's draft is withheld exactly when it started
- * verifications: its message was written before any verdict. A follow-up
- * cycle (afterVerification) cannot collect, so it always keeps its draft.
- */
-export function shouldWithholdDraft(args: { afterVerification: boolean; targets: readonly VerificationTarget[] }): boolean {
-  return !args.afterVerification && args.targets.length > 0;
 }
 
 /** Verifies the targets one after the other; one throwing target does not stop the batch. */

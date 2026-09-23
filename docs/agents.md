@@ -964,8 +964,8 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      file only when it is the client's, not a split parent, verified legible,
      unattached, of the row's type, not taken twice, the row is `pending`, and
      the company check allows it. Accepted pairs join the cycle's pairs and
-     collected ids, so the normal path links, verifies, withholds the draft and
-     runs one follow-up cycle. This lifts the old limit "a row created in a
+     collected ids, so the normal path links, verifies and runs one follow-up
+     cycle (the answer was a `collect`, so it carried no message). This lifts the old limit "a row created in a
      cycle cannot be collected in that cycle" for this case only.
   5. *Per-company split* (2026-09-22, change `name-matched-files-by-company`,
      no migration). The one code-made exception to rule 3: when the cycle's
@@ -1072,22 +1072,32 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   platform divides such a row per employer in code (no question, no
   instances). Older analyses have no employer and are shown as before.
 - **Reply after verification** (openspec `verification-reply`;
-  `verifyBatchRules.ts`, `verifyDocument.ts` → `verifyBatch`): a planner cycle
-  that marks documents `collected` wrote its message before any verdict, so
-  that message is **withheld** — never stored or scheduled (step
-  `withhold_reply`; the text survives only in `llm_calls.response`). The cycle
-  applies its message-independent state changes, verifies every just-collected
-  document inline (one after the other, under the caller's client lock and
-  inside the same `setFutureEmail` drafting attempt, so a restart cannot lose
-  the reply; a throwing verification is logged and skipped), records ONE
+  `decisionSchema.ts`, `verifyBatchRules.ts`, `verifyDocument.ts` →
+  `verifyBatch`): the planner's `decision` has three values. `collect` is
+  mandatory whenever the answer ties a file to a row (`collected_document_ids`,
+  `matched_files`, or an instance's `file_ids` — `answerTiesFiles`) or claims a
+  document, and a `collect` answer carries **no message**: every message
+  field, `send_at`, `tax_fetch_action` and `attestation: request` must be
+  null (the gate rejects a `collect` with a message and a `follow_up` with
+  ties, then asks for one correction; change `no-draft-when-collecting`,
+  2026-09-23 — before it the collecting cycle wrote a full message that was
+  thrown away). `plan.ts` branches on the value: it records step
+  `withhold_reply` (label "Reply deferred", kept for older trails), applies the
+  message-independent state changes, verifies every just-collected document
+  inline (one after the other, under the caller's client lock and inside the
+  same `setFutureEmail` drafting attempt, so a restart cannot lose the reply;
+  a throwing verification is logged and skipped), records ONE
   `planner.rerun_after_verification` step listing each document with its
   outcome (approved / reopened / stalled / skipped / error), and calls
   `planFollowUp` once more with the `afterVerification` hint (`PlanHints` on
-  `AgentContext`). That follow-up cycle writes the single reply with every
-  verdict in view; it cannot collect files, so it cannot verify again — no
-  loop. Message-bound actions of the withheld cycle (attestation request,
-  fetch action — `client_agreed` assumes this cycle's message is the intro) are
-  NOT applied; the follow-up decides them again. `verifyCollectedDocument`
+  `AgentContext`) — also when the batch is empty because the code refused
+  every tie or every collected document was claimed without a file. That
+  follow-up cycle writes the single reply with every verdict in view; its
+  request schema has no `collect` value (`DecisionContext.afterVerification`,
+  `decisionSchemaForContext`) and its ties are ignored, so it cannot verify
+  again — no loop. Message-bound actions (attestation request, fetch action —
+  `client_agreed` assumes this cycle's message is the intro) are absent from
+  the collecting answer; the follow-up decides them. `verifyCollectedDocument`
   only returns its outcome and never re-plans. Batches started outside a
   planning cycle (fetch delivery, `taxFetch/deliver.ts`) use
   `verifyBatchAndReplan`: verify the batch, then one locked re-plan with the
@@ -1096,7 +1106,9 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   block (`buildVerificationResultsSection`, a trusted `PLATFORM_SECTIONS`
   entry, placed before the thread; absent in every other cycle) — one line per
   document with the file of this turn and `APPROVED` / `REJECTED: <reasons>` /
-  `HANDED TO THE OFFICE` / `NOT VERIFIED YET`. Without it the model only saw
+  `HANDED TO THE OFFICE` / `NOT VERIFIED YET`; with the hint set and an empty
+  batch the block instead says that no file of this turn was verified and
+  that the answer may not collect. Without it the model only saw
   the row note "קובץ קודם נפסל באימות" and described just-rejected files as
   "received, being checked" (live test 2026-09-19). `prompt.md` keys its
   report-the-verdict rule on this block, not on "the last message is yours".

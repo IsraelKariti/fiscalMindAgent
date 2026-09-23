@@ -23,6 +23,18 @@ describe('VERIFICATION RESULTS prompt section (buildVerificationResultsSection)'
     assert.equal(buildVerificationResultsSection(TOKEN, []), '');
   });
 
+  it('in the follow-up cycle with an empty batch it says nothing was verified and forbids collecting', () => {
+    const section = buildVerificationResultsSection(TOKEN, [], true);
+    assert.match(section, /VERIFICATION RESULTS/);
+    assert.match(section, /no file of this turn was verified/);
+    assert.match(section, /may not collect/);
+    assert.doesNotMatch(section, /\[document id:/);
+  });
+
+  it('with results, the follow-up flag changes nothing', () => {
+    assert.equal(buildVerificationResultsSection(TOKEN, [result({})], true), buildVerificationResultsSection(TOKEN, [result({})]));
+  });
+
   it('names the document, the file of this turn and the approved verdict', () => {
     const section = buildVerificationResultsSection(TOKEN, [result({})]);
     assert.match(section, /VERIFICATION RESULTS/);

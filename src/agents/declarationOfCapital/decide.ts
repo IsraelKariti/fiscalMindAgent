@@ -8,9 +8,9 @@ import {
   correctionSuffix,
   DecisionRejectedError,
   decisionSchemaForContext,
+  decisionSchemaKey,
   EMAIL_ONLY_CONTEXT,
   gateDecision,
-  prunedDecisionFields,
   type DecisionContext,
   type DecisionResponse,
   type NormalizedDecision,
@@ -26,7 +26,7 @@ import type { z } from 'zod';
 const schemaCache = new Map<string, { zod: z.ZodType<Partial<DecisionResponse>>; json: Record<string, unknown> }>();
 
 function schemasForContext(ctx: DecisionContext): { zod: z.ZodType<Partial<DecisionResponse>>; json: Record<string, unknown> } {
-  const key = prunedDecisionFields(ctx).join(',');
+  const key = decisionSchemaKey(ctx);
   let entry = schemaCache.get(key);
   if (!entry) {
     const zodSchema = decisionSchemaForContext(ctx);

@@ -458,14 +458,17 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
 });
 
 describe('a list item is created only on the client\'s quoted words (openspec unlisted-files)', () => {
+  // These answers tie a file to a row, so they are 'collect' decisions: no message, no send_at.
+  const tyingRaw = (overrides: Partial<DecisionResponse> = {}): DecisionResponse =>
+    baseRaw({ decision: 'collect', channel: null, email_subject: null, email_body: null, send_at: null, ...overrides });
   const instances = [{ name: 'אישור קרן השתלמות בהראל', description: null, already_provided: false, file_ids: ['file-1', 'file-1'] }];
   const required = (evidence: { message_id: string; quote: string } | null) =>
     normalizeDecision(
-      baseRaw({ resolved_documents: [{ document_id: 'doc-vehicle', resolution: 'required', instances, evidence }] }),
+      tyingRaw({ resolved_documents: [{ document_id: 'doc-vehicle', resolution: 'required', instances, evidence }] }),
       ctxWith(baseIntake()),
     );
   const added = (evidence: { message_id: string; quote: string }) =>
-    normalizeDecision(baseRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances, evidence }] }), ctxWith(baseIntake()));
+    normalizeDecision(tyingRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances, evidence }] }), ctxWith(baseIntake()));
 
   it('rejects a needed resolution without evidence — a file alone never settles a question', () => {
     assert.throws(() => required(null), /requires evidence/);
@@ -474,7 +477,7 @@ describe('a list item is created only on the client\'s quoted words (openspec un
   it('rejects evidence that cites a file-only message (empty text) or a message that is not the client\'s', () => {
     const ctx = ctxWith(baseIntake({ inboundTexts: new Map([['msg-file', '\n']]) }));
     const raw = (message_id: string) =>
-      baseRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances, evidence: { message_id, quote: 'קרן השתלמות' } }] });
+      tyingRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances, evidence: { message_id, quote: 'קרן השתלמות' } }] });
     assert.throws(() => normalizeDecision(raw('msg-file'), ctx), /not contained verbatim/);
     assert.throws(() => normalizeDecision(raw('msg-outbound'), ctx), /not a stored inbound message/);
   });
@@ -501,7 +504,7 @@ describe('a list item is created only on the client\'s quoted words (openspec un
       { file_id: 'f2', document_id: 'd2', evidence: { message_id: 'msg-1', quote: 'לא נאמר' } },
       { file_id: 'f3', document_id: 'd3', evidence: null },
     ];
-    const decision = normalizeDecision(baseRaw({ matched_files: pairs }), ctxWith(baseIntake()));
+    const decision = normalizeDecision(tyingRaw({ matched_files: pairs }), ctxWith(baseIntake()));
     assert.deepEqual(decision.matched_files.map((m) => m.evidence), [CASH_QUOTE, null, null]);
   });
 });

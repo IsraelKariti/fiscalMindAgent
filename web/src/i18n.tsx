@@ -803,7 +803,7 @@ const he = {
     apply_collections: 'Apply Collections',
     apply_attestation: 'Apply Attestation',
     send_reply: 'Send Reply',
-    withhold_reply: 'Withhold Reply (awaiting verification)',
+    withhold_reply: 'Reply deferred (awaiting verification)',
     'document.instances_added': 'Document Instances Added',
     'document.retired': 'Document Retired',
     'document.resolved': 'Document Resolved',

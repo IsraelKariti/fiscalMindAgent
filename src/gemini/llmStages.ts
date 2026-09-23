@@ -129,7 +129,7 @@ const STAGES: StageStatic[] = [
   {
     purpose: 'generate_message',
     title: 'Conversation planner',
-    file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md) — a cycle that marks documents collected withholds its message (step withhold_reply), verifies them (extract_document), then runs once more and that second call writes the reply',
+    file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md) — an answer that ties a file is a "collect" decision with no message (step withhold_reply, label "Reply deferred"); the code verifies the collected documents (extract_document), then runs once more and that second call writes the reply',
     gate: 'validate_message',
     prompts: [
       {

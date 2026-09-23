@@ -28,4 +28,4 @@
 
 ## 6. Live check
 
-- [ ] 6.1 With the local stack running, verify a vehicle licence and a study fund certificate on a test client (mock inbound path) and confirm in the step modal that the `verify_extraction` step lists the typed values by label and the `type_fields` check; record the client id in the change for cleanup. Verify: the step modal and the documents list show the expected result.
+- [ ] 6.1 SKIPPED (owner decision 2026-09-23: the evals ran the real prompt on the real PDFs; verify on the next real client) — With the local stack running, verify a vehicle licence and a study fund certificate on a test client (mock inbound path) and confirm in the step modal that the `verify_extraction` step lists the typed values by label and the `type_fields` check; record the client id in the change for cleanup. Verify: the step modal and the documents list show the expected result.

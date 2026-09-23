@@ -43,6 +43,8 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
   - `as_of_date`: observed = the as-of date read (or "not stated"); expected = 31.12 of the declaration year.
   - `not_expired`: observed = the valid-until date read; expected = the verification date.
   - `amounts`: observed = the amounts found, each as label, value and currency (capped to a short list); the failure note says which condition failed: no amounts found, a negative value, a value above the sane cap, or a value that is not a number, naming the offending amount.
+  - `type_fields`: when the document's type declares extra extraction fields (the `document-extraction` capability); observed = every declared field as its Hebrew label and the value read, "לא נמצא" for a null (capped to a short list); the failure note names, by label, the required field that is missing, the "at least one" group that is empty, or the field whose value is malformed and why (wrong date form, implausible year, not a number, pattern mismatch).
+  - `period_covers_valuation_date`: when the document's type states that a period must cover the valuation date and both period dates were read well formed; observed = the period as "from – to"; expected = 31.12 of the declaration year; fails when that date is outside the period.
 
 #### Scenario: Amounts check fails on a specific amount
 - **WHEN** the extractor returns amounts "יתרת עו"ש 12,340 ILS" and "פיקדון -5 ILS"
@@ -75,6 +77,18 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
 #### Scenario: Classification drops a match to another company
 - **WHEN** the classifier matches a study fund certificate issued by Harel to the row "study fund — Altshuler Shaham"
 - **THEN** the `validate_classification` row has `result: false`, `matched_id_known` and `matched_type_agrees` passed, and `issuer_matches_item` failed with `observed: "Harel"`, `expected: "Altshuler Shaham"` and a note that the companies differ
+
+#### Scenario: Required typed field missing
+- **WHEN** a contents-insurance policy is verified and the extractor returns `contents_sum: null` with both period dates read
+- **THEN** the `verify_extraction` row has `type_fields` with `passed: false`, `observed` listing the policy number, "לא נמצא" for the contents sum and the two dates, and a note naming the contents sum as missing; `result` is `false`
+
+#### Scenario: Policy period does not cover the valuation date
+- **WHEN** a contents-insurance policy for 2025-01-01 to 2025-11-30 is verified for declaration year 2025
+- **THEN** the row has `period_covers_valuation_date` with `passed: false`, `observed: "2025-01-01 – 2025-11-30"`, `expected: "2025-12-31"` and a note that the policy period does not include the valuation date
+
+#### Scenario: Type without extra fields
+- **WHEN** a prior declaration (a type with no extra fields) is verified
+- **THEN** the row carries neither `type_fields` nor `period_covers_valuation_date`
 
 ### Requirement: Checks reported by validate_file_split
 The `validate_file_split` gate SHALL write its audit row on the inbound file it checked (the parent), with `result`, `reason`, the file's page count, the number of documents proposed, the proposed page ranges, and the `checks` list. It SHALL report these checks, in this order, listing only the checks that ran:

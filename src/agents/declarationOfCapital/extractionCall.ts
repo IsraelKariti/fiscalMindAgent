@@ -1,8 +1,8 @@
 import type { Buffer } from 'node:buffer';
 import type { LlmCallSpec } from '../../gemini/llmCall.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
-import { getCatalogType, GENERIC_CHECKS, type VerificationChecks } from './catalog.js';
-import { EXTRACTION_PROMPT, extractionJsonSchema } from './verifyChecks.js';
+import { getCatalogType, GENERIC_CHECKS, type ExtractionField, type VerificationChecks } from './catalog.js';
+import { EXTRACTION_PROMPT, extractionJsonSchemaFor, typeFieldsPromptBlock } from './verifyChecks.js';
 
 /**
  * The extract_document request builder, kept apart from verifyDocument.ts (which
@@ -23,6 +23,15 @@ export function checksFor(doc: Pick<ExtractableDocument, 'type_key'>): Verificat
   return catalogType?.checks ?? GENERIC_CHECKS;
 }
 
+/** The type-specific extraction fields of a checklist row's catalog type (none for ad-hoc rows or untyped types). */
+export function fieldsFor(doc: Pick<ExtractableDocument, 'type_key'>): {
+  fields: readonly ExtractionField[] | undefined;
+  fieldsAnyOf: readonly string[] | undefined;
+} {
+  const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
+  return { fields: catalogType?.fields, fieldsAnyOf: catalogType?.fieldsAnyOf };
+}
+
 export interface ExtractionCallInput {
   doc: ExtractableDocument;
   bytes: Buffer;
@@ -39,13 +48,16 @@ export function buildExtractionCall({ doc, bytes, contentType, filename, taxYear
   // (the office's accepted document forms for the type) is restated so
   // is_expected_type judges against every acceptable form.
   const typeDescription = catalogType ? catalogType.descriptionHe.replaceAll('{{tax_year}}', String(taxYear)) : null;
+  // The type's extra fields: the same declaration yields the prompt lines and
+  // the schema entries below, so the two cannot drift (openspec `document-extraction`).
+  const fieldLines = typeFieldsPromptBlock(catalogType?.fields, catalogType?.fieldsAnyOf);
   const prompt = EXTRACTION_PROMPT.replace('{{expected_name}}', doc.name)
     .replace('{{expected_description}}', doc.description ?? '(ללא תיאור)')
     .replace(
       '{{type_context}}',
       `${typeDescription && typeDescription !== doc.description ? `מסמכים קבילים לסוג זה: ${typeDescription}\n` : ''}${
         catalogType?.analysisHintHe ? `${catalogType.analysisHintHe}\n` : ''
-      }`,
+      }${fieldLines}`,
     )
     .replace(
       '{{date_context}}',
@@ -74,7 +86,7 @@ export function buildExtractionCall({ doc, bytes, contentType, filename, taxYear
         ],
       },
     ],
-    responseJsonSchema: extractionJsonSchema,
+    responseJsonSchema: extractionJsonSchemaFor(catalogType?.fields),
     temperature: 0,
   };
 }

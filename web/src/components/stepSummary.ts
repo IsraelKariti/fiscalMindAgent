@@ -152,6 +152,26 @@ const MAPPINGS: Record<string, Mapping> = {
     rows: list('documents', strList(d['names']) ?? strList(d['documentIds'])),
     consumed: ['names', 'documentIds'],
   }),
+  // The type's own extraction fields, by Hebrew label (openspec `document-extraction`).
+  verify_extraction: (d) => {
+    const fields = Array.isArray(d['fields']) ? d['fields'] : [];
+    const items = fields.map((f) => {
+      if (!isRecord(f)) return JSON.stringify(f);
+      const label = str(f['label']) ?? str(f['key']) ?? '?';
+      const value = f['value'];
+      // A year (a small integer) is shown plain; a money value with grouping.
+      const text =
+        value === null || value === undefined || value === ''
+          ? 'לא נמצא'
+          : typeof value === 'number'
+            ? Number.isInteger(value) && value >= 1000 && value <= 9999 && str(f['key'])?.endsWith('_year')
+              ? String(value)
+              : value.toLocaleString('en-US')
+            : String(value);
+      return `${label}: ${text}`;
+    });
+    return { rows: list('extracted_fields', items), consumed: ['fields'] };
+  },
   'planner.rerun_after_verification': (d) => {
     const documents = Array.isArray(d['documents']) ? d['documents'] : [];
     const items = documents.map((r) => (isRecord(r) ? `${docLabel(r)} — ${str(r['outcome']) ?? '?'}` : docLabel(r)));

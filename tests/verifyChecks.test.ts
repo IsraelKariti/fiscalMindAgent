@@ -1,12 +1,19 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  extractionJsonSchema,
+  extractionJsonSchemaFor,
+  extractionSchemaFor,
   isValidIsraeliId,
   namesLooselyMatch,
   runChecks,
+  typeFieldValue,
+  typeFieldsPromptBlock,
   type CheckContext,
   type ExtractedFields,
 } from '../src/agents/declarationOfCapital/verifyChecks.js';
+import { getCatalogType } from '../src/agents/declarationOfCapital/catalog.js';
+import { buildExtractionCall } from '../src/agents/declarationOfCapital/extractionCall.js';
 
 // 123456782 is the canonical checksum-valid test id.
 const VALID_ID = '123456782';
@@ -282,5 +289,227 @@ describe('runChecks', () => {
       baseCtx,
     );
     assert.equal(negative.passed, false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Type-specific extraction fields (openspec `document-extraction`)
+
+const vehicle = getCatalogType('vehicle')!;
+const contents = getCatalogType('contents_insurance')!;
+const studyFund = getCatalogType('study_fund')!;
+
+describe('extraction schema and prompt from the type declaration', () => {
+  it('no fields: the base JSON schema object itself', () => {
+    assert.equal(extractionJsonSchemaFor(undefined), extractionJsonSchema);
+    assert.equal(extractionJsonSchemaFor([]), extractionJsonSchema);
+  });
+
+  it('vehicle: the five keys are nullable properties beside the common ones', () => {
+    type Prop = { type?: string[]; anyOf?: { type: string }[] };
+    const schema = extractionJsonSchemaFor(vehicle.fields) as { properties: Record<string, Prop>; required: string[] };
+    const allowsNull = (p: Prop) => p.type?.includes('null') || p.anyOf?.some((a) => a.type === 'null') || false;
+    for (const key of ['license_plate', 'manufacturer', 'model', 'production_year', 'purchase_cost']) {
+      assert.ok(schema.properties[key], key);
+      assert.ok(allowsNull(schema.properties[key]!), key);
+      assert.ok(schema.required.includes(key), key);
+    }
+    assert.deepEqual(schema.properties['production_year'], { anyOf: [{ type: 'integer' }, { type: 'null' }] });
+    assert.deepEqual(schema.properties['license_plate'], { type: ['string', 'null'] });
+    assert.ok(schema.properties['is_expected_type']);
+    assert.ok(!('$schema' in schema));
+  });
+
+  it('parses an extended answer and keeps the base keys typed', () => {
+    const parsed = extractionSchemaFor(vehicle.fields).parse({
+      ...baseFields,
+      license_plate: '1234567',
+      manufacturer: 'טויוטה',
+      model: 'קורולה',
+      production_year: 2019,
+      purchase_cost: null,
+    });
+    assert.equal(parsed.legible, true);
+    assert.equal(parsed['license_plate'], '1234567');
+    assert.throws(() => extractionSchemaFor(vehicle.fields).parse({ ...baseFields, production_year: 'x' }));
+  });
+
+  it('typeFieldValue normalises by kind: "" and "/" are null, 0 stays 0, numbers in strings parse', () => {
+    const plate = vehicle.fields!.find((f) => f.key === 'license_plate')!;
+    const cost = vehicle.fields!.find((f) => f.key === 'purchase_cost')!;
+    const from = contents.fields!.find((f) => f.key === 'period_from')!;
+    assert.equal(typeFieldValue({ ...baseFields, license_plate: '' } as never, plate), null);
+    assert.equal(typeFieldValue({ ...baseFields, license_plate: ' 1234567 ' } as never, plate), '1234567');
+    assert.equal(typeFieldValue({ ...baseFields, period_from: '/' } as never, from), null);
+    assert.equal(typeFieldValue({ ...baseFields, purchase_cost: 0 } as never, cost), 0);
+    assert.ok(Number.isNaN(typeFieldValue({ ...baseFields, purchase_cost: '12,000' } as never, cost)));
+    assert.equal(typeFieldValue({ ...baseFields, purchase_cost: '12000' } as never, cost), 12000);
+    assert.equal(typeFieldValue(baseFields, cost), null);
+  });
+
+  it('prompt block: one line per field plus the "at least one" line; empty when no fields', () => {
+    assert.equal(typeFieldsPromptBlock(undefined), '');
+    const block = typeFieldsPromptBlock(vehicle.fields, vehicle.fieldsAnyOf);
+    const lines = block.split('\n').filter((l) => l.startsWith('- '));
+    assert.deepEqual(
+      lines.map((l) => l.slice(2, l.indexOf(':'))),
+      ['license_plate', 'manufacturer', 'model', 'production_year', 'purchase_cost'],
+    );
+    assert.ok(block.includes('לפחות אחד מהשדות license_plate / purchase_cost'));
+    assert.ok(!typeFieldsPromptBlock(contents.fields).includes('לפחות אחד'));
+  });
+
+  it('buildExtractionCall: untyped row unchanged, vehicle row carries the lines and the extended schema', () => {
+    const bytes = Buffer.from('%PDF-1.4');
+    const prior = buildExtractionCall({
+      doc: { name: 'הצהרת הון קודמת', description: null, type_key: 'prior_declaration' },
+      bytes,
+      contentType: 'application/pdf',
+      filename: 'prior.pdf',
+      taxYear: 2025,
+    });
+    assert.equal(prior.responseJsonSchema, extractionJsonSchema);
+    assert.ok(!prior.systemInstruction!.includes('שדות ייעודיים'));
+
+    const car = buildExtractionCall({
+      doc: { name: 'העתק רישיון רכב בתוקף', description: null, type_key: 'vehicle' },
+      bytes,
+      contentType: 'application/pdf',
+      filename: 'car.pdf',
+      taxYear: 2025,
+    });
+    for (const key of ['license_plate', 'manufacturer', 'model', 'production_year', 'purchase_cost']) {
+      assert.ok(car.systemInstruction!.includes(`- ${key}: `), key);
+      assert.ok((car.responseJsonSchema as { properties: Record<string, unknown> }).properties[key], key);
+    }
+  });
+});
+
+describe('runChecks: type_fields and period_covers_valuation_date', () => {
+  const contentsCtx: CheckContext = {
+    ...baseCtx,
+    checks: contents.checks,
+    fields: contents.fields,
+    fieldsAnyOf: contents.fieldsAnyOf,
+  };
+  const goodPolicy = {
+    ...baseFields,
+    as_of_date: null,
+    policy_number: '12345',
+    contents_sum: 180_000,
+    period_from: '2025-03-01',
+    period_to: '2026-02-28',
+  };
+  const vehicleCtx: CheckContext = {
+    ...baseCtx,
+    checks: vehicle.checks,
+    fields: vehicle.fields,
+    fieldsAnyOf: vehicle.fieldsAnyOf,
+  };
+  const licence = {
+    ...baseFields,
+    as_of_date: null,
+    valid_until: '2026-08-01',
+    amounts: [],
+    license_plate: '1234567',
+    manufacturer: 'טויוטה',
+    model: 'קורולה',
+    production_year: 2019,
+    purchase_cost: null,
+  };
+  const typeFieldsOf = (verdict: ReturnType<typeof runChecks>) => verdict.checks.find((c) => c.key === 'type_fields')!;
+  const periodOf = (verdict: ReturnType<typeof runChecks>) => verdict.checks.find((c) => c.key === 'period_covers_valuation_date');
+
+  it('a type with no fields yields neither check', () => {
+    const keys = runChecks(baseFields, baseCtx).checks.map((c) => c.key);
+    assert.ok(!keys.includes('type_fields'));
+    assert.ok(!keys.includes('period_covers_valuation_date'));
+  });
+
+  it('passes a complete policy and lists every field by label', () => {
+    const verdict = runChecks(goodPolicy, contentsCtx);
+    const typeFields = typeFieldsOf(verdict);
+    assert.equal(typeFields.passed, true);
+    assert.equal(
+      typeFields.observed,
+      'מספר פוליסה: 12345 · סכום ביטוח התכולה: 180,000 · תחילת תקופת הביטוח: 2025-03-01 · סיום תקופת הביטוח: 2026-02-28',
+    );
+    const period = periodOf(verdict)!;
+    assert.equal(period.passed, true);
+    assert.equal(period.observed, '2025-03-01 – 2026-02-28');
+    assert.equal(period.expected, '2025-12-31');
+    assert.equal(verdict.passed, true);
+  });
+
+  it('a required field that is null fails with its label; an optional null does not', () => {
+    const verdict = runChecks({ ...goodPolicy, contents_sum: null, policy_number: null }, contentsCtx);
+    const typeFields = typeFieldsOf(verdict);
+    assert.equal(typeFields.passed, false);
+    assert.ok(typeFields.reason!.includes('"סכום ביטוח התכולה" לא נמצא'));
+    assert.ok(typeFields.observed!.includes('מספר פוליסה: לא נמצא'));
+    assert.equal(verdict.passed, false);
+    // The period is still judged (both dates were read).
+    assert.equal(periodOf(verdict)!.passed, true);
+  });
+
+  it('period that ends before 31.12 fails period_covers_valuation_date', () => {
+    const verdict = runChecks({ ...goodPolicy, period_from: '2025-01-01', period_to: '2025-11-30' }, contentsCtx);
+    const period = periodOf(verdict)!;
+    assert.equal(period.passed, false);
+    assert.equal(period.observed, '2025-01-01 – 2025-11-30');
+    assert.equal(period.expected, '2025-12-31');
+    assert.ok(period.reason!.includes('אינה כוללת את יום 31.12.2025'));
+    assert.equal(typeFieldsOf(verdict).passed, true);
+    assert.equal(verdict.passed, false);
+    // A period starting after the date fails too; a missing date skips the period check.
+    assert.equal(periodOf(runChecks({ ...goodPolicy, period_from: '2026-01-01', period_to: '2026-12-31' }, contentsCtx))!.passed, false);
+    assert.equal(periodOf(runChecks({ ...goodPolicy, period_to: null }, contentsCtx)), undefined);
+  });
+
+  it('malformed values fail with the right note: date form, implausible year, not a number, plate pattern', () => {
+    const badDate = typeFieldsOf(runChecks({ ...goodPolicy, period_to: '28/02/2026' }, contentsCtx));
+    assert.equal(badDate.passed, false);
+    assert.ok(badDate.reason!.includes('"סיום תקופת הביטוח" אינו תאריך'));
+
+    const badYear = typeFieldsOf(runChecks({ ...licence, production_year: 1900 }, vehicleCtx));
+    assert.ok(badYear.reason!.includes('"שנת ייצור" אינו שנה סבירה'));
+    assert.equal(typeFieldsOf(runChecks({ ...licence, production_year: 2026 }, vehicleCtx)).passed, true);
+    assert.equal(typeFieldsOf(runChecks({ ...licence, production_year: 2027 }, vehicleCtx)).passed, false);
+
+    const nan = typeFieldsOf(runChecks({ ...goodPolicy, contents_sum: Number.NaN }, contentsCtx));
+    assert.ok(nan.reason!.includes('"סכום ביטוח התכולה" אינו מספר'));
+
+    const plate = typeFieldsOf(runChecks({ ...licence, license_plate: '12-345-67' }, vehicleCtx));
+    assert.equal(plate.passed, false);
+    assert.equal(plate.reason, 'מספר הרישוי חייב להכיל 7 או 8 ספרות בלבד');
+  });
+
+  it('vehicle: a licence passes on its plate, a receipt on its cost, neither fails the group', () => {
+    assert.equal(runChecks(licence, vehicleCtx).passed, true);
+    const receipt = { ...licence, valid_until: null, license_plate: null, manufacturer: null, model: null, production_year: null, purchase_cost: 95_000 };
+    assert.equal(typeFieldsOf(runChecks(receipt, vehicleCtx)).passed, true);
+    const neither = typeFieldsOf(runChecks({ ...receipt, purchase_cost: null }, vehicleCtx));
+    assert.equal(neither.passed, false);
+    assert.ok(neither.reason!.includes('אף אחד מהשדות "מספר רישוי" / "עלות הרכישה" לא נמצא'));
+  });
+
+  it('study fund: deposits of 0 satisfy the group; a null fund name fails', () => {
+    const ctx: CheckContext = { ...baseCtx, checks: studyFund.checks, fields: studyFund.fields, fieldsAnyOf: studyFund.fieldsAnyOf };
+    const cert = { ...baseFields, fund_name: 'קרן השתלמות אלטשולר שחם', account_number: '778899', closing_balance: null, total_deposits: 0 };
+    const ok = typeFieldsOf(runChecks(cert, ctx));
+    assert.equal(ok.passed, true);
+    assert.equal(ok.observed, 'שם הקופה/הקרן: קרן השתלמות אלטשולר שחם · מספר חשבון: 778899 · יתרה ליום 31.12: לא נמצא · סך ההפקדות המצטבר: 0');
+    assert.ok(typeFieldsOf(runChecks({ ...cert, fund_name: null }, ctx)).reason!.includes('"שם הקופה/הקרן" לא נמצא'));
+    const none = typeFieldsOf(runChecks({ ...cert, total_deposits: null }, ctx));
+    assert.equal(none.passed, false);
+    assert.ok(none.reason!.includes('אף אחד מהשדות'));
+  });
+
+  it('observed text is capped at six pairs', () => {
+    const many = Array.from({ length: 8 }, (_, i) => ({ key: `f${i}`, kind: 'text' as const, labelHe: `שדה ${i}`, promptHe: 'x', required: false }));
+    const answer = { ...baseFields, ...Object.fromEntries(many.map((f) => [f.key, 'v'])) };
+    const check = typeFieldsOf(runChecks(answer, { ...baseCtx, fields: many }));
+    assert.ok(check.observed!.endsWith('(+2)'));
+    assert.equal(check.observed!.split(' · ').length, 6);
   });
 });

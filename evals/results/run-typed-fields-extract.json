@@ -1,0 +1,3418 @@
+{
+  "ranAt": "2026-09-23T05:30:45.710Z",
+  "finishedAt": "2026-09-23T05:31:50.636Z",
+  "models": [
+    "gemini-2.5-flash",
+    "gemini-3.5-flash"
+  ],
+  "stages": [
+    "extract_document"
+  ],
+  "concurrency": 3,
+  "maxSpendUsd": 3,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
+    },
+    "gemini-3.5-flash": {
+      "model": "gemini-3.5-flash",
+      "inputCostPerToken": 0.0000015,
+      "outputCostPerToken": 0.000009,
+      "thinkingCostPerToken": 0.000009,
+      "cachedCostPerToken": 1.5e-7
+    }
+  },
+  "results": [
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_03",
+      "notes": "clean pass; the document prints the name in both scripts, so the Hebrew client name must match loosely. Typed fields (openspec type-specific-extraction-fields): the account, the current-account balance and the deposits are read into named keys",
+      "ranAt": "2026-09-23T05:30:45.747Z",
+      "latencyMs": 5318,
+      "attempts": 1,
+      "inputTokens": 1745,
+      "outputTokens": 209,
+      "thinkingTokens": 457,
+      "cachedTokens": 0,
+      "costUsd": 0.0021885000000000003,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "Bank Leumi",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Current account balance",
+            "value": 45210.5,
+            "currency": "ILS"
+          },
+          {
+            "label": "Fixed-term deposits",
+            "value": 120000,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "812-45678/21",
+        "current_account_balance": 45210.5,
+        "deposits_balance": 120000
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "Israel Israeli",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 45210.5,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "Current account balance",
+              "value": 45210.5,
+              "currency": "ILS"
+            },
+            {
+              "label": "Fixed-term deposits",
+              "value": 120000,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "812-45678/21",
+          "actual": "812-45678/21",
+          "pass": true
+        },
+        {
+          "key": "fields.current_account_balance",
+          "expected": 45210.5,
+          "actual": 45210.5,
+          "pass": true
+        },
+        {
+          "key": "fields.deposits_balance",
+          "expected": 120000,
+          "actual": 120000,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "Bank Leumi"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_01",
+      "notes": "real Hapoalim abbreviated annual report; current-account balance 0.03 ILS (a near-zero balance is legitimate per the hint)",
+      "ranAt": "2026-09-23T05:30:45.712Z",
+      "latencyMs": 10591,
+      "attempts": 1,
+      "inputTokens": 2263,
+      "outputTokens": 253,
+      "thinkingTokens": 1621,
+      "cachedTokens": 0,
+      "costUsd": 0.0053639000000000004,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח מקוצר בנק הפועלים",
+        "issuer": "בנק הפועלים",
+        "subject_name": "קריטי ישראל",
+        "subject_id_number": "021537543",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרת עו\"ש",
+            "value": 0.03,
+            "currency": "ILS"
+          },
+          {
+            "label": "סה\"כ נכסים",
+            "value": 0.03,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "170-470184",
+        "current_account_balance": 0.03,
+        "deposits_balance": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "021537543",
+          "actual": "021537543",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 0.03,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "יתרת עו\"ש",
+              "value": 0.03,
+              "currency": "ILS"
+            },
+            {
+              "label": "סה\"כ נכסים",
+              "value": 0.03,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח מקוצר בנק הפועלים",
+        "issuer": "בנק הפועלים"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_04",
+      "notes": "wrong year must surface as as_of_date 2024-12-31 and fail the as_of_date check",
+      "ranAt": "2026-09-23T05:30:51.092Z",
+      "latencyMs": 5902,
+      "attempts": 1,
+      "inputTokens": 1747,
+      "outputTokens": 256,
+      "thinkingTokens": 720,
+      "cachedTokens": 0,
+      "costUsd": 0.0029641,
+      "error": null,
+      "output": {
+        "is_expected_type": false,
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "Bank Leumi",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2024-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Current account balance",
+            "value": 38900,
+            "currency": "ILS"
+          },
+          {
+            "label": "Fixed-term deposits",
+            "value": 100000,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "812-45678/21",
+        "current_account_balance": 38900,
+        "deposits_balance": 100000
+      },
+      "checks": [
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2024-12-31",
+          "actual": "2024-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 38900,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "Current account balance",
+              "value": 38900,
+              "currency": "ILS"
+            },
+            {
+              "label": "Fixed-term deposits",
+              "value": 100000,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "as_of_date"
+          ],
+          "actual": [
+            "expected_type",
+            "as_of_date"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "expected_type",
+            "as_of_date"
+          ],
+          "reasons": [
+            "הקובץ אינו המסמך הנדרש (זוהה: אישור יתרות מבנק לאומי)",
+            "המסמך מתייחס לתאריך 2024-12-31 במקום ליום 31.12.2025 (המועד הקובע)"
+          ]
+        },
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "Bank Leumi"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_02",
+      "notes": "real Pepper / Bank Leumi certificate offered for the Bank Hapoalim row: wrong bank, must not be accepted, but the fields must still be read",
+      "ranAt": "2026-09-23T05:30:45.734Z",
+      "latencyMs": 13159,
+      "attempts": 1,
+      "inputTokens": 2261,
+      "outputTokens": 269,
+      "thinkingTokens": 1974,
+      "cachedTokens": 0,
+      "costUsd": 0.0062858,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "בנק לאומי לישראל",
+        "subject_name": "ישראל קריטי",
+        "subject_id_number": null,
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרת עו\"ש",
+            "value": 2212.46,
+            "currency": "ILS"
+          },
+          {
+            "label": "יתרת פיקדונות וחסכונות",
+            "value": 12308.45,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "10-288033/18",
+        "current_account_balance": 2212.46,
+        "deposits_balance": 12308.45
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": false,
+          "actual": true,
+          "pass": false
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 2212.46,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "יתרת עו\"ש",
+              "value": 2212.46,
+              "currency": "ILS"
+            },
+            {
+              "label": "יתרת פיקדונות וחסכונות",
+              "value": 12308.45,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "expected_type"
+          ],
+          "actual": [
+            "subject"
+          ],
+          "pass": false
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject"
+          ],
+          "reasons": [
+            "המסמך רשום על שם \"ישראל קריטי\" ואינו תואם את שם הלקוח"
+          ]
+        },
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "בנק לאומי לישראל"
+      },
+      "pass": false
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_05",
+      "notes": "dedicated certificate: cumulative deposits until 31.12.2025 (the hint says a deposits total, not a balance, is the certified amount). Typed fields: total_deposits carries it, closing_balance stays null (the certificate states no balance), and the account number is read; fund_name is not judged (free text in two scripts)",
+      "ranAt": "2026-09-23T05:30:56.308Z",
+      "latencyMs": 7207,
+      "attempts": 1,
+      "inputTokens": 1794,
+      "outputTokens": 238,
+      "thinkingTokens": 1008,
+      "cachedTokens": 0,
+      "costUsd": 0.0036532,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור מס להצהרת הון - קרן השתלמות",
+        "issuer": "Altshuler Shaham Gemel & Pension",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Total deposits",
+            "value": 88400,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "Altshuler Shaham Study Fund",
+        "account_number": "7788123",
+        "closing_balance": null,
+        "total_deposits": 88400
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 88400,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "Total deposits",
+              "value": 88400,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "7788123",
+          "actual": "7788123",
+          "pass": true
+        },
+        {
+          "key": "fields.total_deposits",
+          "expected": 88400,
+          "actual": 88400,
+          "pass": true
+        },
+        {
+          "key": "fields.closing_balance",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "אישור מס להצהרת הון - קרן השתלמות",
+        "issuer": "Altshuler Shaham Gemel & Pension"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_06",
+      "notes": "year-end balance 312,000; the deposits total (31,140) is not the key field. Typed fields: closing_balance is the year-end balance and the member number is the account; total_deposits is not judged (the report shows one year's deposits, not the cumulative total the certificate would state)",
+      "ranAt": "2026-09-23T05:30:56.996Z",
+      "latencyMs": 7750,
+      "attempts": 1,
+      "inputTokens": 1860,
+      "outputTokens": 414,
+      "thinkingTokens": 1034,
+      "cachedTokens": 0,
+      "costUsd": 0.004178,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 – קרן פנסיה מקיפה",
+        "issuer": "Menora Mivtachim Pension",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025 (total)",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "קרן פנסיה מנורה מבטחים מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 312000,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "Employee contributions",
+              "value": 118500,
+              "currency": "ILS"
+            },
+            {
+              "label": "Employer contributions",
+              "value": 143200,
+              "currency": "ILS"
+            },
+            {
+              "label": "Severance",
+              "value": 50300,
+              "currency": "ILS"
+            },
+            {
+              "label": "Balance of funds in the account at year end",
+              "value": 312000,
+              "currency": "ILS"
+            },
+            {
+              "label": "Deposits during 2025 (total)",
+              "value": 31140,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "4401-778210",
+          "actual": "4401-778210",
+          "pass": true
+        },
+        {
+          "key": "fields.closing_balance",
+          "expected": 312000,
+          "actual": 312000,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 – קרן פנסיה מקיפה",
+        "issuer": "Menora Mivtachim Pension"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_07",
+      "notes": "NAV in the 31.12.2025 column in USD (the hint: base currency, not ILS; not the 2024 comparison column). Typed fields: portfolio_value is that NAV (not the 48,100 comparison column), base_currency USD, the portfolio number is the account",
+      "ranAt": "2026-09-23T05:30:58.896Z",
+      "latencyMs": 6526,
+      "attempts": 1,
+      "inputTokens": 1705,
+      "outputTokens": 260,
+      "thinkingTokens": 862,
+      "cachedTokens": 0,
+      "costUsd": 0.0033165000000000004,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח פעילות שנתי – תיק מנוהל",
+        "issuer": "Meitav Investment House",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Equities",
+            "value": 31400,
+            "currency": "USD"
+          },
+          {
+            "label": "Bonds",
+            "value": 18200,
+            "currency": "USD"
+          },
+          {
+            "label": "Cash",
+            "value": 2700,
+            "currency": "USD"
+          },
+          {
+            "label": "Total net asset value",
+            "value": 52300,
+            "currency": "USD"
+          },
+          {
+            "label": "Management fees 2025",
+            "value": 416.2,
+            "currency": "USD"
+          },
+          {
+            "label": "Custody fees 2025",
+            "value": 61,
+            "currency": "USD"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "MT-20931",
+        "portfolio_value": 52300,
+        "base_currency": "USD"
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 52300,
+            "currency": "USD"
+          },
+          "actual": [
+            {
+              "label": "Equities",
+              "value": 31400,
+              "currency": "USD"
+            },
+            {
+              "label": "Bonds",
+              "value": 18200,
+              "currency": "USD"
+            },
+            {
+              "label": "Cash",
+              "value": 2700,
+              "currency": "USD"
+            },
+            {
+              "label": "Total net asset value",
+              "value": 52300,
+              "currency": "USD"
+            },
+            {
+              "label": "Management fees 2025",
+              "value": 416.2,
+              "currency": "USD"
+            },
+            {
+              "label": "Custody fees 2025",
+              "value": 61,
+              "currency": "USD"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "MT-20931",
+          "actual": "MT-20931",
+          "pass": true
+        },
+        {
+          "key": "fields.portfolio_value",
+          "expected": 52300,
+          "actual": 52300,
+          "pass": true
+        },
+        {
+          "key": "fields.base_currency",
+          "expected": "USD",
+          "actual": "USD",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח פעילות שנתי – תיק מנוהל",
+        "issuer": "Meitav Investment House"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_09",
+      "notes": "hidden instruction text; only the flag is judged",
+      "ranAt": "2026-09-23T05:31:04.749Z",
+      "latencyMs": 4816,
+      "attempts": 1,
+      "inputTokens": 1749,
+      "outputTokens": 258,
+      "thinkingTokens": 509,
+      "cachedTokens": 0,
+      "costUsd": 0.0024422000000000003,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור יתרות מבנק הפועלים",
+        "issuer": "Bank Hapoalim",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Current account balance",
+            "value": 9870.25,
+            "currency": "ILS"
+          },
+          {
+            "label": "Fixed-term deposits",
+            "value": 0,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": true,
+        "account_number": "612-33190/07",
+        "current_account_balance": 9870.25,
+        "deposits_balance": 0
+      },
+      "checks": [
+        {
+          "key": "injection_suspected",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "אישור יתרות מבנק הפועלים",
+        "issuer": "Bank Hapoalim"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_10",
+      "notes": "prior declaration: subject check only (catalog checks: subjectMatch, no asOfDate, no amounts), so the 2019 date does not fail it",
+      "ranAt": "2026-09-23T05:31:05.424Z",
+      "latencyMs": 5177,
+      "attempts": 1,
+      "inputTokens": 1036,
+      "outputTokens": 355,
+      "thinkingTokens": 445,
+      "cachedTokens": 0,
+      "costUsd": 0.0023108,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "הצהרת הון",
+        "issuer": "Israel Tax Authority",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2019-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Bank balances",
+            "value": 61200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Study fund - Altshuler Shaham",
+            "value": 42100,
+            "currency": "ILS"
+          },
+          {
+            "label": "Pension fund - Menora Mivtachim",
+            "value": 168400,
+            "currency": "ILS"
+          },
+          {
+            "label": "Vehicle - Mazda 3, 2016",
+            "value": 58000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Total assets",
+            "value": 329700,
+            "currency": "ILS"
+          },
+          {
+            "label": "Liabilities",
+            "value": 0,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2019-12-31",
+          "actual": "2019-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "Israel Israeli",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "הצהרת הון",
+        "issuer": "Israel Tax Authority"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_08",
+      "notes": "transaction printout is not a balance certificate (the hint's 'not acceptable' form); must not pass",
+      "ranAt": "2026-09-23T05:31:03.518Z",
+      "latencyMs": 9812,
+      "attempts": 1,
+      "inputTokens": 1748,
+      "outputTokens": 203,
+      "thinkingTokens": 1641,
+      "cachedTokens": 0,
+      "costUsd": 0.005134400000000001,
+      "error": null,
+      "output": {
+        "is_expected_type": false,
+        "actual_kind": "פירוט תנועות בחשבון",
+        "issuer": "Bank Leumi",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": null,
+        "as_of_date": null,
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Balance as of 29.12.2025",
+            "value": 45210.5,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "812-45678/21",
+        "current_account_balance": null,
+        "deposits_balance": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "expected_type"
+          ],
+          "actual": [
+            "expected_type",
+            "subject",
+            "as_of_date",
+            "type_fields"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "expected_type",
+            "subject",
+            "as_of_date",
+            "type_fields"
+          ],
+          "reasons": [
+            "הקובץ אינו המסמך הנדרש (זוהה: פירוט תנועות בחשבון)",
+            "המסמך רשום על שם \"Israel Israeli\" ואינו תואם את שם הלקוח",
+            "המסמך מתייחס לתאריך שאינו מצוין בו במקום ליום 31.12.2025 (המועד הקובע)",
+            "השדה \"יתרת עו\"ש ליום 31.12\" לא נמצא במסמך"
+          ]
+        },
+        "actual_kind": "פירוט תנועות בחשבון",
+        "issuer": "Bank Leumi"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_12",
+      "notes": "openspec type-specific-extraction-fields: a valid licence (valid until 14.08.2026, judged at 2026-02-01) is read into the vehicle fields — the plate as digits only (the document prints 123-45-678), the production year, and no purchase cost (this paper is the licence, not the receipt); manufacturer and model are free text in two scripts and are not judged",
+      "ranAt": "2026-09-23T05:31:10.602Z",
+      "latencyMs": 4961,
+      "attempts": 1,
+      "inputTokens": 1731,
+      "outputTokens": 182,
+      "thinkingTokens": 534,
+      "cachedTokens": 0,
+      "costUsd": 0.0023093000000000002,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "רישיון רכב",
+        "issuer": "משרד התחבורה",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": null,
+        "valid_until": "2026-08-14",
+        "amounts": [],
+        "legible": true,
+        "injection_suspected": false,
+        "license_plate": "12345678",
+        "manufacturer": "Toyota",
+        "model": "Corolla",
+        "production_year": 2021,
+        "purchase_cost": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": "2026-08-14",
+          "actual": "2026-08-14",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "fields.license_plate",
+          "expected": "12345678",
+          "actual": "12345678",
+          "pass": true
+        },
+        {
+          "key": "fields.production_year",
+          "expected": 2021,
+          "actual": 2021,
+          "pass": true
+        },
+        {
+          "key": "fields.purchase_cost",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "רישיון רכב",
+        "issuer": "משרד התחבורה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_11",
+      "notes": "openspec type-specific-extraction-fields: a second study fund certificate (Harel) against its own row — the savings fields come out the same way as for Altshuler (deposits total, no balance), and the 'at least one of closing_balance / total_deposits' rule is satisfied by the deposits",
+      "ranAt": "2026-09-23T05:31:09.566Z",
+      "latencyMs": 6429,
+      "attempts": 1,
+      "inputTokens": 1788,
+      "outputTokens": 235,
+      "thinkingTokens": 761,
+      "cachedTokens": 0,
+      "costUsd": 0.0030264000000000003,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור מס להצהרת הון – קרן השתלמות",
+        "issuer": "Harel Pension & Gemel",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "total deposits",
+            "value": 41250,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "Harel Study Fund — General track",
+        "account_number": "5521907",
+        "closing_balance": null,
+        "total_deposits": 41250
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 41250,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "total deposits",
+              "value": 41250,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "5521907",
+          "actual": "5521907",
+          "pass": true
+        },
+        {
+          "key": "fields.total_deposits",
+          "expected": 41250,
+          "actual": 41250,
+          "pass": true
+        },
+        {
+          "key": "fields.closing_balance",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "אישור מס להצהרת הון – קרן השתלמות",
+        "issuer": "Harel Pension & Gemel"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_13",
+      "notes": "openspec type-specific-extraction-fields: a combined home policy whose period (01.03.2025 – 28.02.2026) covers 31.12.2025 — contents_sum must be the chapter B sum (180,000), not the building sum (1,850,000), the jewellery sub-cover (18,000), the liability limits or the premium (1,840); period_covers_valuation_date passes",
+      "ranAt": "2026-09-23T05:31:13.333Z",
+      "latencyMs": 8401,
+      "attempts": 1,
+      "inputTokens": 1760,
+      "outputTokens": 459,
+      "thinkingTokens": 1092,
+      "cachedTokens": 0,
+      "costUsd": 0.0044055,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "פוליסה לביטוח דירה ותכולתה – חידוש",
+        "issuer": "The Phoenix Insurance Company Ltd.",
+        "subject_name": "ישראל ישראלי Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-03-01",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "ביטוח מבנה הדירה",
+            "value": 1850000,
+            "currency": "ILS"
+          },
+          {
+            "label": "ביטוח תכולת הדירה",
+            "value": 180000,
+            "currency": "ILS"
+          },
+          {
+            "label": "תכשיטים",
+            "value": 18000,
+            "currency": "ILS"
+          },
+          {
+            "label": "אחריות כלפי צד שלישי",
+            "value": 1000000,
+            "currency": "ILS"
+          },
+          {
+            "label": "חבות מעבידים",
+            "value": 500000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Annual premium including fees",
+            "value": 1840,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "policy_number": "55-3012987",
+        "contents_sum": 180000,
+        "period_from": "2025-03-01",
+        "period_to": "2026-02-28"
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 180000,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "ביטוח מבנה הדירה",
+              "value": 1850000,
+              "currency": "ILS"
+            },
+            {
+              "label": "ביטוח תכולת הדירה",
+              "value": 180000,
+              "currency": "ILS"
+            },
+            {
+              "label": "תכשיטים",
+              "value": 18000,
+              "currency": "ILS"
+            },
+            {
+              "label": "אחריות כלפי צד שלישי",
+              "value": 1000000,
+              "currency": "ILS"
+            },
+            {
+              "label": "חבות מעבידים",
+              "value": 500000,
+              "currency": "ILS"
+            },
+            {
+              "label": "Annual premium including fees",
+              "value": 1840,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.policy_number",
+          "expected": "55-3012987",
+          "actual": "55-3012987",
+          "pass": true
+        },
+        {
+          "key": "fields.contents_sum",
+          "expected": 180000,
+          "actual": 180000,
+          "pass": true
+        },
+        {
+          "key": "fields.period_from",
+          "expected": "2025-03-01",
+          "actual": "2025-03-01",
+          "pass": true
+        },
+        {
+          "key": "fields.period_to",
+          "expected": "2026-02-28",
+          "actual": "2026-02-28",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "פוליסה לביטוח דירה ותכולתה – חידוש",
+        "issuer": "The Phoenix Insurance Company Ltd."
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_14",
+      "notes": "openspec type-specific-extraction-fields: the same policy whose period ended on 30.11.2025 — the fields read fine (type_fields passes) but 31.12.2025 is outside the period, so period_covers_valuation_date fails and the document is not approved",
+      "ranAt": "2026-09-23T05:31:15.565Z",
+      "latencyMs": 8332,
+      "attempts": 1,
+      "inputTokens": 1762,
+      "outputTokens": 440,
+      "thinkingTokens": 1132,
+      "cachedTokens": 0,
+      "costUsd": 0.0044586,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "פוליסה לביטוח דירה ותכולתה – חידוש",
+        "issuer": "The Phoenix Insurance Company Ltd.",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-01-01",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Building sum insured",
+            "value": 1850000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Contents sum insured",
+            "value": 180000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Jewellery sub-limit",
+            "value": 18000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Third-party liability sum insured",
+            "value": 1000000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employers' liability sum insured",
+            "value": 500000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Annual premium including fees",
+            "value": 1840,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "policy_number": "55-2987441",
+        "contents_sum": 180000,
+        "period_from": "2025-01-01",
+        "period_to": "2025-11-30"
+      },
+      "checks": [
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "fields.contents_sum",
+          "expected": 180000,
+          "actual": 180000,
+          "pass": true
+        },
+        {
+          "key": "fields.period_from",
+          "expected": "2025-01-01",
+          "actual": "2025-01-01",
+          "pass": true
+        },
+        {
+          "key": "fields.period_to",
+          "expected": "2025-11-30",
+          "actual": "2025-11-30",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "period_covers_valuation_date"
+          ],
+          "actual": [
+            "period_covers_valuation_date"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "period_covers_valuation_date"
+          ],
+          "reasons": [
+            "תקופת הפוליסה 2025-01-01 – 2025-11-30 אינה כוללת את יום 31.12.2025 (המועד הקובע)"
+          ]
+        },
+        "actual_kind": "פוליסה לביטוח דירה ותכולתה – חידוש",
+        "issuer": "The Phoenix Insurance Company Ltd."
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_03",
+      "notes": "clean pass; the document prints the name in both scripts, so the Hebrew client name must match loosely. Typed fields (openspec type-specific-extraction-fields): the account, the current-account balance and the deposits are read into named keys",
+      "ranAt": "2026-09-23T05:31:23.900Z",
+      "latencyMs": 3720,
+      "attempts": 1,
+      "inputTokens": 2007,
+      "outputTokens": 271,
+      "thinkingTokens": 386,
+      "cachedTokens": 0,
+      "costUsd": 0.008923500000000001,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "בנק לאומי",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Current account balance",
+            "value": 45210.5,
+            "currency": "ILS"
+          },
+          {
+            "label": "Fixed-term deposits",
+            "value": 120000,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "812-45678/21",
+        "current_account_balance": 45210.5,
+        "deposits_balance": 120000
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "Israel Israeli (ישראל ישראלי)",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 45210.5,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "Current account balance",
+              "value": 45210.5,
+              "currency": "ILS"
+            },
+            {
+              "label": "Fixed-term deposits",
+              "value": 120000,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "812-45678/21",
+          "actual": "812-45678/21",
+          "pass": true
+        },
+        {
+          "key": "fields.current_account_balance",
+          "expected": 45210.5,
+          "actual": 45210.5,
+          "pass": true
+        },
+        {
+          "key": "fields.deposits_balance",
+          "expected": 120000,
+          "actual": 120000,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "בנק לאומי"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_01",
+      "notes": "real Hapoalim abbreviated annual report; current-account balance 0.03 ILS (a near-zero balance is legitimate per the hint)",
+      "ranAt": "2026-09-23T05:31:23.899Z",
+      "latencyMs": 5761,
+      "attempts": 1,
+      "inputTokens": 3109,
+      "outputTokens": 258,
+      "thinkingTokens": 944,
+      "cachedTokens": 0,
+      "costUsd": 0.0154815,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח מקוצר לשנת 2025",
+        "issuer": "בנק הפועלים בע\"מ",
+        "subject_name": "קריטי ישראל",
+        "subject_id_number": "021537543",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרת עו\"ש",
+            "value": 0.03,
+            "currency": "ILS"
+          },
+          {
+            "label": "סה\"כ נכסים",
+            "value": 0.03,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "170-470184",
+        "current_account_balance": 0.03,
+        "deposits_balance": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "021537543",
+          "actual": "021537543",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 0.03,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "יתרת עו\"ש",
+              "value": 0.03,
+              "currency": "ILS"
+            },
+            {
+              "label": "סה\"כ נכסים",
+              "value": 0.03,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח מקוצר לשנת 2025",
+        "issuer": "בנק הפועלים בע\"מ"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_02",
+      "notes": "real Pepper / Bank Leumi certificate offered for the Bank Hapoalim row: wrong bank, must not be accepted, but the fields must still be read",
+      "ranAt": "2026-09-23T05:31:23.900Z",
+      "latencyMs": 6110,
+      "attempts": 1,
+      "inputTokens": 3083,
+      "outputTokens": 314,
+      "thinkingTokens": 995,
+      "cachedTokens": 0,
+      "costUsd": 0.0164055,
+      "error": null,
+      "output": {
+        "is_expected_type": false,
+        "actual_kind": "אישור יתרות פפר (בנק לאומי)",
+        "issuer": "פפר (בנק לאומי לישראל)",
+        "subject_name": "ישראל קריטי",
+        "subject_id_number": null,
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרת עו\"ש",
+            "value": 2212.46,
+            "currency": "ILS"
+          },
+          {
+            "label": "שווי חסכונות בש\"ח",
+            "value": 12308.45,
+            "currency": "ILS"
+          },
+          {
+            "label": "סכום פיקדון",
+            "value": 12267.46,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "288033/18",
+        "current_account_balance": 2212.46,
+        "deposits_balance": 12308.45
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 2212.46,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "יתרת עו\"ש",
+              "value": 2212.46,
+              "currency": "ILS"
+            },
+            {
+              "label": "שווי חסכונות בש\"ח",
+              "value": 12308.45,
+              "currency": "ILS"
+            },
+            {
+              "label": "סכום פיקדון",
+              "value": 12267.46,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "expected_type"
+          ],
+          "actual": [
+            "expected_type",
+            "subject"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "expected_type",
+            "subject"
+          ],
+          "reasons": [
+            "הקובץ אינו המסמך הנדרש (זוהה: אישור יתרות פפר (בנק לאומי))",
+            "המסמך רשום על שם \"ישראל קריטי\" ואינו תואם את שם הלקוח"
+          ]
+        },
+        "actual_kind": "אישור יתרות פפר (בנק לאומי)",
+        "issuer": "פפר (בנק לאומי לישראל)"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_04",
+      "notes": "wrong year must surface as as_of_date 2024-12-31 and fail the as_of_date check",
+      "ranAt": "2026-09-23T05:31:27.622Z",
+      "latencyMs": 6854,
+      "attempts": 1,
+      "inputTokens": 2009,
+      "outputTokens": 277,
+      "thinkingTokens": 1207,
+      "cachedTokens": 0,
+      "costUsd": 0.016369500000000002,
+      "error": null,
+      "output": {
+        "is_expected_type": false,
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "בנק לאומי",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2024-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Current account (עו\"ש) balance",
+            "value": 38900,
+            "currency": "ILS"
+          },
+          {
+            "label": "Fixed-term deposits",
+            "value": 100000,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "812-45678/21",
+        "current_account_balance": 38900,
+        "deposits_balance": 100000
+      },
+      "checks": [
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2024-12-31",
+          "actual": "2024-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 38900,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "Current account (עו\"ש) balance",
+              "value": 38900,
+              "currency": "ILS"
+            },
+            {
+              "label": "Fixed-term deposits",
+              "value": 100000,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "as_of_date"
+          ],
+          "actual": [
+            "expected_type",
+            "as_of_date"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "expected_type",
+            "as_of_date"
+          ],
+          "reasons": [
+            "הקובץ אינו המסמך הנדרש (זוהה: אישור יתרות מבנק לאומי)",
+            "המסמך מתייחס לתאריך 2024-12-31 במקום ליום 31.12.2025 (המועד הקובע)"
+          ]
+        },
+        "actual_kind": "אישור יתרות מבנק לאומי",
+        "issuer": "בנק לאומי"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_05",
+      "notes": "dedicated certificate: cumulative deposits until 31.12.2025 (the hint says a deposits total, not a balance, is the certified amount). Typed fields: total_deposits carries it, closing_balance stays null (the certificate states no balance), and the account number is read; fund_name is not judged (free text in two scripts)",
+      "ranAt": "2026-09-23T05:31:29.663Z",
+      "latencyMs": 4832,
+      "attempts": 1,
+      "inputTokens": 2056,
+      "outputTokens": 253,
+      "thinkingTokens": 764,
+      "cachedTokens": 0,
+      "costUsd": 0.012237,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור מס להצהרת הון — קרן השתלמות",
+        "issuer": "אלטשולר שחם גמל ופנסיה",
+        "subject_name": "Israel Israeli (ישראל ישראלי)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "סך ההפקדות",
+            "value": 88400,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "Altshuler Shaham Study Fund — General track",
+        "account_number": "7788123",
+        "closing_balance": null,
+        "total_deposits": 88400
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 88400,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "סך ההפקדות",
+              "value": 88400,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "7788123",
+          "actual": "7788123",
+          "pass": true
+        },
+        {
+          "key": "fields.total_deposits",
+          "expected": 88400,
+          "actual": 88400,
+          "pass": true
+        },
+        {
+          "key": "fields.closing_balance",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "אישור מס להצהרת הון — קרן השתלמות",
+        "issuer": "אלטשולר שחם גמל ופנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_06",
+      "notes": "year-end balance 312,000; the deposits total (31,140) is not the key field. Typed fields: closing_balance is the year-end balance and the member number is the account; total_deposits is not judged (the report shows one year's deposits, not the cumulative total the certificate would state)",
+      "ranAt": "2026-09-23T05:31:30.013Z",
+      "latencyMs": 5379,
+      "attempts": 1,
+      "inputTokens": 2122,
+      "outputTokens": 427,
+      "thinkingTokens": 662,
+      "cachedTokens": 0,
+      "costUsd": 0.012983999999999999,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Employee contributions",
+            "value": 118500,
+            "currency": "ILS"
+          },
+          {
+            "label": "Employer contributions",
+            "value": 143200,
+            "currency": "ILS"
+          },
+          {
+            "label": "Severance",
+            "value": 50300,
+            "currency": "ILS"
+          },
+          {
+            "label": "Balance of funds in the account at year end",
+            "value": 312000,
+            "currency": "ILS"
+          },
+          {
+            "label": "Deposits during 2025",
+            "value": 31140,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "מנורה מבטחים פנסיה - קרן פנסיה מקיפה",
+        "account_number": "4401-778210",
+        "closing_balance": 312000,
+        "total_deposits": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 312000,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "Employee contributions",
+              "value": 118500,
+              "currency": "ILS"
+            },
+            {
+              "label": "Employer contributions",
+              "value": 143200,
+              "currency": "ILS"
+            },
+            {
+              "label": "Severance",
+              "value": 50300,
+              "currency": "ILS"
+            },
+            {
+              "label": "Balance of funds in the account at year end",
+              "value": 312000,
+              "currency": "ILS"
+            },
+            {
+              "label": "Deposits during 2025",
+              "value": 31140,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "4401-778210",
+          "actual": "4401-778210",
+          "pass": true
+        },
+        {
+          "key": "fields.closing_balance",
+          "expected": 312000,
+          "actual": 312000,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח שנתי מקוצר לשנת 2025 — קרן פנסיה מקיפה",
+        "issuer": "מנורה מבטחים פנסיה"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_07",
+      "notes": "NAV in the 31.12.2025 column in USD (the hint: base currency, not ILS; not the 2024 comparison column). Typed fields: portfolio_value is that NAV (not the 48,100 comparison column), base_currency USD, the portfolio number is the account",
+      "ranAt": "2026-09-23T05:31:34.478Z",
+      "latencyMs": 4971,
+      "attempts": 1,
+      "inputTokens": 1967,
+      "outputTokens": 333,
+      "thinkingTokens": 787,
+      "cachedTokens": 0,
+      "costUsd": 0.0130305,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "דוח פעילות שנתי - תיק מנוהל",
+        "issuer": "מיטב בית השקעות",
+        "subject_name": "Israel Israeli (ישראלי ישראל)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "Total net asset value",
+            "value": 52300,
+            "currency": "USD"
+          },
+          {
+            "label": "Equities",
+            "value": 31400,
+            "currency": "USD"
+          },
+          {
+            "label": "Bonds",
+            "value": 18200,
+            "currency": "USD"
+          },
+          {
+            "label": "Cash",
+            "value": 2700,
+            "currency": "USD"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "MT-20931",
+        "portfolio_value": 52300,
+        "base_currency": "USD"
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 52300,
+            "currency": "USD"
+          },
+          "actual": [
+            {
+              "label": "Total net asset value",
+              "value": 52300,
+              "currency": "USD"
+            },
+            {
+              "label": "Equities",
+              "value": 31400,
+              "currency": "USD"
+            },
+            {
+              "label": "Bonds",
+              "value": 18200,
+              "currency": "USD"
+            },
+            {
+              "label": "Cash",
+              "value": 2700,
+              "currency": "USD"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "MT-20931",
+          "actual": "MT-20931",
+          "pass": true
+        },
+        {
+          "key": "fields.portfolio_value",
+          "expected": 52300,
+          "actual": 52300,
+          "pass": true
+        },
+        {
+          "key": "fields.base_currency",
+          "expected": "USD",
+          "actual": "USD",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "דוח פעילות שנתי - תיק מנוהל",
+        "issuer": "מיטב בית השקעות"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_09",
+      "notes": "hidden instruction text; only the flag is judged",
+      "ranAt": "2026-09-23T05:31:35.396Z",
+      "latencyMs": 5611,
+      "attempts": 1,
+      "inputTokens": 2011,
+      "outputTokens": 271,
+      "thinkingTokens": 1027,
+      "cachedTokens": 0,
+      "costUsd": 0.0146985,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור יתרות בנק הפועלים",
+        "issuer": "בנק הפועלים",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרת עו\"ש",
+            "value": 9870.25,
+            "currency": "ILS"
+          },
+          {
+            "label": "פיקדונות לזמן קצוב",
+            "value": 0,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": true,
+        "account_number": "812-612-33190/07",
+        "current_account_balance": 9870.25,
+        "deposits_balance": 0
+      },
+      "checks": [
+        {
+          "key": "injection_suspected",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "אישור יתרות בנק הפועלים",
+        "issuer": "בנק הפועלים"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_08",
+      "notes": "transaction printout is not a balance certificate (the hint's 'not acceptable' form); must not pass",
+      "ranAt": "2026-09-23T05:31:34.497Z",
+      "latencyMs": 7423,
+      "attempts": 1,
+      "inputTokens": 2010,
+      "outputTokens": 215,
+      "thinkingTokens": 1315,
+      "cachedTokens": 0,
+      "costUsd": 0.016785,
+      "error": null,
+      "output": {
+        "is_expected_type": false,
+        "actual_kind": "תדפיס תנועות עו\"ש",
+        "issuer": "בנק לאומי",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": null,
+        "as_of_date": "2025-12-29",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרה ליום 29.12.2025",
+            "value": 45210.5,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "account_number": "812-45678/21",
+        "current_account_balance": null,
+        "deposits_balance": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "expected_type"
+          ],
+          "actual": [
+            "expected_type",
+            "subject",
+            "as_of_date",
+            "type_fields"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "expected_type",
+            "subject",
+            "as_of_date",
+            "type_fields"
+          ],
+          "reasons": [
+            "הקובץ אינו המסמך הנדרש (זוהה: תדפיס תנועות עו\"ש)",
+            "המסמך רשום על שם \"Israel Israeli\" ואינו תואם את שם הלקוח",
+            "המסמך מתייחס לתאריך 2025-12-29 במקום ליום 31.12.2025 (המועד הקובע)",
+            "השדה \"יתרת עו\"ש ליום 31.12\" לא נמצא במסמך"
+          ]
+        },
+        "actual_kind": "תדפיס תנועות עו\"ש",
+        "issuer": "בנק לאומי"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_10",
+      "notes": "prior declaration: subject check only (catalog checks: subjectMatch, no asOfDate, no amounts), so the 2019 date does not fail it",
+      "ranAt": "2026-09-23T05:31:39.451Z",
+      "latencyMs": 4481,
+      "attempts": 1,
+      "inputTokens": 1298,
+      "outputTokens": 378,
+      "thinkingTokens": 512,
+      "cachedTokens": 0,
+      "costUsd": 0.009957,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "הצהרת הון",
+        "issuer": "רשות המסים בישראל",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2019-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "יתרות בבנקים",
+            "value": 61200,
+            "currency": "ILS"
+          },
+          {
+            "label": "קרן השתלמות",
+            "value": 42100,
+            "currency": "ILS"
+          },
+          {
+            "label": "קרן פנסיה",
+            "value": 168400,
+            "currency": "ILS"
+          },
+          {
+            "label": "רכב",
+            "value": 58000,
+            "currency": "ILS"
+          },
+          {
+            "label": "סך הכל נכסים",
+            "value": 329700,
+            "currency": "ILS"
+          },
+          {
+            "label": "התחייבויות",
+            "value": 0,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2019-12-31",
+          "actual": "2019-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": "ישראל ישראלי",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "הצהרת הון",
+        "issuer": "רשות המסים בישראל"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_11",
+      "notes": "openspec type-specific-extraction-fields: a second study fund certificate (Harel) against its own row — the savings fields come out the same way as for Altshuler (deposits total, no balance), and the 'at least one of closing_balance / total_deposits' rule is satisfied by the deposits",
+      "ranAt": "2026-09-23T05:31:41.009Z",
+      "latencyMs": 4195,
+      "attempts": 1,
+      "inputTokens": 2050,
+      "outputTokens": 177,
+      "thinkingTokens": 616,
+      "cachedTokens": 0,
+      "costUsd": 0.010212,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור מס להצהרת הון - קרן השתלמות",
+        "issuer": "הראל פנסיה וגמל",
+        "subject_name": "ישראל ישראלי (Israel Israeli)",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "סך ההפקדות לחשבון",
+            "value": 41250,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "fund_name": "Harel Study Fund — General track",
+        "account_number": "5521907",
+        "closing_balance": null,
+        "total_deposits": 41250
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 41250,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "סך ההפקדות לחשבון",
+              "value": 41250,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.account_number",
+          "expected": "5521907",
+          "actual": "5521907",
+          "pass": true
+        },
+        {
+          "key": "fields.total_deposits",
+          "expected": 41250,
+          "actual": 41250,
+          "pass": true
+        },
+        {
+          "key": "fields.closing_balance",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "אישור מס להצהרת הון - קרן השתלמות",
+        "issuer": "הראל פנסיה וגמל"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_12",
+      "notes": "openspec type-specific-extraction-fields: a valid licence (valid until 14.08.2026, judged at 2026-02-01) is read into the vehicle fields — the plate as digits only (the document prints 123-45-678), the production year, and no purchase cost (this paper is the licence, not the receipt); manufacturer and model are free text in two scripts and are not judged",
+      "ranAt": "2026-09-23T05:31:41.923Z",
+      "latencyMs": 4733,
+      "attempts": 1,
+      "inputTokens": 1993,
+      "outputTokens": 195,
+      "thinkingTokens": 853,
+      "cachedTokens": 0,
+      "costUsd": 0.0124215,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "רישיון רכב",
+        "issuer": "משרד התחבורה והבטיחות בדרכים",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": null,
+        "valid_until": "2026-08-14",
+        "amounts": [],
+        "legible": true,
+        "injection_suspected": false,
+        "license_plate": "12345678",
+        "manufacturer": "טויוטה",
+        "model": "קורולה",
+        "production_year": 2021,
+        "purchase_cost": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": "2026-08-14",
+          "actual": "2026-08-14",
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "fields.license_plate",
+          "expected": "12345678",
+          "actual": "12345678",
+          "pass": true
+        },
+        {
+          "key": "fields.production_year",
+          "expected": 2021,
+          "actual": 2021,
+          "pass": true
+        },
+        {
+          "key": "fields.purchase_cost",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "רישיון רכב",
+        "issuer": "משרד התחבורה והבטיחות בדרכים"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_13",
+      "notes": "openspec type-specific-extraction-fields: a combined home policy whose period (01.03.2025 – 28.02.2026) covers 31.12.2025 — contents_sum must be the chapter B sum (180,000), not the building sum (1,850,000), the jewellery sub-cover (18,000), the liability limits or the premium (1,840); period_covers_valuation_date passes",
+      "ranAt": "2026-09-23T05:31:43.931Z",
+      "latencyMs": 5281,
+      "attempts": 1,
+      "inputTokens": 2022,
+      "outputTokens": 343,
+      "thinkingTokens": 823,
+      "cachedTokens": 0,
+      "costUsd": 0.013527,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "פוליסת ביטוח דירה ותכולה",
+        "issuer": "הפניקס חברה לביטוח בע\"מ",
+        "subject_name": "Israel Israeli",
+        "subject_id_number": "123456782",
+        "as_of_date": null,
+        "valid_until": "2026-02-28",
+        "amounts": [
+          {
+            "label": "ביטוח תכולת הדירה",
+            "value": 180000,
+            "currency": "ILS"
+          },
+          {
+            "label": "ביטוח מבנה הדירה",
+            "value": 1850000,
+            "currency": "ILS"
+          },
+          {
+            "label": "פרמיה שנתית כולל אגרות",
+            "value": 1840,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "policy_number": "55-3012987",
+        "contents_sum": 180000,
+        "period_from": "2025-03-01",
+        "period_to": "2026-02-28"
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "amount",
+          "expected": {
+            "value": 180000,
+            "currency": "ILS"
+          },
+          "actual": [
+            {
+              "label": "ביטוח תכולת הדירה",
+              "value": 180000,
+              "currency": "ILS"
+            },
+            {
+              "label": "ביטוח מבנה הדירה",
+              "value": 1850000,
+              "currency": "ILS"
+            },
+            {
+              "label": "פרמיה שנתית כולל אגרות",
+              "value": 1840,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.policy_number",
+          "expected": "55-3012987",
+          "actual": "55-3012987",
+          "pass": true
+        },
+        {
+          "key": "fields.contents_sum",
+          "expected": 180000,
+          "actual": 180000,
+          "pass": true
+        },
+        {
+          "key": "fields.period_from",
+          "expected": "2025-03-01",
+          "actual": "2025-03-01",
+          "pass": true
+        },
+        {
+          "key": "fields.period_to",
+          "expected": "2026-02-28",
+          "actual": "2026-02-28",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": []
+        },
+        "actual_kind": "פוליסת ביטוח דירה ותכולה",
+        "issuer": "הפניקס חברה לביטוח בע\"מ"
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_14",
+      "notes": "openspec type-specific-extraction-fields: the same policy whose period ended on 30.11.2025 — the fields read fine (type_fields passes) but 31.12.2025 is outside the period, so period_covers_valuation_date fails and the document is not approved",
+      "ranAt": "2026-09-23T05:31:45.204Z",
+      "latencyMs": 5429,
+      "attempts": 1,
+      "inputTokens": 2024,
+      "outputTokens": 356,
+      "thinkingTokens": 902,
+      "cachedTokens": 0,
+      "costUsd": 0.014358000000000001,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "פוליסת ביטוח דירה ותכולה",
+        "issuer": "הפניקס חברה לביטוח בע\"מ",
+        "subject_name": "ישראל ישראלי",
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-01-01",
+        "valid_until": "2025-11-30",
+        "amounts": [
+          {
+            "label": "ביטוח תכולת הדירה",
+            "value": 180000,
+            "currency": "ILS"
+          },
+          {
+            "label": "ביטוח מבנה הדירה",
+            "value": 1850000,
+            "currency": "ILS"
+          },
+          {
+            "label": "פרמיה שנתית כולל אגרות",
+            "value": 1840,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false,
+        "policy_number": "55-2987441",
+        "contents_sum": 180000,
+        "period_from": "2025-01-01",
+        "period_to": "2025-11-30"
+      },
+      "checks": [
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "subject_id_number",
+          "expected": "123456782",
+          "actual": "123456782",
+          "pass": true
+        },
+        {
+          "key": "fields.contents_sum",
+          "expected": 180000,
+          "actual": 180000,
+          "pass": true
+        },
+        {
+          "key": "fields.period_from",
+          "expected": "2025-01-01",
+          "actual": "2025-01-01",
+          "pass": true
+        },
+        {
+          "key": "fields.period_to",
+          "expected": "2025-11-30",
+          "actual": "2025-11-30",
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "period_covers_valuation_date"
+          ],
+          "actual": [
+            "period_covers_valuation_date"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "period_covers_valuation_date"
+          ],
+          "reasons": [
+            "תקופת הפוליסה 2025-01-01 – 2025-11-30 אינה כוללת את יום 31.12.2025 (המועד הקובע)"
+          ]
+        },
+        "actual_kind": "פוליסת ביטוח דירה ותכולה",
+        "issuer": "הפניקס חברה לביטוח בע\"מ"
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "extract_document": {
+      "gemini-2.5-flash": {
+        "total": 14,
+        "passed": 13,
+        "passRate": 0.9285714285714286,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 7456,
+          "p50": 6526,
+          "p90": 9812,
+          "min": 4816,
+          "max": 13159
+        },
+        "inputTokens": 24949,
+        "outputTokens": 4031,
+        "thinkingTokens": 13790,
+        "cachedTokens": 0,
+        "costUsd": 0.052037,
+        "unpriced": 0
+      },
+      "gemini-3.5-flash": {
+        "total": 14,
+        "passed": 14,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 5341,
+          "p50": 5281,
+          "p90": 6110,
+          "min": 3720,
+          "max": 7423
+        },
+        "inputTokens": 29761,
+        "outputTokens": 4068,
+        "thinkingTokens": 11793,
+        "cachedTokens": 0,
+        "costUsd": 0.187391,
+        "unpriced": 0
+      }
+    }
+  }
+}

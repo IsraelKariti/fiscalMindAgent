@@ -15,8 +15,8 @@ import { sendVerificationProblemEmail } from '../declarationOfCapital/notifyAcco
 import { isQuarantined } from '../shared/fileEvidence.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { logger } from '../../util/logger.js';
-import { buildExtractionCall, checksFor } from './extractionCall.js';
-import { ExtractionSchema, runChecks, type ExtractedFields } from './verifyChecks.js';
+import { buildExtractionCall, checksFor, fieldsFor } from './extractionCall.js';
+import { extractionSchemaFor, runChecks, typeFieldValue, type ExtractedAnswer } from './verifyChecks.js';
 import * as clients from '../../db/queries/clients.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { fetchItemDetails } from '../shared/mondayData.js';
@@ -181,10 +181,12 @@ export async function verifyCollectedDocument(
   }
 
   const checks = checksFor(doc);
+  const { fields: typeFields, fieldsAnyOf } = fieldsFor(doc);
   const taxYear = capitalClientTaxYear(client, now);
 
-  // Extract — the isolated "OCR" read, forced through the schema.
-  let extracted: ExtractedFields;
+  // Extract — the isolated "OCR" read, forced through the schema (the base
+  // schema plus the type's own fields, openspec `document-extraction`).
+  let extracted: ExtractedAnswer;
   try {
     const bytes = await streamToBuffer((await downloadBlob(file.blob_key)).stream);
     const { text, usage, model } = await runLlmCall(
@@ -194,7 +196,7 @@ export async function verifyCollectedDocument(
     if (client.user_id) {
       await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
     }
-    extracted = ExtractionSchema.parse(JSON.parse(text));
+    extracted = extractionSchemaFor(typeFields).parse(JSON.parse(text));
   } catch (err) {
     // Transient extraction failure (model/storage hiccup): leave the row as-is
     // with no verdict — it does not burn an attempt, and the accountant can
@@ -225,7 +227,12 @@ export async function verifyCollectedDocument(
     now,
     checks,
     documentName: doc.name,
+    fields: typeFields,
+    fieldsAnyOf,
   });
+  // The type's fields with their Hebrew labels, so the step modal shows the
+  // values by name; absent for a type that declares none.
+  const labelledFields = typeFields?.map((f) => ({ key: f.key, label: f.labelHe, value: typeFieldValue(extracted, f) }));
   // Step verify_extraction: the code checks after extract_document, one row per
   // attempt with the per-check table (reasons are our own Hebrew strings).
   recordAudit({
@@ -243,6 +250,7 @@ export async function verifyCollectedDocument(
       attempt: attempts + 1,
       result: verdict.passed,
       issuer: extracted.issuer,
+      ...(labelledFields && labelledFields.length > 0 ? { fields: labelledFields } : {}),
       checks: verdict.checks.map((c) => ({ key: c.key, passed: c.passed, note: c.reason, observed: c.observed, expected: c.expected })),
       reasons: verdict.reasons,
     },

@@ -25,12 +25,13 @@ import { identifyInstitution } from '../src/agents/declarationOfCapital/institut
 import { buildFileSplitCall } from '../src/agents/declarationOfCapital/splitFile.js';
 import { FileSplitSchema, validateFileSplit, type FileSplit } from '../src/agents/declarationOfCapital/splitFileRules.js';
 import { readPdfPageCount } from '../src/agents/declarationOfCapital/pdfPages.js';
-import { buildExtractionCall, checksFor } from '../src/agents/declarationOfCapital/extractionCall.js';
+import { buildExtractionCall, checksFor, fieldsFor } from '../src/agents/declarationOfCapital/extractionCall.js';
 import {
-  ExtractionSchema,
+  extractionSchemaFor,
   namesLooselyMatch,
   runChecks,
-  type ExtractedFields,
+  typeFieldValue,
+  type ExtractedAnswer,
 } from '../src/agents/declarationOfCapital/verifyChecks.js';
 import { buildDecisionCall } from '../src/agents/declarationOfCapital/decide.js';
 import {
@@ -446,6 +447,12 @@ interface VerifyDocumentCase {
     subject_id_number?: string;
     subject_name_matches?: boolean;
     amount?: { value: number; currency: string };
+    /**
+     * The type's own extraction fields (catalog `fields`), by key: a number
+     * within 0.005, a date after the same normalisation as as_of_date, text
+     * and years exactly; null must come back null. Unlisted keys are not judged.
+     */
+    fields?: Record<string, string | number | null | (string | number | null)[]>;
     /** What runChecks() must decide; every key in failed_keys must be among the failures. */
     verdict?: { passed: boolean; failed_keys?: string[] };
   };
@@ -462,12 +469,13 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
   load: () => readCases('extract_document'),
   build(c, ctx) {
     const spec = buildExtractionCall({ doc: c.doc, bytes: readFile(c.file), contentType: c.contentType, filename: c.filename, taxYear: ctx.taxYear });
-    return { spec, parse: (text) => ExtractionSchema.parse(JSON.parse(text)) };
+    return { spec, parse: (text) => extractionSchemaFor(fieldsFor(c.doc).fields).parse(JSON.parse(text)) };
   },
   judge(c, output, ctx) {
-    const data = output as ExtractedFields;
+    const data = output as ExtractedAnswer;
     const e = c.expected;
     const checks: Check[] = [];
+    const { fields: typeFields, fieldsAnyOf } = fieldsFor(c.doc);
     if (e.is_expected_type !== undefined) checks.push(eq('is_expected_type', e.is_expected_type, data.is_expected_type));
     if (e.legible !== undefined) checks.push(eq('legible', e.legible, data.legible));
     if (e.injection_suspected !== undefined) checks.push(eq('injection_suspected', e.injection_suspected, data.injection_suspected));
@@ -492,6 +500,25 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
       const hit = data.amounts.find((x) => Math.abs(x.value - want.value) <= 0.005 && x.currency.toUpperCase() === want.currency.toUpperCase());
       checks.push({ key: 'amount', expected: e.amount, actual: data.amounts, pass: hit !== undefined });
     }
+    // The type's own fields, read the way runChecks reads them (typeFieldValue).
+    for (const [key, wanted] of Object.entries(e.fields ?? {})) {
+      const field = typeFields?.find((f) => f.key === key);
+      if (!field) {
+        checks.push({ key: `fields.${key}`, expected: wanted, actual: undefined, pass: false });
+        continue;
+      }
+      const got = typeFieldValue(data, field);
+      const matches = (want: string | number | null): boolean =>
+        want === null
+          ? got === null
+          : field.kind === 'number' || field.kind === 'year'
+            ? typeof got === 'number' && typeof want === 'number' && Math.abs(got - want) <= (field.kind === 'number' ? 0.005 : 0)
+            : field.kind === 'date'
+              ? dateOrNull(got) === want
+              : got === want;
+      const pass = Array.isArray(wanted) ? wanted.some(matches) : matches(wanted);
+      checks.push({ key: `fields.${key}`, expected: wanted, actual: data[key], pass });
+    }
     // The deterministic verdict the app would reach with these fields (extract_document's code half).
     const verdict = runChecks(data, {
       clientName: c.client.name,
@@ -499,6 +526,9 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
       taxYear: ctx.taxYear,
       now: new Date(ctx.now),
       checks: checksFor(c.doc),
+      documentName: c.doc.name,
+      fields: typeFields,
+      fieldsAnyOf,
     });
     const failedKeys = verdict.checks.filter((x) => !x.passed).map((x) => x.key);
     if (e.verdict) {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import type { VerificationChecks } from './catalog.js';
+import type { ExtractionField, VerificationChecks } from './catalog.js';
 import { maskId } from '../shared/gateChecks.js';
 
 /**
@@ -12,8 +12,11 @@ import { maskId } from '../shared/gateChecks.js';
  * them to the client) and to the workspace UI.
  */
 
-/** What the extraction Gemini call returns (schema in verifyDocument.ts). */
-export interface ExtractedFields {
+/**
+ * The common fields every extraction answer carries (a type alias, not an
+ * interface, so a value of this type also satisfies ExtractedAnswer below).
+ */
+export type ExtractedFields = {
   /** The file's contents actually are a document of the expected type. */
   is_expected_type: boolean;
   /** What the document actually is, from its contents. */
@@ -32,7 +35,7 @@ export interface ExtractedFields {
   amounts: { label: string; value: number; currency: string }[];
   legible: boolean;
   injection_suspected: boolean;
-}
+};
 
 /**
  * The extraction contract lives here in the pure module (with ExtractedFields
@@ -55,6 +58,72 @@ export const ExtractionSchema = z.object({
 
 export const extractionJsonSchema = zodToJsonSchema(ExtractionSchema) as Record<string, unknown>;
 delete extractionJsonSchema.$schema;
+
+/**
+ * The answer for a type with extra fields: the common fields plus one flat
+ * key per declared field (openspec `document-extraction`). Type-field values
+ * are read through typeFieldValue(), which normalises them by kind.
+ */
+export type ExtractedAnswer = ExtractedFields & { [typeFieldKey: string]: unknown };
+
+/** A normalised type-field value: text/date as string, number/year as number, absent as null. */
+export type TypeFieldValue = string | number | null;
+
+function zodForField(field: ExtractionField) {
+  switch (field.kind) {
+    case 'number':
+      return z.number().nullable();
+    case 'year':
+      return z.number().int().nullable();
+    default:
+      return z.string().nullable();
+  }
+}
+
+/** The base schema extended with the type's fields; the base schema object itself when there are none. */
+export function extractionSchemaFor(fields: readonly ExtractionField[] | undefined): z.ZodType<ExtractedAnswer, z.ZodTypeDef, unknown> {
+  if (!fields || fields.length === 0) return ExtractionSchema as unknown as z.ZodType<ExtractedAnswer, z.ZodTypeDef, unknown>;
+  const extended = ExtractionSchema.extend(Object.fromEntries(fields.map((f) => [f.key, zodForField(f)])));
+  return extended as unknown as z.ZodType<ExtractedAnswer, z.ZodTypeDef, unknown>;
+}
+
+/** JSON schema for the model (`$schema` removed); byte-identical to extractionJsonSchema when there are no fields. */
+export function extractionJsonSchemaFor(fields: readonly ExtractionField[] | undefined): Record<string, unknown> {
+  if (!fields || fields.length === 0) return extractionJsonSchema;
+  const schema = zodToJsonSchema(extractionSchemaFor(fields)) as Record<string, unknown>;
+  delete schema.$schema;
+  return schema;
+}
+
+/**
+ * The value the model returned for one declared field, normalised by kind.
+ * Models put "" or "/" where the schema says null (the harness tolerates the
+ * same for dates), so an empty text is null; 0 stays 0.
+ */
+export function typeFieldValue(answer: ExtractedAnswer, field: ExtractionField): TypeFieldValue {
+  const raw = answer[field.key];
+  if (raw === null || raw === undefined) return null;
+  if (field.kind === 'number' || field.kind === 'year') {
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string' && raw.trim() !== '' && Number.isFinite(Number(raw))) return Number(raw);
+    return typeof raw === 'string' ? Number.NaN : null;
+  }
+  if (typeof raw !== 'string') return raw === undefined ? null : String(raw);
+  const text = raw.trim();
+  if (text === '' || text === '/') return null;
+  return text;
+}
+
+/**
+ * The prompt lines listing the type's fields — appended to the type context
+ * so the model reads each declared key; '' when the type declares none.
+ */
+export function typeFieldsPromptBlock(fields: readonly ExtractionField[] | undefined, fieldsAnyOf?: readonly string[]): string {
+  if (!fields || fields.length === 0) return '';
+  const lines = fields.map((f) => `- ${f.key}: ${f.promptHe}`);
+  const anyOf = fieldsAnyOf && fieldsAnyOf.length > 0 ? `לפחות אחד מהשדות ${fieldsAnyOf.join(' / ')} חייב להימצא במסמך.\n` : '';
+  return `שדות ייעודיים לסוג מסמך זה — חלץ כל אחד מהם לשדה הנקוב, או null אם אינו מופיע במסמך:\n${lines.join('\n')}\n${anyOf}`;
+}
 
 // Same isolation doctrine as analyzeFile: the model sees the file bytes and
 // nothing of the conversation, is told the content is untrusted, and reports
@@ -93,6 +162,10 @@ export interface CheckContext {
   checks: VerificationChecks;
   /** The required document's name (checklist row) — the expected_type check's reference, when known. */
   documentName?: string | null;
+  /** The type's extra extraction fields (catalog `fields`) — drives the type_fields check. */
+  fields?: readonly ExtractionField[];
+  /** Keys of which at least one must be read (catalog `fieldsAnyOf`). */
+  fieldsAnyOf?: readonly string[];
 }
 
 export interface CheckResult {
@@ -169,12 +242,23 @@ function renderAmount(a: { label: string; value: number; currency: string }): st
   return [a.label.trim(), value, a.currency.trim()].filter(Boolean).join(' ');
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+/** A production year below this is not a car on Israeli roads. */
+const MIN_PLAUSIBLE_YEAR = 1950;
+
+/** `יתרת עו"ש: 52,340.55` / `שנת ייצור: 2021` / `לא נמצא` — one type-field value as the trace shows it. */
+function renderTypeFieldValue(value: TypeFieldValue, kind: ExtractionField['kind']): string {
+  if (value === null) return 'לא נמצא';
+  if (typeof value === 'number') return Number.isFinite(value) && kind !== 'year' ? value.toLocaleString('en-US') : String(value);
+  return value;
+}
+
 /** Local-time "YYYY-MM-DD" — comparable lexicographically with extracted dates. */
 function localDateString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVerdict {
+export function runChecks(fields: ExtractedAnswer, ctx: CheckContext): ChecksVerdict {
   const checks: CheckResult[] = [];
   const add = (key: string, passed: boolean, reason: string, observed: string | null, expected: string | null = null) =>
     checks.push({ key, passed, reason: passed ? null : reason, observed, expected });
@@ -290,6 +374,60 @@ export function runChecks(fields: ExtractedFields, ctx: CheckContext): ChecksVer
       else if (tooLarge) problem = `הסכום "${tooLarge.label}" (${renderAmount(tooLarge)}) גדול מהתקרה הסבירה (${MAX_SANE_AMOUNT.toLocaleString('en-US')})`;
     }
     add('amounts', problem === null, problem ?? '', observed);
+  }
+
+  // Type-specific fields (openspec `document-extraction`): every required
+  // field read and well formed, and at least one of the "any of" group.
+  const typeFields = ctx.fields ?? [];
+  if (typeFields.length > 0) {
+    const read = typeFields.map((field) => ({ field, value: typeFieldValue(fields, field) }));
+    const shown = read
+      .slice(0, MAX_AMOUNTS_SHOWN)
+      .map(({ field, value }) => `${field.labelHe}: ${renderTypeFieldValue(value, field.kind)}`)
+      .join(' · ');
+    const observed = read.length > MAX_AMOUNTS_SHOWN ? `${shown} (+${read.length - MAX_AMOUNTS_SHOWN})` : shown;
+    let problem: string | null = null;
+    for (const { field, value } of read) {
+      if (value === null) {
+        if (field.required) problem = `השדה "${field.labelHe}" לא נמצא במסמך`;
+      } else if (field.kind === 'date') {
+        if (typeof value !== 'string' || !DATE_RE.test(value)) problem = `השדה "${field.labelHe}" אינו תאריך בפורמט YYYY-MM-DD (${value})`;
+      } else if (field.kind === 'year') {
+        if (typeof value !== 'number' || !Number.isInteger(value) || value < MIN_PLAUSIBLE_YEAR || value > ctx.taxYear + 1) {
+          problem = `השדה "${field.labelHe}" אינו שנה סבירה (${value})`;
+        }
+      } else if (field.kind === 'number') {
+        if (typeof value !== 'number' || !Number.isFinite(value)) problem = `השדה "${field.labelHe}" אינו מספר`;
+      } else if (field.pattern && (typeof value !== 'string' || !field.pattern.test(value))) {
+        problem = field.patternHintHe ?? `השדה "${field.labelHe}" אינו בפורמט הנדרש (${value})`;
+      }
+      if (problem) break;
+    }
+    const anyOf = ctx.fieldsAnyOf ?? [];
+    if (problem === null && anyOf.length > 0 && read.every(({ field, value }) => !anyOf.includes(field.key) || value === null)) {
+      const labels = anyOf.map((key) => typeFields.find((f) => f.key === key)?.labelHe ?? key);
+      problem = `אף אחד מהשדות ${labels.map((l) => `"${l}"`).join(' / ')} לא נמצא במסמך`;
+    }
+    add('type_fields', problem === null, problem ?? '', observed);
+
+    // The declared period must cover the valuation date (a contents policy).
+    // Judged only when both dates were read well formed — a missing required
+    // date already fails type_fields above.
+    const period = ctx.checks.periodCoversValuationDate;
+    if (period) {
+      const from = read.find((r) => r.field.key === period.from)?.value;
+      const to = read.find((r) => r.field.key === period.to)?.value;
+      if (typeof from === 'string' && DATE_RE.test(from) && typeof to === 'string' && DATE_RE.test(to)) {
+        const expected = `${ctx.taxYear}-12-31`;
+        add(
+          'period_covers_valuation_date',
+          from <= expected && expected <= to,
+          `תקופת הפוליסה ${from} – ${to} אינה כוללת את יום 31.12.${ctx.taxYear} (המועד הקובע)`,
+          `${from} – ${to}`,
+          expected,
+        );
+      }
+    }
   }
 
   // client_id_on_file is informational: it is listed, never enforced.

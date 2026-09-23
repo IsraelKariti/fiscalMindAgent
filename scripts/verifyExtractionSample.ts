@@ -3,13 +3,8 @@ import path from 'node:path';
 import { env } from '../src/config/env.js';
 import { generateWithRetry, usageFromResponse } from '../src/gemini/generate.js';
 import { getCatalogType } from '../src/agents/declarationOfCapital/catalog.js';
-import {
-  EXTRACTION_PROMPT,
-  ExtractionSchema,
-  extractionJsonSchema,
-  runChecks,
-} from '../src/agents/declarationOfCapital/verifyChecks.js';
-import { sanitizeInline } from '../src/agents/shared/promptSafety.js';
+import { buildExtractionCall, checksFor, fieldsFor } from '../src/agents/declarationOfCapital/extractionCall.js';
+import { extractionSchemaFor, runChecks } from '../src/agents/declarationOfCapital/verifyChecks.js';
 
 /**
  * Standalone extraction harness — one Gemini call, no DB/Redis/blob access:
@@ -62,53 +57,36 @@ async function main(): Promise<void> {
     console.error(`unknown catalog type: ${typeKey}`);
     process.exit(2);
   }
-  const checks = catalogType.checks;
   const now = new Date();
   const taxYear = Number(flags.get('year') ?? now.getFullYear() - 1);
   const year = String(taxYear);
   const expectedName =
     flags.get('name') ?? DEFAULT_INSTANCE_NAME[typeKey] ?? catalogType.nameHe.replaceAll('{{tax_year}}', year);
-  const typeDescription = catalogType.descriptionHe.replaceAll('{{tax_year}}', year);
 
   const bytes = await readFile(filePath);
   const mime = MIME[path.extname(filePath).toLowerCase()] ?? 'application/pdf';
 
-  // Prompt assembly mirrors verifyDocument.ts exactly; the instance
-  // description is '(ללא תיאור)' since the harness has no resolved row.
-  const prompt = EXTRACTION_PROMPT.replace('{{expected_name}}', expectedName)
-    .replace('{{expected_description}}', '(ללא תיאור)')
-    .replace(
-      '{{type_context}}',
-      `מסמכים קבילים לסוג זה: ${typeDescription}\n${catalogType.analysisHintHe ? `${catalogType.analysisHintHe}\n` : ''}`,
-    )
-    .replace(
-      '{{date_context}}',
-      checks.asOfDate
-        ? `מסמך זה תלוי-תאריך: היתרות בו אמורות להתייחס ליום 31.12.${taxYear} (המועד הקובע להצהרת ההון).`
-        : '',
-    )
-    .replace(
-      '{{validity_context}}',
-      checks.notExpired
-        ? 'מסמך מהסוג הזה עשוי לשאת תאריך תוקף משלו — אתר וחלץ בקפידה את שדה "בתוקף עד" (valid_until).'
-        : '',
-    )
-    .replace('{{filename}}', sanitizeInline(path.basename(filePath), 150));
+  // The exact production request (the type's own field lines and schema
+  // entries included). The instance description is null since the harness
+  // has no resolved row, so the builder restates the catalog description.
+  const doc = { name: expectedName, description: null, type_key: typeKey };
+  const spec = buildExtractionCall({ doc, bytes, contentType: mime, filename: path.basename(filePath), taxYear });
+  const { fields, fieldsAnyOf } = fieldsFor(doc);
 
   const model = flags.get('model') ?? env.GEMINI_MODEL;
   console.log(`extracting with ${model}: ${filePath} as type '${typeKey}' (tax year ${taxYear})`);
   const response = await generateWithRetry({
     model,
-    contents: [
-      {
-        role: 'user',
-        parts: [{ inlineData: { mimeType: mime, data: bytes.toString('base64') } }, { text: prompt }],
-      },
-    ],
-    config: { responseMimeType: 'application/json', responseJsonSchema: extractionJsonSchema, temperature: 0 },
+    contents: spec.contents,
+    config: {
+      responseMimeType: 'application/json',
+      responseJsonSchema: spec.responseJsonSchema,
+      temperature: spec.temperature,
+      ...(spec.systemInstruction !== undefined ? { systemInstruction: spec.systemInstruction } : {}),
+    },
   });
   if (!response.text) throw new Error('extraction returned no text');
-  const extracted = ExtractionSchema.parse(JSON.parse(response.text));
+  const extracted = extractionSchemaFor(fields).parse(JSON.parse(response.text));
   console.log('\n--- extracted ---');
   console.log(JSON.stringify(extracted, null, 2));
   console.log('\n--- usage ---');
@@ -119,7 +97,10 @@ async function main(): Promise<void> {
     credentialIdNumber: flags.get('id') ?? null,
     taxYear,
     now,
-    checks,
+    checks: checksFor(doc),
+    documentName: expectedName,
+    fields,
+    fieldsAnyOf,
   });
   console.log('\n--- verdict ---');
   console.log(JSON.stringify(verdict, null, 2));

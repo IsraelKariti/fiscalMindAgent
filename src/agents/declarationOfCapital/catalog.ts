@@ -30,6 +30,37 @@ export interface VerificationChecks {
    * Defaults to false.
    */
   notExpired?: boolean;
+  /**
+   * The document states a validity period, read into the two named date
+   * fields (declared in `fields`), and 31.12.{{tax_year}} must fall inside it
+   * (a contents-insurance policy). Defaults to undefined (no such check).
+   */
+  periodCoversValuationDate?: { from: string; to: string };
+}
+
+/** How a type-specific extraction field is typed in the model's answer (openspec `document-extraction`). */
+export type FieldKind = 'text' | 'number' | 'date' | 'year';
+
+/**
+ * One extra field a document type asks the extractor to read, beside the ten
+ * common fields. The same declaration yields the answer schema entry, the
+ * prompt line, the `type_fields` code check, the trace label and the docs —
+ * so none of them can drift from the others.
+ */
+export interface ExtractionField {
+  /** Stable key in the answer object; must not collide with a common field key. */
+  key: string;
+  kind: FieldKind;
+  /** Short Hebrew label shown in the trace and the documentation. */
+  labelHe: string;
+  /** What to read and where it sits on the document — one prompt line for the model. */
+  promptHe: string;
+  /** A null value fails the `type_fields` check. */
+  required: boolean;
+  /** Text fields only: the value must match (after trimming). */
+  pattern?: RegExp;
+  /** The `type_fields` note when the pattern fails. */
+  patternHintHe?: string;
 }
 
 export interface CapitalDocumentType {
@@ -65,6 +96,16 @@ export interface CapitalDocumentType {
    */
   institutionBound?: boolean;
   checks: VerificationChecks;
+  /**
+   * Type-specific extraction fields, merged into the common answer schema as
+   * one flat object and listed in the prompt. Absent = the base schema only.
+   */
+  fields?: readonly ExtractionField[];
+  /**
+   * At least one of these field keys must be read (a type whose items are
+   * different papers — a vehicle licence or its purchase receipt).
+   */
+  fieldsAnyOf?: readonly string[];
 }
 
 /**
@@ -75,6 +116,44 @@ export interface CapitalDocumentType {
  */
 const SAVINGS_CERTIFICATE_HINT_HE =
   'שתי צורות קבילות למסמך, לכל קופה/קרן בנפרד: (א) האישור הייעודי — עמוד או מקטע שכותרתו "אישור מס להצהרת הון" (לעיתים תחת כותרת "אישור מס עבור קרן השתלמות" / "אישור מס עבור קופת גמל להשקעה"), המופק מהאזור האישי באתר הגוף המנהל; מופיעים בו שם העמית, מספר חשבון, מספר תיק ניכויים ושם הקופה/הקרן, עם הנוסח "הרינו לאשר כי סך ההפקדות... מיום ההפקדה הראשונה ועד ליום 31.12" של שנת המס. שים לב: אישור זה מאשר סך הפקדות מצטבר (לא יתרה צבורה), וסכום מאושר של 0 ש"ח הוא לגיטימי (למשל חשבון שרוקן) — חלץ גם אותו כסכום. (ב) העמוד בדוח השנתי המקוצר המציג את יתרת הכספים לסוף השנה ("יתרת הכספים בחשבונך נכון ל-31.12..." / "יתרת הכספים בחשבון בסוף השנה"). לעיתים קרובות שתי הצורות מגיעות בקובץ PDF אחד — האישור הייעודי כעמוד האחרון של הדוח השנתי — וזה קביל. אינו קביל: דוח רבעוני, או עמוד פירוט ההפקדות השנתי בלבד (טבלת "פירוט ההפקדות לחשבון") ללא יתרת סוף שנה וללא נוסח האישור.';
+
+/**
+ * Typed fields shared by the savings family — both acceptable forms carry the
+ * fund name and account number; the tax certificate states accumulated
+ * deposits, the annual-report page states the closing balance, so at least
+ * one of the two amounts must be read (fieldsAnyOf).
+ */
+const SAVINGS_FIELDS: readonly ExtractionField[] = [
+  {
+    key: 'fund_name',
+    kind: 'text',
+    labelHe: 'שם הקופה/הקרן',
+    promptHe: 'שם הקופה, הקרן או הפוליסה כפי שמודפס במסמך (למשל "קרן השתלמות אלטשולר שחם").',
+    required: true,
+  },
+  {
+    key: 'account_number',
+    kind: 'text',
+    labelHe: 'מספר חשבון',
+    promptHe: 'מספר החשבון או מספר הפוליסה של העמית בקופה, כפי שמודפס.',
+    required: true,
+  },
+  {
+    key: 'closing_balance',
+    kind: 'number',
+    labelHe: 'יתרה ליום 31.12',
+    promptHe: 'יתרת הכספים בחשבון ליום 31.12 של שנת המס, מהעמוד בדוח השנתי המקוצר ("יתרת הכספים בחשבונך נכון ל-31.12"). null אם המסמך הוא האישור הייעודי בלבד ואינו מציג יתרה.',
+    required: false,
+  },
+  {
+    key: 'total_deposits',
+    kind: 'number',
+    labelHe: 'סך ההפקדות המצטבר',
+    promptHe: 'סך ההפקדות המצטבר מיום ההפקדה הראשונה ועד 31.12 של שנת המס, מהאישור הייעודי ("אישור מס להצהרת הון"). 0 הוא ערך לגיטימי. null אם המסמך אינו כולל את האישור.',
+    required: false,
+  },
+];
+const SAVINGS_FIELDS_ANY_OF: readonly string[] = ['closing_balance', 'total_deposits'];
 
 export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
   {
@@ -91,6 +170,29 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     multiInstance: true,
     dateDependent: true,
     checks: { subjectMatch: true, asOfDate: true, amounts: true },
+    fields: [
+      {
+        key: 'account_number',
+        kind: 'text',
+        labelHe: 'מספר חשבון',
+        promptHe: 'מספר החשבון (עם מספר הסניף, כפי שמודפס באישור).',
+        required: true,
+      },
+      {
+        key: 'current_account_balance',
+        kind: 'number',
+        labelHe: 'יתרת עו"ש ליום 31.12',
+        promptHe: 'יתרת חשבון העו"ש ליום 31.12 של שנת המס. יתרה אפסית או שלילית (משיכת יתר) היא ערך לגיטימי — חלץ אותה כמות שהיא, עם הסימן.',
+        required: true,
+      },
+      {
+        key: 'deposits_balance',
+        kind: 'number',
+        labelHe: 'יתרת פיקדונות וחסכונות',
+        promptHe: 'סך יתרות הפיקדונות והחסכונות של החשבון ליום 31.12 של שנת המס. null אם האישור אינו מציג פיקדונות.',
+        required: false,
+      },
+    ],
   },
   {
     key: 'securities_portfolio',
@@ -106,6 +208,29 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     multiInstance: true,
     dateDependent: true,
     checks: { subjectMatch: true, asOfDate: true, amounts: true },
+    fields: [
+      {
+        key: 'account_number',
+        kind: 'text',
+        labelHe: 'מספר חשבון/תיק',
+        promptHe: 'מספר החשבון או התיק בבית ההשקעות או בבנק, כפי שמודפס בפרטי החשבון.',
+        required: true,
+      },
+      {
+        key: 'portfolio_value',
+        kind: 'number',
+        labelHe: 'שווי התיק ליום 31.12',
+        promptHe: 'שווי נכסים נטו (NAV) או שווי התיק ליום 31.12 של שנת המס — מעמודת 31 בדצמבר של שנת המס בלבד, לא מעמודת ההשוואה לשנה הקודמת, ולא סיכומי רווח/הפסד או עמלות.',
+        required: true,
+      },
+      {
+        key: 'base_currency',
+        kind: 'text',
+        labelHe: 'מטבע הבסיס',
+        promptHe: 'מטבע הבסיס של החשבון שבו נקוב השווי, בקוד ISO (למשל "ILS", "USD"), מפרטי החשבון. אל תניח ש"ח.',
+        required: true,
+      },
+    ],
   },
   {
     key: 'pension_provident',
@@ -119,6 +244,8 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     multiInstance: true,
     dateDependent: true,
     checks: { subjectMatch: true, asOfDate: true, amounts: true },
+    fields: SAVINGS_FIELDS,
+    fieldsAnyOf: SAVINGS_FIELDS_ANY_OF,
   },
   {
     key: 'study_fund',
@@ -132,6 +259,8 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     multiInstance: true,
     dateDependent: true,
     checks: { subjectMatch: true, asOfDate: true, amounts: true },
+    fields: SAVINGS_FIELDS,
+    fieldsAnyOf: SAVINGS_FIELDS_ANY_OF,
   },
   {
     key: 'life_insurance_savings',
@@ -145,6 +274,8 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     multiInstance: true,
     dateDependent: true,
     checks: { subjectMatch: true, asOfDate: true, amounts: true },
+    fields: SAVINGS_FIELDS,
+    fieldsAnyOf: SAVINGS_FIELDS_ANY_OF,
   },
   {
     key: 'real_estate',
@@ -176,6 +307,22 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     multiInstance: true,
     dateDependent: true,
     checks: { subjectMatch: true, asOfDate: true, amounts: true },
+    fields: [
+      {
+        key: 'loan_number',
+        kind: 'text',
+        labelHe: 'מספר הלוואה/תיק',
+        promptHe: 'מספר ההלוואה או מספר התיק של המשכנתא, כפי שמודפס. null אם אינו מופיע.',
+        required: false,
+      },
+      {
+        key: 'principal_balance',
+        kind: 'number',
+        labelHe: 'יתרת קרן ליום 31.12',
+        promptHe: 'יתרת הקרן (יתרת החוב) בשורת 31.12 של שנת המס בלבד — לא יתרה של שנה אחרת מטבלה רב-שנתית, ולא תאריך ההפקה של המכתב.',
+        required: true,
+      },
+    ],
   },
   {
     key: 'loan_taken',
@@ -216,6 +363,48 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     multiInstance: true,
     dateDependent: false,
     checks: { subjectMatch: true, asOfDate: false, amounts: false, notExpired: true },
+    // A vehicle item is either the licence or the purchase paper, so no field
+    // is required on its own: a licence must yield the plate, a receipt the cost.
+    fields: [
+      {
+        key: 'license_plate',
+        kind: 'text',
+        labelHe: 'מספר רישוי',
+        promptHe: 'מספר הרכב (מספר הרישוי) מכותרת רישיון הרכב — ספרות בלבד, ללא מקפים ורווחים. null אם המסמך אינו רישיון רכב.',
+        required: false,
+        pattern: /^\d{7,8}$/,
+        patternHintHe: 'מספר הרישוי חייב להכיל 7 או 8 ספרות בלבד',
+      },
+      {
+        key: 'manufacturer',
+        kind: 'text',
+        labelHe: 'תוצר',
+        promptHe: 'שם היצרן ("תוצר") מגוף רישיון הרכב. null אם המסמך אינו רישיון רכב.',
+        required: false,
+      },
+      {
+        key: 'model',
+        kind: 'text',
+        labelHe: 'דגם',
+        promptHe: 'הדגם והכינוי המסחרי מגוף רישיון הרכב. null אם המסמך אינו רישיון רכב.',
+        required: false,
+      },
+      {
+        key: 'production_year',
+        kind: 'year',
+        labelHe: 'שנת ייצור',
+        promptHe: 'שנת הייצור — ארבע ספרות, משדה "שנת ייצור" או משנת "מועד עליה לכביש" ברישיון הרכב. null אם המסמך אינו רישיון רכב.',
+        required: false,
+      },
+      {
+        key: 'purchase_cost',
+        kind: 'number',
+        labelHe: 'עלות הרכישה',
+        promptHe: 'הסכום ששולם עבור הרכב, ממסמך הרכישה, מהקבלה או מהצהרת העלות של הלקוח. null אם המסמך הוא רישיון רכב.',
+        required: false,
+      },
+    ],
+    fieldsAnyOf: ['license_plate', 'purchase_cost'],
   },
   {
     key: 'contents_insurance',
@@ -230,7 +419,42 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
       'האם ביום הדוח הייתה ברשותך פוליסת ביטוח תכולה לדירה (כולל פוליסת דירה משולבת מבנה ותכולה)?',
     multiInstance: false,
     dateDependent: false,
-    checks: { subjectMatch: true, asOfDate: false, amounts: true },
+    checks: {
+      subjectMatch: true,
+      asOfDate: false,
+      amounts: true,
+      periodCoversValuationDate: { from: 'period_from', to: 'period_to' },
+    },
+    fields: [
+      {
+        key: 'policy_number',
+        kind: 'text',
+        labelHe: 'מספר פוליסה',
+        promptHe: 'מספר הפוליסה מהעמוד הראשון. null אם אינו מופיע.',
+        required: false,
+      },
+      {
+        key: 'contents_sum',
+        kind: 'number',
+        labelHe: 'סכום ביטוח התכולה',
+        promptHe: 'סכום ביטוח התכולה בלבד — משורת "ביטוח תכולת הדירה" במקטע פרק ב׳ (תכולה) בטבלת סכומי הביטוח. לא סכום ביטוח המבנה (פרק א׳), לא גבולות אחריות צד שלישי או חבות מעבידים, לא תת-כיסויים ולא הפרמיה.',
+        required: true,
+      },
+      {
+        key: 'period_from',
+        kind: 'date',
+        labelHe: 'תחילת תקופת הביטוח',
+        promptHe: 'תאריך תחילת תקופת הביטוח ("תקופת הביטוח: מ...") בפורמט YYYY-MM-DD.',
+        required: true,
+      },
+      {
+        key: 'period_to',
+        kind: 'date',
+        labelHe: 'סיום תקופת הביטוח',
+        promptHe: 'תאריך סיום תקופת הביטוח ("...עד") בפורמט YYYY-MM-DD.',
+        required: true,
+      },
+    ],
   },
   {
     key: 'business_ownership',

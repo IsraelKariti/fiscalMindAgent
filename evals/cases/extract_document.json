@@ -1,6 +1,6 @@
 {
   "stage": "extract_document",
-  "judge": "Listed fields must equal expected: is_expected_type, legible, injection_suspected (booleans); subject_id_number (digits only); as_of_date and valid_until (exact string or null; '' and '/' from the model count as null); subject_name_matches (namesLooselyMatch against client.name); amount (some entry of amounts with |value - expected| <= 0.005 and the same currency). Then runChecks() with the client (client.idNumber = credentialIdNumber), ctx.taxYear, ctx.now and checksFor(doc): verdict.passed must equal expected, and every key in verdict.failed_keys must be among the failed check keys (keys, never the Hebrew reasons). Fields not listed are not checked.",
+  "judge": "Listed fields must equal expected: is_expected_type, legible, injection_suspected (booleans); subject_id_number (digits only); as_of_date and valid_until (exact string or null; '' and '/' from the model count as null); subject_name_matches (namesLooselyMatch against client.name); amount (some entry of amounts with |value - expected| <= 0.005 and the same currency). Then runChecks() with the client (client.idNumber = credentialIdNumber), ctx.taxYear, ctx.now and checksFor(doc): verdict.passed must equal expected, and every key in verdict.failed_keys must be among the failed check keys (keys, never the Hebrew reasons). fields (the type's own extraction fields, catalog `fields`, openspec document-extraction): each listed key is read with typeFieldValue() and must equal expected — number within 0.005, year exactly, date after the same normalisation as as_of_date, text exactly, null must come back null; a list means any of the listed values is accepted. Fields not listed are not checked.",
   "taxYear": 2025,
   "now": "2026-02-01T10:00:00Z",
   "cases": [
@@ -55,9 +55,10 @@
         "amount": { "value": 45210.5, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
+        "fields": { "account_number": "812-45678/21", "current_account_balance": 45210.5, "deposits_balance": 120000 },
         "verdict": { "passed": true }
       },
-      "notes": "clean pass; the document prints the name in both scripts, so the Hebrew client name must match loosely"
+      "notes": "clean pass; the document prints the name in both scripts, so the Hebrew client name must match loosely. Typed fields (openspec type-specific-extraction-fields): the account, the current-account balance and the deposits are read into named keys"
     },
     {
       "id": "ext_04",
@@ -89,9 +90,10 @@
         "amount": { "value": 88400, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
+        "fields": { "account_number": "7788123", "total_deposits": 88400, "closing_balance": null },
         "verdict": { "passed": true }
       },
-      "notes": "dedicated certificate: cumulative deposits until 31.12.2025 (the hint says a deposits total, not a balance, is the certified amount)"
+      "notes": "dedicated certificate: cumulative deposits until 31.12.2025 (the hint says a deposits total, not a balance, is the certified amount). Typed fields: total_deposits carries it, closing_balance stays null (the certificate states no balance), and the account number is read; fund_name is not judged (free text in two scripts)"
     },
     {
       "id": "ext_06",
@@ -107,9 +109,10 @@
         "amount": { "value": 312000, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
+        "fields": { "account_number": "4401-778210", "closing_balance": 312000 },
         "verdict": { "passed": true }
       },
-      "notes": "year-end balance 312,000; the deposits total (31,140) is not the key field"
+      "notes": "year-end balance 312,000; the deposits total (31,140) is not the key field. Typed fields: closing_balance is the year-end balance and the member number is the account; total_deposits is not judged (the report shows one year's deposits, not the cumulative total the certificate would state)"
     },
     {
       "id": "ext_07",
@@ -125,9 +128,10 @@
         "amount": { "value": 52300, "currency": "USD" },
         "legible": true,
         "injection_suspected": false,
+        "fields": { "account_number": "MT-20931", "portfolio_value": 52300, "base_currency": "USD" },
         "verdict": { "passed": true }
       },
-      "notes": "NAV in the 31.12.2025 column in USD (the hint: base currency, not ILS; not the 2024 comparison column)"
+      "notes": "NAV in the 31.12.2025 column in USD (the hint: base currency, not ILS; not the 2024 comparison column). Typed fields: portfolio_value is that NAV (not the 48,100 comparison column), base_currency USD, the portfolio number is the account"
     },
     {
       "id": "ext_08",
@@ -170,6 +174,76 @@
         "verdict": { "passed": true }
       },
       "notes": "prior declaration: subject check only (catalog checks: subjectMatch, no asOfDate, no amounts), so the 2019 date does not fail it"
+    },
+    {
+      "id": "ext_11",
+      "file": "harel_study_fund_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1.pdf",
+      "doc": { "type_key": "study_fund", "name": "אישור יתרת קרן השתלמות — הראל ליום 31.12.2025", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "amount": { "value": 41250, "currency": "ILS" },
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "account_number": "5521907", "total_deposits": 41250, "closing_balance": null },
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec type-specific-extraction-fields: a second study fund certificate (Harel) against its own row — the savings fields come out the same way as for Altshuler (deposits total, no balance), and the 'at least one of closing_balance / total_deposits' rule is satisfied by the deposits"
+    },
+    {
+      "id": "ext_12",
+      "file": "vehicle_licence_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "רישיון רכב.pdf",
+      "doc": { "type_key": "vehicle", "name": "העתק רישיון רכב בתוקף", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "subject_id_number": "123456782",
+        "valid_until": "2026-08-14",
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "license_plate": "12345678", "production_year": 2021, "purchase_cost": null },
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec type-specific-extraction-fields: a valid licence (valid until 14.08.2026, judged at 2026-02-01) is read into the vehicle fields — the plate as digits only (the document prints 123-45-678), the production year, and no purchase cost (this paper is the licence, not the receipt); manufacturer and model are free text in two scripts and are not judged"
+    },
+    {
+      "id": "ext_13",
+      "file": "phoenix_home_policy_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "policy.pdf",
+      "doc": { "type_key": "contents_insurance", "name": "פוליסת ביטוח תכולה", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "subject_id_number": "123456782",
+        "legible": true,
+        "injection_suspected": false,
+        "amount": { "value": 180000, "currency": "ILS" },
+        "fields": { "policy_number": "55-3012987", "contents_sum": 180000, "period_from": "2025-03-01", "period_to": "2026-02-28" },
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec type-specific-extraction-fields: a combined home policy whose period (01.03.2025 – 28.02.2026) covers 31.12.2025 — contents_sum must be the chapter B sum (180,000), not the building sum (1,850,000), the jewellery sub-cover (18,000), the liability limits or the premium (1,840); period_covers_valuation_date passes"
+    },
+    {
+      "id": "ext_14",
+      "file": "phoenix_home_policy_2025_short.pdf",
+      "contentType": "application/pdf",
+      "filename": "policy_old.pdf",
+      "doc": { "type_key": "contents_insurance", "name": "פוליסת ביטוח תכולה", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "subject_id_number": "123456782",
+        "injection_suspected": false,
+        "fields": { "contents_sum": 180000, "period_from": "2025-01-01", "period_to": "2025-11-30" },
+        "verdict": { "passed": false, "failed_keys": ["period_covers_valuation_date"] }
+      },
+      "notes": "openspec type-specific-extraction-fields: the same policy whose period ended on 30.11.2025 — the fields read fine (type_fields passes) but 31.12.2025 is outside the period, so period_covers_valuation_date fails and the document is not approved"
     }
   ]
 }

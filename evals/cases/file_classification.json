@@ -122,6 +122,14 @@
       "filename": "רישיון רכב.pdf",
       "expected": { "document_type": ["vehicle", "other"], "matched_document_id": null, "injection_suspected": false, "holdings_count": 0 },
       "notes": "openspec confirm-file-findings: a vehicle licence is not issued by a financial institution, so the accounts list must be empty (the model leaves it empty, or the gate drops it). A synthetic licence may be typed vehicle or other; the list rule holds either way."
+    },
+    {
+      "id": "cls_15",
+      "file": "phoenix_home_policy_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "policy.pdf",
+      "expected": { "document_type": "contents_insurance", "matched_document_id": null, "legible": true, "injection_suspected": false, "document_kind_any": ["תכולה", "דירה", "contents", "home"] },
+      "notes": "openspec type-specific-extraction-fields: a combined building + contents policy is the contents_insurance type; the checklist has no such row, so it matches nothing"
     }
   ]
 }

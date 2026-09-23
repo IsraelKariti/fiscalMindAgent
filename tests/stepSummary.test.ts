@@ -94,6 +94,33 @@ test('document rows: evidence objects render as quotes, arrays as items, primiti
   ]);
 });
 
+test('verify_extraction: typed fields render by label, null as "not found"; checks and result stay with the header', () => {
+  const rows = stepSummaryOf('verify_extraction', {
+    clientName: 'דני',
+    name: BANK,
+    fileId: 'f1',
+    attempt: 1,
+    result: true,
+    issuer: 'בנק הפועלים',
+    fields: [
+      { key: 'account_number', label: 'מספר חשבון', value: '12-345-678' },
+      { key: 'current_account_balance', label: 'יתרת עו"ש ליום 31.12', value: 52340.55 },
+      { key: 'deposits_balance', label: 'יתרת פיקדונות וחסכונות', value: null },
+    ],
+    checks: [{ key: 'legible', passed: true, note: null, observed: 'קריא', expected: null }],
+    reasons: [],
+  });
+  assert.deepEqual(rows, [
+    { key: 'extracted_fields', items: ['מספר חשבון: 12-345-678', 'יתרת עו"ש ליום 31.12: 52,340.55', 'יתרת פיקדונות וחסכונות: לא נמצא'] },
+    { key: 'name', value: BANK },
+    { key: 'fileId', value: 'f1' },
+    { key: 'attempt', value: '1' },
+    { key: 'issuer', value: 'בנק הפועלים' },
+  ]);
+  // A row without fields (untyped document, or written before the change) has no extracted_fields row.
+  assert.deepEqual(stepSummaryOf('verify_extraction', { clientName: 'דני', name: BANK, issuer: null, reasons: [] }), [{ key: 'name', value: BANK }]);
+});
+
 test('message and review steps: flat keys become labelled values; header keys are skipped', () => {
   assert.deepEqual(
     stepSummaryOf('send_reply', { clientName: 'דני', emailId: 'e1', channel: 'whatsapp', kind: 'freeform', send_at: '2026-09-13T15:04:00', chars: 120 }),

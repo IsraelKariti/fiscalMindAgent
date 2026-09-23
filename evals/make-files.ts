@@ -76,6 +76,35 @@ function bankBalanceCertificate({ bank, bankHe, color, asOf, asOfHe, account, ba
   );
 }
 
+/** A Phoenix-style combined building + contents policy (מבנה + תכולה) for the fictional client. */
+function homeInsurancePolicy({ from, to, policyNo }: { from: string; to: string; policyNo: string }): string {
+  return page(
+    'Phoenix home insurance policy',
+    `<div class="letterhead"><div class="logo" style="color:#b71c1c">The Phoenix Insurance Company Ltd.</div><div class="he"><div class="logo" style="color:#b71c1c">הפניקס חברה לביטוח בע"מ</div><div class="muted">HOME פלוס — ביטוח דירה ותכולתה</div></div></div>
+     <h1 class="he">פוליסה לביטוח דירה ותכולתה — חידוש</h1>
+     <h1>Home and contents insurance policy — renewal</h1>
+     <table>
+       <tr><th>Policyholder (שם המבוטח)</th><td>${client.name} (${client.nameHe})</td></tr>
+       <tr><th>ID number (ת.ז.)</th><td>${client.id}</td></tr>
+       <tr><th>Policy number (מספר פוליסה)</th><td>${policyNo}</td></tr>
+       <tr><th>Insured address (כתובת הדירה)</th><td>Herzl 10, apt. 7, Tel Aviv-Yafo</td></tr>
+       <tr><th>Insurance period (תקופת הביטוח)</th><td>from ${from} to ${to} (מ-${from} עד ${to})</td></tr>
+     </table>
+     <h2>Sums insured and deductibles (פירוט סכומי הביטוח וההשתתפויות העצמיות)</h2>
+     <table><tr><th>Chapter</th><th>Cover</th><th class="n">Sum insured (ILS)</th><th class="n">Deductible (ILS)</th></tr>
+       <tr><td>Chapter A (פרק א׳)</td><td>Building (ביטוח מבנה הדירה)</td><td class="n">1,850,000</td><td class="n">1,200</td></tr>
+       <tr><td>Chapter B (פרק ב׳)</td><td><b>Contents (ביטוח תכולת הדירה)</b></td><td class="n"><b>180,000</b></td><td class="n">600</td></tr>
+       <tr><td></td><td>of which jewellery (תכשיטים)</td><td class="n">18,000</td><td class="n"></td></tr>
+       <tr><td>Chapter C (פרק ג׳)</td><td>Third-party liability (אחריות כלפי צד שלישי)</td><td class="n">1,000,000</td><td class="n">—</td></tr>
+       <tr><td>Chapter D (פרק ד׳)</td><td>Employers' liability — household workers (חבות מעבידים)</td><td class="n">500,000</td><td class="n">—</td></tr>
+     </table>
+     <h2>Premium (פרמיה)</h2>
+     <table><tr><th>Item</th><th class="n">ILS</th></tr><tr><td>Annual premium including fees</td><td class="n">1,840.00</td></tr><tr><td>Paid by</td><td class="n">credit card, 12 payments</td></tr></table>
+     <p class="muted">The policy is subject to the general conditions of the "HOME Plus" policy. Sums insured are as of the start of the insurance period.</p>
+     <div class="sig">The Phoenix Insurance Company Ltd.<br><span class="stamp">הפניקס</span></div>`,
+  );
+}
+
 const DOCS: Record<string, string> = {
   'leumi_balance_2025.pdf': bankBalanceCertificate({ bank: 'Bank Leumi', bankHe: 'בנק לאומי', color: '#1b3a6b', asOf: '2025-12-31', asOfHe: '31.12.2025', account: '812-45678/21', balance: '45,210.50', deposits: '120,000.00' }),
   'leumi_balance_2024.pdf': bankBalanceCertificate({ bank: 'Bank Leumi', bankHe: 'בנק לאומי', color: '#1b3a6b', asOf: '2024-12-31', asOfHe: '31.12.2024', account: '812-45678/21', balance: '38,900.00', deposits: '100,000.00' }),
@@ -238,6 +267,12 @@ const DOCS: Record<string, string> = {
      <h2>Fees</h2>
      <table><tr><th>Item</th><th class="n">USD</th></tr><tr><td>Management fees 2025</td><td class="n">416.20</td></tr><tr><td>Custody fees 2025</td><td class="n">61.00</td></tr></table>`,
   ),
+  // openspec type-specific-extraction-fields: a combined home policy — the
+  // contents sum (chapter B) is the load-bearing field, not the building sum,
+  // the liability limits or the premium; the period must cover 31.12.2025.
+  'phoenix_home_policy_2025.pdf': homeInsurancePolicy({ from: '01.03.2025', to: '28.02.2026', policyNo: '55-3012987' }),
+  // The same policy whose period ended before the valuation date: period_covers_valuation_date must fail.
+  'phoenix_home_policy_2025_short.pdf': homeInsurancePolicy({ from: '01.01.2025', to: '30.11.2025', policyNo: '55-2987441' }),
   'leumi_transactions_dec2025.pdf': page(
     'Bank Leumi account transactions',
     `<div class="letterhead"><div class="logo" style="color:#1b3a6b">Bank Leumi</div><div class="he"><div class="logo" style="color:#1b3a6b">בנק לאומי</div></div></div>

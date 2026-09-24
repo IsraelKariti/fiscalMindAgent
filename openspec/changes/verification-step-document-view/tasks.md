@@ -10,4 +10,4 @@
 
 ## 3. Docs
 
-- [ ] 3.1 Update the step-modal note in `docs/agents.md` if it lists which steps show a document; commit per the Git workflow.
+- [x] 3.1 Update the step-modal note in `docs/agents.md` if it lists which steps show a document; commit per the Git workflow.

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { isStepHash, parseStepHash, stepDetailsText, stepLinkOf } from '../web/src/components/stepLink.js';
+import { isFileStep, isStepHash, parseStepHash, stepDetailsText, stepLinkOf } from '../web/src/components/stepLink.js';
 
 const ID = '3fc3a3c6-0c0b-4721-ba3b-45126f978a9d';
 const ORIGIN = 'https://agent.fiscalmind.app';
@@ -94,4 +94,14 @@ test('stepDetailsText: a step without checks', () => {
   const parsed = JSON.parse(text.slice(text.indexOf('{')));
   assert.deepEqual(parsed.detail, detail);
   assert.equal('checks' in parsed.detail, false);
+});
+
+test('isFileStep: a received-file target, or a list-item target whose detail names the file', () => {
+  const FILE = '0b618c2d-7ff9-4dfc-b91f-60fb095f2dfa';
+  assert.equal(isFileStep({ targetType: 'document_file', targetId: FILE, detail: {} }), true);
+  assert.equal(isFileStep({ targetType: 'document_file', targetId: null, detail: {} }), false);
+  assert.equal(isFileStep({ targetType: 'client_document', targetId: ID, detail: { fileId: FILE, attempt: 1 } }), true);
+  assert.equal(isFileStep({ targetType: 'client_document', targetId: ID, detail: { documents: [{ fileId: FILE }] } }), false);
+  assert.equal(isFileStep({ targetType: 'client_document', targetId: ID, detail: { fileId: 'nope' } }), false);
+  assert.equal(isFileStep({ targetType: null, targetId: null, detail: { fileId: FILE } }), false);
 });

@@ -5,7 +5,7 @@ import { formatTimestamp, humanizePurpose } from '../format';
 import { useT } from '../i18n';
 import { CopyButton } from './CopyButton';
 import { DocumentPane, isTwoPane, useDocumentOf } from './DocumentPane';
-import { stepDetailsText, stepLinkOf } from './stepLink';
+import { isFileStep, stepDetailsText, stepLinkOf } from './stepLink';
 import { isIsoDateTime, stepSummaryOf } from './stepSummary';
 
 /** One code check of a gate, as the audit row records it (`detail.checks`). */
@@ -90,8 +90,7 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // A file step asks for its document (by step id) on open; any other step asks for nothing.
-  const isFileStep = step.targetType === 'document_file' && step.targetId !== null;
-  const doc = useDocumentOf(isFileStep ? step.id : null, api.adminGetStepFile);
+  const doc = useDocumentOf(isFileStep(step) ? step.id : null, api.adminGetStepFile);
   const twoPane = isTwoPane(doc);
 
   useEffect(() => {

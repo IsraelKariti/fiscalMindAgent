@@ -24,6 +24,22 @@ export function stepLinkOf(stepId: string, origin: string): string {
   return `${origin}/#/steps/${encodeURIComponent(stepId)}`;
 }
 
+/**
+ * True when a step is about one received file, so the step detail modal asks
+ * the server for its document (by step id): the step's target is a received
+ * file, or its target is a list item and its detail names the one file it
+ * checked (`fileId` — the verification steps). Mirrors the server's
+ * `stepFileIdOf` (src/api/stepFile.ts); keep the two rules in step.
+ */
+export function isFileStep(step: Pick<StepLinkStep, 'targetType' | 'targetId' | 'detail'>): boolean {
+  if (step.targetType === 'document_file') return step.targetId !== null && UUID.test(step.targetId);
+  if (step.targetType === 'client_document') {
+    const fileId = step.detail['fileId'];
+    return typeof fileId === 'string' && UUID.test(fileId);
+  }
+  return false;
+}
+
 /** True when the hash is in the step-link namespace, whatever follows it. */
 export function isStepHash(hash: string): boolean {
   return /^#\/steps(\/|$)/.test(hash);

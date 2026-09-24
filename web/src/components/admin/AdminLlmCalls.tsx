@@ -110,6 +110,15 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [callId]);
 
+  // Esc closes the modal, like the step-detail and file-view modals.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   // A call that read a file shows it beside the details, like a file step's
   // modal. The document is asked for (by call id) once the call says it has
   // one; a call without a file asks for nothing.

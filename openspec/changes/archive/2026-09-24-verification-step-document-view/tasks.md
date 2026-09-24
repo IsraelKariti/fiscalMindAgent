@@ -6,7 +6,7 @@
 ## 2. Web
 
 - [x] 2.1 Add a small helper next to `web/src/components/stepLink.ts` that says whether a step is about one received file, using the same two rules; use it in `StepDetailModal.tsx` in place of the `targetType === 'document_file'` check.
-- [ ] 2.2 `npm run typecheck`; owner opens a `verify_extraction` step in the trace and from its step link and sees the document beside the checks; a `planner.rerun_after_verification` step stays single-column.
+- [x] 2.2 `npm run typecheck`; owner opens a `verify_extraction` step in the trace and from its step link and sees the document beside the checks; a `planner.rerun_after_verification` step stays single-column.
 
 ## 3. Docs
 

@@ -118,6 +118,16 @@ describe('capital-declaration catalog', () => {
     assert.ok(getCatalogType('vehicle')!.fields!.find((f) => f.key === 'license_plate')!.pattern!.test('1234567'));
   });
 
+  it('savings types: only the fund name is required; bank and securities keep the account number required', () => {
+    // openspec savings-account-number-optional: some annual reports (Menora) print no member number.
+    const requiredOf = (key: string) => Object.fromEntries(getCatalogType(key)!.fields!.map((f) => [f.key, f.required]));
+    for (const key of ['pension_provident', 'study_fund', 'life_insurance_savings']) {
+      assert.deepEqual(requiredOf(key), { fund_name: true, account_number: false, closing_balance: false, total_deposits: false }, key);
+    }
+    assert.equal(requiredOf('bank_balance').account_number, true);
+    assert.equal(requiredOf('securities_portfolio').account_number, true);
+  });
+
   it('exactly the study fund and the pension/provident fund are employer-bound, and both are institution-bound', () => {
     const employerBound = CAPITAL_DOCUMENT_CATALOG.filter((t) => t.employerBound === true).map((t) => t.key);
     assert.deepEqual(employerBound, ['pension_provident', 'study_fund']);

@@ -279,6 +279,71 @@ const DOCS: Record<string, string> = {
      <table><tr><th>Month</th><th class="n">Deposit (ILS)</th></tr><tr><td>January–December 2025 (total)</td><td class="n">31,140.00</td></tr></table>
      <p class="muted">The balance above is the accrued balance as of the end of the reporting year. Yields are net of management fees.</p>`,
   ),
+  // The real Menora Mivtachim shape (openspec savings-account-number-optional): a Hebrew
+  // two-page annual report whose header and certificate print the member's name, id and
+  // employer, the fund name and the EMPLOYER's withholding-file number — but no member,
+  // account or policy number anywhere.
+  'menora_pension_no_member_number_2025.pdf': page(
+    'Menora Mivtachim pension annual report (no member number)',
+    `<div class="letterhead"><div class="he"><div class="logo" style="color:#7a1fa2">מנורה מבטחים</div><div class="muted">ת.ד. 3507, רמת גן 5213603 | pensia@menoramivt.co.il | *2000</div></div><div class="muted">תאריך שליחת הדוח: מרס 2026 | תאריך תקופת הדוח: 31/12/2025</div></div>
+     <h1 class="he">דו"ח שנתי לעמית בקרן הפנסיה החדשה "מנורה מבטחים פנסיה" לשנת 2025</h1>
+     <table class="he">
+       <tr><th>שם העמית</th><th>מספר ת.ז</th><th>שם המעסיק</th></tr>
+       <tr><td>${client.nameHe}</td><td>${client.id}</td><td>עיריית רמת השרון</td></tr>
+     </table>
+     <h2 class="he">א. תשלומים צפויים מקרן הפנסיה</h2>
+     <table class="he"><tr><th></th><th class="n">סכום בש"ח</th></tr>
+       <tr><td>קצבה חודשית הצפויה לך בפרישה בגיל 67</td><td class="n">4,120</td></tr>
+       <tr><td>קצבה חודשית לאלמן/ה במקרה מוות</td><td class="n">4,270</td></tr>
+       <tr><td>קצבה חודשית במקרה של נכות מלאה</td><td class="n">5,340</td></tr>
+     </table>
+     <h2 class="he">ב. תנועות בקרן הפנסיה בשנת 2025</h2>
+     <table class="he"><tr><th></th><th class="n">סכום בש"ח</th></tr>
+       <tr><td>יתרת הכספים בקרן בתחילת השנה</td><td class="n">352,140</td></tr>
+       <tr><td>כספים שהופקדו לקרן</td><td class="n">24,960</td></tr>
+       <tr><td>רווחים בניכוי הוצאות ניהול השקעות</td><td class="n">38,410</td></tr>
+       <tr><td>דמי ניהול שנגבו בשנה זו</td><td class="n">-498</td></tr>
+       <tr><td>עלות ביטוח לסיכוני נכות</td><td class="n">-1,912</td></tr>
+       <tr><td>עלות ביטוח למקרה מוות</td><td class="n">-540</td></tr>
+       <tr><td><b>יתרת הכספים בקרן בסוף השנה</b></td><td class="n"><b>412,560</b></td></tr>
+     </table>
+     <h2 class="he">ה. פירוט הפקדות לקרן הפנסיה בשנת 2025</h2>
+     <table class="he"><tr><th>שם המעסיק</th><th>מועד הפקדה</th><th>עבור חודש משכורת</th><th class="n">משכורת</th><th class="n">תגמולי שכיר</th><th class="n">תגמולי מעסיק</th><th class="n">פיצויים</th><th class="n">סה"כ הפקדות</th></tr>
+       <tr><td>עיריית רמת השרון</td><td>02/02/2025</td><td>01/25</td><td class="n">9,750</td><td class="n">585</td><td class="n">683</td><td class="n">812</td><td class="n">2,080</td></tr>
+       <tr><td>עיריית רמת השרון</td><td>03/03/2025</td><td>02/25</td><td class="n">9,750</td><td class="n">585</td><td class="n">683</td><td class="n">812</td><td class="n">2,080</td></tr>
+       <tr><td>עיריית רמת השרון</td><td>02/04/2025</td><td>03/25</td><td class="n">9,750</td><td class="n">585</td><td class="n">683</td><td class="n">812</td><td class="n">2,080</td></tr>
+       <tr><td colspan="7">... (חודשים 04/25–12/25 בשורות דומות)</td><td class="n">18,720</td></tr>
+       <tr><td colspan="7"><b>סה"כ</b></td><td class="n"><b>24,960</b></td></tr>
+     </table>
+     <p class="muted he">עמוד 1 מתוך 2</p>
+     <div style="page-break-before: always"></div>
+     <div class="letterhead"><div class="he"><div class="logo" style="color:#7a1fa2">מנורה מבטחים</div></div><div class="muted">תאריך שליחת הדוח: מרס 2026 | תאריך תקופת הדוח: 31/12/2025</div></div>
+     <p class="he">יתרת הסגירה שלך כוללת הנחה בדמי ניהול שנזקפה לזכותך עד ליום 31 בדצמבר 2025, בסכום של 2,615 ש"ח. שים לב, הנתונים הכספיים המוצגים בדוח מעוגלים לשקל הקרוב.</p>
+     <div class="box he">
+       <h2 class="he">אישור מס להצהרת הון</h2>
+       <p>שם העמית: ${client.nameHe}<br>מספר תעודת זהות: ${client.id}<br>שם קרן הפנסיה: קרן הפנסיה חדשה מקיפה - "מנורה מבטחים פנסיה"<br>מספר תיק ניכויים: 936300342<br>מעמד עמית בקרן: שכיר</p>
+       <p>הרינו לאשר כי סך ההפקדות לקרן הפנסיה מיום ההפקדה הראשונה ועד ליום 31.12.2025 הן כמפורט להלן:</p>
+       <table class="he"><tr><th></th><th class="n">עובד</th><th class="n">מעסיק</th><th class="n">סה"כ</th></tr>
+         <tr><td>הפקדה לקצבה מזכה</td><td class="n">61,120</td><td class="n">85,470</td><td class="n">146,590</td></tr>
+         <tr><td>הפקדה לקצבה מוכרת</td><td class="n">11,650</td><td class="n">-</td><td class="n">11,650</td></tr>
+         <tr><td><b>סה"כ</b></td><td class="n"><b>72,770</b></td><td class="n"><b>85,470</b></td><td class="n"><b>158,240</b></td></tr>
+       </table>
+       <p>בכבוד רב,<br>מנורה מבטחים פנסיה וגמל בע"מ</p>
+     </div>
+     <div class="box he">
+       <h2 class="he">אישור למס הכנסה לשנת המס 2025</h2>
+       <p>שם העמית: ${client.nameHe}<br>מספר תעודת זהות: ${client.id}<br>שם קרן הפנסיה: קרן הפנסיה חדשה מקיפה - "מנורה מבטחים פנסיה"<br>מספר תיק ניכויים: 936300342<br>מעמד עמית בקרן: שכיר</p>
+       <p>הרינו לאשר כי בשנת 2025 הפקיד העמית לקרן הפנסיה את הסכומים הבאים (קרן בלבד):</p>
+       <table class="he"><tr><th>סוג ההפקדה</th><th class="n">לקצבה מזכה</th><th class="n">לקצבה מוכרת</th></tr>
+         <tr><td>045/086 הפקדה לקצבה – עמית שכיר</td><td class="n">4,880</td><td class="n">2,140</td></tr>
+         <tr><td>249/248 הפקדה לקצבה – מעסיק בלבד</td><td class="n">8,196</td><td class="n">-</td></tr>
+         <tr><td><b>סה"כ</b></td><td class="n"><b>13,076</b></td><td class="n"><b>2,140</b></td></tr>
+       </table>
+       <p>בכבוד רב,<br>מנורה מבטחים פנסיה וגמל בע"מ</p>
+     </div>
+     <p class="muted he">הנתונים המופיעים בדו"ח נועדו להצגה כללית בלבד. ט.ל.ח &nbsp;·&nbsp; עמוד 2 מתוך 2</p>`,
+    'rtl',
+  ),
   'meitav_activity_2025.pdf': page(
     'Meitav annual activity report',
     `<div class="letterhead"><div class="logo" style="color:#c2571a">Meitav Investment House</div><div class="he"><div class="logo" style="color:#c2571a">מיטב בית השקעות</div></div></div>

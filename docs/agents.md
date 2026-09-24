@@ -224,8 +224,12 @@ monday WorkForm is the only source of which documents a declaration needs):
   `fields` gets byte-identical schema, prompt and checks. First set:
   `bank_balance` (account, current-account balance — zero/negative allowed —
   deposits), `securities_portfolio` (account, NAV at 31.12, base currency),
-  the savings family via the shared `SAVINGS_FIELDS` (fund name, account,
-  closing balance, cumulative deposits; any-of the two amounts),
+  the savings family via the shared `SAVINGS_FIELDS` (fund name required;
+  account number OPTIONAL since 2026-09-24 — openspec
+  `savings-account-number-optional`: Menora's annual report and certificate
+  print no member number, only the employer's "מספר תיק ניכויים", which the
+  prompt line tells the model is not an account; closing balance, cumulative
+  deposits; any-of the two amounts),
   `mortgage_balance` (loan number, principal at 31.12), `vehicle` (plate
   digits-only 7–8, maker, model, production year, purchase cost; all optional
   with any-of plate / cost because an item is either the licence or the
@@ -249,6 +253,9 @@ monday WorkForm is the only source of which documents a declaration needs):
   deposits since first deposit* — legitimately 0 for an emptied account —
   while the annual-report page carries the year-end balance; both often
   arrive as one PDF, and a deposits-detail table alone is a lookalike trap.
+  Some funds print a member / account number on both, others (Menora) none
+  at all — so the savings account number is an optional field, never a
+  reason to reject the document.
 Since 2026-08-23 the agent also reports its progress **back to the board**
 (`src/agents/shared/mondayStatusSync.ts`): when a board source maps a
 `statusColumnId` (settings UI: declaration-of-capital board mapping only, but

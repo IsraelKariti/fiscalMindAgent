@@ -518,6 +518,31 @@ describe('runChecks: type_fields and period_covers_valuation_date', () => {
     assert.ok(none.reason!.includes('אף אחד מהשדות'));
   });
 
+  it('savings: a report with no member number passes; a bank certificate without an account number still fails', () => {
+    // openspec savings-account-number-optional: the Menora pension annual report prints no member number.
+    const pension = getCatalogType('pension_provident')!;
+    const ctx: CheckContext = { ...baseCtx, checks: pension.checks, fields: pension.fields, fieldsAnyOf: pension.fieldsAnyOf };
+    const report = {
+      ...baseFields,
+      fund_name: 'קרן הפנסיה חדשה מקיפה - "מנורה מבטחים פנסיה"',
+      account_number: null,
+      closing_balance: 1_134_117,
+      total_deposits: 358_133,
+    };
+    const verdict = runChecks(report, ctx);
+    const ok = typeFieldsOf(verdict);
+    assert.equal(ok.passed, true);
+    assert.ok(ok.observed!.includes('מספר חשבון: לא נמצא'), ok.observed ?? undefined);
+    assert.equal(verdict.passed, true);
+    assert.ok(typeFieldsOf(runChecks({ ...report, fund_name: null }, ctx)).reason!.includes('"שם הקופה/הקרן" לא נמצא'));
+
+    const bank = getCatalogType('bank_balance')!;
+    const bankCtx: CheckContext = { ...baseCtx, checks: bank.checks, fields: bank.fields, fieldsAnyOf: bank.fieldsAnyOf };
+    const noAccount = typeFieldsOf(runChecks({ ...baseFields, account_number: null, current_account_balance: 4_521, deposits_balance: null }, bankCtx));
+    assert.equal(noAccount.passed, false);
+    assert.ok(noAccount.reason!.includes('"מספר חשבון" לא נמצא'));
+  });
+
   it('observed text is capped at six pairs', () => {
     const many = Array.from({ length: 8 }, (_, i) => ({ key: `f${i}`, kind: 'text' as const, labelHe: `שדה ${i}`, promptHe: 'x', required: false }));
     const answer = { ...baseFields, ...Object.fromEntries(many.map((f) => [f.key, 'v'])) };

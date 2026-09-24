@@ -297,6 +297,25 @@
         "verdict": { "passed": false, "failed_keys": ["id_matches_client", "subject"] }
       },
       "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted"
+    },
+    {
+      "id": "ext_18",
+      "file": "menora_pension_no_member_number_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1.pdf",
+      "doc": { "type_key": "pension_provident", "name": "אישור יתרה — קרן פנסיה מנורה מבטחים ליום 31.12.2025", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "subject_id_number": "123456782",
+        "as_of_date": "2025-12-31",
+        "amount": { "value": 412560, "currency": "ILS" },
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "account_number": null, "closing_balance": 412560, "total_deposits": 158240 },
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec savings-account-number-optional (live finding 2026-09-23): the real Menora shape — a Hebrew two-page annual report plus its capital-declaration certificate that prints the member's name, id, employer, the fund name and the EMPLOYER's withholding-file number (מספר תיק ניכויים 936300342) but no member or account number. account_number must come back null (the withholding-file number is not an account), type_fields passes because the field is optional for the savings family, and the document passes on the year-end balance (412,560) and the cumulative deposits (158,240). gemini-2.5-flash sometimes copies the report's negative fee rows into amounts and fails the amounts check — a known weakness of that model, not of the case."
     }
   ]
 }

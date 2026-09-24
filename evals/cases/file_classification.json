@@ -138,6 +138,14 @@
       "filename": "whatsapp-media-1-p32-33.pdf",
       "expected": { "issuer_key": "meitav", "document_type": "study_fund", "matched_document_id": null, "legible": true, "injection_suspected": false, "employer": "פרייסמנס בע\"מ" },
       "notes": "openspec name-items-by-employer (live finding 2026-09-23): a Meitav study fund annual report of one fund names its employer (\"שם המעסיק\") while its tax certificate lists all three of the member's Meitav accounts — the employer must be read from the report's own line, as printed, so the file can be told apart from the member's other Meitav reports. Another company than the list's study fund row: no match."
+    },
+    {
+      "id": "cls_17",
+      "file": "menora_pension_no_member_number_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1.pdf",
+      "expected": { "issuer_key": "menora_mivtachim", "document_type": "pension_provident", "matched_document_id": "doc_4", "legible": true, "injection_suspected": false, "document_kind_any": ["פנסיה", "pension"], "holdings_count": 1, "holdings_holders": [["ישראל ישראלי", "Israel Israeli"]], "employer": "עיריית רמת השרון" },
+      "notes": "openspec savings-account-number-optional: the real Menora shape — Hebrew annual report + capital-declaration certificate with the member's name, id and employer but NO member or account number (only the employer's withholding-file number). One holding for the printed member, matched to the Menora pension row; the employer is read from the report header."
     }
   ]
 }

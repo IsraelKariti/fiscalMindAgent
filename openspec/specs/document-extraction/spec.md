@@ -36,7 +36,7 @@ The catalog SHALL declare these extra fields (key, kind, required):
 
 - Bank balance: `account_number` (text, required), `current_account_balance` (number, required; zero or negative is a valid value), `deposits_balance` (number, optional).
 - Securities portfolio: `account_number` (text, required), `portfolio_value` (number, required; the value at 31.12 of the tax year, not a comparison column), `base_currency` (text, required).
-- Pension/provident, study fund and life-insurance savings (the same list for the three): `fund_name` (text, required), `account_number` (text, required), `closing_balance` (number, optional), `total_deposits` (number, optional; zero is a valid value); at least one of `closing_balance` and `total_deposits` must be read.
+- Pension/provident, study fund and life-insurance savings (the same list for the three): `fund_name` (text, required), `account_number` (text, optional; the member, account or policy number when the document prints one — an employer's withholding-file number ("מספר תיק ניכויים") is not an account number), `closing_balance` (number, optional), `total_deposits` (number, optional; zero is a valid value); at least one of `closing_balance` and `total_deposits` must be read.
 - Mortgage balance: `loan_number` (text, optional), `principal_balance` (number, required; the 31.12 row of the tax year).
 - Vehicle: `license_plate` (text, optional, digits only, 7 or 8 digits), `manufacturer` (text, optional), `model` (text, optional), `production_year` (year, optional), `purchase_cost` (number, optional); at least one of `license_plate` and `purchase_cost` must be read, because a vehicle item may be the licence or the purchase document.
 - Contents insurance: `policy_number` (text, optional), `contents_sum` (number, required; the contents chapter's sum, not the building sum, a liability limit or the premium), `period_from` (date, required), `period_to` (date, required); the type also states that the period must cover the valuation date.
@@ -50,6 +50,14 @@ The other catalog types (real estate, loan taken, loan given, business ownership
 #### Scenario: Vehicle licence is read into named fields
 - **WHEN** a valid vehicle licence for plate 12-345-67, maker Toyota, model Corolla, first on the road in 2019, is verified against a vehicle item
 - **THEN** the answer has `license_plate: "1234567"`, `manufacturer` and `model` as printed, `production_year: 2019`, `purchase_cost: null`, and `valid_until` as the licence's "valid until" date
+
+#### Scenario: Pension report that prints no member number
+- **WHEN** a pension fund annual report with its capital-declaration certificate, which prints the member's name and id, the fund name, the year-end balance, the cumulative deposits and the employer's withholding-file number but no member or account number, is verified against a pension item
+- **THEN** the answer has `account_number: null`, `type_fields` passes, its observed value lists "מספר חשבון: לא נמצא" beside the fund name and the two amounts, and the document is approved when every other check passes
+
+#### Scenario: Bank certificate without an account number still fails
+- **WHEN** a bank balance certificate is verified and the model returns `account_number: null`
+- **THEN** `type_fields` fails with a note naming "מספר חשבון", and the document is not approved
 
 ### Requirement: Required fields are checked by code
 For a type with extra fields, the code checks SHALL include a `type_fields` check. It SHALL fail when a required field is null, when a field of a named "at least one" group is null for every member, or when a read value is malformed: a date not in the form YYYY-MM-DD, a year outside 1950 to the tax year plus one, a number that is not finite, or a text that does not match its pattern. The check's observed value SHALL list every declared field by its Hebrew label with the value read (or "לא נמצא" when null). Its note SHALL name the missing or malformed field by label. For a type that states a period must cover the valuation date, the checks SHALL include `period_covers_valuation_date`, which runs when both period dates are well formed and fails unless 31.12 of the tax year lies inside the period, inclusive. A field that is not required and is null SHALL NOT fail any check.

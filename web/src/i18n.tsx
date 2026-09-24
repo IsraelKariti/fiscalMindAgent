@@ -874,6 +874,12 @@ const he = {
     resolution: 'הכרעה',
     reasons: 'סיבות',
     attempt: 'ניסיון מספר',
+    attempts: 'מספר ניסיונות',
+    providerAttachmentId: 'מזהה הקובץ אצל הספק',
+    index: 'מיקום הקובץ בהודעה (מ-0)',
+    contentType: 'סוג הקובץ',
+    fileNameHint: 'שם הקובץ כפי שנשלח',
+    error: 'השגיאה בניסיון האחרון',
     fileId: 'מזהה קובץ',
     issuer: 'גוף מנפיק',
     outcome: 'תוצאה',
@@ -902,6 +908,7 @@ const he = {
     validate_classification: 'Validate Classification',
     validate_message: 'Validate Message',
     verify_extraction: 'Verify Extraction',
+    'file.ingest_failed': 'File Ingest Failed',
   } as Record<string, string>,
   // Short Hebrew labels of the individual checks a gate reports (detail.checks[].key).
   // Keys with no entry (form-intake catalog type keys) fall back to humanizePurpose().

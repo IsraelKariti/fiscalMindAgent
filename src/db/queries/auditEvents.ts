@@ -102,6 +102,20 @@ export async function listForClient(clientId: string, limit: number): Promise<Au
   return rows.reverse();
 }
 
+/** A client's rows of one action, oldest first — e.g. the `file.ingest_failed` steps the planner is told about (openspec `inbound-files`). */
+export async function listForClientAction(
+  clientId: string,
+  action: string,
+): Promise<Pick<AuditEventListRow, 'id' | 'occurred_at' | 'target_id' | 'detail'>[]> {
+  const { rows } = await pool.query<Pick<AuditEventListRow, 'id' | 'occurred_at' | 'target_id' | 'detail'>>(
+    `SELECT id, occurred_at, target_id, detail FROM audit_events
+     WHERE client_id = $1 AND action = $2
+     ORDER BY occurred_at, id`,
+    [clientId, action],
+  );
+  return rows;
+}
+
 /** One row by id — the step link (#/steps/:id) and scripts/showStep.ts. */
 export async function getById(id: string): Promise<AuditEventListRow | null> {
   const { rows } = await pool.query<AuditEventListRow>(

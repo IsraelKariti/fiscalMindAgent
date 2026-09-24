@@ -142,7 +142,11 @@ async function handleClientEmail(data: ResendInboundData, resendId: string, clie
   // Store attachments before deciding the next step so the LLM sees the files.
   // Runs on duplicate deliveries too (inserted === null): ingestion is
   // idempotent and this backfills attachments a failed earlier run missed.
-  const newFiles = await ingestAttachments(client.id, emailRow?.id ?? null, resendId, full.attachments ?? []);
+  const newFiles = await ingestAttachments(
+    { clientId: client.id, agentInstanceId: client.agent_instance_id, clientName: client.name, emailId: emailRow?.id ?? null },
+    resendId,
+    full.attachments ?? [],
+  );
 
   if (inserted || newFiles > 0) {
     await agent.definition.onInboundMessage(agent, {

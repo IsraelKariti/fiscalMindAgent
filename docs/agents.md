@@ -385,6 +385,26 @@ to a blocked message. Worker boot re-requests a lost job for clients with a
 recent `drafting_since` and nothing scheduled (`recoverLostReplans`). New
 inbound reactions must call `requestReplan`, never `setFutureEmail` directly.
 
+**Inbound files are fetched with a retry, and a lost file is a trace step**
+(2026-09-24, openspec `inbound-files`): both channels go through
+`src/webhook/ingestInboundFile.ts` (production wiring of the pure
+`ingestInboundFileCore.ts`). Fetch from the provider + blob upload +
+`document_files` insert are retried as one unit (`ingestRetry.ts`:
+`INGEST_ATTEMPTS` = 3 attempts, pauses 2 s / 8 s, every error retried — both
+steps are idempotent: deterministic blob key, insert unique on the provider
+attachment id). Analysis runs once, outside the retry. A file that fails every
+attempt is logged and recorded as `file.ingest_failed` (severity warning,
+actor system, target the inbound message row; detail: `channel`,
+`providerAttachmentId`, `index`, `contentType`, `fileNameHint` — the WhatsApp
+caption / email attachment name —, `attempts`, `error`), so it shows in the
+admin trace like any code step. The planner is told too: `plan.ts` loads the
+client's `file.ingest_failed` rows, drops those whose attachment id is now in
+`document_files` (a Twilio redelivery or a manual re-ingest stored it), and
+`buildThreadTranscript` prints under that message "Attachments the client
+sent … the platform could NOT store … ask the client to send them again"
+(`lostFiles.ts`). Before this, a lost download was one `logger.error` line
+and the model guessed from the caption that "the file did not arrive".
+
 Dispatch seams: `src/orchestration/setFutureEmail.ts` (generic dispatcher),
 `src/webhook/onInbound{Email,WhatsApp}.ts` (reaction half),
 `src/webhook/analyzeStoredFile.ts`, `src/agents/resolve.ts`

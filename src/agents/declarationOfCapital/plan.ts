@@ -3,6 +3,7 @@ import * as clients from '../../db/queries/clients.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import * as documentFiles from '../../db/queries/documentFiles.js';
 import * as emails from '../../db/queries/emails.js';
+import * as auditEvents from '../../db/queries/auditEvents.js';
 import * as waSenders from '../../db/queries/waSenders.js';
 import * as waTemplates from '../../db/queries/waTemplates.js';
 import { buildPrompt, type VerificationResultPromptInput, type WaChannelState } from './prompt.js';
@@ -17,6 +18,7 @@ import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
 import { childDisplayName } from './splitChildNames.js';
 import { assignFilesToNewRows, filterPairsByCompany, type NewRowFiles } from './fileTies.js';
 import { planCompanySplit } from './companySplit.js';
+import { lostFilesByMessage } from './lostFiles.js';
 import {
   additionsStepDetail,
   collectionsStepDetail,
@@ -97,6 +99,12 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const history = await emails.listForClient(clientId);
   let documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
+  // Files the client sent that never arrived (openspec `inbound-files`): the
+  // model must ask for them again, not read the caption as the document.
+  const lostFiles = lostFilesByMessage(
+    await auditEvents.listForClientAction(clientId, 'file.ingest_failed'),
+    files.map((f) => f.provider_attachment_id),
+  );
   const waState = await getWaChannelState(client, now, agentType);
   // The agent is WhatsApp-only: with nothing sendable there is no possible
   // follow-up — fail loudly (drafting-failed marker + manual retry) instead of
@@ -225,6 +233,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
     verificationResults,
     ctx.hints?.afterVerification === true,
     (await clientIdNumber(client, 'israel_tax_authority')) !== null,
+    lostFiles,
   );
   const decisionCtx: DecisionContext = {
     // WhatsApp-only: the planner may never choose email.

@@ -140,7 +140,15 @@ async function handleClientMessage(params: TwilioInboundParams, client: ClientRo
     const url = params[`MediaUrl${i}`];
     if (url) media.push({ url, contentType: params[`MediaContentType${i}`] ?? '' });
   }
-  const newFiles = media.length > 0 ? await ingestWaMedia(client.id, messageRow?.id ?? null, params.MessageSid, media) : 0;
+  const newFiles =
+    media.length > 0
+      ? await ingestWaMedia(
+          { clientId: client.id, agentInstanceId: client.agent_instance_id, clientName: client.name, emailId: messageRow?.id ?? null },
+          params.MessageSid,
+          media,
+          body,
+        )
+      : 0;
 
   if (inserted || newFiles > 0) {
     await agent.definition.onInboundMessage(agent, {

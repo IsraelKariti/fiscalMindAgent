@@ -35,6 +35,9 @@ export type AuditAction =
   | 'debt.paid_claimed'
   | 'debt.confirmed_paid'
   | 'injection.cycle_suppressed'
+  // A file the client sent that could not be fetched/stored after every
+  // attempt (openspec `inbound-files`); targets the inbound message row.
+  | 'file.ingest_failed'
   // Code gates — one row per run with detail.result true/false (the sibling
   // agent's doctrine: every LLM result is followed by a named code check that
   // is visible in the trail). See docs/agents.md "Code gates".

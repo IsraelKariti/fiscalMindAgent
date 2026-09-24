@@ -1,9 +1,5 @@
-import { createHash } from 'node:crypto';
-import * as documentFiles from '../db/queries/documentFiles.js';
-import { uploadBlob } from '../storage/blob.js';
 import { resend } from '../resend/client.js';
-import { analyzeStoredFile } from './analyzeStoredFile.js';
-import { logger } from '../util/logger.js';
+import { ingestInboundFile, type InboundFileContext } from './ingestInboundFile.js';
 
 /** Attachment metadata as embedded in the Resend receiving GET response. */
 export interface InboundAttachmentMeta {
@@ -30,22 +26,20 @@ function sanitizeFilename(filename: string | null): string {
 const INLINE_JUNK_MAX_BYTES = 50 * 1024;
 
 /**
- * Downloads each real attachment from Resend and persists it: bytes to Blob
- * Storage (deterministic key, so re-runs overwrite in place), metadata to
- * document_files (unique on the Resend attachment id, so duplicate webhook
- * deliveries insert nothing). Failures are per-attachment and logged — the
- * webhook has already been acked, so there is no retry to throw to.
+ * Downloads each real attachment from Resend and persists it (see
+ * ingestInboundFile: fetch + store retried as a unit, a lost file becomes a
+ * `file.ingest_failed` step). Failures are per-attachment — the webhook has
+ * already been acked, so there is no retry to throw to.
  *
  * Returns the number of newly stored files.
  */
 export async function ingestAttachments(
-  clientId: string,
-  emailId: string | null,
+  ctx: Omit<InboundFileContext, 'channel'>,
   resendEmailId: string,
   attachments: InboundAttachmentMeta[],
 ): Promise<number> {
   let stored = 0;
-  for (const att of attachments) {
+  for (const [index, att] of attachments.entries()) {
     // Skip small parts embedded inline in the HTML body (signature logos,
     // embedded images). A content_id alone is not enough to tell: Gmail stamps
     // one on real photo attachments too, so an explicit `attachment`
@@ -56,38 +50,29 @@ export async function ingestAttachments(
     // A missing/zero size drops too — real photos always report one.
     if (inline && !(att.size > INLINE_JUNK_MAX_BYTES)) continue;
 
-    try {
-      const { data, error } = await resend.emails.receiving.attachments.get({ emailId: resendEmailId, id: att.id });
-      if (error || !data) {
-        throw new Error(`fetch attachment meta failed: ${error?.name ?? 'unknown'} ${error?.message ?? ''}`);
-      }
-      const response = await fetch(data.download_url);
-      if (!response.ok) throw new Error(`attachment download returned ${response.status}`);
-      const body = Buffer.from(await response.arrayBuffer());
-
-      const filename = sanitizeFilename(att.filename ?? data.filename ?? null);
-      const contentType = att.content_type || 'application/octet-stream';
-      const blobKey = `clients/${clientId}/${att.id}/${filename}`;
-      await uploadBlob(blobKey, body, contentType);
-
-      const inserted = await documentFiles.insertIfNew({
-        clientId,
-        emailId,
+    const inserted = await ingestInboundFile(
+      { ...ctx, channel: 'email' },
+      {
         providerAttachmentId: att.id,
-        blobKey,
-        filename,
-        contentType,
-        sizeBytes: body.length,
-        sha256: createHash('sha256').update(body).digest('hex'),
-      });
-      if (inserted) {
-        stored += 1;
-        logger.info('stored inbound attachment', { clientId, fileId: inserted.id, filename, size: body.length });
-        await analyzeStoredFile(clientId, inserted, body);
-      }
-    } catch (err) {
-      logger.error('failed to ingest attachment', err, { clientId, resendEmailId, attachmentId: att.id });
-    }
+        index,
+        contentType: att.content_type || 'application/octet-stream',
+        filename: sanitizeFilename(att.filename),
+        fileNameHint: att.filename,
+        download: () => downloadResendAttachment(resendEmailId, att.id),
+      },
+    );
+    if (inserted) stored += 1;
   }
   return stored;
+}
+
+/** The signed download url is short-lived, so both calls belong to one attempt. */
+async function downloadResendAttachment(resendEmailId: string, attachmentId: string): Promise<Buffer> {
+  const { data, error } = await resend.emails.receiving.attachments.get({ emailId: resendEmailId, id: attachmentId });
+  if (error || !data) {
+    throw new Error(`fetch attachment meta failed: ${error?.name ?? 'unknown'} ${error?.message ?? ''}`);
+  }
+  const response = await fetch(data.download_url);
+  if (!response.ok) throw new Error(`attachment download returned ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
 }

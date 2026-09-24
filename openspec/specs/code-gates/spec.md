@@ -36,10 +36,11 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
 - `verify_extraction`: the per-document checks, each with the value read from the document as `observed`, the reference as `expected`, and, on failure, a `note` that names the exact problem:
   - `legible`: observed = the model's legibility verdict.
   - `expected_type`: observed = what the model saw the document as (`actual_kind`); expected = the required document's name.
-  - `subject`: observed = the printed subject name (or, when an id match vouched for it, the masked id); expected = the client's name.
+  - `subject`: observed = the printed subject name (or, when an id match vouched for it, the masked id); expected = the person the document was accepted for — the client's name, or the spouse's name (or "בן/בת זוג" when the spouse's name is unknown) when the id or the name matched the spouse on file; on failure, the client's name and the spouse's name when one is on file. Fails when the printed name loosely matches neither person, and also when the printed id belongs to a third person (a name cannot vouch against a contradicting id).
   - `id_checksum`: observed = the masked id printed on the document.
-  - `id_matches_client`: when the document prints an id and an id is on file; observed = the masked id printed on the document; expected = the masked id on file followed by its source in parentheses: the tax-portal credentials or the monday CRM card.
-  - `client_id_on_file`: when the document prints an id but no id is on file (after the CRM-card fetch of the `declaration-kickoff` capability); `passed: false`, observed = "none", note = the client has no id on the tax-portal credentials or the monday CRM card, so the printed id could not be compared. This check is reported alongside and does not change `result`.
+  - `id_matches_client`: when the document prints an id and an id is on file for the client or the spouse; observed = the masked id printed on the document; expected = on a pass, the person matched — "client" or "spouse" — with that person's masked id and its source in parentheses (the tax-portal credentials, the monday CRM card, the questionnaire, or a document); on a failure, the client's masked id with its source and, when one is on file, the spouse's masked id with its source. Passes when the printed id equals the client's id or the spouse's id, and also when the `spouse-identity` capability adopts the printed id as the spouse's. Fails, with the note naming the reason, when the printed id equals neither and inference is not allowed: a spouse is already on file (third person), the client is registered as not married, or the printed name does not match the spouse name on file.
+  - `spouse_adopted`: when the `spouse-identity` capability adopted the printed id as the spouse's in this verification; always `passed: true`; observed = the masked printed id; expected = the printed subject name (or "name unknown"). Absent otherwise.
+  - `client_id_on_file`: when the document prints an id, no id is on file for the client (after the CRM-card fetch of the `declaration-kickoff` capability), and the printed id is not the spouse's id on file; `passed: false`, observed = "none", note = the client has no id on the tax-portal credentials or the monday CRM card, so the printed id could not be compared. This check is reported alongside and does not change `result`.
   - `as_of_date`: observed = the as-of date read (or "not stated"); expected = 31.12 of the declaration year.
   - `not_expired`: observed = the valid-until date read; expected = the verification date.
   - `amounts`: observed = the amounts found, each as label, value and currency (capped to a short list); the failure note says which condition failed: no amounts found, a negative value, a value above the sane cap, or a value that is not a number, naming the offending amount.
@@ -68,10 +69,22 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
 
 #### Scenario: Printed id compared with the CRM card's id
 - **WHEN** the client's id on file came from the monday CRM card and the document prints the same id
-- **THEN** the `verify_extraction` row has `id_matches_client` passed, observed the masked printed id, expected the masked id on file with "(monday CRM)" as its source
+- **THEN** the `verify_extraction` row has `id_matches_client` passed, observed the masked printed id, expected "client" with the masked id on file and "(monday CRM)" as its source
+
+#### Scenario: Printed id is the spouse's
+- **WHEN** the spouse's id ••••••782 is on file from the questionnaire and the document prints 123456782
+- **THEN** the row has `id_matches_client` passed with observed `••••••782` and expected "spouse ••••••782 (questionnaire)", `subject` passed with expected the spouse's name, and no `spouse_adopted` entry
+
+#### Scenario: Printed id adopted as the spouse's
+- **WHEN** the client's id is on file, no spouse id is on file, the client is not registered as not married, and the document prints a checksum-valid id that is not the client's
+- **THEN** the row has `id_matches_client` passed with expected "spouse" and the masked printed id "(document)", followed by `spouse_adopted` passed with the masked id and the printed name
+
+#### Scenario: Printed id belongs to a third person
+- **WHEN** the client's id ••••••448 and the spouse's id ••••••821 are on file and the document prints a checksum-valid id ending 555
+- **THEN** the row has `result: false`, `id_matches_client` failed with observed `••••••555`, expected listing "client ••••••448 (monday CRM)" and "spouse ••••••821 (document)", and a note that the document belongs to neither, and `subject` failed as well
 
 #### Scenario: Printed id but nothing on file
-- **WHEN** the document prints an id, the client has no tax-portal credentials, and the CRM card (if any) yields no id
+- **WHEN** the document prints an id, the client has no tax-portal credentials, the CRM card (if any) yields no id, and no spouse id on file equals the printed id
 - **THEN** the row carries `client_id_on_file` with `passed: false` and a note that no id is on file, `id_matches_client` is absent, and `result` is not affected by this check
 
 #### Scenario: Classification drops a match to another company

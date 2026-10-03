@@ -6,7 +6,7 @@ How the capital-declaration agent treats a received file that belongs to no item
 ## Requirements
 
 ### Requirement: The file check matches a file only to items agreed with the client
-The file classifier SHALL be offered as match candidates only the list items a file can satisfy: items that were agreed with the client as needed, in any state of collection (waiting, claimed, received, approved). Items that are still an open question, items settled as not needed, and items that were replaced SHALL NOT be offered, and a match to one of them SHALL be dropped by `validate_classification` like any id the classifier was not shown. The classifier SHALL still name the file's document type from the closed list of types, whether or not any item was matched. The classifier's instructions SHALL state that an item names a specific institution, account or asset, and that a file of another bank, fund, insurer, company or asset is not a match for it, even when the document type is the same.
+The file classifier SHALL be offered as match candidates only the list items a file can satisfy: items that were agreed with the client as needed, in any state of collection (waiting, claimed, received, approved). Items that are still an open question, items settled as not needed, and items that were replaced SHALL NOT be offered, and a match to one of them SHALL be dropped by `validate_classification` like any id the classifier was not shown. The classifier SHALL still name the file's document type from the closed list of types, and the file's paper from the closed list of papers (the `document-papers` capability), whether or not any item was matched. The classifier's instructions SHALL state that an item names a specific institution, account or asset, and that a file of another bank, fund, insurer, company or asset is not a match for it, even when the document type is the same; and that an item of a type with papers stands for one paper, and a file of another paper of the same asset is not a match for it.
 
 #### Scenario: Type never discussed
 - **WHEN** the client sends a pension fund report and the pension item of the list is still an open question
@@ -23,6 +23,10 @@ The file classifier SHALL be offered as match candidates only the list items a f
 #### Scenario: Item settled as not needed
 - **WHEN** the client said they have no vehicle, the vehicle item is settled as not needed, and the client later sends a vehicle licence
 - **THEN** the file's analysis says it matches no document
+
+#### Scenario: Another paper of the same property
+- **WHEN** the list holds the items "חוזה רכישה — דינוביץ 47" and "נספח תשלומים — דינוביץ 47" and the client sends a land registry extract of that property
+- **THEN** the file's analysis names the type `real_estate` and the paper `tabu_extract`, and says it matches no document
 
 ### Requirement: Code compares the company of the file with the company of the item
 For list items of a document type that is always issued by a financial institution (bank balance, securities portfolio, pension or provident fund, study fund, life-insurance savings, mortgage balance), the file classifier SHALL report the name of the company that issued the file as printed on it, and code SHALL compare companies before a file is tied to such an item. Code SHALL hold a table of known banks, investment houses and insurers, each with its Hebrew and English name forms, and SHALL identify the company of the file from the reported issuer and the company of the item from the item's name. `validate_classification` SHALL keep a match to such an item when both companies are identified and are the same company, and also when the file's company is identified but the item names no company the table knows (an item named after a person or a product only, such as "קרן השתלמות ניב") — the file's document type already had to equal the item's type for the match to reach this check. When the companies differ, or when the file's company cannot be identified, the match SHALL be dropped and the file SHALL end as matching no document. The gate SHALL report this as the check `issuer_matches_item`, with the file's issuer as the observed value and the item's company (or that it is not identified) as the expected value; on a drop the note SHALL say whether the companies differ or that the file's company could not be identified; a match kept because the item names no company SHALL be reported as passed with the expected value "not identified" and no note, so the step detail still shows that the comparison was one-sided; the check SHALL be absent when no item was matched or the matched item's type is not institution-bound. The planner SHALL see, in the file's analysis line, the reported issuer and, when a match was dropped by this check, that it was dropped and why.
@@ -261,3 +265,14 @@ When the planner creates an item with valid evidence, it SHALL be able to name r
 #### Scenario: Same file named for two items
 - **WHEN** the planner names one file for two new items
 - **THEN** the first item receives the file and the second is created as waiting
+
+### Requirement: A tie is refused when the papers differ
+Every tie the planner proposes between a file and an item that carries a paper SHALL be refused when the file's paper differs from the item's paper or the file carries no paper, as the `document-papers` capability defines, in the same way a tie is refused when the document types differ. The refusal SHALL be reported in the `apply_collections` step, the file SHALL stay unattached, and the item SHALL NOT be marked received because of it. A tie to an item that carries no paper is not affected.
+
+#### Scenario: Planner ties the registry extract to the contract item
+- **WHEN** the planner pairs a file whose paper is `tabu_extract` with the item "חוזה רכישה — דינוביץ 47" (paper `purchase_contract`)
+- **THEN** the pair is refused and reported in `apply_collections`, and the file stays unattached
+
+#### Scenario: Planner names a file for a new item of its paper
+- **WHEN** the client writes that the registry extract is for a flat they inherited, and the planner adds the item "נסח טאבו — …" with paper `tabu_extract`, naming the file for it
+- **THEN** the file is attached to the new item in the same cycle, as the waiting-file rule says

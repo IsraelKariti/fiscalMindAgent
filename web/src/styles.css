@@ -2306,8 +2306,10 @@ details.doc-group > summary.doc-group-title {
   max-height: 45vh;
   overflow-y: auto;
 }
+/* JetBrains Mono has no Hebrew glyphs — Rubik follows it so Hebrew strings
+   inside JSON render in the app's text face instead of the browser's serif. */
 .llm-pane-mono {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: 'JetBrains Mono', 'Rubik', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12.5px;
   line-height: 1.6;
 }
@@ -4076,7 +4078,7 @@ button.meta-chip:hover {
 
 /* Admin conversation viewer: LLM calls and code steps interleaved with the messages. */
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: 'JetBrains Mono', 'Rubik', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
 }
 .admin-timeline-call,

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { assignFilesToNewRows, companyRefusal, filterPairsByCompany } from '../src/agents/declarationOfCapital/fileTies.js';
+import { assignFilesToNewRows, companyRefusal, filterPairsByCompany, paperRefusal } from '../src/agents/declarationOfCapital/fileTies.js';
 import type { Institution } from '../src/agents/declarationOfCapital/institutions.js';
 import type { DocumentFileRow, FileAnalysis } from '../src/db/types.js';
 
@@ -154,5 +154,45 @@ describe('assignFilesToNewRows', () => {
     );
     assert.deepEqual(result.pairs, [{ file_id: 'f1', document_id: 'new-1' }]);
     assert.deepEqual(result.refused, [{ file_id: 'f1', document_id: 'new-2', reason: 'file_already_taken' }]);
+  });
+});
+
+describe('paperRefusal (openspec document-papers)', () => {
+  const contract = { id: 'd-contract', name: 'חוזה רכישה — דינוביץ 47', type_key: 'real_estate', paper_key: 'purchase_contract' };
+  const oldContract = { id: 'd-old', name: 'חוזה רכישה — הרצל 5', type_key: 'real_estate', paper_key: null };
+  const property = (paper: string | null) => file('f-re', {}, { document_type: 'real_estate', issuer_name: null, document_paper: paper });
+
+  it('lets a file of the item\'s paper through and refuses another paper or no paper', () => {
+    assert.equal(paperRefusal(property('purchase_contract'), contract), null);
+    assert.equal(paperRefusal(property('tabu_extract'), contract), 'paper_differs');
+    assert.equal(paperRefusal(property(null), contract), 'paper_differs');
+  });
+
+  it('never refuses a tie to an item without a paper', () => {
+    assert.equal(paperRefusal(property('tabu_extract'), oldContract), null);
+    assert.equal(paperRefusal(file('f'), harel), null);
+  });
+
+  it('filterPairsByCompany refuses a pair whose papers differ before the company check', () => {
+    const fileById = new Map([['f-re', property('tabu_extract')]]);
+    const { allowed, refused } = filterPairsByCompany(
+      [{ file_id: 'f-re', document_id: 'd-contract', evidence: null }],
+      fileById,
+      [contract],
+      TABLE,
+    );
+    assert.deepEqual(allowed, []);
+    assert.deepEqual(refused, [{ file_id: 'f-re', document_id: 'd-contract', reason: 'paper_differs' }]);
+  });
+
+  it('assignFilesToNewRows refuses a named file of another paper and takes one of the right paper', () => {
+    const fileById = new Map([
+      ['f-tabu', property('tabu_extract')],
+      ['f-contract', file('f-contract', {}, { document_type: 'real_estate', issuer_name: null, document_paper: 'purchase_contract' })],
+    ]);
+    const row = { id: 'd-new', name: 'חוזה רכישה — דינוביץ 47', type_key: 'real_estate', paper_key: 'purchase_contract', status: 'pending' as const };
+    const result = assignFilesToNewRows([{ row, fileIds: ['f-tabu', 'f-contract'] }], fileById, TABLE);
+    assert.deepEqual(result.refused, [{ file_id: 'f-tabu', document_id: 'd-new', reason: 'paper_differs' }]);
+    assert.deepEqual(result.pairs, [{ file_id: 'f-contract', document_id: 'd-new' }]);
   });
 });

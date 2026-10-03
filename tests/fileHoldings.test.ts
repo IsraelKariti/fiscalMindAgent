@@ -181,3 +181,44 @@ describe('the file check is told to list the accounts', () => {
     assert.ok(schema.required?.includes('holdings_partial'));
   });
 });
+
+describe("the paper on the planner's file line (openspec document-papers)", () => {
+  it('shows the closed paper key of the file next to its type', () => {
+    const line = lineFor(analysis({ document_type: 'real_estate', issuer_name: null, document_paper: 'tabu_extract' }));
+    assert.ok(line.includes('document type: real_estate | document paper: tabu_extract'), line);
+  });
+
+  it('shows nothing for a file without a paper or an older analysis', () => {
+    assert.ok(!lineFor(analysis({ document_type: 'real_estate', issuer_name: null, document_paper: null })).includes('document paper'));
+    assert.ok(!lineFor(analysis()).includes('document paper'));
+  });
+});
+
+describe('the file check is told to name the paper', () => {
+  const spec = buildAnalysisCall({
+    bytes: Buffer.from('x'),
+    contentType: 'application/pdf',
+    filename: 'a.pdf',
+    requiredDocuments: [
+      { id: 'd1', name: 'חוזה רכישה — דינוביץ 47', description: null, type_key: 'real_estate', paper_key: 'purchase_contract' },
+      { id: 'd2', name: 'אישור יתרות בנק לאומי', description: null, type_key: 'bank_balance', paper_key: null },
+    ],
+    taxYear: 2025,
+  });
+  const system = String(spec.systemInstruction);
+
+  it('lists the papers of real_estate under its type, explains document_paper, and names the paper of the item', () => {
+    assert.ok(system.includes('- document_paper:'), system);
+    assert.ok(system.includes('"tabu_extract" = נסח טאבו'));
+    assert.ok(system.includes('"purchase_contract" = חוזה רכישה'));
+    const itemLine = system.split('\n').find((l) => l.startsWith('[id: d1]'))!;
+    assert.ok(itemLine.includes('נייר: חוזה רכישה — document_paper "purchase_contract"'), itemLine);
+    const bankLine = system.split('\n').find((l) => l.startsWith('[id: d2]'))!;
+    assert.ok(!bankLine.includes('נייר:'), bankLine);
+  });
+
+  it('asks for the paper in the answer schema', () => {
+    const schema = spec.responseJsonSchema as { required?: string[] };
+    assert.ok(schema.required?.includes('document_paper'));
+  });
+});

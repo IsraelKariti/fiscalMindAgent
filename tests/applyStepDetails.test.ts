@@ -20,7 +20,7 @@ test('apply_resolutions rows carry the document name next to the id, and the quo
   const detail = resolutionsStepDetail(
     [
       { documentId: 'd1', resolution: 'not_required', evidence },
-      { documentId: 'd2', resolution: 'required', instances: [{ name: 'x', description: null, alreadyProvided: false, fileIds: [] }], evidence },
+      { documentId: 'd2', resolution: 'required', instances: [{ name: 'x', description: null, alreadyProvided: false, fileIds: [], paperKey: null }], evidence },
     ],
     docName,
     2,
@@ -38,8 +38,8 @@ test('apply_additions entries name the anchor document and list the instance nam
       {
         anchorDocumentId: 'd3',
         instances: [
-          { name: 'טופס 106 — מעסיק א', description: null, alreadyProvided: false, fileIds: [] },
-          { name: 'טופס 106 — מעסיק ב', description: null, alreadyProvided: true, fileIds: [] },
+          { name: 'טופס 106 — מעסיק א', description: null, alreadyProvided: false, fileIds: [], paperKey: null },
+          { name: 'טופס 106 — מעסיק ב', description: null, alreadyProvided: true, fileIds: [], paperKey: null },
         ],
         evidence,
       },

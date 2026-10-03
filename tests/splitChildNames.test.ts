@@ -98,6 +98,24 @@ describe('childDisplayName', () => {
   });
 });
 
+describe('childLabel: papers (openspec document-papers)', () => {
+  it('names an unmatched child of a type with papers after its paper', () => {
+    assert.equal(childLabel({ documentType: 'real_estate', documentPaper: 'tabu_extract', issuerName: null, quarantined: false }), 'נסח טאבו');
+    assert.equal(childLabel({ documentType: 'real_estate', documentPaper: 'purchase_contract', quarantined: false }), 'חוזה רכישה');
+  });
+
+  it('falls back to the type\'s short name without a paper, with a paper of another type, and keeps the matched name first', () => {
+    assert.equal(childLabel({ documentType: 'real_estate', documentPaper: null, quarantined: false }), 'נכס נדל"ן');
+    assert.equal(childLabel({ documentType: 'real_estate', quarantined: false }), 'נכס נדל"ן');
+    assert.equal(childLabel({ documentType: 'vehicle', documentPaper: 'tabu_extract', quarantined: false }), 'כלי רכב');
+    assert.equal(
+      childLabel({ documentType: 'real_estate', documentPaper: 'tabu_extract', matchedDocumentName: 'נסח טאבו — הרצל 5', matchedDocumentTypeKey: 'real_estate', quarantined: false }),
+      'נסח טאבו — הרצל 5',
+    );
+    assert.equal(childLabel({ documentType: 'real_estate', documentPaper: 'tabu_extract', quarantined: true }), null);
+  });
+});
+
 describe('childLabel', () => {
   const studyFund = { documentType: 'study_fund', quarantined: false };
 

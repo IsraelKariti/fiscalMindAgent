@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { check, type GateCheck } from '../shared/gateChecks.js';
+import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault } from './catalog.js';
 
 /**
  * The pure contract of the form pre-resolution (formIntake.ts): the model's
@@ -29,7 +30,9 @@ export interface FormAnswer {
  *    that doesn't exist.
  *  - `evidence` — one row per not_required verdict: the form question it
  *    rests on and the verbatim quote ('' when the question was left empty).
- *  - `instances` — one row per concrete document of a required verdict.
+ *  - `instances` — one row per concrete document of a required verdict, with
+ *    the paper it stands for when the type declares papers ('' = none;
+ *    openspec `document-papers`).
  */
 export function buildFormIntakeSchema(typeKeys: readonly [string, ...string[]]) {
   return z.object({
@@ -37,16 +40,21 @@ export function buildFormIntakeSchema(typeKeys: readonly [string, ...string[]]) 
       Object.fromEntries(typeKeys.map((k) => [k, z.enum(['required', 'not_required', 'unclear'])])),
     ),
     evidence: z.array(z.object({ type_key: z.enum(typeKeys), question: z.string(), quote: z.string() })),
-    instances: z.array(z.object({ type_key: z.enum(typeKeys), name: z.string(), description: z.string() })),
+    instances: z.array(
+      z.object({ type_key: z.enum(typeKeys), name: z.string(), description: z.string(), paper_key: z.enum(FORM_PAPER_VALUES) }),
+    ),
   });
 }
+
+/** The closed paper list the form mapping may name per instance; '' = the type has no papers. */
+const FORM_PAPER_VALUES = ['', ...CAPITAL_DOCUMENT_PAPER_VALUES] as [string, ...string[]];
 
 export type FormIntakeVerdict = 'required' | 'not_required' | 'unclear';
 
 export interface FormIntakeResponse {
   verdicts: Record<string, FormIntakeVerdict>;
   evidence: { type_key: string; question: string; quote: string }[];
-  instances: { type_key: string; name: string; description: string }[];
+  instances: { type_key: string; name: string; description: string; paper_key: string }[];
 }
 
 /** Hard cap on concrete instances one resolution may create — same bound as the interview validator. */
@@ -75,7 +83,12 @@ export type ValidatedFormResolution =
         | { source: 'form'; question: string; quote: string }
         | { source: 'form_empty'; question: string };
     }
-  | { documentId: string; typeKey: string; resolution: 'required'; instances: { name: string; description: string | null }[] };
+  | {
+      documentId: string;
+      typeKey: string;
+      resolution: 'required';
+      instances: { name: string; description: string | null; paperKey: string | null }[];
+    };
 
 /**
  * Validates the model's per-type verdicts against the seeded rows and the
@@ -160,6 +173,7 @@ export function validateFormResolutions(
       .map((i) => ({
         name: i.name.trim(),
         description: i.description.trim() || null,
+        paperKey: i.paper_key.trim() || null,
       }));
     if (instances.length === 0) {
       dropped.push(`${typeKey}: required without instances`);
@@ -167,6 +181,12 @@ export function validateFormResolutions(
     }
     if (instances.some((i) => i.name.length === 0 || i.name.length > 200)) {
       dropped.push(`${typeKey}: instance name out of 1-200 chars`);
+      continue;
+    }
+    // A type with papers: every instance stands for one of its papers (openspec `document-papers`).
+    const paperFault = instances.map((i) => instancePaperFault(i.paperKey, typeKey)).find((f) => f !== null);
+    if (paperFault) {
+      dropped.push(`${typeKey}: ${paperFault}`);
       continue;
     }
     if (instances.length > 1 && !row.multiInstance) {

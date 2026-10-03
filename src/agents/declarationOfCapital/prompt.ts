@@ -13,7 +13,7 @@ import {
 } from '../shared/promptSafety.js';
 import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
 import { formatUpcomingDates } from '../shared/upcomingDates.js';
-import { getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
+import { getCatalogPaper, getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
 import { MAX_EMPLOYER, cleanEmployer } from './splitChildNames.js';
 import { readMaritalStatus, readSpouse, type SpouseSource } from './spouseIdentity.js';
 import type { LostFilesByMessage } from './lostFiles.js';
@@ -271,6 +271,10 @@ export function buildDocumentsSection(token: string, documents: ClientDocumentRo
     const description = doc.description ? ` — ${sanitizeInline(doc.description, 500)}` : '';
     const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
     const extras: string[] = [];
+    // The paper this item stands for (openspec `document-papers`): a file of
+    // another paper of the same asset is not this item.
+    const paper = getCatalogPaper(doc.paper_key);
+    if (paper) extras.push(`נייר: ${paper.shortNameHe} (paper_key: ${paper.key})`);
     // Intake rows carry their own discovery question and instance rule so the
     // model interviews from the catalog's fixed wording, not improvisation —
     // except where a submitted-questionnaire answer touches the row, which the
@@ -452,6 +456,8 @@ function formatFileAnalysis(file: DocumentFileRow, childCount = 0): string {
     a.subject_name ? `subject: ${sanitizeInline(a.subject_name, 100)}` : null,
     // A closed catalog key (validated by the schema), so the planner files a new item under the right type.
     a.document_type ? `document type: ${a.document_type}` : null,
+    // The paper of the file (openspec `document-papers`), a closed key too: the planner ties it only to an item of that paper.
+    a.document_paper ? `document paper: ${a.document_paper}` : null,
     a.issuer_name ? `issuer: ${sanitizeInline(a.issuer_name, 100)}` : null,
     formatHoldings(a),
     formatEmployer(a),

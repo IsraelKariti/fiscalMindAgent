@@ -416,6 +416,69 @@ const DOCS: Record<string, string> = {
      <p>I declare that the above is a full and correct statement of my assets and liabilities as of the stated date.</p>
      <div class="sig">Signature: ______________ &nbsp; Date: 14.06.2020<br><span class="stamp">התקבל · רשות המסים · 16.06.2020</span></div>`,
   ),
+  // openspec document-papers: three papers of one property, all real_estate — the
+  // classifier must tell them apart by paper (purchase_contract / payments_appendix / tabu_extract).
+  'purchase_contract_dinovitz_2001.pdf': page(
+    'Purchase agreement',
+    `<h1 class="he">הסכם מכר</h1>
+     <p class="he">שנערך ונחתם בפתח תקווה ביום 14 במרץ 2001</p>
+     <p class="he"><b>בין:</b> מקמל חזי ת.ז. 054321087 ומקמל קתי פנינה ת.ז. 022334455 (להלן: "המוכרים")</p>
+     <p class="he"><b>לבין:</b> ${client.nameHe} ת.ז. ${client.id} ותמיר מיכל ת.ז. 033445566 (להלן: "הקונים")</p>
+     <h2 class="he">הואיל</h2>
+     <p class="he">והמוכרים הם בעלי הזכויות בבית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, הידוע כגוש 6325 חלקה 161 (להלן: "הנכס");</p>
+     <p class="he">והקונים מעוניינים לרכוש את הנכס מהמוכרים, והמוכרים מעוניינים למכור את הנכס לקונים, הכל בתנאים המפורטים בהסכם זה;</p>
+     <h2 class="he">1. המכר</h2>
+     <p class="he">המוכרים מוכרים בזאת לקונים והקונים קונים מהמוכרים את מלוא הזכויות בנכס, כשהוא פנוי מכל אדם וחפץ.</p>
+     <h2 class="he">2. התמורה</h2>
+     <p class="he">תמורת הנכס ישלמו הקונים למוכרים סך של 1,250,000 ש"ח (מיליון מאתיים וחמישים אלף שקלים חדשים), במועדים ובדרך הקבועים בנספח התשלומים המצורף להסכם זה כחלק בלתי נפרד ממנו.</p>
+     <h2 class="he">3. המסירה</h2>
+     <p class="he">החזקה בנכס תימסר לקונים ביום 1 בספטמבר 2001, כנגד תשלום מלוא התמורה.</p>
+     <h2 class="he">4. מסים ותשלומים</h2>
+     <p class="he">מס שבח, אם יחול, ישולם על ידי המוכרים. מס רכישה ישולם על ידי הקונים.</p>
+     <div class="sig he">המוכרים: ______________ &nbsp;&nbsp; הקונים: ______________<br><span class="muted">אימות חתימות: עו"ד ד. לוי, רישיון 12345</span></div>`,
+    'rtl',
+  ),
+  'payments_appendix_dinovitz_2001.pdf': page(
+    'Payments appendix',
+    `<h1 class="he">נספח תשלומים</h1>
+     <p class="he">נספח א' להסכם המכר מיום 14 במרץ 2001 — בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325 חלקה 161)</p>
+     <p class="he">הקונים: ${client.nameHe} ת.ז. ${client.id} ותמיר מיכל. המוכרים: מקמל חזי ומקמל קתי פנינה.</p>
+     <p class="he">התמורה הכוללת: 1,250,000 ש"ח, תשולם במועדים הבאים:</p>
+     <table class="he">
+       <tr><th>תשלום</th><th>מועד</th><th class="n">סכום (ש"ח)</th><th>אופן התשלום</th></tr>
+       <tr><td>1</td><td>במעמד חתימת ההסכם, 14.03.2001</td><td class="n">125,000</td><td>המחאה בנקאית</td></tr>
+       <tr><td>2</td><td>עד 15.05.2001</td><td class="n">375,000</td><td>העברה בנקאית</td></tr>
+       <tr><td>3</td><td>עד 15.07.2001</td><td class="n">600,000</td><td>מכספי הלוואת משכנתא, ישירות מהבנק המלווה</td></tr>
+       <tr><td>4</td><td>במעמד מסירת החזקה, 01.09.2001</td><td class="n">150,000</td><td>העברה בנקאית</td></tr>
+       <tr><td colspan="2"><b>סה"כ</b></td><td class="n"><b>1,250,000</b></td><td></td></tr>
+     </table>
+     <p class="he muted">כל תשלום יבוצע כנגד קבלה חתומה מהמוכרים. איחור של עד 7 ימים לא ייחשב הפרה.</p>
+     <div class="sig he">המוכרים: ______________ &nbsp;&nbsp; הקונים: ______________</div>`,
+    'rtl',
+  ),
+  'tabu_extract_dinovitz_2025.pdf': page(
+    'Land registry extract',
+    `<div class="letterhead"><div class="he"><div class="logo" style="color:#333">משרד המשפטים — האגף לרישום והסדר מקרקעין</div><div class="muted">לשכת רישום מקרקעין פתח תקוה</div></div><div><div class="logo" style="color:#333">Ministry of Justice</div><div class="muted">Land Registration Office</div></div></div>
+     <h1 class="he">נסח רישום מפנקס הזכויות</h1>
+     <p class="he">הופק ביום 12.01.2026 בשעה 09:41 · מספר אסמכתא 2026-0114-7781</p>
+     <table class="he">
+       <tr><th>גוש</th><td>6325</td><th>חלקה</th><td>161</td><th>תת-חלקה</th><td>2</td></tr>
+       <tr><th>שטח</th><td>312 מ"ר</td><th>סוג</th><td>בית מגורים דו-משפחתי</td><th>כתובת</th><td>דינוביץ אבשלום 47, פתח תקווה</td></tr>
+     </table>
+     <h2 class="he">בעלויות</h2>
+     <table class="he">
+       <tr><th>שם</th><th>מספר זיהוי</th><th>החלק בנכס</th><th>מהות הזכות</th></tr>
+       <tr><td>${client.nameHe}</td><td>${client.id}</td><td>1/2</td><td>חכירה לדורות</td></tr>
+       <tr><td>תמיר מיכל</td><td>033445566</td><td>1/2</td><td>חכירה לדורות</td></tr>
+     </table>
+     <h2 class="he">הערות אזהרה ומשכנתאות</h2>
+     <table class="he">
+       <tr><th>מהות</th><th>לטובת</th><th>סכום</th><th>תאריך</th></tr>
+       <tr><td>משכנתא דרגה ראשונה</td><td>בנק הפועלים בע"מ</td><td>ללא הגבלה בסכום</td><td>22.07.2001</td></tr>
+     </table>
+     <p class="he muted">נסח זה אינו מהווה תחליף לעיון בתיק הרישום. המידע נכון למועד ההפקה.</p>`,
+    'rtl',
+  ),
   'discount_balance_2025.pdf': bankBalanceCertificate({ bank: 'Discount Bank', bankHe: 'בנק דיסקונט', color: '#0b7a3b', asOf: '2025-12-31', asOfHe: '31.12.2025', account: '045-118822/63', balance: '12,640.10', deposits: '35,000.00' }),
   'discount_balance_split_injected.pdf': bankBalanceCertificate({
     bank: 'Discount Bank',

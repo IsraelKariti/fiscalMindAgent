@@ -412,6 +412,36 @@ describe('extraction schema and prompt from the type declaration', () => {
       assert.ok((car.responseJsonSchema as { properties: Record<string, unknown> }).properties[key], key);
     }
   });
+
+  it('buildExtractionCall: a row with a paper names the expected paper and its anatomy; a row without one is unchanged (openspec document-papers)', () => {
+    const bytes = Buffer.from('%PDF-1.4');
+    const contract = buildExtractionCall({
+      doc: { name: 'חוזה רכישה — דינוביץ 47', description: null, type_key: 'real_estate', paper_key: 'purchase_contract' },
+      bytes,
+      contentType: 'application/pdf',
+      filename: 'contract.pdf',
+      taxYear: 2025,
+    });
+    assert.ok(contract.systemInstruction!.includes('הנייר המצופה: חוזה רכישה'), contract.systemInstruction);
+    assert.ok(contract.systemInstruction!.includes('אינו חוזה רכישה: נסח טאבו'));
+    assert.equal(contract.responseJsonSchema, extractionJsonSchema);
+    const noPaper = buildExtractionCall({
+      doc: { name: 'חוזה רכישה — הרצל 5', description: null, type_key: 'real_estate', paper_key: null },
+      bytes,
+      contentType: 'application/pdf',
+      filename: 'contract.pdf',
+      taxYear: 2025,
+    });
+    assert.ok(!noPaper.systemInstruction!.includes('הנייר המצופה'));
+    const bank = buildExtractionCall({
+      doc: { name: 'אישור יתרות בנק לאומי', description: null, type_key: 'bank_balance' },
+      bytes,
+      contentType: 'application/pdf',
+      filename: 'bank.pdf',
+      taxYear: 2025,
+    });
+    assert.ok(!bank.systemInstruction!.includes('הנייר המצופה'));
+  });
 });
 
 describe('runChecks: type_fields and period_covers_valuation_date', () => {

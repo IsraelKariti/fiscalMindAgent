@@ -23,12 +23,14 @@ export async function insert(args: {
   description?: string | null;
   /** Catalog type the row instantiates; omit for ad-hoc (accountant-added) rows. */
   typeKey?: string | null;
+  /** The paper of the type (openspec `document-papers`); omit for a type without papers. */
+  paperKey?: string | null;
   /** Seeding status; defaults to 'pending' (catalog seeding passes 'unresolved'). */
   status?: DocumentStatus;
 }): Promise<ClientDocumentRow> {
   const { rows } = await pool.query<ClientDocumentRow>(
-    `INSERT INTO client_documents (client_id, name, description, type_key, status) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [args.clientId, args.name, args.description ?? null, args.typeKey ?? null, args.status ?? 'pending'],
+    `INSERT INTO client_documents (client_id, name, description, type_key, paper_key, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [args.clientId, args.name, args.description ?? null, args.typeKey ?? null, args.paperKey ?? null, args.status ?? 'pending'],
   );
   const row = rows[0];
   if (!row) throw new Error('insert client document: no row returned');
@@ -123,6 +125,8 @@ export interface DocumentInstance {
   description: string | null;
   /** The client says the office already holds this document — the row starts as 'claimed' (awaits the accountant), not 'pending'. */
   alreadyProvided?: boolean;
+  /** The paper of the type this instance stands for (openspec `document-papers`); null/omitted for a type without papers. */
+  paperKey?: string | null;
 }
 
 /**
@@ -151,9 +155,9 @@ export async function resolveRequired(
     const evidenceJson = evidence === null ? null : JSON.stringify(evidence);
     const { rows: updated } = await conn.query<ClientDocumentRow>(
       `UPDATE client_documents
-       SET status = $5, name = $3, description = $4, resolution_evidence = $6, updated_at = now()
+       SET status = $5, name = $3, description = $4, resolution_evidence = $6, paper_key = $7, updated_at = now()
        WHERE id = $1 AND client_id = $2 AND status IN ('unresolved', 'not_required') RETURNING *`,
-      [id, clientId, first.name, first.description, first.alreadyProvided ? 'claimed' : 'pending', evidenceJson],
+      [id, clientId, first.name, first.description, first.alreadyProvided ? 'claimed' : 'pending', evidenceJson, first.paperKey ?? null],
     );
     const head = updated[0];
     if (!head) {
@@ -163,9 +167,9 @@ export async function resolveRequired(
     const result = [head];
     for (const instance of instances.slice(1)) {
       const { rows } = await conn.query<ClientDocumentRow>(
-        `INSERT INTO client_documents (client_id, name, description, type_key, status, resolution_evidence)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [clientId, instance.name, instance.description, head.type_key, instance.alreadyProvided ? 'claimed' : 'pending', evidenceJson],
+        `INSERT INTO client_documents (client_id, name, description, type_key, paper_key, status, resolution_evidence)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [clientId, instance.name, instance.description, head.type_key, instance.paperKey ?? null, instance.alreadyProvided ? 'claimed' : 'pending', evidenceJson],
       );
       if (rows[0]) result.push(rows[0]);
     }
@@ -212,9 +216,9 @@ export async function addInstances(
     const result: ClientDocumentRow[] = [];
     for (const instance of instances) {
       const { rows } = await conn.query<ClientDocumentRow>(
-        `INSERT INTO client_documents (client_id, name, description, type_key, status, resolution_evidence)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [clientId, instance.name, instance.description, anchor.type_key, instance.alreadyProvided ? 'claimed' : 'pending', evidence === null ? null : JSON.stringify(evidence)],
+        `INSERT INTO client_documents (client_id, name, description, type_key, paper_key, status, resolution_evidence)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [clientId, instance.name, instance.description, anchor.type_key, instance.paperKey ?? null, instance.alreadyProvided ? 'claimed' : 'pending', evidence === null ? null : JSON.stringify(evidence)],
       );
       if (rows[0]) result.push(rows[0]);
     }
@@ -270,9 +274,9 @@ export async function splitByCompany(
       const rows: ClientDocumentRow[] = [];
       for (const sibling of item.siblings) {
         const { rows: inserted } = await conn.query<ClientDocumentRow>(
-          `INSERT INTO client_documents (client_id, name, description, type_key, status, resolution_evidence)
-           VALUES ($1, $2, $3, $4, 'pending', $5) RETURNING *`,
-          [clientId, sibling.name, head.description, head.type_key, JSON.stringify(sibling.evidence)],
+          `INSERT INTO client_documents (client_id, name, description, type_key, paper_key, status, resolution_evidence)
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6) RETURNING *`,
+          [clientId, sibling.name, head.description, head.type_key, head.paper_key, JSON.stringify(sibling.evidence)],
         );
         if (inserted[0]) rows.push(inserted[0]);
       }

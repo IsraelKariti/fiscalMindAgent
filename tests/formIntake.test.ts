@@ -61,8 +61,8 @@ describe('form-intake resolution validation', () => {
         verdicts: { bank_balance: 'required', crypto: 'not_required' },
         evidence: [{ type_key: 'crypto', question: 'מטבעות דיגיטליים', quote: 'לא' }],
         instances: [
-          { type_key: 'bank_balance', name: 'אישור יתרות בנק לאומי ליום 31.12.2025', description: '' },
-          { type_key: 'bank_balance', name: 'אישור יתרות בנק דיסקונט ליום 31.12.2025', description: '' },
+          { type_key: 'bank_balance', name: 'אישור יתרות בנק לאומי ליום 31.12.2025', description: '', paper_key: '' },
+          { type_key: 'bank_balance', name: 'אישור יתרות בנק דיסקונט ליום 31.12.2025', description: '', paper_key: '' },
         ],
       }),
       rows,
@@ -76,6 +76,75 @@ describe('form-intake resolution validation', () => {
       valid[1]!.resolution === 'not_required' ? valid[1]!.evidence : null,
       { source: 'form', question: 'מטבעות דיגיטליים', quote: 'לא' },
     );
+  });
+
+  it('papers (openspec document-papers): a real_estate instance carries one of the property papers', () => {
+    const rowsWithProperty: FormResolvableRow[] = [...rows, { id: 'doc-re', typeKey: 'real_estate', multiInstance: true }];
+    const ok = validateFormResolutions(
+      raw({
+        verdicts: { real_estate: 'required' },
+        instances: [
+          { type_key: 'real_estate', name: 'חוזה רכישה — דינוביץ 47', description: '', paper_key: 'purchase_contract' },
+          { type_key: 'real_estate', name: 'נספח תשלומים — דינוביץ 47', description: '', paper_key: 'payments_appendix' },
+        ],
+      }),
+      rowsWithProperty,
+      answers,
+    );
+    assert.deepEqual(ok.dropped, []);
+    assert.equal(ok.valid[0]!.resolution, 'required');
+    if (ok.valid[0]!.resolution !== 'required') return;
+    assert.deepEqual(
+      ok.valid[0]!.instances.map((i) => i.paperKey),
+      ['purchase_contract', 'payments_appendix'],
+    );
+    // A bank instance carries no paper ('' → null).
+    const bank = validateFormResolutions(
+      raw({
+        verdicts: { bank_balance: 'required' },
+        instances: [{ type_key: 'bank_balance', name: 'אישור יתרות בנק לאומי', description: '', paper_key: '' }],
+      }),
+      rows,
+      answers,
+    );
+    assert.equal(bank.valid[0]!.resolution === 'required' ? bank.valid[0]!.instances[0]!.paperKey : 'x', null);
+  });
+
+  it('papers: a real_estate instance without a paper, a paper of another type, or a paper on a type without papers is dropped', () => {
+    const rowsWithProperty: FormResolvableRow[] = [...rows, { id: 'doc-re', typeKey: 'real_estate', multiInstance: true }];
+    const missing = validateFormResolutions(
+      raw({
+        verdicts: { real_estate: 'required' },
+        instances: [{ type_key: 'real_estate', name: 'חוזה רכישה — דינוביץ 47', description: '', paper_key: '' }],
+      }),
+      rowsWithProperty,
+      answers,
+    );
+    assert.equal(missing.valid.length, 0);
+    assert.match(missing.dropped[0]!, /names no paper/);
+    assert.deepEqual(missing.checks, [
+      { key: 'real_estate', passed: false, note: missing.dropped[0]!.slice('real_estate: '.length), observed: 'required', expected: null },
+    ]);
+    const wrongType = validateFormResolutions(
+      raw({
+        verdicts: { bank_balance: 'required' },
+        instances: [{ type_key: 'bank_balance', name: 'אישור יתרות', description: '', paper_key: 'tabu_extract' }],
+      }),
+      rows,
+      answers,
+    );
+    assert.equal(wrongType.valid.length, 0);
+    assert.match(wrongType.dropped[0]!, /type without papers/);
+    const foreign = validateFormResolutions(
+      raw({
+        verdicts: { real_estate: 'required' },
+        instances: [{ type_key: 'real_estate', name: 'חוזה', description: '', paper_key: 'no_such_paper' }],
+      }),
+      rowsWithProperty,
+      answers,
+    );
+    assert.equal(foreign.valid.length, 0);
+    assert.match(foreign.dropped[0]!, /not a paper of type "real_estate"/);
   });
 
   it('collects unclear verdicts separately — they neither resolve nor drop', () => {
@@ -107,7 +176,7 @@ describe('form-intake resolution validation', () => {
     const { valid } = validateFormResolutions(
       raw({
         verdicts: { bank_balance: 'required' },
-        instances: [{ type_key: 'bank_balance', name: 'אישור יתרות', description: '' }],
+        instances: [{ type_key: 'bank_balance', name: 'אישור יתרות', description: '', paper_key: '' }],
       }),
       rows,
       answers,
@@ -129,8 +198,8 @@ describe('form-intake resolution validation', () => {
           crypto: 'not_required',
         },
         instances: [
-          { type_key: 'prior_declaration', name: 'הצהרה 2019', description: '' },
-          { type_key: 'prior_declaration', name: 'הצהרה 2015', description: '' },
+          { type_key: 'prior_declaration', name: 'הצהרה 2019', description: '', paper_key: '' },
+          { type_key: 'prior_declaration', name: 'הצהרה 2015', description: '', paper_key: '' },
         ],
       }),
       rows,

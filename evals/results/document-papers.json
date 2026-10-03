@@ -1,0 +1,5355 @@
+{
+  "ranAt": "2026-10-03T18:33:26.682Z",
+  "finishedAt": null,
+  "models": [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-2.5-pro",
+    "gemini-3.1-pro-preview",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "gpt-5-pro",
+    "gpt-5.1",
+    "gpt-5.2",
+    "gpt-5.2-pro",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+    "gpt-5.4-pro",
+    "gpt-5.5",
+    "gpt-5.5-pro",
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
+    "gpt-6-astra",
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-opus-4-1",
+    "claude-opus-4-20250514",
+    "claude-sonnet-4-20250514",
+    "claude-3-7-sonnet-20250219"
+  ],
+  "stages": [
+    "injection_detection_llm",
+    "questionnaire_schema_mapping",
+    "file_splitting",
+    "file_classification",
+    "extract_document",
+    "generate_message"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {},
+  "results": [
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:33:27.309Z",
+      "latencyMs": 9704,
+      "attempts": 1,
+      "inputTokens": 7117,
+      "outputTokens": 251,
+      "thinkingTokens": 1160,
+      "cachedTokens": 0,
+      "costUsd": 0.0056626,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר",
+        "summary": "המסמך הוא הסכם מכר לבית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, שנחתם ב-14 במרץ 2001 בין המוכרים מקמל חזי וקתי פנינה לבין הקונים ישראל ישראלי ותמיר מיכל, בסך 1,250,000 ש\"ח.",
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "המסמך הוא הסכם מכר לבית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, שנחתם ב-14 במרץ 2001 בין המוכרים מקמל חזי וקתי פנינה לבין הקונים ישראל ישראלי ותמיר מיכל, בסך 1,250,000 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:33:27.313Z",
+      "latencyMs": 9766,
+      "attempts": 1,
+      "inputTokens": 7117,
+      "outputTokens": 242,
+      "thinkingTokens": 1528,
+      "cachedTokens": 0,
+      "costUsd": 0.006560100000000001,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר",
+        "summary": "המסמך הוא נספח א' להסכם מכר מיום 14 במרץ 2001 עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, ומפרט את לוח התשלומים בסך כולל של 1,250,000 ש\"ח.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "המסמך הוא נספח א' להסכם מכר מיום 14 במרץ 2001 עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, ומפרט את לוח התשלומים בסך כולל של 1,250,000 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:33:27.316Z",
+      "latencyMs": 10135,
+      "attempts": 1,
+      "inputTokens": 7117,
+      "outputTokens": 283,
+      "thinkingTokens": 1547,
+      "cachedTokens": 0,
+      "costUsd": 0.0067101,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות",
+        "summary": "המסמך הוא נסח טאבו המציג פרטי נכס מקרקעין בכתובת דינוביץ אבשלום 47, פתח תקווה, כולל פרטי הבעלות (חכירה לדורות של ישראל ישראלי ותמיר מיכל) ומשכנתא רשומה לטובת בנק הפועלים.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": "משרד המשפטים – האגף לרישום והסדר מקרקעין, לשכת רישום מקרקעין פתח תקוה",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים – האגף לרישום והסדר מקרקעין, לשכת רישום מקרקעין פתח תקוה",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "המסמך הוא נסח טאבו המציג פרטי נכס מקרקעין בכתובת דינוביץ אבשלום 47, פתח תקווה, כולל פרטי הבעלות (חכירה לדורות של ישראל ישראלי ותמיר מיכל) ומשכנתא רשומה לטובת בנק הפועלים."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:33:37.455Z",
+      "latencyMs": 360,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:33:37.456Z",
+      "latencyMs": 376,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:33:37.457Z",
+      "latencyMs": 449,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3-flash-preview",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:33:37.909Z",
+      "latencyMs": 6004,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 199,
+      "thinkingTokens": 906,
+      "cachedTokens": 0,
+      "costUsd": 0.0070044999999999994,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר",
+        "summary": "נספח תשלומים (נספח א') להסכם מכר מיום 14.03.2001 עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה. המסמך מפרט לוח של ארבעה תשלומים בסך כולל של 1,250,000 ש\"ח.",
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "נספח תשלומים (נספח א') להסכם מכר מיום 14.03.2001 עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה. המסמך מפרט לוח של ארבעה תשלומים בסך כולל של 1,250,000 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3-flash-preview",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:33:37.909Z",
+      "latencyMs": 6041,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 202,
+      "thinkingTokens": 744,
+      "cachedTokens": 0,
+      "costUsd": 0.0065275,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+        "summary": "נסח טאבו עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325, חלקה 161, תת-חלקה 2), בבעלות ישראל ישראלי ומיכל תמיר.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "נסח טאבו עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325, חלקה 161, תת-חלקה 2), בבעלות ישראל ישראלי ומיכל תמיר."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3-flash-preview",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:33:37.908Z",
+      "latencyMs": 8960,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 189,
+      "thinkingTokens": 831,
+      "cachedTokens": 0,
+      "costUsd": 0.0067495,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר מקרקעין",
+        "summary": "חוזה רכישה עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, שנחתם בשנת 2001.",
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר מקרקעין",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "חוזה רכישה עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, שנחתם בשנת 2001."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:33:46.872Z",
+      "latencyMs": 2017,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 232,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.00219275,
+      "error": null,
+      "output": {
+        "document_kind": "נסח טאבו",
+        "summary": "נסח רישום מפנקס הזכויות עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325, חלקה 161, תת-חלקה 2).",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח טאבו",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "נסח רישום מפנקס הזכויות עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325, חלקה 161, תת-חלקה 2)."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:33:46.871Z",
+      "latencyMs": 2095,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 199,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.0021432499999999998,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר",
+        "summary": "הסכם מכר עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, שנחתם ב-14 במרץ 2001.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "הסכם מכר עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, שנחתם ב-14 במרץ 2001."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:33:46.872Z",
+      "latencyMs": 2505,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 228,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.00218675,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים לחוזה מכר מקרקעין",
+        "summary": "נספח תשלומים עבור רכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, המפרט את לוח התשלומים הכולל סך של 1,250,000 ש\"ח.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים לחוזה מכר מקרקעין",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "נספח תשלומים עבור רכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, המפרט את לוח התשלומים הכולל סך של 1,250,000 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:33:49.380Z",
+      "latencyMs": 4945,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 202,
+      "thinkingTokens": 805,
+      "cachedTokens": 0,
+      "costUsd": 0.0201315,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+        "summary": "נסח טאבו עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325, חלקה 161, תת-חלקה 2), בבעלות ישראל ישראלי ומיכל תמיר.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "נסח טאבו עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325, חלקה 161, תת-חלקה 2), בבעלות ישראל ישראלי ומיכל תמיר."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:33:49.380Z",
+      "latencyMs": 5662,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 171,
+      "thinkingTokens": 922,
+      "cachedTokens": 0,
+      "costUsd": 0.0209055,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר",
+        "summary": "נספח תשלומים (נספח א') להסכם מכר מיום 14.03.2001 לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה.",
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "נספח תשלומים (נספח א') להסכם מכר מיום 14.03.2001 לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:33:49.379Z",
+      "latencyMs": 6038,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 173,
+      "thinkingTokens": 939,
+      "cachedTokens": 0,
+      "costUsd": 0.021076499999999998,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר",
+        "summary": "הסכם מכר לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה, שנחתם ביום 14 במרץ 2001 בין חזי וקתי פנינה מקמל לבין ישראל ישראלי ומיכל תמיר.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "הסכם מכר לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה, שנחתם ביום 14 במרץ 2001 בין חזי וקתי פנינה מקמל לבין ישראל ישראלי ומיכל תמיר."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:33:55.419Z",
+      "latencyMs": 1493,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 192,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.0026937,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר",
+        "summary": "הסכם מכר רכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה מיום 14 במרץ 2001.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "summary": "הסכם מכר רכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה מיום 14 במרץ 2001."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:33:55.419Z",
+      "latencyMs": 1598,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 209,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.0027362,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר",
+        "summary": "נספח תשלומים המפרט את לוח התשלומים עבור רכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה משנת 2001.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "נספח תשלומים המפרט את לוח התשלומים עבור רכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה משנת 2001."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.5-flash-lite",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:33:55.421Z",
+      "latencyMs": 1613,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 210,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.0027387,
+      "error": null,
+      "output": {
+        "document_kind": "נסח טאבו",
+        "summary": "נסח רישום מפנקס הזכויות עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325, חלקה 161, תת-חלקה 2).",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "משרד המשפטים",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח טאבו",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "summary": "נסח רישום מפנקס הזכויות עבור נכס ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325, חלקה 161, תת-חלקה 2)."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.6-flash",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:33:57.047Z",
+      "latencyMs": 5860,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 187,
+      "thinkingTokens": 777,
+      "cachedTokens": 0,
+      "costUsd": 0.00914925,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות",
+        "summary": "נסח טאבו עבור נכס ברחוב דינוביץ אבשלום 47 פתח תקווה (גוש 6325 חלקה 161 תת-חלקה 2) הרשום על שם ישראל ישראלי ותמיר מיכל.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "summary": "נסח טאבו עבור נכס ברחוב דינוביץ אבשלום 47 פתח תקווה (גוש 6325 חלקה 161 תת-חלקה 2) הרשום על שם ישראל ישראלי ותמיר מיכל."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.6-flash",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:33:57.046Z",
+      "latencyMs": 6131,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 187,
+      "thinkingTokens": 710,
+      "cachedTokens": 0,
+      "costUsd": 0.008898,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר",
+        "summary": "נספח תשלומים (נספח א') להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה בסכום כולל של 1,250,000 ש\"ח.",
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "נספח תשלומים (נספח א') להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה בסכום כולל של 1,250,000 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.6-flash",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:33:57.045Z",
+      "latencyMs": 7810,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 162,
+      "thinkingTokens": 1345,
+      "cachedTokens": 0,
+      "costUsd": 0.011185500000000001,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר מקרקעין",
+        "summary": "הסכם מכר מיום 14.3.2001 לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה תמורת 1,250,000 ש\"ח.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר מקרקעין",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "summary": "הסכם מכר מיום 14.3.2001 לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה תמורת 1,250,000 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.7-flash",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:34:04.857Z",
+      "latencyMs": 3561,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 227,
+      "thinkingTokens": 411,
+      "cachedTokens": 0,
+      "costUsd": 0.00792675,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר מקרקעין (חוזה רכישה)",
+        "summary": "הסכם מכר מיום 14.3.2001 לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, תמורת 1,250,000 ש\"ח.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר מקרקעין (חוזה רכישה)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "הסכם מכר מיום 14.3.2001 לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, תמורת 1,250,000 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.7-flash",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:34:04.858Z",
+      "latencyMs": 3920,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 244,
+      "thinkingTokens": 584,
+      "cachedTokens": 0,
+      "costUsd": 0.008639250000000001,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר מקרקעין",
+        "summary": "נספח תשלומים (נספח א') להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, בסך כולל של 1,250,000 ש\"ח.",
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר מקרקעין",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "נספח תשלומים (נספח א') להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, בסך כולל של 1,250,000 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.7-flash",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:34:04.858Z",
+      "latencyMs": 3979,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 252,
+      "thinkingTokens": 556,
+      "cachedTokens": 0,
+      "costUsd": 0.008564249999999999,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+        "summary": "נסח טאבו עבור נכס ברחוב דינוביץ אבשלום 47 פתח תקווה (גוש 6325 חלקה 161 תת-חלקה 2), בבעלות משותפת של ישראל ישראלי ומיכל תמיר.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "נסח טאבו עבור נכס ברחוב דינוביץ אבשלום 47 פתח תקווה (גוש 6325 חלקה 161 תת-חלקה 2), בבעלות משותפת של ישראל ישראלי ומיכל תמיר."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-pro",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:34:08.841Z",
+      "latencyMs": 370,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-pro is no longer available to new users. Please update your code to use models/gemini-3.1-pro-preview for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-pro",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:34:08.840Z",
+      "latencyMs": 376,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-pro is no longer available to new users. Please update your code to use models/gemini-3.1-pro-preview for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-pro",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:34:08.841Z",
+      "latencyMs": 387,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "{\"error\":{\"code\":404,\"message\":\"This model models/gemini-2.5-pro is no longer available to new users. Please update your code to use models/gemini-3.1-pro-preview for the latest features and improvements. We recommend you to use the Interactions API (https://ai.google.dev/gemini-api/docs/get-started).\",\"status\":\"NOT_FOUND\"}}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:34:09.238Z",
+      "latencyMs": 10305,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 210,
+      "thinkingTokens": 905,
+      "cachedTokens": 0,
+      "costUsd": 0.028137999999999996,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר",
+        "summary": "הסכם מכר לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה, שנחתם בשנת 2001 בין משפחת מקמל למשפחות ישראלי ותמיר.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "הסכם מכר לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה, שנחתם בשנת 2001 בין משפחת מקמל למשפחות ישראלי ותמיר."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:34:09.239Z",
+      "latencyMs": 12031,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 222,
+      "thinkingTokens": 1225,
+      "cachedTokens": 0,
+      "costUsd": 0.032122,
+      "error": null,
+      "output": {
+        "document_kind": "נסח טאבו",
+        "summary": "נסח רישום מפנקס הזכויות (טאבו) עבור נכס ברחוב דינוביץ אבשלום 47 בפתח תקווה, בבעלות ישראל ישראלי ותמיר מיכל.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח טאבו",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי, תמיר מיכל",
+        "summary": "נסח רישום מפנקס הזכויות (טאבו) עבור נכס ברחוב דינוביץ אבשלום 47 בפתח תקווה, בבעלות ישראל ישראלי ותמיר מיכל."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:34:09.239Z",
+      "latencyMs": 13428,
+      "attempts": 1,
+      "inputTokens": 7379,
+      "outputTokens": 219,
+      "thinkingTokens": 1260,
+      "cachedTokens": 0,
+      "costUsd": 0.032506,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר",
+        "summary": "נספח תשלומים המפרט את לוח התשלומים לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה, בסך כולל של 1,250,000 ש\"ח.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "נספח תשלומים המפרט את לוח התשלומים לרכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה, בסך כולל של 1,250,000 ש\"ח."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:34:22.672Z",
+      "latencyMs": 11448,
+      "attempts": 1,
+      "inputTokens": 6528,
+      "outputTokens": 251,
+      "thinkingTokens": 1024,
+      "cachedTokens": 0,
+      "costUsd": 0.02091,
+      "error": null,
+      "output": {
+        "document_kind": "חוזה רכישה / הסכם מכר מקרקעין לנכס ברח' דינוביץ אבשלום 47, פתח תקווה",
+        "summary": "הסכם מכר חתום מ-14.03.2001 בין המוכרים מקמל חזי וקתי פנינה לבין הקונים ישראל ישראלי ותמיר מיכל לגבי בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה. התמורה: 1,250,000 ש\"ח לפי נספח התשלומים; מסירה: 01.09.2001; חלוקת מסים: מס שבח על המוכרים ומס רכישה על הקונים.",
+        "tax_year": null,
+        "subject_name": null,
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "חוזה רכישה / הסכם מכר מקרקעין לנכס ברח' דינוביץ אבשלום 47, פתח תקווה",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": null,
+        "summary": "הסכם מכר חתום מ-14.03.2001 בין המוכרים מקמל חזי וקתי פנינה לבין הקונים ישראל ישראלי ותמיר מיכל לגבי בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה. התמורה: 1,250,000 ש\"ח לפי נספח התשלומים; מסירה: 01.09.2001; חלוקת מסים: מס שבח על המוכרים ומס רכישה על הקונים."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:34:22.683Z",
+      "latencyMs": 12176,
+      "attempts": 1,
+      "inputTokens": 6595,
+      "outputTokens": 235,
+      "thinkingTokens": 1088,
+      "cachedTokens": 0,
+      "costUsd": 0.02147375,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות (טאבו) — לשכת רישום מקרקעין פתח תקוה",
+        "summary": "נסח טאבו לנכס בגוש 6325 חלקה 161 תת-חלקה 2, כתובת דינוביץ אבשלום 47 פתח תקווה, בבעלות ישראל ישראלי ותמיר מיכל (1/2 כל אחד), עם משכנתא בדרגה ראשונה לטובת בנק הפועלים מ-22.07.2001.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות (טאבו) — לשכת רישום מקרקעין פתח תקוה",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "summary": "נסח טאבו לנכס בגוש 6325 חלקה 161 תת-חלקה 2, כתובת דינוביץ אבשלום 47 פתח תקווה, בבעלות ישראל ישראלי ותמיר מיכל (1/2 כל אחד), עם משכנתא בדרגה ראשונה לטובת בנק הפועלים מ-22.07.2001."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:34:22.678Z",
+      "latencyMs": 15451,
+      "attempts": 1,
+      "inputTokens": 6623,
+      "outputTokens": 288,
+      "thinkingTokens": 1408,
+      "cachedTokens": 6016,
+      "costUsd": 0.01847075,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר מקרקעין (בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה) מיום 14.03.2001",
+        "summary": "נספח א' להסכם המכר המציג לוח תשלומים עבור רכישת בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה. סכום העסקה 1,250,000 ש\"ח בארבעה תשלומים; הקונים ישראל ישראלי ותמיר מיכל, המוכרים מקמל חזי ומקמל קתי פנינה.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר מקרקעין (בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה) מיום 14.03.2001",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "summary": "נספח א' להסכם המכר המציג לוח תשלומים עבור רכישת בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה. סכום העסקה 1,250,000 ש\"ח בארבעה תשלומים; הקונים ישראל ישראלי ותמיר מיכל, המוכרים מקמל חזי ומקמל קתי פנינה."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:34:38.137Z",
+      "latencyMs": 6267,
+      "attempts": 1,
+      "inputTokens": 6721,
+      "outputTokens": 178,
+      "thinkingTokens": 640,
+      "cachedTokens": 0,
+      "costUsd": 0.0033162499999999998,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר",
+        "summary": "נספח תשלומים לחוזה מכר לבית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה; פירוט ארבעה תשלומים בסך כולל 1,250,000 ש\"ח ותאריכי ביצוע בשנת 2001.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "נספח תשלומים לחוזה מכר לבית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה; פירוט ארבעה תשלומים בסך כולל 1,250,000 ש\"ח ותאריכי ביצוע בשנת 2001."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:34:38.134Z",
+      "latencyMs": 10195,
+      "attempts": 1,
+      "inputTokens": 6528,
+      "outputTokens": 243,
+      "thinkingTokens": 768,
+      "cachedTokens": 0,
+      "costUsd": 0.003654,
+      "error": null,
+      "output": {
+        "document_kind": "חוזה רכישה",
+        "summary": "הסכם מכר לבית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, נחתם ב-14.3.2001 בין המוכרים מקמל חזי ומקמל קתי פנינה לבין הקונים ישראל ישראלי ותמיר מיכל; תמורה 1,250,000 ש\"ח, מסמכי תשלומים מצורפים, מסירת החזקה תתבצע ב-1.9.2001, פירוט אחריות למסים ואימות חתימות על ידי עו\"ד ד. לוי.",
+        "tax_year": null,
+        "subject_name": "מקמל חזי; מקמל קתי פנינה; ישראל ישראלי; תמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "חוזה רכישה",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "מקמל חזי; מקמל קתי פנינה; ישראל ישראלי; תמיר מיכל",
+        "summary": "הסכם מכר לבית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, נחתם ב-14.3.2001 בין המוכרים מקמל חזי ומקמל קתי פנינה לבין הקונים ישראל ישראלי ותמיר מיכל; תמורה 1,250,000 ש\"ח, מסמכי תשלומים מצורפים, מסירת החזקה תתבצע ב-1.9.2001, פירוט אחריות למסים ואימות חתימות על ידי עו\"ד ד. לוי."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:34:38.140Z",
+      "latencyMs": 13426,
+      "attempts": 1,
+      "inputTokens": 6693,
+      "outputTokens": 347,
+      "thinkingTokens": 1280,
+      "cachedTokens": 6016,
+      "costUsd": 0.00357365,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+        "summary": "נסח טאבו של לשכת רישום מקרקעין פתח תקווה עבור נכס ברחוב דינוביץ אבשלום 47 פתח תקווה (גוש 6325 חלקה 161 תת-חלקה 2), שטח 312 מ\"ר, בעלי הזכויות: ישראל ישראלי ותמיר מיכל (כל אחד 1/2, חכירה לדורות). מופיע רישום משכנתא דרגה ראשונה לטובת בנק הפועלים בע\"מ מתאריך 22.07.2001.",
+        "tax_year": null,
+        "subject_name": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין, לשכת רישום מקרקעין פתח תקוה",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין, לשכת רישום מקרקעין פתח תקוה",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": null,
+        "summary": "נסח טאבו של לשכת רישום מקרקעין פתח תקווה עבור נכס ברחוב דינוביץ אבשלום 47 פתח תקווה (גוש 6325 חלקה 161 תת-חלקה 2), שטח 312 מ\"ר, בעלי הזכויות: ישראל ישראלי ותמיר מיכל (כל אחד 1/2, חכירה לדורות). מופיע רישום משכנתא דרגה ראשונה לטובת בנק הפועלים בע\"מ מתאריך 22.07.2001."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5-nano",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:34:51.571Z",
+      "latencyMs": 16926,
+      "attempts": 1,
+      "inputTokens": 6797,
+      "outputTokens": 179,
+      "thinkingTokens": 2752,
+      "cachedTokens": 0,
+      "costUsd": 0.00151225,
+      "error": null,
+      "output": {
+        "document_kind": "real_estate",
+        "summary": "נספח תשלומים במסגרת הסכם מכר נכס; מפרט תשלומים לפי מועדים: 125,000 במעמד החתימה, 375,000 עד 15.05.2001, 600,000 עד 15.07.2001, 150,000 במעמד מסירת החזקה.",
+        "tax_year": null,
+        "subject_name": null,
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "real_estate",
+          "pass": false
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": null,
+        "summary": "נספח תשלומים במסגרת הסכם מכר נכס; מפרט תשלומים לפי מועדים: 125,000 במעמד החתימה, 375,000 עד 15.05.2001, 600,000 עד 15.07.2001, 150,000 במעמד מסירת החזקה."
+      },
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5-nano",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:34:51.569Z",
+      "latencyMs": 20586,
+      "attempts": 1,
+      "inputTokens": 6528,
+      "outputTokens": 235,
+      "thinkingTokens": 3072,
+      "cachedTokens": 0,
+      "costUsd": 0.0016492,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר (חוזה רכישה)",
+        "summary": "הסכם מכר לנכס נדל״ן: חוזה רכישה של נכס מגורים דו-משפחתי בפתח תקווה בין מוכרים: חזי מקמל וקטי פנינה מקמל, ובין קונים: ישראל ישראלי ותמיר מיכל, בתמורה 1,250,000 ש״ח, מסירה ביום 1.9.2001, תשלום המסים לפי ההסכם.",
+        "tax_year": null,
+        "subject_name": null,
+        "issuer_name": "עו\"ד ד. לוי",
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר (חוזה רכישה)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": "עו\"ד ד. לוי",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": null,
+        "summary": "הסכם מכר לנכס נדל״ן: חוזה רכישה של נכס מגורים דו-משפחתי בפתח תקווה בין מוכרים: חזי מקמל וקטי פנינה מקמל, ובין קונים: ישראל ישראלי ותמיר מיכל, בתמורה 1,250,000 ש״ח, מסירה ביום 1.9.2001, תשלום המסים לפי ההסכם."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5-nano",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:34:51.574Z",
+      "latencyMs": 23023,
+      "attempts": 1,
+      "inputTokens": 6769,
+      "outputTokens": 272,
+      "thinkingTokens": 3648,
+      "cachedTokens": 6016,
+      "costUsd": 0.00163573,
+      "error": null,
+      "output": {
+        "document_kind": "real_estate",
+        "summary": "נסח רישום מפנקס הזכויותของ נכס מגורים דו-משפחתי בפתח תקווה, כתובת דינוביץ אבשלום 47, גוש 6325 חלקה 161 תת-חלקה 2, שטח 312 m²; בעלי הזכויות הם ישראל ישראלי (1/2) ותמיר מיכל (1/2); יש משכנתא דרגה ראשונה בבנק הפועלים בע\"מ מ-22.07.2001.",
+        "tax_year": null,
+        "subject_name": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין, לשכת רישום מקרקעין פתח תקווה",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "real_estate",
+          "pass": false
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין, לשכת רישום מקרקעין פתח תקווה",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": null,
+        "summary": "נסח רישום מפנקס הזכויותของ נכס מגורים דו-משפחתי בפתח תקווה, כתובת דינוביץ אבשלום 47, גוש 6325 חלקה 161 תת-חלקה 2, שטח 312 m²; בעלי הזכויות הם ישראל ישראלי (1/2) ותמיר מיכל (1/2); יש משכנתא דרגה ראשונה בבנק הפועלים בע\"מ מ-22.07.2001."
+      },
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5-pro",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:35:14.600Z",
+      "latencyMs": 266432,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "The operation was aborted due to timeout",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5-pro",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:35:14.606Z",
+      "latencyMs": 324464,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "The operation was aborted due to timeout",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5-pro",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:35:14.603Z",
+      "latencyMs": 324499,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "The operation was aborted due to timeout",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.1",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:40:39.110Z",
+      "latencyMs": 2524,
+      "attempts": 1,
+      "inputTokens": 6595,
+      "outputTokens": 234,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.010583750000000001,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מקרקעין (נסח טאבו) לנכס ברחוב דינוביץ אבשלום 47 פתח תקווה",
+        "summary": "נסח רישום מפנקס הזכויות מלשכת רישום מקרקעין פתח תקוה לגוש 6325 חלקה 161 תת-חלקה 2 (בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה), המציג בעלי הזכויות ופרטי משכנתא בדרגה ראשונה לטובת בנק הפועלים.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מקרקעין (נסח טאבו) לנכס ברחוב דינוביץ אבשלום 47 פתח תקווה",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "summary": "נסח רישום מפנקס הזכויות מלשכת רישום מקרקעין פתח תקוה לגוש 6325 חלקה 161 תת-חלקה 2 (בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה), המציג בעלי הזכויות ופרטי משכנתא בדרגה ראשונה לטובת בנק הפועלים."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.1",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:40:39.108Z",
+      "latencyMs": 2785,
+      "attempts": 1,
+      "inputTokens": 6623,
+      "outputTokens": 230,
+      "thinkingTokens": 0,
+      "cachedTokens": 5888,
+      "costUsd": 0.00395475,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים לחוזה רכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה, כולל לוח התשלומים והמועדים",
+        "summary": "נספח א' להסכם מכר לבית דו-משפחתי ברח' דינוביץ אבשלום 47 פתח תקווה, המפרט את לוח התשלומים, מועדי התשלום, סכומי התמורה ואופן ביצוע כל תשלום, כולל סיכום התמורה הכוללת וחתימות המוכרים והקונים.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל; מקמל חזי; מקמל קתי פנינה",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים לחוזה רכישת בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה, כולל לוח התשלומים והמועדים",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל; מקמל חזי; מקמל קתי פנינה",
+        "summary": "נספח א' להסכם מכר לבית דו-משפחתי ברח' דינוביץ אבשלום 47 פתח תקווה, המפרט את לוח התשלומים, מועדי התשלום, סכומי התמורה ואופן ביצוע כל תשלום, כולל סיכום התמורה הכוללת וחתימות המוכרים והקונים."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.1",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:40:39.106Z",
+      "latencyMs": 2903,
+      "attempts": 1,
+      "inputTokens": 6528,
+      "outputTokens": 243,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.01059,
+      "error": null,
+      "output": {
+        "document_kind": "חוזה מכר מקרקעין לבית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה, שנחתם בשנת 2001",
+        "summary": "הסכם מכר חתום בין המוכרים מקמל חזי ומקמל קתי פנינה לבין הקונים ישראל ישראלי ותמיר מיכל, למכירת בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה (גוש 6325 חלקה 161) בתמורה ל-1,250,000 ש\"ח, כולל תנאי מסירה ותשלומי מסים.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל; מקמל חזי; מקמל קתי פנינה",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "חוזה מכר מקרקעין לבית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה, שנחתם בשנת 2001",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל; מקמל חזי; מקמל קתי פנינה",
+        "summary": "הסכם מכר חתום בין המוכרים מקמל חזי ומקמל קתי פנינה לבין הקונים ישראל ישראלי ותמיר מיכל, למכירת בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה (גוש 6325 חלקה 161) בתמורה ל-1,250,000 ש\"ח, כולל תנאי מסירה ותשלומי מסים."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.2",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:40:42.018Z",
+      "latencyMs": 3232,
+      "attempts": 1,
+      "inputTokens": 6721,
+      "outputTokens": 209,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.01468775,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים (נספח א' להסכם מכר)",
+        "summary": "נספח א' להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה (גוש 6325 חלקה 161), הכולל לוח תשלומים מפורט (מועדים, סכומים ואופן תשלום) בסך כולל 1,250,000 ש\"ח, עם שדות חתימה לקונים ולמוכרים.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים (נספח א' להסכם מכר)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "summary": "נספח א' להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה (גוש 6325 חלקה 161), הכולל לוח תשלומים מפורט (מועדים, סכומים ואופן תשלום) בסך כולל 1,250,000 ש\"ח, עם שדות חתימה לקונים ולמוכרים."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.2",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:40:42.021Z",
+      "latencyMs": 3567,
+      "attempts": 1,
+      "inputTokens": 6693,
+      "outputTokens": 198,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.01448475,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות (נסח טאבו) — לשכת רישום מקרקעין פתח תקוה",
+        "summary": "נסח טאבו ממשרד המשפטים עבור גוש 6325 חלקה 161 תת-חלקה 2 (בית מגורים דו-משפחתי) בכתובת דינוביץ אבשלום 47, פתח תקווה, כולל פירוט בעלי הזכויות והערת משכנתא.",
+        "tax_year": null,
+        "subject_name": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות (נסח טאבו) — לשכת רישום מקרקעין פתח תקוה",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": null,
+        "summary": "נסח טאבו ממשרד המשפטים עבור גוש 6325 חלקה 161 תת-חלקה 2 (בית מגורים דו-משפחתי) בכתובת דינוביץ אבשלום 47, פתח תקווה, כולל פירוט בעלי הזכויות והערת משכנתא."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.2",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:40:42.016Z",
+      "latencyMs": 3584,
+      "attempts": 1,
+      "inputTokens": 6528,
+      "outputTokens": 225,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.014574,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר (חוזה רכישה) למכירת בית מגורים",
+        "summary": "הסכם מכר שנחתם בפתח תקווה ביום 14.03.2001 בין מוכרים (חזי וקתי פנינה מקמל) לבין קונים (ישראל ישראלי ומיכל תמיר) לרכישת בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325 חלקה 161), בתמורה 1,250,000 ש\"ח, עם הפניה לנספח תשלומים ומועד מסירה 01.09.2001.",
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר (חוזה רכישה) למכירת בית מגורים",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי",
+        "summary": "הסכם מכר שנחתם בפתח תקווה ביום 14.03.2001 בין מוכרים (חזי וקתי פנינה מקמל) לבין קונים (ישראל ישראלי ומיכל תמיר) לרכישת בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה (גוש 6325 חלקה 161), בתמורה 1,250,000 ש\"ח, עם הפניה לנספח תשלומים ומועד מסירה 01.09.2001."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.2-pro",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:40:45.617Z",
+      "latencyMs": 17063,
+      "attempts": 1,
+      "inputTokens": 6721,
+      "outputTokens": 203,
+      "thinkingTokens": 206,
+      "cachedTokens": 0,
+      "costUsd": 0.20985299999999998,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים (נספח א' להסכם מכר מקרקעין)",
+        "summary": "נספח א' להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה (גוש 6325 חלקה 161), הכולל לוח תשלומים מפורט לתמורה בסך 1,250,000 ש\"ח (מועדים, סכומים ואופן תשלום).",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים (נספח א' להסכם מכר מקרקעין)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "נספח א' להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברח' דינוביץ אבשלום 47, פתח תקווה (גוש 6325 חלקה 161), הכולל לוח תשלומים מפורט לתמורה בסך 1,250,000 ש\"ח (מועדים, סכומים ואופן תשלום)."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.2-pro",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:40:45.614Z",
+      "latencyMs": 132670,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "OpenAI HTTP 429: {\n  \"error\": {\n    \"message\": \"Rate limit reached for gpt-5.2-pro in organization org-82kQZhtdYZqhsq6F9sXU6Wu7 on tokens per min (TPM): Limit 100000, Used 92832, Requested 8924. Please try again in 1.053s. Visit https://platform.openai.com/account/rate-limits to learn more.\",\n    \"type\": \"tokens\",\n    \"param\": null,\n    \"code\": \"rate_limit_exceeded\"\n  }\n}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.2-pro",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:40:45.620Z",
+      "latencyMs": 150468,
+      "attempts": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": null,
+      "error": "OpenAI HTTP 429: {\n  \"error\": {\n    \"message\": \"Rate limit reached for gpt-5.2-pro in organization org-82kQZhtdYZqhsq6F9sXU6Wu7 on tokens per min (TPM): Limit 100000, Used 91929, Requested 9045. Please try again in 584ms. Visit https://platform.openai.com/account/rate-limits to learn more.\",\n    \"type\": \"tokens\",\n    \"param\": null,\n    \"code\": \"rate_limit_exceeded\"\n  }\n}",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.4",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:43:16.093Z",
+      "latencyMs": 5397,
+      "attempts": 1,
+      "inputTokens": 6528,
+      "outputTokens": 173,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.018915,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר מקרקעין",
+        "summary": "חוזה רכישה/מכר של בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, שנחתם ביום 14.3.2001 בין המוכרים לקונים. המסמך כולל את פרטי הצדדים, תיאור הנכס, התמורה ומועד המסירה.",
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר מקרקעין",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "חוזה רכישה/מכר של בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, שנחתם ביום 14.3.2001 בין המוכרים לקונים. המסמך כולל את פרטי הצדדים, תיאור הנכס, התמורה ומועד המסירה."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.4",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:43:16.096Z",
+      "latencyMs": 5846,
+      "attempts": 1,
+      "inputTokens": 6721,
+      "outputTokens": 189,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.019637500000000002,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר מקרקעין",
+        "summary": "נספח א' להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, המפרט את לוח התשלומים הכולל בסך 1,250,000 ש\"ח. מופיעים פרטי הקונים והמוכרים, מועדי התשלום, הסכומים ואופן התשלום.",
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר מקרקעין",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2001",
+        "subject_name": "ישראל ישראלי",
+        "summary": "נספח א' להסכם מכר מיום 14.03.2001 עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, המפרט את לוח התשלומים הכולל בסך 1,250,000 ש\"ח. מופיעים פרטי הקונים והמוכרים, מועדי התשלום, הסכומים ואופן התשלום."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.4",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:43:16.097Z",
+      "latencyMs": 7258,
+      "attempts": 1,
+      "inputTokens": 6693,
+      "outputTokens": 208,
+      "thinkingTokens": 0,
+      "cachedTokens": 5888,
+      "costUsd": 0.006604499999999999,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+        "summary": "נסח טאבו מלשכת רישום המקרקעין פתח תקוה עבור בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, גוש 6325 חלקה 161 תת-חלקה 2. מצוינים בעלי הזכויות והערת משכנתא לטובת בנק הפועלים.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות (נסח טאבו)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "summary": "נסח טאבו מלשכת רישום המקרקעין פתח תקוה עבור בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, גוש 6325 חלקה 161 תת-חלקה 2. מצוינים בעלי הזכויות והערת משכנתא לטובת בנק הפועלים."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.4-mini",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:43:23.367Z",
+      "latencyMs": 2066,
+      "attempts": 1,
+      "inputTokens": 6528,
+      "outputTokens": 189,
+      "thinkingTokens": 0,
+      "cachedTokens": 5888,
+      "costUsd": 0.0017721,
+      "error": null,
+      "output": {
+        "document_kind": "הסכם מכר מקרקעין",
+        "summary": "זהו הסכם מכר שנחתם בפתח תקווה ביום 14 במרץ 2001 בין המוכרים לקונים לגבי בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה, גוש 6325 חלקה 161. בהסכם מצוינת התמורה בסך 1,250,000 ש\"ח והפניה לנספח תשלומים מצורף.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": null,
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "הסכם מכר מקרקעין",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "summary": "זהו הסכם מכר שנחתם בפתח תקווה ביום 14 במרץ 2001 בין המוכרים לקונים לגבי בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה, גוש 6325 חלקה 161. בהסכם מצוינת התמורה בסך 1,250,000 ש\"ח והפניה לנספח תשלומים מצורף."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.4-mini",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:43:23.379Z",
+      "latencyMs": 2126,
+      "attempts": 1,
+      "inputTokens": 6693,
+      "outputTokens": 223,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.00602325,
+      "error": null,
+      "output": {
+        "document_kind": "נסח רישום מפנקס הזכויות (נסח טאבו) לנכס בפתח תקווה",
+        "summary": "זהו נסח רישום מפנקס הזכויות של משרד המשפטים עבור נכס מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה. במסמך מפורטים פרטי הגוש/חלקה, בעלי הזכויות, וכן הערה על משכנתא לטובת בנק הפועלים.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין, לשכת רישום מקרקעין פתח תקוה",
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "tabu_extract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "tabu_extract",
+          "actual": "tabu_extract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נסח",
+            "טאבו",
+            "רישום",
+            "registry"
+          ],
+          "actual": "נסח רישום מפנקס הזכויות (נסח טאבו) לנכס בפתח תקווה",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": false,
+          "reason": "matched id \"doc_7\" dropped — papers differ: the file is \"tabu_extract\", the item is \"purchase_contract\"",
+          "rejectedId": "doc_7",
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": "משרד המשפטים — האגף לרישום והסדר מקרקעין, לשכת רישום מקרקעין פתח תקוה",
+        "match_dropped": "papers differ: the file is \"tabu_extract\", the item is \"purchase_contract\"",
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי; תמיר מיכל",
+        "summary": "זהו נסח רישום מפנקס הזכויות של משרד המשפטים עבור נכס מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה. במסמך מפורטים פרטי הגוש/חלקה, בעלי הזכויות, וכן הערה על משכנתא לטובת בנק הפועלים."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.4-mini",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:43:23.372Z",
+      "latencyMs": 3818,
+      "attempts": 1,
+      "inputTokens": 6721,
+      "outputTokens": 198,
+      "thinkingTokens": 0,
+      "cachedTokens": 5888,
+      "costUsd": 0.00195735,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר של נכס מקרקעין",
+        "summary": "זהו נספח א' להסכם מכר מיום 14 במרץ 2001, המפרט את לוח התשלומים עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה (גוש 6325 חלקה 161). מופיעים שמות הקונים והמוכרים, התמורה הכוללת, וארבעה מועדי תשלום עם סכומיהם ואופן התשלום.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר של נכס מקרקעין",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "summary": "זהו נספח א' להסכם מכר מיום 14 במרץ 2001, המפרט את לוח התשלומים עבור בית דו-משפחתי ברחוב דינוביץ אבשלום 47 בפתח תקווה (גוש 6325 חלקה 161). מופיעים שמות הקונים והמוכרים, התמורה הכוללת, וארבעה מועדי תשלום עם סכומיהם ואופן התשלום."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.4-nano",
+      "provider": "openai",
+      "caseId": "cls_19",
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row",
+      "ranAt": "2026-10-03T18:43:27.204Z",
+      "latencyMs": 2439,
+      "attempts": 1,
+      "inputTokens": 6721,
+      "outputTokens": 195,
+      "thinkingTokens": 0,
+      "cachedTokens": 5888,
+      "costUsd": 0.00052811,
+      "error": null,
+      "output": {
+        "document_kind": "נספח תשלומים להסכם מכר מקרקעין (נספח א׳)",
+        "summary": "המסמך הוא נספח תשלומים להסכם המכר מיום 14.03.2001 לבית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה. הוא מפרט את התמורה הכוללת ואת מועדי התשלומים, הסכומים ואופן ביצוע כל תשלום, כולל סעיף משכנתא לתשלום מסוים.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "issuer_name": null,
+        "matched_document_id": "doc_8",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "payments_appendix"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "payments_appendix",
+          "actual": "payments_appendix",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_8",
+          "actual": "doc_8",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "נספח",
+            "תשלומים",
+            "appendix"
+          ],
+          "actual": "נספח תשלומים להסכם מכר מקרקעין (נספח א׳)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_8",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי ותמיר מיכל",
+        "summary": "המסמך הוא נספח תשלומים להסכם המכר מיום 14.03.2001 לבית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה. הוא מפרט את התמורה הכוללת ואת מועדי התשלומים, הסכומים ואופן ביצוע כל תשלום, כולל סעיף משכנתא לתשלום מסוים."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.4-nano",
+      "provider": "openai",
+      "caseId": "cls_18",
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property",
+      "ranAt": "2026-10-03T18:43:27.198Z",
+      "latencyMs": 2592,
+      "attempts": 1,
+      "inputTokens": 6528,
+      "outputTokens": 230,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.0015930999999999999,
+      "error": null,
+      "output": {
+        "document_kind": "חוזה רכישה/הסכם מכר מקרקעין חתום (דף הסכם מכר)",
+        "summary": "המסמך הוא הסכם מכר חתום בין מוכרים לקונים לרכישת בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה, גוש 6325 חלקה 161. מצוינים הצדדים, התמורה (1,250,000 ש\"ח), מועד המסירה (1.9.2001) וסעיפים לגבי מסים ותשלומים, כולל אימות חתימות ע\"י עו\"ד ד. לוי.",
+        "tax_year": null,
+        "subject_name": null,
+        "issuer_name": "עו\"ד ד. לוי (אימות חתימות)",
+        "matched_document_id": "doc_7",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "real_estate",
+        "document_paper": "purchase_contract"
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "real_estate",
+          "actual": "real_estate",
+          "pass": true
+        },
+        {
+          "key": "document_paper",
+          "expected": "purchase_contract",
+          "actual": "purchase_contract",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_7",
+          "actual": "doc_7",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "holdings_count",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "חוזה",
+            "הסכם מכר",
+            "contract"
+          ],
+          "actual": "חוזה רכישה/הסכם מכר מקרקעין חתום (דף הסכם מכר)",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_7",
+        "issuer_name": "עו\"ד ד. לוי (אימות חתימות)",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": null,
+        "summary": "המסמך הוא הסכם מכר חתום בין מוכרים לקונים לרכישת בית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה, גוש 6325 חלקה 161. מצוינים הצדדים, התמורה (1,250,000 ש\"ח), מועד המסירה (1.9.2001) וסעיפים לגבי מסים ותשלומים, כולל אימות חתימות ע\"י עו\"ד ד. לוי."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.4-nano",
+      "provider": "openai",
+      "caseId": "cls_20",
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)",
+      "ranAt": "2026-10-03T18:43:27.208Z",
+      "latencyMs": 2833,
+      "attempts": 1,
+      "inputTokens": 6693,
+      "outputTokens": 237,
+      "thinkingTokens": 0,
+      "cachedTokens": 5888,
+      "costUsd": 0.0005750099999999999,
+      "error": "[\n  {\n    \"expected\": \"'purchase_contract' | 'payments_appendix' | 'tabu_extract' | 'purchase_tax_assessment' | 'cost_declaration' | 'inheritance_order' | 'builder_payments_report'\",\n    \"received\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"document_paper\"\n    ],\n    \"message\": \"Expected 'purchase_contract' | 'payments_appendix' | 'tabu_extract' | 'purchase_tax_assessment' | 'cost_declaration' | 'inheritance_order' | 'builder_payments_report', received object\"\n  }\n]",
+      "output": null,
+      "checks": [],
+      "info": null,
+      "pass": false
+    }
+  ],
+  "summary": {
+    "file_classification": {
+      "gemini-2.5-flash": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 9868,
+          "p50": 9766,
+          "p90": 9766,
+          "min": 9704,
+          "max": 10135
+        },
+        "inputTokens": 21351,
+        "outputTokens": 776,
+        "thinkingTokens": 4235,
+        "cachedTokens": 0,
+        "costUsd": 0.018933,
+        "unpriced": 0
+      },
+      "gemini-2.5-flash-lite": {
+        "total": 3,
+        "passed": 0,
+        "passRate": 0,
+        "errors": 3,
+        "latencyMs": {
+          "avg": null,
+          "p50": null,
+          "p90": null,
+          "min": null,
+          "max": null
+        },
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": null,
+        "unpriced": 3
+      },
+      "gemini-3-flash-preview": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 7002,
+          "p50": 6041,
+          "p90": 6041,
+          "min": 6004,
+          "max": 8960
+        },
+        "inputTokens": 22137,
+        "outputTokens": 590,
+        "thinkingTokens": 2481,
+        "cachedTokens": 0,
+        "costUsd": 0.020282,
+        "unpriced": 0
+      },
+      "gemini-3.1-flash-lite": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 2206,
+          "p50": 2095,
+          "p90": 2095,
+          "min": 2017,
+          "max": 2505
+        },
+        "inputTokens": 22137,
+        "outputTokens": 659,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.006523,
+        "unpriced": 0
+      },
+      "gemini-3.5-flash": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 5548,
+          "p50": 5662,
+          "p90": 5662,
+          "min": 4945,
+          "max": 6038
+        },
+        "inputTokens": 22137,
+        "outputTokens": 546,
+        "thinkingTokens": 2666,
+        "cachedTokens": 0,
+        "costUsd": 0.062114,
+        "unpriced": 0
+      },
+      "gemini-3.5-flash-lite": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 1568,
+          "p50": 1598,
+          "p90": 1598,
+          "min": 1493,
+          "max": 1613
+        },
+        "inputTokens": 22137,
+        "outputTokens": 611,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.008169,
+        "unpriced": 0
+      },
+      "gemini-3.6-flash": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 6600,
+          "p50": 6131,
+          "p90": 6131,
+          "min": 5860,
+          "max": 7810
+        },
+        "inputTokens": 22137,
+        "outputTokens": 536,
+        "thinkingTokens": 2832,
+        "cachedTokens": 0,
+        "costUsd": 0.029233,
+        "unpriced": 0
+      },
+      "gemini-3.7-flash": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 3820,
+          "p50": 3920,
+          "p90": 3920,
+          "min": 3561,
+          "max": 3979
+        },
+        "inputTokens": 22137,
+        "outputTokens": 723,
+        "thinkingTokens": 1551,
+        "cachedTokens": 0,
+        "costUsd": 0.02513,
+        "unpriced": 0
+      },
+      "gemini-2.5-pro": {
+        "total": 3,
+        "passed": 0,
+        "passRate": 0,
+        "errors": 3,
+        "latencyMs": {
+          "avg": null,
+          "p50": null,
+          "p90": null,
+          "min": null,
+          "max": null
+        },
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": null,
+        "unpriced": 3
+      },
+      "gemini-3.1-pro-preview": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 11921,
+          "p50": 12031,
+          "p90": 12031,
+          "min": 10305,
+          "max": 13428
+        },
+        "inputTokens": 22137,
+        "outputTokens": 651,
+        "thinkingTokens": 3390,
+        "cachedTokens": 0,
+        "costUsd": 0.092766,
+        "unpriced": 0
+      },
+      "gpt-5": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 13025,
+          "p50": 12176,
+          "p90": 12176,
+          "min": 11448,
+          "max": 15451
+        },
+        "inputTokens": 19746,
+        "outputTokens": 774,
+        "thinkingTokens": 3520,
+        "cachedTokens": 6016,
+        "costUsd": 0.060854,
+        "unpriced": 0
+      },
+      "gpt-5-mini": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 9963,
+          "p50": 10195,
+          "p90": 10195,
+          "min": 6267,
+          "max": 13426
+        },
+        "inputTokens": 19942,
+        "outputTokens": 768,
+        "thinkingTokens": 2688,
+        "cachedTokens": 6016,
+        "costUsd": 0.010544,
+        "unpriced": 0
+      },
+      "gpt-5-nano": {
+        "total": 3,
+        "passed": 1,
+        "passRate": 0.3333333333333333,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 20178,
+          "p50": 20586,
+          "p90": 20586,
+          "min": 16926,
+          "max": 23023
+        },
+        "inputTokens": 20094,
+        "outputTokens": 686,
+        "thinkingTokens": 9472,
+        "cachedTokens": 6016,
+        "costUsd": 0.004797,
+        "unpriced": 0
+      },
+      "gpt-5-pro": {
+        "total": 3,
+        "passed": 0,
+        "passRate": 0,
+        "errors": 3,
+        "latencyMs": {
+          "avg": null,
+          "p50": null,
+          "p90": null,
+          "min": null,
+          "max": null
+        },
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": null,
+        "unpriced": 3
+      },
+      "gpt-5.1": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 2737,
+          "p50": 2785,
+          "p90": 2785,
+          "min": 2524,
+          "max": 2903
+        },
+        "inputTokens": 19746,
+        "outputTokens": 707,
+        "thinkingTokens": 0,
+        "cachedTokens": 5888,
+        "costUsd": 0.025129,
+        "unpriced": 0
+      },
+      "gpt-5.2": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 3461,
+          "p50": 3567,
+          "p90": 3567,
+          "min": 3232,
+          "max": 3584
+        },
+        "inputTokens": 19942,
+        "outputTokens": 632,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.043746,
+        "unpriced": 0
+      },
+      "gpt-5.2-pro": {
+        "total": 3,
+        "passed": 1,
+        "passRate": 0.3333333333333333,
+        "errors": 2,
+        "latencyMs": {
+          "avg": 17063,
+          "p50": 17063,
+          "p90": 17063,
+          "min": 17063,
+          "max": 17063
+        },
+        "inputTokens": 6721,
+        "outputTokens": 203,
+        "thinkingTokens": 206,
+        "cachedTokens": 0,
+        "costUsd": 0.209853,
+        "unpriced": 2
+      },
+      "gpt-5.4": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 6167,
+          "p50": 5846,
+          "p90": 5846,
+          "min": 5397,
+          "max": 7258
+        },
+        "inputTokens": 19942,
+        "outputTokens": 570,
+        "thinkingTokens": 0,
+        "cachedTokens": 5888,
+        "costUsd": 0.045157,
+        "unpriced": 0
+      },
+      "gpt-5.4-mini": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 2670,
+          "p50": 2126,
+          "p90": 2126,
+          "min": 2066,
+          "max": 3818
+        },
+        "inputTokens": 19942,
+        "outputTokens": 610,
+        "thinkingTokens": 0,
+        "cachedTokens": 11776,
+        "costUsd": 0.009753,
+        "unpriced": 0
+      },
+      "gpt-5.4-nano": {
+        "total": 3,
+        "passed": 2,
+        "passRate": 0.6666666666666666,
+        "errors": 1,
+        "latencyMs": {
+          "avg": 2516,
+          "p50": 2439,
+          "p90": 2439,
+          "min": 2439,
+          "max": 2592
+        },
+        "inputTokens": 19942,
+        "outputTokens": 662,
+        "thinkingTokens": 0,
+        "cachedTokens": 11776,
+        "costUsd": 0.002696,
+        "unpriced": 0
+      }
+    }
+  }
+}

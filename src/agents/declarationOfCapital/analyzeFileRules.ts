@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CAPITAL_DOCUMENT_CATALOG, isEmployerBound, isInstitutionBound } from './catalog.js';
+import { CAPITAL_DOCUMENT_CATALOG, CAPITAL_DOCUMENT_PAPER_VALUES, isEmployerBound, isInstitutionBound, paperBelongsToType } from './catalog.js';
 import { compareCompanies, institutionLabel, tieAllowedByCompany, type Institution } from './institutions.js';
 import { check, type GateCheck } from '../shared/gateChecks.js';
 
@@ -66,8 +66,17 @@ export const FileAnalysisSchema = z.object({
  */
 export const CAPITAL_DOCUMENT_TYPE_VALUES = [...CAPITAL_DOCUMENT_CATALOG.map((t) => t.key), 'other'] as unknown as [string, ...string[]];
 
+/** The closed paper list (openspec `document-papers`): every paper of the catalog; null = none. */
+export const CAPITAL_DOCUMENT_PAPER_ENUM = [...CAPITAL_DOCUMENT_PAPER_VALUES] as [string, ...string[]];
+
 export const CapitalFileAnalysisSchema = FileAnalysisSchema.extend({
   document_type: z.enum(CAPITAL_DOCUMENT_TYPE_VALUES),
+  /**
+   * The paper the file is, from the papers of its document type (openspec
+   * `document-papers`); null for a type without papers or none of them. The
+   * gate nulls a paper that does not belong to the answered type.
+   */
+  document_paper: z.enum(CAPITAL_DOCUMENT_PAPER_ENUM).nullable(),
 });
 
 export type FileAnalysis = Omit<z.infer<typeof FileAnalysisSchema>, 'issuer_name' | 'holdings' | 'holdings_partial' | 'employer_name'> & {
@@ -79,6 +88,8 @@ export type FileAnalysis = Omit<z.infer<typeof FileAnalysisSchema>, 'issuer_name
   /** Absent on rows analyzed before the field existed. */
   employer_name?: string | null;
   document_type?: string;
+  /** Absent on rows analyzed before the field existed (openspec `document-papers`). */
+  document_paper?: string | null;
   /** Set by the gate when it dropped the model's match: why the file now matches nothing (shown to the planner). */
   match_dropped?: string | null;
 };
@@ -89,6 +100,8 @@ export interface ClassifiableDocument {
   /** The item's name: for an institution-bound type it names the company (institutions.ts). */
   name: string;
   type_key: string | null;
+  /** The paper the item stands for (openspec `document-papers`); null/absent = no paper, no paper check. */
+  paper_key?: string | null;
 }
 
 /** Statuses of list items a file can never satisfy: not agreed with the client (yet, or any more). */
@@ -158,6 +171,11 @@ export function validateClassification(
   // The employer is kept only for a file of an employer-bound type (a fund
   // opened per employer). Descriptive data too: no check, no effect on `result`.
   if (analysis.employer_name !== undefined && !isEmployerBound(analysis.document_type)) analysis.employer_name = null;
+  // The paper counts only when it is one of the answered type's papers
+  // (openspec `document-papers`); any other paper is "no paper".
+  if (analysis.document_paper !== undefined && analysis.document_paper !== null && !paperBelongsToType(analysis.document_paper, analysis.document_type)) {
+    analysis.document_paper = null;
+  }
   let result = true;
   let reason: string | null = null;
   let rejectedId: string | null = null;
@@ -182,6 +200,22 @@ export function validateClassification(
           analysis.matched_document_id = null;
         }
         checks.push(check('matched_type_agrees', agrees, reason, { observed: analysis.document_type, expected: row.type_key }));
+      }
+      // A row that stands for one paper takes only a file of that paper
+      // (openspec `document-papers`); a file with no paper is not it either.
+      if (analysis.matched_document_id !== null && row.paper_key) {
+        const filePaper = analysis.document_paper ?? null;
+        const agrees = filePaper === row.paper_key;
+        let note: string | null = null;
+        if (!agrees) {
+          note = filePaper === null ? 'file paper not identified' : `papers differ: the file is "${filePaper}", the item is "${row.paper_key}"`;
+          result = false;
+          rejectedId = proposedId;
+          reason = `matched id "${proposedId}" dropped — ${note}`;
+          analysis.matched_document_id = null;
+          analysis.match_dropped = note;
+        }
+        checks.push(check('matched_paper_agrees', agrees, note, { observed: filePaper ?? 'not identified', expected: row.paper_key }));
       }
       if (analysis.matched_document_id !== null && isInstitutionBound(row.type_key)) {
         const comparison = compareCompanies(analysis.issuer_name, row.name, institutions);

@@ -1,7 +1,7 @@
 import type { Buffer } from 'node:buffer';
 import type { LlmCallSpec } from '../../gemini/llmCall.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
-import { getCatalogType, GENERIC_CHECKS, type ExtractionField, type VerificationChecks } from './catalog.js';
+import { getCatalogPaper, getCatalogType, GENERIC_CHECKS, type ExtractionField, type VerificationChecks } from './catalog.js';
 import { EXTRACTION_PROMPT, extractionJsonSchemaFor, typeFieldsPromptBlock } from './verifyChecks.js';
 
 /**
@@ -15,6 +15,8 @@ export interface ExtractableDocument {
   name: string;
   description: string | null;
   type_key: string | null;
+  /** The paper the item stands for (openspec `document-papers`); absent/null = none. */
+  paper_key?: string | null;
 }
 
 /** The verification checks that apply to a checklist row: its catalog type's, or the generic none. */
@@ -51,11 +53,16 @@ export function buildExtractionCall({ doc, bytes, contentType, filename, taxYear
   // The type's extra fields: the same declaration yields the prompt lines and
   // the schema entries below, so the two cannot drift (openspec `document-extraction`).
   const fieldLines = typeFieldsPromptBlock(catalogType?.fields, catalogType?.fieldsAnyOf);
+  // The paper the item stands for (openspec `document-papers`): named beside
+  // the item, with its own anatomy, so is_expected_type judges the paper and
+  // not only the type (a registry extract is not the contract).
+  const paper = getCatalogPaper(doc.paper_key);
+  const paperLines = paper ? `הנייר המצופה: ${paper.shortNameHe} — הקובץ חייב להיות נייר זה בדיוק, לא נייר אחר של אותו נכס.\n${paper.analysisHintHe ? `${paper.analysisHintHe}\n` : ''}` : '';
   const prompt = EXTRACTION_PROMPT.replace('{{expected_name}}', doc.name)
     .replace('{{expected_description}}', doc.description ?? '(ללא תיאור)')
     .replace(
       '{{type_context}}',
-      `${typeDescription && typeDescription !== doc.description ? `מסמכים קבילים לסוג זה: ${typeDescription}\n` : ''}${
+      `${paperLines}${typeDescription && typeDescription !== doc.description ? `מסמכים קבילים לסוג זה: ${typeDescription}\n` : ''}${
         catalogType?.analysisHintHe ? `${catalogType.analysisHintHe}\n` : ''
       }${fieldLines}`,
     )

@@ -8,7 +8,7 @@
  * No imports of llm/db/audit, so the tests run without a database.
  */
 
-import { getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
+import { getCatalogPaper, getCatalogType, isEmployerBound, isInstitutionBound, paperBelongsToType } from './catalog.js';
 import { identifyInstitution, institutionLabelHe } from './institutions.js';
 import type { Institution } from './institutionsTable.js';
 
@@ -109,6 +109,8 @@ export interface ChildLabelInput {
   matchedDocumentTypeKey?: string | null;
   /** The closed type value of the analysis: a catalog key or 'other'. */
   documentType?: string | null;
+  /** The closed paper value of the analysis (openspec `document-papers`); names an unmatched child of a type with papers. */
+  documentPaper?: string | null;
   /** The company as the model wrote it. Only looked up in the institutions table, never shown. */
   issuerName?: string | null;
   /** The employer as the model copied it from a fund report; shown only after `cleanEmployer`, for employer-bound types. */
@@ -134,9 +136,13 @@ export function childLabel(input: ChildLabelInput, institutions?: readonly Insti
   }
   const type = input.documentType ? getCatalogType(input.documentType) : undefined;
   if (!type) return null;
+  // A type with papers names the child after its paper when the analysis
+  // names one of that type's papers (openspec `document-papers`).
+  const paper = paperBelongsToType(input.documentPaper, type.key) ? getCatalogPaper(input.documentPaper) : undefined;
+  const shortName = paper?.shortNameHe ?? type.shortNameHe;
   const companyKey = identifyInstitution(input.issuerName, institutions);
   const company = companyKey === null ? null : institutionLabelHe(companyKey, institutions);
-  const withCompany = company === null ? type.shortNameHe : `${type.shortNameHe}${NAME_SEPARATOR}${company}`;
+  const withCompany = company === null ? shortName : `${shortName}${NAME_SEPARATOR}${company}`;
   return childDisplayName(employerSuffixedName(withCompany, input.employerName, type.key));
 }
 

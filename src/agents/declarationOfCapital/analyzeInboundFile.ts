@@ -327,6 +327,7 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
           matchedDocumentName: matched?.name,
           matchedDocumentTypeKey: matched?.type_key,
           documentType: analysis.document_type,
+          documentPaper: analysis.document_paper,
           issuerName: analysis.issuer_name,
           employerName: analysis.employer_name,
           quarantined: gate.quarantined,

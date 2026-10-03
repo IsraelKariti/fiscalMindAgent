@@ -160,6 +160,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       .map((d) => ({
         id: d.id,
         status: d.status as 'unresolved' | 'not_required',
+        typeKey: d.type_key,
         multiInstance: (d.type_key ? getCatalogType(d.type_key)?.multiInstance : undefined) ?? false,
       })),
     // Already-resolved catalog rows: anchors for added_instances (ladder
@@ -169,6 +170,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
       .map((d) => ({
         id: d.id,
         status: d.status,
+        typeKey: d.type_key,
         multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
       })),
     inboundTexts,

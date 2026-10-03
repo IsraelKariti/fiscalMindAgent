@@ -933,6 +933,7 @@ const he = {
     all_pages_covered: 'כל עמוד בקובץ שייך לטווח אחד',
     matched_id_known: 'המזהה שנבחר הוא מהרשימה שהוצגה למודל',
     matched_type_agrees: 'סוג השורה שנבחרה תואם לסיווג הקובץ',
+    matched_paper_agrees: 'הנייר של הקובץ הוא הנייר שהשורה מייצגת',
     issuer_matches_item: 'הגוף שהנפיק את הקובץ הוא הגוף שבשם השורה',
     not_injection_suspected: 'אין חשד להזרקת הוראות',
     legible: 'הקובץ קריא',

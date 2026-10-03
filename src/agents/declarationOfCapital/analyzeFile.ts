@@ -3,7 +3,7 @@ import { logger } from '../../util/logger.js';
 import type { GeminiUsage, LlmCallLogContext } from '../../gemini/generate.js';
 import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
-import { CAPITAL_DOCUMENT_CATALOG, getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
+import { CAPITAL_DOCUMENT_CATALOG, getCatalogPaper, getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
 import {
   CAPITAL_DOCUMENT_TYPE_VALUES,
   CapitalFileAnalysisSchema,
@@ -53,7 +53,7 @@ export const ANALYSIS_PROMPT = `אתה בודק מסמכים עבור משרד �
 - tax_year: שנת המס שהמסמך מתייחס אליה, אם מצוינת בו. אחרת null.
 - subject_name: שם האדם או העסק שהמסמך נוגע אליו, אם מופיע. אחרת null.
 - issuer_name: שם הגוף שהנפיק את המסמך (בנק, חברה מנהלת של קופת גמל / קרן פנסיה / קרן השתלמות, חברת ביטוח, בית השקעות) בדיוק כפי שהוא מודפס במסמך, למשל "הראל פנסיה וגמל בע"מ" או "Bank Leumi". אם לא מודפס שם של גוף מנפיק - null. אל תסיק את השם משם הקובץ או מהרשימה שלמעלה.
-- matched_document_id: המזהה (id) מהרשימה למעלה של המסמך הנדרש שהקובץ הזה מספק, רק אם התוכן באמת תואם. שורה ברשימה מתייחסת לגוף מסוים, לחשבון מסוים או לנכס מסוים: קובץ מבנק אחר, מקופה או קרן של חברה מנהלת אחרת, מחברת ביטוח אחרת או על נכס אחר אינו תואם לשורה - גם כשסוג המסמך זהה (למשל: אישור קרן השתלמות מהראל אינו תואם לשורה "קרן השתלמות באלטשולר שחם"). אם אינו תואם לאף מסמך ברשימה - null.
+- matched_document_id: המזהה (id) מהרשימה למעלה של המסמך הנדרש שהקובץ הזה מספק, רק אם התוכן באמת תואם. שורה ברשימה מתייחסת לגוף מסוים, לחשבון מסוים או לנכס מסוים: קובץ מבנק אחר, מקופה או קרן של חברה מנהלת אחרת, מחברת ביטוח אחרת או על נכס אחר אינו תואם לשורה - גם כשסוג המסמך זהה (למשל: אישור קרן השתלמות מהראל אינו תואם לשורה "קרן השתלמות באלטשולר שחם"). שורה שמצוין בה "נייר" מייצגת נייר אחד של הנכס: קובץ שהוא נייר אחר של אותו נכס (למשל נסח טאבו מול שורת חוזה רכישה) אינו תואם לה. אם אינו תואם לאף מסמך ברשימה - null.
 - holdings: רשימת החשבונות, הקופות, הקרנות או הפוליסות שהקובץ מציג - רק כשהמסמך הוא מאחד הסוגים {{holdings_types}}; בכל סוג אחר, או כשאי אפשר להבחין בחשבון או בפוליסה מסוימים - מערך ריק. רשומה אחת לכל חשבון / קופה / פוליסה (דוח אחד יכול להציג כמה), עד 20 רשומות. בכל רשומה: product - שם המוצר כפי שמודפס (למשל "ביטוח מנהלים", "קרן השתלמות", "חשבון עו"ש"); holder_name - שם בעל החשבון / העמית / המבוטח בדיוק כפי שמודפס ליד אותו חשבון או פוליסה, ו-null כשהשם אינו מופיע או שהוסתר / הושחר; account_number - מספר החשבון / העמית / הפוליסה כפי שמודפס, אחרת null. העתק אך ורק מה שמודפס בקובץ: אל תיקח שם, מספר או כמות משם הקובץ או מרשימת המסמכים שלמעלה, ואל תנחש.
 - holdings_partial: true רק כשהקובץ מציג יותר מ-20 חשבונות / פוליסות והרשימה חלקית. אחרת false.
 - employer_name: רק כשהמסמך הוא מאחד הסוגים {{employer_types}} (קופה או קרן שנפתחת לכל מעסיק בנפרד): שם המעסיק כפי שמודפס במסמך ליד הכיתוב "שם המעסיק" / "מעסיק" (למשל "פרייסמנס בע"מ"). null כשלא מודפס שם מעסיק, כשהמסמך מציג קופות של שני מעסיקים שונים או יותר, או כשהמסמך מסוג אחר. העתק את השם בדיוק כפי שמודפס: אל תיקח אותו משם הקובץ, מהרשימה שלמעלה או משם הקופה, ואל תנחש.
@@ -77,7 +77,10 @@ export interface AnalyzeFileResult {
 }
 
 /** The subset of a checklist row the classifier is shown (a DB row satisfies it; the harness builds it by hand). */
-export type AnalyzableDocument = Pick<ClientDocumentRow, 'id' | 'name' | 'description' | 'type_key'>;
+export type AnalyzableDocument = Pick<ClientDocumentRow, 'id' | 'name' | 'description' | 'type_key'> & {
+  /** The paper the item stands for (openspec `document-papers`); absent on callers that predate it. */
+  paper_key?: string | null;
+};
 
 export interface AnalysisCallInput {
   bytes: Buffer;
@@ -111,7 +114,11 @@ export function buildAnalysisCall({ bytes, contentType, filename, requiredDocume
             // Anatomy/lookalike hint (e.g. the vehicle-license field map) so
             // classification recognizes the real document and rejects lookalikes.
             const typeHint = catalogType?.analysisHintHe ? ` (${catalogType.analysisHintHe})` : '';
-            return `[id: ${doc.id}] ${doc.name}${doc.description ? ` — ${doc.description}` : ''}${typeRule}${typeHint}${dateRule}`;
+            // The paper the item stands for (openspec `document-papers`), with
+            // the paper's own anatomy so a lookalike paper is not matched to it.
+            const paper = getCatalogPaper(doc.paper_key);
+            const paperRule = paper ? ` (נייר: ${paper.shortNameHe} — document_paper "${paper.key}"${paper.analysisHintHe ? `; ${paper.analysisHintHe}` : ''})` : '';
+            return `[id: ${doc.id}] ${doc.name}${doc.description ? ` — ${doc.description}` : ''}${paperRule}${typeRule}${typeHint}${dateRule}`;
           })
           .join('\n')
       : '(אין מסמכים מוגדרים)';
@@ -148,9 +155,14 @@ export function buildAnalysisCall({ bytes, contentType, filename, requiredDocume
  * different type.
  */
 function capitalDocumentTypesBlock(taxYear: number): string {
-  const lines = CAPITAL_DOCUMENT_CATALOG.map((t) => `- "${t.key}": ${t.nameHe.replaceAll('{{tax_year}}', String(taxYear))}`);
+  const lines = CAPITAL_DOCUMENT_CATALOG.map((t) => {
+    const name = t.nameHe.replaceAll('{{tax_year}}', String(taxYear));
+    // The papers of the type (openspec `document-papers`): the closed list document_paper comes from.
+    const papers = t.papers?.length ? `\n  ניירות (document_paper): ${t.papers.map((p) => `"${p.key}" = ${p.shortNameHe}`).join('; ')}` : '';
+    return `- "${t.key}": ${name}${papers}`;
+  });
   lines.push('- "other": אף אחד מהסוגים שלמעלה');
-  return `סוגי המסמכים (document_type — השתמש אך ורק במפתחות אלה):\n${lines.join('\n')}\n\n- document_type: המפתח מהרשימה שמתאר מהו המסמך בפועל לפי תוכנו — בלי קשר לשאלה אם הוא נדרש. המסמך הנדרש שתתאים (matched_document_id) חייב להיות מאותו סוג.`;
+  return `סוגי המסמכים (document_type — השתמש אך ורק במפתחות אלה):\n${lines.join('\n')}\n\n- document_type: המפתח מהרשימה שמתאר מהו המסמך בפועל לפי תוכנו — בלי קשר לשאלה אם הוא נדרש. המסמך הנדרש שתתאים (matched_document_id) חייב להיות מאותו סוג.\n- document_paper: לסוג שמפורטים לו "ניירות" — מפתח הנייר שהקובץ הוא בפועל, מתוך ניירות אותו סוג בלבד (למשל נסח טאבו הוא "tabu_extract", לא "purchase_contract"). לסוג ללא ניירות, או כשהקובץ אינו אף אחד מניירות הסוג — null. שורה ברשימה שמצוין בה "נייר" מייצגת נייר אחד בלבד: קובץ שהוא נייר אחר של אותו נכס אינו תואם לה (matched_document_id: null).`;
 }
 
 export { CAPITAL_DOCUMENT_TYPE_VALUES };

@@ -63,6 +63,23 @@ export interface ExtractionField {
   patternHintHe?: string;
 }
 
+/**
+ * One concrete kind of paper the office accepts under a type (openspec
+ * `document-papers`): a property is documented by a purchase contract, a
+ * payments appendix, a land registry extract… — all of one type, but a file of
+ * one paper is never the item of another. A checklist item of a type with
+ * papers carries its paper (client_documents.paper_key); the classifier names
+ * the paper of every file; code compares the two.
+ */
+export interface CatalogPaper {
+  /** Stable id, unique across the whole catalog, persisted in client_documents.paper_key. */
+  key: string;
+  /** A few words naming the paper, no date or year: the display name of an unmatched split child. */
+  shortNameHe: string;
+  /** Anatomy / lookalike guidance for the file-reading models only (never shown to clients). */
+  analysisHintHe?: string;
+}
+
 export interface CapitalDocumentType {
   /** Stable id, persisted in client_documents.type_key. */
   key: string;
@@ -113,7 +130,59 @@ export interface CapitalDocumentType {
    * different papers — a vehicle licence or its purchase receipt).
    */
   fieldsAnyOf?: readonly string[];
+  /**
+   * The closed list of papers this type accepts (openspec `document-papers`).
+   * Absent = the type has no papers: items and files carry none and nothing
+   * compares them.
+   */
+  papers?: readonly CatalogPaper[];
 }
+
+/** The papers of a property (openspec `document-papers`), in the order the catalog description names them. */
+const REAL_ESTATE_PAPERS: readonly CatalogPaper[] = [
+  {
+    key: 'purchase_contract',
+    shortNameHe: 'חוזה רכישה',
+    analysisHintHe:
+      'חוזה רכישה: הסכם מכר מקרקעין חתום בין המוכר לקונה — כותרת "הסכם מכר" / "חוזה מכר" / "חוזה רכישה", פרטי הצדדים, תיאור הנכס (כתובת, גוש וחלקה), התמורה ומועדי התשלום, וחתימות. אינו חוזה רכישה: נסח טאבו (תדפיס מפנקס הזכויות של לשכת רישום המקרקעין), נספח תשלומים לבדו, שומת מס רכישה, או הסכם שכירות.',
+  },
+  {
+    key: 'payments_appendix',
+    shortNameHe: 'נספח תשלומים',
+    analysisHintHe:
+      'נספח תשלומים: הנספח לחוזה הרכישה המפרט את לוח התשלומים לקונה — סכום כל תשלום, מועדו ואופן ביצועו (לעיתים כותרת "נספח תשלומים" / "נספח א\' — לוח תשלומים"). אינו נספח תשלומים: לוח סילוקין של משכנתא, דוח תשלומים חודשי מהבנק, או גוף החוזה עצמו.',
+  },
+  {
+    key: 'tabu_extract',
+    shortNameHe: 'נסח טאבו',
+    analysisHintHe:
+      'נסח טאבו: תדפיס "מידע מפנקס הזכויות" / "נסח רישום" מלשכת רישום המקרקעין (או מאתר רשות המקרקעין), עם גוש, חלקה, תת-חלקה, רשימת הבעלים או החוכרים וחלקיהם, הערות אזהרה ומשכנתאות. אינו נסח טאבו: חוזה רכישה, אישור זכויות מחברה משכנת, או שומת מס רכישה.',
+  },
+  {
+    key: 'purchase_tax_assessment',
+    shortNameHe: 'שומת מס רכישה',
+    analysisHintHe:
+      'שומת מס רכישה: הודעת שומה מרשות המסים (מיסוי מקרקעין) על מס רכישה — מספר שומה, פרטי הרוכש, הנכס ושווי הרכישה שעליו חושב המס. אינה שומה: חוזה רכישה, נסח טאבו, או שומת מס הכנסה שנתית.',
+  },
+  {
+    key: 'cost_declaration',
+    shortNameHe: 'הצהרת עלות',
+    analysisHintHe:
+      'הצהרת עלות: מסמך מודפס וחתום בידי הלקוח, המצהיר על כתובת הנכס, שנת הרכישה, שמות הרוכשים ועלות הרכישה (גם אם משוערת). אינה הצהרת עלות: מסמך של בנק, של רשות או של עורך דין.',
+  },
+  {
+    key: 'inheritance_order',
+    shortNameHe: 'צו ירושה',
+    analysisHintHe:
+      'צו ירושה (או צו קיום צוואה): צו של הרשם לענייני ירושה או של בית משפט, המכריז על היורשים וחלקיהם — כותרת "צו ירושה" / "צו קיום צוואה", שם המנוח, היורשים, חתימת הרשם וחותמת. אינו צו ירושה: נסח טאבו, צוואה לבדה, או תעודת פטירה.',
+  },
+  {
+    key: 'builder_payments_report',
+    shortNameHe: 'דוח מצבת תשלומים מהקבלן',
+    analysisHintHe:
+      'דוח מצבת תשלומים / אישור תשלומים מהקבלן או מהיזם: מסמך על נייר של החברה הקבלנית, המציג לדירה שטרם נמסרה כמה שולם בפועל עד כה וכמה נותר לתשלום, לרוב כטבלה של תשלומים לפי לוח החוזה. אינו דוח מצבת תשלומים: נספח התשלומים של החוזה (התוכנית), קבלה בודדת, או אישור יתרת משכנתא.',
+  },
+];
 
 /**
  * Shared anatomy for the savings family (pension/provident/study-fund), seeded
@@ -303,6 +372,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     multiInstance: true,
     dateDependent: false,
     checks: { subjectMatch: true, asOfDate: false, amounts: false },
+    papers: REAL_ESTATE_PAPERS,
   },
   {
     key: 'mortgage_balance',
@@ -543,6 +613,46 @@ const BY_KEY = new Map(CAPITAL_DOCUMENT_CATALOG.map((t) => [t.key, t]));
 
 export function getCatalogType(key: string): CapitalDocumentType | undefined {
   return BY_KEY.get(key);
+}
+
+/** Every paper of the catalog with the type that declares it (openspec `document-papers`). */
+const PAPERS_BY_KEY = new Map<string, { paper: CatalogPaper; typeKey: string }>(
+  CAPITAL_DOCUMENT_CATALOG.flatMap((t) => (t.papers ?? []).map((paper) => [paper.key, { paper, typeKey: t.key }] as const)),
+);
+
+/** All paper keys across the catalog — the closed enum the classifier and the item schemas use. */
+export const CAPITAL_DOCUMENT_PAPER_VALUES: readonly string[] = [...PAPERS_BY_KEY.keys()];
+
+/** The paper with this key, from any type; undefined for unknown keys. */
+export function getCatalogPaper(key: string | null | undefined): CatalogPaper | undefined {
+  return key ? PAPERS_BY_KEY.get(key)?.paper : undefined;
+}
+
+/** The papers a type declares — empty for a type without papers or an unknown / ad-hoc type. */
+export function papersOf(typeKey: string | null | undefined): readonly CatalogPaper[] {
+  return typeKey ? (getCatalogType(typeKey)?.papers ?? []) : [];
+}
+
+/** Whether `typeKey` declares the paper `paperKey` (false when either is unknown). */
+export function paperBelongsToType(paperKey: string | null | undefined, typeKey: string | null | undefined): boolean {
+  if (!paperKey || !typeKey) return false;
+  return PAPERS_BY_KEY.get(paperKey)?.typeKey === typeKey;
+}
+
+/**
+ * Why an instance's paper is not acceptable for its type (openspec
+ * `document-papers`), or null when it is: a type with papers needs one of its
+ * own papers; a type without papers takes none. Shared by the questionnaire
+ * mapping gate and the planner's decision gate.
+ */
+export function instancePaperFault(paperKey: string | null | undefined, typeKey: string | null | undefined): string | null {
+  const papers = papersOf(typeKey);
+  if (papers.length === 0) {
+    return paperKey ? `paper "${paperKey}" on a type without papers` : null;
+  }
+  if (!paperKey) return `instance names no paper (one of: ${papers.map((p) => p.key).join(', ')})`;
+  if (!paperBelongsToType(paperKey, typeKey)) return `paper "${paperKey}" is not a paper of type "${typeKey}"`;
+  return null;
 }
 
 /** The checks for ad-hoc rows (type_key NULL) — the generic minimum a human-added document can be held to. */

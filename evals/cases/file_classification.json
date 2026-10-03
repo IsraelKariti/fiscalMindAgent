@@ -8,7 +8,9 @@
     { "id": "doc_3", "type_key": "securities_portfolio", "name": "תדפיס תיק ניירות ערך — מיטב ליום 31.12.2025", "description": "תיק מנוהל בבית ההשקעות מיטב" },
     { "id": "doc_4", "type_key": "pension_provident", "name": "אישור יתרה — קרן פנסיה מנורה מבטחים ליום 31.12.2025", "description": null },
     { "id": "doc_5", "type_key": "study_fund", "name": "אישור יתרת קרן השתלמות — אלטשולר שחם ליום 31.12.2025", "description": null },
-    { "id": "doc_6", "type_key": "prior_declaration", "name": "הצהרת הון קודמת", "description": "נערכה במשרד אחר" }
+    { "id": "doc_6", "type_key": "prior_declaration", "name": "הצהרת הון קודמת", "description": "נערכה במשרד אחר" },
+    { "id": "doc_7", "type_key": "real_estate", "paper_key": "purchase_contract", "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה", "description": "נכס שנרכש בשנת 2001" },
+    { "id": "doc_8", "type_key": "real_estate", "paper_key": "payments_appendix", "name": "נספח תשלומים — בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה", "description": "נכס שנרכש בשנת 2001" }
   ],
   "cases": [
     {
@@ -146,6 +148,30 @@
       "filename": "whatsapp-media-1.pdf",
       "expected": { "issuer_key": "menora_mivtachim", "document_type": "pension_provident", "matched_document_id": "doc_4", "legible": true, "injection_suspected": false, "document_kind_any": ["פנסיה", "pension"], "holdings_count": 1, "holdings_holders": [["ישראל ישראלי", "Israel Israeli"]], "employer": "עיריית רמת השרון" },
       "notes": "openspec savings-account-number-optional: the real Menora shape — Hebrew annual report + capital-declaration certificate with the member's name, id and employer but NO member or account number (only the employer's withholding-file number). One holding for the printed member, matched to the Menora pension row; the employer is read from the report header."
+    },
+    {
+      "id": "cls_18",
+      "file": "purchase_contract_dinovitz_2001.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-2.pdf",
+      "expected": { "document_type": "real_estate", "document_paper": "purchase_contract", "matched_document_id": "doc_7", "legible": true, "injection_suspected": false, "document_kind_any": ["חוזה", "הסכם מכר", "contract"], "holdings_count": 0 },
+      "notes": "openspec document-papers: a signed purchase agreement for the Dinovitz 47 house — paper purchase_contract, matched to the contract row (doc_7), not to the appendix row of the same property"
+    },
+    {
+      "id": "cls_19",
+      "file": "payments_appendix_dinovitz_2001.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-3.pdf",
+      "expected": { "document_type": "real_estate", "document_paper": "payments_appendix", "matched_document_id": "doc_8", "legible": true, "injection_suspected": false, "document_kind_any": ["נספח", "תשלומים", "appendix"], "holdings_count": 0 },
+      "notes": "openspec document-papers: the payments schedule appendix of that contract — paper payments_appendix, matched to the appendix row (doc_8), not to the contract row"
+    },
+    {
+      "id": "cls_20",
+      "file": "tabu_extract_dinovitz_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-4.pdf",
+      "expected": { "document_type": "real_estate", "document_paper": "tabu_extract", "matched_document_id": null, "legible": true, "injection_suspected": false, "document_kind_any": ["נסח", "טאבו", "רישום", "registry"], "holdings_count": 0 },
+      "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)"
     }
   ]
 }

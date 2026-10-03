@@ -3,6 +3,15 @@ import { check, type GateCheck } from '../shared/gateChecks.js';
 import { isWallClockDateTime } from '../../util/time.js';
 import { renderTemplateBody } from '../../twilio/renderTemplate.js';
 import type { WaTemplateRow } from '../../db/types.js';
+import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault } from './catalog.js';
+
+/**
+ * The closed paper list an instance may name (openspec `document-papers`) —
+ * every paper of the catalog, plus '' for "the type has no papers". A plain
+ * enum, not a nullable one: every nullable field is a union against the
+ * Anthropic structured-output budget (tests/anthropicSchema.test.ts).
+ */
+const PAPER_KEY_VALUES = ['', ...CAPITAL_DOCUMENT_PAPER_VALUES] as [string, ...string[]];
 
 // Gemini's `responseJsonSchema` doesn't support Zod's `.optional()` the same way structured
 // outputs need every property always present; the "message fields only apply when
@@ -90,6 +99,8 @@ export const DecisionResponseSchema = z.object({
               already_provided: z.boolean(),
               /** Ids of already-received files that ARE this document: code attaches them to the new row in this cycle. Empty when none. */
               file_ids: z.array(z.string()),
+              /** The paper this instance stands for, from the type's papers (REQUIRED DOCUMENTS lists them); '' for a type without papers. */
+              paper_key: z.enum(PAPER_KEY_VALUES),
             }),
           )
           .nullable(),
@@ -116,6 +127,8 @@ export const DecisionResponseSchema = z.object({
             already_provided: z.boolean(),
             /** Ids of already-received files that ARE this document (see resolved_documents). Empty when none. */
             file_ids: z.array(z.string()),
+            /** The paper this instance stands for (see resolved_documents); '' for a type without papers. */
+            paper_key: z.enum(PAPER_KEY_VALUES),
           }),
         ),
         /** The client statement the addition rests on — a real inbound message_id + verbatim quote. */
@@ -265,6 +278,8 @@ export interface ResolvedInstance {
   alreadyProvided: boolean;
   /** Already-received files the model says are this document; code decides which the new row may take. */
   fileIds: string[];
+  /** The paper of the type this instance stands for (openspec `document-papers`); null for a type without papers. */
+  paperKey: string | null;
 }
 
 /** One validated intake resolution (capital declaration). */
@@ -345,6 +360,8 @@ export interface ResolvableRow {
   id: string;
   /** 'unresolved' may go either way; 'not_required' may only be reopened to required (a client correction). */
   status: 'unresolved' | 'not_required';
+  /** The catalog type of the row (null for an ad-hoc row) — decides which papers its instances may name (openspec `document-papers`). */
+  typeKey: string | null;
   /** The catalog type allows more than one concrete instance (cars, accounts…). */
   multiInstance: boolean;
 }
@@ -358,6 +375,8 @@ export interface TypedRow {
   id: string;
   /** Current status (anything past 'unresolved'). */
   status: string;
+  /** The catalog type of the row — decides which papers added instances may name (openspec `document-papers`). */
+  typeKey: string | null;
   /** The catalog type allows more than one concrete instance. */
   multiInstance: boolean;
 }
@@ -575,7 +594,7 @@ function validateResolutions(raw: DecisionResponse, ctx: DecisionContext): Docum
       result.push({ documentId: entry.document_id, resolution: 'not_required', evidence });
       continue;
     }
-    const instances = normalizeInstances(entry.instances ?? [], row.multiInstance, `required resolution of ${entry.document_id}`);
+    const instances = normalizeInstances(entry.instances ?? [], row.multiInstance, row.typeKey, `required resolution of ${entry.document_id}`);
     // A list item is created only on the client's quoted words — never on a file alone.
     const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `required resolution of ${entry.document_id}`);
     result.push({ documentId: entry.document_id, resolution: 'required', instances, evidence });
@@ -585,8 +604,10 @@ function validateResolutions(raw: DecisionResponse, ctx: DecisionContext): Docum
 
 /** Shared instance normalization + caps for resolutions and post-resolution additions. */
 function normalizeInstances(
-  raw: { name: string; description: string | null; already_provided: boolean; file_ids?: string[] | null }[],
+  raw: { name: string; description: string | null; already_provided: boolean; file_ids?: string[] | null; paper_key?: string }[],
   multiInstance: boolean,
+  /** The catalog type of the row / anchor: decides which papers the instances may name (openspec `document-papers`). */
+  typeKey: string | null,
   what: string,
 ): ResolvedInstance[] {
   const instances = raw.map((i) => ({
@@ -594,12 +615,17 @@ function normalizeInstances(
     description: i.description?.trim() || null,
     alreadyProvided: i.already_provided,
     fileIds: [...new Set(i.file_ids ?? [])],
+    paperKey: i.paper_key?.trim() || null,
   }));
   if (instances.length === 0) {
     throw new Error(`${what} needs at least one instance ({name, description})`);
   }
   if (instances.some((i) => i.name.length === 0 || i.name.length > 200)) {
     throw new Error(`${what}: every instance needs a name of 1-200 characters`);
+  }
+  for (const instance of instances) {
+    const fault = instancePaperFault(instance.paperKey, typeKey);
+    if (fault) throw new Error(`${what}: ${fault}`);
   }
   if (instances.length > 1 && !multiInstance) {
     throw new Error(`${what}: this document type allows a single instance only`);
@@ -659,7 +685,7 @@ function validateAddedInstances(raw: DecisionResponse, ctx: DecisionContext): In
     if (!anchor.multiInstance) {
       throw new Error(`added_instances: the type of document ${entry.anchor_document_id} allows a single instance only`);
     }
-    const instances = normalizeInstances(entry.instances, true, `added_instances for ${entry.anchor_document_id}`);
+    const instances = normalizeInstances(entry.instances, true, anchor.typeKey, `added_instances for ${entry.anchor_document_id}`);
     const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `added_instances for ${entry.anchor_document_id}`);
     result.push({ anchorDocumentId: entry.anchor_document_id, instances, evidence });
   }

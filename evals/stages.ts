@@ -338,6 +338,8 @@ interface AnalyzeFileCase {
   filename: string;
   expected: {
     document_type?: string | (string | null)[];
+    /** The paper after the gate (openspec `document-papers`); null = none. */
+    document_paper?: string | null | (string | null)[];
     matched_document_id?: string | null | (string | null)[];
     legible?: boolean;
     injection_suspected?: boolean;
@@ -363,6 +365,8 @@ interface ChecklistRow {
   name: string;
   description: string | null;
   type_key: string | null;
+  /** The paper the item stands for (openspec `document-papers`); omitted = none. */
+  paper_key?: string | null;
 }
 interface AnalyzeFileCtx {
   taxYear: number;
@@ -389,6 +393,7 @@ const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
     const checks: Check[] = [];
     const e = c.expected;
     if (e.document_type !== undefined) checks.push(eq('document_type', e.document_type, a.document_type ?? null));
+    if (e.document_paper !== undefined) checks.push(eq('document_paper', e.document_paper, a.document_paper ?? null));
     if (e.matched_document_id !== undefined) checks.push(eq('matched_document_id', e.matched_document_id, a.matched_document_id));
     if (e.legible !== undefined) checks.push(eq('legible', e.legible, a.legible));
     if (e.injection_suspected !== undefined) checks.push(eq('injection_suspected', e.injection_suspected, a.injection_suspected));
@@ -573,6 +578,8 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
 interface DecideDocumentInput {
   id?: string;
   type_key: string | null;
+  /** The paper of the type (openspec `document-papers`); omitted = none. */
+  paper_key?: string | null;
   status: DocumentStatus;
   name?: string;
   description?: string | null;
@@ -770,6 +777,7 @@ function documentRows(c: DecideCase, taxYear: number): ClientDocumentRow[] {
       description: d.description === undefined ? (t?.descriptionHe.replaceAll('{{tax_year}}', year) ?? null) : d.description,
       status: d.status,
       type_key: d.type_key,
+      paper_key: d.paper_key ?? null,
       verification: d.verification ?? null,
       resolution_evidence: null,
       created_at: at,
@@ -900,11 +908,17 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
       .map((d) => ({
         id: d.id,
         status: d.status as 'unresolved' | 'not_required',
+        typeKey: d.type_key,
         multiInstance: (d.type_key ? getCatalogType(d.type_key)?.multiInstance : undefined) ?? false,
       })),
     typedRows: documents
       .filter((d) => d.type_key !== null && d.status !== 'unresolved' && d.status !== 'not_required')
-      .map((d) => ({ id: d.id, status: d.status, multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false })),
+      .map((d) => ({
+        id: d.id,
+        status: d.status,
+        typeKey: d.type_key,
+        multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
+      })),
     inboundTexts,
     allSettled: documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired'),
     attestationRequested: requestedAt !== null,

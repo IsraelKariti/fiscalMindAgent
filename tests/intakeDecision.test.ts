@@ -111,15 +111,15 @@ const CASH_QUOTE = { message_id: 'msg-1', quote: 'יש לי קצת מזומן ב
 function baseIntake(overrides: Partial<IntakeDecisionState> = {}): IntakeDecisionState {
   return {
     resolvable: [
-      { id: 'doc-vehicle', status: 'unresolved', multiInstance: true },
-      { id: 'doc-cash', status: 'unresolved', multiInstance: false },
-      { id: 'doc-crypto', status: 'not_required', multiInstance: true },
+      { id: 'doc-vehicle', status: 'unresolved', typeKey: 'vehicle', multiInstance: true },
+      { id: 'doc-cash', status: 'unresolved', typeKey: 'other_assets', multiInstance: false },
+      { id: 'doc-crypto', status: 'not_required', typeKey: 'crypto', multiInstance: true },
     ],
     typedRows: [
-      { id: 'doc-contract', status: 'pending', multiInstance: true },
-      { id: 'doc-appendix', status: 'collected', multiInstance: true },
-      { id: 'doc-old-tabu', status: 'retired', multiInstance: true },
-      { id: 'doc-contents', status: 'pending', multiInstance: false },
+      { id: 'doc-contract', status: 'pending', typeKey: 'real_estate', multiInstance: true },
+      { id: 'doc-appendix', status: 'collected', typeKey: 'real_estate', multiInstance: true },
+      { id: 'doc-old-tabu', status: 'retired', typeKey: 'real_estate', multiInstance: true },
+      { id: 'doc-contents', status: 'pending', typeKey: 'contents_insurance', multiInstance: false },
     ],
     inboundTexts: new Map([
       ['msg-1', 'שלום,\nאין לי רכב בכלל.\nיש לי קצת מזומן בבית.'],
@@ -186,8 +186,8 @@ describe('intake resolutions (normalizeDecision)', () => {
           document_id: 'doc-vehicle',
           resolution: 'required',
           instances: [
-            { name: '  רישיון רכב - מאזדה 3 ', description: null, already_provided: false, file_ids: [] },
-            { name: 'רישיון רכב - טויוטה', description: 'רכב שני', already_provided: false, file_ids: [] },
+            { name: '  רישיון רכב - מאזדה 3 ', description: null, already_provided: false, file_ids: [], paper_key: '' },
+            { name: 'רישיון רכב - טויוטה', description: 'רכב שני', already_provided: false, file_ids: [], paper_key: '' },
           ],
           evidence: CASH_QUOTE,
         },
@@ -200,13 +200,82 @@ describe('intake resolutions (normalizeDecision)', () => {
     assert.equal(resolution.instances[0]!.name, 'רישיון רכב - מאזדה 3');
   });
 
+  it('papers (openspec document-papers): instances of a type with papers must name one of its papers', () => {
+    const intake = baseIntake({
+      resolvable: [...baseIntake().resolvable, { id: 'doc-re', status: 'unresolved', typeKey: 'real_estate', multiInstance: true }],
+    });
+    const on = (paper_key: string, document_id = 'doc-re') =>
+      normalizeDecision(
+        baseRaw({
+          resolved_documents: [
+            {
+              document_id,
+              resolution: 'required',
+              instances: [{ name: 'חוזה רכישה — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key }],
+              evidence: CASH_QUOTE,
+            },
+          ],
+        }),
+        ctxWith(intake),
+      );
+    const ok = on('purchase_contract').resolutions[0]!;
+    assert.equal(ok.resolution === 'required' ? ok.instances[0]!.paperKey : null, 'purchase_contract');
+    assert.throws(() => on(''), /names no paper/);
+    assert.throws(() => on('fund_name'), /not a paper of type "real_estate"/);
+    // A vehicle instance (type without papers) must not name a paper.
+    assert.throws(() => on('tabu_extract', 'doc-vehicle'), /type without papers/);
+    // The same rule for an addition: the anchor's type decides.
+    const added = (paper_key: string) =>
+      normalizeDecision(
+        baseRaw({
+          added_instances: [
+            {
+              anchor_document_id: 'doc-contract',
+              instances: [{ name: 'נסח טאבו — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key }],
+              evidence: CASH_QUOTE,
+            },
+          ],
+        }),
+        ctxWith(intake),
+      );
+    assert.equal(added('tabu_extract').addedInstances[0]!.instances[0]!.paperKey, 'tabu_extract');
+    assert.throws(() => added(''), /names no paper/);
+    // The rejection surfaces through business_rules of validate_message.
+    const schema = decisionSchemaForContext(ctxWith(intake));
+    assert.throws(
+      () =>
+        gateDecision(
+          JSON.stringify(
+            baseRaw({
+              resolved_documents: [
+                {
+                  document_id: 'doc-re',
+                  resolution: 'required',
+                  instances: [{ name: 'חוזה', description: null, already_provided: false, file_ids: [], paper_key: '' }],
+                  evidence: CASH_QUOTE,
+                },
+              ],
+            }),
+          ),
+          schema,
+          ctxWith(intake),
+        ),
+      (err: unknown) => {
+        assert.ok(err instanceof DecisionRejectedError);
+        assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['json_schema', true], ['business_rules', false]]);
+        assert.match(err.checks[1]!.note ?? '', /names no paper/);
+        return true;
+      },
+    );
+  });
+
   it('reopens a not_required row to required (client correction) but never back to not_required', () => {
     const reopen = baseRaw({
       resolved_documents: [
         {
           document_id: 'doc-crypto',
           resolution: 'required',
-          instances: [{ name: 'דוח קריפטו', description: null, already_provided: false, file_ids: [] }],
+          instances: [{ name: 'דוח קריפטו', description: null, already_provided: false, file_ids: [], paper_key: '' }],
           evidence: CASH_QUOTE,
         },
       ],
@@ -239,8 +308,8 @@ describe('intake resolutions (normalizeDecision)', () => {
             document_id: 'doc-cash',
             resolution: 'required',
             instances: [
-              { name: 'א', description: null, already_provided: false, file_ids: [] },
-              { name: 'ב', description: null, already_provided: false, file_ids: [] },
+              { name: 'א', description: null, already_provided: false, file_ids: [], paper_key: '' },
+              { name: 'ב', description: null, already_provided: false, file_ids: [], paper_key: '' },
             ],
             evidence: CASH_QUOTE,
           },
@@ -253,7 +322,7 @@ describe('intake resolutions (normalizeDecision)', () => {
           {
             document_id: 'doc-vehicle',
             resolution: 'required',
-            instances: Array.from({ length: 11 }, (_, i) => ({ name: `רכב ${i}`, description: null, already_provided: false, file_ids: [] })),
+            instances: Array.from({ length: 11 }, (_, i) => ({ name: `רכב ${i}`, description: null, already_provided: false, file_ids: [], paper_key: '' })),
             evidence: CASH_QUOTE,
           },
         ]),
@@ -262,7 +331,7 @@ describe('intake resolutions (normalizeDecision)', () => {
     const entry = {
       document_id: 'doc-vehicle',
       resolution: 'required' as const,
-      instances: [{ name: 'רכב', description: null, already_provided: false, file_ids: [] }],
+      instances: [{ name: 'רכב', description: null, already_provided: false, file_ids: [], paper_key: '' }],
       evidence: CASH_QUOTE,
     };
     assert.throws(() => on([entry, entry]), /twice/);
@@ -357,8 +426,8 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
         {
           anchor_document_id: 'doc-contract',
           instances: [
-            { name: 'נסח טאבו - דירה ברחוב הרצל 5', description: null, already_provided: false, file_ids: [] },
-            { name: 'שומת מס רכישה - דירה ברחוב הרצל 5', description: null, already_provided: true, file_ids: [] },
+            { name: 'נסח טאבו - דירה ברחוב הרצל 5', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' },
+            { name: 'שומת מס רכישה - דירה ברחוב הרצל 5', description: null, already_provided: true, file_ids: [], paper_key: 'purchase_tax_assessment' },
           ],
           evidence: CASH_QUOTE,
         },
@@ -370,7 +439,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
   });
 
   it('rejects additions on unknown anchors, single-instance types, duplicate anchors, and non-intake agents', () => {
-    const instances = [{ name: 'מסמך', description: null, already_provided: false, file_ids: [] }];
+    const instances = [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' }];
     assert.throws(
       () =>
         normalizeDecision(
@@ -436,7 +505,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
           baseRaw({
             attestation: 'request',
             added_instances: [
-              { anchor_document_id: 'doc-contract', instances: [{ name: 'מסמך', description: null, already_provided: false, file_ids: [] }], evidence: CASH_QUOTE },
+              { anchor_document_id: 'doc-contract', instances: [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' }], evidence: CASH_QUOTE },
             ],
           }),
           ctxWith(settled),
@@ -461,14 +530,19 @@ describe('a list item is created only on the client\'s quoted words (openspec un
   // These answers tie a file to a row, so they are 'collect' decisions: no message, no send_at.
   const tyingRaw = (overrides: Partial<DecisionResponse> = {}): DecisionResponse =>
     baseRaw({ decision: 'collect', channel: null, email_subject: null, email_body: null, send_at: null, ...overrides });
-  const instances = [{ name: 'אישור קרן השתלמות בהראל', description: null, already_provided: false, file_ids: ['file-1', 'file-1'] }];
+  const instances = [{ name: 'אישור קרן השתלמות בהראל', description: null, already_provided: false, file_ids: ['file-1', 'file-1'], paper_key: '' }];
+  // The contract anchor is a real_estate row: an added instance there names one of the property papers.
+  const contractInstances = instances.map((i) => ({ ...i, paper_key: 'tabu_extract' }));
   const required = (evidence: { message_id: string; quote: string } | null) =>
     normalizeDecision(
       tyingRaw({ resolved_documents: [{ document_id: 'doc-vehicle', resolution: 'required', instances, evidence }] }),
       ctxWith(baseIntake()),
     );
   const added = (evidence: { message_id: string; quote: string }) =>
-    normalizeDecision(tyingRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances, evidence }] }), ctxWith(baseIntake()));
+    normalizeDecision(
+      tyingRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances: contractInstances, evidence }] }),
+      ctxWith(baseIntake()),
+    );
 
   it('rejects a needed resolution without evidence — a file alone never settles a question', () => {
     assert.throws(() => required(null), /requires evidence/);
@@ -477,7 +551,9 @@ describe('a list item is created only on the client\'s quoted words (openspec un
   it('rejects evidence that cites a file-only message (empty text) or a message that is not the client\'s', () => {
     const ctx = ctxWith(baseIntake({ inboundTexts: new Map([['msg-file', '\n']]) }));
     const raw = (message_id: string) =>
-      tyingRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances, evidence: { message_id, quote: 'קרן השתלמות' } }] });
+      tyingRaw({
+        added_instances: [{ anchor_document_id: 'doc-contract', instances: contractInstances, evidence: { message_id, quote: 'קרן השתלמות' } }],
+      });
     assert.throws(() => normalizeDecision(raw('msg-file'), ctx), /not contained verbatim/);
     assert.throws(() => normalizeDecision(raw('msg-outbound'), ctx), /not a stored inbound message/);
   });

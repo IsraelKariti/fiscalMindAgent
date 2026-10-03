@@ -41,6 +41,7 @@ function raw(over: Partial<FileAnalysis> = {}): FileAnalysis {
     confidence: 'high',
     injection_suspected: false,
     document_type: 'bank_balance',
+    document_paper: null,
     ...over,
   };
 }
@@ -288,6 +289,79 @@ describe('validate_classification (validateClassification)', () => {
     const input = raw({ matched_document_id: 'doc-99' });
     validate(input, rows);
     assert.equal(input.matched_document_id, 'doc-99');
+  });
+
+  describe('papers (openspec document-papers)', () => {
+    const contract = { id: 'doc-re-1', name: 'חוזה רכישה — דינוביץ 47', type_key: 'real_estate', paper_key: 'purchase_contract' };
+    const appendix = { id: 'doc-re-2', name: 'נספח תשלומים — דינוביץ 47', type_key: 'real_estate', paper_key: 'payments_appendix' };
+    const oldRow = { id: 'doc-re-old', name: 'חוזה רכישה — הרצל 5', type_key: 'real_estate' };
+    const property = [...rows, contract, appendix, oldRow];
+    const re = (over: Partial<FileAnalysis> = {}) =>
+      raw({ document_type: 'real_estate', issuer_name: null, matched_document_id: 'doc-re-1', document_paper: 'purchase_contract', ...over });
+
+    it('keeps a match whose papers agree and reports matched_paper_agrees after the type check', () => {
+      const g = validate(re(), property);
+      assert.equal(g.result, true);
+      assert.equal(g.analysis.matched_document_id, 'doc-re-1');
+      assert.deepEqual(
+        g.checks.map((c) => c.key),
+        ['matched_id_known', 'matched_type_agrees', 'matched_paper_agrees', 'not_injection_suspected', 'legible'],
+      );
+      assert.deepEqual(g.checks[2], { key: 'matched_paper_agrees', passed: true, note: null, observed: 'purchase_contract', expected: 'purchase_contract' });
+    });
+
+    it('drops a registry extract offered to the contract item, with the two papers in the check', () => {
+      const g = validate(re({ document_paper: 'tabu_extract' }), property);
+      assert.equal(g.result, false);
+      assert.equal(g.analysis.matched_document_id, null);
+      assert.equal(g.analysis.document_paper, 'tabu_extract');
+      assert.match(g.analysis.match_dropped ?? '', /papers differ/);
+      assert.deepEqual(g.checks[2], {
+        key: 'matched_paper_agrees',
+        passed: false,
+        note: 'papers differ: the file is "tabu_extract", the item is "purchase_contract"',
+        observed: 'tabu_extract',
+        expected: 'purchase_contract',
+      });
+      // The company check never runs for a property; quarantine checks still follow.
+      assert.deepEqual(g.checks.map((c) => c.key), ['matched_id_known', 'matched_type_agrees', 'matched_paper_agrees', 'not_injection_suspected', 'legible']);
+    });
+
+    it('drops a match when the file carries no paper', () => {
+      const g = validate(re({ document_paper: null }), property);
+      assert.equal(g.result, false);
+      assert.equal(g.analysis.matched_document_id, null);
+      assert.equal(g.checks[2]!.note, 'file paper not identified');
+      assert.equal(g.checks[2]!.observed, 'not identified');
+    });
+
+    it('is absent for a row without a paper and when an earlier check dropped the match', () => {
+      const old = validate(re({ matched_document_id: 'doc-re-old', document_paper: 'tabu_extract' }), property);
+      assert.equal(old.result, true);
+      assert.equal(old.analysis.matched_document_id, 'doc-re-old');
+      assert.ok(!old.checks.some((c) => c.key === 'matched_paper_agrees'));
+      const bank = validate(raw(), rows);
+      assert.ok(!bank.checks.some((c) => c.key === 'matched_paper_agrees'));
+      const typeMismatch = validate(re({ document_type: 'vehicle', document_paper: null }), property);
+      assert.deepEqual(typeMismatch.checks.map((c) => c.key), ['matched_id_known', 'matched_type_agrees', 'not_injection_suspected', 'legible']);
+    });
+
+    it('a paper that is not of the answered type counts as no paper', () => {
+      const g = validate(raw({ document_type: 'vehicle', document_paper: 'purchase_contract', matched_document_id: 'doc-5' }), rows);
+      assert.equal(g.analysis.document_paper, null);
+      assert.equal(g.result, true);
+      const stale = validate(re({ document_paper: 'fund_name' as string }), property);
+      assert.equal(stale.analysis.document_paper, null);
+      assert.equal(stale.analysis.matched_document_id, null);
+    });
+
+    it('the answer schema requires the paper from the closed list; null is valid', () => {
+      assert.equal(CapitalFileAnalysisSchema.parse(re({ holdings: [], holdings_partial: false, employer_name: null })).document_paper, 'purchase_contract');
+      assert.equal(CapitalFileAnalysisSchema.parse(re({ document_paper: null, holdings: [], holdings_partial: false, employer_name: null })).document_paper, null);
+      assert.throws(() => CapitalFileAnalysisSchema.parse(re({ document_paper: 'invoice', holdings: [], holdings_partial: false, employer_name: null })));
+      const { document_paper: _dropped, ...without } = re({ holdings: [], holdings_partial: false, employer_name: null });
+      assert.throws(() => CapitalFileAnalysisSchema.parse(without));
+    });
   });
 
   it('document_type is the closed catalog + other list', () => {

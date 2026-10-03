@@ -2,10 +2,14 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CAPITAL_DOCUMENT_CATALOG,
+  CAPITAL_DOCUMENT_PAPER_VALUES,
   catalogSeedRows,
+  getCatalogPaper,
   getCatalogType,
   isEmployerBound,
   isInstitutionBound,
+  paperBelongsToType,
+  papersOf,
 } from '../src/agents/declarationOfCapital/catalog.js';
 
 describe('capital-declaration catalog', () => {
@@ -145,5 +149,41 @@ describe('capital-declaration catalog', () => {
       assert.ok(!/\d/.test(type.shortNameHe), type.key);
       assert.ok(!type.shortNameHe.includes('{{'), type.key);
     }
+  });
+
+  it('papers: keys unique across the catalog, each belongs to exactly one type, short names carry no date', () => {
+    const all = CAPITAL_DOCUMENT_CATALOG.flatMap((t) => (t.papers ?? []).map((p) => ({ type: t.key, paper: p })));
+    const keys = all.map((p) => p.paper.key);
+    assert.equal(new Set(keys).size, keys.length);
+    assert.deepEqual([...CAPITAL_DOCUMENT_PAPER_VALUES].sort(), [...keys].sort());
+    for (const { type, paper } of all) {
+      assert.equal(getCatalogPaper(paper.key), paper);
+      assert.equal(paperBelongsToType(paper.key, type), true);
+      for (const other of CAPITAL_DOCUMENT_CATALOG) if (other.key !== type) assert.equal(paperBelongsToType(paper.key, other.key), false);
+      assert.ok(paper.shortNameHe.trim().length > 0, paper.key);
+      assert.ok(!/\d/.test(paper.shortNameHe), paper.key);
+      assert.ok(!keys.includes(type), `paper key ${paper.key} collides with a type key`);
+    }
+    assert.equal(getCatalogPaper('no_such_paper'), undefined);
+    assert.equal(paperBelongsToType(null, 'real_estate'), false);
+  });
+
+  it('real_estate declares the seven property papers and no other type declares papers yet', () => {
+    assert.deepEqual(
+      papersOf('real_estate').map((p) => p.key),
+      [
+        'purchase_contract',
+        'payments_appendix',
+        'tabu_extract',
+        'purchase_tax_assessment',
+        'cost_declaration',
+        'inheritance_order',
+        'builder_payments_report',
+      ],
+    );
+    for (const p of papersOf('real_estate')) assert.ok(p.analysisHintHe && p.analysisHintHe.length > 40, p.key);
+    assert.deepEqual(papersOf('bank_balance'), []);
+    assert.deepEqual(papersOf(null), []);
+    assert.equal(CAPITAL_DOCUMENT_CATALOG.filter((t) => t.papers).length, 1);
   });
 });

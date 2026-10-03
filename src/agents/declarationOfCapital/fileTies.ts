@@ -15,7 +15,7 @@ import type { ClientDocumentRow, DocumentFileRow } from '../../db/types.js';
  * No imports of llm/db/audit, so the tests run without a database.
  */
 
-type TieDocument = Pick<ClientDocumentRow, 'id' | 'name' | 'type_key'>;
+type TieDocument = Pick<ClientDocumentRow, 'id' | 'name' | 'type_key'> & Partial<Pick<ClientDocumentRow, 'paper_key'>>;
 
 /** Why code refused a tie; shown in the step detail. */
 export type TieRefusal =
@@ -26,8 +26,19 @@ export type TieRefusal =
   | 'not_verified_legible'
   | 'already_attached'
   | 'type_differs'
+  | 'paper_differs'
   | 'file_already_taken'
   | 'row_not_pending';
+
+/**
+ * The paper check of one tie (openspec `document-papers`): an item that stands
+ * for one paper takes only a file of that paper; a file with no paper is not
+ * it either. Items without a paper are never refused here.
+ */
+export function paperRefusal(file: DocumentFileRow, doc: TieDocument): TieRefusal | null {
+  if (!doc.paper_key) return null;
+  return (file.analysis?.document_paper ?? null) === doc.paper_key ? null : 'paper_differs';
+}
 
 /**
  * The company check of one tie; null = allowed. Items of other types are never
@@ -67,7 +78,8 @@ export function filterPairsByCompany<T extends { file_id: string; document_id: s
   for (const pair of pairs) {
     const file = fileById.get(pair.file_id);
     const doc = docById.get(pair.document_id);
-    const reason = file && doc ? companyRefusal(file, doc, pair.evidence !== null, institutions) : null;
+    // The paper check first (openspec `document-papers`), then the company check.
+    const reason = file && doc ? (paperRefusal(file, doc) ?? companyRefusal(file, doc, pair.evidence !== null, institutions)) : null;
     if (reason) refused.push({ file_id: pair.file_id, document_id: pair.document_id, reason });
     else allowed.push(pair);
   }
@@ -107,6 +119,7 @@ export function assignFilesToNewRows(
       else if (!isVerifiedLegibleFile(file)) refuse('not_verified_legible');
       else if (file.client_document_id !== null) refuse('already_attached');
       else if (row.type_key === null || file.analysis?.document_type !== row.type_key) refuse('type_differs');
+      else if (paperRefusal(file, row)) refuse('paper_differs');
       else if (taken.has(fileId)) refuse('file_already_taken');
       else {
         const company = companyRefusal(file, row, true, institutions);

@@ -74,7 +74,7 @@ describe('answerTiesFiles', () => {
           added_instances: [
             {
               anchor_document_id: 'doc-study',
-              instances: [{ name: 'קרן השתלמות הראל', description: null, already_provided: false, file_ids: ['file-harel'] }],
+              instances: [{ name: 'קרן השתלמות הראל', description: null, already_provided: false, file_ids: ['file-harel'], paper_key: '' }],
               evidence: { message_id: 'msg-1', quote: 'כן' },
             },
           ],

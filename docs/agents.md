@@ -993,6 +993,31 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   closed `document_type` (catalog keys + `other`, `CAPITAL_DOCUMENT_TYPE_VALUES`);
   `validateClassification` drops a matched id the model was not shown or
   whose row type disagrees with `document_type`.
+- **Document papers** (2026-10-03, openspec `document-papers`, migration
+  060): a catalog type may declare `papers` — a closed sub-list of the
+  concrete papers the office accepts under it (`CatalogPaper`: `key` unique
+  across the catalog, `shortNameHe`, optional `analysisHintHe`). Only
+  `real_estate` declares them today: `purchase_contract`,
+  `payments_appendix`, `tabu_extract`, `purchase_tax_assessment`,
+  `cost_declaration`, `inheritance_order`, `builder_payments_report`. A
+  checklist item of such a type carries `client_documents.paper_key` (set by
+  the questionnaire mapping's and the planner's instance `paper_key`, '' =
+  none; `instancePaperFault` is the shared rule; `splitByCompany` copies the
+  head's); the classifier answers `document_paper` (nullable enum of all
+  paper keys; the gate nulls a paper not of the answered type) and
+  `validateClassification` adds `matched_paper_agrees` after the type check
+  when the matched row carries a paper; `paperRefusal` (`fileTies.ts`)
+  refuses a planner tie whose papers differ (`paper_differs`);
+  `buildExtractionCall` names the expected paper + its hint; `childLabel`
+  names an unmatched child of a type with papers after the paper's short
+  name; the planner's file line shows `document paper: <key>` and the
+  documents section shows `נייר: <name> (paper_key: <key>)`. Rows with
+  `paper_key = NULL` (older rows, ad-hoc rows, types without papers) behave
+  exactly as before. Why a sub-list and not new catalog types: every catalog
+  type is also an interview question and a questionnaire verdict. Synthetic
+  evals: `purchase_contract_dinovitz_2001.pdf`,
+  `payments_appendix_dinovitz_2001.pdf`, `tabu_extract_dinovitz_2025.pdf`
+  (cases `cls_18`–`cls_20`).
 - **Files that belong to no agreed item** (2026-09-19, openspec
   `unlisted-files`, no migration). Owner rule: the document list is an
   agreement with the client; a received file never changes it. Four pieces:

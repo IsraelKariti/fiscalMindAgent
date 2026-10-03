@@ -168,6 +168,8 @@ export interface ClientDocumentRow {
   status: DocumentStatus;
   /** Catalog type this row instantiates (declarationOfCapital/catalog.ts); NULL = ad-hoc (accountant-added) row. */
   type_key: string | null;
+  /** The paper of the type this row stands for (openspec `document-papers`, migration 060); NULL = no paper (type without papers, ad-hoc or older row). */
+  paper_key: string | null;
   /** Latest verification-pipeline verdict (extracted fields + per-check results); NULL until a file is verified. */
   verification: Record<string, unknown> | null;
   /** Evidence behind an agent-made 'not_required' resolution; NULL otherwise. */
@@ -206,6 +208,8 @@ export interface FileAnalysis {
   injection_suspected?: boolean;
   /** Capital-declaration files only: closed classification (a catalog type key or 'other'), cross-checked against the matched row's type. */
   document_type?: string;
+  /** Capital-declaration files only: the paper of the file from its type's closed list (openspec `document-papers`); null = none; absent on older rows. */
+  document_paper?: string | null;
   /**
    * The accounts, funds or policies the file shows, as printed (files of an
    * institution-bound type; absent on rows analyzed before the field existed).

@@ -144,8 +144,10 @@ export function describePerson(who: 'client' | 'spouse', id: string, source: Cli
 /** Digits only, left-padded to the 9 digits of an Israeli id (same rule as verifyChecks.normalizeIdNumber). */
 function normalizeId(raw: string | null | undefined): string {
   const digits = (raw ?? '').replace(/\D/g, '');
-  if (digits === '' || digits.length > 9) return digits;
-  return digits.padStart(9, '0');
+  if (digits === '') return digits;
+  const significant = digits.replace(/^0+/, '');
+  if (significant.length > 9) return digits;
+  return significant.padStart(9, '0');
 }
 
 /** Lowercase, strip punctuation/quotes, split to tokens of 2+ chars. */

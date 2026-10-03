@@ -201,7 +201,7 @@ export interface ChecksVerdict {
 
 /** Standard Israeli national-id check digit (9 digits, weights 1/2 alternating). */
 export function isValidIsraeliId(id: string): boolean {
-  const digits = id.replace(/\D/g, '');
+  const digits = normalizeIdNumber(id);
   if (digits.length === 0 || digits.length > 9) return false;
   const padded = digits.padStart(9, '0');
   let sum = 0;
@@ -216,12 +216,16 @@ export function isValidIsraeliId(id: string): boolean {
 /**
  * Digits only, left-padded to the 9 digits of an Israeli id. Documents (and
  * CRM cards) often drop a leading zero; "12345543" and "012345543" are the
- * same person and must compare equal.
+ * same person and must compare equal. Some banks (Hapoalim) print the id
+ * zero-padded to a wider field ("0000000025699448"): surplus leading zeros
+ * are dropped. More than 9 significant digits is returned as-is (not an id).
  */
 export function normalizeIdNumber(raw: string | null | undefined): string {
   const digits = (raw ?? '').replace(/\D/g, '');
-  if (digits === '' || digits.length > 9) return digits;
-  return digits.padStart(9, '0');
+  if (digits === '') return digits;
+  const significant = digits.replace(/^0+/, '');
+  if (significant.length > 9) return digits;
+  return significant.padStart(9, '0');
 }
 
 const MAX_SANE_AMOUNT = 1e12;

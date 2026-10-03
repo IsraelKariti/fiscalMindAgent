@@ -42,12 +42,14 @@ const baseCtx: CheckContext = {
 describe('isValidIsraeliId', () => {
   it('accepts a checksum-valid id and pads short ids', () => {
     assert.equal(isValidIsraeliId(VALID_ID), true);
-    // Same id with leading zeros stripped by a spreadsheet.
-    assert.equal(isValidIsraeliId('00' + VALID_ID), false); // 11 digits — too long
+    // Same id zero-padded to a wider field (Bank Hapoalim prints 16 digits).
+    assert.equal(isValidIsraeliId('00' + VALID_ID), true);
+    assert.equal(isValidIsraeliId('0000000' + VALID_ID), true);
   });
 
-  it('rejects wrong check digits, non-digits and empties', () => {
+  it('rejects wrong check digits, too many significant digits, non-digits and empties', () => {
     assert.equal(isValidIsraeliId('123456783'), false);
+    assert.equal(isValidIsraeliId('1' + VALID_ID), false); // 10 significant digits
     assert.equal(isValidIsraeliId(''), false);
     assert.equal(isValidIsraeliId('abcdefghi'), false);
   });
@@ -139,6 +141,20 @@ describe('runChecks', () => {
       { ...baseCtx, credentialIdNumber: printed },
     );
     assert.equal(reverse.checks.find((c) => c.key === 'id_matches_client')!.passed, true);
+  });
+
+  it('a printed id zero-padded to 16 digits matches the 9-digit id on file', () => {
+    // Bank Hapoalim mortgage letters print "0000000025699448" for 025699448.
+    const verdict = runChecks(
+      { ...baseFields, subject_id_number: '0000000' + VALID_ID },
+      { ...baseCtx, credentialIdNumber: VALID_ID, credentialIdSource: 'monday_crm' },
+    );
+    assert.equal(verdict.checks.find((c) => c.key === 'id_checksum')!.passed, true);
+    const match = verdict.checks.find((c) => c.key === 'id_matches_client')!;
+    assert.equal(match.passed, true);
+    assert.equal(match.observed, '••••••782');
+    assert.equal(verdict.checks.find((c) => c.key === 'subject')!.passed, true);
+    assert.equal(verdict.passed, true);
   });
 
   it('id_matches_client names where the id on file came from', () => {

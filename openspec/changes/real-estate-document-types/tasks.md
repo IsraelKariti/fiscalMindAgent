@@ -26,4 +26,4 @@
 - [x] 5.1 `web/src/i18n.tsx`: labels for `matched_paper_agrees` and `paper_differs`; `src/gemini/llmStages.ts` stage descriptions of `file_classification`, `questionnaire_schema_mapping` and `extract_document` mention the paper. Verify `npm run typecheck` and that `#/llm-stages` renders the updated text.
 - [x] 5.2 `docs/agents.md` and `openspec`-independent docs: one paragraph on papers under the catalog section. Verify by reading the rendered file.
 - [ ] 5.3 Live check: re-send the Dinovitz 47 PDF to the local test client ניב; verify in the trace that page 5's `validate_classification` fails `matched_paper_agrees`, pages 1-4 are tied and approved, page 5 is shown as "נסח טאבו" under unmatched files, and no spouse is adopted from it.
-- [ ] 5.4 Update the Notion page "How classification works" (the closed-list and gate sections) to describe papers. Verify the page shows the new check and the `real_estate` paper list.
+- [x] 5.4 Update the Notion page "How classification works" (the closed-list and gate sections) to describe papers. Verify the page shows the new check and the `real_estate` paper list.

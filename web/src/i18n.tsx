@@ -493,8 +493,6 @@ const he = {
   splitChildPages: (from: number, to: number, parentName: string) =>
     from === to ? `עמוד ${from} מתוך ${parentName}` : `עמודים ${from}–${to} מתוך ${parentName}`,
   splitPagesShort: (from: number, to: number) => (from === to ? `עמוד ${from}` : `עמודים ${from}–${to}`),
-  analysisIdentified: (kind: string) => `זוהה בתוכן: ${kind}`,
-  analysisTaxYear: (year: string) => `שנת מס ${year}`,
   analysisNotLegible: 'לא קריא',
   analysisSuspicious: 'תוכן חשוד',
   analysisBlocked: 'נחסם — תוכן חשוד',

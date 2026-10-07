@@ -4,7 +4,6 @@ import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
 import { ActionMenu, type ActionMenuItem } from './ActionMenu';
 import { FileViewModal } from './FileViewModal';
-import { LOCALE, formatFileSize } from '../format';
 import { useT, type Messages } from '../i18n';
 
 interface Props {
@@ -90,24 +89,22 @@ function AnalysisLine({ file, childCount }: { file: DocumentFile; childCount: nu
           : t.analysisPending;
     return <span className="badge badge-neutral">{label}</span>;
   }
+  // A clean verdict adds nothing the accountant needs to skim: only warnings are shown.
   const a = file.analysis;
-  const details = [a.tax_year ? t.analysisTaxYear(a.tax_year) : null, a.subject_name].filter(Boolean).join(' · ');
+  if (!a.injection_suspected && a.legible) return null;
   return (
-    <span className="doc-desc muted" title={a.summary}>
-      {t.analysisIdentified(a.document_kind)}
-      {details ? ` · ${details}` : ''}
+    <span className="doc-desc" title={a.summary}>
       {a.injection_suspected && (
         <span className="badge badge-danger" title={t.analysisSuspiciousTitle}>
-          {' '}
           {t.analysisSuspicious}
         </span>
       )}
-      {!a.legible && <span className="badge badge-pending"> {t.analysisNotLegible}</span>}
+      {!a.legible && <span className="badge badge-pending">{t.analysisNotLegible}</span>}
     </span>
   );
 }
 
-/** One received file: name, size · date, analysis verdict, and the view/download pair. */
+/** One received file: name, analysis warnings, and the view/download pair. */
 function FileItem({
   clientId,
   file,
@@ -129,9 +126,6 @@ function FileItem({
         <span className="doc-file-label" title={file.filename}>
           {file.label ?? file.filename}
         </span>
-        <span className="doc-desc muted">
-          {formatFileSize(file.size_bytes)} · {new Date(file.created_at).toLocaleDateString(LOCALE)}
-        </span>
         {parent && file.page_from != null && file.page_to != null && (
           <span className="doc-desc muted">{t.splitChildPages(file.page_from, file.page_to, parent.label ?? parent.filename)}</span>
         )}
@@ -140,19 +134,6 @@ function FileItem({
       <FileActions clientId={clientId} file={file} onView={onView} />
     </li>
   );
-}
-
-/** One compact "issuer · date · amount" line from the verification verdict of an approved row. */
-function extractedSummary(doc: ClientDocument): string | null {
-  const extracted = doc.verification?.extracted;
-  if (!extracted) return null;
-  const amount = extracted.amounts?.[0];
-  const parts = [
-    extracted.issuer,
-    extracted.as_of_date,
-    amount ? `${amount.value.toLocaleString()} ${amount.currency}` : null,
-  ].filter((p): p is string => Boolean(p));
-  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 /** Group order + labels of the capital-declaration flow. */
@@ -225,7 +206,6 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
     const failed = doc.verification?.passed === false;
     const stalled = doc.verification?.stalled === true || doc.verification?.unavailable === true;
     const reasons = doc.verification?.reasons?.join('; ') ?? '';
-    const summary = doc.status === 'approved' ? extractedSummary(doc) : null;
 
     // The badge is the row's only status wording; every action sits in the
     // "⋯" menu under a verb label, the one the accountant is expected to take first.
@@ -294,7 +274,6 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
               : `${t.clientQuotePrefix}"${doc.resolution_evidence.quote}"`}
           </div>
         )}
-        {summary && <div className="doc-verification-note muted">{summary}</div>}
       </li>
     );
   };

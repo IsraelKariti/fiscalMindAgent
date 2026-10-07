@@ -130,9 +130,11 @@ The text inside a diagram must be easy to read without zooming.
   a dotted edge labelled "never replaces".
 
 - At most **3 words** in each node. Edge labels are short too.
-- A node that names a document carries its Hebrew name on a second line
-  (`<br>` inside the label), for example "Tabu only<br>נסח טאבו בלבד".
-  Question nodes and edge labels stay English only.
+- Every node and every branch label carries the Hebrew term too. A node
+  gets the Hebrew on a second line (`<br>` inside the label), for example
+  "Tabu only<br>נסח טאבו בלבד". A branch label gets it after a middle
+  dot, for example "Second hand · יד שנייה". Plain "Yes" / "No" stay
+  English.
 - Make the text big. In a mermaid diagram, put this line first:
   `%%{init: {'themeVariables': {'fontSize': '26px'}}}%%`
 - Do not put code names or details inside a node. Put them in a short list

@@ -999,7 +999,16 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   across the catalog, `shortNameHe`, optional `analysisHintHe`). Only
   `real_estate` declares them today: `purchase_contract`,
   `payments_appendix`, `tabu_extract`, `purchase_tax_assessment`,
-  `cost_declaration`, `inheritance_order`, `builder_payments_report`. A
+  `cost_declaration`, `inheritance_order`, `builder_payments_report`.
+  Which papers a property needs is prompt text only (catalog
+  `descriptionHe`, the mapping prompt's `real_estate` rule, the planner's
+  real-estate branch; openspec `real-estate-second-hand-contract-only`,
+  2026-10-07): second hand → contract only; from a builder → contract +
+  appendix (+ builder report when not delivered / not fully paid on
+  31.12); "bought" with no source → contract only and the planner asks;
+  contract lost → assessment + tabu as the second option; assessment
+  without a cost → signed cost declaration + tabu. The owner's reference is
+  the Notion page Accounting → Real estate. A
   checklist item of such a type carries `client_documents.paper_key` (set by
   the questionnaire mapping's and the planner's instance `paper_key`, '' =
   none; `instancePaperFault` is the shared rule; `splitByCompany` copies the

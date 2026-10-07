@@ -123,7 +123,16 @@ must be clear to that reader.
 
 The text inside a diagram must be easy to read without zooming.
 
+- When a page describes a decision with branches (for example: which
+  documents are needed depends on a condition), add a flow chart next to
+  the text. The user finds a chart simpler to understand than prose.
+- A thing that is *not* accepted can appear in the chart as a red node with
+  a dotted edge labelled "never replaces".
+
 - At most **3 words** in each node. Edge labels are short too.
+- A node that names a document carries its Hebrew name on a second line
+  (`<br>` inside the label), for example "Tabu only<br>נסח טאבו בלבד".
+  Question nodes and edge labels stay English only.
 - Make the text big. In a mermaid diagram, put this line first:
   `%%{init: {'themeVariables': {'fontSize': '26px'}}}%%`
 - Do not put code names or details inside a node. Put them in a short list
@@ -134,3 +143,19 @@ The text inside a diagram must be easy to read without zooming.
   diagram, tell the user: "Set the diagram block to Preview" (block menu →
   Preview). Prefer `update_content` on the code inside an existing diagram
   block, so the block and its mode stay the same.
+
+## 4. Where a topic lives in the hierarchy
+
+- **Accounting rules** (which documents the office needs for a thing the
+  client owns or owes, and when one document replaces another) live under
+  the root page → **Accounting**. One child page per group of documents
+  that depend on each other: Real estate, Funds, Bank accounts, Debts,
+  Vehicles, Home contents, Business and investments, Other documents.
+- Each Accounting page has the decision as a flow chart (rule 3) and links
+  to the per-type pages under "4. Extraction for verification".
+- **Model and code behavior** (prompts, schemas, gates, checks) lives under
+  "LLM calls" and "Code gates". Do not put accounting rules there; link to
+  the Accounting page instead.
+- When a new document type or paper is added, add it to the matching
+  Accounting page, or create a new group page when the documents depend on
+  each other and on no existing group.

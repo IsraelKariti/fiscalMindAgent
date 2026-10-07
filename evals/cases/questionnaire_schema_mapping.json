@@ -559,8 +559,7 @@
             "לאומי"
           ],
           "real_estate": [
-            "חוזה",
-            "נספח"
+            "חוזה"
           ],
           "mortgage_balance": [
             "מזרחי"
@@ -568,7 +567,7 @@
         },
         "dropped": 0
       },
-      "notes": "a purchased property splits into two instances (purchase contract + payments appendix); the mortgage is its own instance"
+      "notes": "a property that is only 'bought' (second hand or builder not said) is one instance: the purchase contract alone (openspec real-estate-second-hand-contract-only); the conversation asks which it was; the mortgage is its own instance"
     },
     {
       "id": "map_12",
@@ -773,8 +772,7 @@
             "לאומי"
           ],
           "real_estate": [
-            "חוזה",
-            "נספח"
+            "חוזה"
           ],
           "mortgage_balance": [
             "לאומי"
@@ -782,7 +780,7 @@
         },
         "dropped": 0
       },
-      "notes": "a mortgage mentioned only inside the real-estate answer (the mortgage question left blank) still creates a mortgage_balance instance — the prompt's explicit rule beats the blank-question default"
+      "notes": "a mortgage mentioned only inside the real-estate answer (the mortgage question left blank) still creates a mortgage_balance instance — the prompt's explicit rule beats the blank-question default; the property is only 'bought' (no second hand / builder), so one instance: the contract alone"
     },
     {
       "id": "map_16",
@@ -942,6 +940,109 @@
         "dropped": 0
       },
       "notes": "the special-key mapping: a debtor -> loan_given, a shareholding -> business_ownership, a power of attorney -> poa_account"
+    },
+    {
+      "id": "map_19",
+      "answers": [
+        "לאומי",
+        "",
+        "",
+        "דירה ברחוב הרצל 5, תל אביב - קניתי יד שנייה ב-2018",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ],
+          "real_estate": [
+            "חוזה"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "second-hand purchase = the purchase contract only, never a payments appendix (openspec real-estate-second-hand-contract-only)"
+    },
+    {
+      "id": "map_20",
+      "answers": [
+        "לאומי",
+        "",
+        "",
+        "דירה חדשה מקבלן ברחוב הרצל 5, תל אביב - נמסרה ב-2023",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "expected": {
+        "verdicts": {
+          "bank_balance": "required",
+          "securities_portfolio": "not_required",
+          "pension_provident": "not_required",
+          "study_fund": "not_required",
+          "life_insurance_savings": "not_required",
+          "real_estate": "required",
+          "mortgage_balance": "not_required",
+          "loan_taken": "not_required",
+          "loan_given": "not_required",
+          "vehicle": "not_required",
+          "contents_insurance": "not_required",
+          "business_ownership": "not_required",
+          "crypto": "not_required",
+          "private_investment": "not_required",
+          "poa_account": "not_required",
+          "prior_declaration": "not_required",
+          "other_assets": "not_required"
+        },
+        "instances": {
+          "bank_balance": [
+            "לאומי"
+          ],
+          "real_estate": [
+            "חוזה",
+            "נספח"
+          ]
+        },
+        "dropped": 0
+      },
+      "notes": "purchase from a builder, delivered = purchase contract + payments appendix; no builder payments report because the flat was delivered"
     }
   ]
 }

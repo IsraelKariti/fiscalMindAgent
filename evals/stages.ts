@@ -680,6 +680,8 @@ interface DecideCase {
     instances?: Record<string, number>;
     /** Catalog type key -> exact number of instances added to that type (exactly this set of types; any row of the type may be the anchor). */
     added_instances?: Record<string, number>;
+    /** Exactly the row ids the decision retires (retired_documents). */
+    retired_documents?: string[];
     /** true: the decision creates no list item at all (no resolution, no addition, no retirement) — a file alone never changes the list. */
     no_list_change?: boolean;
     /** File ids that some newly created instance must name in its file_ids (exactly this set). */
@@ -1079,6 +1081,11 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       info.added_instance_names = decision.addedInstances.flatMap((a) => a.instances.map((i) => i.name));
       const sortKeys = (o: Record<string, number>) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
       checks.push({ key: 'added_instances', expected: sortKeys(e.added_instances), actual: sortKeys(addedByType), pass: JSON.stringify(sortKeys(e.added_instances)) === JSON.stringify(sortKeys(addedByType)) });
+    }
+    if (e.retired_documents !== undefined) {
+      const retiredIds = decision.retired.map((r) => r.documentId).sort();
+      const wanted = e.retired_documents.slice().sort();
+      checks.push({ key: 'retired_documents', expected: wanted, actual: retiredIds, pass: JSON.stringify(wanted) === JSON.stringify(retiredIds) });
     }
     if (e.no_list_change !== undefined) {
       const changes = decision.resolutions.length + decision.addedInstances.length + decision.retired.length;

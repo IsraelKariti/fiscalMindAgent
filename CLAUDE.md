@@ -70,7 +70,10 @@ then JSON) is complete on its own — no lookup needed.
 The app is a multi-agent platform (agent-type registries, per-instance
 clients) that currently hosts a single agent type, `declaration_of_capital`
 (`src/agents/declarationOfCapital/`) — **read `docs/agents.md` before
-touching agent behavior, the workspace API, or the workspace UI**. Key
+touching agent behavior, the workspace API, or the workspace UI**.
+`docs/pipeline.md` maps every step and decision of the conversation to its
+named function: every junction of a flow chart is one function, keep it that
+way when adding a step (one named single-purpose function, listed there). Key
 invariants:
 
 - Agent types are code (`src/agents/<type>/` + `web/src/agents/<type>.tsx`,

@@ -8,7 +8,13 @@ import { runInjectionScreen } from '../shared/injectionScreen.js';
 import { logger } from '../../util/logger.js';
 import { getCatalogType } from './catalog.js';
 import { buildFormIntakeCall } from './formIntakeCall.js';
-import { validateFormResolutions, type FormAnswer, type FormResolvableRow } from './formIntakeRules.js';
+import {
+  validateFormResolutions,
+  type FormAnswer,
+  type FormIntakeResponse,
+  type FormResolvableRow,
+  type ValidatedFormResolution,
+} from './formIntakeRules.js';
 import type { ClientRow, InjectionBlock } from '../../db/types.js';
 
 export type { FormAnswer } from './formIntakeRules.js';
@@ -44,62 +50,98 @@ export type { FormAnswer } from './formIntakeRules.js';
 // imported them from this module.
 export { buildFormIntakeCall, FORM_INTAKE_PROMPT, type FormIntakeCallInput } from './formIntakeCall.js';
 
+/** The sanitized form: the filled answers, and the questions the client left empty. */
+interface SanitizedForm {
+  answers: FormAnswer[];
+  answered: FormAnswer[];
+  emptyQuestions: string[];
+}
+
 /**
  * Runs the form pre-resolution for one just-enrolled (or restarted) client:
  * reads the seeded unresolved rows, asks the model to map the form answers
  * onto them, validates, applies, audits. Throws only on total failure (model /
  * DB); the caller treats that as "no pre-resolution" and lets the interview
  * cover everything.
+ *
+ * One named function per step: sanitizeFormAnswers, screenFormAnswersForAttackText,
+ * loadResolvableRows, mapFormToChecklist (questionnaire_schema_mapping),
+ * gateFormResolutions (validate_form_resolutions), applyFormResolutions.
  */
 export async function applyFormIntake(
   client: ClientRow,
   formAnswers: FormAnswer[],
   taxYear: number,
 ): Promise<{ applied: number }> {
+  const form = sanitizeFormAnswers(formAnswers);
+  if (form.answered.length === 0) return { applied: 0 };
+  const block = await screenFormAnswersForAttackText(client, form.answered);
+  if (block) {
+    recordFormIntakeSuppressed(client, block);
+    return { applied: 0 };
+  }
+  const rows = await loadResolvableRows(client);
+  if (rows.length === 0) return { applied: 0 };
+  const raw = await mapFormToChecklist(client, form, rows, taxYear);
+  const valid = gateFormResolutions(client, raw, rows, form.answers);
+  const applied = await applyFormResolutions(client, valid);
+  if (applied > 0) publishClientUpdated(client.id);
+  logger.info('form intake applied', { clientId: client.id, applied, proposed: Object.keys(raw.verdicts).length });
+  return { applied };
+}
+
+/**
+ * The answers as the model will see them (sanitized, capped), split into
+ * filled answers and empty questions. A form with no filled answer at all is
+ * treated as not really submitted — nothing is resolved (in particular the
+ * blank questions), the interview covers everything.
+ */
+function sanitizeFormAnswers(formAnswers: readonly FormAnswer[]): SanitizedForm {
   const answers = formAnswers
     .map((a) => ({
       question: sanitizeInline(a.question, 300),
       answer: sanitizeUntrusted(a.answer, 4000),
     }))
     .filter((a) => a.question !== '');
-  const answered = answers.filter((a) => a.answer !== '');
-  const emptyQuestions = answers.filter((a) => a.answer === '').map((a) => a.question);
-  // A form with no filled answer at all is treated as not really submitted —
-  // nothing is resolved (in particular the blank questions), the interview
-  // covers everything.
-  if (answered.length === 0) return { applied: 0 };
+  return {
+    answers,
+    answered: answers.filter((a) => a.answer !== ''),
+    emptyQuestions: answers.filter((a) => a.answer === '').map((a) => a.question),
+  };
+}
 
-  // The three injection layers BEFORE the mapping call: the mapping model
-  // carries no detection duty, so nothing untrusted may reach it unscreened.
-  const block = await screenFormAnswersForAttackText(client, answered);
-  if (block) {
-    recordFormIntakeSuppressed(client, block);
-    return { applied: 0 };
-  }
-
+/** The checklist rows the form may settle: still unresolved, with a catalog type. */
+async function loadResolvableRows(client: ClientRow): Promise<FormResolvableRow[]> {
   const documents = await clientDocuments.listForClient(client.id);
-  const rows: FormResolvableRow[] = documents
+  return documents
     .filter((d) => d.status === 'unresolved' && d.type_key !== null)
     .map((d) => ({
       id: d.id,
       typeKey: d.type_key as string,
       multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
     }));
-  if (rows.length === 0) return { applied: 0 };
+}
 
-  const { spec, schema: intakeSchema } = buildFormIntakeCall({ answered, emptyQuestions, rows, taxYear });
+/** The questionnaire_schema_mapping call: the model maps the answers onto the open rows; the answer is forced through the per-client schema. */
+async function mapFormToChecklist(client: ClientRow, form: SanitizedForm, rows: FormResolvableRow[], taxYear: number): Promise<FormIntakeResponse> {
+  const { spec, schema: intakeSchema } = buildFormIntakeCall({ answered: form.answered, emptyQuestions: form.emptyQuestions, rows, taxYear });
   const { text, usage, model } = await runLlmCall(spec, {
     log: { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id },
   });
   if (client.user_id) {
     await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
   }
-  const raw = intakeSchema.parse(JSON.parse(text));
+  return intakeSchema.parse(JSON.parse(text));
+}
 
+/**
+ * Step validate_form_resolutions: code checks every proposal
+ * (validateFormResolutions, pure) and writes the step row. true = all
+ * accepted, false = at least one dropped (a dropped row stays unresolved —
+ * no retry, the interview covers it). Returns the accepted resolutions.
+ */
+function gateFormResolutions(client: ClientRow, raw: FormIntakeResponse, rows: FormResolvableRow[], answers: FormAnswer[]): ValidatedFormResolution[] {
   const { valid, dropped, unclear, checks } = validateFormResolutions(raw, rows, answers);
-  // Step validate_form_resolutions: code checks every proposal. true = all
-  // accepted, false = at least one dropped (a dropped row stays unresolved —
-  // no retry, the interview covers it).
   recordAudit({
     actorType: 'system',
     action: 'validate_form_resolutions',
@@ -122,7 +164,11 @@ export async function applyFormIntake(
   if (unclear.length > 0) {
     logger.info('form intake: types left for the interview', { clientId: client.id, unclear });
   }
+  return valid;
+}
 
+/** Writes the accepted resolutions to the checklist, one document.resolved audit row each. Returns how many landed. */
+async function applyFormResolutions(client: ClientRow, valid: readonly ValidatedFormResolution[]): Promise<number> {
   let applied = 0;
   for (const resolution of valid) {
     if (resolution.resolution === 'not_required') {
@@ -166,9 +212,7 @@ export async function applyFormIntake(
       });
     }
   }
-  if (applied > 0) publishClientUpdated(client.id);
-  logger.info('form intake applied', { clientId: client.id, applied, proposed: Object.keys(raw.verdicts).length });
-  return { applied };
+  return applied;
 }
 
 /**

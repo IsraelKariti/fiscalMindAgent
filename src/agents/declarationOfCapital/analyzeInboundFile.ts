@@ -16,7 +16,7 @@ import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { deleteBlob, downloadBlob, uploadBlob } from '../../storage/blob.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
-import type { DocumentFileRow, InjectionBlock } from '../../db/types.js';
+import type { ClientDocumentRow, DocumentFileRow, InjectionBlock } from '../../db/types.js';
 import type { Readable } from 'node:stream';
 
 const PDF_CONTENT_TYPE = 'application/pdf';
@@ -53,17 +53,7 @@ function isPdf(contentType: string): boolean {
  * and every child is classified on its own (openspec `file-splitting`).
  */
 export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<void> {
-  const clientId = ctx.client.id;
-  if (!isAnalyzable(file.content_type, body.length)) {
-    await documentFiles.setAnalysis(file.id, 'unsupported', null);
-    logger.info('attachment not analyzable, skipping content analysis', {
-      clientId,
-      fileId: file.id,
-      contentType: file.content_type,
-      size: body.length,
-    });
-    return;
-  }
+  if (await skipUnsupportedFile(ctx, file, body)) return;
   // The three injection layers BEFORE classification. A hit quarantines the
   // file — never classified, never evidence, never linked.
   await keepDrafting(ctx);
@@ -72,24 +62,50 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
     await quarantineFile(ctx, file, block);
     return;
   }
-
-  // A multi-document PDF is cut into children and each child is classified on
-  // its own; the parent is then never classified. Any trouble in the split
-  // step means "no split": the whole file is classified exactly as before.
-  let children: DocumentFileRow[] | null = null;
-  try {
-    await keepDrafting(ctx);
-    children = await splitIntoChildren(ctx, file, body);
-  } catch (err) {
-    logger.error('file splitting failed — classifying the whole file', err, { clientId, fileId: file.id });
-  }
+  const children = await splitOrKeepWhole(ctx, file, body);
   if (children === null) {
     await keepDrafting(ctx);
     await classifyAndStore(ctx, file, body);
     return;
   }
-  // Children skip the injection layers: every page of the parent already
-  // passed them. The classifier's own suspected/illegible flags still apply.
+  await classifyChildren(ctx, file, children);
+}
+
+/** A file of an unsupported type or size is marked 'unsupported' and never read. Returns true when the analysis stops here. */
+async function skipUnsupportedFile(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<boolean> {
+  if (isAnalyzable(file.content_type, body.length)) return false;
+  await documentFiles.setAnalysis(file.id, 'unsupported', null);
+  logger.info('attachment not analyzable, skipping content analysis', {
+    clientId: ctx.client.id,
+    fileId: file.id,
+    contentType: file.content_type,
+    size: body.length,
+  });
+  return true;
+}
+
+/**
+ * A multi-document PDF is cut into children and each child is classified on
+ * its own; the parent is then never classified. Any trouble in the split
+ * step means "no split": the whole file is classified exactly as before.
+ */
+async function splitOrKeepWhole(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<DocumentFileRow[] | null> {
+  try {
+    await keepDrafting(ctx);
+    return await splitIntoChildren(ctx, file, body);
+  } catch (err) {
+    logger.error('file splitting failed — classifying the whole file', err, { clientId: ctx.client.id, fileId: file.id });
+    return null;
+  }
+}
+
+/**
+ * Each child is classified on its own. Children skip the injection layers:
+ * every page of the parent already passed them. The classifier's own
+ * suspected/illegible flags still apply. A child that cannot be read is
+ * marked 'failed' and the others still run.
+ */
+async function classifyChildren(ctx: AgentContext, parent: DocumentFileRow, children: readonly DocumentFileRow[]): Promise<void> {
   for (const child of children) {
     if (child.analysis_status !== 'pending') continue; // a re-run: already classified
     try {
@@ -97,7 +113,7 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
       await classifyAndStore(ctx, child, await readBlob(child.blob_key));
     } catch (err) {
       await documentFiles.setAnalysis(child.id, 'failed', null).catch(() => {});
-      logger.error('split child could not be read for content analysis', err, { clientId, fileId: child.id, parentFileId: file.id });
+      logger.error('split child could not be read for content analysis', err, { clientId: ctx.client.id, fileId: child.id, parentFileId: parent.id });
     }
   }
 }
@@ -188,13 +204,28 @@ async function splitIntoChildren(ctx: AgentContext, file: DocumentFileRow, body:
   if (ctx.client.user_id) {
     await llmUsage.add(ctx.client.user_id, ctx.client.agent_instance_id, model, usage);
   }
-  // Step validate_file_split: the code check of the proposed page ranges.
-  // result true with one document = accepted, nothing to cut.
+  recordFileSplitGate(ctx, file, raw, gate, pageCount);
+  if (!gate.result || gate.ranges.length < 2) return null;
+  return cutIntoChildren(ctx, file, body, gate.ranges, pageCount);
+}
+
+/**
+ * Step validate_file_split: the code check of the proposed page ranges
+ * (validateFileSplit, pure), written as one step row. result true with one
+ * document = accepted, nothing to cut.
+ */
+function recordFileSplitGate(
+  ctx: AgentContext,
+  file: DocumentFileRow,
+  raw: Awaited<ReturnType<typeof splitFile>>['raw'],
+  gate: Awaited<ReturnType<typeof splitFile>>['gate'],
+  pageCount: number,
+): void {
   recordAudit({
     actorType: 'system',
     action: 'validate_file_split',
     agentInstanceId: ctx.client.agent_instance_id,
-    clientId,
+    clientId: ctx.client.id,
     targetType: 'document_file',
     targetId: file.id,
     severity: gate.result ? 'info' : 'warning',
@@ -212,16 +243,22 @@ async function splitIntoChildren(ctx: AgentContext, file: DocumentFileRow, body:
       checks: gate.checks,
     },
   });
-  if (!gate.result || gate.ranges.length < 2) return null;
+}
 
-  const parts = await cutPdf(body, gate.ranges);
+/**
+ * Cuts the PDF at the accepted ranges and stores one child row per part; the
+ * parent is then marked 'split'. A half-stored split must not leave stray
+ * children next to a parent that is about to be classified whole: on any
+ * failure the children are removed and the error rethrown.
+ */
+async function cutIntoChildren(ctx: AgentContext, file: DocumentFileRow, body: Buffer, ranges: PageRange[], pageCount: number): Promise<DocumentFileRow[]> {
+  const clientId = ctx.client.id;
+  const parts = await cutPdf(body, ranges);
   try {
-    for (const [index, range] of gate.ranges.entries()) {
+    for (const [index, range] of ranges.entries()) {
       await storeChild(file, range, parts[index]!);
     }
   } catch (err) {
-    // A half-stored split must not leave stray children next to a parent that
-    // is about to be classified whole.
     const removed = await documentFiles.deleteChildren(file.id).catch(() => []);
     for (const blobKey of removed) {
       deleteBlob(blobKey).catch((e) => logger.error('split cleanup: blob delete failed', e, { clientId, blobKey }));
@@ -280,55 +317,9 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
         purpose: 'file_classification',
       },
     });
-    // Step validate_classification: the code check of the model's proposal.
-    // result false = an id the model was not shown (or of another type) was
-    // dropped; quarantine (suspected / illegible) is reported alongside.
-    recordAudit({
-      actorType: 'system',
-      action: 'validate_classification',
-      agentInstanceId: ctx.client.agent_instance_id,
-      clientId,
-      targetType: 'document_file',
-      targetId: file.id,
-      severity: gate.quarantined && analysis.injection_suspected ? 'critical' : gate.result ? 'info' : 'warning',
-      suspectedInjection: analysis.injection_suspected === true,
-      detail: {
-        clientName: ctx.client.name,
-        filename: file.filename,
-        result: gate.result,
-        reason: gate.reason,
-        rejectedId: gate.rejectedId,
-        matched: analysis.matched_document_id,
-        type: analysis.document_type ?? null,
-        kind: analysis.document_kind,
-        confidence: analysis.confidence,
-        legible: analysis.legible,
-        quarantined: gate.quarantined,
-        quarantineReason: gate.quarantineReason,
-        candidates: requiredDocuments.map((d) => d.id),
-        checks: gate.checks,
-      },
-    });
+    recordClassificationGate(ctx, file, analysis, gate, requiredDocuments);
     await documentFiles.setAnalysis(file.id, 'done', analysis);
-    // A child cut out of a multi-document PDF is shown under the name of the
-    // list document it matched; with no match (the gate has already cleared a
-    // dropped one), under its document type and the company on it. Our own
-    // words either way. A quarantined child keeps its page-range name.
-    if (file.parent_file_id !== null) {
-      const matched = requiredDocuments.find((d) => d.id === analysis.matched_document_id);
-      await documentFiles.setLabel(
-        file.id,
-        childLabel({
-          matchedDocumentName: matched?.name,
-          matchedDocumentTypeKey: matched?.type_key,
-          documentType: analysis.document_type,
-          documentPaper: analysis.document_paper,
-          issuerName: analysis.issuer_name,
-          employerName: analysis.employer_name,
-          quarantined: gate.quarantined,
-        }),
-      );
-    }
+    if (file.parent_file_id !== null) await labelChild(file, analysis, gate, requiredDocuments);
     if (ctx.client.user_id) {
       await llmUsage.add(ctx.client.user_id, ctx.client.agent_instance_id, model, usage);
     }
@@ -344,4 +335,74 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
     if (file.parent_file_id !== null) await documentFiles.setLabel(file.id, null).catch(() => {});
     logger.error('attachment content analysis failed', err, { clientId, fileId: file.id });
   }
+}
+
+type ClassificationResult = Awaited<ReturnType<typeof analyzeFile>>;
+
+/**
+ * Step validate_classification: the code check of the model's proposal
+ * (validateClassification, pure), written as one step row. result false = an
+ * id the model was not shown (or of another type) was dropped; quarantine
+ * (suspected / illegible) is reported alongside.
+ */
+function recordClassificationGate(
+  ctx: AgentContext,
+  file: DocumentFileRow,
+  analysis: ClassificationResult['analysis'],
+  gate: ClassificationResult['gate'],
+  requiredDocuments: readonly ClientDocumentRow[],
+): void {
+  recordAudit({
+    actorType: 'system',
+    action: 'validate_classification',
+    agentInstanceId: ctx.client.agent_instance_id,
+    clientId: ctx.client.id,
+    targetType: 'document_file',
+    targetId: file.id,
+    severity: gate.quarantined && analysis.injection_suspected ? 'critical' : gate.result ? 'info' : 'warning',
+    suspectedInjection: analysis.injection_suspected === true,
+    detail: {
+      clientName: ctx.client.name,
+      filename: file.filename,
+      result: gate.result,
+      reason: gate.reason,
+      rejectedId: gate.rejectedId,
+      matched: analysis.matched_document_id,
+      type: analysis.document_type ?? null,
+      kind: analysis.document_kind,
+      confidence: analysis.confidence,
+      legible: analysis.legible,
+      quarantined: gate.quarantined,
+      quarantineReason: gate.quarantineReason,
+      candidates: requiredDocuments.map((d) => d.id),
+      checks: gate.checks,
+    },
+  });
+}
+
+/**
+ * A child cut out of a multi-document PDF is shown under the name of the
+ * list document it matched; with no match (the gate has already cleared a
+ * dropped one), under its document type and the company on it. Our own
+ * words either way. A quarantined child keeps its page-range name.
+ */
+async function labelChild(
+  file: DocumentFileRow,
+  analysis: ClassificationResult['analysis'],
+  gate: ClassificationResult['gate'],
+  requiredDocuments: readonly ClientDocumentRow[],
+): Promise<void> {
+  const matched = requiredDocuments.find((d) => d.id === analysis.matched_document_id);
+  await documentFiles.setLabel(
+    file.id,
+    childLabel({
+      matchedDocumentName: matched?.name,
+      matchedDocumentTypeKey: matched?.type_key,
+      documentType: analysis.document_type,
+      documentPaper: analysis.document_paper,
+      issuerName: analysis.issuer_name,
+      employerName: analysis.employer_name,
+      quarantined: gate.quarantined,
+    }),
+  );
 }

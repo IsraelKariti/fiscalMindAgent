@@ -92,64 +92,20 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
   await withInboundInFlight(client.id, () => handleClientMessage(params, client, clientNumber));
 }
 
+/**
+ * One inbound WhatsApp webhook of a client's turn. One named function per
+ * step: logInjectionTripwires, storeInboundMessage, disableWhatsAppOnOptOut,
+ * cancelPendingSendAndShowDrafting, ingestMessageMedia, then the agent's own
+ * inbound hook (declarationOfCapitalAgent.onInboundMessage).
+ */
 async function handleClientMessage(params: TwilioInboundParams, client: ClientRow, clientNumber: string): Promise<void> {
   const body = params.Body ?? '';
-  // Injection tripwires (telemetry only — the structural defenses live in the
-  // prompt builders): flag inbound content that looks like it addresses the LLM.
-  const tripwires = detectInjectionHeuristics(body);
-  if (tripwires.length > 0) {
-    logger.warn('inbound whatsapp contains instruction-like text (possible prompt injection)', {
-      clientId: client.id,
-      from: clientNumber,
-      tripwires,
-    });
-  }
-  const inserted = await emails.insertInboundIfNew(client.id, {
-    channel: 'whatsapp',
-    messageId: params.MessageSid,
-    subject: '',
-    body,
-    sentAt: new Date(),
-  });
-  const messageRow = inserted ?? (await emails.getByMessageIdForClient(client.id, params.MessageSid));
-
-  // Client-side opt-out: flip the channel off before the agent re-plans, so
-  // the next decision already sees WhatsApp as unavailable and uses email.
-  if (inserted && isOptOut(body)) {
-    await clients.disableWhatsApp(client.id);
-    logger.info('whatsapp opt-out detected, channel disabled', { clientId: client.id });
-  }
-
+  logInjectionTripwires(client, clientNumber, body);
+  const { inserted, messageRow } = await storeInboundMessage(client, params, body);
+  if (inserted && isOptOut(body)) await disableWhatsAppOnOptOut(client);
   const agent = await loadAgentContext(client);
-  if (inserted && agent.definition.conversationModel === 'scheduled_follow_up') {
-    // A new reply always leads to a fresh draft, so cancel the now-outdated
-    // pending send right away — before the slow media ingestion below — and
-    // signal the UI (same contract as inbound email).
-    await withClientLock(client.id, () => removeFutureEmail(client.id));
-    // The planner runs later, once for the whole turn — show "drafting" from now.
-    if (!client.paused && client.goal_status === 'pending') await clients.markDraftingStarted(client.id);
-    publishClientUpdated(client.id);
-  }
-
-  // Store media before deciding the next step so the LLM sees the files. Runs
-  // on duplicate deliveries too: ingestion is idempotent and backfills items a
-  // failed earlier run missed.
-  const numMedia = Number(params.NumMedia ?? '0') || 0;
-  const media: WaMediaItem[] = [];
-  for (let i = 0; i < numMedia; i++) {
-    const url = params[`MediaUrl${i}`];
-    if (url) media.push({ url, contentType: params[`MediaContentType${i}`] ?? '' });
-  }
-  const newFiles =
-    media.length > 0
-      ? await ingestWaMedia(
-          { clientId: client.id, agentInstanceId: client.agent_instance_id, clientName: client.name, emailId: messageRow?.id ?? null },
-          params.MessageSid,
-          media,
-          body,
-        )
-      : 0;
-
+  if (inserted && agent.definition.conversationModel === 'scheduled_follow_up') await cancelPendingSendAndShowDrafting(client);
+  const newFiles = await ingestMessageMedia(params, client, body, messageRow?.id ?? null);
   if (inserted || newFiles > 0) {
     await agent.definition.onInboundMessage(agent, {
       channel: 'whatsapp',
@@ -158,4 +114,80 @@ async function handleClientMessage(params: TwilioInboundParams, client: ClientRo
       newFileCount: newFiles,
     });
   }
+}
+
+/**
+ * Injection tripwires (telemetry only — the structural defenses live in the
+ * prompt builders and the injection screen): flag inbound content that looks
+ * like it addresses the LLM.
+ */
+function logInjectionTripwires(client: ClientRow, clientNumber: string, body: string): void {
+  const tripwires = detectInjectionHeuristics(body);
+  if (tripwires.length > 0) {
+    logger.warn('inbound whatsapp contains instruction-like text (possible prompt injection)', {
+      clientId: client.id,
+      from: clientNumber,
+      tripwires,
+    });
+  }
+}
+
+/** Stores the message once per Twilio MessageSid. `inserted` is null on a duplicate delivery; `messageRow` is the stored row either way. */
+async function storeInboundMessage(
+  client: ClientRow,
+  params: TwilioInboundParams,
+  body: string,
+): Promise<{ inserted: Awaited<ReturnType<typeof emails.insertInboundIfNew>>; messageRow: Awaited<ReturnType<typeof emails.getByMessageIdForClient>> }> {
+  const inserted = await emails.insertInboundIfNew(client.id, {
+    channel: 'whatsapp',
+    messageId: params.MessageSid,
+    subject: '',
+    body,
+    sentAt: new Date(),
+  });
+  const messageRow = inserted ?? (await emails.getByMessageIdForClient(client.id, params.MessageSid));
+  return { inserted, messageRow };
+}
+
+/**
+ * Client-side opt-out: flip the channel off before the agent re-plans, so
+ * the next decision already sees WhatsApp as unavailable.
+ */
+async function disableWhatsAppOnOptOut(client: ClientRow): Promise<void> {
+  await clients.disableWhatsApp(client.id);
+  logger.info('whatsapp opt-out detected, channel disabled', { clientId: client.id });
+}
+
+/**
+ * A new reply always leads to a fresh draft, so the now-outdated pending send
+ * is cancelled right away — before the slow media ingestion — and the UI is
+ * signalled (same contract as inbound email). The planner runs later, once
+ * for the whole turn — "drafting" shows from now.
+ */
+async function cancelPendingSendAndShowDrafting(client: ClientRow): Promise<void> {
+  await withClientLock(client.id, () => removeFutureEmail(client.id));
+  if (!client.paused && client.goal_status === 'pending') await clients.markDraftingStarted(client.id);
+  publishClientUpdated(client.id);
+}
+
+/**
+ * Stores the message's media before the agent decides the next step, so the
+ * LLM sees the files. Runs on duplicate deliveries too: ingestion is
+ * idempotent and backfills items a failed earlier run missed. Returns how many
+ * new files were stored.
+ */
+async function ingestMessageMedia(params: TwilioInboundParams, client: ClientRow, body: string, emailId: string | null): Promise<number> {
+  const numMedia = Number(params.NumMedia ?? '0') || 0;
+  const media: WaMediaItem[] = [];
+  for (let i = 0; i < numMedia; i++) {
+    const url = params[`MediaUrl${i}`];
+    if (url) media.push({ url, contentType: params[`MediaContentType${i}`] ?? '' });
+  }
+  if (media.length === 0) return 0;
+  return ingestWaMedia(
+    { clientId: client.id, agentInstanceId: client.agent_instance_id, clientName: client.name, emailId },
+    params.MessageSid,
+    media,
+    body,
+  );
 }

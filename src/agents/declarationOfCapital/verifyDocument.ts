@@ -16,7 +16,8 @@ import { isQuarantined } from '../shared/fileEvidence.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { logger } from '../../util/logger.js';
 import { buildExtractionCall, checksFor, fieldsFor } from './extractionCall.js';
-import { extractionSchemaFor, runChecks, typeFieldValue, type ExtractedAnswer } from './verifyChecks.js';
+import { extractionSchemaFor, runChecks, typeFieldValue, type ChecksVerdict, type ExtractedAnswer } from './verifyChecks.js';
+import type { ExtractionField, VerificationChecks } from './catalog.js';
 import * as clients from '../../db/queries/clients.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { fetchItemDetails } from '../shared/mondayData.js';
@@ -83,6 +84,12 @@ async function clientIdOnFile(client: ClientRow): Promise<IdOnFile | null> {
  * human touchpoint, and only as a dead-end escape hatch. Unverifiable files
  * (unsupported type, quarantined, injection flagged by the extractor) also
  * stall to the accountant rather than loop.
+ *
+ * verifyCollectedDocument below is the orchestrator; every step of the chart
+ * is one named function under it (loadCollectedDocument, documentTypeRules,
+ * loadCheckableFile, extractDocumentData, stallOnAttackText,
+ * checkExtractedData, applyVerdict → approveDocument / reopenDocument /
+ * stallAfterRepeatedFailures).
  */
 
 const MAX_FAILED_ATTEMPTS = 3;
@@ -134,11 +141,40 @@ async function stall(
   }
 }
 
+/** One document check in progress: what every step below shares. */
+interface VerificationRun {
+  client: ClientRow;
+  doc: ClientDocumentRow;
+  fileId: string;
+  /** Failed attempts before this one. */
+  attempts: number;
+  now: Date;
+  taxYear: number;
+  /** The record fields every outcome writes. */
+  base: { attempts: number; file_id: string; verified_at: string };
+}
+
+/** The stored file row the check reads (documentFiles.getForClient). */
+type StoredFile = NonNullable<Awaited<ReturnType<typeof documentFiles.getForClient>>>;
+
+/** What the document's catalog type says about the check: which checks apply and which extra fields to read. */
+interface DocumentTypeRules {
+  checks: VerificationChecks;
+  fields: readonly ExtractionField[] | undefined;
+  fieldsAnyOf: readonly string[] | undefined;
+}
+
 /**
  * Verifies one just-collected document against its linked file and returns
  * the outcome. It never re-plans: the caller verifies its whole batch
  * (verifyBatch) and then runs ONE follow-up planning cycle (openspec
  * `verification-reply`).
+ *
+ * One named function per step of the "Document Check Flow" chart (Notion page
+ * "4. Document extraction"). Step 1 — the planner ties the file to a document
+ * (apply_collections in plan.ts) — happens before this runs. Step 12 — the
+ * planner tells the client the result — happens after, in the batch's
+ * follow-up cycle.
  */
 export async function verifyCollectedDocument(
   client: ClientRow,
@@ -146,22 +182,66 @@ export async function verifyCollectedDocument(
   documentId: string,
   fileId: string,
 ): Promise<VerificationOutcome> {
+  void instance; // the batch carries it for its callers; the check itself reads nothing from it
+  const run = await loadCollectedDocument(client, documentId, fileId);
+  if (!run) return 'skipped';
+  const rules = documentTypeRules(run.doc); // step 2
+  const file = await loadCheckableFile(run); // step 3
+  if (!file) return 'stalled';
+  const extracted = await extractDocumentData(run, file, rules); // steps 4 and 5
+  if (!extracted) return 'skipped';
+  if (await stallOnAttackText(run, extracted)) return 'stalled'; // step 6
+  const verdict = await checkExtractedData(run, extracted, rules); // step 7
+  return applyVerdict(run, extracted, verdict); // steps 8 to 13
+}
+
+/**
+ * Guards before the check starts: the platform kill switch, a row that is no
+ * longer "collected" (someone changed it meanwhile), a row already handed to
+ * the accountant (stalled). Any of them means 'skipped'.
+ */
+async function loadCollectedDocument(client: ClientRow, documentId: string, fileId: string): Promise<VerificationRun | null> {
   if (await isKillSwitchOn()) {
     logger.warn('platform kill switch on, skipping document verification', { clientId: client.id, documentId });
-    return 'skipped';
+    return null;
   }
   const doc = await clientDocuments.getForClient(documentId, client.id);
-  if (!doc || doc.status !== 'collected') return 'skipped';
+  if (!doc || doc.status !== 'collected') return null;
+  if (doc.verification?.['stalled'] === true) return null; // dead-ended; the accountant owns it now
   const attempts = previousAttempts(doc);
-  if (doc.verification?.['stalled'] === true) return 'skipped'; // dead-ended; the accountant owns it now
-
   const now = new Date();
-  const base = { attempts, file_id: fileId, verified_at: now.toISOString() };
+  return {
+    client,
+    doc,
+    fileId,
+    attempts,
+    now,
+    taxYear: capitalClientTaxYear(client, now),
+    base: { attempts, file_id: fileId, verified_at: now.toISOString() },
+  };
+}
 
+/**
+ * Chart step 2 — the code finds the type of that document. The checklist row
+ * carries a type key (for example `bank_balance`); the catalog entry of that
+ * one type says which checks apply and which extra fields the model reads.
+ */
+function documentTypeRules(doc: ClientDocumentRow): DocumentTypeRules {
+  const { fields, fieldsAnyOf } = fieldsFor(doc);
+  return { checks: checksFor(doc), fields, fieldsAnyOf };
+}
+
+/**
+ * Chart step 3 — can the code check this file? A file that is missing,
+ * quarantined by the classifier, or of an unsupported type or size cannot be
+ * checked: the document stalls to the accountant and this returns null.
+ */
+async function loadCheckableFile(run: VerificationRun): Promise<StoredFile | null> {
+  const { client, doc, fileId, base } = run;
   const file = await documentFiles.getForClient(fileId, client.id);
   if (!file) {
     await stall(client, doc, { ...base, passed: false, unavailable: true, reasons: ['הקובץ המקושר לא נמצא במערכת'] });
-    return 'stalled';
+    return null;
   }
   if (isQuarantined(file)) {
     await stall(
@@ -170,7 +250,7 @@ export async function verifyCollectedDocument(
       { ...base, passed: false, unavailable: true, reasons: ['הקובץ סומן כחשוד או בלתי קריא בניתוח התוכן'] },
       { suspectedInjection: file.analysis?.injection_suspected === true },
     );
-    return 'stalled';
+    return null;
   }
   if (!isAnalyzable(file.content_type, Number(file.size_bytes))) {
     await stall(client, doc, {
@@ -179,51 +259,65 @@ export async function verifyCollectedDocument(
       unavailable: true,
       reasons: ['סוג הקובץ או גודלו אינם נתמכים באימות אוטומטי'],
     });
-    return 'stalled';
+    return null;
   }
+  return file;
+}
 
-  const checks = checksFor(doc);
-  const { fields: typeFields, fieldsAnyOf } = fieldsFor(doc);
-  const taxYear = capitalClientTaxYear(client, now);
-
-  // Extract — the isolated "OCR" read, forced through the schema (the base
-  // schema plus the type's own fields, openspec `document-extraction`).
-  let extracted: ExtractedAnswer;
+/**
+ * Chart steps 4 and 5 — the code builds the prompt for that type
+ * (buildExtractionCall) and the model reads the data from the file: the
+ * isolated "OCR" read, forced through the base schema plus the type's own
+ * fields (openspec `document-extraction`). A transient failure (model or
+ * storage hiccup) returns null: the row keeps no verdict, the attempt is not
+ * counted, and the accountant can always approve by hand.
+ */
+async function extractDocumentData(run: VerificationRun, file: StoredFile, rules: DocumentTypeRules): Promise<ExtractedAnswer | null> {
+  const { client, doc, fileId } = run;
   try {
     const bytes = await streamToBuffer((await downloadBlob(file.blob_key)).stream);
     const { text, usage, model } = await runLlmCall(
-      buildExtractionCall({ doc, bytes, contentType: file.content_type, filename: file.filename, taxYear }),
+      buildExtractionCall({ doc, bytes, contentType: file.content_type, filename: file.filename, taxYear: run.taxYear }),
       { log: { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id, documentFileId: file.id } },
     );
     if (client.user_id) {
       await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
     }
-    extracted = extractionSchemaFor(typeFields).parse(JSON.parse(text));
+    return extractionSchemaFor(rules.fields).parse(JSON.parse(text));
   } catch (err) {
-    // Transient extraction failure (model/storage hiccup): leave the row as-is
-    // with no verdict — it does not burn an attempt, and the accountant can
-    // always approve manually if it never recovers.
-    logger.error('document verification: extraction failed', err, { clientId: client.id, documentId, fileId });
-    return 'skipped';
+    logger.error('document verification: extraction failed', err, { clientId: client.id, documentId: doc.id, fileId });
+    return null;
   }
+}
 
-  if (extracted.injection_suspected) {
-    await stall(
-      client,
-      doc,
-      { ...base, passed: false, unavailable: true, reasons: ['הקובץ מכיל טקסט שמנסה להנחות מערכת AI'] },
-      { suspectedInjection: true },
-    );
-    return 'stalled';
-  }
+/**
+ * Chart step 6 — did the model find attack text? A file with text that tries
+ * to instruct an AI is never checked further: the document stalls with a
+ * critical audit row.
+ */
+async function stallOnAttackText(run: VerificationRun, extracted: ExtractedAnswer): Promise<boolean> {
+  if (!extracted.injection_suspected) return false;
+  await stall(
+    run.client,
+    run.doc,
+    { ...run.base, passed: false, unavailable: true, reasons: ['הקובץ מכיל טקסט שמנסה להנחות מערכת AI'] },
+    { suspectedInjection: true },
+  );
+  return true;
+}
 
-  // Validate — deterministic code against ground truth. The ת"ז may come from
-  // the tax-portal credentials or from the client's CRM card (declaration-of-
-  // capital kickoff stores it in agent_fields.id_number).
+/**
+ * Chart step 7 — the code gate compares the data with known facts: the
+ * client's (or spouse's) name and id number and the 31.12 valuation date
+ * (runChecks, pure). The id may come from the tax-portal credentials or the
+ * CRM card. The spouse on file is re-read for every document: a batch
+ * verifies documents one after the other, and the first one may have just
+ * adopted the spouse the second one must be compared with (openspec
+ * `spouse-identity`). Writes the verify_extraction step row.
+ */
+async function checkExtractedData(run: VerificationRun, extracted: ExtractedAnswer, rules: DocumentTypeRules): Promise<ChecksVerdict> {
+  const { client, doc } = run;
   const idOnFile = await clientIdOnFile(client);
-  // The spouse on file is re-read for every verification: a batch verifies
-  // documents one after the other, and the first one may have just adopted the
-  // spouse the second one must be compared with (openspec `spouse-identity`).
   const fresh = (await clients.getById(client.id)) ?? client;
   const spouseOnFile = readSpouse(fresh.agent_fields);
   const verdict = runChecks(extracted, {
@@ -232,43 +326,63 @@ export async function verifyCollectedDocument(
     credentialIdSource: idOnFile?.source ?? null,
     spouse: spouseOnFile,
     maritalStatus: readMaritalStatus(fresh.agent_fields),
-    taxYear,
-    now,
-    checks,
+    taxYear: run.taxYear,
+    now: run.now,
+    checks: rules.checks,
     documentName: doc.name,
-    fields: typeFields,
-    fieldsAnyOf,
+    fields: rules.fields,
+    fieldsAnyOf: rules.fieldsAnyOf,
   });
-  // The type's fields with their Hebrew labels, so the step modal shows the
-  // values by name; absent for a type that declares none.
-  const labelledFields = typeFields?.map((f) => ({ key: f.key, label: f.labelHe, value: typeFieldValue(extracted, f) }));
+  if (verdict.adoptSpouse) await adoptSpouseFromDocument(run, spouseOnFile, verdict.adoptSpouse);
+  recordVerifyExtractionStep(run, extracted, verdict, rules.fields);
+  return verdict;
+}
 
-  // The printed id was adopted as the spouse's: stored before the next
-  // document of the batch is verified, whatever the other checks decided (the
-  // wife's pension that fails a typed field still teaches who the wife is).
-  if (verdict.adoptSpouse) {
-    const merged = mergeSpouse(spouseOnFile, verdict.adoptSpouse, 'document');
-    await clients.setDeclarationEngagement(client.id, { spouse: spouseToStored(merged) });
-    recordAudit({
-      actorType: 'system',
-      action: 'client.spouse_inferred',
-      agentInstanceId: client.agent_instance_id,
-      clientId: client.id,
-      targetType: 'client_document',
-      targetId: doc.id,
-      detail: {
-        clientName: client.name,
-        name: doc.name,
-        fileId,
-        spouseName: merged.name,
-        spouseId: maskId(verdict.adoptSpouse.idNumber),
-      },
-    });
-    publishClientUpdated(client.id);
-    logger.info('document verification: spouse adopted from the printed id', { clientId: client.id, documentId: doc.id, fileId });
-  }
-  // Step verify_extraction: the code checks after extract_document, one row per
-  // attempt with the per-check table (reasons are our own Hebrew strings).
+/**
+ * The printed id was adopted as the spouse's: stored before the next document
+ * of the batch is verified, whatever the other checks decided (the wife's
+ * pension that fails a typed field still teaches who the wife is).
+ */
+async function adoptSpouseFromDocument(
+  run: VerificationRun,
+  spouseOnFile: ReturnType<typeof readSpouse>,
+  adopted: NonNullable<ChecksVerdict['adoptSpouse']>,
+): Promise<void> {
+  const { client, doc, fileId } = run;
+  const merged = mergeSpouse(spouseOnFile, adopted, 'document');
+  await clients.setDeclarationEngagement(client.id, { spouse: spouseToStored(merged) });
+  recordAudit({
+    actorType: 'system',
+    action: 'client.spouse_inferred',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'client_document',
+    targetId: doc.id,
+    detail: {
+      clientName: client.name,
+      name: doc.name,
+      fileId,
+      spouseName: merged.name,
+      spouseId: maskId(adopted.idNumber),
+    },
+  });
+  publishClientUpdated(client.id);
+  logger.info('document verification: spouse adopted from the printed id', { clientId: client.id, documentId: doc.id, fileId });
+}
+
+/**
+ * The verify_extraction step row: one per attempt, with the per-check table
+ * (reasons are our own Hebrew strings) and the type's fields by their Hebrew
+ * labels, so the step modal shows the values by name.
+ */
+function recordVerifyExtractionStep(
+  run: VerificationRun,
+  extracted: ExtractedAnswer,
+  verdict: ChecksVerdict,
+  fields: readonly ExtractionField[] | undefined,
+): void {
+  const { client, doc, fileId, attempts } = run;
+  const labelledFields = fields?.map((f) => ({ key: f.key, label: f.labelHe, value: typeFieldValue(extracted, f) }));
   recordAudit({
     actorType: 'system',
     action: 'verify_extraction',
@@ -290,50 +404,69 @@ export async function verifyCollectedDocument(
       reasons: verdict.reasons,
     },
   });
+}
 
-  if (verdict.passed) {
-    const record: VerificationRecord = {
-      ...base,
-      passed: true,
-      reasons: [],
-      checks: verdict.checks,
-      extracted,
-    };
-    const approved = await clientDocuments.markApproved(doc.id, client.id, record);
-    if (!approved) return 'skipped'; // status changed underneath us — leave it be
-    recordAudit({
-      actorType: 'system',
-      action: 'document.verified',
-      agentInstanceId: client.agent_instance_id,
-      clientId: client.id,
-      targetType: 'client_document',
-      targetId: doc.id,
-      detail: { clientName: client.name, name: doc.name, fileId, issuer: extracted.issuer },
-    });
-    publishClientUpdated(client.id);
-    logger.info('document verified and approved', { clientId: client.id, documentId: doc.id, fileId });
-    return 'approved';
-  }
-
-  const failedAttempts = attempts + 1;
+/**
+ * Chart steps 8 to 13 — all checks passed? The document is approved. Else:
+ * third failure in a row? The accountant takes over. Else the document opens
+ * again for the client.
+ */
+async function applyVerdict(run: VerificationRun, extracted: ExtractedAnswer, verdict: ChecksVerdict): Promise<VerificationOutcome> {
+  if (verdict.passed) return approveDocument(run, extracted, verdict);
+  const failedAttempts = run.attempts + 1;
   const record: VerificationRecord = {
-    ...base,
+    ...run.base,
     passed: false,
     attempts: failedAttempts,
     reasons: verdict.reasons,
     checks: verdict.checks,
     extracted,
   };
-  if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
-    await stall(client, doc, record);
-    logger.warn('document verification stalled after repeated failures', {
-      clientId: client.id,
-      documentId: doc.id,
-      attempts: failedAttempts,
-      reasons: verdict.reasons,
-    });
-    return 'stalled';
-  }
+  if (failedAttempts >= MAX_FAILED_ATTEMPTS) return stallAfterRepeatedFailures(run, record);
+  return reopenDocument(run, record);
+}
+
+/** Chart step 10 — the document is approved. The only code path that writes 'approved'. */
+async function approveDocument(run: VerificationRun, extracted: ExtractedAnswer, verdict: ChecksVerdict): Promise<VerificationOutcome> {
+  const { client, doc, fileId } = run;
+  const record: VerificationRecord = {
+    ...run.base,
+    passed: true,
+    reasons: [],
+    checks: verdict.checks,
+    extracted,
+  };
+  const approved = await clientDocuments.markApproved(doc.id, client.id, record);
+  if (!approved) return 'skipped'; // status changed underneath us — leave it be
+  recordAudit({
+    actorType: 'system',
+    action: 'document.verified',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    targetType: 'client_document',
+    targetId: doc.id,
+    detail: { clientName: client.name, name: doc.name, fileId, issuer: extracted.issuer },
+  });
+  publishClientUpdated(client.id);
+  logger.info('document verified and approved', { clientId: client.id, documentId: doc.id, fileId });
+  return 'approved';
+}
+
+/** Chart steps 9 and 13 — the third failure in a row: the document stays collected and the accountant takes over. */
+async function stallAfterRepeatedFailures(run: VerificationRun, record: VerificationRecord): Promise<VerificationOutcome> {
+  await stall(run.client, run.doc, record);
+  logger.warn('document verification stalled after repeated failures', {
+    clientId: run.client.id,
+    documentId: run.doc.id,
+    attempts: record.attempts,
+    reasons: record.reasons,
+  });
+  return 'stalled';
+}
+
+/** Chart step 11 — the document opens again: back to pending, carrying the Hebrew reasons the planner relays to the client. */
+async function reopenDocument(run: VerificationRun, record: VerificationRecord): Promise<VerificationOutcome> {
+  const { client, doc, fileId } = run;
   const reopened = await clientDocuments.revertToPending(doc.id, client.id, record);
   if (!reopened) return 'skipped';
   recordAudit({
@@ -343,14 +476,14 @@ export async function verifyCollectedDocument(
     clientId: client.id,
     targetType: 'client_document',
     targetId: doc.id,
-    detail: { clientName: client.name, name: doc.name, fileId, attempt: failedAttempts, reasons: verdict.reasons },
+    detail: { clientName: client.name, name: doc.name, fileId, attempt: record.attempts, reasons: record.reasons },
   });
   publishClientUpdated(client.id);
   logger.info('document verification failed, reopened as pending', {
     clientId: client.id,
     documentId: doc.id,
-    attempt: failedAttempts,
-    reasons: verdict.reasons,
+    attempt: record.attempts,
+    reasons: record.reasons,
   });
   return 'reopened';
 }

@@ -4,12 +4,12 @@ import { runLlmCall } from '../../gemini/llmCall.js';
 import { recordAudit } from '../../audit/audit.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
-import { runInjectionRegexStep, screenForInjection } from '../shared/injectionScreen.js';
+import { runInjectionScreen } from '../shared/injectionScreen.js';
 import { logger } from '../../util/logger.js';
 import { getCatalogType } from './catalog.js';
 import { buildFormIntakeCall } from './formIntakeCall.js';
 import { validateFormResolutions, type FormAnswer, type FormResolvableRow } from './formIntakeRules.js';
-import type { ClientRow } from '../../db/types.js';
+import type { ClientRow, InjectionBlock } from '../../db/types.js';
 
 export type { FormAnswer } from './formIntakeRules.js';
 
@@ -71,39 +71,9 @@ export async function applyFormIntake(
 
   // The three injection layers BEFORE the mapping call: the mapping model
   // carries no detection duty, so nothing untrusted may reach it unscreened.
-  // Step 1, regex (no model): a hit stops the intake here — the model never
-  // sees the text. Step 2, the dedicated LLM screen + step 3, its code gate.
-  // Fails closed — a screen failure (throw) aborts the intake the same way a
-  // suspected injection does, and the interview covers everything.
-  const screenCtx = {
-    userId: client.user_id,
-    agentInstanceId: client.agent_instance_id,
-    clientId: client.id,
-    source: 'form_intake' as const,
-  };
-  const snippets = answered.map((a) => `${a.question}: ${a.answer}`);
-  const regexHit = runInjectionRegexStep(snippets.join('\n'), screenCtx);
-  const screen = regexHit
-    ? { suspected: true, evidence: regexHit.evidence, detector: 'regex' as const, kind: regexHit.kind }
-    : { ...(await screenForInjection(snippets, screenCtx)), detector: 'llm' as const, kind: null };
-  if (screen.suspected) {
-    logger.warn('form intake: injection screen flagged the form answers — intake skipped', { clientId: client.id, detector: screen.detector });
-    recordAudit({
-      actorType: 'agent',
-      action: 'injection.cycle_suppressed',
-      agentInstanceId: client.agent_instance_id,
-      clientId: client.id,
-      severity: 'critical',
-      suspectedInjection: true,
-      detail: {
-        agent: 'declaration_of_capital',
-        clientName: client.name,
-        source: 'form_intake_screen',
-        detector: screen.detector,
-        kind: screen.kind,
-        ...(screen.evidence ? { evidence: screen.evidence.slice(0, 500) } : {}),
-      },
-    });
+  const block = await screenFormAnswersForAttackText(client, answered);
+  if (block) {
+    recordFormIntakeSuppressed(client, block);
     return { applied: 0 };
   }
 
@@ -199,4 +169,39 @@ export async function applyFormIntake(
   if (applied > 0) publishClientUpdated(client.id);
   logger.info('form intake applied', { clientId: client.id, applied, proposed: Object.keys(raw.verdicts).length });
   return { applied };
+}
+
+/**
+ * The injection screen over the filled answers (runInjectionScreen): a regex
+ * hit stops the intake before any model sees the text; else the dedicated LLM
+ * screen and its code gate. Fails closed — a screen failure (throw) aborts
+ * the intake the same way a hit does, and the interview covers everything.
+ */
+async function screenFormAnswersForAttackText(client: ClientRow, answered: readonly FormAnswer[]): Promise<InjectionBlock | null> {
+  return runInjectionScreen(
+    { text: answered.map((a) => `${a.question}: ${a.answer}`) },
+    { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id, source: 'form_intake' },
+    { onFailure: 'throw' },
+  );
+}
+
+/** The intake is skipped: one audit row says every state change of this cycle is suppressed. */
+function recordFormIntakeSuppressed(client: ClientRow, block: InjectionBlock): void {
+  logger.warn('form intake: injection screen flagged the form answers — intake skipped', { clientId: client.id, detector: block.detector });
+  recordAudit({
+    actorType: 'agent',
+    action: 'injection.cycle_suppressed',
+    agentInstanceId: client.agent_instance_id,
+    clientId: client.id,
+    severity: 'critical',
+    suspectedInjection: true,
+    detail: {
+      agent: 'declaration_of_capital',
+      clientName: client.name,
+      source: 'form_intake_screen',
+      detector: block.detector,
+      kind: block.kind,
+      ...(block.evidence ? { evidence: block.evidence.slice(0, 500) } : {}),
+    },
+  });
 }

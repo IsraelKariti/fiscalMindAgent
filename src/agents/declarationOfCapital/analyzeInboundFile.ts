@@ -11,7 +11,7 @@ import { childLabel } from './splitChildNames.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { recordAudit } from '../../audit/audit.js';
 import { extractFileText } from '../shared/fileText.js';
-import { runInjectionRegexStep, screenFileForInjection } from '../shared/injectionScreen.js';
+import { runInjectionScreen } from '../shared/injectionScreen.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { deleteBlob, downloadBlob, uploadBlob } from '../../storage/blob.js';
 import { logger } from '../../util/logger.js';
@@ -64,60 +64,12 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
     });
     return;
   }
-  // The three injection layers BEFORE classification: regex over the filename
-  // and (for a PDF) the text layer code can read, then the multimodal LLM
-  // screen over the bytes, then the code check of its proof. A hit
-  // quarantines the file — never classified, never evidence, never linked.
-  // Fails closed: a screen failure blocks like a hit.
-  const screenCtx = {
-    userId: ctx.client.user_id,
-    agentInstanceId: ctx.client.agent_instance_id,
-    clientId,
-    source: 'inbound_file' as const,
-    targetId: file.id,
-  };
-  const textLayer = sanitizeUntrusted(extractFileText(body, file.content_type), 20_000);
-  let block: InjectionBlock | null = null;
+  // The three injection layers BEFORE classification. A hit quarantines the
+  // file — never classified, never evidence, never linked.
   await keepDrafting(ctx);
-  const regexHit = runInjectionRegexStep(`${sanitizeInline(file.filename, 150)}\n${textLayer}`, screenCtx);
-  if (regexHit) {
-    block = { detector: 'regex', kind: regexHit.kind, evidence: regexHit.evidence };
-  } else {
-    try {
-      const verdict = await screenFileForInjection(
-        { bytes: body, contentType: file.content_type, filename: file.filename, text: textLayer },
-        screenCtx,
-      );
-      if (verdict.suspected) block = { detector: 'llm', kind: null, evidence: verdict.evidence };
-    } catch (err) {
-      logger.error('file injection screen failed — quarantining the file (fail closed)', err, { clientId, fileId: file.id });
-      block = { detector: 'llm', kind: null, evidence: `scan failed: ${err instanceof Error ? err.message : String(err)}`.slice(0, 300) };
-    }
-  }
+  const block = await screenFileForAttackText(ctx, file, body);
   if (block) {
-    await documentFiles.setBlocked(file.id, block);
-    // One row, the sibling agent's name for it: the file is quarantined and
-    // every state change of this cycle is suppressed. Targets the file so the
-    // trail links it to the quarantined row.
-    recordAudit({
-      actorType: 'agent',
-      action: 'injection.cycle_suppressed',
-      agentInstanceId: ctx.client.agent_instance_id,
-      clientId,
-      targetType: 'document_file',
-      targetId: file.id,
-      severity: 'critical',
-      suspectedInjection: true,
-      detail: {
-        clientName: ctx.client.name,
-        source: 'inbound_file_screen',
-        fileId: file.id,
-        filename: file.filename,
-        contentType: file.content_type,
-        ...block,
-      },
-    });
-    logger.warn('attachment quarantined by the injection screen', { clientId, fileId: file.id, detector: block.detector, kind: block.kind });
+    await quarantineFile(ctx, file, block);
     return;
   }
 
@@ -148,6 +100,49 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
       logger.error('split child could not be read for content analysis', err, { clientId, fileId: child.id, parentFileId: file.id });
     }
   }
+}
+
+/**
+ * The injection screen over the file: the regex over the filename and (for a
+ * PDF) the text layer code can read, then the multimodal LLM screen over the
+ * bytes, then the code check of its proof (runInjectionScreen). Fails closed:
+ * a screen failure blocks like a hit.
+ */
+async function screenFileForAttackText(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<InjectionBlock | null> {
+  const textLayer = sanitizeUntrusted(extractFileText(body, file.content_type), 20_000);
+  return runInjectionScreen(
+    { file: { bytes: body, contentType: file.content_type, filename: file.filename, text: textLayer } },
+    { userId: ctx.client.user_id, agentInstanceId: ctx.client.agent_instance_id, clientId: ctx.client.id, source: 'inbound_file', targetId: file.id },
+    { failureMessage: 'file injection screen failed — quarantining the file (fail closed)', logContext: { fileId: file.id } },
+  );
+}
+
+/**
+ * The file is quarantined: marked blocked on its row, and one audit row (the
+ * sibling agent's name for it) says every state change of this cycle is
+ * suppressed. Targets the file so the trail links it to the quarantined row.
+ */
+async function quarantineFile(ctx: AgentContext, file: DocumentFileRow, block: InjectionBlock): Promise<void> {
+  await documentFiles.setBlocked(file.id, block);
+  recordAudit({
+    actorType: 'agent',
+    action: 'injection.cycle_suppressed',
+    agentInstanceId: ctx.client.agent_instance_id,
+    clientId: ctx.client.id,
+    targetType: 'document_file',
+    targetId: file.id,
+    severity: 'critical',
+    suspectedInjection: true,
+    detail: {
+      clientName: ctx.client.name,
+      source: 'inbound_file_screen',
+      fileId: file.id,
+      filename: file.filename,
+      contentType: file.content_type,
+      ...block,
+    },
+  });
+  logger.warn('attachment quarantined by the injection screen', { clientId: ctx.client.id, fileId: file.id, detector: block.detector, kind: block.kind });
 }
 
 async function readBlob(blobKey: string): Promise<Buffer> {

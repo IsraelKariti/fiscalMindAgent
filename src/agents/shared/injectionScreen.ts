@@ -7,6 +7,7 @@ import { logger } from '../../util/logger.js';
 import { injectionRegexChecks, matchInjectionRegex, type InjectionRegexHit } from './injectionRegex.js';
 import { validateInjectionScan, type InjectionScanGateResult } from './injectionScanRules.js';
 import { endFence, fence, makeFenceToken, sanitizeInline } from './promptSafety.js';
+import type { InjectionBlock } from '../../db/types.js';
 
 /**
  * The three injection layers, the same for every untrusted input (form
@@ -224,4 +225,46 @@ export async function screenFileForInjection(
     logger.warn('injection screen: suspicious file detected', { clientId: ctx.clientId, filename: input.filename, evidence: gate.evidence?.slice(0, 300) });
   }
   return { suspected: gate.suspected, evidence: gate.evidence };
+}
+
+/** What the screen looks at: sanitized text snippets, or a file with the text layer code could read. */
+export type InjectionScreenInput = { text: string[] } | { file: FileScreenInput & { text: string } };
+
+export interface InjectionScreenOptions {
+  /** 'block' (default): a screen failure becomes a block — fail closed. 'throw': the caller handles the failure itself. */
+  onFailure?: 'block' | 'throw';
+  /** The log line written when the screen fails and the content is blocked. */
+  failureMessage?: string;
+  logContext?: Record<string, unknown>;
+}
+
+/**
+ * The injection screen as ONE step, the same for every untrusted input (an
+ * inbound message, an attached file, the form answers): the regex tripwire
+ * first (no model; a hit never reaches the model), then — only when the
+ * regex found nothing — the dedicated LLM screen and its code gate. Returns
+ * the block to record (which detector, which pattern, the verbatim proof) or
+ * null when the content is clean. Fails CLOSED by default: a screen failure
+ * blocks like a hit.
+ */
+export async function runInjectionScreen(
+  input: InjectionScreenInput,
+  ctx: InjectionScreenContext,
+  opts: InjectionScreenOptions = {},
+): Promise<InjectionBlock | null> {
+  const regexText = 'file' in input ? `${sanitizeInline(input.file.filename, 150)}\n${input.file.text}` : input.text.join('\n');
+  const regexHit = runInjectionRegexStep(regexText, ctx);
+  if (regexHit) return { detector: 'regex', kind: regexHit.kind, evidence: regexHit.evidence };
+  try {
+    const verdict = 'file' in input ? await screenFileForInjection(input.file, ctx) : await screenForInjection(input.text, ctx);
+    return verdict.suspected ? { detector: 'llm', kind: null, evidence: verdict.evidence } : null;
+  } catch (err) {
+    if (opts.onFailure === 'throw') throw err;
+    logger.error(opts.failureMessage ?? 'injection screen failed — blocking the content (fail closed)', err, {
+      clientId: ctx.clientId,
+      source: ctx.source,
+      ...opts.logContext,
+    });
+    return { detector: 'llm', kind: null, evidence: `scan failed: ${err instanceof Error ? err.message : String(err)}`.slice(0, 300) };
+  }
 }

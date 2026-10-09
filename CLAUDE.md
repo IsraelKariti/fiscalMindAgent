@@ -65,6 +65,11 @@ says which environment the link belongs to: a link from a non-local host
 modal's "copy details" text instead. Pasted "copy details" text (the link,
 then JSON) is complete on its own — no lookup needed.
 
+LLM call links (`<site>/#/llm-calls/<id>`) work the same way: read a local
+one with `npm run call -- "<link>"` (prints the call: prompt, response,
+model, file), and ask for the call modal's "copy details" text for any other
+host.
+
 ## Multi-agent architecture
 
 The app is a multi-agent platform (agent-type registries, per-instance

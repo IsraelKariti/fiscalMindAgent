@@ -10,6 +10,7 @@ import {
 import { displayClientName, formatTimestamp, formatUsd, humanizePurpose, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { CopyButton } from '../CopyButton';
+import { callDetailsText, callLinkOf } from '../callLink';
 import { DocumentPane, isTwoPane, useDocumentOf } from '../DocumentPane';
 import { Dropdown } from '../Dropdown';
 import { MODEL_LABELS } from './shared';
@@ -137,7 +138,16 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
         style={twoPane ? undefined : { width: 'min(860px, 94vw)', maxHeight: '88vh', overflowY: 'auto' }}
       >
         <div className="gate-modal-details">
-          <h2>{t.adminLlmCallTitle}</h2>
+          <div className="gate-modal-head">
+            <h2>{t.adminLlmCallTitle}</h2>
+            {/* The call's link and its full details as text — the same two buttons as the step modal. */}
+            {call && (
+              <div className="btn-row gate-modal-copy">
+                <CopyButton text={callLinkOf(call.id, window.location.origin)} label={t.callCopyLink} />
+                <CopyButton text={callDetailsText(call, window.location.origin)} label={t.callCopyDetails} />
+              </div>
+            )}
+          </div>
           {error && <div className="error-banner">{error}</div>}
           {!call && !error && <p className="muted">{t.loading}</p>}
           {call && (

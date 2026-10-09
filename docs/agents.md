@@ -891,6 +891,18 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   streaming and the inline-type allowlist live in `src/api/fileStream.ts` /
   `fileDisposition.ts`, shared with the workspace file routes — never copy
   them: an HTML or SVG file served inline would run script on the API origin.
+  LLM calls have the same handles (`callLink.ts`, mirror of `stepLink.ts`):
+  the call modal (`CallDetailModal` in `admin/AdminLlmCalls.tsx`, opened
+  from a trace chip, the admin call browser, or a call link) carries "copy
+  link" (`<origin>/#/llm-calls/<llm_calls id>` — the call browser's own
+  drill-down address) and "copy details" (the link, then the whole call as
+  JSON: metadata, exact request, raw response). While impersonating, the
+  workspace router would rewrite that hash, so `App.tsx` mounts
+  `CallLinkPage` for `isAdmin && impersonating && isCallHash(hash)` (modal
+  by id, in-app "call not found" card for a malformed id; close → `#/`);
+  without impersonation the admin dashboard router opens it as today.
+  Locally, `npm run call -- "<link-or-id>"` (`scripts/showCall.ts`) prints
+  the call in the "copy details" shape.
   A gate never flips a security verdict: it drops or rejects, it does not
   make a "suspected" answer "clean". Pure rules modules (no llm/db/audit
   imports, tests run without an API key): `shared/injectionRegex.ts`,

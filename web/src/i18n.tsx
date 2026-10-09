@@ -797,6 +797,11 @@ const he = {
   stepNotFound: 'השלב לא נמצא',
   stepNotFoundHint: 'הקישור שגוי, או שהשלב לא קיים בסביבה הזו.',
   stepBackToApp: 'חזרה למערכת',
+  // The LLM call modal's copy buttons and the call-link "not found" card (mirror the step ones).
+  callCopyLink: 'העתקת קישור',
+  callCopyDetails: 'העתקת פרטים',
+  callNotFound: 'הקריאה לא נמצאה',
+  callNotFoundHint: 'הקישור שגוי, או שהקריאה לא קיימת בסביבה הזו.',
   // The document pane of a file step (the modal shows the checked file beside the details).
   stepDocPane: 'המסמך שנבדק',
   stepDocLoading: 'טוען את המסמך…',

@@ -9,6 +9,8 @@ import { ImpersonationEndedModal } from './components/ImpersonationEndedModal';
 import { LogoutConfirmModal } from './components/LogoutConfirmModal';
 import { StepLinkPage } from './components/StepLinkPage';
 import { isStepHash } from './components/stepLink';
+import { CallLinkPage } from './components/CallLinkPage';
+import { isCallHash } from './components/callLink';
 import { useT } from './i18n';
 
 export function App() {
@@ -107,6 +109,22 @@ export function App() {
       <>
         {envBanner}
         <StepLinkPage
+          hash={hash}
+          onClose={() => {
+            window.location.hash = '#/';
+          }}
+        />
+      </>
+    );
+
+  // A call link (#/llm-calls/:id) while impersonating: the workspace router
+  // would rewrite the hash. Without impersonation the admin dashboard's own
+  // router opens the same address over the call browser (below).
+  if (isAdmin && impersonating && isCallHash(hash))
+    return (
+      <>
+        {envBanner}
+        <CallLinkPage
           hash={hash}
           onClose={() => {
             window.location.hash = '#/';

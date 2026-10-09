@@ -1,0 +1,395 @@
+{
+  "ranAt": "2026-10-09T15:27:42.909Z",
+  "finishedAt": "2026-10-09T15:27:58.739Z",
+  "models": [
+    "gemini-3.1-pro-preview"
+  ],
+  "stages": [
+    "extract_document"
+  ],
+  "concurrency": 2,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-3.1-pro-preview": {
+      "model": "gemini-3.1-pro-preview",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000012,
+      "thinkingCostPerToken": 0.000012,
+      "cachedCostPerToken": 2e-7
+    }
+  },
+  "results": [
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "ext_19",
+      "notes": "openspec multi-subject-documents (live finding 2026-10-07): a four-party purchase contract — two sellers (מקמל) with ids, two buyers (the client and תמיר מיכל) with ids. The model must list four parties, the buyers as owner and the sellers as counterparty, each id beside its own name; never one subject holding all four names. The gate accepts the document for the client, lists מיכל as a co-owner, and adopts nobody: with no spouse name on file a co-owner is never assumed to be the spouse.",
+      "ranAt": "2026-10-09T15:27:42.913Z",
+      "latencyMs": 15753,
+      "attempts": 1,
+      "inputTokens": 2175,
+      "outputTokens": 346,
+      "thinkingTokens": 1330,
+      "cachedTokens": 0,
+      "costUsd": 0.024462,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "הסכם מכר",
+        "issuer": null,
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          },
+          {
+            "name": "תמיר מיכל",
+            "id_number": "033445560",
+            "role": "owner"
+          },
+          {
+            "name": "מקמל חזי",
+            "id_number": "054321087",
+            "role": "counterparty"
+          },
+          {
+            "name": "מקמל קתי פנינה",
+            "id_number": "022334455",
+            "role": "counterparty"
+          },
+          {
+            "name": "עו\"ד ד. לוי",
+            "id_number": null,
+            "role": "other"
+          }
+        ],
+        "as_of_date": null,
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "תמורה",
+            "value": 1250000,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "033445560",
+            "123456782"
+          ],
+          "actual": [
+            "033445560",
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": [
+            {
+              "name": "ישראל ישראלי",
+              "id_number": "123456782",
+              "role": "owner"
+            },
+            {
+              "name": "תמיר מיכל",
+              "id_number": "033445560",
+              "role": "owner"
+            },
+            {
+              "name": "מקמל חזי",
+              "id_number": "054321087",
+              "role": "counterparty"
+            },
+            {
+              "name": "מקמל קתי פנינה",
+              "id_number": "022334455",
+              "role": "counterparty"
+            },
+            {
+              "name": "עו\"ד ד. לוי",
+              "id_number": null,
+              "role": "other"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "verdict.adopted",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": [],
+          "subjectMatched": "client",
+          "adopted": false
+        },
+        "actual_kind": "הסכם מכר",
+        "issuer": null,
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          },
+          {
+            "name": "תמיר מיכל",
+            "id_number": "033445560",
+            "role": "owner"
+          },
+          {
+            "name": "מקמל חזי",
+            "id_number": "054321087",
+            "role": "counterparty"
+          },
+          {
+            "name": "מקמל קתי פנינה",
+            "id_number": "022334455",
+            "role": "counterparty"
+          },
+          {
+            "name": "עו\"ד ד. לוי",
+            "id_number": null,
+            "role": "other"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "ext_20",
+      "notes": "openspec multi-subject-documents: the same contract when the questionnaire named the spouse מיכל תמיר without an id — the one owner whose own printed name matches her is adopted (her id only; the sellers' ids are never stored), and the document is accepted for both.",
+      "ranAt": "2026-10-09T15:27:42.916Z",
+      "latencyMs": 15773,
+      "attempts": 1,
+      "inputTokens": 2175,
+      "outputTokens": 346,
+      "thinkingTokens": 1330,
+      "cachedTokens": 0,
+      "costUsd": 0.024462,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "הסכם מכר",
+        "issuer": null,
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          },
+          {
+            "name": "תמיר מיכל",
+            "id_number": "033445560",
+            "role": "owner"
+          },
+          {
+            "name": "מקמל חזי",
+            "id_number": "054321087",
+            "role": "counterparty"
+          },
+          {
+            "name": "מקמל קתי פנינה",
+            "id_number": "022334455",
+            "role": "counterparty"
+          },
+          {
+            "name": "עו\"ד ד. לוי",
+            "id_number": null,
+            "role": "other"
+          }
+        ],
+        "as_of_date": null,
+        "valid_until": null,
+        "amounts": [
+          {
+            "label": "תמורה",
+            "value": 1250000,
+            "currency": "ILS"
+          }
+        ],
+        "legible": true,
+        "injection_suspected": false
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "033445560",
+            "123456782"
+          ],
+          "actual": [
+            "033445560",
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": [
+            {
+              "name": "ישראל ישראלי",
+              "id_number": "123456782",
+              "role": "owner"
+            },
+            {
+              "name": "תמיר מיכל",
+              "id_number": "033445560",
+              "role": "owner"
+            },
+            {
+              "name": "מקמל חזי",
+              "id_number": "054321087",
+              "role": "counterparty"
+            },
+            {
+              "name": "מקמל קתי פנינה",
+              "id_number": "022334455",
+              "role": "counterparty"
+            },
+            {
+              "name": "עו\"ד ד. לוי",
+              "id_number": null,
+              "role": "other"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "verdict.adopted",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": [],
+          "subjectMatched": "both",
+          "adopted": true
+        },
+        "actual_kind": "הסכם מכר",
+        "issuer": null,
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          },
+          {
+            "name": "תמיר מיכל",
+            "id_number": "033445560",
+            "role": "owner"
+          },
+          {
+            "name": "מקמל חזי",
+            "id_number": "054321087",
+            "role": "counterparty"
+          },
+          {
+            "name": "מקמל קתי פנינה",
+            "id_number": "022334455",
+            "role": "counterparty"
+          },
+          {
+            "name": "עו\"ד ד. לוי",
+            "id_number": null,
+            "role": "other"
+          }
+        ]
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "extract_document": {
+      "gemini-3.1-pro-preview": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 15763,
+          "p50": 15753,
+          "p90": 15753,
+          "min": 15753,
+          "max": 15773
+        },
+        "inputTokens": 4350,
+        "outputTokens": 692,
+        "thinkingTokens": 2660,
+        "cachedTokens": 0,
+        "costUsd": 0.048924,
+        "unpriced": 0
+      }
+    }
+  }
+}

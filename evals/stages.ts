@@ -29,11 +29,13 @@ import { readPdfPageCount } from '../src/agents/declarationOfCapital/pdfPages.js
 import { buildExtractionCall, checksFor, fieldsFor } from '../src/agents/declarationOfCapital/extractionCall.js';
 import {
   extractionSchemaFor,
-  namesLooselyMatch,
+  normalizeIdNumber,
+  partyInputs,
   runChecks,
   typeFieldValue,
   type ExtractedAnswer,
 } from '../src/agents/declarationOfCapital/verifyChecks.js';
+import { resolveDocumentOwners } from '../src/agents/declarationOfCapital/spouseIdentity.js';
 import { buildDecisionCall } from '../src/agents/declarationOfCapital/decide.js';
 import {
   allowedTaxFetchActions,
@@ -459,7 +461,9 @@ interface VerifyDocumentCase {
     injection_suspected?: boolean;
     as_of_date?: string | null | (string | null)[];
     valid_until?: string | null | (string | null)[];
-    subject_id_number?: string;
+    /** The ids printed beside the OWNER parties (digits; order-free; every owner id, none of the counterparties'). */
+    owner_ids?: string[];
+    /** The app's identity rule (resolveDocumentOwners) accepts the document for the client or the spouse. */
     subject_name_matches?: boolean;
     amount?: { value: number; currency: string };
     /**
@@ -468,8 +472,8 @@ interface VerifyDocumentCase {
      * and years exactly; null must come back null. Unlisted keys are not judged.
      */
     fields?: Record<string, string | number | null | (string | number | null)[]>;
-    /** What runChecks() must decide; every key in failed_keys must be among the failures. */
-    verdict?: { passed: boolean; failed_keys?: string[] };
+    /** What runChecks() must decide; every key in failed_keys must be among the failures; adopted = a spouse is adopted from this document. */
+    verdict?: { passed: boolean; failed_keys?: string[]; adopted?: boolean };
   };
   notes?: string;
 }
@@ -497,22 +501,27 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
     // Models put "" or "/" where the schema says null; runChecks reads only well-formed dates, so judge the same way.
     if (e.as_of_date !== undefined) checks.push({ ...eq('as_of_date', e.as_of_date, dateOrNull(data.as_of_date)), actual: data.as_of_date });
     if (e.valid_until !== undefined) checks.push({ ...eq('valid_until', e.valid_until, dateOrNull(data.valid_until)), actual: data.valid_until });
-    if (e.subject_id_number !== undefined) checks.push(eq('subject_id_number', digits(e.subject_id_number), digits(data.subject_id_number)));
+    const spouseOnFile = c.client.spouse
+      ? { name: c.client.spouse.name, idNumber: c.client.spouse.idNumber, nameSource: 'questionnaire' as const, idSource: 'questionnaire' as const }
+      : { name: null, idNumber: null, nameSource: null, idSource: null };
+    const parties = partyInputs(data.parties);
+    if (e.owner_ids !== undefined) {
+      const got = parties.filter((p) => p.role === 'owner' && p.printedId !== '').map((p) => p.printedId).sort();
+      const want = e.owner_ids.map((id) => normalizeIdNumber(id)).sort();
+      checks.push({ key: 'owner_ids', expected: want, actual: got, pass: want.length === got.length && want.every((id, i) => id === got[i]) });
+    }
     if (e.subject_name_matches !== undefined) {
-      checks.push({
-        key: 'subject_name_matches',
-        expected: e.subject_name_matches,
-        actual: data.subject_name,
-        // The app's subject rule (runChecks): a printed ID that matches the client or the spouse on file vouches for
-        // the subject; only otherwise does the (loosely matched) name decide — against the client's or the spouse's
-        // name. A Latin-script name on a Hebrew client is fine when the ID matches.
-        pass:
-          ((digits(data.subject_id_number) !== '' &&
-            (digits(data.subject_id_number) === digits(c.client.idNumber) ||
-              (digits(c.client.spouse?.idNumber ?? null) !== '' && digits(data.subject_id_number) === digits(c.client.spouse?.idNumber ?? null)))) ||
-            namesLooselyMatch(data.subject_name ?? '', c.client.name) ||
-            (!!c.client.spouse?.name && namesLooselyMatch(data.subject_name ?? '', c.client.spouse.name))) === e.subject_name_matches,
+      // The app's own identity rule over the owner parties (openspec `spouse-identity`): the document is
+      // accepted when any owner is the client or the spouse, by id or by (loosely matched) name, or is adopted.
+      const identity = resolveDocumentOwners(parties, {
+        clientName: c.client.name,
+        clientId: normalizeIdNumber(c.client.idNumber),
+        clientIdSource: null,
+        spouse: spouseOnFile,
+        maritalStatus: c.client.maritalStatus ?? null,
+        subjectMatch: true,
       });
+      checks.push({ key: 'subject_name_matches', expected: e.subject_name_matches, actual: data.parties, pass: (identity.matched !== null) === e.subject_name_matches });
     }
     if (e.amount) {
       const want = e.amount;
@@ -542,9 +551,7 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
     const verdict = runChecks(data, {
       clientName: c.client.name,
       credentialIdNumber: c.client.idNumber ?? null,
-      ...(c.client.spouse
-        ? { spouse: { name: c.client.spouse.name, idNumber: c.client.spouse.idNumber, nameSource: 'questionnaire' as const, idSource: 'questionnaire' as const } }
-        : {}),
+      spouse: spouseOnFile,
       maritalStatus: c.client.maritalStatus ?? null,
       taxYear: ctx.taxYear,
       now: new Date(ctx.now),
@@ -564,10 +571,16 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
           pass: e.verdict.failed_keys.every((k) => failedKeys.includes(k)),
         });
       }
+      if (e.verdict.adopted !== undefined) checks.push(eq('verdict.adopted', e.verdict.adopted, verdict.adoptSpouse !== null));
     }
     return {
       checks,
-      info: { verdict: { passed: verdict.passed, failedKeys, reasons: verdict.reasons }, actual_kind: data.actual_kind, issuer: data.issuer },
+      info: {
+        verdict: { passed: verdict.passed, failedKeys, reasons: verdict.reasons, subjectMatched: verdict.subjectMatched, adopted: verdict.adoptSpouse !== null },
+        actual_kind: data.actual_kind,
+        issuer: data.issuer,
+        parties: data.parties,
+      },
     };
   },
 };

@@ -17,6 +17,18 @@ type Detail = Record<string, unknown>;
 
 const HEADER_KEYS = new Set(['clientName', 'result', 'reason', 'checks']);
 
+/** The role of a document party, as the parties row shows it (openspec `document-extraction`). */
+const PARTY_ROLE_HE: Record<string, string> = { owner: 'בעלים', counterparty: 'הצד השני', other: 'אחר' };
+/** Whom the identity rule resolved a party as. */
+const PARTY_RESOLVED_HE: Record<string, string> = {
+  client: 'הלקוח',
+  spouse: 'בן/בת הזוג',
+  adopted: 'בן/בת הזוג (נרשמו מהמסמך הזה)',
+  co_owner: 'בעלים נוסף',
+  uncompared: 'לא ניתן להשוות (אין ת"ז רשומה ללקוח)',
+  none: '',
+};
+
 const isRecord = (v: unknown): v is Detail => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
 const strList = (v: unknown): string[] | null => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : null);
@@ -172,7 +184,18 @@ const MAPPINGS: Record<string, Mapping> = {
             : String(value);
       return `${label}: ${text}`;
     });
-    return { rows: list('extracted_fields', items), consumed: ['fields'] };
+    // The parties the extraction listed (openspec `document-extraction`):
+    // "name · role · masked id · resolved as". Old rows have no parties.
+    const parties = Array.isArray(d['parties']) ? d['parties'] : [];
+    const partyItems = parties.map((p) => {
+      if (!isRecord(p)) return JSON.stringify(p);
+      const name = str(p['name']) ?? 'לא מצוין';
+      const role = PARTY_ROLE_HE[str(p['role']) ?? ''] ?? str(p['role']) ?? '?';
+      const id = str(p['masked_id']);
+      const resolved = PARTY_RESOLVED_HE[str(p['resolved']) ?? ''] ?? str(p['resolved']) ?? '';
+      return [name, role, id, resolved].filter((s): s is string => !!s).join(' · ');
+    });
+    return { rows: [...list('extracted_fields', items), ...list('parties', partyItems)], consumed: ['fields', 'parties'] };
   },
   'planner.rerun_after_verification': (d) => {
     const documents = Array.isArray(d['documents']) ? d['documents'] : [];

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { ExtractionField, VerificationChecks } from './catalog.js';
 import { maskId } from '../shared/gateChecks.js';
-import { EMPTY_SPOUSE, resolveSubjectIdentity, type MaritalStatus, type SpouseOnFile } from './spouseIdentity.js';
+import { EMPTY_SPOUSE, resolveDocumentOwners, type MaritalStatus, type PartyInput, type PartyTraceEntry, type SpouseOnFile } from './spouseIdentity.js';
 
 // The loose name rule lives with the identity rule (spouseIdentity.ts); kept
 // exported from here for its historical importers (tests, evals).
@@ -18,6 +18,28 @@ export { namesLooselyMatch } from './spouseIdentity.js';
  */
 
 /**
+ * The part a person named on the document plays (openspec
+ * `document-extraction`): `owner` holds the asset or owes the liability the
+ * document proves (buyer, account holder, member, insured, borrower, heir,
+ * registered owner); `counterparty` is the other side (seller, lending bank,
+ * builder, giver); `other` is anyone else (witness, lawyer, guarantor, agent).
+ * Only owners take part in the identity checks.
+ */
+export type PartyRole = 'owner' | 'counterparty' | 'other';
+
+/** One person (or business) the document names, with the id printed beside that one name. */
+export interface DocumentParty {
+  /** The name exactly as printed beside this person. */
+  name: string;
+  /** This person's national id (ת"ז), digits only, as printed beside their name; null when none is printed for them. */
+  id_number: string | null;
+  role: PartyRole;
+}
+
+/** The most parties an answer keeps; a longer list is cut. */
+export const MAX_PARTIES = 10;
+
+/**
  * The common fields every extraction answer carries (a type alias, not an
  * interface, so a value of this type also satisfies ExtractedAnswer below).
  */
@@ -28,10 +50,8 @@ export type ExtractedFields = {
   actual_kind: string;
   /** The issuing institution (bank, insurer, registry), if stated. */
   issuer: string | null;
-  /** The person/business the document is about, as printed. */
-  subject_name: string | null;
-  /** The subject's national id (ת"ז), digits only, if printed. */
-  subject_id_number: string | null;
+  /** The people the document names, one entry per person (openspec `document-extraction`). */
+  parties: DocumentParty[];
   /** The date the balances/holdings refer to, "YYYY-MM-DD", if stated. */
   as_of_date: string | null;
   /** The document's own validity ("בתוקף עד") date, "YYYY-MM-DD", if it carries one. */
@@ -48,12 +68,17 @@ export type ExtractedFields = {
  * the REAL prompt and schema without dragging in verifyDocument's blob/queue
  * import graph. verifyDocument.ts is the only production consumer.
  */
+export const DocumentPartySchema = z.object({
+  name: z.string(),
+  id_number: z.string().nullable(),
+  role: z.enum(['owner', 'counterparty', 'other']),
+});
+
 export const ExtractionSchema = z.object({
   is_expected_type: z.boolean(),
   actual_kind: z.string(),
   issuer: z.string().nullable(),
-  subject_name: z.string().nullable(),
-  subject_id_number: z.string().nullable(),
+  parties: z.array(DocumentPartySchema),
   as_of_date: z.string().nullable(),
   valid_until: z.string().nullable(),
   amounts: z.array(z.object({ label: z.string(), value: z.number(), currency: z.string() })),
@@ -145,8 +170,7 @@ export const EXTRACTION_PROMPT = `אתה מחלץ נתונים ממסמך עבו
 - is_expected_type: האם תוכן הקובץ הוא אכן מסמך מהסוג המצופה שלמעלה.
 - actual_kind: מהו המסמך בפועל לפי תוכנו (למשל "אישור יתרות מבנק לאומי").
 - issuer: הגוף שהנפיק את המסמך (בנק, חברת ביטוח, רשות), אם מצוין. אחרת null.
-- subject_name: שם האדם או העסק שהמסמך נוגע אליו, כפי שמודפס במסמך. אחרת null.
-- subject_id_number: מספר תעודת הזהות של בעל המסמך, ספרות בלבד, אם מודפס. אחרת null.
+- parties: האנשים (או העסקים) ששמם מופיע במסמך כצד לו - רשומה אחת לכל אדם, עד 10 רשומות. בכל רשומה: name - השם בדיוק כפי שמודפס ליד אותו אדם; id_number - מספר תעודת הזהות המודפס ליד אותו שם בלבד, ספרות בלבד, או null כשלא מודפס מספר לאותו אדם או כשאי אפשר לדעת איזה מספר שייך לאיזה שם; role - owner כשהאדם הוא בעל הנכס או החייב בהתחייבות שהמסמך מוכיח (הקונה בחוזה רכישה, בעל החשבון, העמית, המבוטח, הלווה, היורש, הבעלים הרשום), counterparty כשהוא הצד השני (המוכר, הבנק המלווה, הקבלן, נותן המתנה), other לכל אדם אחר (עד, עורך דין, ערב, סוכן). לעולם אל תאחד כמה שמות ברשומה אחת, ואל תייחס לבעלים מספר זהות של הצד השני. אם המסמך אינו מציין אף אדם - מערך ריק.
 - as_of_date: התאריך שאליו מתייחסות היתרות/האחזקות שבמסמך (לא תאריך ההנפקה), בפורמט YYYY-MM-DD, אם מצוין. אחרת null.
 - valid_until: תאריך התוקף של המסמך עצמו (שדה "בתוקף עד"), בפורמט YYYY-MM-DD, אם המסמך נושא תאריך תוקף. אין לבלבל עם תאריך ההנפקה, ההדפסה, הרישום או הבעלות. אחרת null.
 - amounts: הסכומים הכספיים העיקריים במסמך - לכל סכום: label (מה הוא מייצג), value (מספר), currency (למשל "ILS", "USD"). אם אין - מערך ריק.
@@ -193,10 +217,12 @@ export interface ChecksVerdict {
   /** The failed checks' reasons, in order. */
   reasons: string[];
   checks: CheckResult[];
-  /** Whom the document was accepted for (openspec `spouse-identity`); null when nobody matched. */
-  subjectMatched: 'client' | 'spouse' | null;
-  /** The printed id was adopted as the spouse's — the caller persists it before the next verification. */
+  /** Whom the document was accepted for (openspec `spouse-identity`); null when no owner matched. */
+  subjectMatched: 'client' | 'spouse' | 'both' | null;
+  /** An owner's printed id was adopted as the spouse's — the caller persists it before the next verification. */
   adoptSpouse: { idNumber: string; name: string | null } | null;
+  /** Every party the extraction listed, with role, masked id and whom it was resolved as (for the trace row). */
+  parties: PartyTraceEntry[];
 }
 
 /** Standard Israeli national-id check digit (9 digits, weights 1/2 alternating). */
@@ -269,29 +295,31 @@ export function runChecks(fields: ExtractedAnswer, ctx: CheckContext): ChecksVer
     ctx.documentName ?? null,
   );
 
-  // Whom the document is about — the client or the one spouse on file
-  // (spouseIdentity.ts, openspec `spouse-identity`): `subject` (when the type
-  // requires it), then the id entries. An id printed on the document must also
-  // be a real id, regardless of whether subjectMatch applies to the type.
-  const normalizedDocId = normalizeIdNumber(fields.subject_id_number);
-  const identity = resolveSubjectIdentity(
-    {
-      subjectName: fields.subject_name,
-      printedId: normalizedDocId,
-      printedIdValid: normalizedDocId !== '' && isValidIsraeliId(normalizedDocId),
-    },
-    {
-      clientName: ctx.clientName,
-      clientId: normalizeIdNumber(ctx.credentialIdNumber),
-      clientIdSource: ctx.credentialIdSource ?? null,
-      spouse: ctx.spouse ?? EMPTY_SPOUSE,
-      maritalStatus: ctx.maritalStatus ?? null,
-      subjectMatch: ctx.checks.subjectMatch,
-    },
-  );
+  // Whom the document is about — judged over its owner parties against the
+  // client and the one spouse on file (spouseIdentity.ts, openspec
+  // `spouse-identity`): `subject` (when the type requires it), then the id
+  // entries. Every owner's printed id must also be a real id, regardless of
+  // whether subjectMatch applies to the type; the other roles' ids are not
+  // ours to check.
+  const parties = partyInputs(fields.parties);
+  const identity = resolveDocumentOwners(parties, {
+    clientName: ctx.clientName,
+    clientId: normalizeIdNumber(ctx.credentialIdNumber),
+    clientIdSource: ctx.credentialIdSource ?? null,
+    spouse: ctx.spouse ?? EMPTY_SPOUSE,
+    maritalStatus: ctx.maritalStatus ?? null,
+    subjectMatch: ctx.checks.subjectMatch,
+  });
   for (const c of identity.checks.filter((c) => c.key === 'subject')) checks.push(c);
-  if (normalizedDocId !== '') {
-    add('id_checksum', isValidIsraeliId(normalizedDocId), 'מספר תעודת הזהות המופיע במסמך אינו תקין', maskId(normalizedDocId));
+  const ownerIds = parties.filter((p) => p.role === 'owner' && p.printedId !== '');
+  if (ownerIds.length > 0) {
+    const invalid = ownerIds.find((p) => !p.printedIdValid);
+    add(
+      'id_checksum',
+      invalid === undefined,
+      `מספר תעודת הזהות ${invalid ? maskId(invalid.printedId) : ''} המופיע במסמך אינו תקין`,
+      ownerIds.map((p) => maskId(p.printedId)).join(' · '),
+    );
   }
   for (const c of identity.checks.filter((c) => c.key !== 'subject')) checks.push(c);
 
@@ -413,5 +441,23 @@ export function runChecks(fields: ExtractedAnswer, ctx: CheckContext): ChecksVer
     checks,
     subjectMatched: identity.matched,
     adoptSpouse: identity.adopt,
+    parties: identity.parties,
   };
+}
+
+/**
+ * The extraction's parties as the identity rule reads them: the name trimmed
+ * (blank → null), the id normalised and checksum-judged, the list cut to
+ * MAX_PARTIES. A garbled entry (not an object) is dropped.
+ */
+export function partyInputs(parties: readonly DocumentParty[] | null | undefined): PartyInput[] {
+  return (parties ?? [])
+    .filter((p): p is DocumentParty => typeof p === 'object' && p !== null)
+    .slice(0, MAX_PARTIES)
+    .map((p) => {
+      const printedId = normalizeIdNumber(p.id_number);
+      const name = typeof p.name === 'string' && p.name.trim() !== '' ? p.name.trim() : null;
+      const role: PartyRole = p.role === 'owner' || p.role === 'counterparty' || p.role === 'other' ? p.role : 'other';
+      return { name, printedId, printedIdValid: printedId !== '' && isValidIsraeliId(printedId), role };
+    });
 }

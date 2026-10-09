@@ -1,6 +1,6 @@
 {
   "stage": "extract_document",
-  "judge": "Listed fields must equal expected: is_expected_type, legible, injection_suspected (booleans); subject_id_number (digits only); as_of_date and valid_until (exact string or null; '' and '/' from the model count as null); subject_name_matches (namesLooselyMatch against client.name); amount (some entry of amounts with |value - expected| <= 0.005 and the same currency). Then runChecks() with the client (client.idNumber = credentialIdNumber), ctx.taxYear, ctx.now and checksFor(doc): verdict.passed must equal expected, and every key in verdict.failed_keys must be among the failed check keys (keys, never the Hebrew reasons). fields (the type's own extraction fields, catalog `fields`, openspec document-extraction): each listed key is read with typeFieldValue() and must equal expected — number within 0.005, year exactly, date after the same normalisation as as_of_date, text exactly, null must come back null; a list means any of the listed values is accepted. Fields not listed are not checked.",
+  "judge": "Listed fields must equal expected: is_expected_type, legible, injection_suspected (booleans); owner_ids (the ids printed beside the OWNER parties, digits only, order-free, none of the counterparties'); as_of_date and valid_until (exact string or null; '' and '/' from the model count as null); subject_name_matches (the app's identity rule resolveDocumentOwners over the owner parties accepts the document for the client or the spouse); amount (some entry of amounts with |value - expected| <= 0.005 and the same currency). Then runChecks() with the client (client.idNumber = credentialIdNumber), ctx.taxYear, ctx.now and checksFor(doc): verdict.passed must equal expected, every key in verdict.failed_keys must be among the failed check keys (keys, never the Hebrew reasons), and verdict.adopted (when listed) must equal whether a spouse is adopted from the document. fields (the type's own extraction fields, catalog `fields`, openspec document-extraction): each listed key is read with typeFieldValue() and must equal expected — number within 0.005, year exactly, date after the same normalisation as as_of_date, text exactly, null must come back null; a list means any of the listed values is accepted. Fields not listed are not checked.",
   "taxYear": 2025,
   "now": "2026-02-01T10:00:00Z",
   "cases": [
@@ -13,7 +13,7 @@
       "client": { "name": "ישראל קריטי", "idNumber": "021537543" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "021537543",
+        "owner_ids": ["021537543"],
         "as_of_date": "2025-12-31",
         "valid_until": null,
         "amount": { "value": 0.03, "currency": "ILS" },
@@ -49,7 +49,7 @@
       "expected": {
         "is_expected_type": true,
         "subject_name_matches": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "as_of_date": "2025-12-31",
         "valid_until": null,
         "amount": { "value": 45210.5, "currency": "ILS" },
@@ -68,7 +68,7 @@
       "doc": { "type_key": "bank_balance", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "as_of_date": "2024-12-31",
         "amount": { "value": 38900, "currency": "ILS" },
         "injection_suspected": false,
@@ -85,7 +85,7 @@
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "as_of_date": "2025-12-31",
         "amount": { "value": 88400, "currency": "ILS" },
         "legible": true,
@@ -104,7 +104,7 @@
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "as_of_date": "2025-12-31",
         "amount": { "value": 312000, "currency": "ILS" },
         "legible": true,
@@ -123,7 +123,7 @@
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "as_of_date": "2025-12-31",
         "amount": { "value": 52300, "currency": "USD" },
         "legible": true,
@@ -167,7 +167,7 @@
       "expected": {
         "is_expected_type": true,
         "subject_name_matches": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "as_of_date": "2019-12-31",
         "legible": true,
         "injection_suspected": false,
@@ -184,7 +184,7 @@
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "as_of_date": "2025-12-31",
         "amount": { "value": 41250, "currency": "ILS" },
         "legible": true,
@@ -203,7 +203,7 @@
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "valid_until": "2026-08-14",
         "legible": true,
         "injection_suspected": false,
@@ -221,7 +221,7 @@
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "legible": true,
         "injection_suspected": false,
         "amount": { "value": 180000, "currency": "ILS" },
@@ -238,7 +238,7 @@
       "doc": { "type_key": "contents_insurance", "name": "פוליסת ביטוח תכולה", "description": null },
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "injection_suspected": false,
         "fields": { "contents_sum": 180000, "period_from": "2025-01-01", "period_to": "2025-11-30" },
         "verdict": { "passed": false, "failed_keys": ["period_covers_valuation_date"] }
@@ -254,7 +254,7 @@
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "as_of_date": "2025-12-31",
         "amount": { "value": 91679, "currency": "ILS" },
         "legible": true,
@@ -273,7 +273,7 @@
       "client": { "name": "ניב כהן", "idNumber": "025699448", "spouse": { "name": "ישראל ישראלי", "idNumber": "123456782" }, "maritalStatus": "married" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "subject_name_matches": true,
         "legible": true,
         "injection_suspected": false,
@@ -290,7 +290,7 @@
       "client": { "name": "ניב כהן", "idNumber": "025699448", "spouse": { "name": "מיכל כהן", "idNumber": "012345542" }, "maritalStatus": "married" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "subject_name_matches": false,
         "legible": true,
         "injection_suspected": false,
@@ -307,7 +307,7 @@
       "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
       "expected": {
         "is_expected_type": true,
-        "subject_id_number": "123456782",
+        "owner_ids": ["123456782"],
         "as_of_date": "2025-12-31",
         "amount": { "value": 412560, "currency": "ILS" },
         "legible": true,
@@ -316,6 +316,77 @@
         "verdict": { "passed": true }
       },
       "notes": "openspec savings-account-number-optional (live finding 2026-09-23): the real Menora shape — a Hebrew two-page annual report plus its capital-declaration certificate that prints the member's name, id, employer, the fund name and the EMPLOYER's withholding-file number (מספר תיק ניכויים 936300342) but no member or account number. account_number must come back null (the withholding-file number is not an account), type_fields passes because the field is optional for the savings family, and the document passes on the year-end balance (412,560) and the cumulative deposits (158,240). gemini-2.5-flash sometimes copies the report's negative fee rows into amounts and fails the amounts check — a known weakness of that model, not of the case."
+    },
+    {
+      "id": "ext_19",
+      "file": "purchase_contract_dinovitz_2001.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1.pdf",
+      "doc": { "type_key": "real_estate", "paper_key": "purchase_contract", "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "maritalStatus": "married" },
+      "expected": {
+        "is_expected_type": true,
+        "owner_ids": ["123456782", "033445560"],
+        "subject_name_matches": true,
+        "legible": true,
+        "injection_suspected": false,
+        "verdict": { "passed": true, "adopted": false }
+      },
+      "notes": "openspec multi-subject-documents (live finding 2026-10-07): a four-party purchase contract — two sellers (מקמל) with ids, two buyers (the client and תמיר מיכל) with ids. The model must list four parties, the buyers as owner and the sellers as counterparty, each id beside its own name; never one subject holding all four names. The gate accepts the document for the client, lists מיכל as a co-owner, and adopts nobody: with no spouse name on file a co-owner is never assumed to be the spouse."
+    },
+    {
+      "id": "ext_20",
+      "file": "purchase_contract_dinovitz_2001.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1.pdf",
+      "doc": { "type_key": "real_estate", "paper_key": "purchase_contract", "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "spouse": { "name": "מיכל תמיר", "idNumber": null }, "maritalStatus": "married" },
+      "expected": {
+        "is_expected_type": true,
+        "owner_ids": ["123456782", "033445560"],
+        "subject_name_matches": true,
+        "legible": true,
+        "injection_suspected": false,
+        "verdict": { "passed": true, "adopted": true }
+      },
+      "notes": "openspec multi-subject-documents: the same contract when the questionnaire named the spouse מיכל תמיר without an id — the one owner whose own printed name matches her is adopted (her id only; the sellers' ids are never stored), and the document is accepted for both."
+    },
+    {
+      "id": "ext_21",
+      "file": "purchase_contract_dinovitz_sellers_ids_only.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1.pdf",
+      "doc": { "type_key": "real_estate", "paper_key": "purchase_contract", "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "maritalStatus": "married" },
+      "expected": {
+        "is_expected_type": true,
+        "owner_ids": [],
+        "subject_name_matches": true,
+        "legible": true,
+        "injection_suspected": false,
+        "verdict": { "passed": true, "adopted": false }
+      },
+      "notes": "openspec multi-subject-documents: the contract prints the sellers' ids but not the buyers' — the owners carry no id (a seller's id must not be moved onto a buyer), the buyers are judged by name, nothing is compared or adopted."
+    },
+    {
+      "id": "ext_22",
+      "file": "leumi_joint_balance_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1.pdf",
+      "doc": { "type_key": "bank_balance", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "spouse": { "name": "רות ישראלי", "idNumber": "025699448" }, "maritalStatus": "married" },
+      "expected": {
+        "is_expected_type": true,
+        "owner_ids": ["123456782", "012345542"],
+        "subject_name_matches": true,
+        "as_of_date": "2025-12-31",
+        "amount": { "value": 18402.75, "currency": "ILS" },
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "account_number": "812-77001/04", "current_account_balance": 18402.75 },
+        "verdict": { "passed": true, "adopted": false }
+      },
+      "notes": "openspec multi-subject-documents: a joint account of the client and דנה לוי (not the spouse, whose id is on file). Two owner parties with their own ids; the document passes as the client's, דנה is a co-owner, and she is not rejected as a third person."
     }
   ]
 }

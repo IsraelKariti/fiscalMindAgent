@@ -104,7 +104,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 
 ## E. The document check (one document)
 
-Chart: Notion "4. Document extraction", "The steps, one by one". Step 1
+Chart: Notion "File handling", "Steps 5 to 7 in detail". Step 1
 (the planner ties the file) is D; step 12 (the planner tells the client) is F.
 
 | Chart step | File · function |
@@ -117,7 +117,8 @@ Chart: Notion "4. Document extraction", "The steps, one by one". Step 1
 | 5. `extract_document`: the model reads the data from the file | `DOC/verifyDocument.ts` · `extractDocumentData` |
 | 6. Did the model find attack text? | `DOC/verifyDocument.ts` · `stallOnAttackText` |
 | 7. `verify_extraction`: the code gate compares the data with known facts | `DOC/verifyDocument.ts` · `checkExtractedData` → `DOC/verifyChecks.ts` · `runChecks` (pure); id on file `clientIdOnFile`; step row `recordVerifyExtractionStep` |
-| Spouse adopted from the printed id | `DOC/verifyDocument.ts` · `adoptSpouseFromDocument` (`DOC/spouseIdentity.ts` · `resolveSubjectIdentity`, `mergeSpouse`) |
+| Who does the document belong to? (chart B, over the owner parties) | `DOC/spouseIdentity.ts` · `resolveDocumentOwners` → per person `resolveParty` → `chooseSpouseToAdopt` |
+| Spouse adopted from an owner's printed id | `DOC/verifyDocument.ts` · `adoptSpouseFromDocument` (`DOC/spouseIdentity.ts` · `mergeSpouse`) |
 | 8. All checks passed? 9. Third failure in a row? | `DOC/verifyDocument.ts` · `applyVerdict` |
 | 10. The document is approved | `DOC/verifyDocument.ts` · `approveDocument` |
 | 11. The document opens again | `DOC/verifyDocument.ts` · `reopenDocument` |

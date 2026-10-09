@@ -52,9 +52,13 @@ interface BankCertificate {
   balance: string;
   deposits: string;
   extraHtml?: string;
+  /** The account holders, each with their own id; default the one client. */
+  holders?: { name: string; nameHe: string; id: string }[];
 }
 
-function bankBalanceCertificate({ bank, bankHe, color, asOf, asOfHe, account, balance, deposits, extraHtml = '' }: BankCertificate): string {
+function bankBalanceCertificate({ bank, bankHe, color, asOf, asOfHe, account, balance, deposits, extraHtml = '', holders }: BankCertificate): string {
+  const who = (holders ?? [client]).map((h) => `<b>${h.name}</b> (${h.nameHe}), ID no. <b>${h.id}</b>`).join(' and ');
+  const holds = (holders ?? [client]).length > 1 ? 'jointly hold' : 'holds';
   return page(
     `${bank} balance certificate`,
     `<div class="letterhead"><div class="logo" style="color:${color}">${bank}</div><div class="he"><div class="logo" style="color:${color}">${bankHe}</div><div class="muted">חטיבת הבנקאות הקמעונאית</div></div></div>
@@ -62,7 +66,7 @@ function bankBalanceCertificate({ bank, bankHe, color, asOf, asOfHe, account, ba
      <h1 class="he">אישור יתרות ליום ${asOfHe}</h1>
      <h1>Balance certificate as of ${asOfHe}</h1>
      <p>To whom it may concern,</p>
-     <p>We hereby confirm that <b>${client.name}</b> (${client.nameHe}), ID no. <b>${client.id}</b>, holds account no. ${account} at our bank, and that the balances of the account as of <b>${asOfHe}</b> were as follows:</p>
+     <p>We hereby confirm that ${who}, ${holds} account no. ${account} at our bank, and that the balances of the account as of <b>${asOfHe}</b> were as follows:</p>
      <h2>Current account and deposits</h2>
      <table><tr><th>Item</th><th class="n">Balance (ILS)</th></tr>
        <tr><td>Current account (עו"ש) balance</td><td class="n">${balance}</td></tr>
@@ -107,6 +111,22 @@ function homeInsurancePolicy({ from, to, policyNo }: { from: string; to: string;
 
 const DOCS: Record<string, string> = {
   'leumi_balance_2025.pdf': bankBalanceCertificate({ bank: 'Bank Leumi', bankHe: 'בנק לאומי', color: '#1b3a6b', asOf: '2025-12-31', asOfHe: '31.12.2025', account: '812-45678/21', balance: '45,210.50', deposits: '120,000.00' }),
+  // openspec multi-subject-documents: a joint account — the client and a second holder who is not the spouse,
+  // each with their own id printed beside their name.
+  'leumi_joint_balance_2025.pdf': bankBalanceCertificate({
+    bank: 'Bank Leumi',
+    bankHe: 'בנק לאומי',
+    color: '#1b3a6b',
+    asOf: '2025-12-31',
+    asOfHe: '31.12.2025',
+    account: '812-77001/04',
+    balance: '18,402.75',
+    deposits: '60,000.00',
+    holders: [
+      { name: client.name, nameHe: client.nameHe, id: client.id },
+      { name: 'Dana Levi', nameHe: 'דנה לוי', id: '012345542' },
+    ],
+  }),
   'leumi_balance_2024.pdf': bankBalanceCertificate({ bank: 'Bank Leumi', bankHe: 'בנק לאומי', color: '#1b3a6b', asOf: '2024-12-31', asOfHe: '31.12.2024', account: '812-45678/21', balance: '38,900.00', deposits: '100,000.00' }),
   'hapoalim_balance_injected.pdf': bankBalanceCertificate({
     bank: 'Bank Hapoalim',
@@ -423,7 +443,7 @@ const DOCS: Record<string, string> = {
     `<h1 class="he">הסכם מכר</h1>
      <p class="he">שנערך ונחתם בפתח תקווה ביום 14 במרץ 2001</p>
      <p class="he"><b>בין:</b> מקמל חזי ת.ז. 054321087 ומקמל קתי פנינה ת.ז. 022334455 (להלן: "המוכרים")</p>
-     <p class="he"><b>לבין:</b> ${client.nameHe} ת.ז. ${client.id} ותמיר מיכל ת.ז. 033445566 (להלן: "הקונים")</p>
+     <p class="he"><b>לבין:</b> ${client.nameHe} ת.ז. ${client.id} ותמיר מיכל ת.ז. 033445560 (להלן: "הקונים")</p>
      <h2 class="he">הואיל</h2>
      <p class="he">והמוכרים הם בעלי הזכויות בבית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, הידוע כגוש 6325 חלקה 161 (להלן: "הנכס");</p>
      <p class="he">והקונים מעוניינים לרכוש את הנכס מהמוכרים, והמוכרים מעוניינים למכור את הנכס לקונים, הכל בתנאים המפורטים בהסכם זה;</p>
@@ -435,6 +455,26 @@ const DOCS: Record<string, string> = {
      <p class="he">החזקה בנכס תימסר לקונים ביום 1 בספטמבר 2001, כנגד תשלום מלוא התמורה.</p>
      <h2 class="he">4. מסים ותשלומים</h2>
      <p class="he">מס שבח, אם יחול, ישולם על ידי המוכרים. מס רכישה ישולם על ידי הקונים.</p>
+     <div class="sig he">המוכרים: ______________ &nbsp;&nbsp; הקונים: ______________<br><span class="muted">אימות חתימות: עו"ד ד. לוי, רישיון 12345</span></div>`,
+    'rtl',
+  ),
+  // openspec multi-subject-documents: the same contract with the sellers' ids printed and the buyers' ids
+  // left blank — the owners are judged by name, the sellers' ids are nobody's business.
+  'purchase_contract_dinovitz_sellers_ids_only.pdf': page(
+    'Purchase agreement (buyers without ids)',
+    `<h1 class="he">הסכם מכר</h1>
+     <p class="he">שנערך ונחתם בפתח תקווה ביום 14 במרץ 2001</p>
+     <p class="he"><b>בין:</b> מקמל חזי ת.ז. 054321087 ומקמל קתי פנינה ת.ז. 022334455 (להלן: "המוכרים")</p>
+     <p class="he"><b>לבין:</b> ${client.nameHe} ותמיר מיכל (להלן: "הקונים")</p>
+     <h2 class="he">הואיל</h2>
+     <p class="he">והמוכרים הם בעלי הזכויות בבית מגורים דו-משפחתי ברחוב דינוביץ אבשלום 47, פתח תקווה, הידוע כגוש 6325 חלקה 161 (להלן: "הנכס");</p>
+     <p class="he">והקונים מעוניינים לרכוש את הנכס מהמוכרים, והמוכרים מעוניינים למכור את הנכס לקונים, הכל בתנאים המפורטים בהסכם זה;</p>
+     <h2 class="he">1. המכר</h2>
+     <p class="he">המוכרים מוכרים בזאת לקונים והקונים קונים מהמוכרים את מלוא הזכויות בנכס, כשהוא פנוי מכל אדם וחפץ.</p>
+     <h2 class="he">2. התמורה</h2>
+     <p class="he">תמורת הנכס ישלמו הקונים למוכרים סך של 1,250,000 ש"ח (מיליון מאתיים וחמישים אלף שקלים חדשים), במועדים ובדרך הקבועים בנספח התשלומים המצורף להסכם זה כחלק בלתי נפרד ממנו.</p>
+     <h2 class="he">3. המסירה</h2>
+     <p class="he">החזקה בנכס תימסר לקונים ביום 1 בספטמבר 2001, כנגד תשלום מלוא התמורה.</p>
      <div class="sig he">המוכרים: ______________ &nbsp;&nbsp; הקונים: ______________<br><span class="muted">אימות חתימות: עו"ד ד. לוי, רישיון 12345</span></div>`,
     'rtl',
   ),
@@ -469,7 +509,7 @@ const DOCS: Record<string, string> = {
      <table class="he">
        <tr><th>שם</th><th>מספר זיהוי</th><th>החלק בנכס</th><th>מהות הזכות</th></tr>
        <tr><td>${client.nameHe}</td><td>${client.id}</td><td>1/2</td><td>חכירה לדורות</td></tr>
-       <tr><td>תמיר מיכל</td><td>033445566</td><td>1/2</td><td>חכירה לדורות</td></tr>
+       <tr><td>תמיר מיכל</td><td>033445560</td><td>1/2</td><td>חכירה לדורות</td></tr>
      </table>
      <h2 class="he">הערות אזהרה ומשכנתאות</h2>
      <table class="he">

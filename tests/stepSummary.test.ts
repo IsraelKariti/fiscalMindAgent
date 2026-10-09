@@ -121,6 +121,30 @@ test('verify_extraction: typed fields render by label, null as "not found"; chec
   assert.deepEqual(stepSummaryOf('verify_extraction', { clientName: 'דני', name: BANK, issuer: null, reasons: [] }), [{ key: 'name', value: BANK }]);
 });
 
+test('verify_extraction: the parties the extraction listed render as one line each (name · role · masked id · resolved as)', () => {
+  const rows = stepSummaryOf('verify_extraction', {
+    clientName: 'ניב',
+    name: 'חוזה רכישה — דינוביץ 47',
+    fileId: 'f1',
+    result: true,
+    issuer: null,
+    subject_matched: 'client',
+    parties: [
+      { name: 'מקמל חזי', role: 'counterparty', masked_id: '••••••542', resolved: 'none' },
+      { name: 'תמיר ניב', role: 'owner', masked_id: '••••••448', resolved: 'client' },
+      { name: 'תמיר מיכל', role: 'owner', masked_id: null, resolved: 'co_owner' },
+    ],
+    checks: [],
+    reasons: [],
+  });
+  assert.deepEqual(rows, [
+    { key: 'parties', items: ['מקמל חזי · הצד השני · ••••••542', 'תמיר ניב · בעלים · ••••••448 · הלקוח', 'תמיר מיכל · בעלים · בעלים נוסף'] },
+    { key: 'name', value: 'חוזה רכישה — דינוביץ 47' },
+    { key: 'fileId', value: 'f1' },
+    { key: 'subject_matched', value: 'client' },
+  ]);
+});
+
 test('message and review steps: flat keys become labelled values; header keys are skipped', () => {
   assert.deepEqual(
     stepSummaryOf('send_reply', { clientName: 'דני', emailId: 'e1', channel: 'whatsapp', kind: 'freeform', send_at: '2026-09-13T15:04:00', chars: 120 }),

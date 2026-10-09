@@ -173,18 +173,35 @@ monday WorkForm is the only source of which documents a declaration needs):
   plus `agent_fields.marital_status` (`married` / `not_married`; absent =
   unknown), no migration. `spouseIdentity.ts` owns the record (`readSpouse`,
   `mergeSpouse` — a present value is replaced only by a strictly
-  higher-trust source, never cleared) and the pure identity rule
-  `resolveSubjectIdentity` that `runChecks` calls for the `subject` /
-  `id_matches_client` / `spouse_adopted` / `client_id_on_file` entries:
-  printed id = client → client; = spouse on file → spouse; otherwise, with
-  the client's id on file, the id is ADOPTED as the spouse's only when it
-  passes the checksum, no spouse id is on file yet, the client is not
-  `not_married`, and the printed name does not contradict a spouse name
-  from the form (`namesLooselyMatch`, which now lives in spouseIdentity.ts);
-  else `id_matches_client` (and `subject`) fail with the reason (third
-  person / not married / name mismatch). A name-only document passes
-  `subject` against the client's or the spouse's name; nothing is ever
-  inferred from a name. Sources: the kickoff reads spouse cells
+  higher-trust source, never cleared) and the pure identity rule that
+  `runChecks` calls for the `subject` / `id_matches_client` /
+  `spouse_adopted` / `co_owners` / `client_id_on_file` entries. Since
+  2026-10-09 (openspec `multi-subject-documents`) the extraction returns
+  `parties` — one entry per person the document names, each with the name
+  and the id printed beside THAT name and a role `owner` (holds the asset /
+  owes the liability: buyer, account holder, member, insured, borrower,
+  heir) / `counterparty` (seller, lending bank, builder) / `other`
+  (witness, lawyer) — instead of one `subject_name` + `subject_id_number`
+  (a four-party contract had become the spouse name). Three functions:
+  `resolveParty` (one person — chart B: printed id = client → client; =
+  spouse on file → spouse; otherwise, with the client's id on file,
+  `adoptable` only when the id passes the checksum, no spouse id is on file
+  yet, the client is not `not_married`, and that party's own printed name
+  does not contradict a spouse name from the form (`namesLooselyMatch`);
+  else `nobody` with the reason; no id → the name decides),
+  `resolveDocumentOwners` (owners only; the document is accepted when at
+  least one owner is the client or the spouse — `matched` client / spouse /
+  `both`; other owners are `co_owners`, listed, never a rejection; the
+  counterparties' ids are neither compared nor checksum-checked) and
+  `chooseSpouseToAdopt` (exactly one adoptable owner, and either a
+  single-owner document or a spouse name on file that this party's own name
+  matches — a joint document without a spouse name never adopts, so a
+  sibling or a parent on a joint account is a co-owner, not the spouse; the
+  stored name is always one party's). A name-only owner passes `subject`
+  against the client's or the spouse's name; nothing is ever inferred from
+  a name. The `verify_extraction` detail carries `parties` (name, role,
+  masked id, resolved as client / spouse / adopted / co_owner / uncompared /
+  none). Sources: the kickoff reads spouse cells
   (`crmIdentity.ts` `crmSpouse` — a `SPOUSE_TITLE` cell with an id title is
   the id, without one the name — and `crmMaritalStatus`) from the
   questionnaire item first and the CRM card second (`spouseFromCards`),
@@ -838,14 +855,17 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `validate_message` (one row per decide attempt: `json_schema`, then
   `business_rules` via `gateDecision` in `decisionSchema.ts`; the second is
   absent when parsing failed), `verify_extraction` (the per-document table
-  from `verifyChecks.ts`: `legible`, `expected_type`, `subject`,
-  `id_checksum`, `id_matches_client` (passes when the printed id is the
-  client's OR the one spouse's on file; its `expected` names the person
-  matched and the source of that id: `client ••••••448 (monday CRM)`,
-  `spouse ••••••821 (document)` — on a failure both persons on file), then
-  `spouse_adopted` (informational, only when the printed id was just adopted
-  as the spouse's — see "Spouse identity" below), `client_id_on_file` (when
-  the document prints an id but none is on file — reported, never enforced),
+  from `verifyChecks.ts`, judged over the document's OWNER parties:
+  `legible`, `expected_type`, `subject` (some owner is the client or the
+  spouse), `id_checksum` (every owner id), `id_matches_client` (passes when
+  the document was accepted for the client and/or the one spouse on file;
+  its `expected` names the person(s) matched and the source of each id:
+  `client ••••••448 (monday CRM)`, `spouse ••••••821 (document)` — on a
+  failure both persons on file), then `spouse_adopted` (informational, only
+  when an owner's id was just adopted as the spouse's — see "Spouse
+  identity" below), `co_owners` (informational: the other owners, never a
+  rejection), `client_id_on_file` (when an owner prints an id but none is on
+  file — reported, never enforced),
   `as_of_date`, `not_expired`, `amounts`, then `type_fields` and
   `period_covers_valuation_date` for a type that declares extraction fields
   (see "Type-specific extraction fields" above) — each with the value read

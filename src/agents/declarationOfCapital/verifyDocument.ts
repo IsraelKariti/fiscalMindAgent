@@ -399,6 +399,9 @@ function recordVerifyExtractionStep(
       result: verdict.passed,
       issuer: extracted.issuer,
       subject_matched: verdict.subjectMatched,
+      // Every party the extraction listed (openspec `document-extraction`), ids
+      // masked, with whom the identity rule resolved each one as.
+      parties: verdict.parties.map((p) => ({ name: p.name, role: p.role, masked_id: p.maskedId, resolved: p.resolved })),
       ...(labelledFields && labelledFields.length > 0 ? { fields: labelledFields } : {}),
       checks: verdict.checks.map((c) => ({ key: c.key, passed: c.passed, note: c.reason, observed: c.observed, expected: c.expected })),
       reasons: verdict.reasons,

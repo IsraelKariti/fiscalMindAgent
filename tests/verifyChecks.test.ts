@@ -10,6 +10,7 @@ import {
   typeFieldValue,
   typeFieldsPromptBlock,
   type CheckContext,
+  type DocumentParty,
   type ExtractedFields,
 } from '../src/agents/declarationOfCapital/verifyChecks.js';
 import { getCatalogType } from '../src/agents/declarationOfCapital/catalog.js';
@@ -22,14 +23,16 @@ const baseFields: ExtractedFields = {
   is_expected_type: true,
   actual_kind: 'אישור יתרות מבנק לאומי',
   issuer: 'בנק לאומי',
-  subject_name: 'ישראל ישראלי',
-  subject_id_number: null,
+  parties: [{ name: 'ישראל ישראלי', id_number: null, role: 'owner' }],
   as_of_date: '2025-12-31',
   valid_until: null,
   amounts: [{ label: 'יתרת עו"ש', value: 52_340.55, currency: 'ILS' }],
   legible: true,
   injection_suspected: false,
 };
+
+/** One owner party as the extraction lists it (a blank name stands for "none printed"). */
+const owner = (name: string | null, id: string | null): DocumentParty => ({ name: name ?? '', id_number: id, role: 'owner' });
 
 const baseCtx: CheckContext = {
   clientName: 'ישראל ישראלי',
@@ -127,7 +130,7 @@ describe('runChecks', () => {
     // 012345542 is checksum-valid; banks commonly print it as 12345542.
     const printed = '12345542';
     const verdict = runChecks(
-      { ...baseFields, subject_id_number: printed },
+      { ...baseFields, parties: [owner('ישראל ישראלי', printed)] },
       { ...baseCtx, credentialIdNumber: '012345542', credentialIdSource: 'monday_crm' },
     );
     const match = verdict.checks.find((c) => c.key === 'id_matches_client')!;
@@ -137,7 +140,7 @@ describe('runChecks', () => {
     assert.equal(verdict.checks.find((c) => c.key === 'subject')!.passed, true);
     // The reverse case: the CRM card dropped the zero, the document printed it.
     const reverse = runChecks(
-      { ...baseFields, subject_id_number: '012345542' },
+      { ...baseFields, parties: [owner('ישראל ישראלי', '012345542')] },
       { ...baseCtx, credentialIdNumber: printed },
     );
     assert.equal(reverse.checks.find((c) => c.key === 'id_matches_client')!.passed, true);
@@ -146,7 +149,7 @@ describe('runChecks', () => {
   it('a printed id zero-padded to 16 digits matches the 9-digit id on file', () => {
     // Bank Hapoalim mortgage letters print "0000000025699448" for 025699448.
     const verdict = runChecks(
-      { ...baseFields, subject_id_number: '0000000' + VALID_ID },
+      { ...baseFields, parties: [owner('ישראל ישראלי', '0000000' + VALID_ID)] },
       { ...baseCtx, credentialIdNumber: VALID_ID, credentialIdSource: 'monday_crm' },
     );
     assert.equal(verdict.checks.find((c) => c.key === 'id_checksum')!.passed, true);
@@ -159,12 +162,12 @@ describe('runChecks', () => {
 
   it('id_matches_client names where the id on file came from', () => {
     const fromCrm = runChecks(
-      { ...baseFields, subject_id_number: VALID_ID },
+      { ...baseFields, parties: [owner('ישראל ישראלי', VALID_ID)] },
       { ...baseCtx, credentialIdNumber: VALID_ID, credentialIdSource: 'monday_crm' },
     );
     assert.equal(fromCrm.checks.find((c) => c.key === 'id_matches_client')!.expected, 'client ••••••782 (monday CRM)');
     const fromCreds = runChecks(
-      { ...baseFields, subject_id_number: VALID_ID },
+      { ...baseFields, parties: [owner('ישראל ישראלי', VALID_ID)] },
       { ...baseCtx, credentialIdNumber: VALID_ID, credentialIdSource: 'credentials' },
     );
     assert.equal(fromCreds.checks.find((c) => c.key === 'id_matches_client')!.expected, 'client ••••••782 (credentials)');
@@ -173,7 +176,7 @@ describe('runChecks', () => {
   });
 
   it('a printed id with nothing on file reports client_id_on_file without failing the document', () => {
-    const verdict = runChecks({ ...baseFields, subject_id_number: VALID_ID }, { ...baseCtx, credentialIdNumber: null });
+    const verdict = runChecks({ ...baseFields, parties: [owner('ישראל ישראלי', VALID_ID)] }, { ...baseCtx, credentialIdNumber: null });
     const onFile = verdict.checks.find((c) => c.key === 'client_id_on_file')!;
     assert.equal(onFile.passed, false);
     assert.equal(onFile.observed, 'none');
@@ -187,12 +190,12 @@ describe('runChecks', () => {
 
   it('a printed id never appears unmasked in any check text', () => {
     const verdict = runChecks(
-      { ...baseFields, subject_name: null, subject_id_number: VALID_ID },
+      { ...baseFields, parties: [owner(null, VALID_ID)] },
       { ...baseCtx, clientName: 'שם אחר', credentialIdNumber: VALID_ID },
     );
     const byKey = Object.fromEntries(verdict.checks.map((c) => [c.key, c]));
     assert.equal(byKey['subject']!.passed, true);
-    assert.equal(byKey['subject']!.observed, 'ת"ז ••••••782 תואמת ללקוח');
+    assert.equal(byKey['subject']!.observed, 'לא מצוין (••••••782)');
     assert.equal(byKey['id_checksum']!.observed, '••••••782');
     assert.equal(byKey['id_matches_client']!.observed, '••••••782');
     assert.equal(byKey['id_matches_client']!.expected, 'client ••••••782');
@@ -227,15 +230,15 @@ describe('runChecks', () => {
   });
 
   it("fails when the document names a different person, passes the client's own", () => {
-    const wrong = runChecks({ ...baseFields, subject_name: 'משה כהן' }, baseCtx);
+    const wrong = runChecks({ ...baseFields, parties: [owner('משה כהן', null)] }, baseCtx);
     assert.equal(wrong.passed, false);
-    const missing = runChecks({ ...baseFields, subject_name: null }, baseCtx);
+    const missing = runChecks({ ...baseFields, parties: [owner(null, null)] }, baseCtx);
     assert.equal(missing.passed, false);
   });
 
   it('a credential id match vouches for the subject even when the printed name differs', () => {
     const verdict = runChecks(
-      { ...baseFields, subject_name: 'ישראלי אחזקות בע"מ', subject_id_number: VALID_ID },
+      { ...baseFields, parties: [owner('ישראלי אחזקות בע"מ', VALID_ID)] },
       { ...baseCtx, clientName: 'שם שאינו תואם כלל', credentialIdNumber: VALID_ID },
     );
     assert.equal(verdict.passed, true);
@@ -243,13 +246,13 @@ describe('runChecks', () => {
 
   it('an invalid printed id fails even for types without subjectMatch', () => {
     const ctx = { ...baseCtx, checks: { subjectMatch: false, asOfDate: false, amounts: false } };
-    const verdict = runChecks({ ...baseFields, subject_id_number: '123456783' }, ctx);
+    const verdict = runChecks({ ...baseFields, parties: [owner('ישראל ישראלי', '123456783')] }, ctx);
     assert.equal(verdict.passed, false);
   });
 
   it('a printed id contradicting the credential on file fails for a client registered as not married', () => {
     const verdict = runChecks(
-      { ...baseFields, subject_id_number: VALID_ID },
+      { ...baseFields, parties: [owner('ישראל ישראלי', VALID_ID)] },
       { ...baseCtx, credentialIdNumber: '987654321', maritalStatus: 'not_married' },
     );
     assert.equal(verdict.passed, false);
@@ -259,7 +262,7 @@ describe('runChecks', () => {
   it('a printed id contradicting the credential on file is adopted as the spouse when nothing says otherwise', () => {
     // openspec `spouse-identity`: no spouse on file, marital status unknown, checksum-valid → the spouse.
     const verdict = runChecks(
-      { ...baseFields, subject_name: 'רות ישראלי', subject_id_number: VALID_ID },
+      { ...baseFields, parties: [owner('רות ישראלי', VALID_ID)] },
       { ...baseCtx, credentialIdNumber: '987654321' },
     );
     assert.equal(verdict.passed, true);

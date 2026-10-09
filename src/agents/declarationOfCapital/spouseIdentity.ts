@@ -1,5 +1,5 @@
 import { maskId } from '../shared/gateChecks.js';
-import type { CheckResult } from './verifyChecks.js';
+import type { CheckResult, PartyRole } from './verifyChecks.js';
 
 /**
  * The one spouse a declaration-of-capital client may have (openspec
@@ -110,22 +110,51 @@ export interface IdentityContext {
   subjectMatch: boolean;
 }
 
-export interface IdentityFields {
-  /** The printed subject name, as extracted. */
-  subjectName: string | null;
-  /** The printed id, normalised (digits, 9 wide) — '' when none printed. */
+/** One party of the document as the extraction listed it, normalised for the rule. */
+export interface PartyInput {
+  /** The printed name beside this person; null when blank. */
+  name: string | null;
+  /** This person's printed id, normalised (digits, 9 wide) — '' when none printed. */
   printedId: string;
   /** The printed id passes the Israeli checksum (only meaningful when printedId !== ''). */
   printedIdValid: boolean;
+  role: PartyRole;
+}
+
+/** Whom one party is, by the per-person rule (chart B of the approval flow). */
+export type PartyKind = 'client' | 'spouse' | 'adoptable' | 'nobody';
+
+export interface ResolvedParty {
+  party: PartyInput;
+  kind: PartyKind;
+  /**
+   * The party's id could not be compared (no client id on file and not the
+   * spouse's id): the name alone decided `kind`, and the id entries go on the
+   * informational client_id_on_file path.
+   */
+  idUncompared: boolean;
+  /** Why an id-bearing party is nobody (Hebrew); null for a name-only mismatch. */
+  reason: string | null;
+}
+
+/** One party as the trace row records it (ids masked). */
+export interface PartyTraceEntry {
+  name: string | null;
+  role: PartyRole;
+  maskedId: string | null;
+  /** Whom the party was resolved as; `none` for non-owners and for owners that matched nobody on a rejected document. */
+  resolved: 'client' | 'spouse' | 'adopted' | 'co_owner' | 'uncompared' | 'none';
 }
 
 export interface IdentityVerdict {
-  /** Whom the document was accepted for; null when it matched nobody. */
-  matched: 'client' | 'spouse' | null;
-  /** Set when the printed id is adopted as the spouse's — the caller persists it before the next verification. */
+  /** Whom the document was accepted for; null when no owner matched. */
+  matched: 'client' | 'spouse' | 'both' | null;
+  /** Set when an owner's printed id is adopted as the spouse's — the caller persists it before the next verification. */
   adopt: { idNumber: string; name: string | null } | null;
-  /** The subject / id_matches_client / spouse_adopted / client_id_on_file entries, in order. */
+  /** The subject / id_matches_client / spouse_adopted / co_owners / client_id_on_file entries, in order. */
   checks: CheckResult[];
+  /** Every party the extraction listed, as the trace shows it. */
+  parties: PartyTraceEntry[];
 }
 
 const SOURCE_HE: Record<ClientIdSource | SpouseSource, string> = {
@@ -167,45 +196,108 @@ export function namesLooselyMatch(a: string, b: string): boolean {
 }
 
 const SPOUSE_LABEL_HE = 'בן/בת זוג';
+const NOT_STATED_HE = 'לא מצוין';
+/** How many parties a check value lists before "(+N)". */
+const MAX_PARTIES_SHOWN = 6;
 
 /**
- * Whom a verified document is about, decided against the client and the one
- * spouse on file (openspec `spouse-identity`, design D3):
+ * Chart B for one person: whom this party is, against the client and the
+ * one spouse on file (openspec `spouse-identity`):
  *
  *   printed id present, client id on file:
  *     1. equals the client            → client
  *     2. equals the spouse on file    → spouse
- *     3. checksum fails               → nobody (id_checksum fails elsewhere; no adoption)
+ *     3. checksum fails               → nobody (id_checksum fails elsewhere)
  *     4. a spouse id is on file       → nobody: third person
  *     5. registered as not married    → nobody
  *     6. contradicts the spouse name  → nobody
- *     7. otherwise                    → spouse, ADOPTED from this document
- *   printed id present, no client id on file: only step 2; otherwise the
- *   informational client_id_on_file entry and no adoption (a stranger and the
- *   client are indistinguishable without the client's own id).
+ *     7. otherwise                    → adoptable (chooseSpouseToAdopt decides)
+ *   printed id present, no client id on file: only step 2; otherwise the id
+ *   is uncompared and the name decides (a stranger and the client are
+ *   indistinguishable without the client's own id); never adoptable.
  *   no printed id: the name, loosely, against the client's and the spouse's.
- *
- * `subject` passes iff someone matched; a contradicting id (3–6) fails it
- * too — a name cannot vouch against an id.
  */
-export function resolveSubjectIdentity(fields: IdentityFields, ctx: IdentityContext): IdentityVerdict {
+export function resolveParty(party: PartyInput, ctx: IdentityContext): ResolvedParty {
+  const spouseId = normalizeId(ctx.spouse.idNumber);
+  const spouseName = ctx.spouse.name;
+  const printed = normalizeId(party.printedId);
+  const byName = (): PartyKind =>
+    party.name && namesLooselyMatch(party.name, ctx.clientName)
+      ? 'client'
+      : party.name && spouseName && namesLooselyMatch(party.name, spouseName)
+        ? 'spouse'
+        : 'nobody';
+
+  if (printed === '') return { party, kind: byName(), idUncompared: false, reason: null };
+  if (ctx.clientId !== '' && printed === ctx.clientId) return { party, kind: 'client', idUncompared: false, reason: null };
+  if (spouseId !== '' && printed === spouseId) return { party, kind: 'spouse', idUncompared: false, reason: null };
+  if (ctx.clientId === '') return { party, kind: byName(), idUncompared: true, reason: null };
+
+  const nobody = (reason: string): ResolvedParty => ({ party, kind: 'nobody', idUncompared: false, reason });
+  if (!party.printedIdValid) return nobody('מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים');
+  if (spouseId !== '') return nobody('מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר');
+  if (ctx.maritalStatus === 'not_married') return nobody('מספר תעודת הזהות במסמך אינו של הלקוח, והלקוח רשום כלא נשוי');
+  if (spouseName && (!party.name || !namesLooselyMatch(party.name, spouseName))) {
+    return nobody(`המסמך רשום על שם "${party.name ?? NOT_STATED_HE}" ואינו תואם את שם בן/בת הזוג הרשומים ("${spouseName}")`);
+  }
+  return { party, kind: 'adoptable', idUncompared: false, reason: null };
+}
+
+/**
+ * Which adoptable owner, if any, becomes the spouse (openspec
+ * `spouse-identity`): exactly one candidate, and either the document has one
+ * owner (today's rule) or a spouse name is on file that the candidate's own
+ * printed name matches — the only way to tell the spouse from a sibling, a
+ * parent or a partner on a joint document. The stored name is the name on
+ * file when there is one, else that one party's printed name.
+ */
+export function chooseSpouseToAdopt(owners: readonly ResolvedParty[], ctx: IdentityContext): { idNumber: string; name: string | null } | null {
+  const candidates = owners.filter((o) => o.kind === 'adoptable');
+  if (candidates.length !== 1) return null;
+  const candidate = candidates[0]!;
+  const spouseName = ctx.spouse.name;
+  const allowed = owners.length === 1 || (!!spouseName && !!candidate.party.name && namesLooselyMatch(candidate.party.name, spouseName));
+  if (!allowed) return null;
+  return { idNumber: normalizeId(candidate.party.printedId), name: spouseName ?? candidate.party.name };
+}
+
+/** `תמיר מיכל (••••••973)` — one party as a check value shows it. */
+function renderParty(p: PartyInput): string {
+  const name = p.name ?? NOT_STATED_HE;
+  return p.printedId !== '' ? `${name} (${maskId(normalizeId(p.printedId))})` : name;
+}
+
+function renderParties(parties: readonly PartyInput[]): string {
+  const shown = parties.slice(0, MAX_PARTIES_SHOWN).map(renderParty).join(' · ');
+  return parties.length > MAX_PARTIES_SHOWN ? `${shown} (+${parties.length - MAX_PARTIES_SHOWN})` : shown;
+}
+
+/**
+ * Whom a verified document is about (openspec `spouse-identity`, design D2):
+ * the owner parties are resolved one by one with resolveParty, then the
+ * document belongs to the household when at least one owner is the client or
+ * the spouse (by id or by name) or is adopted as the spouse now. Other owners
+ * are co-owners: listed, never a reason to reject. Counterparties and others
+ * take no part.
+ */
+export function resolveDocumentOwners(parties: readonly PartyInput[], ctx: IdentityContext): IdentityVerdict {
   const checks: CheckResult[] = [];
   const add = (key: string, passed: boolean, reason: string, observed: string | null, expected: string | null = null) =>
     checks.push({ key, passed, reason: passed ? null : reason, observed, expected });
 
   const spouseId = normalizeId(ctx.spouse.idNumber);
   const spouseName = ctx.spouse.name;
-  const printed = normalizeId(fields.printedId);
+  const owners = parties.filter((p) => p.role === 'owner').map((p) => resolveParty(p, ctx));
+  const adopt = chooseSpouseToAdopt(owners, ctx);
+  const adoptedOwner = adopt ? owners.find((o) => o.kind === 'adoptable' && normalizeId(o.party.printedId) === adopt.idNumber) ?? null : null;
 
-  /** Whom the printed id identified — drives the id entries. */
-  let matched: 'client' | 'spouse' | null = null;
-  /** Whom the printed name identified when no id could decide — drives `subject` only. */
-  let subjectByName: 'client' | 'spouse' | null = null;
-  let adopt: IdentityVerdict['adopt'] = null;
-  let idNote: string | null = null;
-  /** The person named in `expected` of a passed id_matches_client. */
-  let matchedDescription: string | null = null;
+  const clientHit = owners.some((o) => o.kind === 'client');
+  const spouseHit = owners.some((o) => o.kind === 'spouse') || adopt !== null;
+  const matched: IdentityVerdict['matched'] = clientHit && spouseHit ? 'both' : clientHit ? 'client' : spouseHit ? 'spouse' : null;
+  const coOwners = matched !== null ? owners.filter((o) => o.kind === 'nobody' || (o.kind === 'adoptable' && o !== adoptedOwner)) : [];
 
+  const ownerInputs = owners.map((o) => o.party);
+  const withId = owners.filter((o) => o.party.printedId !== '');
   const onFileDescription = (): string =>
     [
       ctx.clientId !== '' ? describePerson('client', ctx.clientId, ctx.clientIdSource) : null,
@@ -213,81 +305,50 @@ export function resolveSubjectIdentity(fields: IdentityFields, ctx: IdentityCont
     ]
       .filter((s): s is string => s !== null)
       .join(' / ');
-
-  if (printed !== '') {
-    if (ctx.clientId !== '' && printed === ctx.clientId) {
-      matched = 'client';
-      matchedDescription = describePerson('client', ctx.clientId, ctx.clientIdSource);
-    } else if (spouseId !== '' && printed === spouseId) {
-      matched = 'spouse';
-      matchedDescription = describePerson('spouse', spouseId, ctx.spouse.idSource);
-    } else if (ctx.clientId !== '') {
-      if (!fields.printedIdValid) {
-        idNote = 'מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים';
-      } else if (spouseId !== '') {
-        idNote = 'מספר תעודת הזהות במסמך אינו של הלקוח ואינו של בן/בת הזוג הרשומים — המסמך שייך לאדם אחר';
-      } else if (ctx.maritalStatus === 'not_married') {
-        idNote = 'מספר תעודת הזהות במסמך אינו של הלקוח, והלקוח רשום כלא נשוי';
-      } else if (spouseName && (!fields.subjectName || !namesLooselyMatch(fields.subjectName, spouseName))) {
-        idNote = `המסמך רשום על שם "${fields.subjectName ?? 'לא מצוין'}" ואינו תואם את שם בן/בת הזוג הרשומים ("${spouseName}")`;
-      } else {
-        matched = 'spouse';
-        adopt = { idNumber: printed, name: spouseName ?? fields.subjectName };
-        matchedDescription = describePerson('spouse', printed, 'document');
-      }
-    }
-  }
+  const spouseAcceptedName = spouseName ?? adopt?.name ?? SPOUSE_LABEL_HE;
+  const acceptedFor =
+    matched === 'both' ? `${ctx.clientName} / ${spouseAcceptedName}` : matched === 'client' ? ctx.clientName : matched === 'spouse' ? spouseAcceptedName : null;
+  const expectedOnFile = spouseName ? `${ctx.clientName} / ${spouseName}` : ctx.clientName;
 
   // --- subject -------------------------------------------------------------
   if (ctx.subjectMatch) {
-    const acceptedFor = matched === 'client' ? ctx.clientName : matched === 'spouse' ? (spouseName ?? adopt?.name ?? SPOUSE_LABEL_HE) : null;
-    if (matched !== null) {
-      const observed =
-        printed !== ''
-          ? `ת"ז ${maskId(printed)} תואמת ${matched === 'client' ? 'ללקוח' : 'לבן/בת הזוג'}`
-          : (fields.subjectName ?? 'לא מצוין');
-      add('subject', true, '', observed, acceptedFor);
-    } else if (printed !== '' && idNote !== null) {
-      // A contradicting id: the name cannot vouch for the document.
+    if (owners.length === 0) {
+      add('subject', false, 'שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח', NOT_STATED_HE, expectedOnFile);
+    } else if (matched !== null) {
+      add('subject', true, '', renderParties(ownerInputs), acceptedFor);
+    } else {
+      const contradicted = owners.find((o) => o.reason !== null);
+      const named = owners.map((o) => o.party.name ?? NOT_STATED_HE).join(', ');
       add(
         'subject',
         false,
-        `המסמך רשום על שם "${fields.subjectName ?? 'לא מצוין'}" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג`,
-        fields.subjectName ?? 'לא מצוין',
-        expectedNames(ctx.clientName, spouseName),
+        contradicted
+          ? `המסמך רשום על שם "${named}" עם תעודת זהות שאינה של הלקוח ואינה של בן/בת הזוג`
+          : `המסמך רשום על שם "${named}" ואינו תואם את שם הלקוח${spouseName ? ' או את שם בן/בת הזוג' : ''}`,
+        renderParties(ownerInputs),
+        expectedOnFile,
       );
-    } else if (fields.subjectName) {
-      const byName = namesLooselyMatch(fields.subjectName, ctx.clientName)
-        ? 'client'
-        : spouseName && namesLooselyMatch(fields.subjectName, spouseName)
-          ? 'spouse'
-          : null;
-      // A name may vouch for the document only when no id was printed; a
-      // printed id that could not be compared (no client id on file) keeps the
-      // id entries on the client_id_on_file path.
-      if (byName && printed === '') matched = byName;
-      else if (byName) subjectByName = byName;
-      add(
-        'subject',
-        byName !== null,
-        `המסמך רשום על שם "${fields.subjectName}" ואינו תואם את שם הלקוח${spouseName ? ' או את שם בן/בת הזוג' : ''}`,
-        fields.subjectName,
-        byName === 'client' ? ctx.clientName : byName === 'spouse' ? spouseName : expectedNames(ctx.clientName, spouseName),
-      );
-    } else {
-      add('subject', false, 'שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח', 'לא מצוין', expectedNames(ctx.clientName, spouseName));
     }
-  } else if (matched === null && printed === '' && fields.subjectName && spouseName && namesLooselyMatch(fields.subjectName, spouseName)) {
-    matched = 'spouse';
   }
 
-  // --- id_matches_client / spouse_adopted / client_id_on_file ---------------
-  if (printed !== '') {
-    if (matched !== null) {
-      add('id_matches_client', true, '', maskId(printed), matchedDescription);
-      if (adopt) add('spouse_adopted', true, '', maskId(printed), adopt.name ?? 'name unknown');
+  // --- id_matches_client / spouse_adopted / co_owners / client_id_on_file ---
+  if (withId.length > 0) {
+    const observedIds = withId.map((o) => maskId(normalizeId(o.party.printedId))).join(' · ');
+    const comparable = withId.some((o) => !o.idUncompared);
+    if (matched !== null && comparable) {
+      const matchedBy: string[] = [];
+      if (clientHit) matchedBy.push(describePerson('client', ctx.clientId, ctx.clientIdSource));
+      if (adopt) matchedBy.push(describePerson('spouse', adopt.idNumber, 'document'));
+      else if (spouseHit) matchedBy.push(describePerson('spouse', spouseId, ctx.spouse.idSource));
+      add('id_matches_client', true, '', observedIds, matchedBy.join(' / '));
+      if (adopt) add('spouse_adopted', true, '', maskId(adopt.idNumber), adopt.name ?? 'name unknown');
     } else if (ctx.clientId !== '') {
-      add('id_matches_client', false, idNote ?? 'מספר תעודת הזהות במסמך אינו תואם את זה הרשום ללקוח', maskId(printed), onFileDescription());
+      const reason =
+        withId.find((o) => o.reason !== null)?.reason ??
+        (owners.length > 1 && withId.some((o) => o.kind === 'adoptable')
+          ? 'המסמך רשום על שם כמה בעלים, ואין שם בן/בת זוג רשום שלפיו ניתן לזהות מי מהם בן/בת הזוג'
+          : 'מספר תעודת הזהות במסמך אינו תואם את זה הרשום ללקוח');
+      add('id_matches_client', false, reason, observedIds, onFileDescription());
     } else {
       // Nothing to compare against: reported so the trace shows why, but it
       // never decides the verdict (verifyChecks filters it) — an accountant's
@@ -295,15 +356,28 @@ export function resolveSubjectIdentity(fields: IdentityFields, ctx: IdentityCont
       add(
         'client_id_on_file',
         false,
-        'ללקוח אין מספר תעודת זהות רשום — לא בפרטי הכניסה לרשות המסים ולא בכרטיס ה-CRM ב-monday — ולכן לא ניתן היה להשוות את המספר שבמסמך',
+        'ללקוח אין מספר תעודת זהות רשום — לא בפרטי הכניסה לרשות המסים ולא בכרטיס ה-CRM ב-monday — ולכן לא ניתן היה להשוות את המספרים שבמסמך',
         'none',
       );
     }
   }
+  if (coOwners.length > 0) add('co_owners', true, '', renderParties(coOwners.map((o) => o.party)));
 
-  return { matched: matched ?? subjectByName, adopt, checks };
-}
+  // --- the parties as the trace shows them ---------------------------------
+  const resolvedOf = (p: PartyInput): PartyTraceEntry['resolved'] => {
+    const owner = owners.find((o) => o.party === p);
+    if (!owner) return 'none';
+    if (owner === adoptedOwner) return 'adopted';
+    if (owner.kind === 'client' || owner.kind === 'spouse') return owner.kind;
+    if (coOwners.includes(owner)) return 'co_owner';
+    return owner.idUncompared ? 'uncompared' : 'none';
+  };
+  const traceParties: PartyTraceEntry[] = parties.map((p) => ({
+    name: p.name,
+    role: p.role,
+    maskedId: p.printedId !== '' ? maskId(normalizeId(p.printedId)) : null,
+    resolved: resolvedOf(p),
+  }));
 
-function expectedNames(clientName: string, spouseName: string | null): string {
-  return spouseName ? `${clientName} / ${spouseName}` : clientName;
+  return { matched, adopt, checks, parties: traceParties };
 }

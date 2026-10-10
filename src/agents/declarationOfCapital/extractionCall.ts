@@ -1,13 +1,18 @@
 import type { Buffer } from 'node:buffer';
 import type { LlmCallSpec } from '../../gemini/llmCall.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
-import { getCatalogPaper, getCatalogType, GENERIC_CHECKS, type ExtractionField, type VerificationChecks } from './catalog.js';
-import { EXTRACTION_PROMPT, extractionJsonSchemaFor, typeFieldsPromptBlock } from './verifyChecks.js';
+import { getCatalogPaper } from './catalog.js';
+import { documentTypeSpec, type DocumentTypeSpec } from './documentTypes/index.js';
 
 /**
  * The extract_document request builder, kept apart from verifyDocument.ts (which
  * imports the DB, blob storage and mail) so the evals harness can build the
  * exact extraction prompt without any of that.
+ *
+ * The prompt and the schema are the document type's own (documentTypes/<type>.ts,
+ * openspec `document-extraction`); this builder only fills the values that
+ * vary per checklist row: the row's name and description, the expected paper
+ * and the tax year.
  */
 
 /** The subset of a checklist row the extractor is framed with (a DB row satisfies it; the harness builds it by hand). */
@@ -19,20 +24,7 @@ export interface ExtractableDocument {
   paper_key?: string | null;
 }
 
-/** The verification checks that apply to a checklist row: its catalog type's, or the generic none. */
-export function checksFor(doc: Pick<ExtractableDocument, 'type_key'>): VerificationChecks {
-  const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
-  return catalogType?.checks ?? GENERIC_CHECKS;
-}
-
-/** The type-specific extraction fields of a checklist row's catalog type (none for ad-hoc rows or untyped types). */
-export function fieldsFor(doc: Pick<ExtractableDocument, 'type_key'>): {
-  fields: readonly ExtractionField[] | undefined;
-  fieldsAnyOf: readonly string[] | undefined;
-} {
-  const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
-  return { fields: catalogType?.fields, fieldsAnyOf: catalogType?.fieldsAnyOf };
-}
+export { documentTypeSpec, type DocumentTypeSpec };
 
 export interface ExtractionCallInput {
   doc: ExtractableDocument;
@@ -42,48 +34,36 @@ export interface ExtractionCallInput {
   taxYear: number;
 }
 
+/**
+ * The paper the item stands for (openspec `document-papers`): named beside the
+ * item, with its own anatomy, so is_expected_type judges the paper and not
+ * only the type (a registry extract is not the contract). '' for an item
+ * without a paper.
+ */
+export function paperContext(paperKey: string | null | undefined): string {
+  const paper = getCatalogPaper(paperKey);
+  if (!paper) return '';
+  return `הנייר המצופה: ${paper.shortNameHe} — הקובץ חייב להיות נייר זה בדיוק, לא נייר אחר של אותו נכס.\n${paper.analysisHintHe ? `${paper.analysisHintHe}\n` : ''}`;
+}
+
+/** The type's prompt with the per-row placeholders filled — the exact system instruction the model receives. */
+export function fillExtractionPrompt(spec: DocumentTypeSpec, doc: ExtractableDocument, taxYear: number): string {
+  return spec.prompt
+    .replace('{{expected_name}}', doc.name)
+    .replace('{{expected_description}}', doc.description ?? '(ללא תיאור)')
+    .replace('{{paper_context}}', paperContext(doc.paper_key))
+    .replaceAll('{{tax_year}}', String(taxYear))
+    .trimEnd();
+}
+
 /** The exact extract_document request — shared with the evals harness so it tests what the app sends. */
 export function buildExtractionCall({ doc, bytes, contentType, filename, taxYear }: ExtractionCallInput): LlmCallSpec {
-  const catalogType = doc.type_key ? getCatalogType(doc.type_key) : undefined;
-  const checks = checksFor(doc);
-  // Resolved rows carry instance names/descriptions; the catalog description
-  // (the office's accepted document forms for the type) is restated so
-  // is_expected_type judges against every acceptable form.
-  const typeDescription = catalogType ? catalogType.descriptionHe.replaceAll('{{tax_year}}', String(taxYear)) : null;
-  // The type's extra fields: the same declaration yields the prompt lines and
-  // the schema entries below, so the two cannot drift (openspec `document-extraction`).
-  const fieldLines = typeFieldsPromptBlock(catalogType?.fields, catalogType?.fieldsAnyOf);
-  // The paper the item stands for (openspec `document-papers`): named beside
-  // the item, with its own anatomy, so is_expected_type judges the paper and
-  // not only the type (a registry extract is not the contract).
-  const paper = getCatalogPaper(doc.paper_key);
-  const paperLines = paper ? `הנייר המצופה: ${paper.shortNameHe} — הקובץ חייב להיות נייר זה בדיוק, לא נייר אחר של אותו נכס.\n${paper.analysisHintHe ? `${paper.analysisHintHe}\n` : ''}` : '';
-  const prompt = EXTRACTION_PROMPT.replace('{{expected_name}}', doc.name)
-    .replace('{{expected_description}}', doc.description ?? '(ללא תיאור)')
-    .replace(
-      '{{type_context}}',
-      `${paperLines}${typeDescription && typeDescription !== doc.description ? `מסמכים קבילים לסוג זה: ${typeDescription}\n` : ''}${
-        catalogType?.analysisHintHe ? `${catalogType.analysisHintHe}\n` : ''
-      }${fieldLines}`,
-    )
-    .replace(
-      '{{date_context}}',
-      checks.asOfDate
-        ? `מסמך זה תלוי-תאריך: היתרות בו אמורות להתייחס ליום 31.12.${taxYear} (המועד הקובע להצהרת ההון).`
-        : '',
-    )
-    .replace(
-      '{{validity_context}}',
-      checks.notExpired
-        ? 'מסמך מהסוג הזה עשוי לשאת תאריך תוקף משלו — אתר וחלץ בקפידה את שדה "בתוקף עד" (valid_until).'
-        : '',
-    )
-    .replace('{{filename}}', '');
+  const spec = documentTypeSpec(doc.type_key);
   // Instructions + expected-document context (trusted) in the system turn;
   // only the bytes and the (untrusted) filename in the user turn.
   return {
     purpose: 'extract_document',
-    systemInstruction: prompt.trimEnd(),
+    systemInstruction: fillExtractionPrompt(spec, doc, taxYear),
     contents: [
       {
         role: 'user',
@@ -93,7 +73,7 @@ export function buildExtractionCall({ doc, bytes, contentType, filename, taxYear
         ],
       },
     ],
-    responseJsonSchema: extractionJsonSchemaFor(catalogType?.fields),
+    responseJsonSchema: spec.jsonSchema,
     temperature: 0,
   };
 }

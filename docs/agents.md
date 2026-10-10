@@ -219,42 +219,67 @@ monday WorkForm is the only source of which documents a declaration needs):
   printed holder, never ask for an id number). The capital documents card
   shows one household line (masked id). Evals: `client.spouse` /
   `client.maritalStatus` per `extract_document` case.
-- **Type-specific extraction fields** (2026-09-23; openspec
-  `document-extraction`): a catalog type may declare `fields` — each an
-  `ExtractionField` (`key`, `kind` text/number/date/year, `labelHe`,
-  `promptHe`, `required`, optional `pattern` + `patternHintHe`) — plus
-  `fieldsAnyOf` (at least one of these keys must be read) and
-  `checks.periodCoversValuationDate` (`{from, to}` date fields whose period
-  must contain 31.12 of the tax year). One declaration drives everything:
-  `extractionSchemaFor` / `extractionJsonSchemaFor` (`verifyChecks.ts`)
-  extend the base `ExtractionSchema` into ONE FLAT answer object (never a
-  nested `fields` object), `typeFieldsPromptBlock` appends one instruction
-  line per field to `{{type_context}}` in `buildExtractionCall`, `runChecks`
-  reads each value through `typeFieldValue` (kind-normalised: `""`/`"/"` →
-  null, 0 stays 0) and adds the `type_fields` check (a required null, an
-  empty any-of group, or a malformed value — bad date form, year outside
-  1950..taxYear+1, non-finite number, pattern mismatch — fails; observed lists
-  every field as `label: value`) and, when declared, `period_covers_valuation_date`;
-  `verifyDocument.ts` stores the whole answer as before and adds
-  `fields: [{key, label, value}]` to the `verify_extraction` audit detail
-  (`stepSummary.ts` renders it as `extracted_fields`). A type with no
-  `fields` gets byte-identical schema, prompt and checks. First set:
-  `bank_balance` (account, current-account balance — zero/negative allowed —
-  deposits), `securities_portfolio` (account, NAV at 31.12, base currency),
-  the savings family via the shared `SAVINGS_FIELDS` (fund name required;
-  account number OPTIONAL since 2026-09-24 — openspec
-  `savings-account-number-optional`: Menora's annual report and certificate
-  print no member number, only the employer's "מספר תיק ניכויים", which the
-  prompt line tells the model is not an account; closing balance, cumulative
-  deposits; any-of the two amounts),
-  `mortgage_balance` (loan number, principal at 31.12), `vehicle` (plate
-  digits-only 7–8, maker, model, production year, purchase cost; all optional
-  with any-of plate / cost because an item is either the licence or the
-  receipt), `contents_insurance` (policy number, contents sum — chapter B, not
-  the building sum — period from/to + the period check). The other nine
-  types stay on the base schema. Evals: `expected.fields` per case
-  (`evals/stages.ts`); the sample script `scripts/verifyExtractionSample.ts`
-  builds the real request through `buildExtractionCall`.
+- **One module per document type** (2026-10-10; openspec
+  `document-extraction`, change `per-type-document-schemas`):
+  `src/agents/declarationOfCapital/documentTypes/<type>.ts` holds, written
+  out in full, the type's extraction contract — a `DocumentTypeSpec`
+  (`documentTypes/types.ts`): `schema` (the whole flat zod answer object:
+  the nine common fields, then the type's own; `jsonSchema` is its JSON form),
+  `prompt` (the whole system prompt; only `{{expected_name}}`,
+  `{{expected_description}}`, `{{paper_context}}` and `{{tax_year}}` stay as
+  placeholders, filled per checklist row by `extractionCall.ts` ·
+  `fillExtractionPrompt`), `fields` (each a `TypeField`: `key`, `kind`
+  text/number/date/year, `labelHe`, `required`, optional `pattern` +
+  `patternHintHe` — the trace labels and the evals judge; the prompt line per
+  key is literal text in `prompt`), `fieldsAnyOf`, and `verify(answer, ctx)`
+  — the ordered list of checks the type runs. `documentTypes/index.ts`
+  exports `DOCUMENT_TYPES` (catalog order) and `documentTypeSpec(typeKey)`
+  (the `generic` module for `type_key` NULL / unknown: common fields, checks
+  legible + expected type + owner ids only). The catalog (`catalog.ts`)
+  keeps only business content (names, descriptions, hints, papers, discovery
+  questions, flags); it has no `checks`, `fields` or `fieldsAnyOf` any more.
+  `verifyChecks.ts` is the shared library: `ExtractedFields` /
+  `ExtractedAnswer`, `CheckContext` (client name, ids on file, spouse,
+  marital status, tax year, now, document name), the id utilities,
+  `typeFieldValue` (kind-normalised: `""`/`"/"` → null, 0 stays 0) and one
+  exported helper per check — `legibleCheck`, `expectedTypeCheck`,
+  `identityChecks` (subject, id_checksum, id_matches_client, spouse_adopted,
+  co_owners, client_id_on_file, in today's order), `asOfDateCheck`,
+  `notExpiredCheck` (null without a well-formed valid-until), `amountsCheck`,
+  `typeFieldsCheck` (a required null, an empty any-of group, or a malformed
+  value — bad date form, year outside 1950..taxYear+1, non-finite number,
+  pattern mismatch — fails; observed lists every field as `label: value`),
+  `periodCoversValuationDateCheck` (null unless both dates are well formed)
+  — and `verdictOf` (folds the list; `client_id_on_file` never fails the
+  document). A module's `verify` reads like
+  `verdictOf([legibleCheck(a), expectedTypeCheck(a, ctx), ...identity,
+  asOfDateCheck(a, ctx), amountsCheck(a), typeFieldsCheck(a, ctx, FIELDS)],
+  owners)`; nothing is decided from flags. Check keys, observed/expected
+  texts, the `verify_extraction` audit detail (`fields: [{key, label,
+  value}]`, `stepSummary.ts` → `extracted_fields`) and stored records are
+  unchanged. `tests/documentTypes.test.ts` guards the set: catalog keys =
+  module keys (in order), every schema starts with the common keys with the
+  common types, its extra keys are exactly `fields`, every `- <key>:` line
+  in a prompt names a schema key and every schema key has exactly one line,
+  and `buildExtractionCall` for every type (and every real-estate paper, and
+  an untyped row) equals the request captured before the modules existed
+  (`tests/fixtures/extractionCalls/*.json`). The admin `#/llm-stages` page
+  lists the extraction stage with one prompt variant per type, each with its
+  own schema (`LlmStagePrompt.schema`). Field sets today: `bank_balance`
+  (account, current-account balance — zero/negative allowed — deposits),
+  `securities_portfolio` (account, NAV at 31.12, base currency), the savings
+  trio (fund name required; account number OPTIONAL since 2026-09-24 —
+  openspec `savings-account-number-optional`; closing balance, cumulative
+  deposits; any-of the two amounts), `mortgage_balance` (loan number,
+  principal at 31.12), `vehicle` (plate digits-only 7–8, maker, model,
+  production year, purchase cost; any-of plate / cost; `not_expired`),
+  `contents_insurance` (policy number, contents sum, period from/to +
+  `period_covers_valuation_date`), `real_estate` (address, price, currency,
+  year, seller kind — all optional, see the goal-driven clarification entry).
+  The other eight types declare no fields. Evals: `expected.fields` per case
+  (`evals/stages.ts`, judged through `documentTypeSpec(...).fields` and
+  `.verify`); the sample script `scripts/verifyExtractionSample.ts` builds
+  the real request through `buildExtractionCall`.
 - **Savings-family spec** (2026-08-31; the office's savings matrix): pensions,
   provident funds (incl. investment provident), study funds, managers'
   insurance and savings policies all share one requirement — a dedicated

@@ -27,12 +27,10 @@ import { cleanEmployer } from '../src/agents/declarationOfCapital/splitChildName
 import { buildFileSplitCall } from '../src/agents/declarationOfCapital/splitFile.js';
 import { FileSplitSchema, validateFileSplit, type FileSplit } from '../src/agents/declarationOfCapital/splitFileRules.js';
 import { readPdfPageCount } from '../src/agents/declarationOfCapital/pdfPages.js';
-import { buildExtractionCall, checksFor, fieldsFor } from '../src/agents/declarationOfCapital/extractionCall.js';
+import { buildExtractionCall, documentTypeSpec } from '../src/agents/declarationOfCapital/extractionCall.js';
 import {
-  extractionSchemaFor,
   normalizeIdNumber,
   partyInputs,
-  runChecks,
   typeFieldValue,
   type ExtractedAnswer,
 } from '../src/agents/declarationOfCapital/verifyChecks.js';
@@ -468,12 +466,12 @@ interface VerifyDocumentCase {
     subject_name_matches?: boolean;
     amount?: { value: number; currency: string };
     /**
-     * The type's own extraction fields (catalog `fields`), by key: a number
+     * The type's own extraction fields (documentTypes/<type>.ts `fields`), by key: a number
      * within 0.005, a date after the same normalisation as as_of_date, text
      * and years exactly; null must come back null. Unlisted keys are not judged.
      */
     fields?: Record<string, string | number | null | (string | number | null)[]>;
-    /** What runChecks() must decide; every key in failed_keys must be among the failures; adopted = a spouse is adopted from this document. */
+    /** What the type's verify() must decide; every key in failed_keys must be among the failures; adopted = a spouse is adopted from this document. */
     verdict?: { passed: boolean; failed_keys?: string[]; adopted?: boolean };
   };
   notes?: string;
@@ -489,17 +487,18 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
   load: () => readCases('extract_document'),
   build(c, ctx) {
     const spec = buildExtractionCall({ doc: c.doc, bytes: readFile(c.file), contentType: c.contentType, filename: c.filename, taxYear: ctx.taxYear });
-    return { spec, parse: (text) => extractionSchemaFor(fieldsFor(c.doc).fields).parse(JSON.parse(text)) };
+    return { spec, parse: (text) => documentTypeSpec(c.doc.type_key).schema.parse(JSON.parse(text)) };
   },
   judge(c, output, ctx) {
     const data = output as ExtractedAnswer;
     const e = c.expected;
     const checks: Check[] = [];
-    const { fields: typeFields, fieldsAnyOf } = fieldsFor(c.doc);
+    const type = documentTypeSpec(c.doc.type_key);
+    const typeFields = type.fields;
     if (e.is_expected_type !== undefined) checks.push(eq('is_expected_type', e.is_expected_type, data.is_expected_type));
     if (e.legible !== undefined) checks.push(eq('legible', e.legible, data.legible));
     if (e.injection_suspected !== undefined) checks.push(eq('injection_suspected', e.injection_suspected, data.injection_suspected));
-    // Models put "" or "/" where the schema says null; runChecks reads only well-formed dates, so judge the same way.
+    // Models put "" or "/" where the schema says null; the checks read only well-formed dates, so judge the same way.
     if (e.as_of_date !== undefined) checks.push({ ...eq('as_of_date', e.as_of_date, dateOrNull(data.as_of_date)), actual: data.as_of_date });
     if (e.valid_until !== undefined) checks.push({ ...eq('valid_until', e.valid_until, dateOrNull(data.valid_until)), actual: data.valid_until });
     const spouseOnFile = c.client.spouse
@@ -529,9 +528,9 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
       const hit = data.amounts.find((x) => Math.abs(x.value - want.value) <= 0.005 && x.currency.toUpperCase() === want.currency.toUpperCase());
       checks.push({ key: 'amount', expected: e.amount, actual: data.amounts, pass: hit !== undefined });
     }
-    // The type's own fields, read the way runChecks reads them (typeFieldValue).
+    // The type's own fields, read the way the type_fields check reads them (typeFieldValue).
     for (const [key, wanted] of Object.entries(e.fields ?? {})) {
-      const field = typeFields?.find((f) => f.key === key);
+      const field = typeFields.find((f) => f.key === key);
       if (!field) {
         checks.push({ key: `fields.${key}`, expected: wanted, actual: undefined, pass: false });
         continue;
@@ -549,17 +548,14 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
       checks.push({ key: `fields.${key}`, expected: wanted, actual: data[key], pass });
     }
     // The deterministic verdict the app would reach with these fields (extract_document's code half).
-    const verdict = runChecks(data, {
+    const verdict = type.verify(data, {
       clientName: c.client.name,
       credentialIdNumber: c.client.idNumber ?? null,
       spouse: spouseOnFile,
       maritalStatus: c.client.maritalStatus ?? null,
       taxYear: ctx.taxYear,
       now: new Date(ctx.now),
-      checks: checksFor(c.doc),
       documentName: c.doc.name,
-      fields: typeFields,
-      fieldsAnyOf,
     });
     const failedKeys = verdict.checks.filter((x) => !x.passed).map((x) => x.key);
     if (e.verdict) {

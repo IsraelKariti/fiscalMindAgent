@@ -115,12 +115,12 @@ Chart: Notion "File handling", "Steps 5 to 7 in detail". Step 1
 | --- | --- |
 | The check | `DOC/verifyDocument.ts` · `verifyCollectedDocument` |
 | Guards: kill switch, no longer collected, already stalled | `DOC/verifyDocument.ts` · `loadCollectedDocument` |
-| 2. The code finds the type of that document | `DOC/verifyDocument.ts` · `documentTypeRules` (`DOC/extractionCall.ts` · `checksFor`, `fieldsFor`) |
+| 2. The code finds the type of that document | `DOC/verifyDocument.ts` · `documentTypeRules` → `DOC/documentTypes/index.ts` · `documentTypeSpec` (one module per type, `DOC/documentTypes/<type>.ts`; `generic.ts` for ad-hoc rows) |
 | 3. Can the code check this file? | `DOC/verifyDocument.ts` · `loadCheckableFile` (`SH/fileEvidence.ts` · `isQuarantined`; `DOC/analyzeFile.ts` · `isAnalyzable`) |
-| 4. The code builds the prompt for that type | `DOC/extractionCall.ts` · `buildExtractionCall` (`DOC/verifyChecks.ts` · `EXTRACTION_PROMPT`, `typeFieldsPromptBlock`, `extractionJsonSchemaFor`) |
+| 4. The code fills the type's prompt with the row's values | `DOC/extractionCall.ts` · `buildExtractionCall` → `fillExtractionPrompt`, `paperContext` (the prompt and the schema are the module's `prompt` / `jsonSchema`) |
 | 5. `extract_document`: the model reads the data from the file | `DOC/verifyDocument.ts` · `extractDocumentData` |
 | 6. Did the model find attack text? | `DOC/verifyDocument.ts` · `stallOnAttackText` |
-| 7. `verify_extraction`: the code gate compares the data with known facts | `DOC/verifyDocument.ts` · `checkExtractedData` → `DOC/verifyChecks.ts` · `runChecks` (pure); id on file `clientIdOnFile`; step row `recordVerifyExtractionStep` |
+| 7. `verify_extraction`: the code gate compares the data with known facts | `DOC/verifyDocument.ts` · `checkExtractedData` → the module's `verify` (pure; one helper per check in `DOC/verifyChecks.ts`: `legibleCheck`, `expectedTypeCheck`, `identityChecks`, `asOfDateCheck`, `notExpiredCheck`, `amountsCheck`, `typeFieldsCheck`, `periodCoversValuationDateCheck`, folded by `verdictOf`); id on file `clientIdOnFile`; step row `recordVerifyExtractionStep` |
 | Who does the document belong to? (chart B, over the owner parties) | `DOC/spouseIdentity.ts` · `resolveDocumentOwners` → per person `resolveParty` → `chooseSpouseToAdopt` |
 | Spouse adopted from an owner's printed id | `DOC/verifyDocument.ts` · `adoptSpouseFromDocument` (`DOC/spouseIdentity.ts` · `mergeSpouse`) |
 | 8. All checks passed? 9. Third failure in a row? | `DOC/verifyDocument.ts` · `applyVerdict` |

@@ -3,12 +3,11 @@ import path from 'node:path';
 import { env } from '../src/config/env.js';
 import { generateWithRetry, usageFromResponse } from '../src/gemini/generate.js';
 import { getCatalogType } from '../src/agents/declarationOfCapital/catalog.js';
-import { buildExtractionCall, checksFor, fieldsFor } from '../src/agents/declarationOfCapital/extractionCall.js';
-import { extractionSchemaFor, runChecks } from '../src/agents/declarationOfCapital/verifyChecks.js';
+import { buildExtractionCall, documentTypeSpec } from '../src/agents/declarationOfCapital/extractionCall.js';
 
 /**
  * Standalone extraction harness — one Gemini call, no DB/Redis/blob access:
- * runs the REAL verification extraction prompt + deterministic runChecks over
+ * runs the REAL verification extraction prompt + the type's deterministic checks over
  * a local sample file, exactly as verifyDocument.ts would over a client
  * upload. For testing document samples (e.g. a vehicle license) against the
  * pipeline without the dev stack.
@@ -66,12 +65,12 @@ async function main(): Promise<void> {
   const bytes = await readFile(filePath);
   const mime = MIME[path.extname(filePath).toLowerCase()] ?? 'application/pdf';
 
-  // The exact production request (the type's own field lines and schema
-  // entries included). The instance description is null since the harness
-  // has no resolved row, so the builder restates the catalog description.
+  // The exact production request: the type module's prompt and schema
+  // (documentTypes/<type>.ts), filled with the row values. The instance
+  // description is null since the harness has no resolved row.
   const doc = { name: expectedName, description: null, type_key: typeKey };
   const spec = buildExtractionCall({ doc, bytes, contentType: mime, filename: path.basename(filePath), taxYear });
-  const { fields, fieldsAnyOf } = fieldsFor(doc);
+  const type = documentTypeSpec(typeKey);
 
   const model = flags.get('model') ?? env.GEMINI_MODEL;
   console.log(`extracting with ${model}: ${filePath} as type '${typeKey}' (tax year ${taxYear})`);
@@ -86,21 +85,18 @@ async function main(): Promise<void> {
     },
   });
   if (!response.text) throw new Error('extraction returned no text');
-  const extracted = extractionSchemaFor(fields).parse(JSON.parse(response.text));
+  const extracted = type.schema.parse(JSON.parse(response.text));
   console.log('\n--- extracted ---');
   console.log(JSON.stringify(extracted, null, 2));
   console.log('\n--- usage ---');
   console.log(JSON.stringify(usageFromResponse(response)));
 
-  const verdict = runChecks(extracted, {
+  const verdict = type.verify(extracted, {
     clientName: flags.get('client') ?? '',
     credentialIdNumber: flags.get('id') ?? null,
     taxYear,
     now,
-    checks: checksFor(doc),
     documentName: expectedName,
-    fields,
-    fieldsAnyOf,
   });
   console.log('\n--- verdict ---');
   console.log(JSON.stringify(verdict, null, 2));

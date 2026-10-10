@@ -14,7 +14,8 @@ import {
   type PartyInput,
   type SpouseOnFile,
 } from '../src/agents/declarationOfCapital/spouseIdentity.js';
-import { runChecks, type CheckContext, type ExtractedFields, type PartyRole } from '../src/agents/declarationOfCapital/verifyChecks.js';
+import type { CheckContext, ExtractedFields, PartyRole } from '../src/agents/declarationOfCapital/verifyChecks.js';
+import loanTaken from '../src/agents/declarationOfCapital/documentTypes/loanTaken.js';
 
 // Checksum-valid test ids.
 const CLIENT_ID = '025699448';
@@ -435,7 +436,8 @@ describe('resolveDocumentOwners', () => {
   });
 });
 
-describe('runChecks with a spouse (end to end through verifyChecks)', () => {
+describe('a type module with a spouse (end to end: owner, as-of date, amounts — loan_taken)', () => {
+  const runChecks = (fields: ExtractedFields, ctx: CheckContext) => loanTaken.verify(fields, ctx);
   const fields: ExtractedFields = {
     is_expected_type: true,
     actual_kind: 'אישור יתרות קרן פנסיה',
@@ -454,7 +456,6 @@ describe('runChecks with a spouse (end to end through verifyChecks)', () => {
     maritalStatus: 'married',
     taxYear: 2025,
     now: new Date('2026-01-15T10:00:00'),
-    checks: { subjectMatch: true, asOfDate: true, amounts: true },
   };
 
   it('adopts the spouse and orders the entries subject, id_checksum, id_matches_client, spouse_adopted', () => {

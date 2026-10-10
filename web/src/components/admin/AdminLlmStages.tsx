@@ -96,11 +96,95 @@ function Pane({ children, tone, ltr }: { children: ReactNode; tone: string; ltr?
   );
 }
 
+/** The response schema as a field table (or the raw JSON), with the label and the toggle. */
+function SchemaBlock({ schema, variant }: { schema: Record<string, unknown>; variant?: string }) {
+  const { t } = useT();
+  const [rawSchema, setRawSchema] = useState(false);
+  const rows = useMemo(() => schemaRows(schema), [schema]);
+  return (
+    <>
+      <div className="llm-stage-label">
+        {t.llmStageSchema}
+        {variant && <span className="muted"> · {variant}</span>}
+        <button type="button" className="btn btn-link" onClick={() => setRawSchema((r) => !r)} style={{ marginInlineStart: 8 }}>
+          {t.llmStageRawSchema}
+        </button>
+      </div>
+      {rawSchema ? (
+        <div className="llm-pane-wrap llm-pane-copy-right">
+          <CopyButton text={JSON.stringify(schema, null, 2)} title={t.copyText} />
+          <Pane tone="schema" ltr>
+            {JSON.stringify(schema, null, 2)}
+          </Pane>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table className="data-table" dir="ltr" style={{ textAlign: 'left' }}>
+            <thead>
+              <tr>
+                <th>{t.llmStageSchemaField}</th>
+                <th>{t.llmStageSchemaType}</th>
+                <th>{t.llmStageSchemaRequired}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.path}>
+                  <td className="mono" style={{ paddingInlineStart: 8 + 14 * (r.path.split('.').length - 1) }}>
+                    {r.path}
+                  </td>
+                  <td className="mono">{r.type}</td>
+                  <td>{r.required ? '✓' : ''}</td>
+                  <td className="muted" dir="auto">
+                    {r.description}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * One prompt variant: the system prompt and, when the variant has a schema of
+ * its own (the extraction stage — one variant per document type), that schema
+ * right under it. Collapsed by default when the stage has many variants.
+ */
+function PromptVariant({ prompt, many }: { prompt: LlmStage['prompts'][number]; many: boolean }) {
+  const { t } = useT();
+  const [open, setOpen] = useState(!many);
+  return (
+    <div className="llm-pane-wrap llm-pane-copy-left">
+      <div
+        className="llm-stage-label"
+        onClick={many ? () => setOpen((o) => !o) : undefined}
+        role={many ? 'button' : undefined}
+        style={many ? { cursor: 'pointer' } : undefined}
+      >
+        {many && <span className="mono">{open ? '▾' : '▸'} </span>}
+        {t.llmStageSystemPrompt}
+        {many && <span className="muted"> · {prompt.variant}</span>}
+      </div>
+      {open && (
+        <>
+          <CopyButton text={prompt.systemPrompt} title={t.copyText} />
+          {/* Prompt files are markdown: rendered, with the {{placeholders}} still highlighted. */}
+          <MarkdownPane tone="system" text={prompt.systemPrompt} highlightPlaceholders />
+          {prompt.schema && <SchemaBlock schema={prompt.schema} variant={prompt.variant} />}
+        </>
+      )}
+    </div>
+  );
+}
+
 function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () => void }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
-  const [rawSchema, setRawSchema] = useState(false);
-  const rows = useMemo(() => schemaRows(stage.schema), [stage.schema]);
+  const many = stage.prompts.length > 1;
   return (
     <section className="card llm-stage-card">
       <header className="llm-stage-head" onClick={() => setOpen((o) => !o)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setOpen((o) => !o)}>
@@ -135,15 +219,7 @@ function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () =>
             </p>
           )}
           {stage.prompts.map((p) => (
-            <div key={p.variant} className="llm-pane-wrap llm-pane-copy-left">
-              <div className="llm-stage-label">
-                {t.llmStageSystemPrompt}
-                {stage.prompts.length > 1 && <span className="muted"> · {p.variant}</span>}
-              </div>
-              <CopyButton text={p.systemPrompt} title={t.copyText} />
-              {/* Prompt files are markdown: rendered, with the {{placeholders}} still highlighted. */}
-              <MarkdownPane tone="system" text={p.systemPrompt} highlightPlaceholders />
-            </div>
+            <PromptVariant key={p.variant} prompt={p} many={many} />
           ))}
           {stage.query.map((q) => (
             <div key={q.variant} className="llm-pane-wrap llm-pane-copy-left">
@@ -160,47 +236,8 @@ function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () =>
               </Pane>
             </div>
           ))}
-          <div className="llm-stage-label">
-            {t.llmStageSchema}
-            <button type="button" className="btn btn-link" onClick={() => setRawSchema((r) => !r)} style={{ marginInlineStart: 8 }}>
-              {t.llmStageRawSchema}
-            </button>
-          </div>
-          {rawSchema ? (
-            <div className="llm-pane-wrap llm-pane-copy-right">
-              <CopyButton text={JSON.stringify(stage.schema, null, 2)} title={t.copyText} />
-              <Pane tone="schema" ltr>
-                {JSON.stringify(stage.schema, null, 2)}
-              </Pane>
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table" dir="ltr" style={{ textAlign: 'left' }}>
-                <thead>
-                  <tr>
-                    <th>{t.llmStageSchemaField}</th>
-                    <th>{t.llmStageSchemaType}</th>
-                    <th>{t.llmStageSchemaRequired}</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.path}>
-                      <td className="mono" style={{ paddingInlineStart: 8 + 14 * (r.path.split('.').length - 1) }}>
-                        {r.path}
-                      </td>
-                      <td className="mono">{r.type}</td>
-                      <td>{r.required ? '✓' : ''}</td>
-                      <td className="muted" dir="auto">
-                        {r.description}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {/* The stage-level schema, unless every variant showed its own. */}
+          {stage.prompts.some((p) => !p.schema) && <SchemaBlock schema={stage.schema} />}
           <div style={{ marginTop: 8 }}>
             <button type="button" className="btn" onClick={onViewCalls}>
               {t.llmStageViewCalls}

@@ -559,7 +559,8 @@ export interface LlmStage {
   provider: string;
   temperature: number;
   placeholders: string[];
-  prompts: { variant: string; systemPrompt: string }[];
+  /** `schema` is set when the variant has an answer schema of its own (the extraction stage: one per document type). */
+  prompts: { variant: string; systemPrompt: string; schema?: Record<string, unknown> }[];
   query: { variant: string; parts: { kind: 'text' | 'binary'; body: string }[] }[];
   schema: Record<string, unknown>;
 }

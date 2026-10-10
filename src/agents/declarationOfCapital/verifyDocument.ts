@@ -15,9 +15,9 @@ import { sendVerificationProblemEmail } from '../declarationOfCapital/notifyAcco
 import { isQuarantined } from '../shared/fileEvidence.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { logger } from '../../util/logger.js';
-import { buildExtractionCall, checksFor, fieldsFor } from './extractionCall.js';
-import { extractionSchemaFor, runChecks, typeFieldValue, type ChecksVerdict, type ExtractedAnswer } from './verifyChecks.js';
-import type { ExtractionField, VerificationChecks } from './catalog.js';
+import { buildExtractionCall, documentTypeSpec, type DocumentTypeSpec } from './extractionCall.js';
+import { typeFieldValue, type ChecksVerdict, type ExtractedAnswer } from './verifyChecks.js';
+import type { TypeField } from './documentTypes/types.js';
 import * as clients from '../../db/queries/clients.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { fetchItemDetails } from '../shared/mondayData.js';
@@ -157,12 +157,6 @@ interface VerificationRun {
 /** The stored file row the check reads (documentFiles.getForClient). */
 type StoredFile = NonNullable<Awaited<ReturnType<typeof documentFiles.getForClient>>>;
 
-/** What the document's catalog type says about the check: which checks apply and which extra fields to read. */
-interface DocumentTypeRules {
-  checks: VerificationChecks;
-  fields: readonly ExtractionField[] | undefined;
-  fieldsAnyOf: readonly string[] | undefined;
-}
 
 /**
  * Verifies one just-collected document against its linked file and returns
@@ -223,12 +217,12 @@ async function loadCollectedDocument(client: ClientRow, documentId: string, file
 
 /**
  * Chart step 2 — the code finds the type of that document. The checklist row
- * carries a type key (for example `bank_balance`); the catalog entry of that
- * one type says which checks apply and which extra fields the model reads.
+ * carries a type key (for example `bank_balance`); that type's module
+ * (documentTypes/<type>.ts) holds the schema the model is forced through, the
+ * prompt, the extra fields and the checks. An ad-hoc row gets the generic one.
  */
-function documentTypeRules(doc: ClientDocumentRow): DocumentTypeRules {
-  const { fields, fieldsAnyOf } = fieldsFor(doc);
-  return { checks: checksFor(doc), fields, fieldsAnyOf };
+function documentTypeRules(doc: ClientDocumentRow): DocumentTypeSpec {
+  return documentTypeSpec(doc.type_key);
 }
 
 /**
@@ -265,14 +259,14 @@ async function loadCheckableFile(run: VerificationRun): Promise<StoredFile | nul
 }
 
 /**
- * Chart steps 4 and 5 — the code builds the prompt for that type
- * (buildExtractionCall) and the model reads the data from the file: the
- * isolated "OCR" read, forced through the base schema plus the type's own
- * fields (openspec `document-extraction`). A transient failure (model or
- * storage hiccup) returns null: the row keeps no verdict, the attempt is not
- * counted, and the accountant can always approve by hand.
+ * Chart steps 4 and 5 — the code fills the type's prompt with the row's
+ * values (buildExtractionCall) and the model reads the data from the file: the
+ * isolated "OCR" read, forced through the type's own answer schema (openspec
+ * `document-extraction`). A transient failure (model or storage hiccup)
+ * returns null: the row keeps no verdict, the attempt is not counted, and the
+ * accountant can always approve by hand.
  */
-async function extractDocumentData(run: VerificationRun, file: StoredFile, rules: DocumentTypeRules): Promise<ExtractedAnswer | null> {
+async function extractDocumentData(run: VerificationRun, file: StoredFile, rules: DocumentTypeSpec): Promise<ExtractedAnswer | null> {
   const { client, doc, fileId } = run;
   try {
     const bytes = await streamToBuffer((await downloadBlob(file.blob_key)).stream);
@@ -283,7 +277,7 @@ async function extractDocumentData(run: VerificationRun, file: StoredFile, rules
     if (client.user_id) {
       await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
     }
-    return extractionSchemaFor(rules.fields).parse(JSON.parse(text));
+    return rules.schema.parse(JSON.parse(text));
   } catch (err) {
     logger.error('document verification: extraction failed', err, { clientId: client.id, documentId: doc.id, fileId });
     return null;
@@ -309,18 +303,18 @@ async function stallOnAttackText(run: VerificationRun, extracted: ExtractedAnswe
 /**
  * Chart step 7 — the code gate compares the data with known facts: the
  * client's (or spouse's) name and id number and the 31.12 valuation date
- * (runChecks, pure). The id may come from the tax-portal credentials or the
+ * (the type module's verify, pure). The id may come from the tax-portal credentials or the
  * CRM card. The spouse on file is re-read for every document: a batch
  * verifies documents one after the other, and the first one may have just
  * adopted the spouse the second one must be compared with (openspec
  * `spouse-identity`). Writes the verify_extraction step row.
  */
-async function checkExtractedData(run: VerificationRun, extracted: ExtractedAnswer, rules: DocumentTypeRules): Promise<ChecksVerdict> {
+async function checkExtractedData(run: VerificationRun, extracted: ExtractedAnswer, rules: DocumentTypeSpec): Promise<ChecksVerdict> {
   const { client, doc } = run;
   const idOnFile = await clientIdOnFile(client);
   const fresh = (await clients.getById(client.id)) ?? client;
   const spouseOnFile = readSpouse(fresh.agent_fields);
-  const verdict = runChecks(extracted, {
+  const verdict = rules.verify(extracted, {
     clientName: client.name,
     credentialIdNumber: idOnFile?.id ?? null,
     credentialIdSource: idOnFile?.source ?? null,
@@ -328,10 +322,7 @@ async function checkExtractedData(run: VerificationRun, extracted: ExtractedAnsw
     maritalStatus: readMaritalStatus(fresh.agent_fields),
     taxYear: run.taxYear,
     now: run.now,
-    checks: rules.checks,
     documentName: doc.name,
-    fields: rules.fields,
-    fieldsAnyOf: rules.fieldsAnyOf,
   });
   if (verdict.adoptSpouse) await adoptSpouseFromDocument(run, spouseOnFile, verdict.adoptSpouse);
   recordVerifyExtractionStep(run, extracted, verdict, rules.fields);
@@ -379,10 +370,10 @@ function recordVerifyExtractionStep(
   run: VerificationRun,
   extracted: ExtractedAnswer,
   verdict: ChecksVerdict,
-  fields: readonly ExtractionField[] | undefined,
+  fields: readonly TypeField[],
 ): void {
   const { client, doc, fileId, attempts } = run;
-  const labelledFields = fields?.map((f) => ({ key: f.key, label: f.labelHe, value: typeFieldValue(extracted, f) }));
+  const labelledFields = fields.map((f) => ({ key: f.key, label: f.labelHe, value: typeFieldValue(extracted, f) }));
   recordAudit({
     actorType: 'system',
     action: 'verify_extraction',
@@ -402,7 +393,7 @@ function recordVerifyExtractionStep(
       // Every party the extraction listed (openspec `document-extraction`), ids
       // masked, with whom the identity rule resolved each one as.
       parties: verdict.parties.map((p) => ({ name: p.name, role: p.role, masked_id: p.maskedId, resolved: p.resolved })),
-      ...(labelledFields && labelledFields.length > 0 ? { fields: labelledFields } : {}),
+      ...(labelledFields.length > 0 ? { fields: labelledFields } : {}),
       checks: verdict.checks.map((c) => ({ key: c.key, passed: c.passed, note: c.reason, observed: c.observed, expected: c.expected })),
       reasons: verdict.reasons,
     },

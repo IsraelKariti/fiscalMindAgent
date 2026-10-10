@@ -4,7 +4,7 @@ import { getGeminiModel } from './modelSettings.js';
 import { FORM_INTAKE_PROMPT } from '../agents/declarationOfCapital/formIntakeCall.js';
 import { buildFormIntakeSchema } from '../agents/declarationOfCapital/formIntakeRules.js';
 import { CAPITAL_DOCUMENT_CATALOG } from '../agents/declarationOfCapital/catalog.js';
-import { EXTRACTION_PROMPT, extractionJsonSchema } from '../agents/declarationOfCapital/verifyChecks.js';
+import { DOCUMENT_TYPES, GENERIC_DOCUMENT_TYPE } from '../agents/declarationOfCapital/documentTypes/index.js';
 import { PLATFORM_SECTIONS, PROMPT_TEMPLATE } from '../agents/declarationOfCapital/prompt.js';
 import { FILE_SCREEN_PROMPT, InjectionScreenSchema, SCREEN_PROMPT } from '../agents/shared/injectionScreen.js';
 import { ANALYSIS_PROMPT, YEAR_CONTEXT } from '../agents/declarationOfCapital/analyzeFile.js';
@@ -25,6 +25,8 @@ import { buildUntrustedDataDoctrine } from '../agents/shared/promptSafety.js';
 export interface LlmStagePrompt {
   variant: string;
   systemPrompt: string;
+  /** The answer schema of this variant, when it has one of its own (the extraction stage: one per document type). */
+  schema?: Record<string, unknown>;
 }
 
 export interface LlmStageQueryPart {
@@ -171,11 +173,12 @@ const STAGES: StageStatic[] = [
   {
     purpose: 'extract_document',
     title: 'Extraction for verification',
-    file: 'src/agents/declarationOfCapital/verifyDocument.ts · verifyCollectedDocument, run per batch by verifyBatch — inline in the collecting planner cycle, or after a fetch delivery; one follow-up generate_message per batch (prompt: extractionCall.ts / verifyChecks.ts)',
+    file: 'src/agents/declarationOfCapital/verifyDocument.ts · verifyCollectedDocument, run per batch by verifyBatch — inline in the collecting planner cycle, or after a fetch delivery; one follow-up generate_message per batch (prompt + schema: documentTypes/<type>.ts, filled by extractionCall.ts)',
     gate: 'verify_extraction',
-    prompts: [{ variant: 'default', systemPrompt: EXTRACTION_PROMPT.replace('{{filename}}', '') }],
+    // One variant per document type, each with its own answer schema; the generic one (ad-hoc rows) last.
+    prompts: [...DOCUMENT_TYPES, GENERIC_DOCUMENT_TYPE].map((t) => ({ variant: t.key, systemPrompt: t.prompt, schema: t.jsonSchema })),
     query: [{ variant: 'default', parts: [{ kind: 'binary', body: 'the file bytes (PDF / image)' }, { kind: 'text', body: 'שם הקובץ כפי שנשלח: <filename>' }] }],
-    schema: extractionJsonSchema,
+    schema: GENERIC_DOCUMENT_TYPE.jsonSchema,
   },
 ];
 

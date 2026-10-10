@@ -211,8 +211,43 @@
         { "id": "msg-5", "direction": "outbound", "at": "2026-02-09T10:05:00Z", "body": "תודה ישראל, קיבלתי את שניהם והם עברו לאימות. אעדכן אותך בהמשך." },
         { "id": "msg-6", "direction": "inbound", "at": "2026-02-10T08:25:00Z", "body": "תודה. יש עוד משהו שצריך ממני?" }
       ],
-      "expects": { "decision": "follow_up", "message_kind": "freeform", "resolved_documents": [], "attestation": "request", "mentions_valuation_date": false, "max_question_marks": 3 },
-      "notes": "every row is approved / not_required and no summary was sent yet: the next message IS the closing summary (attestation='request'), still a follow_up"
+      "expects": { "decision": "follow_up", "message_kind": "freeform", "resolved_documents": [], "attestation": "request", "mentions_valuation_date": false, "max_question_marks": 1, "message_excludes": ["הפועלים", "אלטשולר"] },
+      "notes": "every row is approved / not_required and no summary was sent yet: the next message IS the closing summary (attestation='request'), still a follow_up. The short summary (openspec declaration-completion) names the 'do not have' items and asks one question; it never recaps the two received documents"
+    },
+    {
+      "id": "dec_6b",
+      "now": "2026-02-10T08:30:00Z",
+      "client": { "name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-02-05T08:00:00Z" },
+      "wa": { "windowOpen": true, "windowClosesAt": "2026-02-11T08:25:00Z", "templates": ["capital_intro", "capital_reminder"] },
+      "documents": [
+        { "id": "doc-bank-hapoalim", "type_key": "bank_balance", "status": "approved", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
+        { "id": "doc-study-altshuler", "type_key": "study_fund", "status": "approved", "name": "אישור יתרת קרן השתלמות אלטשולר שחם ליום 31.12.2025", "description": null },
+        { "type_key": "securities_portfolio", "status": "retired" },
+        { "type_key": "pension_provident", "status": "retired" },
+        { "type_key": "life_insurance_savings", "status": "retired" },
+        { "type_key": "real_estate", "status": "retired" },
+        { "type_key": "mortgage_balance", "status": "retired" },
+        { "type_key": "loan_taken", "status": "retired" },
+        { "type_key": "loan_given", "status": "retired" },
+        { "type_key": "vehicle", "status": "retired" },
+        { "type_key": "contents_insurance", "status": "retired" },
+        { "type_key": "business_ownership", "status": "retired" },
+        { "type_key": "crypto", "status": "retired" },
+        { "type_key": "private_investment", "status": "retired" },
+        { "type_key": "poa_account", "status": "retired" },
+        { "type_key": "prior_declaration", "status": "retired" },
+        { "type_key": "other_assets", "status": "retired" }
+      ],
+      "thread": [
+        { "id": "msg-1", "direction": "outbound", "at": "2026-02-05T09:00:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?" },
+        { "id": "msg-2", "direction": "inbound", "at": "2026-02-05T09:10:00Z", "body": "כן" },
+        { "id": "msg-3", "direction": "outbound", "at": "2026-02-05T09:12:00Z", "body": "מעולה ישראל. תוכל לשלוח לי כאן את אישור היתרות מבנק הפועלים ליום 31.12.2025 ואת אישור קרן ההשתלמות מאלטשולר שחם לאותו תאריך?" },
+        { "id": "msg-4", "direction": "inbound", "at": "2026-02-09T10:00:00Z", "body": "שלחתי את שני האישורים" },
+        { "id": "msg-5", "direction": "outbound", "at": "2026-02-09T10:05:00Z", "body": "תודה ישראל, קיבלתי את שניהם והם עברו לאימות. אעדכן אותך בהמשך." },
+        { "id": "msg-6", "direction": "inbound", "at": "2026-02-10T08:25:00Z", "body": "תודה. יש עוד משהו שצריך ממני?" }
+      ],
+      "expects": { "decision": "follow_up", "message_kind": "freeform", "resolved_documents": [], "attestation": "request", "mentions_valuation_date": false, "max_question_marks": 1, "message_excludes": ["הפועלים", "אלטשולר"] },
+      "notes": "the list has no 'do not have' items (every other row is retired): the closing summary is the thank-you and the one confirmation question only, with no recap of the two received documents"
     },
     {
       "id": "dec_07",

@@ -61,6 +61,9 @@ export type AuditAction =
   // The collecting cycle's draft is never stored: the reply waits for the
   // verification verdicts (openspec `verification-reply`).
   | 'withhold_reply'
+  // The fixed closing message after the goal completes (openspec
+  // `declaration-completion`): sent, or skipped with the reason.
+  | 'send_closing'
   | 'client.auto_enrolled'
   | 'client.kickoff_triggered'
   // The one spouse on file (openspec `spouse-identity`): adopted from a

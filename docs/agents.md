@@ -557,8 +557,20 @@ the admin route map); extensions are not audited.
   accountant — `notifyAccountant.ts`, sent from a no-reply platform address
   to their login address, deliberately *not* stored in `emails` (that table is
   the client conversation). Both completion paths notify: the LLM plan
-  (`plan.ts`) and the manual documents toggle (`router.ts`). No closing
-  message is sent to the client.
+  (`plan.ts`) and the manual documents toggle (`router.ts`). Both paths also
+  send the client one fixed closing message (`closingMessage.ts` ·
+  `closingMessageText`, sent by `plan.ts` · `sendClosingMessage`, openspec
+  `declaration-completion`): thanks by first name, and the accountant will be
+  in touch if anything else is needed. It is code-authored (the goal_complete
+  answer carries no message), goes out at once as a free-form WhatsApp text
+  only inside an open 24h window (never a template), is stored as a sent
+  outbound row, and is skipped silently otherwise — a provider failure is
+  logged and the goal stays complete. The planner path records step
+  `send_closing` (`{emailId}` or `{skipped}`).
+- **Closing summary** (the attestation request, `prompt.md` action 3): short
+  by rule — a thank-you, the items the client said they do *not* have (one
+  line each), and one completeness question; it never recaps received
+  documents, and a prior declaration kept at the office is not listed.
 - **Due date passed** (`agent_fields.due_date`, "YYYY-MM-DD"): the
   `overdue_scan` BullMQ queue (daily job scheduler at 00:10 local +
   a catch-up scan on worker boot, `overdueScan.ts`) pauses the

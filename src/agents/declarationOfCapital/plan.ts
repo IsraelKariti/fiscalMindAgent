@@ -6,6 +6,9 @@ import * as emails from '../../db/queries/emails.js';
 import * as auditEvents from '../../db/queries/auditEvents.js';
 import * as waSenders from '../../db/queries/waSenders.js';
 import * as waTemplates from '../../db/queries/waTemplates.js';
+import * as users from '../../db/queries/users.js';
+import { sendWhatsAppTextAndRecord } from '../../twilio/sendAndRecord.js';
+import { closingMessageDelivery } from './closingMessage.js';
 import { buildPrompt, type VerificationResultPromptInput, type WaChannelState } from './prompt.js';
 import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccountant.js';
 import { applicableFilePairs, fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
@@ -938,6 +941,8 @@ async function completeGoalIfDone(run: PlanRun, decision: NormalizedDecision): P
     // Fire-and-forget; skipped for document-less clients (trivially "complete"
     // on arrival, e.g. monday imports) where the email would be nonsense.
     if (documents.length > 0) {
+      const closing = await sendClosingMessage(client, run.now);
+      recordPlannerStep(run, 'send_closing', closing.sent ? { emailId: closing.emailId } : { skipped: closing.reason });
       sendGoalCompleteEmail(client).catch((err) => logger.error('goal-complete notification failed', err, { clientId }));
     }
     return true;
@@ -947,6 +952,48 @@ async function completeGoalIfDone(run: PlanRun, decision: NormalizedDecision): P
     throw new Error(`setFutureEmail: LLM returned goal_complete but ${why} for client ${clientId}`);
   }
   return false;
+}
+
+/**
+ * send_closing — the fixed closing message after the goal completes (openspec
+ * `declaration-completion`): thanks, and the accountant will be in touch if
+ * needed. Sent at once as a free-form WhatsApp text inside an open 24h window
+ * (the confirmation turn runs seconds after the client's message); outside the
+ * window, or with no sender / number, it is skipped — never a template. Called
+ * after the goal flipped to complete, so it bypasses the scheduled-send path
+ * on purpose: the worker refuses to send once the goal is complete, and a
+ * fixed text needs no review or schedule. A provider failure is logged; the
+ * goal stays complete. Both completion paths call it (plan + manual toggle).
+ */
+export async function sendClosingMessage(
+  client: ClientRow,
+  now: Date,
+): Promise<{ sent: true; emailId: string } | { sent: false; reason: string }> {
+  try {
+    const [wa, sender, accountant] = await Promise.all([
+      getWaChannelState(client, now, DECLARATION_OF_CAPITAL),
+      client.agent_instance_id ? waSenders.getByInstanceId(client.agent_instance_id) : null,
+      client.user_id ? users.getById(client.user_id) : null,
+    ]);
+    const delivery = closingMessageDelivery(client, accountant, wa, sender);
+    if (!delivery.send) {
+      logger.info('closing message skipped', { clientId: client.id, reason: delivery.reason });
+      return { sent: false, reason: delivery.reason };
+    }
+    const row = await sendWhatsAppTextAndRecord(client.id, {
+      from: delivery.from,
+      to: delivery.to,
+      body: delivery.body,
+      reasoning: 'closing message after the goal completed',
+      agentInstanceId: client.agent_instance_id,
+    });
+    publishClientUpdated(client.id);
+    logger.info('closing message sent', { clientId: client.id, emailId: row.id });
+    return { sent: true, emailId: row.id };
+  } catch (err) {
+    logger.error('closing message failed', err, { clientId: client.id });
+    return { sent: false, reason: 'send failed' };
+  }
 }
 
 /** The document-fetch step the model chose (client agreed / start login / cancel), with the website it is about. */

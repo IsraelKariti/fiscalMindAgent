@@ -382,7 +382,7 @@ export function buildIntakeSection(token: string, intake?: IntakePromptInput): s
       : intake.attestation === 'requested'
         ? 'אישור סופיות (attestation): הודעת הסיכום נשלחה ללקוח — ממתינים לאישורו. תשובת אישור מפורשת שלו נקלטת עם attestation="confirmed" בצירוף attestation_evidence.'
         : intake.allSettled
-          ? 'אישור סופיות (attestation): כל המסמכים הוסדרו — ההודעה הבאה צריכה להיות הודעת הסיכום (attestation="request").'
+          ? 'אישור סופיות (attestation): כל המסמכים הוסדרו — ההודעה הבאה צריכה להיות הודעת הסיכום הקצרה (attestation="request"): תודה, הפריטים שהלקוח מסר שאין לו, ושאלת אישור אחת. בלי לפרט את המסמכים שהתקבלו.'
           : 'אישור סופיות (attestation): עדיין לא רלוונטי — יש מסמכים שטרם הוסדרו.';
   return [
     fence(token, PLATFORM_SECTIONS.intake),

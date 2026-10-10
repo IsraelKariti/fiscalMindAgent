@@ -17,6 +17,7 @@ import {
   syncMondayStatus,
 } from '../shared/mondayStatusSync.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
+import { sendClosingMessage } from './plan.js';
 import { InstanceSettingsSchema, parseSettings } from './settings.js';
 import { logger } from '../../util/logger.js';
 import type { DocumentStatus } from '../../db/types.js';
@@ -85,6 +86,9 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
     // Report the finished collection back to the board row's status column.
     void syncMondayStatus(clientId, MONDAY_STATUS_DOCS_COLLECTED);
     await withClientLock(clientId, () => removeFutureEmail(clientId));
+    // The fixed closing message (openspec `declaration-completion`): sent only
+    // inside an open 24h window; silently skipped otherwise (never a template).
+    await sendClosingMessage(client, new Date());
     sendGoalCompleteEmail(client).catch((err) => logger.error('goal-complete notification failed', err, { clientId }));
   } else if (!allCollected && client.goal_status === 'complete') {
     await clients.updateGoalStatus(clientId, 'pending');

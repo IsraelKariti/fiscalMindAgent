@@ -819,6 +819,7 @@ const he = {
     apply_collections: 'Apply Collections',
     apply_attestation: 'Apply Attestation',
     send_reply: 'Send Reply',
+    send_closing: 'Send Closing Message',
     withhold_reply: 'Reply deferred (awaiting verification)',
     'document.instances_added': 'Document Instances Added',
     'document.retired': 'Document Retired',

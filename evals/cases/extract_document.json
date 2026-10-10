@@ -764,6 +764,25 @@
         }
       },
       "notes": "openspec real-estate-goal-driven-clarification: a tabu extract against its own tabu item — the two registered owners (the client and תמיר מיכל) are read as owners, and the property fields that this paper does not print (price, currency, seller kind) are null without failing type_fields."
+    },
+    {
+      "id": "ext_xlsx_altshuler_loan",
+      "file": "altshuler_loan_balances_2025.xlsx",
+      "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "filename": "whatsapp-media-20261010-223850.xlsx",
+      "doc": { "type_key": "loan_taken", "name": "אישור יתרת הלוואה ליום 31.12.2025 — אלטשולר שחם", "description": "הלוואה על חשבון קרן ההשתלמות" },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "owner_ids": [],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "outstanding_balance": 81382 },
+        "verdict": { "passed": false, "failed_keys": ["subject"] }
+      },
+      "notes": "openspec spreadsheet-files: the same Altshuler loan export, read as the text rendering — the remaining balance (not the original amount) and the as-of date come from the sheet; the export names no member, so the subject check fails and the item stalls to the accountant"
     }
   ]
 }

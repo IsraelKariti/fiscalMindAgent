@@ -127,3 +127,11 @@ test('a message row that does not exist leaves the step without a target', async
   assert.equal(h.audits[0]!.targetType, null);
   assert.equal(h.audits[0]!.targetId, null);
 });
+
+test('WhatsApp media of a spreadsheet type is stored with its real extension', async () => {
+  const { waMediaExtension } = await import('../src/webhook/waMediaName.js');
+  assert.equal(waMediaExtension('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), 'xlsx');
+  assert.equal(waMediaExtension('text/csv'), 'csv');
+  assert.equal(waMediaExtension('application/pdf'), 'pdf');
+  assert.equal(waMediaExtension('application/vnd.ms-excel'), 'bin');
+});

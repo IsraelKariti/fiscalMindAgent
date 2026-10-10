@@ -1,0 +1,1726 @@
+{
+  "ranAt": "2026-10-10T20:50:37.561Z",
+  "finishedAt": "2026-10-10T20:52:31.777Z",
+  "models": [
+    "gemini-2.5-flash",
+    "gemini-3.1-pro-preview",
+    "gpt-5.5",
+    "gpt-5.2",
+    "gpt-5.6-luna",
+    "claude-sonnet-5",
+    "claude-opus-5"
+  ],
+  "stages": [
+    "injection_detection_llm",
+    "questionnaire_schema_mapping",
+    "file_splitting",
+    "file_classification",
+    "extract_document",
+    "generate_message"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
+    },
+    "gemini-3.1-pro-preview": {
+      "model": "gemini-3.1-pro-preview",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000012,
+      "thinkingCostPerToken": 0.000012,
+      "cachedCostPerToken": 2e-7
+    },
+    "gpt-5.5": {
+      "model": "gpt-5.5",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.00003,
+      "thinkingCostPerToken": 0.00003,
+      "cachedCostPerToken": 5e-7
+    },
+    "gpt-5.2": {
+      "model": "gpt-5.2",
+      "inputCostPerToken": 0.00000175,
+      "outputCostPerToken": 0.000014,
+      "thinkingCostPerToken": 0.000014,
+      "cachedCostPerToken": 1.75e-7
+    },
+    "gpt-5.6-luna": {
+      "model": "gpt-5.6-luna",
+      "inputCostPerToken": 2e-7,
+      "outputCostPerToken": 0.0000012,
+      "thinkingCostPerToken": 0.0000012,
+      "cachedCostPerToken": 2e-8
+    },
+    "claude-sonnet-5": {
+      "model": "claude-sonnet-5",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.00001,
+      "thinkingCostPerToken": 0.00001,
+      "cachedCostPerToken": 2e-7
+    },
+    "claude-opus-5": {
+      "model": "claude-opus-5",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "thinkingCostPerToken": 0.000025,
+      "cachedCostPerToken": 5e-7
+    }
+  },
+  "results": [
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the loan-balance export of Altshuler Shaham's site as an Excel workbook — the model reads the tab-separated text rendering code builds, not the workbook; a loan on the study fund matches the loan_taken item for Altshuler Shaham (doc_9)",
+      "ranAt": "2026-10-10T20:51:05.930Z",
+      "latencyMs": 8199,
+      "attempts": 1,
+      "inputTokens": 7709,
+      "outputTokens": 243,
+      "thinkingTokens": 1305,
+      "cachedTokens": 0,
+      "costUsd": 0.0061827,
+      "error": null,
+      "output": {
+        "document_kind": "אישור יתרת הלוואה מקרן השתלמות",
+        "summary": "המסמך מפרט את פרטי הלוואה שניתנה על חשבון קרן השתלמות אלטשולר שחם, כולל סכום ההלוואה המקורי, סכום שנותר לתשלום ליום 31.12.2025, ותאריכי פירעון.",
+        "tax_year": "2025",
+        "subject_name": null,
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "matched_document_id": "doc_9",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_9",
+          "actual": "doc_9",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "הלוואה",
+            "loan"
+          ],
+          "actual": "אישור יתרת הלוואה מקרן השתלמות",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_9",
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": null,
+        "summary": "המסמך מפרט את פרטי הלוואה שניתנה על חשבון קרן השתלמות אלטשולר שחם, כולל סכום ההלוואה המקורי, סכום שנותר לתשלום ליום 31.12.2025, ותאריכי פירעון."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "cls_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the loan-balance export of Altshuler Shaham's site as an Excel workbook — the model reads the tab-separated text rendering code builds, not the workbook; a loan on the study fund matches the loan_taken item for Altshuler Shaham (doc_9)",
+      "ranAt": "2026-10-10T20:51:14.146Z",
+      "latencyMs": 10038,
+      "attempts": 1,
+      "inputTokens": 7709,
+      "outputTokens": 200,
+      "thinkingTokens": 1021,
+      "cachedTokens": 0,
+      "costUsd": 0.03007,
+      "error": null,
+      "output": {
+        "document_kind": "אישור יתרת הלוואה",
+        "summary": "אישור יתרת הלוואה על חשבון קרן השתלמות באלטשולר שחם, נכון ליום 31.12.2025.",
+        "tax_year": "2025",
+        "subject_name": null,
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "matched_document_id": "doc_9",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_9",
+          "actual": "doc_9",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "הלוואה",
+            "loan"
+          ],
+          "actual": "אישור יתרת הלוואה",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_9",
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": null,
+        "summary": "אישור יתרת הלוואה על חשבון קרן השתלמות באלטשולר שחם, נכון ליום 31.12.2025."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.5",
+      "provider": "openai",
+      "caseId": "cls_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the loan-balance export of Altshuler Shaham's site as an Excel workbook — the model reads the tab-separated text rendering code builds, not the workbook; a loan on the study fund matches the loan_taken item for Altshuler Shaham (doc_9)",
+      "ranAt": "2026-10-10T20:51:24.192Z",
+      "latencyMs": 7633,
+      "attempts": 1,
+      "inputTokens": 6786,
+      "outputTokens": 181,
+      "thinkingTokens": 268,
+      "cachedTokens": 3840,
+      "costUsd": 0.03012,
+      "error": null,
+      "output": {
+        "document_kind": "אישור יתרת הלוואה מקרן השתלמות",
+        "summary": "המסמך מציג פרטי הלוואה על חשבון קופת \"אלטשולר שחם השתלמות כללי\", כולל סכום ההלוואה המקורי, יתרה לתשלום בסך ₪81,382, מספר הלוואה 03-069623-00, ונתונים נכונים לתאריך 31.12.2025.",
+        "tax_year": "2025",
+        "subject_name": null,
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "matched_document_id": "doc_9",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_9",
+          "actual": "doc_9",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "הלוואה",
+            "loan"
+          ],
+          "actual": "אישור יתרת הלוואה מקרן השתלמות",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_9",
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": null,
+        "summary": "המסמך מציג פרטי הלוואה על חשבון קופת \"אלטשולר שחם השתלמות כללי\", כולל סכום ההלוואה המקורי, יתרה לתשלום בסך ₪81,382, מספר הלוואה 03-069623-00, ונתונים נכונים לתאריך 31.12.2025."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.2",
+      "provider": "openai",
+      "caseId": "cls_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the loan-balance export of Altshuler Shaham's site as an Excel workbook — the model reads the tab-separated text rendering code builds, not the workbook; a loan on the study fund matches the loan_taken item for Altshuler Shaham (doc_9)",
+      "ranAt": "2026-10-10T20:51:31.829Z",
+      "latencyMs": 3486,
+      "attempts": 1,
+      "inputTokens": 6786,
+      "outputTokens": 181,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.0144095,
+      "error": null,
+      "output": {
+        "document_kind": "טבלת פרטי הלוואה (אקסל) על חשבון קרן השתלמות",
+        "summary": "גיליון אקסל המציג פרטי הלוואה: סכום מקורי, יתרה שנותרה לתשלום, תנאי ההחזר, מספר הלוואה, ותאריך \"נכון לתאריך\" 31.12.2025. מצוין שההלוואה על חשבון קופה בשם \"אלטשולר שחם השתלמות כללי\".",
+        "tax_year": "2025",
+        "subject_name": null,
+        "issuer_name": null,
+        "matched_document_id": "doc_9",
+        "legible": true,
+        "confidence": "medium",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_9",
+          "actual": "doc_9",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "הלוואה",
+            "loan"
+          ],
+          "actual": "טבלת פרטי הלוואה (אקסל) על חשבון קרן השתלמות",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "medium",
+        "proposedMatch": "doc_9",
+        "issuer_name": null,
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": null,
+        "summary": "גיליון אקסל המציג פרטי הלוואה: סכום מקורי, יתרה שנותרה לתשלום, תנאי ההחזר, מספר הלוואה, ותאריך \"נכון לתאריך\" 31.12.2025. מצוין שההלוואה על חשבון קופה בשם \"אלטשולר שחם השתלמות כללי\"."
+      },
+      "pass": false
+    },
+    {
+      "stage": "file_classification",
+      "model": "gpt-5.6-luna",
+      "provider": "openai",
+      "caseId": "cls_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the loan-balance export of Altshuler Shaham's site as an Excel workbook — the model reads the tab-separated text rendering code builds, not the workbook; a loan on the study fund matches the loan_taken item for Altshuler Shaham (doc_9)",
+      "ranAt": "2026-10-10T20:51:35.316Z",
+      "latencyMs": 4598,
+      "attempts": 1,
+      "inputTokens": 6786,
+      "outputTokens": 191,
+      "thinkingTokens": 195,
+      "cachedTokens": 0,
+      "costUsd": 0.0018204,
+      "error": null,
+      "output": {
+        "document_kind": "אישור יתרת הלוואה על חשבון קרן השתלמות",
+        "summary": "המסמך מציג הלוואה מסוג שפיצר על חשבון הקופה \"אלטשולר שחם השתלמות כללי\", עם סכום מקורי של 185,338 ש״ח ויתרה לתשלום של 81,382 ש״ח נכון ליום 31.12.2025. מועד הפירעון האחרון הוא 10.08.2027.",
+        "tax_year": "2025",
+        "subject_name": null,
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "matched_document_id": "doc_9",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_9",
+          "actual": "doc_9",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "הלוואה",
+            "loan"
+          ],
+          "actual": "אישור יתרת הלוואה על חשבון קרן השתלמות",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_9",
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": null,
+        "summary": "המסמך מציג הלוואה מסוג שפיצר על חשבון הקופה \"אלטשולר שחם השתלמות כללי\", עם סכום מקורי של 185,338 ש״ח ויתרה לתשלום של 81,382 ש״ח נכון ליום 31.12.2025. מועד הפירעון האחרון הוא 10.08.2027."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "claude-sonnet-5",
+      "provider": "anthropic",
+      "caseId": "cls_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the loan-balance export of Altshuler Shaham's site as an Excel workbook — the model reads the tab-separated text rendering code builds, not the workbook; a loan on the study fund matches the loan_taken item for Altshuler Shaham (doc_9)",
+      "ranAt": "2026-10-10T20:51:39.916Z",
+      "latencyMs": 7319,
+      "attempts": 1,
+      "inputTokens": 11627,
+      "outputTokens": 520,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.028454,
+      "error": null,
+      "output": {
+        "document_kind": "אישור יתרת הלוואה מקופת קרן השתלמות אלטשולר שחם",
+        "summary": "טבלת נתוני הלוואה שניתנה על חשבון קרן השתלמות באלטשולר שחם, כולל סכום מקורי, יתרה לתשלום ליום 31.12.2025, תנאי ההלוואה ומספרי חשבון/קופה.",
+        "tax_year": "2025",
+        "subject_name": "",
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "matched_document_id": "doc_9",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": "",
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_9",
+          "actual": "doc_9",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "הלוואה",
+            "loan"
+          ],
+          "actual": "אישור יתרת הלוואה מקופת קרן השתלמות אלטשולר שחם",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_9",
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": "",
+        "summary": "טבלת נתוני הלוואה שניתנה על חשבון קרן השתלמות באלטשולר שחם, כולל סכום מקורי, יתרה לתשלום ליום 31.12.2025, תנאי ההלוואה ומספרי חשבון/קופה."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "claude-opus-5",
+      "provider": "anthropic",
+      "caseId": "cls_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the loan-balance export of Altshuler Shaham's site as an Excel workbook — the model reads the tab-separated text rendering code builds, not the workbook; a loan on the study fund matches the loan_taken item for Altshuler Shaham (doc_9)",
+      "ranAt": "2026-10-10T20:51:47.237Z",
+      "latencyMs": 4654,
+      "attempts": 1,
+      "inputTokens": 11627,
+      "outputTokens": 311,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.06591000000000001,
+      "error": null,
+      "output": {
+        "document_kind": "ריכוז פרטי הלוואה על חשבון קרן השתלמות (גיליון \"הלוואות\") מאלטשולר שחם, נכון ליום 31.12.2025",
+        "summary": "גיליון המפרט הלוואה מס' 03-069623-00 מקופת \"אלטשולר שחם השתלמות כללי\": סכום מקורי ₪185,338, יתרה לתשלום ₪81,382, תקופה 36 חודשים, נכון לתאריך 31.12.2025.",
+        "tax_year": "2025",
+        "subject_name": "אלטשולר שחם השתלמות כללי",
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "matched_document_id": "doc_9",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_9",
+          "actual": "doc_9",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "הלוואה",
+            "loan"
+          ],
+          "actual": "ריכוז פרטי הלוואה על חשבון קרן השתלמות (גיליון \"הלוואות\") מאלטשולר שחם, נכון ליום 31.12.2025",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_9",
+        "issuer_name": "אלטשולר שחם השתלמות כללי",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": "אלטשולר שחם השתלמות כללי",
+        "summary": "גיליון המפרט הלוואה מס' 03-069623-00 מקופת \"אלטשולר שחם השתלמות כללי\": סכום מקורי ₪185,338, יתרה לתשלום ₪81,382, תקופה 36 חודשים, נכון לתאריך 31.12.2025."
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the same Altshuler loan export, read as the text rendering — the remaining balance (not the original amount) and the as-of date come from the sheet; the export names no member, so the subject check fails and the item stalls to the accountant",
+      "ranAt": "2026-10-10T20:51:51.951Z",
+      "latencyMs": 4155,
+      "attempts": 1,
+      "inputTokens": 1548,
+      "outputTokens": 95,
+      "thinkingTokens": 501,
+      "cachedTokens": 0,
+      "costUsd": 0.0019544000000000002,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור יתרת הלוואה",
+        "issuer": "אלטשולר שחם",
+        "parties": [],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם",
+        "outstanding_balance": 81382
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": 81382,
+          "actual": 81382,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "subject"
+          ],
+          "actual": [
+            "subject"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject"
+          ],
+          "reasons": [
+            "שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח"
+          ],
+          "subjectMatched": null,
+          "adopted": false
+        },
+        "actual_kind": "אישור יתרת הלוואה",
+        "issuer": "אלטשולר שחם",
+        "parties": []
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "ext_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the same Altshuler loan export, read as the text rendering — the remaining balance (not the original amount) and the as-of date come from the sheet; the export names no member, so the subject check fails and the item stalls to the accountant",
+      "ranAt": "2026-10-10T20:51:56.130Z",
+      "latencyMs": 9517,
+      "attempts": 1,
+      "inputTokens": 1548,
+      "outputTokens": 129,
+      "thinkingTokens": 1204,
+      "cachedTokens": 0,
+      "costUsd": 0.019092,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "פירוט הלוואה",
+        "issuer": "אלטשולר שחם",
+        "parties": [],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם",
+        "outstanding_balance": 81382
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": 81382,
+          "actual": 81382,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "subject"
+          ],
+          "actual": [
+            "subject"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject"
+          ],
+          "reasons": [
+            "שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח"
+          ],
+          "subjectMatched": null,
+          "adopted": false
+        },
+        "actual_kind": "פירוט הלוואה",
+        "issuer": "אלטשולר שחם",
+        "parties": []
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gpt-5.5",
+      "provider": "openai",
+      "caseId": "ext_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the same Altshuler loan export, read as the text rendering — the remaining balance (not the original amount) and the as-of date come from the sheet; the export names no member, so the subject check fails and the item stalls to the accountant",
+      "ranAt": "2026-10-10T20:52:05.649Z",
+      "latencyMs": 9343,
+      "attempts": 1,
+      "inputTokens": 1397,
+      "outputTokens": 129,
+      "thinkingTokens": 516,
+      "cachedTokens": 0,
+      "costUsd": 0.026335,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "פירוט יתרת הלוואה מקרן השתלמות ליום 31.12.2025",
+        "issuer": "אלטשולר שחם",
+        "parties": [
+          {
+            "name": "אלטשולר שחם השתלמות כללי",
+            "id_number": null,
+            "role": "counterparty"
+          }
+        ],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם השתלמות כללי",
+        "outstanding_balance": 81382
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": 81382,
+          "actual": 81382,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "subject"
+          ],
+          "actual": [
+            "subject"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject"
+          ],
+          "reasons": [
+            "שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח"
+          ],
+          "subjectMatched": null,
+          "adopted": false
+        },
+        "actual_kind": "פירוט יתרת הלוואה מקרן השתלמות ליום 31.12.2025",
+        "issuer": "אלטשולר שחם",
+        "parties": [
+          {
+            "name": "אלטשולר שחם השתלמות כללי",
+            "id_number": null,
+            "role": "counterparty"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gpt-5.2",
+      "provider": "openai",
+      "caseId": "ext_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the same Altshuler loan export, read as the text rendering — the remaining balance (not the original amount) and the as-of date come from the sheet; the export names no member, so the subject check fails and the item stalls to the accountant",
+      "ranAt": "2026-10-10T20:52:14.995Z",
+      "latencyMs": 2322,
+      "attempts": 1,
+      "inputTokens": 1397,
+      "outputTokens": 98,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.00381675,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "טבלת פרטי הלוואה/אישור יתרת הלוואה (אלטשולר שחם)",
+        "issuer": "אלטשולר שחם",
+        "parties": [],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם",
+        "outstanding_balance": 81382
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": 81382,
+          "actual": 81382,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "subject"
+          ],
+          "actual": [
+            "subject"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject"
+          ],
+          "reasons": [
+            "שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח"
+          ],
+          "subjectMatched": null,
+          "adopted": false
+        },
+        "actual_kind": "טבלת פרטי הלוואה/אישור יתרת הלוואה (אלטשולר שחם)",
+        "issuer": "אלטשולר שחם",
+        "parties": []
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gpt-5.6-luna",
+      "provider": "openai",
+      "caseId": "ext_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the same Altshuler loan export, read as the text rendering — the remaining balance (not the original amount) and the as-of date come from the sheet; the export names no member, so the subject check fails and the item stalls to the accountant",
+      "ranAt": "2026-10-10T20:52:17.320Z",
+      "latencyMs": 3280,
+      "attempts": 1,
+      "inputTokens": 1397,
+      "outputTokens": 99,
+      "thinkingTokens": 116,
+      "cachedTokens": 1188,
+      "costUsd": 0.00032355999999999997,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור יתרת הלוואה ליום 31.12.2025 מאלטשולר שחם",
+        "issuer": "אלטשולר שחם",
+        "parties": [],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם",
+        "outstanding_balance": 81382
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": 81382,
+          "actual": 81382,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "subject"
+          ],
+          "actual": [
+            "subject"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject"
+          ],
+          "reasons": [
+            "שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח"
+          ],
+          "subjectMatched": null,
+          "adopted": false
+        },
+        "actual_kind": "אישור יתרת הלוואה ליום 31.12.2025 מאלטשולר שחם",
+        "issuer": "אלטשולר שחם",
+        "parties": []
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "claude-sonnet-5",
+      "provider": "anthropic",
+      "caseId": "ext_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the same Altshuler loan export, read as the text rendering — the remaining balance (not the original amount) and the as-of date come from the sheet; the export names no member, so the subject check fails and the item stalls to the accountant",
+      "ranAt": "2026-10-10T20:52:20.602Z",
+      "latencyMs": 6320,
+      "attempts": 1,
+      "inputTokens": 2718,
+      "outputTokens": 382,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.009256,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור יתרת הלוואה מקרן השתלמות אלטשולר שחם ליום 31.12.2025",
+        "issuer": "אלטשולר שחם השתלמות כללי",
+        "parties": [],
+        "as_of_date": "2025-12-31",
+        "valid_until": "",
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם השתלמות כללי",
+        "outstanding_balance": 81382
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": "",
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": 81382,
+          "actual": 81382,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "subject"
+          ],
+          "actual": [
+            "subject"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject"
+          ],
+          "reasons": [
+            "שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח"
+          ],
+          "subjectMatched": null,
+          "adopted": false
+        },
+        "actual_kind": "אישור יתרת הלוואה מקרן השתלמות אלטשולר שחם ליום 31.12.2025",
+        "issuer": "אלטשולר שחם השתלמות כללי",
+        "parties": []
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "claude-opus-5",
+      "provider": "anthropic",
+      "caseId": "ext_xlsx_altshuler_loan",
+      "notes": "openspec spreadsheet-files: the same Altshuler loan export, read as the text rendering — the remaining balance (not the original amount) and the as-of date come from the sheet; the export names no member, so the subject check fails and the item stalls to the accountant",
+      "ranAt": "2026-10-10T20:52:26.924Z",
+      "latencyMs": 4845,
+      "attempts": 1,
+      "inputTokens": 2718,
+      "outputTokens": 318,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.021540000000000004,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "אישור יתרת הלוואה על חשבון קרן השתלמות (אלטשולר שחם השתלמות כללי)",
+        "issuer": "אלטשולר שחם",
+        "parties": [],
+        "as_of_date": "2025-12-31",
+        "valid_until": "",
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם השתלמות כללי",
+        "outstanding_balance": 81382
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": "",
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": 81382,
+          "actual": 81382,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "subject"
+          ],
+          "actual": [
+            "subject"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "subject"
+          ],
+          "reasons": [
+            "שם בעל המסמך אינו מופיע במסמך ולא ניתן לוודא שהוא שייך ללקוח"
+          ],
+          "subjectMatched": null,
+          "adopted": false
+        },
+        "actual_kind": "אישור יתרת הלוואה על חשבון קרן השתלמות (אלטשולר שחם השתלמות כללי)",
+        "issuer": "אלטשולר שחם",
+        "parties": []
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "file_classification": {
+      "gemini-2.5-flash": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 8199,
+          "p50": 8199,
+          "p90": 8199,
+          "min": 8199,
+          "max": 8199
+        },
+        "inputTokens": 7709,
+        "outputTokens": 243,
+        "thinkingTokens": 1305,
+        "cachedTokens": 0,
+        "costUsd": 0.006183,
+        "unpriced": 0
+      },
+      "gemini-3.1-pro-preview": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 10038,
+          "p50": 10038,
+          "p90": 10038,
+          "min": 10038,
+          "max": 10038
+        },
+        "inputTokens": 7709,
+        "outputTokens": 200,
+        "thinkingTokens": 1021,
+        "cachedTokens": 0,
+        "costUsd": 0.03007,
+        "unpriced": 0
+      },
+      "gpt-5.5": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 7633,
+          "p50": 7633,
+          "p90": 7633,
+          "min": 7633,
+          "max": 7633
+        },
+        "inputTokens": 6786,
+        "outputTokens": 181,
+        "thinkingTokens": 268,
+        "cachedTokens": 3840,
+        "costUsd": 0.03012,
+        "unpriced": 0
+      },
+      "gpt-5.2": {
+        "total": 1,
+        "passed": 0,
+        "passRate": 0,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 3486,
+          "p50": 3486,
+          "p90": 3486,
+          "min": 3486,
+          "max": 3486
+        },
+        "inputTokens": 6786,
+        "outputTokens": 181,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.01441,
+        "unpriced": 0
+      },
+      "gpt-5.6-luna": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 4598,
+          "p50": 4598,
+          "p90": 4598,
+          "min": 4598,
+          "max": 4598
+        },
+        "inputTokens": 6786,
+        "outputTokens": 191,
+        "thinkingTokens": 195,
+        "cachedTokens": 0,
+        "costUsd": 0.00182,
+        "unpriced": 0
+      },
+      "claude-sonnet-5": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 7319,
+          "p50": 7319,
+          "p90": 7319,
+          "min": 7319,
+          "max": 7319
+        },
+        "inputTokens": 11627,
+        "outputTokens": 520,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.028454,
+        "unpriced": 0
+      },
+      "claude-opus-5": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 4654,
+          "p50": 4654,
+          "p90": 4654,
+          "min": 4654,
+          "max": 4654
+        },
+        "inputTokens": 11627,
+        "outputTokens": 311,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.06591,
+        "unpriced": 0
+      }
+    },
+    "extract_document": {
+      "gemini-2.5-flash": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 4155,
+          "p50": 4155,
+          "p90": 4155,
+          "min": 4155,
+          "max": 4155
+        },
+        "inputTokens": 1548,
+        "outputTokens": 95,
+        "thinkingTokens": 501,
+        "cachedTokens": 0,
+        "costUsd": 0.001954,
+        "unpriced": 0
+      },
+      "gemini-3.1-pro-preview": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 9517,
+          "p50": 9517,
+          "p90": 9517,
+          "min": 9517,
+          "max": 9517
+        },
+        "inputTokens": 1548,
+        "outputTokens": 129,
+        "thinkingTokens": 1204,
+        "cachedTokens": 0,
+        "costUsd": 0.019092,
+        "unpriced": 0
+      },
+      "gpt-5.5": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 9343,
+          "p50": 9343,
+          "p90": 9343,
+          "min": 9343,
+          "max": 9343
+        },
+        "inputTokens": 1397,
+        "outputTokens": 129,
+        "thinkingTokens": 516,
+        "cachedTokens": 0,
+        "costUsd": 0.026335,
+        "unpriced": 0
+      },
+      "gpt-5.2": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 2322,
+          "p50": 2322,
+          "p90": 2322,
+          "min": 2322,
+          "max": 2322
+        },
+        "inputTokens": 1397,
+        "outputTokens": 98,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.003817,
+        "unpriced": 0
+      },
+      "gpt-5.6-luna": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 3280,
+          "p50": 3280,
+          "p90": 3280,
+          "min": 3280,
+          "max": 3280
+        },
+        "inputTokens": 1397,
+        "outputTokens": 99,
+        "thinkingTokens": 116,
+        "cachedTokens": 1188,
+        "costUsd": 0.000324,
+        "unpriced": 0
+      },
+      "claude-sonnet-5": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 6320,
+          "p50": 6320,
+          "p90": 6320,
+          "min": 6320,
+          "max": 6320
+        },
+        "inputTokens": 2718,
+        "outputTokens": 382,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.009256,
+        "unpriced": 0
+      },
+      "claude-opus-5": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 4845,
+          "p50": 4845,
+          "p90": 4845,
+          "min": 4845,
+          "max": 4845
+        },
+        "inputTokens": 2718,
+        "outputTokens": 318,
+        "thinkingTokens": 0,
+        "cachedTokens": 0,
+        "costUsd": 0.02154,
+        "unpriced": 0
+      }
+    }
+  }
+}

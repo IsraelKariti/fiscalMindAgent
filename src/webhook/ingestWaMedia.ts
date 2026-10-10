@@ -2,40 +2,14 @@ import { env } from '../config/env.js';
 import { ingestInboundFile, type InboundFileContext } from './ingestInboundFile.js';
 import { isAllowedTwilioMediaUrl } from './twilioMediaUrl.js';
 import { logger } from '../util/logger.js';
+import { waMediaExtension, waMediaFilename } from './waMediaName.js';
+
+export { waMediaExtension, waMediaFilename } from './waMediaName.js';
 
 export interface WaMediaItem {
   url: string;
   contentType: string;
 }
-
-/**
- * WhatsApp media carries no usable filename: the webhook body has none, and
- * the download's Content-Disposition replaces every non-ASCII letter with "?".
- * The stored name is built from the receipt time (Israel clock, so the
- * accountant reads it as sent) plus, for a multi-file message, the file's
- * position: whatsapp-media-<yyyymmdd-hhmmss>[-<n>].<ext>.
- */
-export function waMediaFilename(receivedAt: Date, index: number, count: number, extension: string): string {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Jerusalem',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-  }).formatToParts(receivedAt);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
-  const stamp = `${get('year')}${get('month')}${get('day')}-${get('hour')}${get('minute')}${get('second')}`;
-  const suffix = count > 1 ? `-${index + 1}` : '';
-  return `whatsapp-media-${stamp}${suffix}.${extension}`;
-}
-
-const EXTENSION_BY_TYPE: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-  'application/pdf': 'pdf',
-  'audio/ogg': 'ogg',
-  'audio/mpeg': 'mp3',
-  'video/mp4': 'mp4',
-};
 
 /**
  * Downloads each media item of an inbound WhatsApp message from Twilio and
@@ -66,7 +40,7 @@ export async function ingestWaMedia(
       continue;
     }
     const contentType = item.contentType || 'application/octet-stream';
-    const extension = EXTENSION_BY_TYPE[contentType.toLowerCase()] ?? 'bin';
+    const extension = waMediaExtension(contentType);
     const inserted = await ingestInboundFile(
       { ...ctx, channel: 'whatsapp' },
       {

@@ -38,6 +38,10 @@ function partToContentItem(part: Part, role: 'user' | 'assistant'): OpenAiConten
   if (inline?.data && inline.mimeType) {
     const dataUrl = `data:${inline.mimeType};base64,${inline.data}`;
     if (inline.mimeType.startsWith('image/')) return { type: 'input_image', image_url: dataUrl };
+    // Plain text (a spreadsheet's rendering, shared/modelFile.ts): sent as the text it is.
+    if (inline.mimeType.startsWith('text/')) {
+      return { type: role === 'assistant' ? 'output_text' : 'input_text', text: Buffer.from(inline.data, 'base64').toString('utf8') };
+    }
     // Non-image binaries (in practice: PDFs). The Responses API requires a
     // filename alongside inline file data; the callers don't thread one
     // through, so a placeholder does.

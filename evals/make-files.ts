@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PDFDocument } from 'pdf-lib';
+import ExcelJS from 'exceljs';
 
 /**
  * Builds the synthetic test documents in evals/files/ from HTML, rendered to PDF
@@ -597,6 +598,46 @@ const SCANS: Record<string, string[]> = {
   'scan_id_bank_pension.pdf': ['id_card_two_sides.pdf', 'leumi_balance_2025.pdf', 'menora_pension_2025.pdf'],
 };
 
+/**
+ * Spreadsheet fixtures (openspec `spreadsheet-files`): the loan-balance export
+ * Altshuler Shaham's site gives a member — a label/value sheet with no member
+ * name on it (so the identity check cannot pass on its own), one loan,
+ * as of 31.12.2025. Rows mirror the real export field for field.
+ */
+const SHEETS: Record<string, { sheet: string; rows: Array<Array<string | number | Date | null>> }> = {
+  'altshuler_loan_balances_2025.xlsx': {
+    sheet: 'הלוואות',
+    rows: [
+      ['תיאור', 'ערך'],
+      ['סכום ההלוואה במקור', '₪185,338'],
+      ['שם הקופה', 'אלטשולר שחם השתלמות כללי'],
+      ['סכום שנותר לתשלום', '₪81,382'],
+      ['תקופת ההלוואה', '36 חודשים'],
+      ['מספר הלוואה', '03-069623-00'],
+      ['סוג הלוואה', 'שפיצר'],
+      ['תאריך פירעון ראשון', '10.09.2024'],
+      ['תאריך פירעון אחרון', '10.08.2027'],
+      ['ריבית שנתית נקובה', 'פרי+0.00000%'],
+      ['תאריך מתן ההלוואה', '14.08.2024'],
+      ['מספר קופה', '513-41651242'],
+      ['מספר חשבון', '513-41651242'],
+      ['נכון לתאריך', '31.12.2025'],
+    ],
+  },
+};
+
+async function buildSheets(): Promise<void> {
+  for (const [name, { sheet, rows }] of Object.entries(SHEETS)) {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(sheet);
+    rows.forEach((cells, r) => cells.forEach((cell, c) => {
+      if (cell !== null) ws.getCell(r + 1, c + 1).value = cell;
+    }));
+    fs.writeFileSync(path.join(OUT, name), Buffer.from(await wb.xlsx.writeBuffer()));
+    console.log(`${name}: ${fs.statSync(path.join(OUT, name)).size} bytes`);
+  }
+}
+
 async function buildScans(): Promise<void> {
   for (const [name, sources] of Object.entries(SCANS)) {
     const scan = await PDFDocument.create();
@@ -612,6 +653,9 @@ async function buildScans(): Promise<void> {
 }
 
 fs.mkdirSync(OUT, { recursive: true });
+await buildSheets();
+// `--sheets-only`: just the spreadsheet fixtures, without re-rendering every PDF.
+if (process.argv.includes('--sheets-only')) process.exit(0);
 if (!fs.existsSync(CHROME)) {
   console.error(`Chrome not found at ${CHROME} — set CHROME_PATH. The PDFs already in ${OUT} are left untouched.`);
   process.exit(1);

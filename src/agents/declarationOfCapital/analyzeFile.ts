@@ -3,6 +3,7 @@ import { logger } from '../../util/logger.js';
 import type { GeminiUsage, LlmCallLogContext } from '../../gemini/generate.js';
 import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import { sanitizeInline } from '../shared/promptSafety.js';
+import { isSpreadsheetType } from '../shared/spreadsheetText.js';
 import { CAPITAL_DOCUMENT_CATALOG, getCatalogPaper, getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
 import {
   CAPITAL_DOCUMENT_TYPE_VALUES,
@@ -18,8 +19,10 @@ export { CapitalFileAnalysisSchema, type FileAnalysis } from './analyzeFileRules
 const capitalAnalysisJsonSchema = zodToJsonSchema(CapitalFileAnalysisSchema) as Record<string, unknown>;
 delete capitalAnalysisJsonSchema.$schema;
 
-// Types Gemini reads natively as documents/images. Everything else (Office
-// files, archives, …) is stored but marked unsupported for content analysis.
+// Types Gemini reads natively as documents/images. A spreadsheet (xlsx, CSV)
+// is analyzable too: code renders it to plain text before every model call
+// (shared/modelFile.ts, openspec `spreadsheet-files`). Everything else
+// (legacy xls, Word, archives, …) is stored but marked unsupported.
 const ANALYZABLE_TYPES = new Set([
   'application/pdf',
   'image/jpeg',
@@ -32,9 +35,13 @@ const ANALYZABLE_TYPES = new Set([
 // Inline parts count toward Gemini's 20MB request limit; leave headroom for
 // the prompt and base64 overhead (bytes grow ~4/3 when encoded).
 const MAX_ANALYZABLE_BYTES = 14 * 1024 * 1024;
+// A spreadsheet is rendered on the web process; the rendering's own row and
+// character caps bound the output, this bounds the parse.
+const MAX_SPREADSHEET_BYTES = 5 * 1024 * 1024;
 
 export function isAnalyzable(contentType: string, sizeBytes: number): boolean {
   const mime = (contentType.toLowerCase().split(';')[0] ?? '').trim();
+  if (isSpreadsheetType(mime)) return sizeBytes <= MAX_SPREADSHEET_BYTES;
   return ANALYZABLE_TYPES.has(mime) && sizeBytes <= MAX_ANALYZABLE_BYTES;
 }
 
@@ -52,7 +59,7 @@ export const ANALYSIS_PROMPT = `אתה בודק מסמכים עבור משרד �
 - summary: סיכום קצר (משפט-שניים) של תוכן המסמך, בעברית.
 - tax_year: שנת המס שהמסמך מתייחס אליה, אם מצוינת בו. אחרת null.
 - subject_name: שם האדם או העסק שהמסמך נוגע אליו, אם מופיע. אחרת null.
-- issuer_name: שם הגוף שהנפיק את המסמך (בנק, חברה מנהלת של קופת גמל / קרן פנסיה / קרן השתלמות, חברת ביטוח, בית השקעות) בדיוק כפי שהוא מודפס במסמך, למשל "הראל פנסיה וגמל בע"מ" או "Bank Leumi". אם לא מודפס שם של גוף מנפיק - null. אל תסיק את השם משם הקובץ או מהרשימה שלמעלה.
+- issuer_name: שם הגוף שהנפיק את המסמך (בנק, חברה מנהלת של קופת גמל / קרן פנסיה / קרן השתלמות, חברת ביטוח, בית השקעות) בדיוק כפי שהוא מודפס במסמך, למשל "הראל פנסיה וגמל בע"מ" או "Bank Leumi". כשאין שורת "מנפיק" אך מודפס שם הקופה, הקרן או המוצר הכולל את שם החברה המנהלת (למשל "אלטשולר שחם השתלמות כללי" בשורה "שם הקופה") - תן את השם הזה. אם לא מודפס שם של גוף מנפיק כלל - null. אל תסיק את השם משם הקובץ או מהרשימה שלמעלה.
 - matched_document_id: המזהה (id) מהרשימה למעלה של המסמך הנדרש שהקובץ הזה מספק, רק אם התוכן באמת תואם. שורה ברשימה מתייחסת לגוף מסוים, לחשבון מסוים או לנכס מסוים: קובץ מבנק אחר, מקופה או קרן של חברה מנהלת אחרת, מחברת ביטוח אחרת או על נכס אחר אינו תואם לשורה - גם כשסוג המסמך זהה (למשל: אישור קרן השתלמות מהראל אינו תואם לשורה "קרן השתלמות באלטשולר שחם"). שורה שמצוין בה "נייר" מייצגת נייר אחד של הנכס: קובץ שהוא נייר אחר של אותו נכס (למשל נסח טאבו מול שורת חוזה רכישה) אינו תואם לה. אם אינו תואם לאף מסמך ברשימה - null.
 - holdings: רשימת החשבונות, הקופות, הקרנות או הפוליסות שהקובץ מציג - רק כשהמסמך הוא מאחד הסוגים {{holdings_types}}; בכל סוג אחר, או כשאי אפשר להבחין בחשבון או בפוליסה מסוימים - מערך ריק. רשומה אחת לכל חשבון / קופה / פוליסה (דוח אחד יכול להציג כמה), עד 20 רשומות. בכל רשומה: product - שם המוצר כפי שמודפס (למשל "ביטוח מנהלים", "קרן השתלמות", "חשבון עו"ש"); holder_name - שם בעל החשבון / העמית / המבוטח בדיוק כפי שמודפס ליד אותו חשבון או פוליסה, ו-null כשהשם אינו מופיע או שהוסתר / הושחר; account_number - מספר החשבון / העמית / הפוליסה כפי שמודפס, אחרת null. העתק אך ורק מה שמודפס בקובץ: אל תיקח שם, מספר או כמות משם הקובץ או מרשימת המסמכים שלמעלה, ואל תנחש.
 - holdings_partial: true רק כשהקובץ מציג יותר מ-20 חשבונות / פוליסות והרשימה חלקית. אחרת false.

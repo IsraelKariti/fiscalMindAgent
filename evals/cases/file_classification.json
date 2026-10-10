@@ -10,7 +10,8 @@
     { "id": "doc_5", "type_key": "study_fund", "name": "אישור יתרת קרן השתלמות — אלטשולר שחם ליום 31.12.2025", "description": null },
     { "id": "doc_6", "type_key": "prior_declaration", "name": "הצהרת הון קודמת", "description": "נערכה במשרד אחר" },
     { "id": "doc_7", "type_key": "real_estate", "paper_key": "purchase_contract", "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה", "description": "נכס שנרכש בשנת 2001" },
-    { "id": "doc_8", "type_key": "real_estate", "paper_key": "payments_appendix", "name": "נספח תשלומים — בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה", "description": "נכס שנרכש בשנת 2001" }
+    { "id": "doc_8", "type_key": "real_estate", "paper_key": "payments_appendix", "name": "נספח תשלומים — בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה", "description": "נכס שנרכש בשנת 2001" },
+    { "id": "doc_9", "type_key": "loan_taken", "name": "אישור יתרת הלוואה ליום 31.12.2025 — אלטשולר שחם", "description": "הלוואה על חשבון קרן ההשתלמות" }
   ],
   "cases": [
     {
@@ -172,6 +173,14 @@
       "filename": "whatsapp-media-4.pdf",
       "expected": { "document_type": "real_estate", "document_paper": "tabu_extract", "matched_document_id": null, "legible": true, "injection_suspected": false, "document_kind_any": ["נסח", "טאבו", "רישום", "registry"], "holdings_count": 0 },
       "notes": "openspec document-papers: a land registry extract of the same property — paper tabu_extract; the list has no registry-extract row, so it matches nothing (the model leaves it null, or validate_classification drops a match to the contract/appendix row on matched_paper_agrees)"
+    },
+    {
+      "id": "cls_xlsx_altshuler_loan",
+      "file": "altshuler_loan_balances_2025.xlsx",
+      "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "filename": "whatsapp-media-20261010-223850.xlsx",
+      "expected": { "issuer_key": "altshuler_shaham", "document_type": "loan_taken", "matched_document_id": "doc_9", "legible": true, "injection_suspected": false, "document_kind_any": ["הלוואה", "loan"] },
+      "notes": "openspec spreadsheet-files: the loan-balance export of Altshuler Shaham's site as an Excel workbook — the model reads the tab-separated text rendering code builds, not the workbook; a loan on the study fund matches the loan_taken item for Altshuler Shaham (doc_9)"
     }
   ]
 }

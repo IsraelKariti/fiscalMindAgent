@@ -36,6 +36,10 @@ function partToBlock(part: Part): Anthropic.ContentBlockParam {
         },
       };
     }
+    // Plain text (a spreadsheet's rendering, shared/modelFile.ts): a text document, not a PDF.
+    if (inline.mimeType.startsWith('text/')) {
+      return { type: 'document', source: { type: 'text', media_type: 'text/plain', data: Buffer.from(inline.data, 'base64').toString('utf8') } };
+    }
     // Non-image binaries (in practice: PDFs).
     return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: inline.data } };
   }

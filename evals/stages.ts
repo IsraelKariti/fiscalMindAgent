@@ -9,7 +9,7 @@ import {
 } from '../src/agents/shared/injectionScreen.js';
 import { validateInjectionScan } from '../src/agents/shared/injectionScanRules.js';
 import { matchInjectionRegex } from '../src/agents/shared/injectionRegex.js';
-import { extractFileText } from '../src/agents/shared/fileText.js';
+import { toModelFile, type ModelFile } from '../src/agents/shared/modelFile.js';
 import { sanitizeInline, sanitizeUntrusted } from '../src/agents/shared/promptSafety.js';
 import { buildFormIntakeCall } from '../src/agents/declarationOfCapital/formIntakeCall.js';
 import {
@@ -112,6 +112,23 @@ const FILES_DIR = path.join(HERE, 'files');
 const readCases = <T>(stage: string): T => JSON.parse(fs.readFileSync(path.join(CASES_DIR, `${stage}.json`), 'utf8')) as T;
 const readFile = (name: string): Buffer => fs.readFileSync(path.join(FILES_DIR, name));
 
+// What the model reads for a case file (shared/modelFile.ts: a PDF/image as is,
+// a spreadsheet rendered to text) — the same as production. Rendered once per
+// file in the stage's prepare(), since build/judge are sync.
+const modelFiles = new Map<string, ModelFile>();
+function modelFileOf(name: string): ModelFile {
+  const file = modelFiles.get(name);
+  if (!file) throw new Error(`model file of ${name} is unknown — the stage's prepare() did not run`);
+  return file;
+}
+async function prepareModelFiles(stage: string): Promise<void> {
+  const { cases } = readCases<{ cases: Array<{ file?: string; contentType?: string }> }>(stage);
+  for (const c of cases) {
+    if (!c.file || !c.contentType || modelFiles.has(c.file)) continue;
+    modelFiles.set(c.file, await toModelFile({ bytes: readFile(c.file), contentType: c.contentType }));
+  }
+}
+
 /** expected may be a single value or a list of accepted values. */
 function eq(key: string, expected: unknown, actual: unknown): Check {
   const accepted = Array.isArray(expected) ? expected : [expected];
@@ -152,10 +169,11 @@ const textSnippets = (c: InjectionTextCase): string[] => c.snippets.map((s) => s
 const injectionScreen: StageAdapter<InjectionCase, Record<string, unknown>> = {
   purpose: 'injection_detection_llm',
   load: () => readCases('injection_detection_llm'),
+  prepare: () => prepareModelFiles('injection_detection_llm'),
   build(c) {
     const spec =
       c.kind === 'file'
-        ? buildFileScreenCall({ bytes: readFile(c.file), contentType: c.contentType, filename: c.filename })
+        ? buildFileScreenCall({ bytes: modelFileOf(c.file).bytes, contentType: modelFileOf(c.file).contentType, filename: c.filename })
         : buildInjectionScreenCall(joinSnippets(textSnippets(c)));
     return { spec, parse: (text) => InjectionScreenSchema.parse(JSON.parse(text)) };
   },
@@ -164,7 +182,7 @@ const injectionScreen: StageAdapter<InjectionCase, Record<string, unknown>> = {
     let text: string | null;
     let regexInput: string;
     if (c.kind === 'file') {
-      const layer = extractFileText(readFile(c.file), c.contentType);
+      const layer = modelFileOf(c.file).text;
       text = layer.length >= MIN_CHECKABLE_TEXT ? layer : null;
       regexInput = `${c.filename}\n${layer}`;
     } else {
@@ -377,10 +395,11 @@ interface AnalyzeFileCtx {
 const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
   purpose: 'file_classification',
   load: () => readCases('file_classification'),
+  prepare: () => prepareModelFiles('file_classification'),
   build(c, ctx) {
     const spec = buildAnalysisCall({
-      bytes: readFile(c.file),
-      contentType: c.contentType,
+      bytes: modelFileOf(c.file).bytes,
+      contentType: modelFileOf(c.file).contentType,
       filename: c.filename,
       requiredDocuments: ctx.checklist,
       taxYear: ctx.taxYear,
@@ -485,8 +504,15 @@ interface VerifyDocumentCtx {
 const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
   purpose: 'extract_document',
   load: () => readCases('extract_document'),
+  prepare: () => prepareModelFiles('extract_document'),
   build(c, ctx) {
-    const spec = buildExtractionCall({ doc: c.doc, bytes: readFile(c.file), contentType: c.contentType, filename: c.filename, taxYear: ctx.taxYear });
+    const spec = buildExtractionCall({
+      doc: c.doc,
+      bytes: modelFileOf(c.file).bytes,
+      contentType: modelFileOf(c.file).contentType,
+      filename: c.filename,
+      taxYear: ctx.taxYear,
+    });
     return { spec, parse: (text) => documentTypeSpec(c.doc.type_key).schema.parse(JSON.parse(text)) };
   },
   judge(c, output, ctx) {

@@ -11,6 +11,7 @@ import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { isKillSwitchOn } from '../killSwitch.js';
 import { isAnalyzable } from '../declarationOfCapital/analyzeFile.js';
+import { toModelFile, type ModelFile } from '../shared/modelFile.js';
 import { sendVerificationProblemEmail } from '../declarationOfCapital/notifyAccountant.js';
 import { isQuarantined } from '../shared/fileEvidence.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
@@ -268,10 +269,26 @@ async function loadCheckableFile(run: VerificationRun): Promise<StoredFile | nul
  */
 async function extractDocumentData(run: VerificationRun, file: StoredFile, rules: DocumentTypeSpec): Promise<ExtractedAnswer | null> {
   const { client, doc, fileId } = run;
+  let bytes: Buffer;
   try {
-    const bytes = await streamToBuffer((await downloadBlob(file.blob_key)).stream);
+    bytes = await streamToBuffer((await downloadBlob(file.blob_key)).stream);
+  } catch (err) {
+    logger.error('document verification: file download failed', err, { clientId: client.id, documentId: doc.id, fileId });
+    return null;
+  }
+  // What the model reads (openspec `spreadsheet-files`): a spreadsheet code
+  // cannot open is not transient — the item stalls to the accountant.
+  let modelFile: ModelFile;
+  try {
+    modelFile = await toModelFile({ bytes, contentType: file.content_type });
+  } catch (err) {
+    logger.warn('document verification: file could not be rendered for the model', { clientId: client.id, documentId: doc.id, fileId, err: String(err) });
+    await stall(client, doc, { ...run.base, passed: false, unavailable: true, reasons: ['לא ניתן לקרוא את הקובץ'] });
+    return null;
+  }
+  try {
     const { text, usage, model } = await runLlmCall(
-      buildExtractionCall({ doc, bytes, contentType: file.content_type, filename: file.filename, taxYear: run.taxYear }),
+      buildExtractionCall({ doc, bytes: modelFile.bytes, contentType: modelFile.contentType, filename: file.filename, taxYear: run.taxYear }),
       { log: { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id, documentFileId: file.id } },
     );
     if (client.user_id) {

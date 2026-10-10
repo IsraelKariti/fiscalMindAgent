@@ -10,7 +10,7 @@ import { splitFile } from './splitFile.js';
 import { childLabel } from './splitChildNames.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { recordAudit } from '../../audit/audit.js';
-import { extractFileText } from '../shared/fileText.js';
+import { toModelFile, type ModelFile } from '../shared/modelFile.js';
 import { runInjectionScreen } from '../shared/injectionScreen.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { deleteBlob, downloadBlob, uploadBlob } from '../../storage/blob.js';
@@ -54,10 +54,12 @@ function isPdf(contentType: string): boolean {
  */
 export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<void> {
   if (await skipUnsupportedFile(ctx, file, body)) return;
+  const model = await renderForModel(ctx, file, body);
+  if (model === null) return;
   // The three injection layers BEFORE classification. A hit quarantines the
   // file — never classified, never evidence, never linked.
   await keepDrafting(ctx);
-  const block = await screenFileForAttackText(ctx, file, body);
+  const block = await screenFileForAttackText(ctx, file, model);
   if (block) {
     await quarantineFile(ctx, file, block);
     return;
@@ -65,10 +67,31 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
   const children = await splitOrKeepWhole(ctx, file, body);
   if (children === null) {
     await keepDrafting(ctx);
-    await classifyAndStore(ctx, file, body);
+    await classifyAndStore(ctx, file, model);
     return;
   }
   await classifyChildren(ctx, file, children);
+}
+
+/**
+ * What the model reads for this file (openspec `spreadsheet-files`): a PDF or
+ * image as it is, a spreadsheet as the text code renders from it. A
+ * spreadsheet code cannot open is marked 'failed' (the planner sees "analysis
+ * failed") and gets no model call. Returns null when the analysis stops here.
+ */
+async function renderForModel(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<ModelFile | null> {
+  try {
+    return await toModelFile({ bytes: body, contentType: file.content_type });
+  } catch (err) {
+    await documentFiles.setAnalysis(file.id, 'failed', null);
+    logger.warn('attachment could not be rendered for the model, marked failed', {
+      clientId: ctx.client.id,
+      fileId: file.id,
+      contentType: file.content_type,
+      err: String(err),
+    });
+    return null;
+  }
 }
 
 /** A file of an unsupported type or size is marked 'unsupported' and never read. Returns true when the analysis stops here. */
@@ -110,7 +133,7 @@ async function classifyChildren(ctx: AgentContext, parent: DocumentFileRow, chil
     if (child.analysis_status !== 'pending') continue; // a re-run: already classified
     try {
       await keepDrafting(ctx);
-      await classifyAndStore(ctx, child, await readBlob(child.blob_key));
+      await classifyAndStore(ctx, child, await toModelFile({ bytes: await readBlob(child.blob_key), contentType: child.content_type }));
     } catch (err) {
       await documentFiles.setAnalysis(child.id, 'failed', null).catch(() => {});
       logger.error('split child could not be read for content analysis', err, { clientId: ctx.client.id, fileId: child.id, parentFileId: parent.id });
@@ -119,15 +142,16 @@ async function classifyChildren(ctx: AgentContext, parent: DocumentFileRow, chil
 }
 
 /**
- * The injection screen over the file: the regex over the filename and (for a
- * PDF) the text layer code can read, then the multimodal LLM screen over the
- * bytes, then the code check of its proof (runInjectionScreen). Fails closed:
- * a screen failure blocks like a hit.
+ * The injection screen over the file: the regex over the filename and the
+ * text code can read (a PDF's text layer, a spreadsheet's rendering), then the
+ * multimodal LLM screen over what the model is given for the file, then the
+ * code check of its proof (runInjectionScreen). Fails closed: a screen
+ * failure blocks like a hit.
  */
-async function screenFileForAttackText(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<InjectionBlock | null> {
-  const textLayer = sanitizeUntrusted(extractFileText(body, file.content_type), 20_000);
+async function screenFileForAttackText(ctx: AgentContext, file: DocumentFileRow, model: ModelFile): Promise<InjectionBlock | null> {
+  const textLayer = sanitizeUntrusted(model.text, 20_000);
   return runInjectionScreen(
-    { file: { bytes: body, contentType: file.content_type, filename: file.filename, text: textLayer } },
+    { file: { bytes: model.bytes, contentType: model.contentType, filename: file.filename, text: textLayer } },
     { userId: ctx.client.user_id, agentInstanceId: ctx.client.agent_instance_id, clientId: ctx.client.id, source: 'inbound_file', targetId: file.id },
     { failureMessage: 'file injection screen failed — quarantining the file (fail closed)', logContext: { fileId: file.id } },
   );
@@ -299,7 +323,7 @@ async function storeChild(parent: DocumentFileRow, range: PageRange, bytes: Buff
 }
 
 /** Stage file_classification + validate_classification for one file: one file, one verdict, stored on its row. */
-async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<void> {
+async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, model: ModelFile): Promise<void> {
   const clientId = ctx.client.id;
   try {
     // Only items already agreed with the client are match candidates (openspec
@@ -308,7 +332,7 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
     // The client carries its own declaration year (the instance has none) —
     // frame the classifier around it, like plan.ts and verifyDocument.ts do.
     const taxYear = capitalClientTaxYear(ctx.client, new Date());
-    const { analysis, gate, usage, model } = await analyzeFile(body, file.content_type, file.filename, requiredDocuments, taxYear, {
+    const { analysis, gate, usage, model: servedModel } = await analyzeFile(model.bytes, model.contentType, file.filename, requiredDocuments, taxYear, {
       log: {
         userId: ctx.client.user_id,
         agentInstanceId: ctx.client.agent_instance_id,
@@ -321,7 +345,7 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, body: 
     await documentFiles.setAnalysis(file.id, 'done', analysis);
     if (file.parent_file_id !== null) await labelChild(file, analysis, gate, requiredDocuments);
     if (ctx.client.user_id) {
-      await llmUsage.add(ctx.client.user_id, ctx.client.agent_instance_id, model, usage);
+      await llmUsage.add(ctx.client.user_id, ctx.client.agent_instance_id, servedModel, usage);
     }
     logger.info('attachment content analyzed', {
       clientId,

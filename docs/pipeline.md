@@ -37,6 +37,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Store with retry; a lost file is audited (`file.ingest_failed`) | `webhook/ingestInboundFileCore.ts` · `ingestInboundFileWith` |
 | Start the analysis | `webhook/analyzeStoredFile.ts` · `analyzeStoredFile` → `DOC/analyzeInboundFile.ts` · `analyzeInboundFile` |
 | Unsupported type or size → marked unsupported | `DOC/analyzeInboundFile.ts` · `skipUnsupportedFile` (`DOC/analyzeFile.ts` · `isAnalyzable`) |
+| What the model reads: a PDF/image as is, a spreadsheet rendered to text by code; an unreadable spreadsheet → marked failed | `DOC/analyzeInboundFile.ts` · `renderForModel` → `SH/modelFile.ts` · `toModelFile` (`SH/spreadsheetText.ts` · `renderSpreadsheetText`) |
 | Keep the "drafting" stamp fresh before each slow step | `DOC/analyzeInboundFile.ts` · `keepDrafting` |
 | The three injection layers over the file (filename + text layer, then the bytes) | `DOC/analyzeInboundFile.ts` · `screenFileForAttackText` → `SH/injectionScreen.ts` · `runInjectionScreen` (`screenFileForInjection`) |
 | Attack found: quarantine the file | `DOC/analyzeInboundFile.ts` · `quarantineFile` |

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { StepFile } from '../api';
 import { useT } from '../i18n';
-import { canPreview, fileDisplayName } from './FileViewModal';
+import { SpreadsheetText, canPreview, fileDisplayName, isSpreadsheet } from './FileViewModal';
 
 /**
  * The document a detail modal is about, in its own state:
@@ -42,8 +42,8 @@ export function isTwoPane(doc: DocumentState): doc is StepFile | 'loading' {
 /**
  * The document pane of a two-pane detail modal (`.gate-modal-with-doc`):
  * the file's display name, "download" and "open full size" above, the
- * document itself below (an image fitted to the pane, a PDF in a frame, or a
- * "preview unavailable" note). Shared by the step modal and the LLM call
+ * document itself below (an image fitted to the pane, a PDF in a frame, a
+ * spreadsheet as the text the model read, or a "preview unavailable" note). Shared by the step modal and the LLM call
  * modal so the two never drift.
  */
 export function DocumentPane({ doc, viewUrl, downloadUrl }: { doc: StepFile | 'loading'; viewUrl: string; downloadUrl: string }) {
@@ -72,6 +72,8 @@ export function DocumentPane({ doc, viewUrl, downloadUrl }: { doc: StepFile | 'l
           <div className="gate-modal-doc-body">
             {!canPreview({ content_type: doc.contentType }) ? (
               <p className="muted">{t.previewUnavailable}</p>
+            ) : isSpreadsheet({ content_type: doc.contentType }) ? (
+              <SpreadsheetText url={viewUrl} />
             ) : doc.contentType.startsWith('image/') ? (
               <img src={viewUrl} alt={doc.filename} />
             ) : (

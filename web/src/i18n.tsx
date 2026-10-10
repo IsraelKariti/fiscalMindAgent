@@ -464,6 +464,8 @@ const he = {
   viewFile: 'צפייה בקובץ',
   downloadFile: 'הורדת הקובץ',
   previewUnavailable: 'לא ניתן להציג קובץ מסוג זה כאן — השתמשו בכפתור ההורדה.',
+  // A spreadsheet is shown as the text the model read (openspec spreadsheet-files).
+  spreadsheetTextFailed: 'לא ניתן לטעון את תוכן הגיליון.',
   closeViewer: 'סגירה',
   docNamePlaceholder: 'שם המסמך, למשל טופס 106',
   docNameAria: 'שם המסמך',

@@ -1013,7 +1013,11 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `generate_message`, `file_classification`, `extract_document`.
 - **Multi-document PDFs are split before classification** (2026-09-19,
   migration 058, openspec `file-splitting`). Inbound-file order in
-  `analyzeInboundFile.ts`: analyzable check → the three injection layers on
+  `analyzeInboundFile.ts`: analyzable check → what the model reads
+  (`renderForModel` → `shared/modelFile.ts`: a PDF or image as is, an xlsx
+  or CSV rendered to tab-separated text by `shared/spreadsheetText.ts`,
+  openspec `spreadsheet-files`; an unreadable spreadsheet is marked
+  `failed`) → the three injection layers on
   the whole file → for a PDF whose page count (read by code,
   `pdfPages.ts` — the only module importing `pdf-lib`) is 2 or more, the
   `file_splitting` stage (`splitFile.ts`: "which pages form each document";

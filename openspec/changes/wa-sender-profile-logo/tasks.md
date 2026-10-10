@@ -16,4 +16,4 @@
 
 - [x] 4.1 Update the WhatsApp sender paragraph in `docs/agents.md` to mention the profile logo and how to retrofit an existing sender (re-assign, or Twilio console upload).
 - [ ] 4.2 Live check (owner, needs Twilio credentials): re-assign the current production or sandbox sender from the admin panel, then confirm the logo shows in Twilio console → WhatsApp senders → profile and in a WhatsApp chat from a phone; record the result in this file.
-- [ ] 4.3 Commit per the repo Git workflow (pull --rebase, typecheck, commit, push).
+- [x] 4.3 Commit per the repo Git workflow (pull --rebase, typecheck, commit, push).

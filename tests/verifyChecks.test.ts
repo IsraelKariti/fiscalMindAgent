@@ -427,7 +427,12 @@ describe('extraction schema and prompt from the type declaration', () => {
     });
     assert.ok(contract.systemInstruction!.includes('הנייר המצופה: חוזה רכישה'), contract.systemInstruction);
     assert.ok(contract.systemInstruction!.includes('אינו חוזה רכישה: נסח טאבו'));
-    assert.equal(contract.responseJsonSchema, extractionJsonSchema);
+    // The paper changes the prompt only; the schema is the type's (real_estate declares typed fields
+    // since openspec real-estate-goal-driven-clarification, so it is no longer the base schema).
+    const schemaProps = (contract.responseJsonSchema as { properties: Record<string, unknown> }).properties;
+    assert.ok('seller_kind' in schemaProps && 'purchase_price' in schemaProps);
+    assert.ok(contract.systemInstruction!.includes('seller_kind'));
+    assert.notEqual(contract.responseJsonSchema, extractionJsonSchema);
     const noPaper = buildExtractionCall({
       doc: { name: 'חוזה רכישה — הרצל 5', description: null, type_key: 'real_estate', paper_key: null },
       bytes,

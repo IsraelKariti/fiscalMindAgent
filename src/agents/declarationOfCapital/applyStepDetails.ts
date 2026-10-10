@@ -1,4 +1,11 @@
-import type { DocumentResolution, InstanceAddition, DocumentRetirement } from './decisionSchema.js';
+import {
+  evidenceQuote,
+  type ApprovedFileEvidence,
+  type DocumentResolution,
+  type DocumentRetirement,
+  type EvidenceRef,
+  type InstanceAddition,
+} from './decisionSchema.js';
 import type { RefusedTie } from './fileTies.js';
 
 /**
@@ -28,6 +35,20 @@ export function resolutionsStepDetail(resolutions: DocumentResolution[], docName
   };
 }
 
+/**
+ * What an addition or retirement rested on, as the trace shows it: the client's
+ * quote, or the approved property paper the planner cited instead (openspec
+ * `real-estate-goal-driven-clarification`) — then `quote` names the file and
+ * the proven fact, and `provenByFileId` carries the id for the viewer.
+ */
+function evidenceDetail(evidence: EvidenceRef): { quote: string; provenByFileId?: string } {
+  const quote = evidenceQuote(evidence);
+  if (quote !== null) return { quote };
+  const file = evidence as ApprovedFileEvidence;
+  const fact = file.fact === 'seller_private' ? 'המוכר אדם פרטי' : 'המוכר קבלן / חברה';
+  return { quote: `הוכח בקובץ שאושר (${fact})`, provenByFileId: file.file_id };
+}
+
 export function additionsStepDetail(additions: InstanceAddition[], docName: NameLookup, count: number) {
   return {
     count,
@@ -35,7 +56,7 @@ export function additionsStepDetail(additions: InstanceAddition[], docName: Name
       anchorId: a.anchorDocumentId,
       anchorName: named(docName, a.anchorDocumentId),
       instances: a.instances.map((i) => i.name),
-      quote: a.evidence.quote,
+      ...evidenceDetail(a.evidence),
     })),
   };
 }
@@ -43,7 +64,7 @@ export function additionsStepDetail(additions: InstanceAddition[], docName: Name
 export function retirementsStepDetail(retired: DocumentRetirement[], docName: NameLookup, count: number) {
   return {
     count,
-    rows: retired.map((r) => ({ id: r.documentId, name: named(docName, r.documentId), quote: r.evidence.quote })),
+    rows: retired.map((r) => ({ id: r.documentId, name: named(docName, r.documentId), ...evidenceDetail(r.evidence) })),
   };
 }
 

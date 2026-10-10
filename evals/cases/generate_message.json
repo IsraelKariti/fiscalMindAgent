@@ -1,6 +1,6 @@
 {
   "stage": "generate_message",
-  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected (collect = the answer ties a file or claims a document and carries no message: no_message checks that every message field and send_at are null); for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, tax_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain; message_includes_any passes when at least one of its substrings appears. A file of the snapshot may carry holdings (the accounts list of the file check) and subject_name (null = no readable name). The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
+  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected (collect = the answer ties a file or claims a document and carries no message: no_message checks that every message field and send_at are null); for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, tax_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain; question_excludes are substrings that must not appear inside any question of the message (the sentence that ends with a question mark) — the agent may state a proven fact but must not ask about it; message_includes_any passes when at least one of its substrings appears. A file of the snapshot may carry holdings (the accounts list of the file check) and subject_name (null = no readable name). The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
   "taxYear": 2025,
   "accountant": { "name": "Cohen & Co. CPA", "hebrew_name": "כהן ושות' רואי חשבון", "email": "office@cohen-cpa.example" },
   "templates": [
@@ -2236,6 +2236,463 @@
         "mentions_valuation_date": false
       },
       "notes": "openspec real-estate-second-hand-contract-only: a second-hand buyer cannot find the purchase contract (an old purchase). The planner retires the contract item and adds the second option — purchase tax assessment + tabu extract (two real_estate instances, papers purchase_tax_assessment / tabu_extract) — telling the client the assessment is in the personal area of the Tax Authority website. A payments appendix is never mentioned for a second-hand purchase."
+    },
+    {
+      "id": "dec_22",
+      "now": "2026-10-09T15:56:00Z",
+      "client": {
+        "name": "ניב תמיר",
+        "wa_phone": "+972506839593",
+        "created_at": "2026-10-09T15:50:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "נכסי נדל\"ן",
+              "answer": "בית קרקע דו משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה"
+            },
+            {
+              "question": "האם לקחת הלוואת משכנתא על נכסי נדל\"ן",
+              "answer": "כן"
+            },
+            {
+              "question": "ביטוח תכולה",
+              "answer": "כן"
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-10-10T15:54:00Z",
+        "templates": [
+          "capital_intro"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-re-contract",
+          "type_key": "real_estate",
+          "paper_key": "purchase_contract",
+          "status": "approved",
+          "name": "חוזה רכישה — בית קרקע דו משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה",
+          "description": null,
+          "verification": {
+            "passed": true,
+            "attempts": 1,
+            "file_id": "file-contract",
+            "reasons": [],
+            "verified_at": "2026-10-09T15:55:40Z",
+            "extracted": {
+              "is_expected_type": true,
+              "actual_kind": "חוזה רכישה",
+              "issuer": null,
+              "parties": [
+                {
+                  "name": "מקמל חזי",
+                  "id_number": "054321087",
+                  "role": "counterparty"
+                },
+                {
+                  "name": "מקמל קתי פנינה",
+                  "id_number": "022334455",
+                  "role": "counterparty"
+                },
+                {
+                  "name": "תמיר ניב",
+                  "id_number": "123456782",
+                  "role": "owner"
+                },
+                {
+                  "name": "תמיר מיכל",
+                  "id_number": "033445560",
+                  "role": "owner"
+                }
+              ],
+              "as_of_date": null,
+              "valid_until": null,
+              "amounts": [
+                {
+                  "label": "התמורה",
+                  "value": 1250000,
+                  "currency": "ILS"
+                }
+              ],
+              "legible": true,
+              "injection_suspected": false,
+              "property_address": "דינוביץ אבשלום 47, פתח תקווה",
+              "purchase_price": 1250000,
+              "price_currency": "ILS",
+              "purchase_year": 2001,
+              "seller_kind": "private"
+            }
+          }
+        },
+        {
+          "id": "doc-mortgage",
+          "type_key": "mortgage_balance",
+          "status": "pending",
+          "name": "אישור יתרת משכנתא ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-contents",
+          "type_key": "contents_insurance",
+          "status": "pending",
+          "name": "פוליסת ביטוח תכולה",
+          "description": null
+        },
+        {
+          "type_key": "bank_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "securities_portfolio",
+          "status": "not_required"
+        },
+        {
+          "type_key": "pension_provident",
+          "status": "not_required"
+        },
+        {
+          "type_key": "study_fund",
+          "status": "not_required"
+        },
+        {
+          "type_key": "life_insurance_savings",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_taken",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_given",
+          "status": "not_required"
+        },
+        {
+          "type_key": "vehicle",
+          "status": "not_required"
+        },
+        {
+          "type_key": "business_ownership",
+          "status": "not_required"
+        },
+        {
+          "type_key": "crypto",
+          "status": "not_required"
+        },
+        {
+          "type_key": "private_investment",
+          "status": "not_required"
+        },
+        {
+          "type_key": "poa_account",
+          "status": "not_required"
+        },
+        {
+          "type_key": "prior_declaration",
+          "status": "not_required"
+        },
+        {
+          "type_key": "other_assets",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-10-09T15:53:24Z",
+          "body": "שלום ניב, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ניב",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-10-09T15:54:22Z",
+          "body": "חוזה רכישת דירה דינוביץ 47 פתח תקווה - unhidden (1).pdf"
+        }
+      ],
+      "files": [
+        {
+          "id": "file-contract",
+          "message_id": "msg-2",
+          "filename": "whatsapp-media-20261009-185422-p1-4.pdf",
+          "document_kind": "חוזה רכישה",
+          "document_type": "real_estate",
+          "issuer_name": null,
+          "summary": "חוזה מכר מקרקעין משנת 2001 לרכישת בית מגורים ברחוב דינוביץ 47 בפתח תקווה (גוש 6325 חלקה 161). החוזה מפרט את תנאי המכירה והתמורה בין המוכרים לקונים.",
+          "matched_document_id": "doc-re-contract",
+          "linked_document_id": "doc-re-contract",
+          "subject_name": "ניב תמיר"
+        },
+        {
+          "id": "file-tabu",
+          "message_id": "msg-2",
+          "filename": "whatsapp-media-20261009-185422-p5-5.pdf",
+          "document_kind": "נסח טאבו",
+          "document_type": "real_estate",
+          "issuer_name": "לשכת רישום מקרקעין פתח תקוה",
+          "summary": "תדפיס מידע מפנקס הזכויות (נסח טאבו) של לשכת רישום מקרקעין בפתח תקווה, עבור גוש 6325 חלקה 161.",
+          "matched_document_id": null,
+          "linked_document_id": null,
+          "subject_name": "ניב תמיר"
+        }
+      ],
+      "verification_results": [
+        {
+          "document_id": "doc-re-contract",
+          "file_name": "whatsapp-media-20261009-185422-p1-4.pdf",
+          "outcome": "approved"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "no_list_change": true,
+        "message_includes_any": [
+          "טאבו"
+        ],
+        "question_excludes": [
+          "קבלן",
+          "יד שנייה",
+          "הצהרת הון קודמת"
+        ],
+        "mentions_valuation_date": false,
+        "max_question_marks": 3
+      },
+      "notes": "openspec real-estate-goal-driven-clarification (replay of call 1cf945e3, 2026-10-09): one PDF split into the purchase contract (approved this turn — the APPROVED line and the list line carry the proven facts: owners, price 1,250,000 ILS, a private seller) and a tabu extract that matches no item. The reply confirms the contract, asks only whether the tabu extract belongs to the same house and to the declaration, and asks nothing about second hand / builder / a prior declaration: those facts are settled by the approved paper. No list change — the tabu is confirmed with the client first."
+    },
+    {
+      "id": "dec_23",
+      "now": "2026-10-09T15:56:00Z",
+      "client": {
+        "name": "ניב תמיר",
+        "wa_phone": "+972506839593",
+        "created_at": "2026-10-09T15:50:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "נכסי נדל\"ן",
+              "answer": "בית קרקע דו משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה"
+            },
+            {
+              "question": "האם לקחת הלוואת משכנתא על נכסי נדל\"ן",
+              "answer": "כן"
+            },
+            {
+              "question": "ביטוח תכולה",
+              "answer": "כן"
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-10-10T15:54:00Z",
+        "templates": [
+          "capital_intro"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-re-contract",
+          "type_key": "real_estate",
+          "paper_key": "purchase_contract",
+          "status": "approved",
+          "name": "חוזה רכישה — בית קרקע דו משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה",
+          "description": null,
+          "verification": {
+            "passed": true,
+            "attempts": 1,
+            "file_id": "file-contract",
+            "reasons": [],
+            "verified_at": "2026-10-09T15:55:40Z",
+            "extracted": {
+              "is_expected_type": true,
+              "actual_kind": "חוזה רכישה",
+              "issuer": null,
+              "parties": [
+                {
+                  "name": "מקמל חזי",
+                  "id_number": "054321087",
+                  "role": "counterparty"
+                },
+                {
+                  "name": "מקמל קתי פנינה",
+                  "id_number": "022334455",
+                  "role": "counterparty"
+                },
+                {
+                  "name": "תמיר ניב",
+                  "id_number": "123456782",
+                  "role": "owner"
+                },
+                {
+                  "name": "תמיר מיכל",
+                  "id_number": "033445560",
+                  "role": "owner"
+                }
+              ],
+              "as_of_date": null,
+              "valid_until": null,
+              "amounts": [
+                {
+                  "label": "התמורה",
+                  "value": 1250000,
+                  "currency": "ILS"
+                }
+              ],
+              "legible": true,
+              "injection_suspected": false,
+              "property_address": "דינוביץ אבשלום 47, פתח תקווה",
+              "purchase_price": 1250000,
+              "price_currency": "ILS",
+              "purchase_year": 2001,
+              "seller_kind": "private"
+            }
+          }
+        },
+        {
+          "id": "doc-re-appendix",
+          "type_key": "real_estate",
+          "paper_key": "payments_appendix",
+          "status": "pending",
+          "name": "נספח תשלומים — בית קרקע דו משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה",
+          "description": null
+        },
+        {
+          "id": "doc-mortgage",
+          "type_key": "mortgage_balance",
+          "status": "pending",
+          "name": "אישור יתרת משכנתא ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-contents",
+          "type_key": "contents_insurance",
+          "status": "pending",
+          "name": "פוליסת ביטוח תכולה",
+          "description": null
+        },
+        {
+          "type_key": "bank_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "securities_portfolio",
+          "status": "not_required"
+        },
+        {
+          "type_key": "pension_provident",
+          "status": "not_required"
+        },
+        {
+          "type_key": "study_fund",
+          "status": "not_required"
+        },
+        {
+          "type_key": "life_insurance_savings",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_taken",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_given",
+          "status": "not_required"
+        },
+        {
+          "type_key": "vehicle",
+          "status": "not_required"
+        },
+        {
+          "type_key": "business_ownership",
+          "status": "not_required"
+        },
+        {
+          "type_key": "crypto",
+          "status": "not_required"
+        },
+        {
+          "type_key": "private_investment",
+          "status": "not_required"
+        },
+        {
+          "type_key": "poa_account",
+          "status": "not_required"
+        },
+        {
+          "type_key": "prior_declaration",
+          "status": "not_required"
+        },
+        {
+          "type_key": "other_assets",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-10-09T15:53:24Z",
+          "body": "שלום ניב, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ניב",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-10-09T15:54:22Z",
+          "body": "חוזה רכישת דירה דינוביץ 47 פתח תקווה - unhidden (1).pdf"
+        }
+      ],
+      "files": [
+        {
+          "id": "file-contract",
+          "message_id": "msg-2",
+          "filename": "whatsapp-media-20261009-185422-p1-4.pdf",
+          "document_kind": "חוזה רכישה",
+          "document_type": "real_estate",
+          "issuer_name": null,
+          "summary": "חוזה מכר מקרקעין משנת 2001 לרכישת בית מגורים ברחוב דינוביץ 47 בפתח תקווה (גוש 6325 חלקה 161). החוזה מפרט את תנאי המכירה והתמורה בין המוכרים לקונים.",
+          "matched_document_id": "doc-re-contract",
+          "linked_document_id": "doc-re-contract",
+          "subject_name": "ניב תמיר"
+        }
+      ],
+      "verification_results": [
+        {
+          "document_id": "doc-re-contract",
+          "file_name": "whatsapp-media-20261009-185422-p1-4.pdf",
+          "outcome": "approved"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "retired_documents": [
+          "doc-re-appendix"
+        ],
+        "question_excludes": [
+          "נספח",
+          "קבלן",
+          "יד שנייה"
+        ],
+        "mentions_valuation_date": false,
+        "max_question_marks": 3
+      },
+      "notes": "openspec real-estate-goal-driven-clarification: the questionnaire created both the contract and the payments appendix items; the contract is approved this turn with a private seller. The planner retires the appendix item citing the approved file (proven_by_file_id, no client quote) and the reply neither asks for the appendix nor asks whether the house was bought second hand or from a builder."
     }
   ]
 }

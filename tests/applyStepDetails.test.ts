@@ -164,3 +164,15 @@ test('apply_collections records an employer row of the split with its employer, 
     { documentId: 'd-mor', name: 'קרן השתלמות ניב — מור', fromDocumentId: 'd1', fromName: 'קרן השתלמות ניב', fileId: 'f-mor', fileName: 'scan-p20-21.pdf' },
   ]);
 });
+
+test('an addition or retirement that rests on an approved property paper names the file and the proven fact instead of a quote', () => {
+  const fileEvidence = { source: 'approved_file' as const, file_id: 'f-contract', document_id: 'd-contract', fact: 'seller_private' as const };
+  const retired = retirementsStepDetail([{ documentId: 'd2', evidence: fileEvidence }], docName, 1);
+  assert.deepEqual(retired.rows, [{ id: 'd2', name: 'קרן השתלמות — אלטשולר', quote: 'הוכח בקובץ שאושר (המוכר אדם פרטי)', provenByFileId: 'f-contract' }]);
+  const added = additionsStepDetail(
+    [{ anchorDocumentId: 'd1', instances: [{ name: 'נספח', description: null, alreadyProvided: false, fileIds: [], paperKey: 'payments_appendix' }], evidence: { ...fileEvidence, fact: 'seller_builder' } }],
+    docName,
+    1,
+  );
+  assert.deepEqual(added.entries, [{ anchorId: 'd1', anchorName: 'אישור יתרות — בנק הפועלים', instances: ['נספח'], quote: 'הוכח בקובץ שאושר (המוכר קבלן / חברה)', provenByFileId: 'f-contract' }]);
+});

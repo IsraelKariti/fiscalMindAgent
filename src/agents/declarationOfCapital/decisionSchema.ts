@@ -4,6 +4,7 @@ import { isWallClockDateTime } from '../../util/time.js';
 import { renderTemplateBody } from '../../twilio/renderTemplate.js';
 import type { WaTemplateRow } from '../../db/types.js';
 import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault } from './catalog.js';
+import type { ApprovedPropertyFile } from './provenFacts.js';
 
 /**
  * The closed paper list an instance may name (openspec `document-papers`) —
@@ -132,7 +133,15 @@ export const DecisionResponseSchema = z.object({
           }),
         ),
         /** The client statement the addition rests on — a real inbound message_id + verbatim quote. */
-        evidence: z.object({ message_id: z.string(), quote: z.string() }),
+        evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
+        /**
+         * Instead of a quote: the file id of an APPROVED purchase contract whose
+         * proven seller kind calls for this addition (a builder seller → the
+         * payments appendix of that property). Nothing else (openspec
+         * `real-estate-goal-driven-clarification`). '' = none (a plain string,
+         * not nullable: the Anthropic union budget, tests/anthropicSchema.test.ts).
+         */
+        proven_by_file_id: z.string(),
       }),
     )
     .nullable(),
@@ -149,6 +158,13 @@ export const DecisionResponseSchema = z.object({
       z.object({
         document_id: z.string(),
         evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
+        /**
+         * Instead of a quote: the file id of an APPROVED purchase contract whose
+         * proven seller kind calls for this retirement (a private seller → the
+         * payments appendix / builder report of that property). Nothing else.
+         * '' = none (plain string, see added_instances).
+         */
+        proven_by_file_id: z.string(),
       }),
     )
     .nullable(),
@@ -266,9 +282,29 @@ export interface TaxFetchDecision {
 }
 
 /** A verbatim client statement (message id + quote) an intake decision rests on. */
-export interface EvidenceRef {
+export interface QuoteEvidence {
   message_id: string;
   quote: string;
+}
+
+/**
+ * An approved property paper an addition or retirement rests on instead of a
+ * quote (openspec `real-estate-goal-driven-clarification`): the verified file,
+ * the row it was approved for, and the proven fact that calls for the change.
+ */
+export interface ApprovedFileEvidence {
+  source: 'approved_file';
+  file_id: string;
+  document_id: string;
+  fact: 'seller_private' | 'seller_builder';
+}
+
+/** What an intake decision rests on: the client's own words, or (additions and retirements of a property's papers only) an approved file. */
+export type EvidenceRef = QuoteEvidence | ApprovedFileEvidence;
+
+/** The quote of a quote-backed evidence ref, or null for an approved-file ref. */
+export function evidenceQuote(evidence: EvidenceRef): string | null {
+  return 'quote' in evidence ? evidence.quote : null;
 }
 
 /** One concrete instance a resolution/addition creates; alreadyProvided rows start 'claimed'. */
@@ -284,8 +320,8 @@ export interface ResolvedInstance {
 
 /** One validated intake resolution (capital declaration). */
 export type DocumentResolution =
-  | { documentId: string; resolution: 'not_required'; evidence: EvidenceRef }
-  | { documentId: string; resolution: 'required'; instances: ResolvedInstance[]; evidence: EvidenceRef };
+  | { documentId: string; resolution: 'not_required'; evidence: QuoteEvidence }
+  | { documentId: string; resolution: 'required'; instances: ResolvedInstance[]; evidence: QuoteEvidence };
 
 /** One validated instance addition to an already-resolved type (capital declaration). */
 export interface InstanceAddition {
@@ -301,7 +337,7 @@ export interface DocumentRetirement {
 }
 
 /** A validated attestation step (capital declaration). */
-export type AttestationDecision = { action: 'request' } | { action: 'confirmed'; evidence: EvidenceRef };
+export type AttestationDecision = { action: 'request' } | { action: 'confirmed'; evidence: QuoteEvidence };
 
 export type NormalizedDecision =
   | {
@@ -379,6 +415,8 @@ export interface TypedRow {
   typeKey: string | null;
   /** The catalog type allows more than one concrete instance. */
   multiInstance: boolean;
+  /** The paper the row stands for (openspec `document-papers`); null when none. Decides which rows an approved file may retire. */
+  paperKey?: string | null;
 }
 
 export interface IntakeDecisionState {
@@ -388,6 +426,12 @@ export interface IntakeDecisionState {
   typedRows: TypedRow[];
   /** Inbound message texts by id — the only pool evidence quotes may cite. */
   inboundTexts: Map<string, string>;
+  /**
+   * The client's approved property papers by verified file id, with the seller
+   * kind each proved — the only pool `proven_by_file_id` may cite (openspec
+   * `real-estate-goal-driven-clarification`). Absent = none.
+   */
+  approvedPropertyFiles?: Map<string, ApprovedPropertyFile>;
   /** Every checklist row is settled (approved / not_required) — precondition for attestation 'request'. */
   allSettled: boolean;
   /** The attestation summary was actually SENT (not merely drafted). */
@@ -553,7 +597,7 @@ function validateEvidence(
   evidence: { message_id: string; quote: string } | null,
   inboundTexts: Map<string, string>,
   what: string,
-): EvidenceRef {
+): QuoteEvidence {
   if (!evidence) throw new Error(`${what} requires evidence ({message_id, quote}) and none was given`);
   const text = inboundTexts.get(evidence.message_id);
   if (text === undefined) {
@@ -563,6 +607,48 @@ function validateEvidence(
     throw new Error(`${what}: evidence quote is not contained verbatim in message ${evidence.message_id}`);
   }
   return { message_id: evidence.message_id, quote: evidence.quote };
+}
+
+/** The papers a private seller's approved contract makes redundant. */
+const PAPERS_RETIRED_BY_PRIVATE_SELLER = new Set(['payments_appendix', 'builder_payments_report']);
+
+/**
+ * The one list change an approved property paper may stand for instead of a
+ * client quote (openspec `real-estate-goal-driven-clarification`): the cited
+ * file must be an approved `real_estate` paper of this client whose
+ * extraction read the seller kind, and the change must be the consequence of
+ * that kind — a private seller retires the payments appendix (or builder
+ * report), a builder seller adds the payments appendix. Everything else is
+ * rejected by name; a file never settles anything beyond this.
+ */
+function validateProvenByFile(
+  fileId: string,
+  change: { kind: 'retire'; row: TypedRow } | { kind: 'add'; anchor: TypedRow; instances: ResolvedInstance[] },
+  intake: IntakeDecisionState,
+  what: string,
+): ApprovedFileEvidence {
+  const row = change.kind === 'retire' ? change.row : change.anchor;
+  if (row.typeKey !== 'real_estate') {
+    throw new Error(`${what}: a file may stand as evidence only for a property's payments appendix — this row is not a property paper; quote the client instead`);
+  }
+  const approved = intake.approvedPropertyFiles?.get(fileId);
+  if (!approved) {
+    throw new Error(`${what}: proven_by_file_id "${fileId}" is not an approved property paper of this client — only an APPROVED file may be cited; quote the client instead`);
+  }
+  if (approved.sellerKind === null) {
+    throw new Error(`${what}: the approved file ${fileId} did not read the seller kind, so it proves nothing about second hand or builder; quote the client instead`);
+  }
+  if (change.kind === 'retire') {
+    const paper = change.row.paperKey ?? null;
+    if (approved.sellerKind !== 'private' || paper === null || !PAPERS_RETIRED_BY_PRIVATE_SELLER.has(paper)) {
+      throw new Error(`${what}: the approved file proves nothing that calls for retiring document ${change.row.id} — a private seller retires only a payments appendix or a builder report`);
+    }
+    return { source: 'approved_file', file_id: fileId, document_id: approved.documentId, fact: 'seller_private' };
+  }
+  if (approved.sellerKind !== 'builder' || change.instances.some((i) => i.paperKey !== 'payments_appendix')) {
+    throw new Error(`${what}: the approved file proves nothing that calls for these instances — a builder seller adds only the payments appendix`);
+  }
+  return { source: 'approved_file', file_id: fileId, document_id: approved.documentId, fact: 'seller_builder' };
 }
 
 /**
@@ -685,8 +771,13 @@ function validateAddedInstances(raw: DecisionResponse, ctx: DecisionContext): In
     if (!anchor.multiInstance) {
       throw new Error(`added_instances: the type of document ${entry.anchor_document_id} allows a single instance only`);
     }
-    const instances = normalizeInstances(entry.instances, true, anchor.typeKey, `added_instances for ${entry.anchor_document_id}`);
-    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `added_instances for ${entry.anchor_document_id}`);
+    const what = `added_instances for ${entry.anchor_document_id}`;
+    const instances = normalizeInstances(entry.instances, true, anchor.typeKey, what);
+    // A quote wins when both are given; the approved file is the only other source.
+    const evidence =
+      entry.evidence === null && entry.proven_by_file_id
+        ? validateProvenByFile(entry.proven_by_file_id, { kind: 'add', anchor, instances }, intake, what)
+        : validateEvidence(entry.evidence, intake.inboundTexts, what);
     result.push({ anchorDocumentId: entry.anchor_document_id, instances, evidence });
   }
   return result;
@@ -720,7 +811,11 @@ function validateRetirements(raw: DecisionResponse, ctx: DecisionContext): Docum
     if (row.status === 'retired') {
       throw new Error(`retired_documents: document ${entry.document_id} is already retired`);
     }
-    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `retirement of ${entry.document_id}`);
+    const what = `retirement of ${entry.document_id}`;
+    const evidence =
+      entry.evidence === null && entry.proven_by_file_id
+        ? validateProvenByFile(entry.proven_by_file_id, { kind: 'retire', row }, intake, what)
+        : validateEvidence(entry.evidence, intake.inboundTexts, what);
     result.push({ documentId: entry.document_id, evidence });
   }
   return result;

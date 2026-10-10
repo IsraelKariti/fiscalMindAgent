@@ -271,7 +271,10 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
           <div className="doc-verification-note muted">
             {doc.resolution_evidence.source === 'form_empty'
               ? t.formEmptyNote
-              : `${t.clientQuotePrefix}"${doc.resolution_evidence.quote}"`}
+              : doc.resolution_evidence.source === 'approved_file'
+                ? t.provenByApprovedFileNote +
+                  (doc.resolution_evidence.fact === 'seller_builder' ? t.provenFactSellerBuilder : t.provenFactSellerPrivate)
+                : `${t.clientQuotePrefix}"${doc.resolution_evidence.quote}"`}
           </div>
         )}
       </li>

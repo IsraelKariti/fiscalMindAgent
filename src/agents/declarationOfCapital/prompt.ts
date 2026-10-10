@@ -14,6 +14,7 @@ import {
 import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
 import { formatUpcomingDates } from '../shared/upcomingDates.js';
 import { getCatalogPaper, getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
+import { provenFactsLine, provenFactsOf } from './provenFacts.js';
 import { MAX_EMPLOYER, cleanEmployer } from './splitChildNames.js';
 import { readMaritalStatus, readSpouse, type SpouseSource } from './spouseIdentity.js';
 import type { LostFilesByMessage } from './lostFiles.js';
@@ -292,6 +293,11 @@ export function buildDocumentsSection(token: string, documents: ClientDocumentRo
       const typeDescription = catalogType.descriptionHe.replaceAll('{{tax_year}}', String(taxYear));
       if (typeDescription !== doc.description) extras.push(`דרישות הסוג: ${typeDescription}`);
     }
+    // An approved property paper states what it proved (openspec
+    // `real-estate-goal-driven-clarification`): the model never asks the
+    // client a fact this line settles.
+    const proven = provenFactsLine(provenFactsOf(doc));
+    if (proven) extras.push(proven);
     // A pending row that already failed verification tells the model exactly
     // what to ask the client to fix (reasons are our own code's Hebrew strings).
     const verification = doc.verification as { passed?: boolean; reasons?: unknown } | null;
@@ -482,6 +488,8 @@ export interface VerificationResultPromptInput {
   outcome: 'approved' | 'reopened' | 'stalled' | 'skipped' | 'error';
   /** Our own code's Hebrew check reasons (client_documents.verification.reasons); empty unless rejected/stalled. */
   reasons: string[];
+  /** The "הוכח במסמך שאושר" line of an approved property paper (provenFacts.ts); absent/null otherwise. */
+  provenFacts?: string | null;
 }
 
 /**
@@ -506,9 +514,13 @@ export function buildVerificationResultsSection(
   }
   const lines = results.map((r) => {
     const reasons = r.reasons.map((x) => sanitizeInline(x, 200)).filter((x) => x !== '').join('; ');
+    // An approved property paper also says what it proved (openspec
+    // `real-estate-goal-driven-clarification`); the planner must not ask
+    // the client about those facts.
+    const proven = r.outcome === 'approved' && r.provenFacts ? ` | ${r.provenFacts}` : '';
     const verdict =
       r.outcome === 'approved'
-        ? 'APPROVED — the document is closed'
+        ? `APPROVED — the document is closed${proven}`
         : r.outcome === 'reopened'
           ? `REJECTED${reasons ? `: ${reasons}` : ''} — this file does NOT count as received; ask for a corrected document`
           : r.outcome === 'stalled'

@@ -79,9 +79,11 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Load the snapshot: thread, checklist, files, channel, fetch contexts, intake state | `DOC/plan.ts` · `loadPlanningContext` (`loadWaChannelOrThrow`, `lastInboundWhatsAppAt`, `buildIntakeState`, `allDocumentsSettled`) |
 | No usable WhatsApp channel → the cycle fails loudly | `DOC/plan.ts` · `loadWaChannelOrThrow` (`getWaChannelState`) |
 | Build the prompt (lost files, fetch section, unsent drafts, verification results) | `DOC/plan.ts` · `buildPlannerPrompt` (`taxFetchPromptInputs`, `loadUnsentDrafts`, `verificationResultsForPrompt`) → `DOC/prompt.ts` · `buildPrompt` |
+| The facts an approved property paper proved (the "הוכח במסמך שאושר" line of the list and of VERIFICATION RESULTS) | `DOC/provenFacts.ts` · `provenFactsOf`, `provenFactsLine` |
 | What the gate may accept this cycle | `DOC/plan.ts` · `buildDecisionContext` |
 | `generate_message` LLM call, at most one corrective retry; bill usage | `DOC/plan.ts` · `askPlanner` → `DOC/decide.ts` · `decide`, `buildDecisionCall` |
 | `validate_message` gate: shape, then business rules | `DOC/decisionSchema.ts` · `gateDecision` → `normalizeDecision` (`validateResolutions`, `validateAddedInstances`, `validateRetirements`, `validateAttestation`, `validateMatchedFiles`, `validateTaxFetch`, `normalizeFollowUpMessage`, `answerTiesFiles`, `correctionSuffix`) |
+| An approved property paper cited instead of a client quote (`proven_by_file_id`): only the appendix change its seller kind implies | `DOC/decisionSchema.ts` · `validateProvenByFile` (pool: `DOC/provenFacts.ts` · `approvedPropertyFilesOf`) |
 | `apply_resolutions` | `DOC/plan.ts` · `applyResolutions` |
 | `apply_additions` | `DOC/plan.ts` · `applyAdditions` |
 | `apply_retirements` | `DOC/plan.ts` · `applyRetirements` |

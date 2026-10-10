@@ -158,7 +158,12 @@ export type ResolutionEvidence =
   // item (openspec `unlisted-files`): the file, the issuer printed on it as
   // the classifier reported it (audit only — never used as a name) and, for
   // an employer row, the cleaned employer the row is named after.
-  | { source: 'file'; file_id: string; issuer: string; employer?: string };
+  | { source: 'file'; file_id: string; issuer: string; employer?: string }
+  // An approved property paper whose proven seller kind called for the
+  // change (openspec `real-estate-goal-driven-clarification`): the verified
+  // file, the row it was approved for, and the fact (a private seller retires
+  // the appendix; a builder seller adds it).
+  | { source: 'approved_file'; file_id: string; document_id: string; fact: 'seller_private' | 'seller_builder' };
 
 export interface ClientDocumentRow {
   id: string;

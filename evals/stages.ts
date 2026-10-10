@@ -19,6 +19,7 @@ import {
   type FormResolvableRow,
 } from '../src/agents/declarationOfCapital/formIntakeRules.js';
 import { CAPITAL_DOCUMENT_CATALOG, getCatalogType } from '../src/agents/declarationOfCapital/catalog.js';
+import { approvedPropertyFilesOf, provenFactsLine, provenFactsOf } from '../src/agents/declarationOfCapital/provenFacts.js';
 import { buildAnalysisCall } from '../src/agents/declarationOfCapital/analyzeFile.js';
 import { CapitalFileAnalysisSchema, validateClassification, type FileAnalysis } from '../src/agents/declarationOfCapital/analyzeFileRules.js';
 import { identifyInstitution } from '../src/agents/declarationOfCapital/institutions.js';
@@ -710,6 +711,8 @@ interface DecideCase {
     message_includes?: string[];
     /** Substrings that must NOT appear in the message. */
     message_excludes?: string[];
+    /** Substrings that must NOT appear inside any question of the message (a sentence ending with a question mark): the agent may state a proven fact, never ask about it. */
+    question_excludes?: string[];
     /** At least one of these substrings must appear in the message. */
     message_includes_any?: string[];
     /** Default true for follow_up: the message names 31.12.<taxYear>. */
@@ -933,8 +936,10 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
         status: d.status,
         typeKey: d.type_key,
         multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
+        paperKey: d.paper_key,
       })),
     inboundTexts,
+    approvedPropertyFiles: approvedPropertyFilesOf(documents),
     allSettled: documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired'),
     attestationRequested: requestedAt !== null,
     confirmableMessageIds: new Set(
@@ -996,13 +1001,17 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
     const verificationResults: VerificationResultPromptInput[] = (c.verification_results ?? []).map((r, i) => {
       const doc = documents.find((d) => d.id === r.document_id);
       const reasons = (doc?.verification as { reasons?: unknown } | null)?.reasons;
+      // The verified file's id comes from the case's stored record when it names one, so an
+      // approved property paper can be cited by `proven_by_file_id` the way the app allows.
+      const storedFileId = (doc?.verification as { file_id?: unknown } | null)?.file_id;
       return {
         documentId: r.document_id,
         documentName: doc?.name ?? r.document_id,
-        fileId: `file-eval-${i + 1}`,
+        fileId: typeof storedFileId === 'string' && storedFileId !== '' ? storedFileId : `file-eval-${i + 1}`,
         fileName: r.file_name,
         outcome: r.outcome,
         reasons: Array.isArray(reasons) ? reasons.filter((x): x is string => typeof x === 'string') : [],
+        provenFacts: doc ? provenFactsLine(provenFactsOf(doc)) : null,
       };
     });
     const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPrompt, taxYear, intakePrompt, unsentDraftRows(c), verificationResults, decisionCtx.afterVerification === true);
@@ -1062,6 +1071,14 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
         checks.push({ key: 'message_includes_any', expected: e.message_includes_any, actual: found, pass: found.length > 0 });
       }
       for (const word of e.message_excludes ?? []) checks.push({ key: `message_excludes.${word}`, expected: false, actual: body.includes(word), pass: !body.includes(word) });
+      if (e.question_excludes) {
+        // Each question = the text from the previous sentence or clause end (or the start) up to its question mark.
+        const questions = body.split(/[?؟]/).slice(0, -1).map((chunk) => chunk.split(/[.!;\n]/).pop() ?? '');
+        for (const word of e.question_excludes) {
+          const asked = questions.filter((q) => q.includes(word));
+          checks.push({ key: `question_excludes.${word}`, expected: 'not asked', actual: asked.length === 0 ? 'not asked' : asked.map((q) => q.trim()), pass: asked.length === 0 });
+        }
+      }
       for (const [rowId, words] of Object.entries(e.no_settled_rows_mentioned ?? {})) {
         const row = documents.find((d) => d.id === rowId);
         const settled = row !== undefined && SETTLED_STATUSES.has(row.status);
@@ -1119,7 +1136,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
     }
     info.evidence_quotes = [
       ...decision.resolutions.map((r) => r.evidence.quote),
-      ...decision.addedInstances.map((a) => a.evidence.quote),
+      ...decision.addedInstances.map((a) => ('quote' in a.evidence ? a.evidence.quote : `approved file ${a.evidence.file_id}`)),
     ];
     if (e.attestation !== undefined) checks.push(eq('attestation', e.attestation, decision.attestation?.action ?? null));
     if (e.tax_fetch_action !== undefined) checks.push(eq('tax_fetch_action', e.tax_fetch_action, decision.tax_fetch?.action ?? null));

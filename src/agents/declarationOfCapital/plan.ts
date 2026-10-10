@@ -14,6 +14,7 @@ import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.j
 import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/mondayStatusSync.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { getCatalogType } from './catalog.js';
+import { approvedPropertyFilesOf, provenFactsLine, provenFactsOf } from './provenFacts.js';
 import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
 import { childDisplayName } from './splitChildNames.js';
 import { assignFilesToNewRows, filterPairsByCompany, type NewRowFiles } from './fileTies.js';
@@ -283,8 +284,12 @@ async function buildIntakeState(
         status: d.status,
         typeKey: d.type_key,
         multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
+        paperKey: d.paper_key,
       })),
     inboundTexts,
+    // The approved property papers the planner may cite instead of a quote
+    // (openspec `real-estate-goal-driven-clarification`).
+    approvedPropertyFiles: approvedPropertyFilesOf(documents),
     allSettled: allDocumentsSettled(documents),
     attestationRequested: requestSentAt !== null,
     confirmableMessageIds: new Set(
@@ -412,6 +417,8 @@ function verificationResultsForPrompt(run: PlanRun): VerificationResultPromptInp
         fileName: file ? (file.label ?? file.filename) : r.fileId,
         outcome: r.outcome,
         reasons: Array.isArray(reasons) ? reasons.filter((x): x is string => typeof x === 'string') : [],
+        // What an approved property paper proved (openspec `real-estate-goal-driven-clarification`).
+        provenFacts: provenFactsLine(provenFactsOf(doc)),
       },
     ];
   });

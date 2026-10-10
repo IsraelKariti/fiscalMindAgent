@@ -233,6 +233,7 @@ describe('intake resolutions (normalizeDecision)', () => {
               anchor_document_id: 'doc-contract',
               instances: [{ name: 'נסח טאבו — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key }],
               evidence: CASH_QUOTE,
+              proven_by_file_id: '',
             },
           ],
         }),
@@ -430,6 +431,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
             { name: 'שומת מס רכישה - דירה ברחוב הרצל 5', description: null, already_provided: true, file_ids: [], paper_key: 'purchase_tax_assessment' },
           ],
           evidence: CASH_QUOTE,
+          proven_by_file_id: '',
         },
       ],
     });
@@ -443,7 +445,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
     assert.throws(
       () =>
         normalizeDecision(
-          baseRaw({ added_instances: [{ anchor_document_id: 'doc-vehicle', instances, evidence: CASH_QUOTE }] }),
+          baseRaw({ added_instances: [{ anchor_document_id: 'doc-vehicle', instances, evidence: CASH_QUOTE, proven_by_file_id: '' }] }),
           ctxWith(baseIntake()),
         ),
       /not an already-resolved catalog row/,
@@ -451,12 +453,12 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
     assert.throws(
       () =>
         normalizeDecision(
-          baseRaw({ added_instances: [{ anchor_document_id: 'doc-contents', instances, evidence: CASH_QUOTE }] }),
+          baseRaw({ added_instances: [{ anchor_document_id: 'doc-contents', instances, evidence: CASH_QUOTE, proven_by_file_id: '' }] }),
           ctxWith(baseIntake()),
         ),
       /single instance only/,
     );
-    const entry = { anchor_document_id: 'doc-contract', instances, evidence: CASH_QUOTE };
+    const entry = { anchor_document_id: 'doc-contract', instances, evidence: CASH_QUOTE, proven_by_file_id: '' };
     assert.throws(
       () => normalizeDecision(baseRaw({ added_instances: [entry, entry] }), ctxWith(baseIntake())),
       /twice/,
@@ -470,8 +472,8 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
   it('accepts retirements of pending and collected rows with verbatim evidence', () => {
     const raw = baseRaw({
       retired_documents: [
-        { document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'אין לי רכב בכלל' } },
-        { document_id: 'doc-appendix', evidence: { message_id: 'msg-1', quote: 'יש לי קצת מזומן בבית' } },
+        { document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'אין לי רכב בכלל' }, proven_by_file_id: '' },
+        { document_id: 'doc-appendix', evidence: { message_id: 'msg-1', quote: 'יש לי קצת מזומן בבית' }, proven_by_file_id: '' },
       ],
     });
     const decision = normalizeDecision(raw, ctxWith(baseIntake()));
@@ -482,17 +484,17 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
   it('rejects retirements without evidence, with a fabricated quote, on unknown or already-retired rows', () => {
     const on = (entries: DecisionResponse['retired_documents']) =>
       normalizeDecision(baseRaw({ retired_documents: entries }), ctxWith(baseIntake()));
-    assert.throws(() => on([{ document_id: 'doc-contract', evidence: null }]), /requires evidence/);
+    assert.throws(() => on([{ document_id: 'doc-contract', evidence: null, proven_by_file_id: '' }]), /requires evidence/);
     assert.throws(
-      () => on([{ document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'טקסט שלא נכתב' } }]),
+      () => on([{ document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'טקסט שלא נכתב' }, proven_by_file_id: '' }]),
       /not contained verbatim/,
     );
     assert.throws(
-      () => on([{ document_id: 'doc-vehicle', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' } }]),
+      () => on([{ document_id: 'doc-vehicle', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' }, proven_by_file_id: '' }]),
       /not an already-resolved catalog row/,
     );
     assert.throws(
-      () => on([{ document_id: 'doc-old-tabu', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' } }]),
+      () => on([{ document_id: 'doc-old-tabu', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' }, proven_by_file_id: '' }]),
       /already retired/,
     );
   });
@@ -505,7 +507,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
           baseRaw({
             attestation: 'request',
             added_instances: [
-              { anchor_document_id: 'doc-contract', instances: [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' }], evidence: CASH_QUOTE },
+              { anchor_document_id: 'doc-contract', instances: [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' }], evidence: CASH_QUOTE, proven_by_file_id: '' },
             ],
           }),
           ctxWith(settled),
@@ -517,7 +519,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
         normalizeDecision(
           baseRaw({
             attestation: 'request',
-            retired_documents: [{ document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' } }],
+            retired_documents: [{ document_id: 'doc-contract', evidence: { message_id: 'msg-1', quote: 'אין לי רכב' }, proven_by_file_id: '' }],
           }),
           ctxWith(settled),
         ),
@@ -540,7 +542,7 @@ describe('a list item is created only on the client\'s quoted words (openspec un
     );
   const added = (evidence: { message_id: string; quote: string }) =>
     normalizeDecision(
-      tyingRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances: contractInstances, evidence }] }),
+      tyingRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances: contractInstances, evidence, proven_by_file_id: '' }] }),
       ctxWith(baseIntake()),
     );
 
@@ -552,7 +554,7 @@ describe('a list item is created only on the client\'s quoted words (openspec un
     const ctx = ctxWith(baseIntake({ inboundTexts: new Map([['msg-file', '\n']]) }));
     const raw = (message_id: string) =>
       tyingRaw({
-        added_instances: [{ anchor_document_id: 'doc-contract', instances: contractInstances, evidence: { message_id, quote: 'קרן השתלמות' } }],
+        added_instances: [{ anchor_document_id: 'doc-contract', instances: contractInstances, evidence: { message_id, quote: 'קרן השתלמות' }, proven_by_file_id: '' }],
       });
     assert.throws(() => normalizeDecision(raw('msg-file'), ctx), /not contained verbatim/);
     assert.throws(() => normalizeDecision(raw('msg-outbound'), ctx), /not a stored inbound message/);
@@ -582,5 +584,63 @@ describe('a list item is created only on the client\'s quoted words (openspec un
     ];
     const decision = normalizeDecision(tyingRaw({ matched_files: pairs }), ctxWith(baseIntake()));
     assert.deepEqual(decision.matched_files.map((m) => m.evidence), [CASH_QUOTE, null, null]);
+  });
+});
+
+describe('an approved property paper as evidence (proven_by_file_id, openspec real-estate-goal-driven-clarification)', () => {
+  const PRIVATE = new Map([['file-contract', { documentId: 'doc-contract', sellerKind: 'private' as const }]]);
+  const BUILDER = new Map([['file-contract', { documentId: 'doc-contract', sellerKind: 'builder' as const }]]);
+  const UNREAD = new Map([['file-contract', { documentId: 'doc-contract', sellerKind: null }]]);
+  const withPapers = (approvedPropertyFiles: IntakeDecisionState['approvedPropertyFiles']) =>
+    baseIntake({
+      typedRows: [
+        { id: 'doc-contract', status: 'approved', typeKey: 'real_estate', multiInstance: true, paperKey: 'purchase_contract' },
+        { id: 'doc-appendix', status: 'pending', typeKey: 'real_estate', multiInstance: true, paperKey: 'payments_appendix' },
+        { id: 'doc-tabu', status: 'pending', typeKey: 'real_estate', multiInstance: true, paperKey: 'tabu_extract' },
+        { id: 'doc-vehicle-licence', status: 'approved', typeKey: 'vehicle', multiInstance: true, paperKey: null },
+      ],
+      approvedPropertyFiles,
+    });
+  const appendix = [{ name: 'נספח תשלומים - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'payments_appendix' }];
+
+  it('a private seller retires the appendix item, recording the file as the evidence', () => {
+    const raw = baseRaw({ retired_documents: [{ document_id: 'doc-appendix', evidence: null, proven_by_file_id: 'file-contract' }] });
+    const decision = normalizeDecision(raw, ctxWith(withPapers(PRIVATE)));
+    assert.deepEqual(decision.retired, [
+      { documentId: 'doc-appendix', evidence: { source: 'approved_file', file_id: 'file-contract', document_id: 'doc-contract', fact: 'seller_private' } },
+    ]);
+  });
+
+  it('a builder seller adds the appendix instance', () => {
+    const raw = baseRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances: appendix, evidence: null, proven_by_file_id: 'file-contract' }] });
+    const decision = normalizeDecision(raw, ctxWith(withPapers(BUILDER)));
+    assert.equal(decision.addedInstances.length, 1);
+    assert.deepEqual(decision.addedInstances[0]!.evidence, { source: 'approved_file', file_id: 'file-contract', document_id: 'doc-contract', fact: 'seller_builder' });
+  });
+
+  it('a quote wins when both are given', () => {
+    const raw = baseRaw({ retired_documents: [{ document_id: 'doc-appendix', evidence: CASH_QUOTE, proven_by_file_id: 'file-contract' }] });
+    const decision = normalizeDecision(raw, ctxWith(withPapers(UNREAD)));
+    assert.deepEqual(decision.retired[0]!.evidence, CASH_QUOTE);
+  });
+
+  it('rejects by name: a file that is not approved, a seller kind not read, the wrong consequence, another type', () => {
+    const retire = (id: string, fileId: string) => baseRaw({ retired_documents: [{ document_id: id, evidence: null, proven_by_file_id: fileId }] });
+    assert.throws(() => normalizeDecision(retire('doc-appendix', 'file-unknown'), ctxWith(withPapers(PRIVATE))), /not an approved property paper/);
+    assert.throws(() => normalizeDecision(retire('doc-appendix', 'file-contract'), ctxWith(withPapers(UNREAD))), /did not read the seller kind/);
+    assert.throws(() => normalizeDecision(retire('doc-tabu', 'file-contract'), ctxWith(withPapers(PRIVATE))), /proves nothing that calls for retiring/);
+    assert.throws(() => normalizeDecision(retire('doc-appendix', 'file-contract'), ctxWith(withPapers(BUILDER))), /proves nothing that calls for retiring/);
+    assert.throws(() => normalizeDecision(retire('doc-vehicle-licence', 'file-contract'), ctxWith(withPapers(PRIVATE))), /only for a property's payments appendix/);
+    const tabu = [{ name: 'נסח טאבו - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' }];
+    assert.throws(
+      () => normalizeDecision(baseRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances: tabu, evidence: null, proven_by_file_id: 'file-contract' }] }), ctxWith(withPapers(BUILDER))),
+      /proves nothing that calls for these instances/,
+    );
+    assert.throws(
+      () => normalizeDecision(baseRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances: appendix, evidence: null, proven_by_file_id: 'file-contract' }] }), ctxWith(withPapers(PRIVATE))),
+      /proves nothing that calls for these instances/,
+    );
+    // Neither a quote nor a file: the plain evidence rule still applies.
+    assert.throws(() => normalizeDecision(baseRaw({ retired_documents: [{ document_id: 'doc-appendix', evidence: null, proven_by_file_id: '' }] }), ctxWith(withPapers(PRIVATE))), /requires evidence/);
   });
 });

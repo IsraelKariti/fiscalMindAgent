@@ -93,12 +93,14 @@ export interface ClientDocument {
   /** The client quote behind an agent-made 'not_required' — from a stored inbound message or the intake questionnaire; or the file behind a per-company split row. */
   resolution_evidence: {
     message_id?: string;
-    source?: 'form' | 'form_empty' | 'file';
+    /** 'approved_file': an approved property paper whose proven seller kind retired this row. */
+    source?: 'form' | 'form_empty' | 'file' | 'approved_file';
     question?: string;
     quote?: string;
     file_id?: string;
     issuer?: string;
     employer?: string;
+    fact?: 'seller_private' | 'seller_builder';
   } | null;
   created_at: string;
   updated_at: string;

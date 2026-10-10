@@ -330,6 +330,7 @@
         "subject_name_matches": true,
         "legible": true,
         "injection_suspected": false,
+        "fields": { "purchase_price": 1250000, "price_currency": "ILS", "purchase_year": 2001, "seller_kind": "private" },
         "verdict": { "passed": true, "adopted": false }
       },
       "notes": "openspec multi-subject-documents (live finding 2026-10-07): a four-party purchase contract — two sellers (מקמל) with ids, two buyers (the client and תמיר מיכל) with ids. The model must list four parties, the buyers as owner and the sellers as counterparty, each id beside its own name; never one subject holding all four names. The gate accepts the document for the client, lists מיכל as a co-owner, and adopts nobody: with no spouse name on file a co-owner is never assumed to be the spouse."
@@ -347,6 +348,7 @@
         "subject_name_matches": true,
         "legible": true,
         "injection_suspected": false,
+        "fields": { "purchase_price": 1250000, "price_currency": "ILS", "purchase_year": 2001, "seller_kind": "private" },
         "verdict": { "passed": true, "adopted": true }
       },
       "notes": "openspec multi-subject-documents: the same contract when the questionnaire named the spouse מיכל תמיר without an id — the one owner whose own printed name matches her is adopted (her id only; the sellers' ids are never stored), and the document is accepted for both."
@@ -364,6 +366,7 @@
         "subject_name_matches": true,
         "legible": true,
         "injection_suspected": false,
+        "fields": { "purchase_price": 1250000, "price_currency": "ILS", "purchase_year": 2001, "seller_kind": "private" },
         "verdict": { "passed": true, "adopted": false }
       },
       "notes": "openspec multi-subject-documents: the contract prints the sellers' ids but not the buyers' — the owners carry no id (a seller's id must not be moved onto a buyer), the buyers are judged by name, nothing is compared or adopted."
@@ -387,6 +390,25 @@
         "verdict": { "passed": true, "adopted": false }
       },
       "notes": "openspec multi-subject-documents: a joint account of the client and דנה לוי (not the spouse, whose id is on file). Two owner parties with their own ids; the document passes as the client's, דנה is a co-owner, and she is not rejected as a third person."
+    }
+    ,
+    {
+      "id": "ext_23",
+      "file": "tabu_extract_dinovitz_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-1-p5-5.pdf",
+      "doc": { "type_key": "real_estate", "paper_key": "tabu_extract", "name": "נסח טאבו — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "maritalStatus": "married" },
+      "expected": {
+        "is_expected_type": true,
+        "owner_ids": ["123456782", "033445560"],
+        "subject_name_matches": true,
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "purchase_price": null, "price_currency": null, "seller_kind": null },
+        "verdict": { "passed": true, "adopted": false }
+      },
+      "notes": "openspec real-estate-goal-driven-clarification: a tabu extract against its own tabu item — the two registered owners (the client and תמיר מיכל) are read as owners, and the property fields that this paper does not print (price, currency, seller kind) are null without failing type_fields."
     }
   ]
 }

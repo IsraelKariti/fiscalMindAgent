@@ -1059,6 +1059,32 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   evals: `purchase_contract_dinovitz_2001.pdf`,
   `payments_appendix_dinovitz_2001.pdf`, `tabu_extract_dinovitz_2025.pdf`
   (cases `cls_18`–`cls_20`).
+- **Goal-driven real-estate clarification** (2026-10-10, openspec
+  `real-estate-goal-driven-clarification`, no migration). The catalog
+  description and the planner's real-estate case state the goal first — proof
+  of ownership and of the purchase cost (ownership only for inheritance /
+  gift) — and present the per-route papers as the ways to reach it, not as
+  steps; the route question ("second hand or from a builder?") is asked only
+  when no approved paper settles it and the answer still decides which paper
+  to ask for. `real_estate` declares typed extraction fields
+  (`property_address`, `purchase_price`, `price_currency`, `purchase_year`,
+  `seller_kind` ∈ private | builder; all optional — a tabu extract prints no
+  price and no seller). `provenFacts.ts` · `provenFactsOf` reads an APPROVED
+  row's stored extraction (owners from `parties`, the typed fields) into the
+  "הוכח במסמך שאושר" line that `buildDocumentsSection` appends to the row and
+  `verificationResultsForPrompt` appends to the APPROVED verdict; the prompt
+  says a proven fact is never asked (private seller = second hand, builder =
+  from a builder, a proven cost closes the property). `proven_by_file_id` on
+  `added_instances` / `retired_documents` lets an approved contract stand in
+  for a client quote for exactly the change its seller kind implies (private
+  → retire `payments_appendix` / `builder_payments_report`; builder → add
+  `payments_appendix`), checked by `validateProvenByFile` against
+  `approvedPropertyFilesOf` (keyed by the record's `file_id`); everything else
+  is rejected by name. The evidence then is
+  `{source:'approved_file', file_id, document_id, fact}` (`ResolutionEvidence`,
+  the audit detail, the `apply_*` step rows as `quote` + `provenByFileId`, the
+  Documents card note). Rows approved before the fields existed show the
+  owners only. Evals: `ext_19`–`ext_22`, `dec_22`–`dec_23`.
 - **Files that belong to no agreed item** (2026-09-19, openspec
   `unlisted-files`, no migration). Owner rule: the document list is an
   agreement with the client; a received file never changes it. Four pieces:

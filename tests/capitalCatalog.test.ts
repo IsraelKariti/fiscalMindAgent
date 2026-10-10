@@ -109,6 +109,7 @@ describe('capital-declaration catalog', () => {
       mortgage_balance: ['loan_number', 'principal_balance'],
       vehicle: ['license_plate', 'manufacturer', 'model', 'production_year', 'purchase_cost'],
       contents_insurance: ['policy_number', 'contents_sum', 'period_from', 'period_to'],
+      real_estate: ['property_address', 'purchase_price', 'price_currency', 'purchase_year', 'seller_kind'],
     };
     for (const type of CAPITAL_DOCUMENT_CATALOG) {
       const expected = typed[type.key];

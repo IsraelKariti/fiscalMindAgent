@@ -320,7 +320,7 @@ const splitFileStage: StageAdapter<SplitFileCase, Record<string, never>> = {
     return {
       checks,
       info: {
-        gate: { result: gate.result, reason: gate.reason, failed: gate.checks.filter((k) => !k.passed).map((k) => k.key) },
+        gate: { result: gate.result, reason: gate.reason, failed: gate.checks.filter((k) => k.passed === false).map((k) => k.key) },
         pageCount,
         proposed,
         kinds: raw.documents.map((d) => d.kind),
@@ -557,7 +557,7 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
       now: new Date(ctx.now),
       documentName: c.doc.name,
     });
-    const failedKeys = verdict.checks.filter((x) => !x.passed).map((x) => x.key);
+    const failedKeys = verdict.checks.filter((x) => x.passed === false).map((x) => x.key);
     if (e.verdict) {
       checks.push(eq('verdict.passed', e.verdict.passed, verdict.passed));
       if (e.verdict.failed_keys) {

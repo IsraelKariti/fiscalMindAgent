@@ -14,8 +14,14 @@
 export interface GateCheck {
   /** Stable identifier of the check (the UI maps it to a label). */
   key: string;
-  passed: boolean;
-  /** Why the check failed; null when it passed. */
+  /**
+   * true / false for a check that ran. `verify_extraction` alone also records
+   * `null`: a check of the document type's list that did not apply to this
+   * document (openspec `code-gates`, "skipped"), with the skip reason as
+   * `note`. The other gates leave a check that did not apply out of the list.
+   */
+  passed: boolean | null;
+  /** Why the check failed, or why it was skipped; null when it passed. */
   note: string | null;
   /** The value the check looked at, as short text; null when there was nothing to show. */
   observed: string | null;
@@ -50,7 +56,7 @@ export function check(
 
 /** true when every check passed (the result of gates whose verdict is "all checks pass"). */
 export function allPassed(checks: readonly GateCheck[]): boolean {
-  return checks.every((c) => c.passed);
+  return checks.every((c) => c.passed !== false);
 }
 
 /**

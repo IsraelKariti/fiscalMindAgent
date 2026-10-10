@@ -465,8 +465,13 @@ describe('a type module with a spouse (end to end: owner, as-of date, amounts �
     assert.deepEqual(v.adoptSpouse, { idNumber: SPOUSE_ID, name: 'מיכל תמיר' });
     assert.deepEqual(
       v.checks.map((c) => c.key),
+      ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners', 'as_of_date', 'amounts'],
+    );
+    assert.deepEqual(
+      v.checks.filter((c) => c.passed !== null).map((c) => c.key),
       ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'spouse_adopted', 'as_of_date', 'amounts'],
     );
+    assert.equal(byKey(v).co_owners.passed, null);
     assert.deepEqual(v.parties, [{ name: 'מיכל תמיר', role: 'owner', maskedId: '••••••782', resolved: 'adopted' }]);
   });
 
@@ -475,12 +480,12 @@ describe('a type module with a spouse (end to end: owner, as-of date, amounts �
     const v = runChecks(fields, { ...ctx, spouse });
     assert.equal(v.passed, true);
     assert.equal(v.adoptSpouse, null);
-    assert.equal(v.checks.some((c) => c.key === 'spouse_adopted'), false);
+    assert.equal(byKey(v).spouse_adopted.passed, null);
     const third = runChecks({ ...fields, parties: [{ name: 'דנה לוי', id_number: THIRD_ID, role: 'owner' }] }, { ...ctx, spouse });
     assert.equal(third.passed, false);
     assert.equal(third.subjectMatched, null);
     assert.deepEqual(
-      third.checks.filter((c) => !c.passed).map((c) => c.key),
+      third.checks.filter((c) => c.passed === false).map((c) => c.key),
       ['subject', 'id_matches_client'],
     );
   });
@@ -503,11 +508,11 @@ describe('a type module with a spouse (end to end: owner, as-of date, amounts �
     assert.equal(checksum.passed, false);
     assert.equal(checksum.observed, '••••••448 · ••••••783');
     assert.match(checksum.reason ?? '', /••••••783/);
-    assert.deepEqual(joint.checks.filter((c) => !c.passed).map((c) => c.key), ['id_checksum']);
-    assert.equal(joint.checks.some((c) => c.key === 'co_owners'), true);
+    assert.deepEqual(joint.checks.filter((c) => c.passed === false).map((c) => c.key), ['id_checksum']);
+    assert.equal(byKey(joint).co_owners.passed, true);
     // A counterparty's bad id does not fail the document, and no owner id means no checksum entry.
     const sellerOnly = runChecks({ ...fields, parties: [{ name: 'ניב', id_number: null, role: 'owner' }, { name: 'מוכר', id_number: BAD_ID, role: 'counterparty' }] }, ctx);
-    assert.equal(sellerOnly.checks.some((c) => c.key === 'id_checksum'), false);
+    assert.equal(byKey(sellerOnly).id_checksum.passed, null);
     assert.equal(sellerOnly.passed, true);
   });
 });

@@ -876,7 +876,12 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   (`note` = the failure reason, `null` on a pass; `observed` = the value the
   check looked at, also on a pass; `expected` = the reference it was compared
   with, when there is one; a check that did not apply is absent, not
-  "passed"). National ids never appear in full — `maskId` keeps the last three
+  "passed" — except in `verify_extraction`, which since 2026-10-10 (openspec
+  `skipped-checks-in-trace`) lists EVERY check of the document type's list in
+  the type's order, a check that did not apply as `passed: null` with the
+  Hebrew skip reason as `note` and no values, so the trace never shows a
+  silent gap against the type's documented list; `verdictOf` ignores those
+  entries). National ids never appear in full — `maskId` keeps the last three
   digits. The type, the `check()` builder and `maskId` live in
   `shared/gateChecks.ts`; the pure rules modules return the list and the call
   sites only copy it into the audit row. Gates and their checks:

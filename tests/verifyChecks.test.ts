@@ -13,6 +13,7 @@ import {
   typeFieldValue,
   typeFieldsCheck,
   verdictOf,
+  SKIP_REASONS_HE,
   type CheckContext,
   type DocumentParty,
   type ExtractedFields,
@@ -102,12 +103,24 @@ describe('the verdict through a type module (loan_taken: owner, date, amounts)',
         ['legible', 'קריא', null],
         ['expected_type', 'אישור יתרות מבנק לאומי', 'אישור יתרות בנק לאומי ליום 31.12.2025'],
         ['subject', 'ישראל ישראלי', 'ישראל ישראלי'],
+        ['id_checksum', null, null],
+        ['id_matches_client', null, null],
+        ['client_id_on_file', null, null],
+        ['spouse_adopted', null, null],
+        ['co_owners', null, null],
         ['as_of_date', '2025-12-31', '2025-12-31'],
         ['amounts', 'יתרת עו"ש 52,340.55 ILS', null],
       ],
     );
-    assert.ok(verdict.checks.every((c) => c.observed !== null && c.reason === null));
+    const ran = verdict.checks.filter((c) => c.passed !== null);
+    assert.ok(ran.every((c) => c.observed !== null && c.reason === null));
     assert.equal(byKey['as_of_date']!.passed, true);
+    // The skipped entries (no owner prints an id) carry the skip reason and no values.
+    const skipped = verdict.checks.filter((c) => c.passed === null);
+    assert.deepEqual(skipped.map((c) => c.key), ['id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners']);
+    for (const key of ['id_checksum', 'id_matches_client', 'client_id_on_file']) assert.equal(byKey[key]!.reason, SKIP_REASONS_HE.noOwnerId);
+    assert.equal(byKey['spouse_adopted']!.reason, SKIP_REASONS_HE.noSpouseAdopted);
+    assert.equal(byKey['co_owners']!.reason, SKIP_REASONS_HE.noCoOwners);
   });
 
   it('fails on wrong type and illegibility, with reasons', () => {
@@ -117,10 +130,10 @@ describe('the verdict through a type module (loan_taken: owner, date, amounts)',
     // The per-check reasons are what the audit row's check notes carry: one
     // per failed check, in check order, null on a pass.
     assert.deepEqual(
-      verdict.checks.filter((c) => !c.passed).map((c) => c.reason),
+      verdict.checks.filter((c) => c.passed === false).map((c) => c.reason),
       verdict.reasons,
     );
-    assert.ok(verdict.checks.filter((c) => c.passed).every((c) => c.reason === null));
+    assert.ok(verdict.checks.filter((c) => c.passed === true).every((c) => c.reason === null));
   });
 
   it('fails a date-dependent document stating a different as-of date', () => {
@@ -167,7 +180,8 @@ describe('the verdict through a type module (loan_taken: owner, date, amounts)',
     assert.equal(otherAssets.verify({ ...baseFields, as_of_date: null, amounts: [], parties: [owner('משה כהן', null)] }, baseCtx).passed, true);
     const verdict = otherAssets.verify({ ...baseFields, parties: [owner('ישראל ישראלי', '123456783')] }, baseCtx);
     assert.equal(verdict.passed, false);
-    assert.deepEqual(verdict.checks.map((c) => c.key), ['legible', 'expected_type', 'id_checksum', 'client_id_on_file']);
+    assert.deepEqual(verdict.checks.map((c) => c.key), ['legible', 'expected_type', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners']);
+    assert.deepEqual(verdict.checks.filter((c) => c.passed !== null).map((c) => c.key), ['legible', 'expected_type', 'id_checksum', 'client_id_on_file']);
   });
 });
 
@@ -217,7 +231,9 @@ describe('identityChecks', () => {
     );
     assert.equal(fromCreds.checks.find((c) => c.key === 'id_matches_client')!.expected, 'client ••••••782 (credentials)');
     assert.equal(fromCreds.passed, true);
-    assert.equal(fromCreds.checks.some((c) => c.key === 'client_id_on_file'), false);
+    const onFile = fromCreds.checks.find((c) => c.key === 'client_id_on_file')!;
+    assert.equal(onFile.passed, null);
+    assert.equal(onFile.reason, SKIP_REASONS_HE.clientIdOnFile);
   });
 
   it('a printed id with nothing on file reports client_id_on_file without failing the document', () => {
@@ -226,11 +242,15 @@ describe('identityChecks', () => {
     assert.equal(onFile.passed, false);
     assert.equal(onFile.observed, 'none');
     assert.match(onFile.reason ?? '', /monday/);
-    assert.equal(verdict.checks.some((c) => c.key === 'id_matches_client'), false);
+    const matches = verdict.checks.find((c) => c.key === 'id_matches_client')!;
+    assert.equal(matches.passed, null);
+    assert.equal(matches.reason, SKIP_REASONS_HE.noClientIdOnFile);
     assert.equal(verdict.passed, true);
     assert.deepEqual(verdict.reasons, []);
-    // No id printed on the document: nothing to compare, nothing reported.
-    assert.equal(verify(baseFields).checks.some((c) => c.key === 'client_id_on_file'), false);
+    // No id printed on the document: nothing to compare, both id entries skipped.
+    const noId = verify(baseFields).checks.find((c) => c.key === 'client_id_on_file')!;
+    assert.equal(noId.passed, null);
+    assert.equal(noId.reason, SKIP_REASONS_HE.noOwnerId);
   });
 
   it('a printed id never appears unmasked in any check text', () => {
@@ -304,8 +324,11 @@ describe('the single checks', () => {
     assert.equal(expired.expected, '2026-01-15');
     assert.equal(notExpiredCheck({ ...baseFields, valid_until: '2026-07-20' }, baseCtx)!.passed, true);
     assert.equal(notExpiredCheck({ ...baseFields, valid_until: '2026-01-15' }, baseCtx)!.passed, true);
-    assert.equal(notExpiredCheck({ ...baseFields, valid_until: null }, baseCtx), null);
-    assert.equal(notExpiredCheck({ ...baseFields, valid_until: '20/07/2025' }, baseCtx), null);
+    const missing = notExpiredCheck({ ...baseFields, valid_until: null }, baseCtx);
+    assert.equal(missing.passed, null);
+    assert.equal(missing.reason, SKIP_REASONS_HE.noValidUntil);
+    assert.equal(missing.observed, null);
+    assert.equal(notExpiredCheck({ ...baseFields, valid_until: '20/07/2025' }, baseCtx).passed, null);
     // A type that does not run the check (loan_taken) ignores a past date entirely.
     assert.equal(verify({ ...baseFields, valid_until: '2020-01-01' }).passed, true);
   });
@@ -331,12 +354,14 @@ describe('the single checks', () => {
     assert.equal(check.observed!.split(' · ').length, 6);
   });
 
-  it('period_covers_valuation_date: null unless both dates are well formed', () => {
+  it('period_covers_valuation_date: skipped unless both dates are well formed', () => {
     const fields: TypeField[] = [
       { key: 'period_from', kind: 'date', labelHe: 'מ', required: true },
       { key: 'period_to', kind: 'date', labelHe: 'עד', required: true },
     ];
-    assert.equal(periodCoversValuationDateCheck({ ...baseFields, period_from: '2025-03-01', period_to: null }, baseCtx, fields, 'period_from', 'period_to'), null);
+    const unread = periodCoversValuationDateCheck({ ...baseFields, period_from: '2025-03-01', period_to: null }, baseCtx, fields, 'period_from', 'period_to');
+    assert.equal(unread.passed, null);
+    assert.equal(unread.reason, SKIP_REASONS_HE.periodNotRead);
     const ok = periodCoversValuationDateCheck({ ...baseFields, period_from: '2025-03-01', period_to: '2026-02-28' }, baseCtx, fields, 'period_from', 'period_to')!;
     assert.equal(ok.passed, true);
     assert.equal(ok.observed, '2025-03-01 – 2026-02-28');

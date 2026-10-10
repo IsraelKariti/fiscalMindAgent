@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { CAPITAL_DOCUMENT_CATALOG } from '../src/agents/declarationOfCapital/catalog.js';
 import { DOCUMENT_TYPES, GENERIC_DOCUMENT_TYPE, documentTypeSpec } from '../src/agents/declarationOfCapital/documentTypes/index.js';
 import { buildExtractionCall } from '../src/agents/declarationOfCapital/extractionCall.js';
-import type { CheckContext, ChecksVerdict, ExtractedFields } from '../src/agents/declarationOfCapital/verifyChecks.js';
+import { SKIP_REASONS_HE, type CheckContext, type ChecksVerdict, type ExtractedFields } from '../src/agents/declarationOfCapital/verifyChecks.js';
 
 // ---------------------------------------------------------------------------
 // The registry guard (openspec `document-extraction`, change
@@ -128,14 +128,14 @@ describe('which checks each type runs', () => {
   it('bank_balance: legible, expected type, owner, as-of date, amounts, typed fields — no expiry, no period', () => {
     const bank = documentTypeSpec('bank_balance');
     const keys = bank.verify({ ...baseFields, account_number: '12-345-678901', current_account_balance: 4_521, deposits_balance: null }, baseCtx).checks.map((c) => c.key);
-    assert.deepEqual(keys, ['legible', 'expected_type', 'subject', 'as_of_date', 'amounts', 'type_fields']);
+    assert.deepEqual(keys, ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners', 'as_of_date', 'amounts', 'type_fields']);
   });
 
   it('a type with no fields yields neither type_fields nor the period check', () => {
     const keys = documentTypeSpec('loan_taken').verify(baseFields, baseCtx).checks.map((c) => c.key);
     assert.ok(!keys.includes('type_fields'));
     assert.ok(!keys.includes('period_covers_valuation_date'));
-    assert.deepEqual(documentTypeSpec('prior_declaration').verify(baseFields, baseCtx).checks.map((c) => c.key), ['legible', 'expected_type', 'subject']);
+    assert.deepEqual(documentTypeSpec('prior_declaration').verify(baseFields, baseCtx).checks.map((c) => c.key), ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners']);
   });
 
   it('the generic type: common fields only, owner ids judged but the client need not be named', () => {
@@ -143,7 +143,8 @@ describe('which checks each type runs', () => {
     assert.deepEqual(generic.fields, []);
     const verdict = generic.verify({ ...baseFields, parties: [{ name: 'מישהו אחר', id_number: null, role: 'owner' }], as_of_date: null, amounts: [] }, baseCtx);
     assert.equal(verdict.passed, true);
-    assert.deepEqual(verdict.checks.map((c) => c.key), ['legible', 'expected_type']);
+    assert.deepEqual(verdict.checks.map((c) => c.key), ['legible', 'expected_type', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners']);
+    assert.ok(verdict.checks.slice(2).every((c) => c.passed === null), 'no owner id: every identity entry is skipped');
   });
 
   it('crypto and poa_account do not require the client as the owner; other_assets checks nothing beyond the ids', () => {
@@ -185,7 +186,11 @@ describe('vehicle', () => {
     assert.equal(expired.passed, false);
     assert.ok(expired.reasons[0]!.includes('2025-07-20'));
     assert.equal(vehicle.verify({ ...licence, valid_until: '2026-01-15' }, baseCtx).passed, true);
-    assert.equal(vehicle.verify({ ...licence, valid_until: null, license_plate: null, purchase_cost: 95_000 }, baseCtx).checks.some((c) => c.key === 'not_expired'), false);
+    const receipt = vehicle.verify({ ...licence, valid_until: null, license_plate: null, purchase_cost: 95_000 }, baseCtx);
+    const notExpired = receipt.checks.find((c) => c.key === 'not_expired')!;
+    assert.equal(notExpired.passed, null);
+    assert.equal(notExpired.reason, SKIP_REASONS_HE.noValidUntil);
+    assert.equal(receipt.passed, true);
   });
 
   it('malformed values fail with the right note: implausible year, plate pattern', () => {
@@ -249,7 +254,10 @@ describe('contents_insurance', () => {
     assert.equal(verdict.passed, false);
     // A period starting after the date fails too; a missing date skips the period check.
     assert.equal(periodOf(contents.verify({ ...goodPolicy, period_from: '2026-01-01', period_to: '2026-12-31' }, baseCtx))!.passed, false);
-    assert.equal(periodOf(contents.verify({ ...goodPolicy, period_to: null }, baseCtx)), undefined);
+    const unread = contents.verify({ ...goodPolicy, period_to: null }, baseCtx);
+    assert.equal(periodOf(unread)!.passed, null);
+    assert.equal(periodOf(unread)!.reason, SKIP_REASONS_HE.periodNotRead);
+    assert.equal(typeFieldsOf(unread).passed, false);
   });
 
   it('malformed values fail with the right note: date form, not a number', () => {

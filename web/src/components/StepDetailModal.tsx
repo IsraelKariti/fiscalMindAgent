@@ -11,7 +11,8 @@ import { isIsoDateTime, stepSummaryOf } from './stepSummary';
 /** One code check of a gate, as the audit row records it (`detail.checks`). */
 export interface GateCheckView {
   key: string;
-  passed: boolean;
+  /** true / false for a check that ran; null for a check the gate skipped (its note says why). */
+  passed: boolean | null;
   note: string | null;
   /** The value the check inspected; null on rows recorded before values were kept. */
   observed: string | null;
@@ -30,7 +31,7 @@ export function isGateCheckList(value: unknown): value is GateCheckView[] {
         typeof c === 'object' &&
         c !== null &&
         typeof (c as { key?: unknown }).key === 'string' &&
-        typeof (c as { passed?: unknown }).passed === 'boolean',
+        (typeof (c as { passed?: unknown }).passed === 'boolean' || (c as { passed?: unknown }).passed === null),
     )
   );
 }
@@ -67,7 +68,8 @@ export function stepActionLabel(labels: { gate: Record<string, string>; step: Re
 /**
  * Read-only drill-down of one audited code step: what the step did (its
  * detail as labelled rows), and, for a gate row, which checks ran, which
- * passed (✓) and which failed (✗) with the failure note. Rendered only where
+ * passed (✓), which failed (✗) with the failure note, and which the gate
+ * skipped (–) with the skip reason. Rendered only where
  * the admin trace itself is rendered. The copy buttons (link, details) sit at
  * the top beside the title; there is no close button — it closes on the
  * backdrop and Escape.
@@ -79,6 +81,7 @@ export function stepActionLabel(labels: { gate: Record<string, string>; step: Re
 export function StepDetailModal({ step, onClose }: { step: AdminConversationStep; onClose: () => void }) {
   const { t } = useT();
   const checks = gateChecksOf(step);
+  const skippedCount = checks?.filter((c) => c.passed === null).length ?? 0;
   const result = gateResultOf(step);
   const reason = gateReasonOf(step);
   const summary = stepSummaryOf(step.action, step.detail);
@@ -171,12 +174,20 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
           )}
           {checks && (
             <>
-              <h3 className="gate-modal-section">{t.gateModalChecks}</h3>
+              <h3 className="gate-modal-section">
+                {t.gateModalChecks}
+                {skippedCount > 0 && (
+                  <span className="muted gate-modal-section-count">{t.gateChecksCount(checks.length - skippedCount, skippedCount)}</span>
+                )}
+              </h3>
               <ul className="gate-check-list">
                 {checks.map((c, i) => (
-                  <li key={`${c.key}-${i}`} className={`gate-check ${c.passed ? 'gate-check-pass' : 'gate-check-fail'}`}>
+                  <li
+                    key={`${c.key}-${i}`}
+                    className={`gate-check ${c.passed === null ? 'gate-check-skip' : c.passed ? 'gate-check-pass' : 'gate-check-fail'}`}
+                  >
                     <span className="gate-check-glyph" aria-hidden="true">
-                      {c.passed ? '✓' : '✗'}
+                      {c.passed === null ? '–' : c.passed ? '✓' : '✗'}
                     </span>
                     <span className="gate-check-body">
                       <span className="gate-check-label">
@@ -184,7 +195,11 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
                         <span className="mono muted gate-check-key" dir="ltr">
                           {c.key}
                         </span>
-                        <span className="gate-sr-only">{c.passed ? t.gateCheckPassed : t.gateCheckFailed}</span>
+                        {c.passed === null ? (
+                          <span className="gate-check-skip-word">{t.gateCheckSkipped}</span>
+                        ) : (
+                          <span className="gate-sr-only">{c.passed ? t.gateCheckPassed : t.gateCheckFailed}</span>
+                        )}
                       </span>
                       {(c.observed || c.expected) && (
                         <span className="gate-check-value">
@@ -200,8 +215,13 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
                           )}
                         </span>
                       )}
-                      {!c.passed && c.note && (
+                      {c.passed === false && c.note && (
                         <span className="gate-check-note" dir="auto">
+                          {c.note}
+                        </span>
+                      )}
+                      {c.passed === null && c.note && (
+                        <span className="gate-check-skip-note muted" dir="auto">
                           {c.note}
                         </span>
                       )}

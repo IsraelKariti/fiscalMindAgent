@@ -891,6 +891,9 @@ const he = {
   } as Record<string, string>,
   gateCheckPassed: 'עבר',
   gateCheckFailed: 'נכשל',
+  gateCheckSkipped: 'לא נבדק',
+  /** The checks heading's count when the gate skipped at least one check: "6 נבדקו · 5 לא נבדקו". */
+  gateChecksCount: (ran: number, skipped: number) => `${ran} נבדקו · ${skipped} לא נבדקו`,
   gateCheckObserved: 'נבדק:',
   gateCheckExpected: 'צפוי:',
   // The gate step key, title-cased like llmPurposeLabels (kept in English on

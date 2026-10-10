@@ -4674,6 +4674,27 @@ button.meta-chip:hover {
 .gate-check-fail {
   background: rgba(251, 113, 133, 0.05);
 }
+/* A check the gate skipped: neutral, clearly not a failure. */
+.gate-check-skip .gate-check-glyph {
+  color: var(--text-muted);
+  background: var(--border);
+}
+.gate-check-skip .gate-check-label {
+  color: var(--text-muted);
+}
+.gate-check-skip-word {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.gate-check-skip-note {
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.gate-modal-section-count {
+  font-weight: 400;
+  font-size: 0.85rem;
+  margin-inline-start: 8px;
+}
 .gate-check-body {
   display: flex;
   flex-direction: column;

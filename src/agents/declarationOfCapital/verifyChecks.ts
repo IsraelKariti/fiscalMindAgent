@@ -114,8 +114,9 @@ export interface CheckContext {
 
 export interface CheckResult {
   key: string;
-  passed: boolean;
-  /** Hebrew failure reason; null when passed. */
+  /** true / false for a check that ran; null for a check of the type's list that did not apply (skipped). */
+  passed: boolean | null;
+  /** Hebrew failure reason, or the Hebrew skip reason for a skipped check; null when passed. */
   reason: string | null;
   /** The value the check inspected (also on a pass); ids masked to their last three digits. */
   observed: string | null;
@@ -127,6 +128,7 @@ export interface ChecksVerdict {
   passed: boolean;
   /** The failed checks' reasons, in order. */
   reasons: string[];
+  /** The type's whole list in trace order, skipped entries included (`passed: null`). */
   checks: CheckResult[];
   /** Whom the document was accepted for (openspec `spouse-identity`); null when no owner matched. */
   subjectMatched: 'client' | 'spouse' | 'both' | null;
@@ -203,6 +205,28 @@ function entry(key: string, passed: boolean, reason: string, observed: string | 
   return { key, passed, reason: passed ? null : reason, observed, expected };
 }
 
+/**
+ * A check of the type's list that did not apply to this document (openspec
+ * `code-gates`, change `skipped-checks-in-trace`): listed at its position with
+ * `passed: null` and the Hebrew reason it was skipped, so the trace shows the
+ * whole list and never a silent gap. Never part of the verdict.
+ */
+function skipped(key: string, whyHe: string): CheckResult {
+  return { key, passed: null, reason: whyHe, observed: null, expected: null };
+}
+
+/** The fixed skip reasons, one per conditional check (Hebrew, like the failure notes). */
+export const SKIP_REASONS_HE = {
+  noOwnerId: 'במסמך לא מודפס מספר תעודת זהות של בעלים',
+  noClientIdOnFile: 'ללקוח אין מספר תעודת זהות רשום — דווח client_id_on_file במקום',
+  clientIdOnFile: 'ללקוח רשום מספר תעודת זהות — דווח id_matches_client במקום',
+  noSpouseAdopted: 'לא אומץ בן/בת זוג בבדיקה זו',
+  noSubjectMatch: 'המסמך לא זוהה כשייך ללקוח או לבן/בת הזוג',
+  noCoOwners: 'אין בעלים נוספים במסמך',
+  noValidUntil: 'במסמך לא נקרא תאריך תוקף',
+  periodNotRead: 'תאריכי התקופה לא נקראו במלואם',
+} as const;
+
 /** `legible` — the model's legibility verdict. Applies to every document. */
 export function legibleCheck(answer: ExtractedAnswer): CheckResult {
   return entry('legible', answer.legible, 'הקובץ אינו קריא דיו כדי לאמת את תוכנו', answer.legible ? 'קריא' : 'לא קריא');
@@ -241,11 +265,12 @@ export function identityChecks(
     maritalStatus: ctx.maritalStatus ?? null,
     subjectMatch: opts.subjectMatch,
   });
-  const checks: CheckResult[] = identity.checks.filter((c) => c.key === 'subject');
+  const judged = new Map(identity.checks.map((c) => [c.key, c]));
   const ownerIds = parties.filter((p) => p.role === 'owner' && p.printedId !== '');
   if (ownerIds.length > 0) {
     const invalid = ownerIds.find((p) => !p.printedIdValid);
-    checks.push(
+    judged.set(
+      'id_checksum',
       entry(
         'id_checksum',
         invalid === undefined,
@@ -254,7 +279,18 @@ export function identityChecks(
       ),
     );
   }
-  checks.push(...identity.checks.filter((c) => c.key !== 'subject'));
+  // The type's identity list, in trace order; an entry the rule did not judge
+  // is listed as skipped with the reason its condition did not hold. `subject`
+  // is not in the list of a type that does not require the client as owner.
+  const skipReason: Record<string, string> = {
+    id_checksum: SKIP_REASONS_HE.noOwnerId,
+    id_matches_client: ownerIds.length === 0 ? SKIP_REASONS_HE.noOwnerId : SKIP_REASONS_HE.noClientIdOnFile,
+    client_id_on_file: ownerIds.length === 0 ? SKIP_REASONS_HE.noOwnerId : SKIP_REASONS_HE.clientIdOnFile,
+    spouse_adopted: SKIP_REASONS_HE.noSpouseAdopted,
+    co_owners: identity.matched === null ? SKIP_REASONS_HE.noSubjectMatch : SKIP_REASONS_HE.noCoOwners,
+  };
+  const order = [...(opts.subjectMatch ? ['subject'] : []), 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners'];
+  const checks = order.map((key) => judged.get(key) ?? skipped(key, skipReason[key]!));
   return { checks, identity };
 }
 
@@ -273,15 +309,15 @@ export function asOfDateCheck(answer: ExtractedAnswer, ctx: CheckContext): Check
 /**
  * `not_expired` — a validity-dated document (vehicle license) must not be
  * expired at verification time. Judged only when a well-formed valid-until
- * date was actually extracted (null otherwise): sibling instances of the same
+ * date was actually extracted (skipped otherwise): sibling instances of the same
  * type without one (a purchase receipt, a cost declaration) are unaffected,
  * and a license whose validity field is unreadable is left to the
  * expected-type judgment (the catalog description says an expired license is
  * unacceptable).
  */
-export function notExpiredCheck(answer: ExtractedAnswer, ctx: CheckContext): CheckResult | null {
+export function notExpiredCheck(answer: ExtractedAnswer, ctx: CheckContext): CheckResult {
   const validUntil = answer.valid_until && DATE_RE.test(answer.valid_until) ? answer.valid_until : null;
-  if (!validUntil) return null;
+  if (!validUntil) return skipped('not_expired', SKIP_REASONS_HE.noValidUntil);
   const today = localDateString(ctx.now);
   return entry(
     'not_expired',
@@ -358,7 +394,7 @@ export function typeFieldsCheck(
 /**
  * `period_covers_valuation_date` — the declared period (two date fields) must
  * contain 31.12 of the tax year. Judged only when both dates were read well
- * formed (null otherwise) — a missing required date already fails type_fields.
+ * formed (skipped otherwise) — a missing required date already fails type_fields.
  */
 export function periodCoversValuationDateCheck(
   answer: ExtractedAnswer,
@@ -366,14 +402,16 @@ export function periodCoversValuationDateCheck(
   fields: readonly TypeField[],
   fromKey: string,
   toKey: string,
-): CheckResult | null {
+): CheckResult {
   const valueOf = (key: string) => {
     const field = fields.find((f) => f.key === key);
     return field ? typeFieldValue(answer, field) : null;
   };
   const from = valueOf(fromKey);
   const to = valueOf(toKey);
-  if (typeof from !== 'string' || !DATE_RE.test(from) || typeof to !== 'string' || !DATE_RE.test(to)) return null;
+  if (typeof from !== 'string' || !DATE_RE.test(from) || typeof to !== 'string' || !DATE_RE.test(to)) {
+    return skipped('period_covers_valuation_date', SKIP_REASONS_HE.periodNotRead);
+  }
   const expected = `${ctx.taxYear}-12-31`;
   return entry(
     'period_covers_valuation_date',
@@ -385,16 +423,16 @@ export function periodCoversValuationDateCheck(
 }
 
 /**
- * The gate's verdict over a type's ordered check list (nulls are checks that
- * did not apply). client_id_on_file is informational: listed, never enforced.
+ * The gate's verdict over a type's ordered check list. Skipped entries
+ * (`passed: null`) stay in `checks` for the trace but take no part in the
+ * verdict; client_id_on_file is informational: listed, never enforced.
  */
-export function verdictOf(checks: readonly (CheckResult | null)[], identity: IdentityVerdict): ChecksVerdict {
-  const ran = checks.filter((c): c is CheckResult => c !== null);
-  const failed = ran.filter((c) => !c.passed && c.key !== 'client_id_on_file');
+export function verdictOf(checks: readonly CheckResult[], identity: IdentityVerdict): ChecksVerdict {
+  const failed = checks.filter((c) => c.passed === false && c.key !== 'client_id_on_file');
   return {
     passed: failed.length === 0,
     reasons: failed.map((c) => c.reason!),
-    checks: ran,
+    checks: [...checks],
     subjectMatched: identity.matched,
     adoptSpouse: identity.adopt,
     parties: identity.parties,

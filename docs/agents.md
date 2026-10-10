@@ -367,8 +367,16 @@ Industry pattern followed: one app with an agent registry
   or `POST /api/admin/wa-senders`). The admin panel can also auto-buy one
   (`POST /api/admin/wa-senders/provision`, `src/twilio/provision.ts`): it
   purchases a US number and registers it as a WhatsApp sender under
-  `TWILIO_WABA_ID` — no Twilio-console step. Inbound routing is by the `To`
-  number → instance; outbound `from` is the client's instance's number.
+  `TWILIO_WABA_ID` — no Twilio-console step. The sender profile carries the
+  display name (`TWILIO_WA_SENDER_NAME`) and the profile picture
+  (`TWILIO_WA_SENDER_LOGO_URL`, default `<APP_BASE_URL>/logo.png`; only a
+  public https URL is sent — `src/twilio/senderProfile.ts`). Assigning a
+  number (`alignSender`) also points its inbound webhook at this environment
+  and sets the logo when it is missing or different, never the name; to give
+  an older sender the logo, re-assign its number once in the admin panel (or
+  upload the picture in the Twilio console → WhatsApp senders). Inbound
+  routing is by the `To` number → instance; outbound `from` is the client's
+  instance's number.
   Since migration 046 an accountant can connect **their own WABA**
   (`wa_business_accounts`, one per user) from the workspace Settings →
   Integrations tab (`web/src/components/WhatsAppBusinessSettings.tsx`;

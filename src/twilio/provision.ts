@@ -1,6 +1,24 @@
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 import { isTwilioConfigured, twilioClient } from './client.js';
+import { buildSenderCreateBody, planSenderUpdate, resolveSenderLogoUrl } from './senderProfile.js';
+
+/**
+ * Profile picture for senders: TWILIO_WA_SENDER_LOGO_URL, else the dashboard's
+ * own logo under APP_BASE_URL. Undefined (with a log line) when the result is
+ * not a public https URL — Meta fetches the image itself, so the localhost
+ * default in dev would only make the Twilio call fail.
+ */
+function senderLogoUrl(): string | undefined {
+  const url = resolveSenderLogoUrl(env.TWILIO_WA_SENDER_LOGO_URL, env.APP_BASE_URL);
+  if (!url) {
+    logger.info('wa sender logo skipped: not a public https URL', {
+      configured: env.TWILIO_WA_SENDER_LOGO_URL ?? null,
+      appBaseUrl: env.APP_BASE_URL,
+    });
+  }
+  return url;
+}
 
 /**
  * The admin "buy number" flow needs, on top of the base Twilio credentials,
@@ -50,15 +68,14 @@ export async function provisionWhatsAppNumber(friendlyName: string, wabaId?: str
   logger.info('twilio number purchased', { phoneNumber: purchased.phoneNumber, sid: purchased.sid });
 
   try {
-    // The generated SDK forwards this object verbatim as the JSON body, so the
-    // keys must be the API's snake_case ones (its camelCase typings don't
-    // match what the endpoint accepts).
-    const body = {
-      sender_id: `whatsapp:${purchased.phoneNumber}`,
-      configuration: { waba_id: targetWabaId },
-      webhook: { callback_url: env.TWILIO_WEBHOOK_URL, callback_method: 'POST' },
-      profile: { name: env.TWILIO_WA_SENDER_NAME },
-    };
+    // Snake_case body — see senderProfile.ts for why.
+    const body = buildSenderCreateBody({
+      phoneNumber: purchased.phoneNumber,
+      wabaId: targetWabaId,
+      webhookUrl: env.TWILIO_WEBHOOK_URL ?? '',
+      displayName: env.TWILIO_WA_SENDER_NAME,
+      logoUrl: senderLogoUrl(),
+    });
     const senders = client.messaging.v2.channelsSenders;
     const created = await senders.create(body as unknown as Parameters<typeof senders.create>[0]);
 
@@ -143,27 +160,49 @@ export async function markNumberAsPooled(phoneNumber: string): Promise<void> {
 }
 
 /**
- * Points an already-registered sender's inbound webhook at this environment.
- * Prod and dev share one Twilio account, so a pool number keeps the callback
- * URL of whichever environment originally provisioned it — assigning it to an
- * agent must therefore also claim its inbound traffic. No-op when Twilio isn't
- * configured or the number has no sender on this account (externally
- * registered numbers).
+ * Brings an already-registered sender in line with this environment when it
+ * is assigned to an agent: its inbound webhook and its profile logo.
+ *
+ * Webhook: prod and dev share one Twilio account, so a pool number keeps the
+ * callback URL of whichever environment originally provisioned it — assigning
+ * it must claim its inbound traffic, and a failure there propagates (the
+ * assignment would silently swallow every client reply otherwise).
+ *
+ * Logo: senders registered before the logo existed, or outside the platform,
+ * get the platform picture; the display name is never touched. A logo-only
+ * update that fails is logged and ignored — a missing picture must not block
+ * the assignment.
+ *
+ * No-op when Twilio isn't configured or the number has no sender on this
+ * account (externally registered numbers).
  */
-export async function claimSenderWebhook(phoneNumber: string): Promise<void> {
+export async function alignSender(phoneNumber: string): Promise<void> {
   if (!isTwilioConfigured() || !env.TWILIO_WEBHOOK_URL) return;
   const client = twilioClient();
   // The senders API has no per-number lookup, only a channel-wide list.
   const senders = await client.messaging.v2.channelsSenders.list({ channel: 'whatsapp' });
   const sender = senders.find((s) => s.senderId === `whatsapp:${phoneNumber}`);
   if (!sender) return;
-  if (sender.webhook?.callbackUrl === env.TWILIO_WEBHOOK_URL) return;
-  // Same snake_case caveat as in provisionWhatsAppNumber: the SDK forwards
-  // this object verbatim as the JSON body.
-  const body = { webhook: { callback_url: env.TWILIO_WEBHOOK_URL, callback_method: 'POST' } };
+  const plan = planSenderUpdate(
+    { callbackUrl: sender.webhook?.callbackUrl, logoUrl: sender.profile?.logoUrl },
+    { webhookUrl: env.TWILIO_WEBHOOK_URL, logoUrl: senderLogoUrl() },
+  );
+  if (!plan) return;
+  // Snake_case body — see senderProfile.ts for why.
   const handle = client.messaging.v2.channelsSenders(sender.sid);
-  await handle.update(body as unknown as Parameters<typeof handle.update>[0]);
-  logger.info('wa sender webhook claimed', { phoneNumber, callbackUrl: env.TWILIO_WEBHOOK_URL });
+  const update = () => handle.update(plan.body as unknown as Parameters<typeof handle.update>[0]);
+  const logFields = { phoneNumber, callbackUrl: plan.body.webhook?.callback_url, logoUrl: plan.body.profile?.logo_url };
+  if (plan.webhookChanged) {
+    await update();
+    logger.info('wa sender aligned', logFields);
+    return;
+  }
+  try {
+    await update();
+    logger.info('wa sender logo applied', logFields);
+  } catch (err) {
+    logger.error('wa sender logo update failed', err, logFields);
+  }
 }
 
 /** The number isn't on this Twilio account, so there is nothing to release. */

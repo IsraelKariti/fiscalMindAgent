@@ -58,8 +58,6 @@ export type ExtractedFields = {
   as_of_date: string | null;
   /** The document's own validity ("בתוקף עד") date, "YYYY-MM-DD", if it carries one. */
   valid_until: string | null;
-  /** The document's main monetary values. */
-  amounts: { label: string; value: number; currency: string }[];
   legible: boolean;
   injection_suspected: boolean;
 };
@@ -167,15 +165,8 @@ export function normalizeIdNumber(raw: string | null | undefined): string {
   return significant.padStart(9, '0');
 }
 
-const MAX_SANE_AMOUNT = 1e12;
-/** How many amounts the audit row's observed value lists before "(+N)". */
-const MAX_AMOUNTS_SHOWN = 6;
-
-/** `יתרת עו"ש 52,340.55 ILS` — one amount as the trace shows it. */
-function renderAmount(a: { label: string; value: number; currency: string }): string {
-  const value = Number.isFinite(a.value) ? a.value.toLocaleString('en-US') : String(a.value);
-  return [a.label.trim(), value, a.currency.trim()].filter(Boolean).join(' ');
-}
+/** How many typed fields the audit row's observed value lists before "(+N)". */
+const MAX_FIELDS_SHOWN = 6;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** A production year below this is not a car on Israeli roads. */
@@ -328,29 +319,6 @@ export function notExpiredCheck(answer: ExtractedAnswer, ctx: CheckContext): Che
   );
 }
 
-/** `amounts` — at least one sane monetary amount; the note names the exact failing amount and condition. */
-export function amountsCheck(answer: ExtractedAnswer): CheckResult {
-  const shown = answer.amounts.slice(0, MAX_AMOUNTS_SHOWN).map(renderAmount).join(' · ');
-  const observed =
-    answer.amounts.length === 0
-      ? 'לא נמצאו סכומים'
-      : answer.amounts.length > MAX_AMOUNTS_SHOWN
-        ? `${shown} (+${answer.amounts.length - MAX_AMOUNTS_SHOWN})`
-        : shown;
-  let problem: string | null = null;
-  if (answer.amounts.length === 0) {
-    problem = 'לא זוהו במסמך סכומים כספיים';
-  } else {
-    const notNumber = answer.amounts.find((a) => !Number.isFinite(a.value));
-    const negative = answer.amounts.find((a) => Number.isFinite(a.value) && a.value < 0);
-    const tooLarge = answer.amounts.find((a) => Number.isFinite(a.value) && a.value >= MAX_SANE_AMOUNT);
-    if (notNumber) problem = `הסכום "${notNumber.label}" אינו מספר`;
-    else if (negative) problem = `הסכום "${negative.label}" (${renderAmount(negative)}) שלילי`;
-    else if (tooLarge) problem = `הסכום "${tooLarge.label}" (${renderAmount(tooLarge)}) גדול מהתקרה הסבירה (${MAX_SANE_AMOUNT.toLocaleString('en-US')})`;
-  }
-  return entry('amounts', problem === null, problem ?? '', observed);
-}
-
 /**
  * `type_fields` — every required field read and well formed, and at least
  * one of the "any of" group. Observed lists every field as `label: value`.
@@ -363,10 +331,10 @@ export function typeFieldsCheck(
 ): CheckResult {
   const read = fields.map((field) => ({ field, value: typeFieldValue(answer, field) }));
   const shown = read
-    .slice(0, MAX_AMOUNTS_SHOWN)
+    .slice(0, MAX_FIELDS_SHOWN)
     .map(({ field, value }) => `${field.labelHe}: ${renderTypeFieldValue(value, field.kind)}`)
     .join(' · ');
-  const observed = read.length > MAX_AMOUNTS_SHOWN ? `${shown} (+${read.length - MAX_AMOUNTS_SHOWN})` : shown;
+  const observed = read.length > MAX_FIELDS_SHOWN ? `${shown} (+${read.length - MAX_FIELDS_SHOWN})` : shown;
   let problem: string | null = null;
   for (const { field, value } of read) {
     if (value === null) {
@@ -379,6 +347,12 @@ export function typeFieldsCheck(
       }
     } else if (field.kind === 'number') {
       if (typeof value !== 'number' || !Number.isFinite(value)) problem = `השדה "${field.labelHe}" אינו מספר`;
+      else if (field.min !== undefined && value < field.min) {
+        problem =
+          field.min === 0
+            ? `השדה "${field.labelHe}" שלילי (${renderTypeFieldValue(value, field.kind)})`
+            : `השדה "${field.labelHe}" קטן מ-${field.min.toLocaleString('en-US')} (${renderTypeFieldValue(value, field.kind)})`;
+      }
     } else if (field.pattern && (typeof value !== 'string' || !field.pattern.test(value))) {
       problem = field.patternHintHe ?? `השדה "${field.labelHe}" אינו בפורמט הנדרש (${value})`;
     }

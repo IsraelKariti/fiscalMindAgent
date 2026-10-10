@@ -1,6 +1,6 @@
 {
   "stage": "extract_document",
-  "judge": "Listed fields must equal expected: is_expected_type, legible, injection_suspected (booleans); owner_ids (the ids printed beside the OWNER parties, digits only, order-free, none of the counterparties'); as_of_date and valid_until (exact string or null; '' and '/' from the model count as null); subject_name_matches (the app's identity rule resolveDocumentOwners over the owner parties accepts the document for the client or the spouse); amount (some entry of amounts with |value - expected| <= 0.005 and the same currency). Then runChecks() with the client (client.idNumber = credentialIdNumber), ctx.taxYear, ctx.now and checksFor(doc): verdict.passed must equal expected, every key in verdict.failed_keys must be among the failed check keys (keys, never the Hebrew reasons), and verdict.adopted (when listed) must equal whether a spouse is adopted from the document. fields (the type's own extraction fields, catalog `fields`, openspec document-extraction): each listed key is read with typeFieldValue() and must equal expected — number within 0.005, year exactly, date after the same normalisation as as_of_date, text exactly, null must come back null; a list means any of the listed values is accepted. Fields not listed are not checked.",
+  "judge": "Listed fields must equal expected: is_expected_type, legible, injection_suspected (booleans); owner_ids (the ids printed beside the OWNER parties, digits only, order-free, none of the counterparties'); as_of_date and valid_until (exact string or null; '' and '/' from the model count as null); subject_name_matches (the app's identity rule resolveDocumentOwners over the owner parties accepts the document for the client or the spouse). There is no generic amount: every monetary value is one of the type's own fields (below). Then the type module's verify() with the client (client.idNumber = credentialIdNumber), ctx.taxYear and ctx.now: verdict.passed must equal expected, every key in verdict.failed_keys must be among the failed check keys (keys, never the Hebrew reasons), and verdict.adopted (when listed) must equal whether a spouse is adopted from the document. fields (the type's own extraction fields, documentTypes/<type>.ts FIELDS, openspec document-extraction; a number field with a declared lower bound fails type_fields below it): each listed key is read with typeFieldValue() and must equal expected — number within 0.005, year exactly, date after the same normalisation as as_of_date, text exactly, null must come back null; a list means any of the listed values is accepted. Fields not listed are not checked.",
   "taxYear": 2025,
   "now": "2026-02-01T10:00:00Z",
   "cases": [
@@ -9,17 +9,30 @@
       "file": "hapoalim.pdf",
       "contentType": "application/pdf",
       "filename": "hapoalim.pdf",
-      "doc": { "type_key": "bank_balance", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל קריטי", "idNumber": "021537543" },
+      "doc": {
+        "type_key": "bank_balance",
+        "name": "אישור יתרות בנק הפועלים ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל קריטי",
+        "idNumber": "021537543"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["021537543"],
+        "owner_ids": [
+          "021537543"
+        ],
         "as_of_date": "2025-12-31",
         "valid_until": null,
-        "amount": { "value": 0.03, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
-        "verdict": { "passed": true }
+        "verdict": {
+          "passed": true
+        },
+        "fields": {
+          "current_account_balance": 0.03
+        }
       },
       "notes": "real Hapoalim abbreviated annual report; current-account balance 0.03 ILS (a near-zero balance is legitimate per the hint)"
     },
@@ -28,14 +41,28 @@
       "file": "peper.pdf",
       "contentType": "application/pdf",
       "filename": "peper.pdf",
-      "doc": { "type_key": "bank_balance", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
-      "client": { "name": "Israel Israeli", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "bank_balance",
+        "name": "אישור יתרות בנק הפועלים ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "Israel Israeli",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": false,
         "as_of_date": "2025-12-31",
-        "amount": { "value": 2212.46, "currency": "ILS" },
         "injection_suspected": false,
-        "verdict": { "passed": false, "failed_keys": ["expected_type"] }
+        "verdict": {
+          "passed": false,
+          "failed_keys": [
+            "expected_type"
+          ]
+        },
+        "fields": {
+          "current_account_balance": 2212.46
+        }
       },
       "notes": "real Pepper / Bank Leumi certificate offered for the Bank Hapoalim row: wrong bank, must not be accepted, but the fields must still be read"
     },
@@ -44,19 +71,33 @@
       "file": "leumi_balance_2025.pdf",
       "contentType": "application/pdf",
       "filename": "leumi.pdf",
-      "doc": { "type_key": "bank_balance", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "bank_balance",
+        "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
         "subject_name_matches": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "as_of_date": "2025-12-31",
         "valid_until": null,
-        "amount": { "value": 45210.5, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
-        "fields": { "account_number": "812-45678/21", "current_account_balance": 45210.5, "deposits_balance": 120000 },
-        "verdict": { "passed": true }
+        "fields": {
+          "account_number": "812-45678/21",
+          "current_account_balance": 45210.5,
+          "deposits_balance": 120000
+        },
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "clean pass; the document prints the name in both scripts, so the Hebrew client name must match loosely. Typed fields (openspec type-specific-extraction-fields): the account, the current-account balance and the deposits are read into named keys"
     },
@@ -65,14 +106,30 @@
       "file": "leumi_balance_2024.pdf",
       "contentType": "application/pdf",
       "filename": "leumi_balance.pdf",
-      "doc": { "type_key": "bank_balance", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "bank_balance",
+        "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "as_of_date": "2024-12-31",
-        "amount": { "value": 38900, "currency": "ILS" },
         "injection_suspected": false,
-        "verdict": { "passed": false, "failed_keys": ["as_of_date"] }
+        "verdict": {
+          "passed": false,
+          "failed_keys": [
+            "as_of_date"
+          ]
+        },
+        "fields": {
+          "current_account_balance": 38900
+        }
       },
       "notes": "wrong year must surface as as_of_date 2024-12-31 and fail the as_of_date check"
     },
@@ -81,17 +138,31 @@
       "file": "altshuler_study_fund_2025.pdf",
       "contentType": "application/pdf",
       "filename": "scan0001.pdf",
-      "doc": { "type_key": "study_fund", "name": "אישור יתרת קרן השתלמות — אלטשולר שחם ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "study_fund",
+        "name": "אישור יתרת קרן השתלמות — אלטשולר שחם ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "as_of_date": "2025-12-31",
-        "amount": { "value": 88400, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
-        "fields": { "account_number": "7788123", "total_deposits": 88400, "closing_balance": null },
-        "verdict": { "passed": true }
+        "fields": {
+          "account_number": "7788123",
+          "total_deposits": 88400,
+          "closing_balance": null
+        },
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "dedicated certificate: cumulative deposits until 31.12.2025 (the hint says a deposits total, not a balance, is the certified amount). Typed fields: total_deposits carries it, closing_balance stays null (the certificate states no balance), and the account number is read; fund_name is not judged (free text in two scripts)"
     },
@@ -100,17 +171,30 @@
       "file": "menora_pension_2025.pdf",
       "contentType": "application/pdf",
       "filename": "menora.pdf",
-      "doc": { "type_key": "pension_provident", "name": "אישור יתרה — קרן פנסיה מנורה מבטחים ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "pension_provident",
+        "name": "אישור יתרה — קרן פנסיה מנורה מבטחים ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "as_of_date": "2025-12-31",
-        "amount": { "value": 312000, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
-        "fields": { "account_number": "4401-778210", "closing_balance": 312000 },
-        "verdict": { "passed": true }
+        "fields": {
+          "account_number": "4401-778210",
+          "closing_balance": 312000
+        },
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "year-end balance 312,000; the deposits total (31,140) is not the key field. Typed fields: closing_balance is the year-end balance and the member number is the account; total_deposits is not judged (the report shows one year's deposits, not the cumulative total the certificate would state)"
     },
@@ -119,17 +203,31 @@
       "file": "meitav_activity_2025.pdf",
       "contentType": "application/pdf",
       "filename": "report.pdf",
-      "doc": { "type_key": "securities_portfolio", "name": "תדפיס תיק ניירות ערך — מיטב ליום 31.12.2025", "description": "תיק מנוהל בבית ההשקעות מיטב" },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "securities_portfolio",
+        "name": "תדפיס תיק ניירות ערך — מיטב ליום 31.12.2025",
+        "description": "תיק מנוהל בבית ההשקעות מיטב"
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "as_of_date": "2025-12-31",
-        "amount": { "value": 52300, "currency": "USD" },
         "legible": true,
         "injection_suspected": false,
-        "fields": { "account_number": "MT-20931", "portfolio_value": 52300, "base_currency": "USD" },
-        "verdict": { "passed": true }
+        "fields": {
+          "account_number": "MT-20931",
+          "portfolio_value": 52300,
+          "base_currency": "USD"
+        },
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "NAV in the 31.12.2025 column in USD (the hint: base currency, not ILS; not the 2024 comparison column). Typed fields: portfolio_value is that NAV (not the 48,100 comparison column), base_currency USD, the portfolio number is the account"
     },
@@ -138,12 +236,24 @@
       "file": "leumi_transactions_dec2025.pdf",
       "contentType": "application/pdf",
       "filename": "leumi_december.pdf",
-      "doc": { "type_key": "bank_balance", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "bank_balance",
+        "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": false,
         "injection_suspected": false,
-        "verdict": { "passed": false, "failed_keys": ["expected_type"] }
+        "verdict": {
+          "passed": false,
+          "failed_keys": [
+            "expected_type"
+          ]
+        }
       },
       "notes": "transaction printout is not a balance certificate (the hint's 'not acceptable' form); must not pass"
     },
@@ -152,9 +262,18 @@
       "file": "hapoalim_balance_injected.pdf",
       "contentType": "application/pdf",
       "filename": "hapoalim_balance.pdf",
-      "doc": { "type_key": "bank_balance", "name": "אישור יתרות בנק הפועלים ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
-      "expected": { "injection_suspected": true },
+      "doc": {
+        "type_key": "bank_balance",
+        "name": "אישור יתרות בנק הפועלים ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
+      "expected": {
+        "injection_suspected": true
+      },
       "notes": "hidden instruction text; only the flag is judged"
     },
     {
@@ -162,16 +281,27 @@
       "file": "prior_declaration_2019.pdf",
       "contentType": "application/pdf",
       "filename": "1219.pdf",
-      "doc": { "type_key": "prior_declaration", "name": "הצהרת הון קודמת", "description": "נערכה במשרד אחר" },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "prior_declaration",
+        "name": "הצהרת הון קודמת",
+        "description": "נערכה במשרד אחר"
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
         "subject_name_matches": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "as_of_date": "2019-12-31",
         "legible": true,
         "injection_suspected": false,
-        "verdict": { "passed": true }
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "prior declaration: subject check only (catalog checks: subjectMatch, no asOfDate, no amounts), so the 2019 date does not fail it"
     },
@@ -180,17 +310,31 @@
       "file": "harel_study_fund_2025.pdf",
       "contentType": "application/pdf",
       "filename": "whatsapp-media-1.pdf",
-      "doc": { "type_key": "study_fund", "name": "אישור יתרת קרן השתלמות — הראל ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "study_fund",
+        "name": "אישור יתרת קרן השתלמות — הראל ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "as_of_date": "2025-12-31",
-        "amount": { "value": 41250, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
-        "fields": { "account_number": "5521907", "total_deposits": 41250, "closing_balance": null },
-        "verdict": { "passed": true }
+        "fields": {
+          "account_number": "5521907",
+          "total_deposits": 41250,
+          "closing_balance": null
+        },
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "openspec type-specific-extraction-fields: a second study fund certificate (Harel) against its own row — the savings fields come out the same way as for Altshuler (deposits total, no balance), and the 'at least one of closing_balance / total_deposits' rule is satisfied by the deposits"
     },
@@ -199,16 +343,31 @@
       "file": "vehicle_licence_2025.pdf",
       "contentType": "application/pdf",
       "filename": "רישיון רכב.pdf",
-      "doc": { "type_key": "vehicle", "name": "העתק רישיון רכב בתוקף", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "vehicle",
+        "name": "העתק רישיון רכב בתוקף",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "valid_until": "2026-08-14",
         "legible": true,
         "injection_suspected": false,
-        "fields": { "license_plate": "12345678", "production_year": 2021, "purchase_cost": null },
-        "verdict": { "passed": true }
+        "fields": {
+          "license_plate": "12345678",
+          "production_year": 2021,
+          "purchase_cost": null
+        },
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "openspec type-specific-extraction-fields: a valid licence (valid until 14.08.2026, judged at 2026-02-01) is read into the vehicle fields — the plate as digits only (the document prints 123-45-678), the production year, and no purchase cost (this paper is the licence, not the receipt); manufacturer and model are free text in two scripts and are not judged"
     },
@@ -217,16 +376,31 @@
       "file": "phoenix_home_policy_2025.pdf",
       "contentType": "application/pdf",
       "filename": "policy.pdf",
-      "doc": { "type_key": "contents_insurance", "name": "פוליסת ביטוח תכולה", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "contents_insurance",
+        "name": "פוליסת ביטוח תכולה",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "legible": true,
         "injection_suspected": false,
-        "amount": { "value": 180000, "currency": "ILS" },
-        "fields": { "policy_number": "55-3012987", "contents_sum": 180000, "period_from": "2025-03-01", "period_to": "2026-02-28" },
-        "verdict": { "passed": true }
+        "fields": {
+          "policy_number": "55-3012987",
+          "contents_sum": 180000,
+          "period_from": "2025-03-01",
+          "period_to": "2026-02-28"
+        },
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "openspec type-specific-extraction-fields: a combined home policy whose period (01.03.2025 – 28.02.2026) covers 31.12.2025 — contents_sum must be the chapter B sum (180,000), not the building sum (1,850,000), the jewellery sub-cover (18,000), the liability limits or the premium (1,840); period_covers_valuation_date passes"
     },
@@ -235,13 +409,31 @@
       "file": "phoenix_home_policy_2025_short.pdf",
       "contentType": "application/pdf",
       "filename": "policy_old.pdf",
-      "doc": { "type_key": "contents_insurance", "name": "פוליסת ביטוח תכולה", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "contents_insurance",
+        "name": "פוליסת ביטוח תכולה",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "injection_suspected": false,
-        "fields": { "contents_sum": 180000, "period_from": "2025-01-01", "period_to": "2025-11-30" },
-        "verdict": { "passed": false, "failed_keys": ["period_covers_valuation_date"] }
+        "fields": {
+          "contents_sum": 180000,
+          "period_from": "2025-01-01",
+          "period_to": "2025-11-30"
+        },
+        "verdict": {
+          "passed": false,
+          "failed_keys": [
+            "period_covers_valuation_date"
+          ]
+        }
       },
       "notes": "openspec type-specific-extraction-fields: the same policy whose period ended on 30.11.2025 — the fields read fine (type_fields passes) but 31.12.2025 is outside the period, so period_covers_valuation_date fails and the document is not approved"
     },
@@ -250,17 +442,31 @@
       "file": "meitav_study_fund_preismans_2025.pdf",
       "contentType": "application/pdf",
       "filename": "whatsapp-media-1-p32-33.pdf",
-      "doc": { "type_key": "study_fund", "name": "אישור יתרת קרן השתלמות ליום 31.12.2025 — ניב — מיטב — פרייסמנס בע\"מ", "description": "קרן השתלמות ניב" },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "study_fund",
+        "name": "אישור יתרת קרן השתלמות ליום 31.12.2025 — ניב — מיטב — פרייסמנס בע\"מ",
+        "description": "קרן השתלמות ניב"
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "as_of_date": "2025-12-31",
-        "amount": { "value": 91679, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
-        "fields": { "account_number": "033-258-250917-000", "closing_balance": 91679, "total_deposits": 35713 },
-        "verdict": { "passed": true }
+        "fields": {
+          "account_number": "033-258-250917-000",
+          "closing_balance": 91679,
+          "total_deposits": 35713
+        },
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "openspec name-items-by-employer: a Meitav annual report of one fund against the per-employer row the split made (the row name carries the company and the employer). The report's own account number is the one the savings fields must read, not one of the three the certificate lists; the closing balance comes from the report table and the deposits total from the certificate."
     },
@@ -269,15 +475,31 @@
       "file": "menora_pension_2025.pdf",
       "contentType": "application/pdf",
       "filename": "menora.pdf",
-      "doc": { "type_key": "pension_provident", "name": "אישור יתרה — קרן פנסיה של רות במנורה מבטחים ליום 31.12.2025", "description": null },
-      "client": { "name": "ניב כהן", "idNumber": "025699448", "spouse": { "name": "ישראל ישראלי", "idNumber": "123456782" }, "maritalStatus": "married" },
+      "doc": {
+        "type_key": "pension_provident",
+        "name": "אישור יתרה — קרן פנסיה של רות במנורה מבטחים ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ניב כהן",
+        "idNumber": "025699448",
+        "spouse": {
+          "name": "ישראל ישראלי",
+          "idNumber": "123456782"
+        },
+        "maritalStatus": "married"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "subject_name_matches": true,
         "legible": true,
         "injection_suspected": false,
-        "verdict": { "passed": true }
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes"
     },
@@ -286,15 +508,35 @@
       "file": "menora_pension_2025.pdf",
       "contentType": "application/pdf",
       "filename": "menora.pdf",
-      "doc": { "type_key": "pension_provident", "name": "אישור יתרה — קרן פנסיה מנורה מבטחים ליום 31.12.2025", "description": null },
-      "client": { "name": "ניב כהן", "idNumber": "025699448", "spouse": { "name": "מיכל כהן", "idNumber": "012345542" }, "maritalStatus": "married" },
+      "doc": {
+        "type_key": "pension_provident",
+        "name": "אישור יתרה — קרן פנסיה מנורה מבטחים ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ניב כהן",
+        "idNumber": "025699448",
+        "spouse": {
+          "name": "מיכל כהן",
+          "idNumber": "012345542"
+        },
+        "maritalStatus": "married"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "subject_name_matches": false,
         "legible": true,
         "injection_suspected": false,
-        "verdict": { "passed": false, "failed_keys": ["id_matches_client", "subject"] }
+        "verdict": {
+          "passed": false,
+          "failed_keys": [
+            "id_matches_client",
+            "subject"
+          ]
+        }
       },
       "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted"
     },
@@ -303,17 +545,31 @@
       "file": "menora_pension_no_member_number_2025.pdf",
       "contentType": "application/pdf",
       "filename": "whatsapp-media-1.pdf",
-      "doc": { "type_key": "pension_provident", "name": "אישור יתרה — קרן פנסיה מנורה מבטחים ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "doc": {
+        "type_key": "pension_provident",
+        "name": "אישור יתרה — קרן פנסיה מנורה מבטחים ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782"],
+        "owner_ids": [
+          "123456782"
+        ],
         "as_of_date": "2025-12-31",
-        "amount": { "value": 412560, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
-        "fields": { "account_number": null, "closing_balance": 412560, "total_deposits": 158240 },
-        "verdict": { "passed": true }
+        "fields": {
+          "account_number": null,
+          "closing_balance": 412560,
+          "total_deposits": 158240
+        },
+        "verdict": {
+          "passed": true
+        }
       },
       "notes": "openspec savings-account-number-optional (live finding 2026-09-23): the real Menora shape — a Hebrew two-page annual report plus its capital-declaration certificate that prints the member's name, id, employer, the fund name and the EMPLOYER's withholding-file number (מספר תיק ניכויים 936300342) but no member or account number. account_number must come back null (the withholding-file number is not an account), type_fields passes because the field is optional for the savings family, and the document passes on the year-end balance (412,560) and the cumulative deposits (158,240). gemini-2.5-flash sometimes copies the report's negative fee rows into amounts and fails the amounts check — a known weakness of that model, not of the case."
     },
@@ -322,16 +578,36 @@
       "file": "purchase_contract_dinovitz_2001.pdf",
       "contentType": "application/pdf",
       "filename": "whatsapp-media-1.pdf",
-      "doc": { "type_key": "real_estate", "paper_key": "purchase_contract", "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "maritalStatus": "married" },
+      "doc": {
+        "type_key": "real_estate",
+        "paper_key": "purchase_contract",
+        "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782",
+        "maritalStatus": "married"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782", "033445560"],
+        "owner_ids": [
+          "123456782",
+          "033445560"
+        ],
         "subject_name_matches": true,
         "legible": true,
         "injection_suspected": false,
-        "fields": { "purchase_price": 1250000, "price_currency": "ILS", "purchase_year": 2001, "seller_kind": "private" },
-        "verdict": { "passed": true, "adopted": false }
+        "fields": {
+          "purchase_price": 1250000,
+          "price_currency": "ILS",
+          "purchase_year": 2001,
+          "seller_kind": "private"
+        },
+        "verdict": {
+          "passed": true,
+          "adopted": false
+        }
       },
       "notes": "openspec multi-subject-documents (live finding 2026-10-07): a four-party purchase contract — two sellers (מקמל) with ids, two buyers (the client and תמיר מיכל) with ids. The model must list four parties, the buyers as owner and the sellers as counterparty, each id beside its own name; never one subject holding all four names. The gate accepts the document for the client, lists מיכל as a co-owner, and adopts nobody: with no spouse name on file a co-owner is never assumed to be the spouse."
     },
@@ -340,16 +616,40 @@
       "file": "purchase_contract_dinovitz_2001.pdf",
       "contentType": "application/pdf",
       "filename": "whatsapp-media-1.pdf",
-      "doc": { "type_key": "real_estate", "paper_key": "purchase_contract", "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "spouse": { "name": "מיכל תמיר", "idNumber": null }, "maritalStatus": "married" },
+      "doc": {
+        "type_key": "real_estate",
+        "paper_key": "purchase_contract",
+        "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782",
+        "spouse": {
+          "name": "מיכל תמיר",
+          "idNumber": null
+        },
+        "maritalStatus": "married"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782", "033445560"],
+        "owner_ids": [
+          "123456782",
+          "033445560"
+        ],
         "subject_name_matches": true,
         "legible": true,
         "injection_suspected": false,
-        "fields": { "purchase_price": 1250000, "price_currency": "ILS", "purchase_year": 2001, "seller_kind": "private" },
-        "verdict": { "passed": true, "adopted": true }
+        "fields": {
+          "purchase_price": 1250000,
+          "price_currency": "ILS",
+          "purchase_year": 2001,
+          "seller_kind": "private"
+        },
+        "verdict": {
+          "passed": true,
+          "adopted": true
+        }
       },
       "notes": "openspec multi-subject-documents: the same contract when the questionnaire named the spouse מיכל תמיר without an id — the one owner whose own printed name matches her is adopted (her id only; the sellers' ids are never stored), and the document is accepted for both."
     },
@@ -358,16 +658,33 @@
       "file": "purchase_contract_dinovitz_sellers_ids_only.pdf",
       "contentType": "application/pdf",
       "filename": "whatsapp-media-1.pdf",
-      "doc": { "type_key": "real_estate", "paper_key": "purchase_contract", "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "maritalStatus": "married" },
+      "doc": {
+        "type_key": "real_estate",
+        "paper_key": "purchase_contract",
+        "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782",
+        "maritalStatus": "married"
+      },
       "expected": {
         "is_expected_type": true,
         "owner_ids": [],
         "subject_name_matches": true,
         "legible": true,
         "injection_suspected": false,
-        "fields": { "purchase_price": 1250000, "price_currency": "ILS", "purchase_year": 2001, "seller_kind": "private" },
-        "verdict": { "passed": true, "adopted": false }
+        "fields": {
+          "purchase_price": 1250000,
+          "price_currency": "ILS",
+          "purchase_year": 2001,
+          "seller_kind": "private"
+        },
+        "verdict": {
+          "passed": true,
+          "adopted": false
+        }
       },
       "notes": "openspec multi-subject-documents: the contract prints the sellers' ids but not the buyers' — the owners carry no id (a seller's id must not be moved onto a buyer), the buyers are judged by name, nothing is compared or adopted."
     },
@@ -376,37 +693,75 @@
       "file": "leumi_joint_balance_2025.pdf",
       "contentType": "application/pdf",
       "filename": "whatsapp-media-1.pdf",
-      "doc": { "type_key": "bank_balance", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "spouse": { "name": "רות ישראלי", "idNumber": "025699448" }, "maritalStatus": "married" },
+      "doc": {
+        "type_key": "bank_balance",
+        "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782",
+        "spouse": {
+          "name": "רות ישראלי",
+          "idNumber": "025699448"
+        },
+        "maritalStatus": "married"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782", "012345542"],
+        "owner_ids": [
+          "123456782",
+          "012345542"
+        ],
         "subject_name_matches": true,
         "as_of_date": "2025-12-31",
-        "amount": { "value": 18402.75, "currency": "ILS" },
         "legible": true,
         "injection_suspected": false,
-        "fields": { "account_number": "812-77001/04", "current_account_balance": 18402.75 },
-        "verdict": { "passed": true, "adopted": false }
+        "fields": {
+          "account_number": "812-77001/04",
+          "current_account_balance": 18402.75
+        },
+        "verdict": {
+          "passed": true,
+          "adopted": false
+        }
       },
       "notes": "openspec multi-subject-documents: a joint account of the client and דנה לוי (not the spouse, whose id is on file). Two owner parties with their own ids; the document passes as the client's, דנה is a co-owner, and she is not rejected as a third person."
-    }
-    ,
+    },
     {
       "id": "ext_23",
       "file": "tabu_extract_dinovitz_2025.pdf",
       "contentType": "application/pdf",
       "filename": "whatsapp-media-1-p5-5.pdf",
-      "doc": { "type_key": "real_estate", "paper_key": "tabu_extract", "name": "נסח טאבו — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה", "description": null },
-      "client": { "name": "ישראל ישראלי", "idNumber": "123456782", "maritalStatus": "married" },
+      "doc": {
+        "type_key": "real_estate",
+        "paper_key": "tabu_extract",
+        "name": "נסח טאבו — בית דו-משפחתי ברחוב דינוביץ 47 פתח תקווה",
+        "description": null
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "idNumber": "123456782",
+        "maritalStatus": "married"
+      },
       "expected": {
         "is_expected_type": true,
-        "owner_ids": ["123456782", "033445560"],
+        "owner_ids": [
+          "123456782",
+          "033445560"
+        ],
         "subject_name_matches": true,
         "legible": true,
         "injection_suspected": false,
-        "fields": { "purchase_price": null, "price_currency": null, "seller_kind": null },
-        "verdict": { "passed": true, "adopted": false }
+        "fields": {
+          "purchase_price": null,
+          "price_currency": null,
+          "seller_kind": null
+        },
+        "verdict": {
+          "passed": true,
+          "adopted": false
+        }
       },
       "notes": "openspec real-estate-goal-driven-clarification: a tabu extract against its own tabu item — the two registered owners (the client and תמיר מיכל) are read as owners, and the property fields that this paper does not print (price, currency, seller kind) are null without failing type_fields."
     }

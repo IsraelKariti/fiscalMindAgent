@@ -523,11 +523,6 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
       });
       checks.push({ key: 'subject_name_matches', expected: e.subject_name_matches, actual: data.parties, pass: (identity.matched !== null) === e.subject_name_matches });
     }
-    if (e.amount) {
-      const want = e.amount;
-      const hit = data.amounts.find((x) => Math.abs(x.value - want.value) <= 0.005 && x.currency.toUpperCase() === want.currency.toUpperCase());
-      checks.push({ key: 'amount', expected: e.amount, actual: data.amounts, pass: hit !== undefined });
-    }
     // The type's own fields, read the way the type_fields check reads them (typeFieldValue).
     for (const [key, wanted] of Object.entries(e.fields ?? {})) {
       const field = typeFields.find((f) => f.key === key);

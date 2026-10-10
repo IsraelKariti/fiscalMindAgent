@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  amountsCheck,
   asOfDateCheck,
   expectedTypeCheck,
   identityChecks,
@@ -16,6 +15,7 @@ import {
   SKIP_REASONS_HE,
   type CheckContext,
   type DocumentParty,
+  type ExtractedAnswer,
   type ExtractedFields,
 } from '../src/agents/declarationOfCapital/verifyChecks.js';
 import type { TypeField } from '../src/agents/declarationOfCapital/documentTypes/types.js';
@@ -26,21 +26,22 @@ import { GENERIC_DOCUMENT_TYPE } from '../src/agents/declarationOfCapital/docume
 
 // The shared check library (verifyChecks.ts): each helper on its own, and the
 // verdict through a type module with no extra fields (loan_taken: owner,
-// as-of date, amounts). The per-type scenarios live in documentTypes.test.ts.
+// as-of date, typed fields). The per-type scenarios live in documentTypes.test.ts.
 
 // 123456782 is the canonical checksum-valid test id.
 const VALID_ID = '123456782';
 
-const baseFields: ExtractedFields = {
+const baseFields: ExtractedAnswer = {
   is_expected_type: true,
   actual_kind: 'אישור יתרות מבנק לאומי',
   issuer: 'בנק לאומי',
   parties: [{ name: 'ישראל ישראלי', id_number: null, role: 'owner' }],
   as_of_date: '2025-12-31',
   valid_until: null,
-  amounts: [{ label: 'יתרת עו"ש', value: 52_340.55, currency: 'ILS' }],
   legible: true,
   injection_suspected: false,
+  lender_name: 'בנק לאומי',
+  outstanding_balance: 52_340.55,
 };
 
 /** One owner party as the extraction lists it (a blank name stands for "none printed"). */
@@ -53,8 +54,8 @@ const baseCtx: CheckContext = {
   now: new Date('2026-01-15T10:00:00'),
 };
 
-/** The verdict of a type whose checks are owner + as-of date + amounts and no extra fields. */
-const verify = (fields: ExtractedFields, ctx: CheckContext = baseCtx) => loanTaken.verify(fields, ctx);
+/** The verdict of a type whose checks are owner + as-of date + its two typed fields (loan_taken). */
+const verify = (fields: ExtractedAnswer, ctx: CheckContext = baseCtx) => loanTaken.verify(fields, ctx);
 
 describe('isValidIsraeliId', () => {
   it('accepts a checksum-valid id and pads short ids', () => {
@@ -93,7 +94,7 @@ describe('namesLooselyMatch', () => {
   });
 });
 
-describe('the verdict through a type module (loan_taken: owner, date, amounts)', () => {
+describe('the verdict through a type module (loan_taken: owner, date, typed fields)', () => {
   it('passes a clean document', () => {
     const verdict = verify(baseFields);
     assert.equal(verdict.passed, true);
@@ -115,7 +116,7 @@ describe('the verdict through a type module (loan_taken: owner, date, amounts)',
         ['spouse_adopted', null, null],
         ['co_owners', null, null],
         ['as_of_date', '2025-12-31', '2025-12-31'],
-        ['amounts', 'יתרת עו"ש 52,340.55 ILS', null],
+        ['type_fields', 'שם המלווה: בנק לאומי · יתרת ההלוואה ליום 31.12: 52,340.55', null],
       ],
     );
     const ran = verdict.checks.filter((c) => c.passed !== null);
@@ -183,7 +184,7 @@ describe('the verdict through a type module (loan_taken: owner, date, amounts)',
   });
 
   it('a type without the subject, date or amount checks (other_assets) still judges every owner id', () => {
-    assert.equal(otherAssets.verify({ ...baseFields, as_of_date: null, amounts: [], parties: [owner('משה כהן', null)] }, baseCtx).passed, true);
+    assert.equal(otherAssets.verify({ ...baseFields, as_of_date: null, parties: [owner('משה כהן', null)] }, baseCtx).passed, true);
     const verdict = otherAssets.verify({ ...baseFields, parties: [owner('ישראל ישראלי', '123456783')] }, baseCtx);
     assert.equal(verdict.passed, false);
     assert.deepEqual(verdict.checks.map((c) => c.key), ['legible', 'expected_type', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners']);
@@ -298,28 +299,27 @@ describe('the single checks', () => {
     assert.equal(wrong.expected, '2025-12-31');
   });
 
-  it('amounts: names the exact failing amount and condition, and lists what was found', () => {
-    const negative = amountsCheck({ ...baseFields, amounts: [{ label: 'יתרת עו"ש', value: 12_340, currency: 'ILS' }, { label: 'פיקדון', value: -5, currency: 'ILS' }] });
+  it('type_fields: a number below its field\'s bound fails, naming the field and the value; no bound accepts an overdraft', () => {
+    const deposits: TypeField = { key: 'deposits_balance', kind: 'number', labelHe: 'יתרת פיקדונות וחסכונות', required: false, min: 0 };
+    const sum: TypeField = { key: 'contents_sum', kind: 'number', labelHe: 'סכום ביטוח התכולה', required: true, min: 1 };
+    const current: TypeField = { key: 'current_account_balance', kind: 'number', labelHe: 'יתרת עו"ש ליום 31.12', required: true };
+
+    const negative = typeFieldsCheck({ ...baseFields, deposits_balance: -5 }, baseCtx, [deposits]);
     assert.equal(negative.passed, false);
-    assert.equal(negative.observed, 'יתרת עו"ש 12,340 ILS · פיקדון -5 ILS');
-    assert.match(negative.reason ?? '', /"פיקדון"/);
-    assert.match(negative.reason ?? '', /שלילי/);
+    assert.equal(negative.reason, 'השדה "יתרת פיקדונות וחסכונות" שלילי (-5)');
+    assert.equal(negative.observed, 'יתרת פיקדונות וחסכונות: -5');
 
-    const none = amountsCheck({ ...baseFields, amounts: [] });
-    assert.equal(none.passed, false);
-    assert.equal(none.observed, 'לא נמצאו סכומים');
-    assert.match(none.reason ?? '', /לא זוהו/);
+    const zeroSum = typeFieldsCheck({ ...baseFields, contents_sum: 0 }, baseCtx, [sum]);
+    assert.equal(zeroSum.passed, false);
+    assert.equal(zeroSum.reason, 'השדה "סכום ביטוח התכולה" קטן מ-1 (0)');
 
-    const huge = amountsCheck({ ...baseFields, amounts: [{ label: 'סה"כ', value: 5e12, currency: 'ILS' }] });
-    assert.equal(huge.passed, false);
-    assert.match(huge.reason ?? '', /"סה"כ"/);
-    assert.match(huge.reason ?? '', /התקרה/);
+    const overdraft = typeFieldsCheck({ ...baseFields, current_account_balance: -13_685.83 }, baseCtx, [current]);
+    assert.equal(overdraft.passed, true);
+    assert.equal(overdraft.observed, 'יתרת עו"ש ליום 31.12: -13,685.83');
 
-    const nan = amountsCheck({ ...baseFields, amounts: [{ label: 'x', value: Number.NaN, currency: 'ILS' }] });
-    assert.match(nan.reason ?? '', /אינו מספר/);
-    // Through the verdict: any of these fails the document.
-    assert.equal(verify({ ...baseFields, amounts: [] }).passed, false);
-    assert.equal(verify({ ...baseFields, amounts: [{ label: 'x', value: -5, currency: 'ILS' }] }).passed, false);
+    assert.equal(typeFieldsCheck({ ...baseFields, deposits_balance: 0 }, baseCtx, [deposits]).passed, true);
+    // Through the verdict: a loan balance below zero fails the document.
+    assert.equal(verify({ ...baseFields, outstanding_balance: -1 }).passed, false);
   });
 
   it('not_expired: fails a lapsed validity date, passes a future one or the verification day, skips a missing or malformed one', () => {

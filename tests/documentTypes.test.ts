@@ -14,7 +14,7 @@ import { SKIP_REASONS_HE, type CheckContext, type ChecksVerdict, type ExtractedF
 // versa; every module's schema, prompt and field list agree with each other;
 // and the request each module yields equals the captured pre-change request.
 
-const COMMON_KEYS = ['is_expected_type', 'actual_kind', 'issuer', 'parties', 'as_of_date', 'valid_until', 'amounts', 'legible', 'injection_suspected'];
+const COMMON_KEYS = ['is_expected_type', 'actual_kind', 'issuer', 'parties', 'as_of_date', 'valid_until', 'legible', 'injection_suspected'];
 const ALL_MODULES = [...DOCUMENT_TYPES, GENERIC_DOCUMENT_TYPE];
 const FIXTURES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'extractionCalls');
 
@@ -51,6 +51,7 @@ describe('document type registry', () => {
         assert.ok(!COMMON_KEYS.includes(f.key), `${spec.key}.${f.key} collides with a common field`);
         assert.ok(f.labelHe.trim().length > 0, `${spec.key}.${f.key} has no label`);
         if (f.pattern) assert.equal(f.kind, 'text', `${spec.key}.${f.key}: pattern on a non-text field`);
+        if (f.min !== undefined) assert.equal(f.kind, 'number', `${spec.key}.${f.key}: min on a non-number field`);
       }
       assert.equal(new Set(spec.fields.map((f) => f.key)).size, spec.fields.length, `${spec.key}: duplicate field key`);
       for (const key of spec.fieldsAnyOf ?? []) assert.ok(spec.fields.some((f) => f.key === key), `${spec.key}: fieldsAnyOf names unknown ${key}`);
@@ -109,7 +110,6 @@ const baseFields: ExtractedFields = {
   parties: [{ name: 'ישראל ישראלי', id_number: null, role: 'owner' }],
   as_of_date: '2025-12-31',
   valid_until: null,
-  amounts: [{ label: 'יתרת עו"ש', value: 52_340.55, currency: 'ILS' }],
   legible: true,
   injection_suspected: false,
 };
@@ -125,14 +125,14 @@ const typeFieldsOf = (verdict: ChecksVerdict) => verdict.checks.find((c) => c.ke
 const periodOf = (verdict: ChecksVerdict) => verdict.checks.find((c) => c.key === 'period_covers_valuation_date');
 
 describe('which checks each type runs', () => {
-  it('bank_balance: legible, expected type, owner, as-of date, amounts, typed fields — no expiry, no period', () => {
+  it('bank_balance: legible, expected type, owner, as-of date, typed fields — no amounts, no expiry, no period', () => {
     const bank = documentTypeSpec('bank_balance');
     const keys = bank.verify({ ...baseFields, account_number: '12-345-678901', current_account_balance: 4_521, deposits_balance: null }, baseCtx).checks.map((c) => c.key);
-    assert.deepEqual(keys, ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners', 'as_of_date', 'amounts', 'type_fields']);
+    assert.deepEqual(keys, ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners', 'as_of_date', 'type_fields']);
   });
 
   it('a type with no fields yields neither type_fields nor the period check', () => {
-    const keys = documentTypeSpec('loan_taken').verify(baseFields, baseCtx).checks.map((c) => c.key);
+    const keys = documentTypeSpec('business_ownership').verify(baseFields, baseCtx).checks.map((c) => c.key);
     assert.ok(!keys.includes('type_fields'));
     assert.ok(!keys.includes('period_covers_valuation_date'));
     assert.deepEqual(documentTypeSpec('prior_declaration').verify(baseFields, baseCtx).checks.map((c) => c.key), ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners']);
@@ -141,7 +141,7 @@ describe('which checks each type runs', () => {
   it('the generic type: common fields only, owner ids judged but the client need not be named', () => {
     const generic = GENERIC_DOCUMENT_TYPE;
     assert.deepEqual(generic.fields, []);
-    const verdict = generic.verify({ ...baseFields, parties: [{ name: 'מישהו אחר', id_number: null, role: 'owner' }], as_of_date: null, amounts: [] }, baseCtx);
+    const verdict = generic.verify({ ...baseFields, parties: [{ name: 'מישהו אחר', id_number: null, role: 'owner' }], as_of_date: null }, baseCtx);
     assert.equal(verdict.passed, true);
     assert.deepEqual(verdict.checks.map((c) => c.key), ['legible', 'expected_type', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners']);
     assert.ok(verdict.checks.slice(2).every((c) => c.passed === null), 'no owner id: every identity entry is skipped');
@@ -149,11 +149,12 @@ describe('which checks each type runs', () => {
 
   it('crypto and poa_account do not require the client as the owner; other_assets checks nothing beyond the ids', () => {
     const stranger = { ...baseFields, parties: [{ name: 'מישהו אחר', id_number: null, role: 'owner' as const }] };
-    assert.equal(documentTypeSpec('crypto').verify(stranger, baseCtx).passed, true);
-    assert.equal(documentTypeSpec('crypto').verify({ ...stranger, as_of_date: null }, baseCtx).passed, false);
-    assert.equal(documentTypeSpec('poa_account').verify({ ...stranger, as_of_date: null, amounts: [] }, baseCtx).passed, true);
-    assert.equal(documentTypeSpec('other_assets').verify({ ...stranger, as_of_date: null, amounts: [] }, baseCtx).passed, true);
-    assert.equal(documentTypeSpec('loan_given').verify({ ...baseFields, as_of_date: null }, baseCtx).passed, true, 'loan_given: no as-of date required');
+    const coins = { ...stranger, market_value: 3_120.55, value_currency: 'USD' };
+    assert.equal(documentTypeSpec('crypto').verify(coins, baseCtx).passed, true);
+    assert.equal(documentTypeSpec('crypto').verify({ ...coins, as_of_date: null }, baseCtx).passed, false);
+    assert.equal(documentTypeSpec('poa_account').verify({ ...stranger, as_of_date: null }, baseCtx).passed, true);
+    assert.equal(documentTypeSpec('other_assets').verify({ ...stranger, as_of_date: null }, baseCtx).passed, true);
+    assert.equal(documentTypeSpec('loan_given').verify({ ...baseFields, as_of_date: null, borrower_name: null, debt_balance: 40_000 }, baseCtx).passed, true, 'loan_given: no as-of date required');
   });
 });
 
@@ -163,7 +164,6 @@ describe('vehicle', () => {
     ...baseFields,
     as_of_date: null,
     valid_until: '2026-08-01',
-    amounts: [],
     license_plate: '1234567',
     manufacturer: 'טויוטה',
     model: 'קורולה',
@@ -319,8 +319,89 @@ describe('the savings family and the bank', () => {
       documentTypeSpec('real_estate').fields.map((f) => f.key),
       ['property_address', 'purchase_price', 'price_currency', 'purchase_year', 'seller_kind'],
     );
-    for (const key of ['loan_taken', 'loan_given', 'business_ownership', 'crypto', 'private_investment', 'poa_account', 'prior_declaration', 'other_assets']) {
+    assert.deepEqual(requiredOf('loan_taken'), { lender_name: false, outstanding_balance: true });
+    assert.deepEqual(requiredOf('loan_given'), { borrower_name: false, debt_balance: true });
+    assert.deepEqual(requiredOf('crypto'), { market_value: true, value_currency: true });
+    for (const key of ['business_ownership', 'private_investment', 'poa_account', 'prior_declaration', 'other_assets']) {
       assert.deepEqual(documentTypeSpec(key).fields, [], `${key} declares no fields`);
     }
+  });
+
+  it('every number field carries its own bound: none on the bank current account, 0 on holdings and costs, 1 on the insured sum', () => {
+    const minOf = (type: string, key: string) => documentTypeSpec(type).fields.find((f) => f.key === key)?.min;
+    assert.equal(minOf('bank_balance', 'current_account_balance'), undefined);
+    assert.equal(minOf('bank_balance', 'deposits_balance'), 0);
+    assert.equal(minOf('securities_portfolio', 'portfolio_value'), 0);
+    for (const key of ['pension_provident', 'study_fund', 'life_insurance_savings']) {
+      assert.equal(minOf(key, 'closing_balance'), 0, key);
+      assert.equal(minOf(key, 'total_deposits'), 0, key);
+    }
+    assert.equal(minOf('mortgage_balance', 'principal_balance'), 0);
+    assert.equal(minOf('loan_taken', 'outstanding_balance'), 0);
+    assert.equal(minOf('loan_given', 'debt_balance'), 0);
+    assert.equal(minOf('crypto', 'market_value'), 0);
+    assert.equal(minOf('vehicle', 'purchase_cost'), 0);
+    assert.equal(minOf('real_estate', 'purchase_price'), 0);
+    assert.equal(minOf('contents_insurance', 'contents_sum'), 1);
+    for (const spec of [...DOCUMENT_TYPES, GENERIC_DOCUMENT_TYPE]) {
+      for (const f of spec.fields) if (f.kind === 'number') assert.ok(f.key === 'current_account_balance' || f.min !== undefined, `${spec.key}.${f.key}: a number field without a bound`);
+    }
+  });
+
+  it('bank: an overdraft passes, a negative deposits balance fails naming the field (openspec per-type-amount-checks)', () => {
+    const bank = documentTypeSpec('bank_balance');
+    const mizrahi = { ...baseFields, account_number: '431-467792', current_account_balance: -13_685.83, deposits_balance: null };
+    const overdraft = bank.verify(mizrahi, baseCtx);
+    assert.equal(overdraft.passed, true, overdraft.reasons.join(' | '));
+    assert.equal(typeFieldsOf(overdraft).observed, 'מספר חשבון: 431-467792 · יתרת עו"ש ליום 31.12: -13,685.83 · יתרת פיקדונות וחסכונות: לא נמצא');
+    assert.ok(!overdraft.checks.some((c) => c.key === 'amounts'));
+
+    const negativeDeposits = bank.verify({ ...mizrahi, current_account_balance: 12_340, deposits_balance: -5 }, baseCtx);
+    assert.equal(negativeDeposits.passed, false);
+    assert.equal(typeFieldsOf(negativeDeposits).reason, 'השדה "יתרת פיקדונות וחסכונות" שלילי (-5)');
+  });
+
+  it('contents_insurance: a zero insured sum fails above-zero', () => {
+    const policy = { ...baseFields, as_of_date: null, policy_number: '12345', contents_sum: 0, period_from: '2025-03-01', period_to: '2026-02-28' };
+    const verdict = documentTypeSpec('contents_insurance').verify(policy, baseCtx);
+    assert.equal(verdict.passed, false);
+    assert.equal(typeFieldsOf(verdict).reason, 'השדה "סכום ביטוח התכולה" קטן מ-1 (0)');
+  });
+});
+
+describe('loan_taken, loan_given and crypto read their money into named fields', () => {
+  it('loan_taken: the balance owed is required, the lender optional; the checks are owner, as-of date, type_fields', () => {
+    const loan = documentTypeSpec('loan_taken');
+    const cert = { ...baseFields, lender_name: 'מקס איט פיננסים', outstanding_balance: 24_310 };
+    const ok = loan.verify(cert, baseCtx);
+    assert.equal(ok.passed, true, ok.reasons.join(' | '));
+    assert.deepEqual(ok.checks.map((c) => c.key), ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners', 'as_of_date', 'type_fields']);
+    assert.equal(typeFieldsOf(ok).observed, 'שם המלווה: מקס איט פיננסים · יתרת ההלוואה ליום 31.12: 24,310');
+    assert.equal(loan.verify({ ...cert, lender_name: null }, baseCtx).passed, true);
+    const missing = loan.verify({ ...cert, outstanding_balance: null }, baseCtx);
+    assert.equal(missing.passed, false);
+    assert.ok(typeFieldsOf(missing).reason!.includes('"יתרת ההלוואה ליום 31.12" לא נמצא'));
+  });
+
+  it('loan_given: the debt balance is required and zero or above; no as-of date check', () => {
+    const given = documentTypeSpec('loan_given');
+    const agreement = { ...baseFields, as_of_date: null, borrower_name: 'חברת ניב בע"מ', debt_balance: 40_000 };
+    const ok = given.verify(agreement, baseCtx);
+    assert.equal(ok.passed, true, ok.reasons.join(' | '));
+    assert.ok(!ok.checks.some((c) => c.key === 'as_of_date'));
+    assert.equal(typeFieldsOf(given.verify({ ...agreement, debt_balance: -1 }, baseCtx)).reason, 'השדה "יתרת החוב ליום 31.12" שלילי (-1)');
+    assert.equal(given.verify({ ...agreement, debt_balance: null }, baseCtx).passed, false);
+  });
+
+  it('crypto: market value and a three-letter currency code are required', () => {
+    const crypto = documentTypeSpec('crypto');
+    const statement = { ...baseFields, market_value: 3_120.55, value_currency: 'USD' };
+    const ok = crypto.verify(statement, baseCtx);
+    assert.equal(ok.passed, true, ok.reasons.join(' | '));
+    assert.equal(typeFieldsOf(ok).observed, 'שווי השוק ליום 31.12: 3,120.55 · מטבע השווי: USD');
+    const bad = crypto.verify({ ...statement, value_currency: 'dollars' }, baseCtx);
+    assert.equal(bad.passed, false);
+    assert.equal(typeFieldsOf(bad).reason, 'מטבע השווי חייב להיות קוד מטבע בן שלוש אותיות (ILS, USD)');
+    assert.equal(crypto.verify({ ...statement, market_value: null }, baseCtx).passed, false);
   });
 });

@@ -33,6 +33,14 @@ export interface TypeField {
   pattern?: RegExp;
   /** The `type_fields` note when the pattern fails. */
   patternHintHe?: string;
+  /**
+   * Number fields only: the inclusive lower bound the value must reach
+   * (openspec `document-extraction`, change `per-type-amount-checks`). The
+   * bound is the field's own meaning — a current-account balance that may be
+   * overdrawn declares none, a holding or a cost declares 0, an insured sum a
+   * positive one. A finite value below it fails `type_fields`.
+   */
+  min?: number;
 }
 
 export interface DocumentTypeSpec {

@@ -49,9 +49,10 @@ Stage keys: `injection_detection_llm`, `questionnaire_schema_mapping`, `file_cla
 - `file_classification`: `expected.document_type` (a catalog key or `other`), `matched_document_id`
   (`null`, an id, or a list), `legible`, `injection_suspected`, `document_kind_any`.
 - `extract_document`: `doc` (`name`, `description`, `type_key`), `client` (`name`, `idNumber`),
-  `expected` fields (`is_expected_type`, `subject_id_number`, `as_of_date`, `valid_until`, `amount`
-  `{value, currency}`, `subject_name_matches`, `legible`, `injection_suspected`) and
-  `expected.verdict` = what `runChecks()` must decide (`passed`, `failed_keys` by check key —
+  `expected` fields (`is_expected_type`, `subject_id_number`, `as_of_date`, `valid_until`,
+  `subject_name_matches`, `legible`, `injection_suspected`; money only through `expected.fields`,
+  the type's own fields — there is no generic amount) and
+  `expected.verdict` = what the type module's `verify()` must decide (`passed`, `failed_keys` by check key —
   reasons are Hebrew, never match on text).
 - `generate_message`: a state snapshot; hard code asserts only (decision, channel, valuation date
   mentioned, ≤3 questions, every resolution with a verbatim quote). No LLM judge.

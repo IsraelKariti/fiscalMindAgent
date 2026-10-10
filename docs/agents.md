@@ -245,15 +245,15 @@ monday WorkForm is the only source of which documents a declaration needs):
   exported helper per check — `legibleCheck`, `expectedTypeCheck`,
   `identityChecks` (subject, id_checksum, id_matches_client, spouse_adopted,
   co_owners, client_id_on_file, in today's order), `asOfDateCheck`,
-  `notExpiredCheck` (null without a well-formed valid-until), `amountsCheck`,
+  `notExpiredCheck` (null without a well-formed valid-until),
   `typeFieldsCheck` (a required null, an empty any-of group, or a malformed
   value — bad date form, year outside 1950..taxYear+1, non-finite number,
-  pattern mismatch — fails; observed lists every field as `label: value`),
+  a number below the field's own `min`, pattern mismatch — fails; observed lists every field as `label: value`),
   `periodCoversValuationDateCheck` (null unless both dates are well formed)
   — and `verdictOf` (folds the list; `client_id_on_file` never fails the
   document). A module's `verify` reads like
   `verdictOf([legibleCheck(a), expectedTypeCheck(a, ctx), ...identity,
-  asOfDateCheck(a, ctx), amountsCheck(a), typeFieldsCheck(a, ctx, FIELDS)],
+  asOfDateCheck(a, ctx), typeFieldsCheck(a, ctx, FIELDS)],
   owners)`; nothing is decided from flags. Check keys, observed/expected
   texts, the `verify_extraction` audit detail (`fields: [{key, label,
   value}]`, `stepSummary.ts` → `extracted_fields`) and stored records are
@@ -275,8 +275,17 @@ monday WorkForm is the only source of which documents a declaration needs):
   production year, purchase cost; any-of plate / cost; `not_expired`),
   `contents_insurance` (policy number, contents sum, period from/to +
   `period_covers_valuation_date`), `real_estate` (address, price, currency,
-  year, seller kind — all optional, see the goal-driven clarification entry).
-  The other eight types declare no fields. Evals: `expected.fields` per case
+  year, seller kind — all optional, see the goal-driven clarification entry),
+  `loan_taken` (lender name, balance owed at 31.12), `loan_given` (borrower
+  name, balance owed to the client at 31.12), `crypto` (market value at 31.12
+  + its three-letter currency code). There is no generic `amounts` field or
+  check since 2026-10-10 (openspec `per-type-amount-checks`): every number
+  field carries its own `min` in the module — none on the bank
+  current-account balance (an overdraft is valid), 0 on balances, deposits,
+  values, costs and prices, 1 on the insured contents sum — and
+  `typeFieldsCheck` fails a value below it, naming the field by label. The
+  other five types (business ownership, private investment, POA account,
+  prior declaration, other assets) declare no fields. Evals: `expected.fields` per case
   (`evals/stages.ts`, judged through `documentTypeSpec(...).fields` and
   `.verify`); the sample script `scripts/verifyExtractionSample.ts` builds
   the real request through `buildExtractionCall`.
@@ -908,11 +917,13 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   identity" below), `co_owners` (informational: the other owners, never a
   rejection), `client_id_on_file` (when an owner prints an id but none is on
   file — reported, never enforced),
-  `as_of_date`, `not_expired`, `amounts`, then `type_fields` and
+  `as_of_date`, `not_expired`, then `type_fields` and
   `period_covers_valuation_date` for a type that declares extraction fields
   (see "Type-specific extraction fields" above) — each with the value read
-  from the document as `observed` and the reference as `expected`; the amounts
-  check names the exact failing amount and condition in its reason; the row's
+  from the document as `observed` and the reference as `expected`;
+  `type_fields` names the missing or malformed field by label in its reason
+  (a number below the field's bound included); rows recorded before
+  2026-10-10 also carry an `amounts` entry, rendered as recorded; the row's
   detail also carries `fields` (key, Hebrew label, value) so the step modal
   lists the typed values by name). In the trace viewers every
   step row is a button that opens `StepDetailModal`: a "what the step did"

@@ -14,7 +14,7 @@ import {
   type PartyInput,
   type SpouseOnFile,
 } from '../src/agents/declarationOfCapital/spouseIdentity.js';
-import type { CheckContext, ExtractedFields, PartyRole } from '../src/agents/declarationOfCapital/verifyChecks.js';
+import type { CheckContext, ExtractedAnswer, ExtractedFields, PartyRole } from '../src/agents/declarationOfCapital/verifyChecks.js';
 import loanTaken from '../src/agents/declarationOfCapital/documentTypes/loanTaken.js';
 
 // Checksum-valid test ids.
@@ -436,18 +436,19 @@ describe('resolveDocumentOwners', () => {
   });
 });
 
-describe('a type module with a spouse (end to end: owner, as-of date, amounts — loan_taken)', () => {
-  const runChecks = (fields: ExtractedFields, ctx: CheckContext) => loanTaken.verify(fields, ctx);
-  const fields: ExtractedFields = {
+describe('a type module with a spouse (end to end: owner, as-of date, typed fields — loan_taken)', () => {
+  const runChecks = (fields: ExtractedAnswer, ctx: CheckContext) => loanTaken.verify(fields, ctx);
+  const fields: ExtractedAnswer = {
     is_expected_type: true,
     actual_kind: 'אישור יתרות קרן פנסיה',
     issuer: 'מנורה מבטחים',
     parties: [{ name: 'מיכל תמיר', id_number: SPOUSE_ID, role: 'owner' }],
     as_of_date: '2025-12-31',
     valid_until: null,
-    amounts: [{ label: 'יתרה', value: 1_134_117, currency: 'ILS' }],
     legible: true,
     injection_suspected: false,
+    lender_name: 'מנורה מבטחים',
+    outstanding_balance: 1_134_117,
   };
   const ctx: CheckContext = {
     clientName: 'ניב',
@@ -465,11 +466,11 @@ describe('a type module with a spouse (end to end: owner, as-of date, amounts �
     assert.deepEqual(v.adoptSpouse, { idNumber: SPOUSE_ID, name: 'מיכל תמיר' });
     assert.deepEqual(
       v.checks.map((c) => c.key),
-      ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners', 'as_of_date', 'amounts'],
+      ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'client_id_on_file', 'spouse_adopted', 'co_owners', 'as_of_date', 'type_fields'],
     );
     assert.deepEqual(
       v.checks.filter((c) => c.passed !== null).map((c) => c.key),
-      ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'spouse_adopted', 'as_of_date', 'amounts'],
+      ['legible', 'expected_type', 'subject', 'id_checksum', 'id_matches_client', 'spouse_adopted', 'as_of_date', 'type_fields'],
     );
     assert.equal(byKey(v).co_owners.passed, null);
     assert.deepEqual(v.parties, [{ name: 'מיכל תמיר', role: 'owner', maskedId: '••••••782', resolved: 'adopted' }]);

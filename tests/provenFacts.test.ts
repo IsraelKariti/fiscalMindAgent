@@ -19,7 +19,6 @@ const CONTRACT_EXTRACTION = {
   ],
   as_of_date: null,
   valid_until: null,
-  amounts: [{ label: 'התמורה', value: 1_250_000, currency: 'ILS' }],
   legible: true,
   injection_suspected: false,
   property_address: 'דינוביץ אבשלום 47, פתח תקווה',

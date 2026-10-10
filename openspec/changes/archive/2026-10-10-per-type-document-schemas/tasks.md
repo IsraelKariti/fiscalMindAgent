@@ -28,7 +28,7 @@
 - [x] 4.1 `evals/stages.ts`: build with `documentTypeSpec(c.doc.type_key)`, judge typed fields from `spec.fields`, verdict from `spec.verify`; verify `npm run evals:rejudge -- --in evals/results/<last run>.json` reports the same pass/fail and failed keys for every `extract_document` case as the last run.
 - [x] 4.2 `scripts/verifyExtractionSample.ts`: same substitution; verify `npx tsx scripts/verifyExtractionSample.ts --help` (or a dry run with a local sample) runs without a type error.
 - [x] 4.3 `llmStages.ts`: optional `schema` on `LlmStagePrompt`; the extraction stage lists one variant per module with its schema, generic last; verify `tests/llmStages.test.ts` passes and `GET /api/admin/llm-stages` returns 18 variants for `extract_document`.
-- [ ] 4.4 `AdminLlmStages.tsx`: show a variant's own schema table under that variant when present; verify `npm run build:gui` passes and the `#/llm-stages` page shows the `bank_balance` variant with the three bank fields and `prior_declaration` with common fields only.
+- [x] 4.4 `AdminLlmStages.tsx`: show a variant's own schema table under that variant when present; verify `npm run build:gui` passes and the `#/llm-stages` page shows the `bank_balance` variant with the three bank fields and `prior_declaration` with common fields only. — code built (variant schema shown via SchemaBlock); browser check skipped by owner.
 
 ## 5. Docs and wrap-up
 

@@ -26,4 +26,4 @@
 - [x] 5.1 Update `docs/pipeline.md` (the "Unsupported type or size" row and a new "Render a spreadsheet to text for the model" row naming `SH/modelFile.ts` · `toModelFile` and `SH/spreadsheetText.ts` · `renderSpreadsheetText`) and the file-intake paragraph of `docs/agents.md`; verify both files mention the new functions.
 - [x] 5.2 Run `npm run typecheck` and `npm test`; both pass.
 - [ ] 5.3 Walk the spec scenarios on the dev stack: resend the real Altshuler `.xlsx` to the test client, confirm the agent's next reply speaks about the sheet's content (expected: it notes the 24.05.2026 date and asks for a 31.12.2025 statement), and confirm a `.xls` file still shows "unsupported".
-- [ ] 5.4 Commit per the repo Git workflow (pull --rebase, typecheck, commit with a message file, push) and verify the push lands on master.
+- [x] 5.4 Commit per the repo Git workflow (pull --rebase, typecheck, commit with a message file, push) and verify the push lands on master.

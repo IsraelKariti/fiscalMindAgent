@@ -179,13 +179,20 @@ function normalizeId(raw: string | null | undefined): string {
   return significant.padStart(9, '0');
 }
 
-/** Lowercase, strip punctuation/quotes, split to tokens of 2+ chars. */
+/**
+ * Lowercase, strip punctuation/quotes, split to tokens of 2+ chars. A token
+ * that starts with the Hebrew conjunction ו ("and") is kept both as printed
+ * and without that prefix: a joint account printed as "תמיר מיכל וניב" must
+ * still name ניב.
+ */
 function nameTokens(name: string): string[] {
-  return name
+  const printed = name
     .toLowerCase()
     .replace(/["'`״׳.,()-]/g, ' ')
     .split(/\s+/)
     .filter((t) => t.length >= 2);
+  const unprefixed = printed.filter((t) => t.startsWith('ו') && t.length >= 3).map((t) => t.slice(1));
+  return [...printed, ...unprefixed];
 }
 
 /** Loose name comparison: true when the two names share at least one real token. */

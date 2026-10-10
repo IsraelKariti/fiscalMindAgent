@@ -85,6 +85,12 @@ describe('namesLooselyMatch', () => {
   it('ignores punctuation-only and single-char tokens', () => {
     assert.equal(namesLooselyMatch('י.', 'ישראל ישראלי'), false);
   });
+
+  it('matches a name glued to the Hebrew "and" prefix on a joint account line', () => {
+    assert.equal(namesLooselyMatch('תמיר מיכל וניב', 'ניב'), true);
+    assert.equal(namesLooselyMatch('ניב תמיר', 'תמיר מיכל וניב'), true);
+    assert.equal(namesLooselyMatch('תמיר מיכל וניב', 'דנה'), false);
+  });
 });
 
 describe('the verdict through a type module (loan_taken: owner, date, amounts)', () => {

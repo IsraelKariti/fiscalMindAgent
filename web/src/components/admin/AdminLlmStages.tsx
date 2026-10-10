@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, type LlmStage } from '../../api';
 import { useT } from '../../i18n';
 import { CopyButton } from '../CopyButton';
+import { MarkdownPane } from '../MarkdownPane';
 import { MODEL_LABELS } from './shared';
 
 /**
@@ -140,7 +141,8 @@ function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () =>
                 {stage.prompts.length > 1 && <span className="muted"> · {p.variant}</span>}
               </div>
               <CopyButton text={p.systemPrompt} title={t.copyText} />
-              <Pane tone="system">{highlightPlaceholders(p.systemPrompt)}</Pane>
+              {/* Prompt files are markdown: rendered, with the {{placeholders}} still highlighted. */}
+              <MarkdownPane tone="system" text={p.systemPrompt} highlightPlaceholders />
             </div>
           ))}
           {stage.query.map((q) => (

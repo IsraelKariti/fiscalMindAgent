@@ -13,6 +13,7 @@ import { CopyButton } from '../CopyButton';
 import { callDetailsText, callLinkOf } from '../callLink';
 import { DocumentPane, isTwoPane, useDocumentOf } from '../DocumentPane';
 import { Dropdown } from '../Dropdown';
+import { MarkdownPane } from '../MarkdownPane';
 import { MODEL_LABELS } from './shared';
 
 const PAGE_SIZE = 50;
@@ -228,7 +229,11 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
               {call.request?.systemInstruction && (
                 <>
                   <h3>{t.adminLlmCallSystemInstruction}</h3>
-                  <CallPane tone="system" text={call.request.systemInstruction} copyTitle={t.copyText} />
+                  {/* The prompt files are markdown: render it, keep the raw text behind the copy button. */}
+                  <div className="llm-pane-wrap llm-pane-copy-left">
+                    <CopyButton text={call.request.systemInstruction} title={t.copyText} />
+                    <MarkdownPane tone="system" text={call.request.systemInstruction} />
+                  </div>
                 </>
               )}
 

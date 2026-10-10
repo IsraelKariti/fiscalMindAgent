@@ -2327,6 +2327,96 @@ details.doc-group > summary.doc-group-title {
   background: var(--primary-soft);
   border-color: rgba(139, 92, 246, 0.4);
 }
+/* A prompt rendered as markdown (system instruction panes): normal flow
+   instead of pre-wrap, every block laid out in its own text direction so a
+   Hebrew prompt with English technical lines reads the way it was written. */
+.llm-pane-md {
+  white-space: normal;
+}
+.llm-pane-md > :first-child {
+  margin-top: 0;
+}
+.llm-pane-md > :last-child {
+  margin-bottom: 0;
+}
+.llm-pane-md p,
+.llm-pane-md li,
+.llm-pane-md h1,
+.llm-pane-md h2,
+.llm-pane-md h3,
+.llm-pane-md h4,
+.llm-pane-md blockquote,
+.llm-pane-md td,
+.llm-pane-md th {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+.llm-pane-md p {
+  margin: 0 0 0.85em;
+}
+.llm-pane-md h1,
+.llm-pane-md h2,
+.llm-pane-md h3,
+.llm-pane-md h4 {
+  margin: 1.1em 0 0.45em;
+  font-size: 1.05em;
+  font-weight: 700;
+}
+.llm-pane-md ul,
+.llm-pane-md ol {
+  margin: 0 0 0.85em;
+  padding-inline-start: 1.5em;
+}
+.llm-pane-md li {
+  margin: 0.25em 0;
+}
+.llm-pane-md li > p {
+  margin: 0;
+}
+.llm-pane-md strong {
+  font-weight: 700;
+}
+.llm-pane-md code {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.16);
+  direction: ltr;
+  unicode-bidi: embed;
+}
+.llm-pane-md pre {
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.12);
+}
+.llm-pane-md pre code {
+  padding: 0;
+  background: none;
+}
+.llm-pane-md hr {
+  border: 0;
+  border-top: 1px solid var(--border-strong);
+  margin: 1em 0;
+}
+.llm-pane-md blockquote {
+  margin: 0 0 0.85em;
+  padding-inline-start: 12px;
+  border-inline-start: 3px solid var(--border-strong);
+  opacity: 0.9;
+}
+.llm-pane-md table {
+  border-collapse: collapse;
+  margin: 0 0 0.85em;
+}
+.llm-pane-md td,
+.llm-pane-md th {
+  border: 1px solid var(--border-strong);
+  padding: 4px 8px;
+}
 
 /* Agent page: the assigned WhatsApp number and its lifecycle actions */
 .wa-number-display {

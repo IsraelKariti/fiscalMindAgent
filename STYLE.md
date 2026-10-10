@@ -20,7 +20,10 @@ code gate) has this shape, top to bottom. Sample: Accounting → Form 106.
 3. **Tabs** (`<tabs>`), so the page never scrolls far. Fixed tab names and
    order: "Rules", then any extra topic tabs ("Where it comes from",
    "The papers"), then "Open questions", then "For developers". Each tab
-   has an emoji icon. Leave out a tab that would be empty.
+   has an emoji icon. Leave out a tab that would be empty. An Accounting
+   group page (Real estate, Funds, ...) uses the extra tabs "The decision"
+   (the chart plus a "Words in the chart" card) and "The types" (one card
+   per document type, linking to its extraction page).
 4. **No "For developers" toggle** at the end of the page any more: the
    developer content lives in the last tab, as cards.
 
@@ -41,10 +44,14 @@ page itself; sections are tabs, topics are `###` cards.
 ### Open questions are to-dos
 
 "To confirm with the accountant" is never bold text inside a sentence. It
-is one to-do line (`- [ ]`) in the "Open questions" tab, written as a full
-question. The card that depends on the answer gets a gray `####` label
-"Not confirmed yet" that points to the tab. When the accountant answers,
-tick the to-do and write the answer under it.
+is one to-do line (`- [ ]`), written as a full question. All questions of
+the Accounting pages live on one page, Accounting → "Open Questions": one
+card per source page (title = link to that page), the to-dos inside. The
+source page keeps a short "Open questions" tab with one line that links to
+that page. The card that depends on the answer gets a gray `####` label
+"Not confirmed yet" that points to the Open Questions page, and the page's
+"Status" tile turns `yellow_bg`. When the accountant answers, tick the
+to-do and write the answer under it.
 
 ## 1. Cards, not table rows
 

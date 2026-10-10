@@ -303,3 +303,13 @@ The text inside a diagram must be easy to read without zooming.
 - When a new document type or paper is added, add it to the matching
   Accounting page, or create a new group page when the documents depend on
   each other and on no existing group.
+- **A code gate's "Checks per type" tab** has one card per document type
+  (plus one for a checklist row without a type). The card title links to
+  a child page of the gate page, named "<Type> checks", that lists every
+  check of that type in the order the code runs it, as one card per check
+  ("What", "Runs", "Fails when"). The list is complete: it repeats the
+  checks all types share (`legible`, `expected_type`, the ID checks),
+  never only the type's own checks. The card's gray line names the same
+  checks in order, and a "Fields" line links to the type's extraction
+  page. When a type's `verify` list changes, update both the child page
+  and the card.

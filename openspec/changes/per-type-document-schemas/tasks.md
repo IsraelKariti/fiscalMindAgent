@@ -33,4 +33,4 @@
 ## 5. Docs and wrap-up
 
 - [x] 5.1 Update `docs/agents.md` (the type-specific extraction fields paragraph) and `docs/pipeline.md` section E rows 2, 4 and 7 to name the type modules, the registry and the helpers; verify every function named there exists (`grep`).
-- [ ] 5.2 Run `npm run typecheck`, `npm test`, the evals re-judge, and compare the `#/llm-stages` page; commit per the repo git workflow; verify the push lands on master.
+- [x] 5.2 Run `npm run typecheck`, `npm test`, the evals re-judge, and compare the `#/llm-stages` page; commit per the repo git workflow; verify the push lands on master.

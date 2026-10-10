@@ -16,15 +16,8 @@ interface Props {
   titleKey?: MessageStringKey;
   /** Empty-state override — for agents whose list starts empty by design. */
   emptyTextKey?: MessageStringKey;
-  /** Capital-declaration flow: grouped statuses, verification badges, attestation state. */
-  capital?: {
-    attestation: 'none' | 'requested' | 'confirmed';
-    /** The household on file (openspec `spouse-identity`); ids arrive already masked. */
-    household?: {
-      maritalStatus: 'married' | 'not_married' | null;
-      spouse: { name: string | null; maskedId: string | null; nameSource: string | null; idSource: string | null } | null;
-    };
-  };
+  /** Capital-declaration flow: grouped statuses, verification badges. */
+  capital?: boolean;
 }
 
 /** The view/download icon pair for one received file. */
@@ -61,7 +54,7 @@ function AnalysisLine({ file, childCount }: { file: DocumentFile; childCount: nu
   // The original of a multi-document PDF: its documents are listed as their own files.
   if (file.analysis_status === 'split') {
     return (
-      <span className="badge badge-neutral" title={t.analysisSplitTitle}>
+      <span className="badge badge-meta" title={t.analysisSplitTitle}>
         {t.analysisSplit(childCount)}
       </span>
     );
@@ -104,30 +97,54 @@ function AnalysisLine({ file, childCount }: { file: DocumentFile; childCount: nu
   );
 }
 
+/** Whitespace-insensitive equality of two display names. */
+function sameName(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  return a.replace(/\s+/g, ' ').trim() === b.replace(/\s+/g, ' ').trim();
+}
+
 /** One received file: name, analysis warnings, and the view/download pair. */
 function FileItem({
   clientId,
   file,
   files,
+  documentName,
   onView,
 }: {
   clientId: string;
   file: DocumentFile;
   /** Every file of the client — a split parent counts its children, a child names its parent. */
   files: DocumentFile[];
+  /** Name of the list document the file sits under; a label equal to it is not repeated. */
+  documentName?: string;
   onView: (file: DocumentFile) => void;
 }) {
   const { t } = useT();
   const parent = file.parent_file_id ? files.find((f) => f.id === file.parent_file_id) : undefined;
   const childCount = files.filter((f) => f.parent_file_id === file.id).length;
+  const hasPages = Boolean(parent) && file.page_from != null && file.page_to != null;
+  // A matched child is labelled after its document, so under that document the
+  // label would repeat the row title. The line then shows what is new: the
+  // file the client sent (the parent, for a split child) and the page range.
+  const repeatsDocument = sameName(file.label, documentName);
+  const sourceName = parent?.filename ?? file.filename;
   return (
     <li className="doc-file-item">
       <span className="doc-file-text">
-        <span className="doc-file-label" title={file.filename}>
-          {file.label ?? file.filename}
+        <span className="doc-file-label" title={repeatsDocument ? sourceName : file.filename}>
+          <svg className="doc-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span>{repeatsDocument ? sourceName : (file.label ?? file.filename)}</span>
+          {repeatsDocument && hasPages && (
+            <span className="doc-file-pages">· {t.splitPagesShort(file.page_from!, file.page_to!)}</span>
+          )}
         </span>
-        {parent && file.page_from != null && file.page_to != null && (
-          <span className="doc-desc muted">{t.splitChildPages(file.page_from, file.page_to, parent.label ?? parent.filename)}</span>
+        {!repeatsDocument && hasPages && parent && (
+          <span className="badge badge-meta" title={parent.filename}>
+            {t.splitChildPages(file.page_from!, file.page_to!, parent.label ?? parent.filename)}
+          </span>
         )}
         <AnalysisLine file={file} childCount={childCount} />
       </span>
@@ -155,6 +172,8 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewing, setViewing] = useState<DocumentFile | null>(null);
+  // Capital flow: the status tab in view; falls back to the first non-empty tab.
+  const [tab, setTab] = useState<string | null>(null);
 
   // All files linked to a checklist item, oldest first (the list arrives
   // created_at ascending). A tax-fetched multi-employer year links several
@@ -260,7 +279,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         {linked.length > 0 && (
           <ul className="doc-file-list">
             {linked.map((file) => (
-              <FileItem key={file.id} clientId={clientId} file={file} files={files} onView={setViewing} />
+              <FileItem key={file.id} clientId={clientId} file={file} files={files} documentName={doc.name} onView={setViewing} />
             ))}
           </ul>
         )}
@@ -334,31 +353,6 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
     );
   };
 
-  // One line for the household on file; absent when nothing is known (openspec `spouse-identity`).
-  const household = capital?.household;
-  const sourceText = (s: string | null) =>
-    s === 'questionnaire' ? t.spouseSourceQuestionnaire : s === 'crm' ? t.spouseSourceCrm : s === 'document' ? t.spouseSourceDocument : '';
-  const householdText =
-    household && (household.maritalStatus !== null || household.spouse)
-      ? [
-          household.maritalStatus === 'married' ? t.maritalMarried : household.maritalStatus === 'not_married' ? t.maritalNotMarried : t.maritalUnknown,
-          household.spouse
-            ? `${t.spouseLabel}: ${household.spouse.name ?? t.spouseNameUnknown}${household.spouse.name && household.spouse.nameSource ? ` (${sourceText(household.spouse.nameSource)})` : ''}${
-                household.spouse.maskedId ? ` · ${t.spouseIdLabel} ${household.spouse.maskedId}${household.spouse.idSource ? ` (${sourceText(household.spouse.idSource)})` : ''}` : ''
-              }`
-            : null,
-        ]
-          .filter((s): s is string => s !== null)
-          .join(' · ')
-      : null;
-
-  const attestationText =
-    capital?.attestation === 'confirmed'
-      ? t.attestationConfirmed
-      : capital?.attestation === 'requested'
-        ? t.attestationRequested
-        : t.attestationNone;
-
   return (
     <section className="card panel">
       <div className="panel-header">
@@ -372,52 +366,61 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
 
       <div className="panel-body">
         {error && <div className="error-banner">{error}</div>}
-        {capital && (
-          <div className={`doc-attestation ${capital.attestation}`}>
-            <span className="muted">{t.attestationLabel}:</span> {attestationText}
-          </div>
-        )}
-        {householdText && (
-          <div className="doc-household muted">
-            <span>{t.householdLabel}:</span> {householdText}
-          </div>
-        )}
-
         {documents.length === 0 ? (
           <p className="muted">{t[emptyTextKey ?? 'noDocsNothingToCollect']}</p>
         ) : capital ? (
-          CAPITAL_GROUPS.map(({ status, labelKey, collapsed }) => {
-            const group = documents.filter((d) => d.status === status);
-            if (group.length === 0) return null;
-            const list = <ul className="doc-list">{group.map(capitalRow)}</ul>;
-            return collapsed ? (
-              <details key={status} className="doc-group">
-                <summary className="doc-group-title">{`${t[labelKey] as string} (${group.length})`}</summary>
-                {list}
-              </details>
-            ) : (
-              <div key={status} className="doc-group">
-                <div className="doc-group-title">{`${t[labelKey] as string} (${group.length})`}</div>
-                {list}
-              </div>
+          (() => {
+            // One tab per non-empty status group, then the unmatched files.
+            const tabs: { key: string; label: string; count: number; body: JSX.Element }[] = CAPITAL_GROUPS.flatMap(({ status, labelKey }) => {
+              const group = documents.filter((d) => d.status === status);
+              if (group.length === 0) return [];
+              return [{ key: status, label: t[labelKey] as string, count: group.length, body: <ul className="doc-list">{group.map(capitalRow)}</ul> }];
+            });
+            if (unmatched.length > 0) {
+              tabs.push({
+                key: 'unmatched',
+                label: t.groupUnmatchedFiles,
+                count: unmatched.length,
+                body: (
+                  <ul className="doc-list">
+                    {unmatched.map((file) => (
+                      <li key={file.id} className="doc-row unmatched">
+                        <ul className="doc-file-list doc-file-list-unmatched">
+                          <FileItem clientId={clientId} file={file} files={files} onView={setViewing} />
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              });
+            }
+            const active = tabs.find((x) => x.key === tab) ?? tabs[0];
+            if (!active) return null;
+            return (
+              <>
+                <div className="doc-tabs" role="tablist">
+                  {tabs.map((x) => (
+                    <button
+                      key={x.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={x.key === active.key}
+                      className={`doc-tab doc-group-${x.key} ${x.key === active.key ? 'active' : ''}`}
+                      onClick={() => setTab(x.key)}
+                    >
+                      <span className="doc-group-name">{x.label}</span>
+                      <span className="doc-group-count">{x.count}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="doc-group" role="tabpanel">
+                  {active.body}
+                </div>
+              </>
             );
-          })
+          })()
         ) : (
           <ul className="doc-list">{documents.map(classicRow)}</ul>
-        )}
-        {capital && unmatched.length > 0 && (
-          <div className="doc-group">
-            <div className="doc-group-title">{`${t.groupUnmatchedFiles} (${unmatched.length})`}</div>
-            <ul className="doc-list">
-              <li className="doc-row">
-                <ul className="doc-file-list">
-                  {unmatched.map((file) => (
-                    <FileItem key={file.id} clientId={clientId} file={file} files={files} onView={setViewing} />
-                  ))}
-                </ul>
-              </li>
-            </ul>
-          </div>
         )}
         {viewing && <FileViewModal clientId={clientId} file={viewing} onClose={() => setViewing(null)} />}
       </div>

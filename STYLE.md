@@ -3,6 +3,49 @@
 Read this file before you create or edit any Notion page. These rules are the
 user's taste. Follow them even when another layout or wording looks easier.
 
+## 0. Page template: answer first
+
+Every content page (an accounting group, a document type, an LLM call, a
+code gate) has this shape, top to bottom. Sample: Accounting → Form 106.
+
+1. **The answer**, one sentence, as a quote block (`> ...`). It says what is
+   decided. A reader who reads only this line knows the rule.
+2. **Four tiles** in one `<columns>` row: small callouts that answer the
+   questions a reader always has. Each tile is a `<callout color="gray_bg">`
+   with a `####` label in gray and one bold value under it. Default labels
+   for a document page: "Needed?", "How many", "Who sends it", "Status".
+   Pick other labels when the page needs them, but always four, always
+   short. The "Status" tile is `yellow_bg` when the accountant has not
+   confirmed the rule yet, `gray_bg` when confirmed.
+3. **Tabs** (`<tabs>`), so the page never scrolls far. Fixed tab names and
+   order: "Rules", then any extra topic tabs ("Where it comes from",
+   "The papers"), then "Open questions", then "For developers". Each tab
+   has an emoji icon. Leave out a tab that would be empty.
+4. **No "For developers" toggle** at the end of the page any more: the
+   developer content lives in the last tab, as cards.
+
+### Cards separate the paragraphs
+
+Inside a tab, every topic is one card (a `<callout>` with an emoji icon and
+`gray_bg`). The card starts with a `###` title, then two or three short
+sentences. Never two bare paragraphs in a row: a new topic is a new card.
+Two short cards may sit side by side in `<columns>`.
+
+### H4 is the small label
+
+Use `####` (heading 4, gray) for a small label inside a card or a tile:
+the tile label ("Needed?"), a sub-label inside a card ("Not confirmed
+yet", "Example", "Exception"). Never use `####` as a section heading on the
+page itself; sections are tabs, topics are `###` cards.
+
+### Open questions are to-dos
+
+"To confirm with the accountant" is never bold text inside a sentence. It
+is one to-do line (`- [ ]`) in the "Open questions" tab, written as a full
+question. The card that depends on the answer gets a gray `####` label
+"Not confirmed yet" that points to the tab. When the accountant answers,
+tick the to-do and write the answer under it.
+
 ## 1. Cards, not table rows
 
 Never show a list of items as a table. Show each item as a **card**.
@@ -18,7 +61,8 @@ Never show a list of items as a table. Show each item as a **card**.
 A card is a `<callout>` block. Notion has no real "card" block in page content,
 so this is the closest match.
 
-- First line inside the callout: a `##` heading. This is the big title.
+- First line inside the callout: a heading. This is the big title. `##` on
+  a hub page (cards that link to child pages), `###` inside a tab (rule 0).
 - Under it: the data, as short `**Label:** value` lines in gray. Keep each
   line to a few words. No long sentences inside a card.
 - Give each card an emoji icon that fits the item.
@@ -116,14 +160,13 @@ must be clear to that reader.
 - Code blocks (schemas, types) stay as code. Write their comments in simple
   English too.
 
-### Technical pointers go at the end
+### Technical pointers go in the last tab
 
 Code names, file paths, function names and the temperature never open a
-page. They live at the end of the page, inside a toggle heading
-`## For developers {toggle="true"}`, as a short list with plain labels
-("File with the code", "Name of this call in the trace and the logs",
-"Randomness (temperature)"). The top of the page starts with "What it
-does" in plain words.
+page. They live in the "For developers" tab (rule 0), as cards with plain
+labels ("File with the code", "Name of this call in the trace and the
+logs", "Randomness (temperature)"). The top of the page starts with the
+answer in plain words.
 
 ### Prompt slots (placeholders)
 
@@ -135,8 +178,9 @@ real example), and when the slot is filled or left empty.
 
 ### Shape of the page
 
-- Short sections with clear headings: "What it does", "When it runs",
-  "Input", "Output", "Schema", "Rules".
+- The page follows rule 0: answer, four tiles, tabs, cards.
+- Inside a tab, short cards with clear `###` titles: "What it does", "When
+  it runs", "Input", "Output", "Schema".
 - Prefer a short bullet list over a long paragraph.
 - Do not repeat the same information in two places on one page.
 
@@ -164,9 +208,12 @@ The text inside a diagram must be easy to read without zooming.
   "All checks passed?", "Can the code check this file?". Its arrows carry
   only the answer: "Yes" / "No" (or a short answer such as "Third time").
   No other text on any arrow.
-- **No internal names anywhere in the chart**: no code names, no slot
-  names, no field names, no "user turn" / "system prompt". Put them in the
-  list under the chart.
+- **Every box and diamond carries the function that runs it** as its
+  last line, in small monospace text under the Hebrew line: for example
+  `documentTypeRules`. Only the function name goes in the shape; the file
+  name goes in the chip under the chart (rule below).
+- **No other internal names in the chart**: no slot names, no field names,
+  no "user turn" / "system prompt". Put them in the list under the chart.
 - **The chart ends in outcomes**: what happens to the document, the client
   or the accountant, in plain words ("The document is approved", "The
   accountant takes over").
@@ -174,6 +221,12 @@ The text inside a diagram must be easy to read without zooming.
   charts.
 - **Under the chart, one line per box**, starting with the box text, with
   the detail and the links to the pages.
+- **Every step line under the chart names the function that runs it**, as
+  a small code chip after the detail: `verifyDocument.ts · documentTypeRules`.
+  The chip reads "function: file · name". Take the names from
+  `docs/pipeline.md` and check they exist in the code. A decision diamond
+  names the function that answers it. The boxes themselves stay free of
+  code names (rule above).
 - Box text is one short sentence, up to 10 words, plus its Hebrew line.
 - A process that builds an input (a prompt, a request) is also drawn as
   actions: "The code takes X", "The code adds Y", with a diamond for each
@@ -185,7 +238,34 @@ The text inside a diagram must be easy to read without zooming.
   stay English.
 - Colors: blue box = the model, gray box = the code, green = good outcome,
   yellow = the document opens again, red = stop / accountant.
-- Make the text big. In a mermaid diagram, put this line first:
+- A flow chart does not live inside the Notion page as a mermaid block:
+  mermaid charts render huge and unclear there. Build the chart as a
+  Claude artifact (an HTML page with an SVG chart and the numbered step
+  list under it) and put a link card on the Notion page in its place: a
+  `<callout>` with the artifact title as a link ("open the chart") and
+  two gray lines: what the chart shows, and that the box numbers match
+  the step list on the page. Before creating a new artifact, list the
+  existing ones and reuse a matching one.
+- The color legend lives only inside the chart artifact. Never repeat
+  it as a sentence on the Notion page.
+- A chart of a whole process lives on the process page ("File
+  handling", "Flow diagram"), never on the page of one LLM call or one
+  code gate inside it. The LLM call page gets one line, "Where it sits",
+  with a link to the process page and the step number.
+- The Notion page never repeats the steps of a chart as a list. The
+  step-by-step list (one line per box, with the function chip) lives
+  only under the chart in the artifact. On the page, next to the chart
+  card, put at most one card with the facts a reader must know without
+  opening the chart, for example "How it ends" with one line per
+  outcome.
+- Name a chart after the whole process it shows, in plain words:
+  "Document Processing Flow". Never "check" or "verification": a check
+  sounds like one small step, and "verification" is the name of a code
+  gate. The heading above the step list on the page uses the same name:
+  "Document processing, step by step", with one line that says where the
+  process starts and ends.
+- Make the text big. In a mermaid diagram (only outside Notion), put
+  this line first:
   `%%{init: {'themeVariables': {'fontSize': '26px'}}}%%`
 - Number the LLM call nodes like their pages: "1. Injection screen".
 - A diagram block shows in **Preview** mode, never in Split or Code mode.

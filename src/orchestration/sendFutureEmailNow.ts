@@ -7,6 +7,22 @@ import { logger } from '../util/logger.js';
 export type SendNowResult = 'promoted' | 'already_sending' | 'none_scheduled' | 'send_failed';
 
 /**
+ * Re-enqueues the mirrored send under its own job id with no delay and stamps
+ * the row's time to now. For a job missing from Redis (wipe/eviction) and for
+ * a preserved draft the accountant resumes after its planned time passed
+ * (openspec `first-message-approval`). Returns false when the job id is
+ * unparseable — the caller then logs and falls back.
+ */
+export async function enqueuePreservedSendNow(clientId: string, bullmqJobId: string): Promise<boolean> {
+  const [, jobClientId, emailId] = bullmqJobId.split(':');
+  if (!jobClientId || !emailId) return false;
+  await sendEmailQueue.add('send_email', { clientId: jobClientId, emailId }, { jobId: bullmqJobId });
+  await scheduledJobs.upsertForClient(clientId, bullmqJobId, new Date());
+  publishClientUpdated(clientId);
+  return true;
+}
+
+/**
  * Promotes the client's pending "send_email" job to run immediately; the worker
  * picks it up and sends within seconds. Call under withClientLock so it can't
  * race a redraft swapping the job out.
@@ -22,14 +38,10 @@ export async function sendFutureEmailNow(clientId: string): Promise<SendNowResul
   if (!job) {
     // Redis lost the job (wipe/eviction before the boot resync ran). The row is
     // the durable mirror — re-enqueue the same draft to fire right away.
-    const [, jobClientId, emailId] = row.bullmq_job_id.split(':');
-    if (!jobClientId || !emailId) {
+    if (!(await enqueuePreservedSendNow(clientId, row.bullmq_job_id))) {
       logger.warn('unparseable bullmq_job_id in scheduled_jobs, cannot send now', { clientId, jobId: row.bullmq_job_id });
       return 'none_scheduled';
     }
-    await sendEmailQueue.add('send_email', { clientId: jobClientId, emailId }, { jobId: row.bullmq_job_id });
-    await scheduledJobs.upsertForClient(clientId, row.bullmq_job_id, new Date());
-    publishClientUpdated(clientId);
     return 'promoted';
   }
 

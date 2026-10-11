@@ -27,6 +27,7 @@ const clientTabs: ClientTab[] = [
           goalStatus={ctx.client.goal_status}
           paused={ctx.client.paused}
           overdueStopped={isOverdueStopped(ctx.client)}
+          drafting={ctx.drafting}
           draftFailed={ctx.draftFailed}
           draftStale={ctx.draftStale}
           onRetryDraft={async () => {

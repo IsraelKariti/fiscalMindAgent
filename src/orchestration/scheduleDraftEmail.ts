@@ -27,6 +27,12 @@ export async function scheduleDraftMessage(
     waContentVariables?: string[] | null;
     delayMs: number;
     reasoning?: string;
+    /**
+     * Held first message (openspec `first-message-approval`): store the draft
+     * and mirror its planned time, but queue no send — exactly the state
+     * pauseFutureEmail leaves behind, so the accountant's resume restores it.
+     */
+    hold?: boolean;
   },
 ): Promise<{ emailId: string; jobId: string }> {
   const draft = await emails.insertDraft(clientId, {
@@ -62,6 +68,12 @@ export async function scheduleDraftMessage(
   }
 
   const jobId = `send_email:${clientId}:${draft.id}`;
+  if (args.hold) {
+    await scheduledJobs.upsertForClient(clientId, jobId, scheduledFor);
+    logger.info('first message drafted and held (client paused, no send queued)', { clientId, emailId: draft.id, scheduledFor });
+    publishClientUpdated(clientId);
+    return { emailId: draft.id, jobId };
+  }
   const job = await sendEmailQueue.add('send_email', { clientId, emailId: draft.id }, { delay: args.delayMs, jobId });
   if (!job.id) throw new Error('scheduleDraftMessage: enqueued job has no id');
   await scheduledJobs.upsertForClient(clientId, job.id, scheduledFor);

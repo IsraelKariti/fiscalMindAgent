@@ -639,6 +639,11 @@ const he = {
   approveDraftNowTitle: 'ההודעה תישלח מיד',
   approveDraftNowNote: 'מועד השליחה המתוכנן כבר עבר. אישור ההודעה ישלח אותה ללקוח באופן מיידי, לא במועד המתוכנן. לאשר ולשלוח עכשיו?',
   approveDraftNowConfirm: 'אישור ושליחה מיד',
+  // Resuming a paused client whose preserved message is past its planned time
+  // (openspec `first-message-approval`): the same text goes out immediately.
+  resumePastDueTitle: 'ההודעה תישלח מיד',
+  resumePastDueNote: 'מועד השליחה המתוכנן כבר עבר. חידוש המעקבים ישלח את ההודעה ללקוח באופן מיידי, לא במועד המתוכנן. לחדש ולשלוח עכשיו?',
+  resumePastDueConfirm: 'חידוש ושליחה מיד',
   approveDraftSentNow: 'ההודעה אושרה ונשלחה ללקוח מיד.',
   dismiss: 'סגירה',
   approvingDraft: 'מאשר…',

@@ -1040,6 +1040,8 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
     waContentVariables: message.channel === 'whatsapp' && message.kind === 'template' ? message.variables : null,
     delayMs: Math.max(0, delayMs),
     reasoning: decision.reasoning,
+    // Held first message (openspec `first-message-approval`): stored, not queued.
+    hold: run.ctx.hints?.hold === true,
   });
   recordPlannerStep(run, 'send_reply', {
     emailId,

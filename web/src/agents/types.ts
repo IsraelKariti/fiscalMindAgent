@@ -25,6 +25,8 @@ export interface ClientTabContext {
   /** Notify the shell (sidebar list, dashboard) that the client changed. */
   onClientUpdated: () => Promise<void>;
   setClient: (client: Client) => void;
+  /** Goal open, nothing scheduled, and the agent is (or should be) writing the next message — also while paused for a held first draft. */
+  drafting: boolean;
   draftFailed: boolean;
   draftStale: boolean;
 }

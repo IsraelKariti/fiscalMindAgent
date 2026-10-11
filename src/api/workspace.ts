@@ -23,6 +23,7 @@ import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
 import { retryFailedSend } from '../orchestration/retryFailedSend.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
+import { isHeldFirstMessageClient } from '../orchestration/heldFirstMessage.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
 import { MONDAY_STATUS_AGENT_WORKING, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
@@ -554,7 +555,10 @@ workspaceRouter.post(
       res.status(404).json({ error: 'Client not found.' });
       return;
     }
-    if (client.goal_status !== 'pending' || client.paused) {
+    // A paused never-contacted manual-kickoff client may retry its held first
+    // draft (openspec `first-message-approval`); any other paused client has
+    // nothing to draft.
+    if (client.goal_status !== 'pending' || (client.paused && !(await isHeldFirstMessageClient(client)))) {
       res.status(409).json({ error: 'Nothing to draft — the goal is complete or the client is paused.' });
       return;
     }

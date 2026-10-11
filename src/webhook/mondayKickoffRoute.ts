@@ -14,6 +14,7 @@ import { recordAudit } from '../audit/audit.js';
 import * as agentInstances from '../db/queries/agentInstances.js';
 import * as clients from '../db/queries/clients.js';
 import * as emails from '../db/queries/emails.js';
+import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import * as mondayOauthTokens from '../db/queries/mondayOauthTokens.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { logger } from '../util/logger.js';
@@ -30,15 +31,18 @@ const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * The accountant's board-side conversation trigger (manual-kickoff agents,
  * today the declaration-of-capital collector): a monday Webhooks-integration
  * recipe on the client board ("when button clicked / status changes, send a
- * webhook") POSTs here, and the event starts the agent's outreach to the
- * clicked row's client — the one place a manual-kickoff client's first message
- * gets drafted and scheduled.
+ * webhook") POSTs here, and the event has the agent draft the clicked row's
+ * client's first message — the one place a manual-kickoff client's first
+ * message gets drafted. The client stays paused and the draft is held with its
+ * planned time (openspec `first-message-approval`): the accountant reads it in
+ * the workspace and the Resume button is what sends it.
  *
  * Deliberately event-type-agnostic: any monday event carrying the item id
  * works, so the accountant may wire a button column, a status column, or any
  * other recipe. The guards make double-fires harmless: only a paused,
- * never-contacted client is started; anything else is acknowledged and ignored
- * (200 — a non-2xx would make monday retry and eventually drop the webhook).
+ * never-contacted client with no held draft is started; anything else is
+ * acknowledged and ignored (200 — a non-2xx would make monday retry and
+ * eventually drop the webhook).
  */
 export const mondayKickoffRoute = Router();
 
@@ -92,9 +96,9 @@ interface KickoffTarget {
 
 /**
  * Resolves the board row to the instance's client (enrolling it first if
- * needed) and starts the conversation. One named function per step:
- * kickoffBoard, resolveKickoffClient, isStartable, startConversation,
- * preResolveFromForm, then the first draft.
+ * needed) and has its first message drafted and held. One named function per
+ * step: kickoffBoard, resolveKickoffClient, isStartable, recordKickoff,
+ * preResolveFromForm, then the held first draft.
  */
 async function startClientForItem(instance: AgentInstanceRow, boardId: string, itemId: string): Promise<boolean> {
   const log = { instanceId: instance.id, boardId, itemId };
@@ -113,9 +117,11 @@ async function startClientForItem(instance: AgentInstanceRow, boardId: string, i
     logger.info('monday kickoff: client not in a startable state, ignoring', { ...log, clientId: client.id });
     return false;
   }
-  await startConversation(instance, target, boardId, itemId);
+  await recordKickoff(instance, target, boardId, itemId);
   await preResolveFromForm(client, target.intake, log);
-  // Same fire-and-forget first-draft path as manual client creation.
+  // Same fire-and-forget first-draft path as manual client creation — the
+  // client is still paused, so setFutureEmail drafts in hold mode: the draft
+  // is stored with its planned time and no send is queued.
   draftFirstEmail(client.id);
   // Report the start back to the board row's status column (fire-and-forget).
   void syncMondayStatus(client.id, MONDAY_STATUS_AGENT_WORKING);
@@ -192,18 +198,24 @@ async function rememberBoardRow(client: KickoffTarget['client'], boardId: string
 
 /**
  * Only a never-contacted, waiting client is started: an open goal, still
- * paused (imports create manual-kickoff clients paused), with no messages.
- * Repeat clicks, started conversations and deliberately re-paused clients
- * all land here and are left alone.
+ * paused (imports create manual-kickoff clients paused), with no messages,
+ * no held first draft and no draft being written. Repeat clicks, started
+ * conversations and deliberately re-paused clients all land here and are
+ * left alone.
  */
 async function isStartable(client: KickoffTarget['client']): Promise<boolean> {
-  return client.goal_status === 'pending' && client.paused && (await emails.listForClient(client.id)).length === 0;
+  if (client.goal_status !== 'pending' || !client.paused || client.drafting_since !== null) return false;
+  if ((await emails.listForClient(client.id)).length > 0) return false;
+  return (await scheduledJobs.getForClient(client.id)) === null;
 }
 
-/** The conversation starts: the client is unpaused, the kickoff is audited, the workspace is told. */
-async function startConversation(instance: AgentInstanceRow, target: KickoffTarget, boardId: string, itemId: string): Promise<void> {
+/**
+ * The kickoff is audited and the workspace is told. The client stays paused:
+ * its first message is drafted and held, and the accountant's resume sends it
+ * (openspec `first-message-approval`).
+ */
+async function recordKickoff(instance: AgentInstanceRow, target: KickoffTarget, boardId: string, itemId: string): Promise<void> {
   const { client } = target;
-  await clients.setPaused(client.id, false);
   recordAudit({
     actorType: 'accountant',
     actorUserId: instance.user_id,

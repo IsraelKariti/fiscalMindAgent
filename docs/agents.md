@@ -57,7 +57,7 @@ activation is not email-gated and no mailbox is required — the instance's
   conversations.
 It is also a **manual-kickoff** type (`AgentTypeDefinition.manualKickoff`):
 the client-import scan enrolls its clients *paused* with no first draft, and
-the first message is drafted+scheduled only on an explicit accountant trigger —
+the first message is drafted only on an explicit accountant trigger —
 either the **monday kickoff webhook** (`src/webhook/mondayKickoffRoute.ts`:
 `POST /webhooks/monday-kickoff/:instanceId/:token`, token HMAC-derived from
 `SECRET_ENC_KEY` so nothing is stored in the wholesale-replaced settings JSONB;
@@ -67,8 +67,20 @@ webhook" on the client board) or the workspace resume toggle. The webhook is
 event-type-agnostic (any event with a `pulseId` works), resolves the row's
 email via the board's configured email column, enrolls a not-yet-imported row
 on the spot (narrowed scan), and only starts a paused, never-contacted,
-goal-open client — repeat fires are acknowledged (200) and ignored. Each start
-is audited as `client.kickoff_triggered`.
+goal-open client with no held draft — repeat fires are acknowledged (200) and
+ignored. Each start is audited as `client.kickoff_triggered`.
+Since 2026-10-11 the kickoff **does not unpause** the client (openspec
+`first-message-approval`): the planner runs in hold mode (`PlanHints.hold`,
+derived in `setFutureEmail` from paused + manual-kickoff + no sent/received
+message), `scheduleDraftMessage` stores the draft and mirrors its planned time
+in `scheduled_jobs` but queues no send — the exact state a pause leaves behind,
+so the timeline shows the text with the paused note and a Resume button. The
+accountant's Resume is the approval: `resumeFutureEmail` restores the same
+draft for its planned time, or — when that time passed — sends the same draft
+immediately (the workspace warns in an in-app modal first; this late-resume
+rule applies to every preserved draft, not only the first). Only when nothing
+is preserved does a resume redraft. A reply arriving while held re-drafts the
+held message (still paused, nothing sent). Nothing changes on the monday board.
 Since 2026-08-24 the declaration flow is **questionnaire-driven** (the office's
 monday WorkForm is the only source of which documents a declaration needs):
 - **Board shape**: the declarations board maps four extra columns

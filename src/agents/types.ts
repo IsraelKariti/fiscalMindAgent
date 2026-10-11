@@ -24,6 +24,12 @@ export interface PlanHints {
    * files — a rejected file is never "received" or "being checked".
    */
   verificationResults?: { documentId: string; fileId: string; outcome: 'approved' | 'reopened' | 'stalled' | 'skipped' | 'error' }[];
+  /**
+   * The client is paused and has never been contacted (openspec
+   * `first-message-approval`): the drafted message is stored with its planned
+   * time but no send is queued — the accountant's resume sends it.
+   */
+  hold?: boolean;
 }
 
 /** Everything a hook needs to act for one client of one agent instance. */

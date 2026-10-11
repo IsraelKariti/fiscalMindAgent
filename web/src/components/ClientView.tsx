@@ -104,8 +104,15 @@ export function ClientView({
 
   // Goal open with nothing scheduled means the agent is drafting the next email in the
   // background (e.g. right after client creation) — poll fast so it pops in when ready.
-  // Not while paused: paused clients have nothing scheduled by design.
-  const drafting = client !== null && client.goal_status === 'pending' && !client.paused && !nextScheduled;
+  // Not while paused: paused clients have nothing scheduled by design — except a
+  // never-contacted client whose first message is being drafted and held for
+  // the accountant (openspec `first-message-approval`), which the server marks
+  // with drafting_since (or draft_failed_at when that attempt threw).
+  const drafting =
+    client !== null &&
+    client.goal_status === 'pending' &&
+    !nextScheduled &&
+    (!client.paused || client.drafting_since != null || client.draft_failed_at != null);
 
   // Drafting normally settles within ~2 minutes (one Gemini call, worst case a few
   // internal retries), so past this it isn't "still thinking" — the attempt is gone.
@@ -149,6 +156,7 @@ export function ClientView({
     load,
     onClientUpdated,
     setClient,
+    drafting,
     draftFailed,
     draftStale,
   };

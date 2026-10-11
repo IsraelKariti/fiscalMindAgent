@@ -59,8 +59,8 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | The board must be a configured client source | `webhook/mondayKickoffRoute.ts` · `kickoffBoard` |
 | Which client the row is about (CRM link flow, or email/phone cell; enroll on the spot) | `webhook/mondayKickoffRoute.ts` · `resolveKickoffClient` → `DOC/kickoff.ts` · `resolveDeclarationClient` |
 | Remember the board row on the client | `webhook/mondayKickoffRoute.ts` · `rememberBoardRow` |
-| Only a never-contacted, paused client starts | `webhook/mondayKickoffRoute.ts` · `isStartable` |
-| Unpause, audit `client.kickoff_triggered` | `webhook/mondayKickoffRoute.ts` · `startConversation` |
+| Only a never-contacted, paused client with no held draft starts | `webhook/mondayKickoffRoute.ts` · `isStartable` |
+| Audit `client.kickoff_triggered`; the client stays paused | `webhook/mondayKickoffRoute.ts` · `recordKickoff` |
 | Map the form onto the checklist before the first draft (failure → full interview) | `webhook/mondayKickoffRoute.ts` · `preResolveFromForm` → `DOC/formIntake.ts` · `applyFormIntake` |
 | Sanitize the answers; an all-empty form is not submitted | `DOC/formIntake.ts` · `sanitizeFormAnswers` |
 | The three injection layers over the answers (a failure throws → no intake) | `DOC/formIntake.ts` · `screenFormAnswersForAttackText` → `SH/injectionScreen.ts` · `runInjectionScreen` |
@@ -69,8 +69,12 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | `questionnaire_schema_mapping` LLM call | `DOC/formIntake.ts` · `mapFormToChecklist` (`DOC/formIntakeCall.ts` · `buildFormIntakeCall`) |
 | `validate_form_resolutions` gate + step row | `DOC/formIntakeRules.ts` · `validateFormResolutions`; `DOC/formIntake.ts` · `gateFormResolutions` |
 | Write the accepted resolutions | `DOC/formIntake.ts` · `applyFormResolutions` |
-| First draft | `api/draftFirstEmail.ts` · `draftFirstEmail` → `setFutureEmail` → D |
+| First draft, held: paused + never contacted + manual kickoff → planner runs in hold mode | `api/draftFirstEmail.ts` · `draftFirstEmail` → `orchestration/setFutureEmail.ts` · `setFutureEmail` (`orchestration/heldFirstMessage.ts` · `isHeldFirstMessageClient`, `holdsFirstMessage`) → D |
+| Store the held draft with its planned time, queue nothing | `orchestration/scheduleDraftEmail.ts` · `scheduleDraftMessage` (`hold`) |
 | The same intake on the first resume from the workspace | `api/workspace.ts` · pause route handler |
+| Resume: restore the preserved draft at its time / send it now when its time passed / redraft | `orchestration/resumeFutureEmail.ts` · `resumeFutureEmail` → `orchestration/resumeDecision.ts` · `resumeAction`; send now = `orchestration/sendFutureEmailNow.ts` · `enqueuePreservedSendNow` |
+| Past-due warning before the resume (workspace, click time) | `web/src/components/Timeline.tsx` · `requestResume` |
+| Retry of a failed held first draft | `api/workspace.ts` · redraft route handler |
 
 ## D. The planner (one cycle)
 

@@ -1,6 +1,7 @@
 import * as clients from '../db/queries/clients.js';
 import { loadAgentContext } from '../agents/resolve.js';
 import { adminCommsPaused } from './adminPause.js';
+import { isHeldFirstMessageClient } from './heldFirstMessage.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { logger } from '../util/logger.js';
 import type { PlanHints } from '../agents/types.js';
@@ -15,10 +16,19 @@ export async function setFutureEmail(clientId: string, hints?: PlanHints): Promi
   if (!client) throw new Error(`setFutureEmail: client ${clientId} not found`);
   if (client.goal_status === 'complete') return;
   if (client.paused) {
-    // Replies/attachments still land and reach this re-plan path; while paused
-    // the agent just never schedules the next send. Resuming re-plans.
-    logger.info('client paused, not scheduling a follow-up', { clientId });
-    return;
+    // A paused, never-contacted manual-kickoff client is holding its first
+    // message for the accountant (openspec `first-message-approval`): the
+    // planner runs, the draft is stored with its planned time, nothing is
+    // queued. Every other paused client: replies/attachments still land and
+    // reach this re-plan path, but the agent never schedules the next send.
+    // Resuming re-plans.
+    if (await isHeldFirstMessageClient(client)) {
+      logger.info('client paused before first contact: drafting the held first message', { clientId });
+      hints = { ...hints, hold: true };
+    } else {
+      logger.info('client paused, not scheduling a follow-up', { clientId });
+      return;
+    }
   }
   if (await adminCommsPaused(client)) {
     // Admin emergency brake (048): also covers freshly webhook-enrolled clients

@@ -285,6 +285,7 @@ export function Timeline({
   goalStatus,
   paused,
   overdueStopped = false,
+  drafting = false,
   draftFailed,
   draftStale,
   onSendNow,
@@ -310,6 +311,13 @@ export function Timeline({
   paused: boolean;
   /** Doc collector: the pause is because the collection due date passed — swap the paused copy for the handed-off copy. */
   overdueStopped?: boolean;
+  /**
+   * The agent is writing the next message (goal open, nothing scheduled). Set
+   * while paused too when a never-contacted client's first message is being
+   * drafted and held (openspec `first-message-approval`), so the drafting
+   * placeholder shows instead of the paused notice.
+   */
+  drafting?: boolean;
   /** The last drafting attempt threw — show the failure notice with a Retry button. */
   draftFailed: boolean;
   /** Drafting has been "in progress" implausibly long (attempt killed mid-flight) — offer Retry too. */
@@ -331,6 +339,9 @@ export function Timeline({
   const { t } = useT();
   const [copied, setCopied] = useState(false);
   const [confirmingSendNow, setConfirmingSendNow] = useState(false);
+  // Resume of a preserved draft whose planned time passed: warn first — the
+  // same text goes out immediately on resume (openspec `first-message-approval`).
+  const [confirmingResume, setConfirmingResume] = useState(false);
   const [viewingFile, setViewingFile] = useState<DocumentFile | null>(null);
   const [pauseBusy, setPauseBusy] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
@@ -580,6 +591,16 @@ export function Timeline({
     }
   };
 
+  // The scheduled bubble's Resume: past-due check at click time, like the admin
+  // approve control — a future time resumes straight away.
+  const requestResume = () => {
+    if (nextScheduled && Date.parse(nextScheduled.scheduledFor) <= Date.now()) {
+      setConfirmingResume(true);
+      return;
+    }
+    void togglePause(false);
+  };
+
   const togglePause = async (next: boolean) => {
     setPauseBusy(true);
     setPauseError(null);
@@ -822,7 +843,7 @@ export function Timeline({
                   <button
                     type="button"
                     className="btn btn-ghost btn-small resume-btn"
-                    onClick={() => togglePause(false)}
+                    onClick={requestResume}
                     disabled={pauseBusy}
                   >
                     {pauseBusy ? t.resuming : t.resumeSchedule}
@@ -894,7 +915,7 @@ export function Timeline({
           {/* Paused with no preserved draft (a reply obsoleted it while paused, or the
               pause landed mid-redraft): nothing is scheduled and nothing will be until
               the accountant resumes, which has the agent redraft. */}
-          {paused && !nextScheduled && goalStatus === 'pending' && (
+          {paused && !nextScheduled && goalStatus === 'pending' && !drafting && (
             <li className="timeline-item outbound scheduled">
               <div className="bubble bubble-scheduled bubble-paused">
                 <span className="paused-icon">{icon.pause}</span>
@@ -912,7 +933,7 @@ export function Timeline({
           )}
           {/* Drafting failed (the attempt threw) or stalled (killed mid-flight and will
               never finish): swap the pulsing placeholder for a notice with a manual retry. */}
-          {!paused && !nextScheduled && goalStatus === 'pending' && (draftFailed || draftStale) && (
+          {(!paused || drafting) && !nextScheduled && goalStatus === 'pending' && (draftFailed || draftStale) && (
             <li className="timeline-item outbound scheduled">
               <div className="bubble bubble-scheduled bubble-draft-failed">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -933,7 +954,7 @@ export function Timeline({
           )}
           {/* Goal open but nothing scheduled: the agent is between decisions — a fresh
               client awaiting its first draft, or a follow-up being drafted after a send/reply. */}
-          {!paused && !nextScheduled && goalStatus === 'pending' && !draftFailed && !draftStale && (
+          {(!paused || drafting) && !nextScheduled && goalStatus === 'pending' && !draftFailed && !draftStale && (
             <li className="timeline-item outbound scheduled drafting">
               <div className="bubble bubble-scheduled bubble-drafting">
                 <svg
@@ -972,6 +993,16 @@ export function Timeline({
           confirmLabel={t.reviewApprove}
           onConfirm={() => void approveDraft()}
           onClose={() => setConfirmingApprove(null)}
+        />
+      )}
+      {confirmingResume && nextScheduled && (
+        <ConfirmModal
+          warning
+          title={t.resumePastDueTitle}
+          note={t.resumePastDueNote}
+          confirmLabel={t.resumePastDueConfirm}
+          onConfirm={() => void togglePause(false)}
+          onClose={() => setConfirmingResume(false)}
         />
       )}
       {confirmingSendNow && nextScheduled && (

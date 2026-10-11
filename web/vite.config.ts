@@ -26,6 +26,8 @@ export default defineConfig(({ mode }) => {
       port: Number(env.GUI_PORT) || 5173,
       proxy: {
         '/api': `http://localhost:${env.PORT || 3000}`,
+        // Uploaded sender pictures (admin previews) are served by Express.
+        '/logos': `http://localhost:${env.PORT || 3000}`,
       },
     },
   };

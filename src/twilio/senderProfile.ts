@@ -7,18 +7,10 @@
  * so every key here is the API's snake_case one (its camelCase typings don't
  * match what the endpoint accepts). Responses, by contrast, come back
  * camelCase (`profile.logoUrl`, `webhook.callbackUrl`).
+ *
+ * Which picture URL to send is decided by src/storage/logos.ts
+ * (senderPictureUrl: agent icon, app logo, built-in default; https only).
  */
-
-/**
- * The logo URL to send to Twilio: the configured one, else the dashboard's
- * own `/logo.png` under the app base URL. Meta fetches the image itself, so
- * only a public https URL is usable — anything else (the localhost default in
- * dev, a plain http host) yields undefined and the caller skips the logo.
- */
-export function resolveSenderLogoUrl(configured: string | undefined, appBaseUrl: string): string | undefined {
-  const url = configured?.trim() || `${appBaseUrl.replace(/\/$/, '')}/logo.png`;
-  return url.startsWith('https://') ? url : undefined;
-}
 
 export interface SenderProfileBody {
   name?: string;

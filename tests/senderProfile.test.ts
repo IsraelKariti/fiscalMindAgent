@@ -1,23 +1,9 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { buildSenderCreateBody, planSenderUpdate, resolveSenderLogoUrl } from '../src/twilio/senderProfile.js';
+import { buildSenderCreateBody, planSenderUpdate } from '../src/twilio/senderProfile.js';
 
 const WEBHOOK = 'https://agent.fiscalmind.app/webhooks/twilio';
-const LOGO = 'https://agent.fiscalmind.app/logo.png';
-
-test('resolveSenderLogoUrl: configured https URL wins', () => {
-  assert.equal(resolveSenderLogoUrl('https://cdn.example.com/brand.png', 'https://agent.fiscalmind.app'), 'https://cdn.example.com/brand.png');
-});
-
-test('resolveSenderLogoUrl: unset falls back to <APP_BASE_URL>/logo.png, trailing slash safe', () => {
-  assert.equal(resolveSenderLogoUrl(undefined, 'https://agent.fiscalmind.app'), LOGO);
-  assert.equal(resolveSenderLogoUrl('', 'https://agent.fiscalmind.app/'), LOGO);
-});
-
-test('resolveSenderLogoUrl: non-https results are skipped', () => {
-  assert.equal(resolveSenderLogoUrl(undefined, 'http://localhost:3000'), undefined);
-  assert.equal(resolveSenderLogoUrl('http://cdn.example.com/brand.png', 'https://agent.fiscalmind.app'), undefined);
-});
+const LOGO = 'https://agent.fiscalmind.app/petal-seal.png';
 
 test('buildSenderCreateBody: snake_case body with the logo when present', () => {
   const body = buildSenderCreateBody({

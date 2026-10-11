@@ -16,6 +16,7 @@ import {
   releaseWhatsAppNumber,
 } from '../twilio/provision.js';
 import { isTwilioConfigured } from '../twilio/client.js';
+import { senderPictureFor } from '../storage/agentPicture.js';
 import { normalizeE164 } from '../util/phone.js';
 import { logger } from '../util/logger.js';
 
@@ -69,15 +70,17 @@ export const adminUpsertWaSender: RequestHandler = async (req, res) => {
     res.status(400).json({ error: 'phoneNumber must be a valid E.164 number (e.g. +972501234567).' });
     return;
   }
-  if (!(await agentInstances.getById(parsed.data.agentInstanceId))) {
+  const instance = await agentInstances.getById(parsed.data.agentInstanceId);
+  if (!instance) {
     res.status(404).json({ error: 'Agent instance not found.' });
     return;
   }
-  // Claim the number's inbound webhook for this environment before recording
-  // the assignment — a pool number may still point at the environment that
-  // provisioned it, which would silently swallow every client reply.
+  // Claim the number's inbound webhook for this environment (and give the
+  // sender this instance's picture) before recording the assignment — a pool
+  // number may still point at the environment that provisioned it, which
+  // would silently swallow every client reply.
   try {
-    await alignSender(phoneNumber);
+    await alignSender(phoneNumber, await senderPictureFor(instance));
   } catch (err) {
     logger.error('wa sender align failed', err, { phoneNumber });
     res.status(502).json({ error: 'Updating the number’s inbound webhook on Twilio failed; the number was not assigned.' });
@@ -135,7 +138,11 @@ export const adminProvisionWaSender: RequestHandler = async (req, res) => {
   }
   let provisioned;
   try {
-    provisioned = await provisionWhatsAppNumber(`fiscalmind ${instance.agent_type} ${instance.id}`, ownWaba?.waba_id);
+    provisioned = await provisionWhatsAppNumber(
+      `fiscalmind ${instance.agent_type} ${instance.id}`,
+      ownWaba?.waba_id,
+      await senderPictureFor(instance),
+    );
   } catch (err) {
     logger.error('wa number provisioning failed', err);
     res.status(502).json({ error: err instanceof Error ? err.message : 'Buying the number from Twilio failed.' });

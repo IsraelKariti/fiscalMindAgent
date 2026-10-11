@@ -26,6 +26,8 @@ import {
 import { getBudgetState, saveBudgetSettings } from '../gemini/budget.js';
 import { auditAdminMutation } from '../audit/adminAudit.js';
 import { markNumberAsPooled } from '../twilio/provision.js';
+import { getAppLogoKey } from '../storage/agentPicture.js';
+import { effectivePictureUrl, logoUrl } from '../storage/logos.js';
 import { logger } from '../util/logger.js';
 import { clearImpersonationCookie, setImpersonationCookie } from './auth.js';
 
@@ -224,6 +226,7 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
   const instanceMailboxes = await agentMailboxes.listForInstancesOfUser(userId.data);
   const emailByInstance = new Map(instanceMailboxes.map((m) => [m.agent_instance_id, m.email_address]));
   const accountMailbox = await agentMailboxes.getByUserId(userId.data);
+  const appLogoKey = await getAppLogoKey();
   res.json({
     agents: instances.map((i) => {
       // The derived default shown in the admin's address input for agents
@@ -245,6 +248,9 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
         // Pilot supervision (048) — admin-only, never exposed to the workspace.
         reviewMode: i.review_mode,
         adminPaused: i.admin_paused,
+        // Sender picture (061): the own icon, and what the sender actually shows.
+        logoUrl: i.logo_blob_key ? logoUrl(i.logo_blob_key, env.APP_BASE_URL) : null,
+        effectivePicture: effectivePictureUrl({ instanceKey: i.logo_blob_key, appLogoKey, appBaseUrl: env.APP_BASE_URL }),
       };
     }),
     availableTypes: [...knownAgentTypes()],

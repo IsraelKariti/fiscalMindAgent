@@ -4,6 +4,7 @@ import express, { type Express } from 'express';
 import { resendRoute } from './resendRoute.js';
 import { twilioRoute } from './twilioRoute.js';
 import { mediaRoute } from './mediaRoute.js';
+import { logoRoute } from './logoRoute.js';
 import { mondayKickoffRoute } from './mondayKickoffRoute.js';
 import { apiRouter } from '../api/router.js';
 
@@ -26,6 +27,8 @@ export function createApp(): Express {
   app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, sha: process.env.GIT_SHA ?? 'dev' }));
   // Signed, expiring public file links (Twilio media fetches) — before the SPA fallback.
   app.use(mediaRoute);
+  // Long-lived public sender pictures (app logo, agent icons) — same reason.
+  app.use(logoRoute);
   app.use('/api', apiRouter);
 
   if (fs.existsSync(path.join(guiDist, 'index.html'))) {

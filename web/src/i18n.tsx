@@ -194,6 +194,31 @@ const he = {
   adminAgentTaxYearChange: 'שינוי שנת המס',
   adminAgentTaxYearChangeDesc: 'השינוי חל מרגע השמירה על ההודעות והמשיכות הבאות; משיכות שכבר החלו ימשיכו עם השנה הקודמת.',
   adminAgentTaxYearSaveFailed: 'שמירת שנת המס נכשלה.',
+  // Sender pictures: the app logo (settings) and the per-agent icon (agent page).
+  appLogoTitle: 'לוגו המערכת',
+  appLogoDesc:
+    'התמונה שסוכני WhatsApp מציגים ללקוחות כברירת מחדל. סוכן שהועלה לו אייקון משלו מציג אותו במקום. אינו משנה את אייקון האתר עצמו.',
+  appLogoLevelOwn: 'לוגו שהועלה',
+  appLogoLevelDefault: 'ברירת המחדל המובנית',
+  appLogoLoadFailed: 'טעינת לוגו המערכת נכשלה.',
+  appLogoSaveFailed: 'שמירת לוגו המערכת נכשלה.',
+  appLogoSendersResult: (updated: number, failed: number) =>
+    failed === 0
+      ? `הלוגו נשמר. עודכן ב-${updated} מספרי WhatsApp.`
+      : `הלוגו נשמר. עודכן ב-${updated} מספרי WhatsApp, ${failed} עדכונים נכשלו (ראו לוג).`,
+  agentIconTitle: 'אייקון הסוכן',
+  agentIconDesc: 'התמונה שהסוכן הזה מציג ללקוחות ב-WhatsApp. ללא אייקון משלו הוא מציג את לוגו המערכת.',
+  agentIconLevelOwn: 'אייקון של הסוכן',
+  agentIconLevelApp: 'לוגו המערכת (אין אייקון לסוכן)',
+  agentIconLevelDefault: 'ברירת המחדל המובנית (לא הועלה לוגו)',
+  agentIconSaveFailed: 'שמירת אייקון הסוכן נכשלה.',
+  agentIconWaUpdated: 'התמונה נשמרה ועודכנה במספר ה-WhatsApp של הסוכן.',
+  agentIconWaFailed: 'התמונה נשמרה, אך עדכון פרופיל ה-WhatsApp ב-Twilio נכשל. הקצאה מחדש של המספר תנסה שוב.',
+  pictureRequirements: 'PNG או JPG, רצוי ריבועי, עד 2MB.',
+  pictureRejected: 'יש לבחור קובץ PNG או JPG עד 2MB.',
+  pictureUpload: 'העלאת תמונה',
+  pictureReplace: 'החלפת תמונה',
+  pictureRemove: 'הסרה',
   adminOrphanNumbersTitle: 'מספרי WhatsApp לא משויכים',
   adminOrphanNumbersDesc:
     'מספרים שבבעלות חשבון ה-Twilio (ומחויבים חודשית) אך אינם משויכים לאף סוכן. אפשר לשייך מספר מחדש דרך כרטיס הסוכן, או לשחרר אותו כאן כדי להפסיק את החיוב.',

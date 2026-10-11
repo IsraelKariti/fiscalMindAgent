@@ -4,6 +4,7 @@ import {
   ApiError,
   LLM_CALL_PURPOSES,
   type AdminUser,
+  type AppLogoState,
   type GeminiModelState,
   type KillSwitchState,
   type LlmBudgetState,
@@ -15,6 +16,7 @@ import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
 import { Spinner } from '../Spinner';
 import { MODEL_LABELS } from './shared';
+import { PictureCard } from './PictureCard';
 
 interface Props {
   /** The signed-in admin's email — their own row hides its remove button. */
@@ -140,6 +142,34 @@ export function AdminSettings({ userEmail }: Props) {
       setOrphansError(err instanceof ApiError ? err.message : t.adminWaNumberReleaseFailed);
     } finally {
       setOrphanReleasing(null);
+    }
+  };
+
+  // The app logo: the default WhatsApp picture of every agent without an own
+  // icon. A change is pushed to those senders by the server in the same call.
+  const [appLogo, setAppLogo] = useState<AppLogoState | null>(null);
+  const [appLogoBusy, setAppLogoBusy] = useState(false);
+  const [appLogoNotice, setAppLogoNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+
+  useEffect(() => {
+    api
+      .adminGetAppLogo()
+      .then(setAppLogo)
+      .catch(() => setAppLogoNotice({ kind: 'error', text: t.appLogoLoadFailed }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const changeAppLogo = async (op: () => Promise<AppLogoState>) => {
+    setAppLogoBusy(true);
+    setAppLogoNotice(null);
+    try {
+      const next = await op();
+      setAppLogo(next);
+      setAppLogoNotice({ kind: 'info', text: t.appLogoSendersResult(next.sendersUpdated ?? 0, next.sendersFailed ?? 0) });
+    } catch (err) {
+      setAppLogoNotice({ kind: 'error', text: err instanceof ApiError ? err.message : t.appLogoSaveFailed });
+    } finally {
+      setAppLogoBusy(false);
     }
   };
 
@@ -370,6 +400,21 @@ export function AdminSettings({ userEmail }: Props) {
           </>
         )}
       </div>
+
+      {appLogo && (
+        <PictureCard
+          title={t.appLogoTitle}
+          description={t.appLogoDesc}
+          pictureUrl={appLogo.logoUrl ?? appLogo.defaultLogoUrl}
+          levelLabel={appLogo.logoUrl ? t.appLogoLevelOwn : t.appLogoLevelDefault}
+          hasOwn={appLogo.logoUrl !== null}
+          busy={appLogoBusy}
+          onUpload={(file) => void changeAppLogo(() => api.adminUploadAppLogo(file))}
+          onRemove={() => void changeAppLogo(() => api.adminDeleteAppLogo())}
+          notice={appLogoNotice}
+        />
+      )}
+      {!appLogo && appLogoNotice && <div className="error-banner">{appLogoNotice.text}</div>}
 
       <div className="settings-section">
         <h3>{t.adminOrphanNumbersTitle}</h3>

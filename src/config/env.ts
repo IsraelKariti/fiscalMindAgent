@@ -125,11 +125,9 @@ const EnvSchema = z.object({
   // Display name auto-provisioned senders register with on WhatsApp — must
   // follow Meta's display-name guidelines and match the WABA's business.
   TWILIO_WA_SENDER_NAME: z.string().min(1).default('FiscalMind'),
-  // Public https URL of the profile picture senders show on WhatsApp. Unset =
-  // the dashboard's own logo, <APP_BASE_URL>/logo.png (see
-  // src/twilio/senderProfile.ts). Meta fetches it itself, so a non-https URL
-  // (the localhost default in dev) is skipped rather than sent.
-  TWILIO_WA_SENDER_LOGO_URL: z.string().url().optional(),
+  // The sender profile picture is not configured here: admins upload the app
+  // logo and per-agent icons in the admin panel (src/storage/logos.ts), with
+  // web/public/petal-seal.png as the built-in default under APP_BASE_URL.
   // Meta app + Embedded Signup configuration id (Meta developer console ->
   // your app -> WhatsApp -> Embedded Signup). Powers the "connect your own
   // WABA" popup in Settings -> Integrations; without them the card still

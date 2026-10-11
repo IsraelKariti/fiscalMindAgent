@@ -1,24 +1,15 @@
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 import { isTwilioConfigured, twilioClient } from './client.js';
-import { buildSenderCreateBody, planSenderUpdate, resolveSenderLogoUrl } from './senderProfile.js';
+import { buildSenderCreateBody, planSenderUpdate } from './senderProfile.js';
 
 /**
- * Profile picture for senders: TWILIO_WA_SENDER_LOGO_URL, else the dashboard's
- * own logo under APP_BASE_URL. Undefined (with a log line) when the result is
- * not a public https URL — Meta fetches the image itself, so the localhost
- * default in dev would only make the Twilio call fail.
+ * The picture URL callers pass in (`pictureUrl`) is the instance's effective
+ * picture from src/storage/logos.ts (agent icon, app logo, built-in default),
+ * already reduced to undefined when it is not a public https URL — Meta
+ * fetches the image itself, so a localhost URL would only make the Twilio
+ * call fail. The caller logs the skip; here undefined simply means "no logo".
  */
-function senderLogoUrl(): string | undefined {
-  const url = resolveSenderLogoUrl(env.TWILIO_WA_SENDER_LOGO_URL, env.APP_BASE_URL);
-  if (!url) {
-    logger.info('wa sender logo skipped: not a public https URL', {
-      configured: env.TWILIO_WA_SENDER_LOGO_URL ?? null,
-      appBaseUrl: env.APP_BASE_URL,
-    });
-  }
-  return url;
-}
 
 /**
  * The admin "buy number" flow needs, on top of the base Twilio credentials,
@@ -53,7 +44,11 @@ export interface ProvisionedSender {
  * numbers, so there is no OTP step. If sender registration fails, the
  * just-purchased number is released so it isn't billed.
  */
-export async function provisionWhatsAppNumber(friendlyName: string, wabaId?: string): Promise<ProvisionedSender> {
+export async function provisionWhatsAppNumber(
+  friendlyName: string,
+  wabaId: string | undefined,
+  pictureUrl: string | undefined,
+): Promise<ProvisionedSender> {
   const targetWabaId = wabaId ?? env.TWILIO_WABA_ID;
   if (!targetWabaId) throw new Error('No WABA to register the sender under (connect one or set TWILIO_WABA_ID).');
   const client = twilioClient();
@@ -74,7 +69,7 @@ export async function provisionWhatsAppNumber(friendlyName: string, wabaId?: str
       wabaId: targetWabaId,
       webhookUrl: env.TWILIO_WEBHOOK_URL ?? '',
       displayName: env.TWILIO_WA_SENDER_NAME,
-      logoUrl: senderLogoUrl(),
+      logoUrl: pictureUrl,
     });
     const senders = client.messaging.v2.channelsSenders;
     const created = await senders.create(body as unknown as Parameters<typeof senders.create>[0]);
@@ -168,15 +163,16 @@ export async function markNumberAsPooled(phoneNumber: string): Promise<void> {
  * it must claim its inbound traffic, and a failure there propagates (the
  * assignment would silently swallow every client reply otherwise).
  *
- * Logo: senders registered before the logo existed, or outside the platform,
- * get the platform picture; the display name is never touched. A logo-only
- * update that fails is logged and ignored — a missing picture must not block
- * the assignment.
+ * Logo: the sender gets `pictureUrl` (the instance's effective picture) when
+ * it has none or a different one; the display name is never touched. A
+ * logo-only update that fails is logged and ignored — a missing picture must
+ * not block the assignment. Picture uploads reuse this with the webhook
+ * already matching, so only the profile part is sent.
  *
  * No-op when Twilio isn't configured or the number has no sender on this
  * account (externally registered numbers).
  */
-export async function alignSender(phoneNumber: string): Promise<void> {
+export async function alignSender(phoneNumber: string, pictureUrl: string | undefined): Promise<void> {
   if (!isTwilioConfigured() || !env.TWILIO_WEBHOOK_URL) return;
   const client = twilioClient();
   // The senders API has no per-number lookup, only a channel-wide list.
@@ -185,7 +181,7 @@ export async function alignSender(phoneNumber: string): Promise<void> {
   if (!sender) return;
   const plan = planSenderUpdate(
     { callbackUrl: sender.webhook?.callbackUrl, logoUrl: sender.profile?.logoUrl },
-    { webhookUrl: env.TWILIO_WEBHOOK_URL, logoUrl: senderLogoUrl() },
+    { webhookUrl: env.TWILIO_WEBHOOK_URL, logoUrl: pictureUrl },
   );
   if (!plan) return;
   // Snake_case body — see senderProfile.ts for why.

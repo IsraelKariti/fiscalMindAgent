@@ -6,6 +6,14 @@ import { googleDriveOauthCallback, startGoogleDriveOauth } from './googleOauth.j
 import { mondayOauthCallback, startMondayOauth } from './mondayOauth.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
 import { mondayRouter } from './monday.js';
+import {
+  adminDeleteAgentLogo,
+  adminDeleteAppLogo,
+  adminGetAppLogo,
+  adminUploadAgentLogo,
+  adminUploadAppLogo,
+  logoBodyParser,
+} from './logoAdmin.js';
 import { workspaceRouter } from './workspace.js';
 import {
   adminAckAlert,
@@ -130,6 +138,12 @@ apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemove
 
 apiRouter.post('/admin/agent-emails', wrap(requireAdmin), wrap(adminSetAgentEmail));
 apiRouter.post('/admin/agent-tax-year', wrap(requireAdmin), wrap(adminSetAgentTaxYear));
+// Sender pictures (061): the app logo and per-agent icons, raw image bodies.
+apiRouter.get('/admin/app-logo', wrap(requireAdmin), wrap(adminGetAppLogo));
+apiRouter.put('/admin/app-logo', wrap(requireAdmin), logoBodyParser, wrap(adminUploadAppLogo));
+apiRouter.delete('/admin/app-logo', wrap(requireAdmin), wrap(adminDeleteAppLogo));
+apiRouter.put('/admin/agents/:agentInstanceId/logo', wrap(requireAdmin), logoBodyParser, wrap(adminUploadAgentLogo));
+apiRouter.delete('/admin/agents/:agentInstanceId/logo', wrap(requireAdmin), wrap(adminDeleteAgentLogo));
 // Pilot supervision (048): declaration_of_capital message review + hidden pauses.
 apiRouter.get('/admin/review/messages', wrap(requireAdmin), wrap(adminListReviewMessages));
 apiRouter.get('/admin/review/count', wrap(requireAdmin), wrap(adminReviewCount));

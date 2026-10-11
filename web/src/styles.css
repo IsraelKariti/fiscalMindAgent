@@ -4827,3 +4827,36 @@ pre.doc-text {
   padding-inline-start: 0;
   border-inline-start: none;
 }
+
+/* Sender pictures (admin settings: app logo; agent page: agent icon). */
+.picture-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.picture-row .doc-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.picture-preview {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  box-shadow: var(--glow);
+}
+
+.picture-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  flex-shrink: 0;
+}

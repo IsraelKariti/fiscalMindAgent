@@ -301,6 +301,23 @@ async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts):
   return data as T;
 }
 
+/** PUT of one image file as the raw request body (request() would label it JSON). */
+async function uploadImage<T>(path: string, file: File): Promise<T> {
+  const auth = transport.getAuthHeaders ? await transport.getAuthHeaders() : undefined;
+  const res = await fetch(transport.basePath + path, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+      ...(viewAsUserId ? { 'X-FM-View-As': viewAsUserId } : {}),
+      ...auth,
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? `Request failed (${res.status})`);
+  return data as T;
+}
+
 export interface Me {
   authenticated: boolean;
   user?: { id: string; email: string; name: string | null; pictureUrl: string | null };
@@ -757,6 +774,34 @@ export interface AgentInstance {
   reviewMode?: boolean;
   /** Admin listing only: the hidden admin emergency brake (declaration_of_capital). */
   adminPaused?: boolean;
+  /** Admin listing only: the agent's own uploaded icon, null when it falls back to the app logo / default. */
+  logoUrl?: string | null;
+  /** Admin listing only: the picture the WhatsApp sender actually shows and which level it comes from. */
+  effectivePicture?: EffectivePicture;
+}
+
+/** One of the three picture levels: the agent's own icon, the admin-uploaded app logo, the built-in default. */
+export interface EffectivePicture {
+  url: string;
+  level: 'agent' | 'app' | 'default';
+}
+
+/** GET/PUT/DELETE /admin/app-logo. */
+export interface AppLogoState {
+  /** The uploaded app logo, null = the built-in default. */
+  logoUrl: string | null;
+  defaultLogoUrl: string;
+  /** Present after an upload/removal: senders without an own icon that took the new picture / failed. */
+  sendersUpdated?: number;
+  sendersFailed?: number;
+}
+
+/** PUT/DELETE /admin/agents/:id/logo. */
+export interface AgentLogoState {
+  logoUrl: string | null;
+  effectivePicture: EffectivePicture;
+  /** null = the agent has no WhatsApp number; false = saved, but Twilio refused the profile update. */
+  waProfileUpdated: boolean | null;
 }
 
 /** One draft awaiting admin approval (GET /admin/review/messages). */
@@ -1010,6 +1055,15 @@ export const api = {
   adminReleaseWaSender: (agentInstanceId: string) =>
     request<{ ok: true }>(`/admin/wa-senders/${agentInstanceId}/release`, { method: 'POST' }),
   adminListOrphanedWaNumbers: () => request<{ numbers: OrphanedWaNumber[] }>('/admin/wa-numbers/orphaned'),
+  // Sender pictures: the file goes up as the raw body with its own MIME type
+  // (the server checks the bytes, not the header).
+  adminGetAppLogo: () => request<AppLogoState>('/admin/app-logo'),
+  adminUploadAppLogo: (file: File) => uploadImage<AppLogoState>('/admin/app-logo', file),
+  adminDeleteAppLogo: () => request<AppLogoState>('/admin/app-logo', { method: 'DELETE' }),
+  adminUploadAgentLogo: (agentInstanceId: string, file: File) =>
+    uploadImage<AgentLogoState>(`/admin/agents/${agentInstanceId}/logo`, file),
+  adminDeleteAgentLogo: (agentInstanceId: string) =>
+    request<AgentLogoState>(`/admin/agents/${agentInstanceId}/logo`, { method: 'DELETE' }),
   adminReleaseOrphanedWaNumber: (phoneNumber: string) =>
     request<{ ok: true }>('/admin/wa-numbers/release', { method: 'POST', body: JSON.stringify({ phoneNumber }) }),
   adminGetLlmBudget: () => request<LlmBudgetState>('/admin/llm-budget'),

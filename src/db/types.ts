@@ -19,6 +19,8 @@ export interface AgentInstanceRow {
   review_mode: boolean;
   /** Admin-owned emergency brake (048): silently stops planning + sending for all this instance's clients. Only effective on declaration_of_capital. Invisible to the accountant. */
   admin_paused: boolean;
+  /** Blob key of the instance's own WhatsApp picture (061, src/storage/logos.ts); NULL = app logo / built-in default. */
+  logo_blob_key: string | null;
   created_at: Date;
   updated_at: Date;
 }

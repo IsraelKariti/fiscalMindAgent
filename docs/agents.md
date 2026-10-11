@@ -380,15 +380,26 @@ Industry pattern followed: one app with an agent registry
   (`POST /api/admin/wa-senders/provision`, `src/twilio/provision.ts`): it
   purchases a US number and registers it as a WhatsApp sender under
   `TWILIO_WABA_ID` — no Twilio-console step. The sender profile carries the
-  display name (`TWILIO_WA_SENDER_NAME`) and the profile picture
-  (`TWILIO_WA_SENDER_LOGO_URL`, default `<APP_BASE_URL>/logo.png`; only a
-  public https URL is sent — `src/twilio/senderProfile.ts`). Assigning a
-  number (`alignSender`) also points its inbound webhook at this environment
-  and sets the logo when it is missing or different, never the name; to give
-  an older sender the logo, re-assign its number once in the admin panel (or
-  upload the picture in the Twilio console → WhatsApp senders). Inbound
-  routing is by the `To` number → instance; outbound `from` is the client's
-  instance's number.
+  display name (`TWILIO_WA_SENDER_NAME`) and a **profile picture resolved in
+  three levels** (`src/storage/logos.ts`): the instance's own icon
+  (`agent_instances.logo_blob_key`, migration 061, uploaded on the admin
+  agent page), else the app logo an admin uploaded on the admin Settings page
+  (`app_settings` key `app_logo_blob_key`), else the built-in
+  `web/public/petal-seal.png` (rendered from the SVG by
+  `scripts/renderPetalSeal.mjs`; the app logo never changes the web app's own
+  favicon/brand mark). Uploads (`PUT/DELETE /api/admin/app-logo`,
+  `PUT/DELETE /api/admin/agents/:id/logo`, `src/api/logoAdmin.ts`) are raw
+  PNG/JPEG bodies ≤ 2 MB checked by magic bytes, stored in the blob container
+  under `logos/<random>.<ext>` and served without a session by
+  `GET /logos/:key` (`src/webhook/logoRoute.ts`; only the current key of a
+  picture resolves, so a replaced one goes 404). Only a public https URL is
+  sent to Twilio, so local dev skips the picture. Assigning a number
+  (`alignSender(phone, pictureUrl)`) points its inbound webhook at this
+  environment and sets the picture when it is missing or different, never
+  the name; an icon upload re-aligns that agent's sender, an app-logo change
+  re-aligns every sender whose agent has no own icon, and a Twilio failure
+  there is reported but never undoes the save. Inbound routing is by the
+  `To` number → instance; outbound `from` is the client's instance's number.
   Since migration 046 an accountant can connect **their own WABA**
   (`wa_business_accounts`, one per user) from the workspace Settings →
   Integrations tab (`web/src/components/WhatsAppBusinessSettings.tsx`;

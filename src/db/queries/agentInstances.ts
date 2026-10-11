@@ -95,6 +95,33 @@ export async function setTaxYear(id: string, taxYear: number): Promise<AgentInst
   return rows[0] ?? null;
 }
 
+/** Admin-owned own picture (061): the blob key of the uploaded icon, NULL to fall back to the app logo. */
+export async function setLogoBlobKey(id: string, key: string | null): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'UPDATE agent_instances SET logo_blob_key = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, key],
+  );
+  return rows[0] ?? null;
+}
+
+/** The instance whose current own picture has this blob key (public logo route). */
+export async function getByLogoKey(key: string): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>('SELECT * FROM agent_instances WHERE logo_blob_key = $1', [key]);
+  return rows[0] ?? null;
+}
+
+export type AgentInstanceWithSender = AgentInstanceRow & { phone_number: string };
+
+/** Every instance that has a WhatsApp number — an app-logo change re-aligns each of their senders. */
+export async function listWithSenders(): Promise<AgentInstanceWithSender[]> {
+  const { rows } = await pool.query<AgentInstanceWithSender>(
+    `SELECT i.*, s.phone_number
+     FROM agent_instances i JOIN wa_senders s ON s.agent_instance_id = i.id
+     ORDER BY i.created_at ASC`,
+  );
+  return rows;
+}
+
 /** Admin-owned pilot supervision flag (048): outbound messages need admin approval before sending. */
 export async function setReviewMode(id: string, on: boolean): Promise<AgentInstanceRow | null> {
   const { rows } = await pool.query<AgentInstanceRow>(

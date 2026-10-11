@@ -13,6 +13,7 @@ import { useT } from '../../i18n';
 import { AgentConversationsCard } from './AgentConversationsCard';
 import { ConfirmModal } from '../ConfirmModal';
 import { Dropdown } from '../Dropdown';
+import { PictureCard } from './PictureCard';
 import { Spinner } from '../Spinner';
 import { WaPoolModal } from '../WaPoolModal';
 import { taxYearOptions, type AccountantRow } from './shared';
@@ -246,6 +247,20 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
     }
   };
 
+  // The agent's own icon. The server pushes the new effective picture to the
+  // agent's sender in the same call; a Twilio failure keeps the picture saved.
+  const [iconNotice, setIconNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const changeIcon = async (op: () => Promise<{ waProfileUpdated: boolean | null }>) => {
+    setIconNotice(null);
+    await run(async () => {
+      const result = await op();
+      if (result.waProfileUpdated === true) setIconNotice({ kind: 'info', text: t.agentIconWaUpdated });
+      if (result.waProfileUpdated === false) setIconNotice({ kind: 'error', text: t.agentIconWaFailed });
+    }, t.agentIconSaveFailed);
+  };
+  const iconLevelLabel = (level: 'agent' | 'app' | 'default' | undefined) =>
+    level === 'agent' ? t.agentIconLevelOwn : level === 'app' ? t.agentIconLevelApp : t.agentIconLevelDefault;
+
   const saveAgentEmail = () =>
     run(
       () => api.adminSetAgentEmail(instance!.id, emailLocalPart.trim()),
@@ -419,6 +434,22 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
               </span>
             </div>
           </div>
+        </section>
+      )}
+
+      {instance && instance.effectivePicture && (
+        <section className="card">
+          <PictureCard
+            title={t.agentIconTitle}
+            description={t.agentIconDesc}
+            pictureUrl={instance.effectivePicture.url}
+            levelLabel={iconLevelLabel(instance.effectivePicture.level)}
+            hasOwn={Boolean(instance.logoUrl)}
+            busy={busy}
+            onUpload={(file) => void changeIcon(() => api.adminUploadAgentLogo(instance.id, file))}
+            onRemove={() => void changeIcon(() => api.adminDeleteAgentLogo(instance.id))}
+            notice={iconNotice}
+          />
         </section>
       )}
 

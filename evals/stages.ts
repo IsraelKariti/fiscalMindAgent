@@ -736,6 +736,8 @@ interface DecideCase {
     mentions_valuation_date?: boolean;
     /** Default 3. */
     max_question_marks?: number;
+    /** When set: the answer must (true) / must not (false) carry send_at "asap" (openspec reply-send-asap). */
+    send_asap?: boolean;
   };
   notes?: string;
 }
@@ -1074,14 +1076,18 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       const questionMarks = (body.match(/[?؟]/g) ?? []).length;
       const maxQ = e.max_question_marks ?? 3;
       checks.push({ key: 'question_marks', expected: `<= ${maxQ}`, actual: questionMarks, pass: questionMarks <= maxQ });
-      // send_at is wall-clock in the accountant's timezone and must be in the future.
-      let sendAtOk = false;
-      try {
-        sendAtOk = zonedTimeToUtc(decision.send_at, env.ACCOUNTANT_TIMEZONE) > now;
-      } catch {
-        sendAtOk = false;
+      // send_at is "asap" (the code picks now + 1s) or wall-clock in the accountant's timezone, in the future.
+      const isAsap = decision.send_at === 'asap';
+      let sendAtOk = isAsap;
+      if (!isAsap) {
+        try {
+          sendAtOk = zonedTimeToUtc(decision.send_at, env.ACCOUNTANT_TIMEZONE) > now;
+        } catch {
+          sendAtOk = false;
+        }
       }
-      checks.push({ key: 'send_at_future', expected: `after ${c.now}`, actual: decision.send_at, pass: sendAtOk });
+      checks.push({ key: 'send_at_future', expected: `asap or after ${c.now}`, actual: decision.send_at, pass: sendAtOk });
+      if (e.send_asap !== undefined) checks.push({ key: 'send_asap', expected: e.send_asap, actual: isAsap, pass: isAsap === e.send_asap });
       for (const word of e.message_includes ?? []) checks.push({ key: `message_includes.${word}`, expected: true, actual: body.includes(word), pass: body.includes(word) });
       if (e.message_includes_any) {
         const found = e.message_includes_any.filter((w) => body.includes(w));

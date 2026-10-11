@@ -1,0 +1,250 @@
+{
+  "ranAt": "2026-10-11T11:24:02.270Z",
+  "finishedAt": "2026-10-11T11:24:10.908Z",
+  "models": [
+    "gemini-2.5-flash"
+  ],
+  "stages": [
+    "injection_detection_llm",
+    "questionnaire_schema_mapping",
+    "file_splitting",
+    "file_classification",
+    "extract_document",
+    "generate_message"
+  ],
+  "concurrency": 2,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
+    }
+  },
+  "results": [
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_24",
+      "notes": "Change reply-send-asap: the client asked a question two minutes ago and is waiting at the phone. The reply answers it and must carry send_at \"asap\" (the code picks now + 1 s), not a wall-clock time.",
+      "ranAt": "2026-10-11T11:24:05.453Z",
+      "latencyMs": 3911,
+      "attempts": 1,
+      "inputTokens": 24513,
+      "outputTokens": 235,
+      "thinkingTokens": 203,
+      "cachedTokens": 0,
+      "costUsd": 0.008448899999999999,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "היי ישראל, אפשר לשלוח אישור יתרות רשמי, ריכוז יתרות, תעודת זהות בנקאית או את הדוח השנתי המקוצר של הבנק – כל אחד מהם קביל, ובלבד שיהיה ליום 31.12.2025. מה שנוח לך להפיק.",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client is asking for clarification on the type of bank statement needed. I need to explain the acceptable forms of bank statements for doc-bank-leumi.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "asap"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "send_asap",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client is asking for clarification on the type of bank statement needed. I need to explain the acceptable forms of bank statements for doc-bank-leumi.",
+        "send_at": "asap",
+        "message": "היי ישראל, אפשר לשלוח אישור יתרות רשמי, ריכוז יתרות, תעודת זהות בנקאית או את הדוח השנתי המקוצר של הבנק – כל אחד מהם קביל, ובלבד שיהיה ליום 31.12.2025. מה שנוח לך להפיק.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_25",
+      "notes": "Change reply-send-asap: the client said three minutes ago that he is looking for the document now and will send it soon. He is busy, not waiting: the planner must give him room with a wall-clock send_at (a gentle check later), never \"asap\".",
+      "ranAt": "2026-10-11T11:24:05.553Z",
+      "latencyMs": 5350,
+      "attempts": 1,
+      "inputTokens": 24529,
+      "outputTokens": 222,
+      "thinkingTokens": 626,
+      "cachedTokens": 0,
+      "costUsd": 0.0094787,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "מעולה ישראל, תודה רבה! אשמח לעדכון כשתשלח את האישור. אם תצטרך עזרה במציאה או בהפקה, רק תגיד לי.",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client is actively searching for the bank statement and stated he will send it soon. I should acknowledge his message and schedule a gentle follow-up for later today to check if he needs any help, without interrupting his current task.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "2026-02-10 14:00"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "2026-02-10 14:00",
+          "pass": true
+        },
+        {
+          "key": "send_asap",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client is actively searching for the bank statement and stated he will send it soon. I should acknowledge his message and schedule a gentle follow-up for later today to check if he needs any help, without interrupting his current task.",
+        "send_at": "2026-02-10 14:00",
+        "message": "מעולה ישראל, תודה רבה! אשמח לעדכון כשתשלח את האישור. אם תצטרך עזרה במציאה או בהפקה, רק תגיד לי.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "generate_message": {
+      "gemini-2.5-flash": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 4631,
+          "p50": 3911,
+          "p90": 3911,
+          "min": 3911,
+          "max": 5350
+        },
+        "inputTokens": 49042,
+        "outputTokens": 457,
+        "thinkingTokens": 829,
+        "cachedTokens": 0,
+        "costUsd": 0.017928,
+        "unpriced": 0
+      }
+    }
+  }
+}

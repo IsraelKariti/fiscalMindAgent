@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { check, type GateCheck } from '../shared/gateChecks.js';
 import { isWallClockDateTime } from '../../util/time.js';
+import { ASAP_SEND_AT } from '../shared/sendAtGuard.js';
 import { renderTemplateBody } from '../../twilio/renderTemplate.js';
 import type { WaTemplateRow } from '../../db/types.js';
 import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault } from './catalog.js';
@@ -56,7 +57,11 @@ export const DecisionResponseSchema = z.object({
   whatsapp_text: z.string().nullable(),
   /** Pre-approved template + its {{n}} variable values — the only WhatsApp option outside the window. */
   whatsapp_template: z.object({ template_id: z.string(), variables: z.array(z.string()) }).nullable(),
-  /** When to send, as "YYYY-MM-DD HH:MM" wall-clock time in the accountant's timezone. */
+  /**
+   * When to send: "YYYY-MM-DD HH:MM" wall-clock time in the accountant's
+   * timezone, or "asap" (openspec `reply-send-asap`) — the code then picks the
+   * time itself, one second ahead, for a reply to a client who is waiting.
+   */
   send_at: z.string().nullable(),
   /**
    * Document-fetch step, or null. Which values are valid depends on the current
@@ -856,6 +861,17 @@ function validateAttestation(raw: DecisionResponse, ctx: DecisionContext): Attes
 }
 
 /**
+ * A follow_up's send_at: the trimmed wall-clock time, the literal ASAP_SEND_AT
+ * (case-insensitive), or null when the value is missing or neither form.
+ */
+function normalizeSendAt(value: string | null): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (trimmed.toLowerCase() === ASAP_SEND_AT) return ASAP_SEND_AT;
+  return isWallClockDateTime(trimmed) ? trimmed : null;
+}
+
+/**
  * Appended to the original contents for decide()'s corrective pass: the model's
  * own rejected answer plus the exact validation error, so it can repair any
  * contract violation (null message/send_at, unknown template, disallowed
@@ -869,7 +885,7 @@ export function correctionSuffix(invalidAnswer: string, err: unknown): string {
     'Your rejected answer:',
     invalidAnswer,
     `Validation error: ${message}`,
-    'Return a corrected, complete JSON decision now. Remember the three decision values: "collect" when the answer ties a file to a document (collected_document_ids, matched_files or an instance\'s file_ids) — then every message field and send_at MUST be null, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one full message (the chosen channel\'s fields) and a future send_at, "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed.',
+    'Return a corrected, complete JSON decision now. Remember the three decision values: "collect" when the answer ties a file to a document (collected_document_ids, matched_files or an instance\'s file_ids) — then every message field and send_at MUST be null, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one full message (the chosen channel\'s fields) and a send_at — a future "YYYY-MM-DD HH:MM" time, or "asap" for a reply to a client who is waiting right now — "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed.',
   ].join('\n');
 }
 
@@ -1005,7 +1021,8 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
       attestation,
     };
   }
-  if (raw.send_at == null || !isWallClockDateTime(raw.send_at)) {
+  const sendAt = normalizeSendAt(raw.send_at);
+  if (sendAt === null) {
     throw new Error(`follow_up decision missing/invalid send_at: ${JSON.stringify(raw)}`);
   }
   return {
@@ -1014,7 +1031,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
     collected_document_ids: raw.collected_document_ids,
     matched_files: matchedFiles,
     message: normalizeFollowUpMessage(raw, ctx),
-    send_at: raw.send_at.trim(),
+    send_at: sendAt,
     tax_fetch: taxFetch,
     resolutions,
     addedInstances,

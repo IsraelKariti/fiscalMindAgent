@@ -1,5 +1,54 @@
-import { hoursToMs } from '../../util/time.js';
+import { hoursToMs, zonedTimeToUtc } from '../../util/time.js';
 import { chagLabel } from './jewishHolidays.js';
+
+/**
+ * The planner's "send this as soon as you can" answer (openspec
+ * `reply-send-asap`): the model names no time; the code picks one.
+ */
+export const ASAP_SEND_AT = 'asap';
+
+/** How far ahead the code places an asap send — keeps the planned time in the future for the timeline and the review flow. */
+const ASAP_LEAD_MS = 1000;
+
+export type ResolvedSendAt = {
+  /** The instant the send job fires. */
+  sendAtUtc: Date;
+  /** The same instant as wall-clock text in `timeZone` ("YYYY-MM-DD HH:MM" from the model, "YYYY-MM-DD HH:MM:SS" when the code picked it). */
+  sendAtLocal: string;
+  /** Who chose the time. */
+  requested: 'asap' | 'time';
+};
+
+/** The instant as "YYYY-MM-DD HH:MM:SS" wall-clock text in `timeZone`. */
+function wallClockLabel(instant: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(instant);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? '00';
+  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+}
+
+/**
+ * Turns the planner's send_at into the instant the send job fires. For
+ * ASAP_SEND_AT the code picks the time itself — `now` plus one second — and
+ * from there the draft is scheduled exactly like one with a model-chosen
+ * time. A wall-clock time is converted in the accountant's timezone as
+ * before (an unparseable value still throws from zonedTimeToUtc).
+ */
+export function resolveSendAt(sendAt: string, now: Date, timeZone: string): ResolvedSendAt {
+  if (sendAt.trim().toLowerCase() === ASAP_SEND_AT) {
+    const sendAtUtc = new Date(now.getTime() + ASAP_LEAD_MS);
+    return { sendAtUtc, sendAtLocal: wallClockLabel(sendAtUtc, timeZone), requested: 'asap' };
+  }
+  return { sendAtUtc: zonedTimeToUtc(sendAt, timeZone), sendAtLocal: sendAt, requested: 'time' };
+}
 
 /** Israel's weekend, in JS Date.getUTCDay() terms. */
 const FRIDAY = 5;

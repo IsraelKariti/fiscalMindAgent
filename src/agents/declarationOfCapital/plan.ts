@@ -13,7 +13,7 @@ import { buildPrompt, type VerificationResultPromptInput, type WaChannelState } 
 import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccountant.js';
 import { applicableFilePairs, fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
-import { lastInboundMessageAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
+import { lastInboundMessageAt, resolveSendAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
 import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/mondayStatusSync.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { getCatalogType } from './catalog.js';
@@ -40,7 +40,6 @@ import { publishClientUpdated } from '../../events/clientEvents.js';
 import { recordAudit, type AuditAction } from '../../audit/audit.js';
 import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js';
 import { windowCloseTime } from '../../orchestration/whatsappWindow.js';
-import { zonedTimeToUtc } from '../../util/time.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
@@ -1026,10 +1025,14 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
       send_at: sendAtGuard.sendAt,
     });
   }
-  const sendAtUtc = zonedTimeToUtc(sendAtGuard.sendAt, env.ACCOUNTANT_TIMEZONE);
+  // "asap" (openspec `reply-send-asap`): the code picks the time — now + 1s —
+  // and from here on the draft is scheduled exactly like a model-chosen time.
+  const resolved = resolveSendAt(sendAtGuard.sendAt, new Date(), env.ACCOUNTANT_TIMEZONE);
+  const sendAtUtc = resolved.sendAtUtc;
+  const sendAtLabel = resolved.sendAtLocal;
   const delayMs = sendAtUtc.getTime() - Date.now();
-  if (delayMs < 0) {
-    logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: sendAtGuard.sendAt });
+  if (delayMs < 0 && resolved.requested === 'time') {
+    logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: sendAtLabel });
   }
   const message = decision.message;
   const { emailId } = await scheduleDraftMessage(clientId, {
@@ -1047,10 +1050,11 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
     emailId,
     channel: message.channel,
     kind: message.channel === 'whatsapp' ? message.kind : 'email',
-    send_at: sendAtGuard.sendAt,
+    send_at: sendAtLabel,
+    requested: resolved.requested,
     chars: (message.channel === 'email' || message.kind === 'freeform' ? message.body : message.renderedBody).length,
   });
-  await applyAttestationRequest(run, decision, emailId, sendAtGuard.sendAt);
+  await applyAttestationRequest(run, decision, emailId, sendAtLabel, resolved.requested);
   const fetch = taxFetchDecisionOf(run, decision);
   await applyTaxFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, {
     emailId,
@@ -1060,7 +1064,8 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
     clientId,
     channel: message.channel,
     kind: message.channel === 'whatsapp' ? message.kind : 'email',
-    send_at: sendAtGuard.sendAt,
+    send_at: sendAtLabel,
+    requested: resolved.requested,
     send_at_utc: sendAtUtc.toISOString(),
     reasoning: decision.reasoning,
   });
@@ -1071,7 +1076,13 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
  * Stamped by email id — the confirmation validator only trusts it once the
  * row actually sent, so an abandoned draft never becomes a request.
  */
-async function applyAttestationRequest(run: PlanRun, decision: NormalizedDecision, emailId: string, sendAt: string): Promise<void> {
+async function applyAttestationRequest(
+  run: PlanRun,
+  decision: NormalizedDecision,
+  emailId: string,
+  sendAt: string,
+  requested: 'asap' | 'time',
+): Promise<void> {
   if (decision.attestation?.action !== 'request') return;
   const { client, clientId } = run;
   await clients.setAttestationRequest(clientId, emailId);
@@ -1080,7 +1091,7 @@ async function applyAttestationRequest(run: PlanRun, decision: NormalizedDecisio
     action: 'client.attestation_requested',
     agentInstanceId: client.agent_instance_id,
     clientId,
-    detail: { clientName: client.name, emailId, send_at: sendAt },
+    detail: { clientName: client.name, emailId, send_at: sendAt, requested },
   });
   recordPlannerStep(run, 'apply_attestation', { action: 'request', emailId });
 }

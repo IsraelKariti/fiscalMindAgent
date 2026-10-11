@@ -120,6 +120,10 @@ describe('the collect decision (normalizeDecision)', () => {
     assert.throws(() => normalizeDecision(answer({ send_at: '2026-09-23 17:00' }), ctx), /leave send_at null/);
   });
 
+  it('rejects collect with "asap" too', () => {
+    assert.throws(() => normalizeDecision(answer({ send_at: 'asap' }), ctx), /leave send_at null/);
+  });
+
   it('rejects collect with a fetch action', () => {
     assert.throws(
       () => normalizeDecision(answer({ tax_fetch_action: 'client_agreed', tax_fetch_provider: 'altshuler_shaham', tax_fetch_document_keys: ['pension_annual'] }), ctx),

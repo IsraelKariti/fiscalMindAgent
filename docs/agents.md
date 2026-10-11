@@ -448,6 +448,18 @@ calendar, yom tov only — chol hamoed/Chanukah/Purim stay open) via
 in the `{{upcoming_dates}}` prompt calendar. New scheduling planners must
 apply the same guard.
 
+**Immediate replies** (openspec `reply-send-asap`): a follow_up may answer
+`send_at: "asap"` instead of a time — the prompt allows it only for a reply
+to a client who is active right now and waiting (including the reply after
+verification); reminders, proactive messages and "I'll get back to you"
+cases keep an explicit time. The code, not the model, then picks the time:
+`resolveSendAt` (`src/agents/shared/sendAtGuard.ts`) turns `asap` into
+now + 1 s and `scheduleReply` continues exactly as for a model-chosen time,
+so every send-time gate (review mode, held first message, the 24h-window
+check in the worker) applies unchanged. The guard above passes `asap`
+through untouched. The `send_reply` step records the picked time in
+`send_at` and `requested: 'asap' | 'time'`.
+
 **One planner run per client turn** (openspec `inbound-turn`): WhatsApp
 delivers the text and each file of one client turn as separate webhooks, so an
 inbound webhook never runs the planner itself. The webhook half wraps its work

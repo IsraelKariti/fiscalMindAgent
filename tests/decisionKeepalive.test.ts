@@ -85,3 +85,26 @@ describe('correctionSuffix', () => {
     assert.ok(suffix.includes('MUST include exactly one full message'));
   });
 });
+
+describe('asap send_at (openspec reply-send-asap)', () => {
+  it('accepts "asap" on a follow_up and normalizes its case', () => {
+    const raw = DecisionResponseSchema.parse(
+      JSON.parse(incidentAnswer.replace('"whatsapp_text":null', '"whatsapp_text":"מתחיל עכשיו"')),
+    );
+    raw.channel = 'whatsapp';
+    raw.send_at = ' ASAP ';
+    const decision = normalizeDecision(raw, ctx);
+    assert.equal(decision.decision, 'follow_up');
+    if (decision.decision !== 'follow_up') return;
+    assert.equal(decision.send_at, 'asap');
+  });
+
+  it('still rejects a send_at that is neither a time nor "asap"', () => {
+    const raw = DecisionResponseSchema.parse(
+      JSON.parse(incidentAnswer.replace('"whatsapp_text":null', '"whatsapp_text":"מתחיל עכשיו"')),
+    );
+    raw.channel = 'whatsapp';
+    raw.send_at = 'soon';
+    assert.throws(() => normalizeDecision(raw, ctx), /missing\/invalid send_at/);
+  });
+});

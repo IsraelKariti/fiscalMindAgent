@@ -106,7 +106,7 @@ export const PROMPT_TEMPLATE = loadPrompt(new URL('./prompt.md', import.meta.url
  * prompt.md's keepalive section.
  */
 const KEEPALIVE_CONTRACT =
-  'חוזה תזמון (תקף תמיד, גם אם ההנחיות למעלה נוסחו אחרת): בכל החלטת follow_up חובה לכלול בדיוק הודעה אחת מלאה - הערוץ שנבחר ושדות ההודעה שלו - וגם send_at עתידי. תשובת follow_up עם שדות הודעה ריקים או בלי send_at תיפסל ולא תבוצע; "אין צורך בהודעה" אינו מצב קיים. ההודעה המתוזמנת נשלחת רק אם הלקוח שותק עד send_at - כל הודעה נכנסת ממנו מבטלת אותה ומפעילה תכנון מחדש - ולכן מתזמנים אותה תמיד: היא המנגנון שמבטיח שהשיחה לא תמות אם הלקוח שכח או פספס.';
+  'חוזה תזמון (תקף תמיד, גם אם ההנחיות למעלה נוסחו אחרת): בכל החלטת follow_up חובה לכלול בדיוק הודעה אחת מלאה - הערוץ שנבחר ושדות ההודעה שלו - וגם send_at - מועד עתידי, או "asap" לתשובה ללקוח שפעיל עכשיו וממתין לה. תשובת follow_up עם שדות הודעה ריקים או בלי send_at תיפסל ולא תבוצע; "אין צורך בהודעה" אינו מצב קיים. ההודעה המתוזמנת נשלחת רק אם הלקוח שותק עד send_at - כל הודעה נכנסת ממנו מבטלת אותה ומפעילה תכנון מחדש - ולכן מתזמנים אותה תמיד: היא המנגנון שמבטיח שהשיחה לא תמות אם הלקוח שכח או פספס.';
 
 export function renderPromptTemplate(template: string, vars: Record<PromptPlaceholder, string>): string {
   return renderTemplate(template, vars);
@@ -153,7 +153,7 @@ export function buildWhatsAppSection(token: string, wa: WaChannelState): string 
   const windowLine = wa.windowOpen
     ? `24h window: OPEN — free-form messages (whatsapp_text) allowed until ${
         wa.windowClosesAt ? formatLocalDateTime(wa.windowClosesAt, env.ACCOUNTANT_TIMEZONE) : 'unknown'
-      } local time; send_at must be before that.`
+      } local time; an explicit send_at must be before that (send_at "asap" always is).`
     : `24h window: CLOSED — the client has not written on WhatsApp in the last 24h; only the approved templates below may be sent (whatsapp_template).`;
   const templates =
     wa.templates.length === 0

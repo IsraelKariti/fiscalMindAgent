@@ -23,7 +23,12 @@ code gate) has this shape, top to bottom. Sample: Accounting → Form 106.
    has an emoji icon. Leave out a tab that would be empty. An Accounting
    group page (Real estate, Funds, ...) uses the extra tabs "The decision"
    (the chart plus a "Words in the chart" card) and "The types" (one card
-   per document type, linking to its extraction page).
+   per document type, linking to its extraction page). An LLM call page
+   uses the extra tabs "Input and output" (cards "Input", "Output",
+   "Schema") and "Code gates" (one card per gate, as on the hub page);
+   "4. Document extraction" splits the first one into "The prompt" and
+   "The answer" and adds "The types". The user prefers this tabbed card
+   layout over plain headings and bullets (2026-10-11).
 4. **No "For developers" toggle** at the end of the page any more: the
    developer content lives in the last tab, as cards.
 
@@ -203,6 +208,13 @@ The text inside a diagram must be easy to read without zooming.
 
 ### A flow chart shows actions and decisions, nothing else
 
+- **The chart starts with an event**, the thing that sets the process
+  off: "The client writes on WhatsApp", "The timer fires". Never start
+  with an internal step; the reader must see what triggered it. The
+  event is a box with its actor (the client, the code).
+- **A planned step that is not built yet** is drawn with a dashed border,
+  and its line under the chart says "Planned, not built yet" with the
+  change name. The legend has one entry for the dashed style.
 - **Every box is one action**, in time order from top to bottom. Write it
   as "who does what": "The code builds the prompt", "The model reads the
   data", "The accountant gets an email". The actor is always one of: the
@@ -293,6 +305,10 @@ The text inside a diagram must be easy to read without zooming.
 - **Model and code behavior** (prompts, schemas, gates, checks) lives under
   "LLM calls" and "Code gates". Do not put accounting rules there; link to
   the Accounting page instead.
+- **Feature pages** (how one feature of the agent behaves end to end, for
+  example "Message timing") live under the root page → **Features**. Never
+  as a loose child of the root. The Features page is a hub: one card per
+  feature (rule 1), and the root page has one "Features" card.
 - **An LLM call page describes the call only**: what the model reads, the
   input, the output, the schema, and the fields per type. It does not list
   the checks or what happens after the gate. It links to the gate with one

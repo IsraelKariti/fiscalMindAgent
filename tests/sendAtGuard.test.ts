@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { lastInboundMessageAt, rollBlockedSendAt } from '../src/agents/shared/sendAtGuard.js';
+import { lastInboundMessageAt, resolveSendAt, rollBlockedSendAt } from '../src/agents/shared/sendAtGuard.js';
 
 // 2026-07-31 is a Friday, 2026-08-01 a Saturday, 2026-08-02 a Sunday.
 const now = new Date('2026-07-31T08:00:00Z');
@@ -57,6 +57,10 @@ describe('rollBlockedSendAt', () => {
 
   it('passes unparseable values through for zonedTimeToUtc to reject', () => {
     assert.deepEqual(rollBlockedSendAt('soon', null, now), { sendAt: 'soon', rolled: false });
+  });
+
+  it('passes "asap" through untouched even on a Friday with a silent client', () => {
+    assert.deepEqual(rollBlockedSendAt('asap', null, now), { sendAt: 'asap', rolled: false });
   });
 
   // 2026 Israel calendar: Yom Kippur is Monday 2026-09-21 (erev on Sunday
@@ -118,5 +122,32 @@ describe('lastInboundMessageAt', () => {
       lastInboundMessageAt([{ direction: 'outbound', sent_at: null, created_at: at('2026-07-30T12:00:00Z') }]),
       null,
     );
+  });
+});
+
+describe('resolveSendAt', () => {
+  const tz = 'Asia/Jerusalem';
+
+  it('places an "asap" send exactly one second after now, labelled to the second in the accountant timezone', () => {
+    // 2026-07-31T08:00:00Z is 11:00:00 Israel daylight time.
+    const resolved = resolveSendAt('asap', now, tz);
+    assert.equal(resolved.sendAtUtc.getTime(), now.getTime() + 1000);
+    assert.equal(resolved.sendAtLocal, '2026-07-31 11:00:01');
+    assert.equal(resolved.requested, 'asap');
+  });
+
+  it('accepts "ASAP" with surrounding spaces', () => {
+    assert.equal(resolveSendAt('  ASAP ', now, tz).requested, 'asap');
+  });
+
+  it('converts a wall-clock time in the accountant timezone and keeps its label', () => {
+    const resolved = resolveSendAt('2026-08-02 11:05', now, tz);
+    assert.equal(resolved.sendAtUtc.toISOString(), '2026-08-02T08:05:00.000Z');
+    assert.equal(resolved.sendAtLocal, '2026-08-02 11:05');
+    assert.equal(resolved.requested, 'time');
+  });
+
+  it('still throws on an unparseable time', () => {
+    assert.throws(() => resolveSendAt('soon', now, tz), /invalid wall-clock datetime/);
   });
 });

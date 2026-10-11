@@ -1,6 +1,6 @@
 {
   "stage": "generate_message",
-  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected (collect = the answer ties a file or claims a document and carries no message: no_message checks that every message field and send_at are null); for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is after `now` in the accountant's timezone, no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, tax_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain; question_excludes are substrings that must not appear inside any question of the message (the sentence that ends with a question mark) — the agent may state a proven fact but must not ask about it; message_includes_any passes when at least one of its substrings appears. A file of the snapshot may carry holdings (the accounts list of the file check) and subject_name (null = no readable name). The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
+  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected (collect = the answer ties a file or claims a document and carries no message: no_message checks that every message field and send_at are null); for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is \"asap\" or after `now` in the accountant's timezone, send_asap (when listed) pins whether the answer must carry \"asap\", no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, tax_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain; question_excludes are substrings that must not appear inside any question of the message (the sentence that ends with a question mark) — the agent may state a proven fact but must not ask about it; message_includes_any passes when at least one of its substrings appears. A file of the snapshot may carry holdings (the accounts list of the file check) and subject_name (null = no readable name). The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
   "taxYear": 2025,
   "accountant": { "name": "Cohen & Co. CPA", "hebrew_name": "כהן ושות' רואי חשבון", "email": "office@cohen-cpa.example" },
   "templates": [
@@ -2728,6 +2728,158 @@
         "max_question_marks": 3
       },
       "notes": "openspec real-estate-goal-driven-clarification: the questionnaire created both the contract and the payments appendix items; the contract is approved this turn with a private seller. The planner retires the appendix item citing the approved file (proven_by_file_id, no client quote) and the reply neither asks for the appendix nor asks whether the house was bought second hand or from a builder."
+    },
+    {
+      "id": "dec_24",
+      "now": "2026-02-10T08:30:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?",
+              "answer": "בנק לאומי, חשבון אחד"
+            },
+            {
+              "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?",
+              "answer": "אין"
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-02-11T08:25:00Z",
+        "templates": ["capital_intro", "capital_reminder"]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "pending",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "type_key": "vehicle",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-02-09T10:05:00Z",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"],
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?"
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-02-10T08:25:00Z",
+          "body": "היי, כן בוא נתחיל"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-02-10T08:26:00Z",
+          "body": "מעולה. נתחיל מחשבון הבנק בלאומי: אשמח לקבל אישור יתרות ליום 31.12.2025 מהאזור האישי באתר הבנק."
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-02-10T08:28:00Z",
+          "body": "איזה אישור בדיוק? יש כמה סוגים באתר של לאומי"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "resolved_documents": [],
+        "mentions_valuation_date": false,
+        "max_question_marks": 2,
+        "send_asap": true
+      },
+      "notes": "Change reply-send-asap: the client asked a question two minutes ago and is waiting at the phone. The reply answers it and must carry send_at \"asap\" (the code picks now + 1 s), not a wall-clock time."
+    },
+    {
+      "id": "dec_25",
+      "now": "2026-02-10T08:30:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?",
+              "answer": "בנק לאומי, חשבון אחד"
+            },
+            {
+              "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?",
+              "answer": "אין"
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-02-11T08:25:00Z",
+        "templates": ["capital_intro", "capital_reminder"]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-leumi",
+          "type_key": "bank_balance",
+          "status": "pending",
+          "name": "אישור יתרות בנק לאומי ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "type_key": "vehicle",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-02-09T10:05:00Z",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"],
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?"
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-02-10T08:25:00Z",
+          "body": "היי, כן בוא נתחיל"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-02-10T08:26:00Z",
+          "body": "מעולה. נתחיל מחשבון הבנק בלאומי: אשמח לקבל אישור יתרות ליום 31.12.2025 מהאזור האישי באתר הבנק."
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-02-10T08:27:00Z",
+          "body": "אני מחפש את האישור עכשיו באתר ואשלח בקרוב"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "resolved_documents": [],
+        "mentions_valuation_date": false,
+        "max_question_marks": 1,
+        "send_asap": false
+      },
+      "notes": "Change reply-send-asap: the client said three minutes ago that he is looking for the document now and will send it soon. He is busy, not waiting: the planner must give him room with a wall-clock send_at (a gentle check later), never \"asap\"."
     }
   ]
 }

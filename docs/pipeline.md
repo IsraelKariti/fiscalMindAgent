@@ -106,7 +106,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | `goal.completed` when every row is settled and the attestation is confirmed; a premature goal_complete throws | `DOC/plan.ts` · `completeGoalIfDone` |
 | `send_closing`: the fixed closing message after completion (open 24h window only, never a template; both completion paths) | `DOC/plan.ts` · `sendClosingMessage` (`DOC/closingMessage.ts` · `closingMessageDelivery`) |
 | Closing message text (thanks by first name, the accountant will be in touch if needed) | `DOC/closingMessage.ts` · `closingMessageText` |
-| `send_reply`: roll the send time off weekends and chagim, schedule the draft | `DOC/plan.ts` · `scheduleReply` (`SH/sendAtGuard.ts` · `rollBlockedSendAt`; `orchestration/scheduleDraftEmail.ts` · `scheduleDraftMessage`) |
+| `send_reply`: roll the send time off weekends and chagim, resolve `asap` to now + 1 s, schedule the draft | `DOC/plan.ts` · `scheduleReply` (`SH/sendAtGuard.ts` · `rollBlockedSendAt`, `resolveSendAt`; `orchestration/scheduleDraftEmail.ts` · `scheduleDraftMessage`) |
 | `apply_attestation` (request) on this draft | `DOC/plan.ts` · `applyAttestationRequest` |
 | The document-fetch action (agreed / start login / cancel) | `DOC/plan.ts` · `taxFetchDecisionOf` → `DOC/taxFetch/flow.ts` · `applyTaxFetchAction` |
 | The scheduled send actually goes out | `queue/sendEmailWorker.ts` · `onScheduledSend` → `sendWhatsAppDraft` |

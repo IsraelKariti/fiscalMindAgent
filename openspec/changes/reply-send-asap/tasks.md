@@ -17,4 +17,4 @@
 ## 4. Docs and commit
 
 - [x] 4.1 Update the `send_reply` row in `docs/pipeline.md` and the blocked-day guard paragraph in `docs/agents.md` to mention the `asap` marker and `resolveSendAt`; verify the docs name the real function.
-- [ ] 4.2 `git pull --rebase origin master`, `npm run typecheck`, `npm test`, commit, push (per repo Git workflow); verify the push lands on master.
+- [x] 4.2 `git pull --rebase origin master`, `npm run typecheck`, `npm test`, commit, push (per repo Git workflow); verify the push lands on master.

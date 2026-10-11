@@ -28,4 +28,4 @@
 
 - [x] 6.1 Rewrite the WhatsApp sender paragraph in `docs/agents.md` around the three-level order (agent icon, app logo, `petal-seal.png`), the `/logos/<key>` route, migration 061 and the removed env var; verify the text matches the built behavior.
 - [ ] 6.2 Live check (owner, needs Twilio credentials and a public `APP_BASE_URL`): upload the app logo on the settings page and confirm the existing sender's picture changes in the Twilio console and in a WhatsApp chat; upload an own icon for that agent and confirm it replaces the app logo; remove it and confirm the app logo returns; record the result in this file.
-- [ ] 6.3 Commit per the repo Git workflow (pull --rebase, typecheck, commit, push).
+- [x] 6.3 Commit per the repo Git workflow (pull --rebase, typecheck, commit, push).

@@ -21,4 +21,4 @@
 
 - [x] 4.1 Update `docs/pipeline.md` section C (kickoff rows: "keep paused, audit", "first draft held", "resume: restore / send now / redraft" naming each function) and the manual-kickoff paragraph in `docs/agents.md`; verify the tables list every new or changed function.
 - [x] 4.2 Run `npm test` and `npm run typecheck`; verify both pass.
-- [ ] 4.3 Commit per the repo git workflow (pull --rebase, typecheck, push); verify the push landed on `origin/master`.
+- [x] 4.3 Commit per the repo git workflow (pull --rebase, typecheck, push); verify the push landed on `origin/master`.

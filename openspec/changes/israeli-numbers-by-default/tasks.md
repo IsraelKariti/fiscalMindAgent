@@ -11,4 +11,4 @@
 ## 3. Verification
 
 - [ ] 3.1 Live check (owner): in the admin panel press "buy number" on a test agent with the default country and confirm the assigned number starts with +972, the sender reaches ONLINE, and a WhatsApp message from the agent arrives; then release the number from the admin panel to stop the rent
-- [ ] 3.2 Commit per the repo Git workflow (pull --rebase, typecheck, commit, push)
+- [x] 3.2 Commit per the repo Git workflow (pull --rebase, typecheck, commit, push)

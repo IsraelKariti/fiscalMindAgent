@@ -36,9 +36,24 @@ export interface ProvisionedSender {
   senderStatus: string;
 }
 
+/** Twilio number types the purchase may search, in order. */
+export type NumberType = 'mobile' | 'local';
+
 /**
- * Buys a US local SMS-capable Twilio number and registers it as a WhatsApp
- * sender under the given WABA — the accountant's own connected WABA
+ * The ordered number types `provisionWhatsAppNumber` searches for a country.
+ * Mobile first: Twilio sells Israel (the default TWILIO_NUMBER_COUNTRY) only
+ * as mobile numbers. Local second so countries with no mobile inventory on
+ * Twilio (the US) still resolve to the local numbers the platform bought
+ * before. Pure, so the order is unit-tested without Twilio.
+ */
+export function numberSearchPlan(country: string): { country: string; types: NumberType[] } {
+  return { country, types: ['mobile', 'local'] };
+}
+
+/**
+ * Buys an SMS-capable Twilio number in TWILIO_NUMBER_COUNTRY (Israel by
+ * default; see numberSearchPlan for the type order) and registers it as a
+ * WhatsApp sender under the given WABA — the accountant's own connected WABA
  * (wa_business_accounts) when they have one, else the platform WABA
  * (TWILIO_WABA_ID). Ownership verification is automatic for Twilio-hosted
  * numbers, so there is no OTP step. If sender registration fails, the
@@ -53,8 +68,16 @@ export async function provisionWhatsAppNumber(
   if (!targetWabaId) throw new Error('No WABA to register the sender under (connect one or set TWILIO_WABA_ID).');
   const client = twilioClient();
 
-  const [candidate] = await client.availablePhoneNumbers('US').local.list({ smsEnabled: true, limit: 1 });
-  if (!candidate) throw new Error('Twilio has no US numbers available for purchase right now.');
+  const plan = numberSearchPlan(env.TWILIO_NUMBER_COUNTRY);
+  const available = client.availablePhoneNumbers(plan.country);
+  const search = { smsEnabled: true, limit: 1 };
+  let candidate: { phoneNumber: string } | undefined;
+  for (const type of plan.types) {
+    // Twilio types the sub-resources separately, hence the explicit branch.
+    [candidate] = type === 'mobile' ? await available.mobile.list(search) : await available.local.list(search);
+    if (candidate) break;
+  }
+  if (!candidate) throw new Error(`Twilio has no ${plan.country} numbers available for purchase right now.`);
 
   const purchased = await client.incomingPhoneNumbers.create({
     phoneNumber: candidate.phoneNumber,

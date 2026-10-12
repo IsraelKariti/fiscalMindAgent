@@ -122,6 +122,14 @@ const EnvSchema = z.object({
   // panel's "buy number" auto-provisioning; assigning manually registered
   // numbers works without it.
   TWILIO_WABA_ID: z.string().min(1).optional(),
+  // Country the "buy number" flow purchases from (ISO 3166-1 alpha-2). Israel
+  // by default — clients are Israeli and should see a +972 sender. Twilio's
+  // Israeli inventory is mobile numbers (~$15/month); US local numbers are
+  // ~$1/month, so a sandbox may set US.
+  TWILIO_NUMBER_COUNTRY: z
+    .string()
+    .regex(/^[A-Z]{2}$/, 'TWILIO_NUMBER_COUNTRY must be a two-letter ISO country code, e.g. IL')
+    .default('IL'),
   // Display name auto-provisioned senders register with on WhatsApp — must
   // follow Meta's display-name guidelines and match the WABA's business.
   TWILIO_WA_SENDER_NAME: z.string().min(1).default('FiscalMind'),

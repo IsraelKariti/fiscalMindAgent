@@ -22,4 +22,4 @@
 
 ## 5. Commit
 
-- [ ] 5.1 `git pull --rebase origin master`, `npm run typecheck`, `npm test`, commit (message via file, `git commit -F`), push; verify the push lands on `origin/master`.
+- [x] 5.1 `git pull --rebase origin master`, `npm run typecheck`, `npm test`, commit (message via file, `git commit -F`), push; verify the push lands on `origin/master`.

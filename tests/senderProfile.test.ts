@@ -65,3 +65,13 @@ test('planSenderUpdate: both in one body when the logo differs too', () => {
     webhookChanged: true,
   });
 });
+
+test('planSenderUpdate: picture-only update leaves a foreign webhook alone', () => {
+  const plan = planSenderUpdate({ callbackUrl: 'https://other.example.com/hook', logoUrl: null }, { webhookUrl: undefined, logoUrl: LOGO });
+  assert.deepEqual(plan, { body: { profile: { logo_url: LOGO } }, webhookChanged: false });
+  assert.ok(!('webhook' in plan!.body));
+});
+
+test('planSenderUpdate: picture-only update is a no-op when the logo already matches, even on a foreign webhook', () => {
+  assert.equal(planSenderUpdate({ callbackUrl: 'https://other.example.com/hook', logoUrl: LOGO }, { webhookUrl: undefined, logoUrl: LOGO }), null);
+});

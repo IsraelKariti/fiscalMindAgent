@@ -6,7 +6,7 @@ import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
 import { getAgentTypeIfKnown } from '../agents/registry.js';
 import {
-  alignSender,
+  claimSender,
   getSenderLiveStatus,
   isProvisioningConfigured,
   listOwnedNumbers,
@@ -80,7 +80,7 @@ export const adminUpsertWaSender: RequestHandler = async (req, res) => {
   // number may still point at the environment that provisioned it, which
   // would silently swallow every client reply.
   try {
-    await alignSender(phoneNumber, await senderPictureFor(instance));
+    await claimSender(phoneNumber, await senderPictureFor(instance));
   } catch (err) {
     logger.error('wa sender align failed', err, { phoneNumber });
     res.status(502).json({ error: 'Updating the number’s inbound webhook on Twilio failed; the number was not assigned.' });

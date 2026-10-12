@@ -393,12 +393,16 @@ Industry pattern followed: one app with an agent registry
   under `logos/<random>.<ext>` and served without a session by
   `GET /logos/:key` (`src/webhook/logoRoute.ts`; only the current key of a
   picture resolves, so a replaced one goes 404). Only a public https URL is
-  sent to Twilio, so local dev skips the picture. Assigning a number
-  (`alignSender(phone, pictureUrl)`) points its inbound webhook at this
-  environment and sets the picture when it is missing or different, never
-  the name; an icon upload re-aligns that agent's sender, an app-logo change
-  re-aligns every sender whose agent has no own icon, and a Twilio failure
-  there is reported but never undoes the save. Inbound routing is by the
+  sent to Twilio, so local dev skips the picture. Only buying a number and
+  assigning one (`claimSender(phone, pictureUrl)`) point its inbound webhook
+  at this environment — prod, sandbox and dev share one Twilio account, so
+  whichever environment last claimed a number gets its replies; the same
+  call sets the picture when it is missing or different, never the name. An
+  icon upload pushes the picture to that agent's sender and an app-logo
+  change to every sender whose agent has no own icon
+  (`pushSenderPicture(phone, pictureUrl)`): profile logo only, the webhook
+  is left as it is whatever it points at, and a Twilio failure there is
+  reported but never undoes the save. Inbound routing is by the
   `To` number → instance; outbound `from` is the client's instance's number.
   Since migration 046 an accountant can connect **their own WABA**
   (`wa_business_accounts`, one per user) from the workspace Settings →

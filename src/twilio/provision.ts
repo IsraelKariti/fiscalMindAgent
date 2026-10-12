@@ -178,50 +178,79 @@ export async function markNumberAsPooled(phoneNumber: string): Promise<void> {
 }
 
 /**
- * Brings an already-registered sender in line with this environment when it
- * is assigned to an agent: its inbound webhook and its profile logo.
- *
- * Webhook: prod and dev share one Twilio account, so a pool number keeps the
- * callback URL of whichever environment originally provisioned it — assigning
- * it must claim its inbound traffic, and a failure there propagates (the
- * assignment would silently swallow every client reply otherwise).
- *
- * Logo: the sender gets `pictureUrl` (the instance's effective picture) when
- * it has none or a different one; the display name is never touched. A
- * logo-only update that fails is logged and ignored — a missing picture must
- * not block the assignment. Picture uploads reuse this with the webhook
- * already matching, so only the profile part is sent.
- *
- * No-op when Twilio isn't configured or the number has no sender on this
- * account (externally registered numbers).
+ * Looks up the Twilio sender of a number and applies `plan` to it (the
+ * sender list is the only lookup the Senders API has). Returns null when
+ * Twilio isn't configured, the number has no sender on this account
+ * (externally registered numbers), or the plan is empty; else the fields
+ * worth logging. Twilio errors propagate — each caller decides what a failure
+ * means.
  */
-export async function alignSender(phoneNumber: string, pictureUrl: string | undefined): Promise<void> {
-  if (!isTwilioConfigured() || !env.TWILIO_WEBHOOK_URL) return;
+async function updateSender(
+  phoneNumber: string,
+  plan: (current: { callbackUrl: string | null | undefined; logoUrl: string | null | undefined }) => ReturnType<typeof planSenderUpdate>,
+): Promise<{ phoneNumber: string; callbackUrl: string | undefined; logoUrl: string | undefined } | null> {
+  if (!isTwilioConfigured()) return null;
   const client = twilioClient();
-  // The senders API has no per-number lookup, only a channel-wide list.
   const senders = await client.messaging.v2.channelsSenders.list({ channel: 'whatsapp' });
   const sender = senders.find((s) => s.senderId === `whatsapp:${phoneNumber}`);
-  if (!sender) return;
-  const plan = planSenderUpdate(
-    { callbackUrl: sender.webhook?.callbackUrl, logoUrl: sender.profile?.logoUrl },
-    { webhookUrl: env.TWILIO_WEBHOOK_URL, logoUrl: pictureUrl },
-  );
-  if (!plan) return;
+  if (!sender) return null;
+  const update = plan({ callbackUrl: sender.webhook?.callbackUrl, logoUrl: sender.profile?.logoUrl });
+  if (!update) return null;
   // Snake_case body — see senderProfile.ts for why.
   const handle = client.messaging.v2.channelsSenders(sender.sid);
-  const update = () => handle.update(plan.body as unknown as Parameters<typeof handle.update>[0]);
-  const logFields = { phoneNumber, callbackUrl: plan.body.webhook?.callback_url, logoUrl: plan.body.profile?.logo_url };
-  if (plan.webhookChanged) {
-    await update();
-    logger.info('wa sender aligned', logFields);
-    return;
-  }
+  await handle.update(update.body as unknown as Parameters<typeof handle.update>[0]);
+  return { phoneNumber, callbackUrl: update.body.webhook?.callback_url, logoUrl: update.body.profile?.logo_url };
+}
+
+/**
+ * Claims an already-registered sender for this environment when an admin
+ * assigns it to an agent (src/api/waAdmin.ts is the only caller): its inbound
+ * webhook and its profile logo, in one Twilio call.
+ *
+ * Webhook: prod and dev share one Twilio account, so a pool number keeps the
+ * callback URL of whichever environment last claimed it — assigning it must
+ * take its inbound traffic, and a failure there propagates (the assignment
+ * would silently swallow every client reply otherwise).
+ *
+ * Logo: the sender gets `pictureUrl` (the instance's effective picture) when
+ * it has none or a different one; the display name is never touched. When
+ * only the logo needs sending, a failure is logged and ignored — a missing
+ * picture must not block the assignment.
+ *
+ * Anything that is not an assignment (picture uploads) goes through
+ * pushSenderPicture, which never touches the webhook. No-op when Twilio isn't
+ * configured or the number has no sender on this account.
+ */
+export async function claimSender(phoneNumber: string, pictureUrl: string | undefined): Promise<void> {
+  const webhookUrl = env.TWILIO_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  let webhookChanged = false;
+  const plan = (current: { callbackUrl: string | null | undefined; logoUrl: string | null | undefined }) => {
+    const update = planSenderUpdate(current, { webhookUrl, logoUrl: pictureUrl });
+    webhookChanged = update?.webhookChanged ?? false;
+    return update;
+  };
   try {
-    await update();
-    logger.info('wa sender logo applied', logFields);
+    const applied = await updateSender(phoneNumber, plan);
+    if (applied) logger.info(webhookChanged ? 'wa sender claimed' : 'wa sender logo applied', applied);
   } catch (err) {
-    logger.error('wa sender logo update failed', err, logFields);
+    if (webhookChanged) throw err;
+    logger.error('wa sender logo update failed', err, { phoneNumber, logoUrl: pictureUrl });
   }
+}
+
+/**
+ * Sets an existing sender's profile logo to `pictureUrl` after an app logo or
+ * agent icon upload/removal (src/api/logoAdmin.ts). The inbound webhook is
+ * never part of this update, whatever it points at: a picture change in one
+ * environment must not take a number away from another. No-op when the logo
+ * already matches, there is no public picture, Twilio isn't configured or the
+ * number has no sender here. Twilio errors propagate so the caller can report
+ * them.
+ */
+export async function pushSenderPicture(phoneNumber: string, pictureUrl: string | undefined): Promise<void> {
+  const applied = await updateSender(phoneNumber, (current) => planSenderUpdate(current, { webhookUrl: undefined, logoUrl: pictureUrl }));
+  if (applied) logger.info('wa sender logo applied', applied);
 }
 
 /** The number isn't on this Twilio account, so there is nothing to release. */

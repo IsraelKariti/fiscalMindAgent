@@ -14,7 +14,7 @@ import {
   newLogoBlobKey,
   sniffImageType,
 } from '../storage/logos.js';
-import { alignSender } from '../twilio/provision.js';
+import { pushSenderPicture } from '../twilio/provision.js';
 import { logger } from '../util/logger.js';
 
 /**
@@ -60,7 +60,7 @@ async function dropBlob(key: string | null): Promise<void> {
 /** Pushes `pictureUrl` to one sender; false on a Twilio failure (logged), never throws. */
 async function pushPicture(phoneNumber: string, pictureUrl: string | undefined, instanceId: string): Promise<boolean> {
   try {
-    await alignSender(phoneNumber, pictureUrl);
+    await pushSenderPicture(phoneNumber, pictureUrl);
     return true;
   } catch (err) {
     logger.error('wa sender picture push failed', err, { phoneNumber, instanceId });

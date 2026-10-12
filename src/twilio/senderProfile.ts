@@ -59,18 +59,23 @@ export interface SenderUpdatePlan {
 }
 
 /**
- * What an assignment has to change on an existing sender: the inbound webhook
- * when it points elsewhere, the profile logo when it is missing or different.
- * The display name is never touched (Meta reviews name changes, and an
- * externally registered sender keeps its own). Null = nothing to do.
+ * What an update has to change on an existing sender: the inbound webhook
+ * when one is wanted and the current one points elsewhere, the profile logo
+ * when it is missing or different. `wanted.webhookUrl` undefined = a
+ * picture-only update that leaves the webhook alone whatever it points at
+ * (prod and dev share one Twilio account; only an assignment may claim a
+ * number). The display name is never touched (Meta reviews name changes, and
+ * an externally registered sender keeps its own). Null = nothing to do.
  */
 export function planSenderUpdate(
   current: { callbackUrl: string | null | undefined; logoUrl: string | null | undefined },
-  wanted: { webhookUrl: string; logoUrl: string | undefined },
+  wanted: { webhookUrl: string | undefined; logoUrl: string | undefined },
 ): SenderUpdatePlan | null {
   const body: SenderUpdateBody = {};
-  const webhookChanged = current.callbackUrl !== wanted.webhookUrl;
-  if (webhookChanged) body.webhook = { callback_url: wanted.webhookUrl, callback_method: 'POST' };
+  if (wanted.webhookUrl !== undefined && current.callbackUrl !== wanted.webhookUrl) {
+    body.webhook = { callback_url: wanted.webhookUrl, callback_method: 'POST' };
+  }
+  const webhookChanged = body.webhook !== undefined;
   if (wanted.logoUrl && current.logoUrl !== wanted.logoUrl) body.profile = { logo_url: wanted.logoUrl };
   if (!body.webhook && !body.profile) return null;
   return { body, webhookChanged };

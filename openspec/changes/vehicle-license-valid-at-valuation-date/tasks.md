@@ -17,4 +17,4 @@
 
 ## 4. Commit
 
-- [ ] 4.1 `git pull --rebase origin master`, `npm run typecheck`, commit, `git push origin master`; verify the push succeeds.
+- [x] 4.1 `git pull --rebase origin master`, `npm run typecheck`, commit, `git push origin master`; verify the push succeeds.

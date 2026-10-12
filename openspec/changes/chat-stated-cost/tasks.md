@@ -27,5 +27,5 @@
 
 - [x] 5.1 Run `npm test`, `npm run typecheck`, `npm run build:gui`, and the `generate_message` eval stage; restore unchanged synthetic PDFs and the untouched `evals/results/latest.json` before committing. Verify a clean `git status` apart from the intended files.
 - [x] 5.2 Notion (follow `STYLE.md`): Accounting → Real estate and the vehicle page, one sentence each: the cost declaration may be a signed page or the client's statement in the WhatsApp conversation. Verify by reading both pages.
-- [ ] 5.3 Commit per the Git workflow (pull --rebase, typecheck, commit with `git commit -F`, push). Verify the push lands on `master` and the sandbox deploy runs migration 062.
+- [x] 5.3 Commit per the Git workflow (pull --rebase, typecheck, commit with `git commit -F`, push). Verify the push lands on `master` and the sandbox deploy runs migration 062.
 - [ ] 5.4 (owner — needs a real WhatsApp inbound) Live check on the local dev stack: a test client with a pending vehicle receipt item writes "אין לי את הקבלה, שילמתי 85,000 ש"ח"; confirm the reply confirms the amount and asks for no signed page, the item "הצהרת עלות — …" is `stated` on the card with the clickable note, and `#/steps` shows `validate_message` passed with the three stated-cost checks and an `apply_stated_costs` row.

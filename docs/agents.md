@@ -283,12 +283,15 @@ monday WorkForm is the only source of which documents a declaration needs):
   trio (fund name required; account number OPTIONAL since 2026-09-24 —
   openspec `savings-account-number-optional`; closing balance, cumulative
   deposits; any-of the two amounts), `mortgage_balance` (loan number,
-  principal at 31.12), `vehicle` (plate digits-only 7–8, maker, model,
+  principal at 31.12 — from the bank's balance letter or deduced from an
+  amortization schedule that covers 31.12, openspec
+  `debt-amortization-schedule`), `vehicle` (plate digits-only 7–8, maker, model,
   production year, purchase cost; any-of plate / cost; `not_expired`),
   `contents_insurance` (policy number, contents sum, period from/to +
   `period_covers_valuation_date`), `real_estate` (address, price, currency,
   year, seller kind — all optional, see the goal-driven clarification entry),
-  `loan_taken` (lender name, balance owed at 31.12), `loan_given` (borrower
+  `loan_taken` (lender name, balance owed at 31.12 — from a balance letter
+  or deduced from an amortization schedule that covers 31.12), `loan_given` (borrower
   name, balance owed to the client at 31.12), `crypto` (market value at 31.12
   + its three-letter currency code). There is no generic `amounts` field or
   check since 2026-10-10 (openspec `per-type-amount-checks`): every number

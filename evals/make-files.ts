@@ -110,6 +110,77 @@ function homeInsurancePolicy({ from, to, policyNo }: { from: string; to: string;
   );
 }
 
+interface ScheduleRow {
+  date: string;
+  payment: string;
+  principal: string;
+  interest: string;
+  balance: string;
+}
+
+interface AmortizationSchedule {
+  lenderHe: string;
+  lenderEn: string;
+  color: string;
+  titleHe: string;
+  subtitleHe: string;
+  loanNo: string;
+  printedOn: string;
+  /** Extra rows of the loan header table, as `[label, value]`. */
+  details: [string, string][];
+  rows: ScheduleRow[];
+  footerHe: string;
+}
+
+/**
+ * An amortization schedule (לוח סילוקין) in the shape lenders print: a header
+ * with the borrower and the loan, then one row per payment with its date, the
+ * payment, its principal and interest parts and the balance that remains
+ * after it (openspec debt-amortization-schedule).
+ */
+function amortizationSchedule({ lenderHe, lenderEn, color, titleHe, subtitleHe, loanNo, printedOn, details, rows, footerHe }: AmortizationSchedule): string {
+  const detailRows = details.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+  const body = rows
+    .map((r) => `<tr><td>${r.date}</td><td class="n">${r.payment}</td><td class="n">${r.principal}</td><td class="n">${r.interest}</td><td class="n">${r.balance}</td></tr>`)
+    .join('');
+  return page(
+    `${lenderEn} amortization schedule`,
+    `<div class="letterhead"><div class="he"><div class="logo" style="color:${color}">${lenderHe}</div><div class="muted">${subtitleHe}</div></div><div class="muted">תאריך הפקה: ${printedOn}</div></div>
+     <h1>${titleHe}</h1>
+     <table>
+       <tr><th>שם הלווה</th><td>${client.nameHe}</td></tr>
+       <tr><th>מספר זהות</th><td>${client.id}</td></tr>
+       <tr><th>מספר הלוואה</th><td>${loanNo}</td></tr>
+       ${detailRows}
+     </table>
+     <h2>לוח התשלומים</h2>
+     <table>
+       <tr><th>מועד תשלום</th><th class="n">סכום התשלום (₪)</th><th class="n">קרן (₪)</th><th class="n">ריבית (₪)</th><th class="n">יתרת קרן לאחר התשלום (₪)</th></tr>
+       ${body}
+     </table>
+     <p class="muted">${footerHe}</p>`,
+    'rtl',
+  );
+}
+
+/** Builds `count` monthly rows from `first` (yyyy-mm, paid on the 10th) with a constant principal part and a falling interest part. */
+function scheduleRows(first: string, count: number, opening: number, principal: number, rate: number, lastPrincipal = principal): ScheduleRow[] {
+  const money = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const y0 = Number(first.slice(0, 4));
+  const m0 = Number(first.slice(5, 7));
+  const rows: ScheduleRow[] = [];
+  let balance = opening;
+  for (let i = 0; i < count; i++) {
+    const m = ((m0 - 1 + i) % 12) + 1;
+    const y = y0 + Math.floor((m0 - 1 + i) / 12);
+    const interest = Math.round(balance * rate / 12);
+    const part = i === count - 1 ? lastPrincipal : principal;
+    balance -= part;
+    rows.push({ date: `10.${String(m).padStart(2, '0')}.${y}`, payment: money(part + interest), principal: money(part), interest: money(interest), balance: money(balance) });
+  }
+  return rows;
+}
+
 const DOCS: Record<string, string> = {
   'leumi_balance_2025.pdf': bankBalanceCertificate({ bank: 'Bank Leumi', bankHe: 'בנק לאומי', color: '#1b3a6b', asOf: '2025-12-31', asOfHe: '31.12.2025', account: '812-45678/21', balance: '45,210.50', deposits: '120,000.00' }),
   // openspec multi-subject-documents: a joint account — the client and a second holder who is not the spouse,
@@ -581,6 +652,64 @@ const DOCS: Record<string, string> = {
      <p class="muted">Scan of the identity card appendix (ספח) — belongs to the card on the previous page.</p>`,
     'rtl',
   ),
+  // openspec debt-amortization-schedule: a bank's mortgage schedule for the whole of 2025 and the
+  // start of 2026. The balance at 31.12.2025 is the one after the 10.12.2025 payment (412,300.00);
+  // the 10.01.2026 row (410,900.00) is the first payment after the valuation date.
+  'mizrahi_mortgage_schedule_2025.pdf': amortizationSchedule({
+    lenderHe: 'בנק מזרחי טפחות',
+    lenderEn: 'Mizrahi Tefahot mortgage',
+    color: '#d9480f',
+    titleHe: 'לוח סילוקין — הלוואת משכנתא',
+    subtitleHe: 'מחלקת משכנתאות · סניף 418 תל אביב',
+    loanNo: '0412-77810/3',
+    printedOn: '15.03.2026',
+    details: [
+      ['הנכס המשועבד', 'הרצל 10, תל אביב-יפו'],
+      ['סוג ההלוואה', 'שפיצר, ריבית קבועה לא צמודה 3.60%'],
+      ['תקופת הלוח', '10.01.2025 – 10.02.2026'],
+    ],
+    rows: scheduleRows('2025-01', 14, 429100, 1400, 0.036),
+    footerHe: 'יתרת הקרן בכל שורה היא היתרה לאחר ביצוע התשלום שבאותה שורה. הלוח אינו כולל הפרשי הצמדה ועמלות.',
+  }),
+  // openspec debt-amortization-schedule: the projected schedule Altshuler Shaham printed when the
+  // study-fund loan was taken (30 payments, 10.03.2025 – 10.08.2027). After the 10.12.2025 payment
+  // 18,640.00 remains — the balance at 31.12.2025 of the loan_taken item doc_9.
+  'altshuler_loan_schedule_2025.pdf': amortizationSchedule({
+    lenderHe: 'אלטשולר שחם גמל ופנסיה',
+    lenderEn: 'Altshuler Shaham loan',
+    color: '#0b7a75',
+    titleHe: 'לוח סילוקין צפוי — הלוואה על חשבון קרן השתלמות',
+    subtitleHe: 'אלטשולר שחם השתלמות כללי · קופה 513-41651242',
+    loanNo: '03-069623-00',
+    printedOn: '20.02.2025',
+    details: [
+      ['סכום ההלוואה', '28,000.00 ₪'],
+      ['תאריך מתן ההלוואה', '18.02.2025'],
+      ['תקופת ההלוואה', '30 חודשים · 10.03.2025 – 10.08.2027'],
+      ['ריבית שנתית', 'פריים + 0.00%'],
+    ],
+    rows: scheduleRows('2025-03', 30, 28000, 936, 0.06, 856),
+    footerHe: 'לוח צפוי שהופק במועד מתן ההלוואה; התשלומים מחויבים ב-10 בכל חודש. יתרת הקרן בכל שורה היא היתרה לאחר התשלום.',
+  }),
+  // openspec debt-amortization-schedule: the same Altshuler loan, but only the payments charged so
+  // far — the print stops at 10.06.2025 with 24,256.00 still owed, so the balance at 31.12.2025
+  // cannot be read from it (outstanding_balance and as_of_date stay null).
+  'altshuler_loan_schedule_partial_2025.pdf': amortizationSchedule({
+    lenderHe: 'אלטשולר שחם גמל ופנסיה',
+    lenderEn: 'Altshuler Shaham loan (payments so far)',
+    color: '#0b7a75',
+    titleHe: 'לוח סילוקין — תשלומים ששולמו עד כה',
+    subtitleHe: 'אלטשולר שחם השתלמות כללי · קופה 513-41651242',
+    loanNo: '03-069623-00',
+    printedOn: '20.06.2025',
+    details: [
+      ['סכום ההלוואה', '28,000.00 ₪'],
+      ['תאריך מתן ההלוואה', '18.02.2025'],
+      ['תשלומים שבוצעו', '4 מתוך 30'],
+    ],
+    rows: scheduleRows('2025-03', 4, 28000, 936, 0.06),
+    footerHe: 'הדוח מציג את התשלומים שבוצעו עד מועד ההפקה בלבד. יתרת הקרן בכל שורה היא היתרה לאחר התשלום.',
+  }),
 };
 
 /**

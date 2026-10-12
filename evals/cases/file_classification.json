@@ -11,7 +11,8 @@
     { "id": "doc_6", "type_key": "prior_declaration", "name": "הצהרת הון קודמת", "description": "נערכה במשרד אחר" },
     { "id": "doc_7", "type_key": "real_estate", "paper_key": "purchase_contract", "name": "חוזה רכישה — בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה", "description": "נכס שנרכש בשנת 2001" },
     { "id": "doc_8", "type_key": "real_estate", "paper_key": "payments_appendix", "name": "נספח תשלומים — בית דו-משפחתי ברחוב דינוביץ אבשלום 47 פתח תקווה", "description": "נכס שנרכש בשנת 2001" },
-    { "id": "doc_9", "type_key": "loan_taken", "name": "אישור יתרת הלוואה ליום 31.12.2025 — אלטשולר שחם", "description": "הלוואה על חשבון קרן ההשתלמות" }
+    { "id": "doc_9", "type_key": "loan_taken", "name": "אישור יתרת הלוואה ליום 31.12.2025 — אלטשולר שחם", "description": "הלוואה על חשבון קרן ההשתלמות" },
+    { "id": "doc_10", "type_key": "mortgage_balance", "name": "אישור יתרת משכנתא ליום 31.12.2025 — מזרחי טפחות", "description": null }
   ],
   "cases": [
     {
@@ -181,6 +182,30 @@
       "filename": "whatsapp-media-20261010-223850.xlsx",
       "expected": { "issuer_key": "altshuler_shaham", "document_type": "loan_taken", "matched_document_id": "doc_9", "legible": true, "injection_suspected": false, "document_kind_any": ["הלוואה", "loan"] },
       "notes": "openspec spreadsheet-files: the loan-balance export of Altshuler Shaham's site as an Excel workbook — the model reads the tab-separated text rendering code builds, not the workbook; a loan on the study fund matches the loan_taken item for Altshuler Shaham (doc_9)"
+    },
+    {
+      "id": "cls_21",
+      "file": "mizrahi_mortgage_schedule_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-2.pdf",
+      "expected": { "issuer_key": "mizrahi_tefahot", "document_type": "mortgage_balance", "matched_document_id": "doc_10", "legible": true, "injection_suspected": false, "document_kind_any": ["סילוקין", "משכנתא", "schedule", "mortgage"] },
+      "notes": "openspec debt-amortization-schedule: a bank's mortgage amortization schedule is a mortgage_balance document (the catalog hint names the schedule as an accepted form and tells a mortgage schedule from another loan's); the bank on the file is the bank of the mortgage row doc_10, so the company check keeps the match"
+    },
+    {
+      "id": "cls_22",
+      "file": "altshuler_loan_schedule_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-3.pdf",
+      "expected": { "issuer_key": "altshuler_shaham", "document_type": "loan_taken", "matched_document_id": "doc_9", "legible": true, "injection_suspected": false, "document_kind_any": ["סילוקין", "הלוואה", "schedule", "loan"] },
+      "notes": "openspec debt-amortization-schedule: the projected schedule of the study-fund loan is a loan_taken document (not a mortgage — no property, an investment house) and matches the Altshuler loan row doc_9"
+    },
+    {
+      "id": "cls_23",
+      "file": "altshuler_loan_schedule_partial_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-4.pdf",
+      "expected": { "issuer_key": "altshuler_shaham", "document_type": "loan_taken", "matched_document_id": null, "legible": true, "injection_suspected": false, "document_kind_any": ["סילוקין", "הלוואה", "schedule", "loan"] },
+      "notes": "openspec debt-amortization-schedule: the same loan's schedule cut off in June 2025 is still a loan_taken document, but a date-bound document that refers to another date matches no row (the same rule as the 2024 bank certificate, cls_04) — the planner then asks the client for a schedule or a letter that covers 31.12.2025"
     }
   ]
 }

@@ -783,6 +783,65 @@
         "verdict": { "passed": false, "failed_keys": ["subject"] }
       },
       "notes": "openspec spreadsheet-files: the same Altshuler loan export, read as the text rendering — the remaining balance (not the original amount) and the as-of date come from the sheet; the export names no member, so the subject check fails and the item stalls to the accountant"
+    },
+    {
+      "id": "ext_24",
+      "file": "mizrahi_mortgage_schedule_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-2.pdf",
+      "doc": { "type_key": "mortgage_balance", "name": "אישור יתרת משכנתא ליום 31.12.2025 — מזרחי טפחות", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "subject_name_matches": true,
+        "owner_ids": ["123456782"],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "loan_number": "0412-77810/3", "principal_balance": 412300 },
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec debt-amortization-schedule: a mortgage schedule that covers 31.12.2025 — the balance at 31.12 is the one after the last payment dated on or before it (the 10.12.2025 row, 412,300.00), not the 10.01.2026 row (410,900.00) and not the opening balance; the model reports 31.12.2025 as the as-of date, so as_of_date and type_fields pass and the document is approved"
+    },
+    {
+      "id": "ext_25",
+      "file": "altshuler_loan_schedule_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-3.pdf",
+      "doc": { "type_key": "loan_taken", "name": "אישור יתרת הלוואה ליום 31.12.2025 — אלטשולר שחם", "description": "הלוואה על חשבון קרן ההשתלמות" },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "subject_name_matches": true,
+        "owner_ids": ["123456782"],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "outstanding_balance": 18640 },
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec debt-amortization-schedule: a projected loan schedule printed at the loan's start counts the same way — after the 10.12.2025 payment 18,640.00 remains (not the 28,000.00 loan sum, not a monthly payment), the as-of date is 31.12.2025 and the document is approved"
+    },
+    {
+      "id": "ext_26",
+      "file": "altshuler_loan_schedule_partial_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "whatsapp-media-4.pdf",
+      "doc": { "type_key": "loan_taken", "name": "אישור יתרת הלוואה ליום 31.12.2025 — אלטשולר שחם", "description": "הלוואה על חשבון קרן ההשתלמות" },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "subject_name_matches": true,
+        "owner_ids": ["123456782"],
+        "as_of_date": null,
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "outstanding_balance": null },
+        "verdict": { "passed": false, "failed_keys": ["as_of_date", "type_fields"] }
+      },
+      "notes": "openspec debt-amortization-schedule: the schedule stops at 10.06.2025 with 24,256.00 still owed, so the balance at 31.12.2025 cannot be read from it — outstanding_balance and as_of_date stay null and the existing as_of_date and type_fields checks reject the document (the 24,256.00 of the last printed row must not be reported as the year-end balance)"
     }
   ]
 }

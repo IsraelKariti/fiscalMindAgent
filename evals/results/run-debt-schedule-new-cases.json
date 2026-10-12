@@ -1,0 +1,1746 @@
+{
+  "ranAt": "2026-10-12T16:32:55.539Z",
+  "finishedAt": "2026-10-12T16:33:43.986Z",
+  "models": [
+    "gemini-2.5-flash",
+    "gemini-3.5-flash"
+  ],
+  "stages": [
+    "injection_detection_llm",
+    "questionnaire_schema_mapping",
+    "file_splitting",
+    "file_classification",
+    "extract_document",
+    "generate_message"
+  ],
+  "concurrency": 3,
+  "maxSpendUsd": 3,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
+    },
+    "gemini-3.5-flash": {
+      "model": "gemini-3.5-flash",
+      "inputCostPerToken": 0.0000015,
+      "outputCostPerToken": 0.000009,
+      "thinkingCostPerToken": 0.000009,
+      "cachedCostPerToken": 1.5e-7
+    }
+  },
+  "results": [
+    {
+      "stage": "injection_detection_llm",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "inj_16",
+      "notes": "openspec debt-amortization-schedule: the same loan's schedule of the payments charged so far — clean",
+      "ranAt": "2026-10-12T16:32:55.945Z",
+      "latencyMs": 6472,
+      "attempts": 1,
+      "inputTokens": 713,
+      "outputTokens": 13,
+      "thinkingTokens": 471,
+      "cachedTokens": 0,
+      "costUsd": 0.0014239,
+      "error": null,
+      "output": {
+        "suspected_injection": false,
+        "evidence": null
+      },
+      "checks": [
+        {
+          "key": "suspected_injection",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "verbatimChecked": false
+        },
+        "evidence": null,
+        "regexWouldCatch": false,
+        "regexKind": null,
+        "textLayerChars": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "injection_detection_llm",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "inj_14",
+      "notes": "openspec debt-amortization-schedule: a clean Hebrew mortgage amortization schedule (a payments table with the balance after each payment and a footer about linkage and fees) — schedule wording is not an instruction to an AI",
+      "ranAt": "2026-10-12T16:32:55.942Z",
+      "latencyMs": 6776,
+      "attempts": 1,
+      "inputTokens": 713,
+      "outputTokens": 13,
+      "thinkingTokens": 854,
+      "cachedTokens": 0,
+      "costUsd": 0.0023814,
+      "error": null,
+      "output": {
+        "suspected_injection": false,
+        "evidence": null
+      },
+      "checks": [
+        {
+          "key": "suspected_injection",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "verbatimChecked": false
+        },
+        "evidence": null,
+        "regexWouldCatch": false,
+        "regexKind": null,
+        "textLayerChars": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "injection_detection_llm",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "inj_15",
+      "notes": "openspec debt-amortization-schedule: a clean projected loan schedule printed by Altshuler Shaham when the study-fund loan was taken",
+      "ranAt": "2026-10-12T16:32:55.945Z",
+      "latencyMs": 8014,
+      "attempts": 1,
+      "inputTokens": 971,
+      "outputTokens": 13,
+      "thinkingTokens": 1197,
+      "cachedTokens": 0,
+      "costUsd": 0.0033163000000000003,
+      "error": null,
+      "output": {
+        "suspected_injection": false,
+        "evidence": null
+      },
+      "checks": [
+        {
+          "key": "suspected_injection",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "verbatimChecked": false
+        },
+        "evidence": null,
+        "regexWouldCatch": false,
+        "regexKind": null,
+        "textLayerChars": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "injection_detection_llm",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "inj_14",
+      "notes": "openspec debt-amortization-schedule: a clean Hebrew mortgage amortization schedule (a payments table with the balance after each payment and a footer about linkage and fees) — schedule wording is not an instruction to an AI",
+      "ranAt": "2026-10-12T16:33:03.961Z",
+      "latencyMs": 2632,
+      "attempts": 1,
+      "inputTokens": 975,
+      "outputTokens": 12,
+      "thinkingTokens": 218,
+      "cachedTokens": 0,
+      "costUsd": 0.0035325,
+      "error": null,
+      "output": {
+        "suspected_injection": false,
+        "evidence": null
+      },
+      "checks": [
+        {
+          "key": "suspected_injection",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "verbatimChecked": false
+        },
+        "evidence": null,
+        "regexWouldCatch": false,
+        "regexKind": null,
+        "textLayerChars": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "injection_detection_llm",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "inj_15",
+      "notes": "openspec debt-amortization-schedule: a clean projected loan schedule printed by Altshuler Shaham when the study-fund loan was taken",
+      "ranAt": "2026-10-12T16:33:03.961Z",
+      "latencyMs": 2874,
+      "attempts": 1,
+      "inputTokens": 1495,
+      "outputTokens": 19,
+      "thinkingTokens": 141,
+      "cachedTokens": 0,
+      "costUsd": 0.0036825,
+      "error": null,
+      "output": {
+        "suspected_injection": false,
+        "evidence": null
+      },
+      "checks": [
+        {
+          "key": "suspected_injection",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "verbatimChecked": false
+        },
+        "evidence": null,
+        "regexWouldCatch": false,
+        "regexKind": null,
+        "textLayerChars": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "injection_detection_llm",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "inj_16",
+      "notes": "openspec debt-amortization-schedule: the same loan's schedule of the payments charged so far — clean",
+      "ranAt": "2026-10-12T16:33:03.962Z",
+      "latencyMs": 3950,
+      "attempts": 1,
+      "inputTokens": 975,
+      "outputTokens": 12,
+      "thinkingTokens": 301,
+      "cachedTokens": 0,
+      "costUsd": 0.0042795,
+      "error": null,
+      "output": {
+        "suspected_injection": false,
+        "evidence": null
+      },
+      "checks": [
+        {
+          "key": "suspected_injection",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "verbatimChecked": false
+        },
+        "evidence": null,
+        "regexWouldCatch": false,
+        "regexKind": null,
+        "textLayerChars": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_23",
+      "notes": "openspec debt-amortization-schedule: the same loan's schedule cut off in June 2025 is still a loan_taken document, but a date-bound document that refers to another date matches no row (the same rule as the 2024 bank certificate, cls_04) — the planner then asks the client for a schedule or a letter that covers 31.12.2025",
+      "ranAt": "2026-10-12T16:33:10.489Z",
+      "latencyMs": 8848,
+      "attempts": 1,
+      "inputTokens": 8726,
+      "outputTokens": 287,
+      "thinkingTokens": 1262,
+      "cachedTokens": 0,
+      "costUsd": 0.006490300000000001,
+      "error": null,
+      "output": {
+        "document_kind": "לוח סילוקין הלוואה",
+        "summary": "המסמך הוא לוח סילוקין חלקי להלוואה מבית ההשקעות אלטשולר שחם גמל ופנסיה, המפרט את התשלומים שבוצעו עד ליום 10.06.2025 ואת יתרת הקרן לאחר כל תשלום.",
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "אלטשולר שחם גמל ופנסיה",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "הלוואה",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "03-069623-00"
+          }
+        ],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "סילוקין",
+            "הלוואה",
+            "schedule",
+            "loan"
+          ],
+          "actual": "לוח סילוקין הלוואה",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "אלטשולר שחם גמל ופנסיה",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": null,
+        "subject_name": "ישראל ישראלי",
+        "summary": "המסמך הוא לוח סילוקין חלקי להלוואה מבית ההשקעות אלטשולר שחם גמל ופנסיה, המפרט את התשלומים שבוצעו עד ליום 10.06.2025 ואת יתרת הקרן לאחר כל תשלום."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_21",
+      "notes": "openspec debt-amortization-schedule: a bank's mortgage amortization schedule is a mortgage_balance document (the catalog hint names the schedule as an accepted form and tells a mortgage schedule from another loan's); the bank on the file is the bank of the mortgage row doc_10, so the company check keeps the match",
+      "ranAt": "2026-10-12T16:33:10.487Z",
+      "latencyMs": 10616,
+      "attempts": 1,
+      "inputTokens": 8726,
+      "outputTokens": 313,
+      "thinkingTokens": 1893,
+      "cachedTokens": 0,
+      "costUsd": 0.0081328,
+      "error": null,
+      "output": {
+        "document_kind": "לוח סילוקין – הלוואת משכנתא",
+        "summary": "המסמך הוא לוח סילוקין להלוואת משכנתא מבנק מזרחי טפחות על שם ישראל ישראלי, המתאר את תשלומי הקרן והריבית ואת יתרת הקרן לאחר כל תשלום, לתקופה שבין 10.01.2025 ל-10.02.2026.",
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "בנק מזרחי טפחות",
+        "matched_document_id": "doc_10",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "הלוואת משכנתא",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "0412-77810/3"
+          }
+        ],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "mortgage_balance",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "mortgage_balance",
+          "actual": "mortgage_balance",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_10",
+          "actual": "doc_10",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "mizrahi_tefahot",
+          "actual": "mizrahi_tefahot",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "סילוקין",
+            "משכנתא",
+            "schedule",
+            "mortgage"
+          ],
+          "actual": "לוח סילוקין – הלוואת משכנתא",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_10",
+        "issuer_name": "בנק מזרחי טפחות",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "הלוואת משכנתא",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "0412-77810/3"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "summary": "המסמך הוא לוח סילוקין להלוואת משכנתא מבנק מזרחי טפחות על שם ישראל ישראלי, המתאר את תשלומי הקרן והריבית ואת יתרת הקרן לאחר כל תשלום, לתקופה שבין 10.01.2025 ל-10.02.2026."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_22",
+      "notes": "openspec debt-amortization-schedule: the projected schedule of the study-fund loan is a loan_taken document (not a mortgage — no property, an investment house) and matches the Altshuler loan row doc_9",
+      "ranAt": "2026-10-12T16:33:10.489Z",
+      "latencyMs": 12198,
+      "attempts": 1,
+      "inputTokens": 8984,
+      "outputTokens": 259,
+      "thinkingTokens": 2011,
+      "cachedTokens": 0,
+      "costUsd": 0.008370200000000001,
+      "error": null,
+      "output": {
+        "document_kind": "לוח סילוקין צפוי של הלוואה על חשבון קרן השתלמות",
+        "summary": "המסמך מציג לוח סילוקין צפוי להלוואה בסך 28,000 ש\"ח שנלקחה על חשבון קרן השתלמות באלטשולר שחם, עם תאריכי תשלום ויתרות קרן צפויות עד 10.08.2027.",
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "אלטשולר שחם גמל ופנסיה",
+        "matched_document_id": "doc_9",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_9",
+          "actual": "doc_9",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "סילוקין",
+            "הלוואה",
+            "schedule",
+            "loan"
+          ],
+          "actual": "לוח סילוקין צפוי של הלוואה על חשבון קרן השתלמות",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_9",
+        "issuer_name": "אלטשולר שחם גמל ופנסיה",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "summary": "המסמך מציג לוח סילוקין צפוי להלוואה בסך 28,000 ש\"ח שנלקחה על חשבון קרן השתלמות באלטשולר שחם, עם תאריכי תשלום ויתרות קרן צפויות עד 10.08.2027."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_21",
+      "notes": "openspec debt-amortization-schedule: a bank's mortgage amortization schedule is a mortgage_balance document (the catalog hint names the schedule as an accepted form and tells a mortgage schedule from another loan's); the bank on the file is the bank of the mortgage row doc_10, so the company check keeps the match",
+      "ranAt": "2026-10-12T16:33:22.689Z",
+      "latencyMs": 5951,
+      "attempts": 1,
+      "inputTokens": 8988,
+      "outputTokens": 284,
+      "thinkingTokens": 791,
+      "cachedTokens": 0,
+      "costUsd": 0.023157,
+      "error": null,
+      "output": {
+        "document_kind": "לוח סילוקין להלוואת משכנתא מבנק מזרחי טפחות",
+        "summary": "לוח סילוקין להלוואת משכנתא בבנק מזרחי טפחות המפרט את לוח התשלומים והיתרות לשנת 2025 ועד פברואר 2026.",
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "בנק מזרחי טפחות",
+        "matched_document_id": "doc_10",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [
+          {
+            "product": "הלוואת משכנתא",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "0412-77810/3"
+          }
+        ],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "mortgage_balance",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "mortgage_balance",
+          "actual": "mortgage_balance",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_10",
+          "actual": "doc_10",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "mizrahi_tefahot",
+          "actual": "mizrahi_tefahot",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "סילוקין",
+            "משכנתא",
+            "schedule",
+            "mortgage"
+          ],
+          "actual": "לוח סילוקין להלוואת משכנתא מבנק מזרחי טפחות",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_10",
+        "issuer_name": "בנק מזרחי טפחות",
+        "match_dropped": null,
+        "holdings": [
+          {
+            "product": "הלוואת משכנתא",
+            "holder_name": "ישראל ישראלי",
+            "account_number": "0412-77810/3"
+          }
+        ],
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "summary": "לוח סילוקין להלוואת משכנתא בבנק מזרחי טפחות המפרט את לוח התשלומים והיתרות לשנת 2025 ועד פברואר 2026."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_22",
+      "notes": "openspec debt-amortization-schedule: the projected schedule of the study-fund loan is a loan_taken document (not a mortgage — no property, an investment house) and matches the Altshuler loan row doc_9",
+      "ranAt": "2026-10-12T16:33:22.689Z",
+      "latencyMs": 6864,
+      "attempts": 1,
+      "inputTokens": 9508,
+      "outputTokens": 271,
+      "thinkingTokens": 966,
+      "cachedTokens": 0,
+      "costUsd": 0.025395,
+      "error": null,
+      "output": {
+        "document_kind": "לוח סילוקין להלוואה על חשבון קרן השתלמות באלטשולר שחם",
+        "summary": "לוח סילוקין צפוי להלוואה על חשבון קרן השתלמות בסך 28,000 ש\"ח מבית אלטשולר שחם גמל ופנסיה עבור ישראל ישראלי, המציג את יתרת החוב ליום 31.12.2025 (18,640 ש\"ח).",
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "אלטשולר שחם גמל ופנסיה",
+        "matched_document_id": "doc_9",
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": "doc_9",
+          "actual": "doc_9",
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "סילוקין",
+            "הלוואה",
+            "schedule",
+            "loan"
+          ],
+          "actual": "לוח סילוקין להלוואה על חשבון קרן השתלמות באלטשולר שחם",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": "doc_9",
+        "issuer_name": "אלטשולר שחם גמל ופנסיה",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "summary": "לוח סילוקין צפוי להלוואה על חשבון קרן השתלמות בסך 28,000 ש\"ח מבית אלטשולר שחם גמל ופנסיה עבור ישראל ישראלי, המציג את יתרת החוב ליום 31.12.2025 (18,640 ש\"ח)."
+      },
+      "pass": true
+    },
+    {
+      "stage": "file_classification",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "cls_23",
+      "notes": "openspec debt-amortization-schedule: the same loan's schedule cut off in June 2025 is still a loan_taken document, but a date-bound document that refers to another date matches no row (the same rule as the 2024 bank certificate, cls_04) — the planner then asks the client for a schedule or a letter that covers 31.12.2025",
+      "ranAt": "2026-10-12T16:33:22.689Z",
+      "latencyMs": 7057,
+      "attempts": 1,
+      "inputTokens": 8988,
+      "outputTokens": 191,
+      "thinkingTokens": 978,
+      "cachedTokens": 0,
+      "costUsd": 0.024003000000000003,
+      "error": null,
+      "output": {
+        "document_kind": "לוח סילוקין להלוואה מאלטשולר שחם",
+        "summary": "דוח תשלומים שבוצעו ולוח סילוקין חלקי להלוואה מאלטשולר שחם, מעודכן ליוני 2025 בלבד. המסמך אינו מכסה את תאריך המאזן 31.12.2025.",
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "issuer_name": "אלטשולר שחם גמל ופנסיה",
+        "matched_document_id": null,
+        "legible": true,
+        "confidence": "high",
+        "injection_suspected": false,
+        "holdings": [],
+        "holdings_partial": false,
+        "employer_name": null,
+        "document_type": "loan_taken",
+        "document_paper": null
+      },
+      "checks": [
+        {
+          "key": "document_type",
+          "expected": "loan_taken",
+          "actual": "loan_taken",
+          "pass": true
+        },
+        {
+          "key": "matched_document_id",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "issuer_key",
+          "expected": "altshuler_shaham",
+          "actual": "altshuler_shaham",
+          "pass": true
+        },
+        {
+          "key": "document_kind",
+          "expected": [
+            "סילוקין",
+            "הלוואה",
+            "schedule",
+            "loan"
+          ],
+          "actual": "לוח סילוקין להלוואה מאלטשולר שחם",
+          "pass": true
+        }
+      ],
+      "info": {
+        "gate": {
+          "result": true,
+          "reason": null,
+          "rejectedId": null,
+          "quarantined": false
+        },
+        "confidence": "high",
+        "proposedMatch": null,
+        "issuer_name": "אלטשולר שחם גמל ופנסיה",
+        "match_dropped": null,
+        "holdings": [],
+        "tax_year": "2025",
+        "subject_name": "ישראל ישראלי",
+        "summary": "דוח תשלומים שבוצעו ולוח סילוקין חלקי להלוואה מאלטשולר שחם, מעודכן ליוני 2025 בלבד. המסמך אינו מכסה את תאריך המאזן 31.12.2025."
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_26",
+      "notes": "openspec debt-amortization-schedule: the schedule stops at 10.06.2025 with 24,256.00 still owed, so the balance at 31.12.2025 cannot be read from it — outstanding_balance and as_of_date stay null and the existing as_of_date and type_fields checks reject the document (the 24,256.00 of the last printed row must not be reported as the year-end balance)",
+      "ranAt": "2026-10-12T16:33:29.814Z",
+      "latencyMs": 4810,
+      "attempts": 1,
+      "inputTokens": 1905,
+      "outputTokens": 173,
+      "thinkingTokens": 593,
+      "cachedTokens": 0,
+      "costUsd": 0.0024865,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "לוח סילוקין",
+        "issuer": "אלטשולר שחם גמל ופנסיה",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ],
+        "as_of_date": null,
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם גמל ופנסיה",
+        "outstanding_balance": null
+      },
+      "checks": [
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "123456782"
+          ],
+          "actual": [
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": [
+            {
+              "name": "ישראל ישראלי",
+              "id_number": "123456782",
+              "role": "owner"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "as_of_date",
+            "type_fields"
+          ],
+          "actual": [
+            "as_of_date",
+            "type_fields"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "as_of_date",
+            "type_fields"
+          ],
+          "reasons": [
+            "המסמך מתייחס לתאריך שאינו מצוין בו במקום ליום 31.12.2025 (המועד הקובע)",
+            "השדה \"יתרת ההלוואה ליום 31.12\" לא נמצא במסמך"
+          ],
+          "subjectMatched": "client",
+          "adopted": false
+        },
+        "actual_kind": "לוח סילוקין",
+        "issuer": "אלטשולר שחם גמל ופנסיה",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_24",
+      "notes": "openspec debt-amortization-schedule: a mortgage schedule that covers 31.12.2025 — the balance at 31.12 is the one after the last payment dated on or before it (the 10.12.2025 row, 412,300.00), not the 10.01.2026 row (410,900.00) and not the opening balance; the model reports 31.12.2025 as the as-of date, so as_of_date and type_fields pass and the document is approved",
+      "ranAt": "2026-10-12T16:33:29.813Z",
+      "latencyMs": 5277,
+      "attempts": 1,
+      "inputTokens": 2107,
+      "outputTokens": 185,
+      "thinkingTokens": 656,
+      "cachedTokens": 0,
+      "costUsd": 0.0027346000000000002,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "לוח סילוקין של משכנתא",
+        "issuer": "בנק מזרחי טפחות",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "loan_number": "0412-77810/3",
+        "principal_balance": 412300
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "123456782"
+          ],
+          "actual": [
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": [
+            {
+              "name": "ישראל ישראלי",
+              "id_number": "123456782",
+              "role": "owner"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.loan_number",
+          "expected": "0412-77810/3",
+          "actual": "0412-77810/3",
+          "pass": true
+        },
+        {
+          "key": "fields.principal_balance",
+          "expected": 412300,
+          "actual": 412300,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": [],
+          "subjectMatched": "client",
+          "adopted": false
+        },
+        "actual_kind": "לוח סילוקין של משכנתא",
+        "issuer": "בנק מזרחי טפחות",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_25",
+      "notes": "openspec debt-amortization-schedule: a projected loan schedule printed at the loan's start counts the same way — after the 10.12.2025 payment 18,640.00 remains (not the 28,000.00 loan sum, not a monthly payment), the as-of date is 31.12.2025 and the document is approved",
+      "ranAt": "2026-10-12T16:33:29.813Z",
+      "latencyMs": 5945,
+      "attempts": 1,
+      "inputTokens": 2163,
+      "outputTokens": 236,
+      "thinkingTokens": 703,
+      "cachedTokens": 0,
+      "costUsd": 0.0029964,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "לוח סילוקין",
+        "issuer": "אלטשולר שחם גמל ופנסיה",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          },
+          {
+            "name": "אלטשולר שחם גמל ופנסיה",
+            "id_number": null,
+            "role": "counterparty"
+          }
+        ],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם גמל ופנסיה",
+        "outstanding_balance": 18640
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "123456782"
+          ],
+          "actual": [
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": [
+            {
+              "name": "ישראל ישראלי",
+              "id_number": "123456782",
+              "role": "owner"
+            },
+            {
+              "name": "אלטשולר שחם גמל ופנסיה",
+              "id_number": null,
+              "role": "counterparty"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": 18640,
+          "actual": 18640,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": [],
+          "subjectMatched": "client",
+          "adopted": false
+        },
+        "actual_kind": "לוח סילוקין",
+        "issuer": "אלטשולר שחם גמל ופנסיה",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          },
+          {
+            "name": "אלטשולר שחם גמל ופנסיה",
+            "id_number": null,
+            "role": "counterparty"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_24",
+      "notes": "openspec debt-amortization-schedule: a mortgage schedule that covers 31.12.2025 — the balance at 31.12 is the one after the last payment dated on or before it (the 10.12.2025 row, 412,300.00), not the 10.01.2026 row (410,900.00) and not the opening balance; the model reports 31.12.2025 as the as-of date, so as_of_date and type_fields pass and the document is approved",
+      "ranAt": "2026-10-12T16:33:35.762Z",
+      "latencyMs": 6036,
+      "attempts": 1,
+      "inputTokens": 2369,
+      "outputTokens": 131,
+      "thinkingTokens": 1033,
+      "cachedTokens": 0,
+      "costUsd": 0.0140295,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "לוח סילוקין להלוואת משכנתא",
+        "issuer": "בנק מזרחי טפחות",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "loan_number": "0412-77810/3",
+        "principal_balance": 412300
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "123456782"
+          ],
+          "actual": [
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": [
+            {
+              "name": "ישראל ישראלי",
+              "id_number": "123456782",
+              "role": "owner"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.loan_number",
+          "expected": "0412-77810/3",
+          "actual": "0412-77810/3",
+          "pass": true
+        },
+        {
+          "key": "fields.principal_balance",
+          "expected": 412300,
+          "actual": 412300,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": [],
+          "subjectMatched": "client",
+          "adopted": false
+        },
+        "actual_kind": "לוח סילוקין להלוואת משכנתא",
+        "issuer": "בנק מזרחי טפחות",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_25",
+      "notes": "openspec debt-amortization-schedule: a projected loan schedule printed at the loan's start counts the same way — after the 10.12.2025 payment 18,640.00 remains (not the 28,000.00 loan sum, not a monthly payment), the as-of date is 31.12.2025 and the document is approved",
+      "ranAt": "2026-10-12T16:33:35.763Z",
+      "latencyMs": 8058,
+      "attempts": 1,
+      "inputTokens": 2687,
+      "outputTokens": 148,
+      "thinkingTokens": 1407,
+      "cachedTokens": 0,
+      "costUsd": 0.0180255,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "לוח סילוקין צפוי - הלוואה על חשבון קרן השתלמות",
+        "issuer": "אלטשולר שחם גמל ופנסיה",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ],
+        "as_of_date": "2025-12-31",
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם גמל ופנסיה",
+        "outstanding_balance": 18640
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": "2025-12-31",
+          "actual": "2025-12-31",
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "123456782"
+          ],
+          "actual": [
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": [
+            {
+              "name": "ישראל ישראלי",
+              "id_number": "123456782",
+              "role": "owner"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": 18640,
+          "actual": 18640,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": [],
+          "subjectMatched": "client",
+          "adopted": false
+        },
+        "actual_kind": "לוח סילוקין צפוי - הלוואה על חשבון קרן השתלמות",
+        "issuer": "אלטשולר שחם גמל ופנסיה",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.5-flash",
+      "provider": "gemini",
+      "caseId": "ext_26",
+      "notes": "openspec debt-amortization-schedule: the schedule stops at 10.06.2025 with 24,256.00 still owed, so the balance at 31.12.2025 cannot be read from it — outstanding_balance and as_of_date stay null and the existing as_of_date and type_fields checks reject the document (the 24,256.00 of the last printed row must not be reported as the year-end balance)",
+      "ranAt": "2026-10-12T16:33:35.764Z",
+      "latencyMs": 8202,
+      "attempts": 1,
+      "inputTokens": 2167,
+      "outputTokens": 129,
+      "thinkingTokens": 1329,
+      "cachedTokens": 0,
+      "costUsd": 0.0163725,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "לוח סילוקין - תשלומים ששולמו עד כה",
+        "issuer": "אלטשולר שחם גמל ופנסיה",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ],
+        "as_of_date": null,
+        "valid_until": null,
+        "legible": true,
+        "injection_suspected": false,
+        "lender_name": "אלטשולר שחם גמל ופנסיה",
+        "outstanding_balance": null
+      },
+      "checks": [
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "as_of_date",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "123456782"
+          ],
+          "actual": [
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "subject_name_matches",
+          "expected": true,
+          "actual": [
+            {
+              "name": "ישראל ישראלי",
+              "id_number": "123456782",
+              "role": "owner"
+            }
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.outstanding_balance",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "verdict.failed_keys",
+          "expected": [
+            "as_of_date",
+            "type_fields"
+          ],
+          "actual": [
+            "as_of_date",
+            "type_fields"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": false,
+          "failedKeys": [
+            "as_of_date",
+            "type_fields"
+          ],
+          "reasons": [
+            "המסמך מתייחס לתאריך שאינו מצוין בו במקום ליום 31.12.2025 (המועד הקובע)",
+            "השדה \"יתרת ההלוואה ליום 31.12\" לא נמצא במסמך"
+          ],
+          "subjectMatched": "client",
+          "adopted": false
+        },
+        "actual_kind": "לוח סילוקין - תשלומים ששולמו עד כה",
+        "issuer": "אלטשולר שחם גמל ופנסיה",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ]
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "injection_detection_llm": {
+      "gemini-2.5-flash": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 7087,
+          "p50": 6776,
+          "p90": 6776,
+          "min": 6472,
+          "max": 8014
+        },
+        "inputTokens": 2397,
+        "outputTokens": 39,
+        "thinkingTokens": 2522,
+        "cachedTokens": 0,
+        "costUsd": 0.007122,
+        "unpriced": 0
+      },
+      "gemini-3.5-flash": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 3152,
+          "p50": 2874,
+          "p90": 2874,
+          "min": 2632,
+          "max": 3950
+        },
+        "inputTokens": 3445,
+        "outputTokens": 43,
+        "thinkingTokens": 660,
+        "cachedTokens": 0,
+        "costUsd": 0.011495,
+        "unpriced": 0
+      }
+    },
+    "file_classification": {
+      "gemini-2.5-flash": {
+        "total": 3,
+        "passed": 2,
+        "passRate": 0.6666666666666666,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 10554,
+          "p50": 10616,
+          "p90": 10616,
+          "min": 8848,
+          "max": 12198
+        },
+        "inputTokens": 26436,
+        "outputTokens": 859,
+        "thinkingTokens": 5166,
+        "cachedTokens": 0,
+        "costUsd": 0.022993,
+        "unpriced": 0
+      },
+      "gemini-3.5-flash": {
+        "total": 3,
+        "passed": 2,
+        "passRate": 0.6666666666666666,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 6624,
+          "p50": 6864,
+          "p90": 6864,
+          "min": 5951,
+          "max": 7057
+        },
+        "inputTokens": 27484,
+        "outputTokens": 746,
+        "thinkingTokens": 2735,
+        "cachedTokens": 0,
+        "costUsd": 0.072555,
+        "unpriced": 0
+      }
+    },
+    "extract_document": {
+      "gemini-2.5-flash": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 5344,
+          "p50": 5277,
+          "p90": 5277,
+          "min": 4810,
+          "max": 5945
+        },
+        "inputTokens": 6175,
+        "outputTokens": 594,
+        "thinkingTokens": 1952,
+        "cachedTokens": 0,
+        "costUsd": 0.008218,
+        "unpriced": 0
+      },
+      "gemini-3.5-flash": {
+        "total": 3,
+        "passed": 3,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 7432,
+          "p50": 8058,
+          "p90": 8058,
+          "min": 6036,
+          "max": 8202
+        },
+        "inputTokens": 7223,
+        "outputTokens": 408,
+        "thinkingTokens": 3769,
+        "cachedTokens": 0,
+        "costUsd": 0.048427,
+        "unpriced": 0
+      }
+    }
+  }
+}

@@ -52,7 +52,9 @@ const DocumentPatchSchema = z
 const MANUAL_TRANSITIONS: Record<string, DocumentStatus[]> = {
   // 'retired' is agent-set only (requirements-ladder retirement), but the
   // accountant may reopen such a row to pending if the retirement was wrong.
-  pending: ['unresolved', 'not_required', 'claimed', 'collected', 'approved', 'retired'],
+  // 'stated' is agent-set only (a cost the client stated in the chat, openspec
+  // `chat-stated-cost`); the accountant may return it to pending.
+  pending: ['unresolved', 'not_required', 'claimed', 'collected', 'approved', 'stated', 'retired'],
   collected: ['pending', 'claimed'],
   not_required: ['unresolved', 'pending', 'claimed'],
   approved: ['collected', 'claimed'],
@@ -74,7 +76,7 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
   if (!client) return;
   const settled =
     docs.length > 0 &&
-    docs.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired');
+    docs.every((d) => d.status === 'approved' || d.status === 'stated' || d.status === 'not_required' || d.status === 'retired');
   const attestationTouched =
     typeof client.agent_fields['attestation_confirmed_at'] === 'string' ||
     typeof client.agent_fields['attestation_request_email_id'] === 'string';
@@ -208,7 +210,13 @@ export function buildRouter(): Router {
           return;
         }
       }
-      const document = await clientDocuments.updateForClient(current.id, client!.id, parsed.data);
+      // Returning a chat-stated cost to pending drops the statement from the row
+      // (it stays in the audit trail), so the agent asks again from a clean row.
+      const clearEvidence = parsed.data.status === 'pending' && current.status === 'stated';
+      const document = await clientDocuments.updateForClient(current.id, client!.id, {
+        ...parsed.data,
+        ...(clearEvidence ? { resolutionEvidence: null } : {}),
+      });
       if (!document) {
         res.status(404).json({ error: 'Document not found.' });
         return;

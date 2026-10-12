@@ -5,6 +5,7 @@ import {
   collectionsStepDetail,
   resolutionsStepDetail,
   retirementsStepDetail,
+  statedCostsStepDetail,
 } from '../src/agents/declarationOfCapital/applyStepDetails.js';
 
 const docs = new Map([
@@ -20,7 +21,7 @@ test('apply_resolutions rows carry the document name next to the id, and the quo
   const detail = resolutionsStepDetail(
     [
       { documentId: 'd1', resolution: 'not_required', evidence },
-      { documentId: 'd2', resolution: 'required', instances: [{ name: 'x', description: null, alreadyProvided: false, fileIds: [], paperKey: null }], evidence },
+      { documentId: 'd2', resolution: 'required', instances: [{ name: 'x', description: null, alreadyProvided: false, fileIds: [], paperKey: null, statedCost: null }], evidence },
     ],
     docName,
     2,
@@ -38,8 +39,8 @@ test('apply_additions entries name the anchor document and list the instance nam
       {
         anchorDocumentId: 'd3',
         instances: [
-          { name: 'טופס 106 — מעסיק א', description: null, alreadyProvided: false, fileIds: [], paperKey: null },
-          { name: 'טופס 106 — מעסיק ב', description: null, alreadyProvided: true, fileIds: [], paperKey: null },
+          { name: 'טופס 106 — מעסיק א', description: null, alreadyProvided: false, fileIds: [], paperKey: null, statedCost: null },
+          { name: 'טופס 106 — מעסיק ב', description: null, alreadyProvided: true, fileIds: [], paperKey: null, statedCost: null },
         ],
         evidence,
       },
@@ -65,6 +66,22 @@ test('apply_retirements rows carry id, name and the evidence quote; unknown ids 
   assert.deepEqual(detail.rows, [
     { id: 'd1', name: 'אישור יתרות — בנק הפועלים', quote: evidence.quote },
     { id: 'gone', name: 'gone', quote: evidence.quote },
+  ]);
+});
+
+test('apply_stated_costs rows carry id, name, amount, currency, the quote and the message (openspec chat-stated-cost)', () => {
+  const detail = statedCostsStepDetail(
+    [
+      { documentId: 'd2', amount: 85000, currency: 'ILS', evidence: { message_id: 'm9', quote: 'שילמתי 85,000 ש"ח' } },
+      { documentId: 'gone', amount: 1200000, currency: 'USD', evidence: { message_id: 'm9', quote: '1.2 מיליון' } },
+    ],
+    docName,
+    2,
+  );
+  assert.equal(detail.count, 2);
+  assert.deepEqual(detail.rows, [
+    { id: 'd2', name: 'קרן השתלמות — אלטשולר', amount: 85000, currency: 'ILS', quote: 'שילמתי 85,000 ש"ח', messageId: 'm9' },
+    { id: 'gone', name: 'gone', amount: 1200000, currency: 'USD', quote: '1.2 מיליון', messageId: 'm9' },
   ]);
 });
 
@@ -170,7 +187,7 @@ test('an addition or retirement that rests on an approved property paper names t
   const retired = retirementsStepDetail([{ documentId: 'd2', evidence: fileEvidence }], docName, 1);
   assert.deepEqual(retired.rows, [{ id: 'd2', name: 'קרן השתלמות — אלטשולר', quote: 'הוכח בקובץ שאושר (המוכר אדם פרטי)', provenByFileId: 'f-contract' }]);
   const added = additionsStepDetail(
-    [{ anchorDocumentId: 'd1', instances: [{ name: 'נספח', description: null, alreadyProvided: false, fileIds: [], paperKey: 'payments_appendix' }], evidence: { ...fileEvidence, fact: 'seller_builder' } }],
+    [{ anchorDocumentId: 'd1', instances: [{ name: 'נספח', description: null, alreadyProvided: false, fileIds: [], paperKey: 'payments_appendix', statedCost: null }], evidence: { ...fileEvidence, fact: 'seller_builder' } }],
     docName,
     1,
   );

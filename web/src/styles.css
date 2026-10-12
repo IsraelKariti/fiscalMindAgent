@@ -2186,6 +2186,42 @@ textarea {
   color: inherit;
 }
 
+/* The "stated in chat" note is a link to the message in the Conversation tab (openspec chat-stated-cost). */
+.doc-evidence-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent, #2563eb);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.doc-evidence-link:hover,
+.doc-evidence-link:focus-visible {
+  text-decoration-style: solid;
+}
+
+/* A message the documents card asked the conversation to show: a short glow, then back to normal. */
+.timeline-item.highlighted .bubble {
+  animation: bubble-highlight 2s ease-out;
+}
+
+@keyframes bubble-highlight {
+  0%,
+  40% {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.55);
+    border-color: rgba(37, 99, 235, 0.8);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
 /* Admin: impersonation indicator in the sidebar footer */
 .impersonation-card {
   border-color: rgba(251, 191, 36, 0.45);

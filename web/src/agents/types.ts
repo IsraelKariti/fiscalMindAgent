@@ -29,6 +29,12 @@ export interface ClientTabContext {
   drafting: boolean;
   draftFailed: boolean;
   draftStale: boolean;
+  /** Show the Conversation tab scrolled to this message, highlighted briefly (openspec `chat-stated-cost`). */
+  focusMessage: (messageId: string) => void;
+  /** The message the Conversation tab should scroll to on its next render; null when none is requested. */
+  focusedMessageId: string | null;
+  /** The Conversation tab reports that it handled (or could not find) the focused message. */
+  clearFocusedMessage: () => void;
 }
 
 /** Message keys whose value is a plain string (tab labels can't take arguments). */

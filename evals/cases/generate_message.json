@@ -2880,6 +2880,787 @@
         "send_asap": false
       },
       "notes": "Change reply-send-asap: the client said three minutes ago that he is looking for the document now and will send it soon. He is busy, not waiting: the planner must give him room with a wall-clock send_at (a gentle check later), never \"asap\"."
+    },
+    {
+      "id": "dec_26",
+      "now": "2026-02-10T08:30:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?",
+              "answer": "מאזדה 3 משנת 2019"
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-02-11T08:25:00Z",
+        "templates": ["capital_intro", "capital_reminder"]
+      },
+      "documents": [
+        {
+          "id": "doc-car-licence",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_license",
+          "status": "pending",
+          "name": "העתק רישיון רכב בתוקף - מאזדה 3",
+          "description": null
+        },
+        {
+          "id": "doc-car-receipt",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_purchase_document",
+          "status": "pending",
+          "name": "מסמך רכישה / קבלה - מאזדה 3",
+          "description": null
+        },
+        {
+          "type_key": "bank_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "securities_portfolio",
+          "status": "not_required"
+        },
+        {
+          "type_key": "pension_provident",
+          "status": "not_required"
+        },
+        {
+          "type_key": "study_fund",
+          "status": "not_required"
+        },
+        {
+          "type_key": "life_insurance_savings",
+          "status": "not_required"
+        },
+        {
+          "type_key": "real_estate",
+          "status": "not_required"
+        },
+        {
+          "type_key": "mortgage_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_taken",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_given",
+          "status": "not_required"
+        },
+        {
+          "type_key": "contents_insurance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "business_ownership",
+          "status": "not_required"
+        },
+        {
+          "type_key": "private_investment",
+          "status": "not_required"
+        },
+        {
+          "type_key": "crypto",
+          "status": "not_required"
+        },
+        {
+          "type_key": "poa_account",
+          "status": "not_required"
+        },
+        {
+          "type_key": "prior_declaration",
+          "status": "not_required"
+        },
+        {
+          "type_key": "other_assets",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-02-09T10:05:00Z",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"],
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?"
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-02-10T08:25:00Z",
+          "body": "היי, כן בוא נתחיל"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-02-10T08:26:00Z",
+          "body": "מעולה. נתחיל מהרכב, מאזדה 3: אשמח לקבל צילום של רישיון הרכב בתוקף, ואת מסמך הרכישה או הקבלה מרכישת הרכב."
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-02-10T08:28:00Z",
+          "body": "את הרישיון אשלח בערב. את הקבלה של הרכב אין לי, שילמתי עליו 85,000 ש\"ח"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "added_instances": {
+          "vehicle": 1
+        },
+        "new_instance_stated_amounts": [85000],
+        "stated_costs": {},
+        "retired_documents": ["doc-car-receipt"],
+        "message_includes_any": ["85,000", "85000", "85 אלף"],
+        "message_excludes": ["חתום", "דף", "חתימה"],
+        "mentions_valuation_date": false,
+        "max_question_marks": 1
+      },
+      "notes": "Change chat-stated-cost: the client says the receipt is lost and names the price in the same message. The planner adds the vehicle cost declaration with stated_cost 85000 from that quote, retires the receipt item, and the reply confirms the recorded amount without asking for a signed page."
+    },
+    {
+      "id": "dec_27",
+      "now": "2026-02-10T08:30:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?",
+              "answer": "מאזדה 3 משנת 2019"
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-02-11T08:25:00Z",
+        "templates": ["capital_intro", "capital_reminder"]
+      },
+      "documents": [
+        {
+          "id": "doc-car-licence",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_license",
+          "status": "pending",
+          "name": "העתק רישיון רכב בתוקף - מאזדה 3",
+          "description": null
+        },
+        {
+          "id": "doc-car-receipt",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_purchase_document",
+          "status": "pending",
+          "name": "מסמך רכישה / קבלה - מאזדה 3",
+          "description": null
+        },
+        {
+          "type_key": "bank_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "securities_portfolio",
+          "status": "not_required"
+        },
+        {
+          "type_key": "pension_provident",
+          "status": "not_required"
+        },
+        {
+          "type_key": "study_fund",
+          "status": "not_required"
+        },
+        {
+          "type_key": "life_insurance_savings",
+          "status": "not_required"
+        },
+        {
+          "type_key": "real_estate",
+          "status": "not_required"
+        },
+        {
+          "type_key": "mortgage_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_taken",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_given",
+          "status": "not_required"
+        },
+        {
+          "type_key": "contents_insurance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "business_ownership",
+          "status": "not_required"
+        },
+        {
+          "type_key": "private_investment",
+          "status": "not_required"
+        },
+        {
+          "type_key": "crypto",
+          "status": "not_required"
+        },
+        {
+          "type_key": "poa_account",
+          "status": "not_required"
+        },
+        {
+          "type_key": "prior_declaration",
+          "status": "not_required"
+        },
+        {
+          "type_key": "other_assets",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-02-09T10:05:00Z",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"],
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?"
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-02-10T08:25:00Z",
+          "body": "היי, כן בוא נתחיל"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-02-10T08:26:00Z",
+          "body": "מעולה. נתחיל מהרכב, מאזדה 3: אשמח לקבל צילום של רישיון הרכב בתוקף, ואת מסמך הרכישה או הקבלה מרכישת הרכב."
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-02-10T08:28:00Z",
+          "body": "הרכב עלה 85,000"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "no_list_change": true,
+        "stated_costs": {},
+        "new_instance_stated_amounts": [],
+        "message_includes_any": ["קבלה", "מסמך רכישה", "מסמך הרכישה"],
+        "mentions_valuation_date": false,
+        "max_question_marks": 2
+      },
+      "notes": "Change chat-stated-cost: the client names a price but has not said whether the receipt exists. Paper first: nothing is stated or changed, and the reply asks once whether the receipt or purchase document is in his hands."
+    },
+    {
+      "id": "dec_28",
+      "now": "2026-02-10T08:40:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?",
+              "answer": "מאזדה 3 משנת 2019"
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-02-11T08:25:00Z",
+        "templates": ["capital_intro", "capital_reminder"]
+      },
+      "documents": [
+        {
+          "id": "doc-car-licence",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_license",
+          "status": "pending",
+          "name": "העתק רישיון רכב בתוקף - מאזדה 3",
+          "description": null
+        },
+        {
+          "id": "doc-car-receipt",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_purchase_document",
+          "status": "retired",
+          "name": "מסמך רכישה / קבלה - מאזדה 3",
+          "description": null
+        },
+        {
+          "id": "doc-car-cost",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_cost_declaration",
+          "status": "pending",
+          "name": "הצהרת עלות - מאזדה 3",
+          "description": null
+        },
+        {
+          "type_key": "bank_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "securities_portfolio",
+          "status": "not_required"
+        },
+        {
+          "type_key": "pension_provident",
+          "status": "not_required"
+        },
+        {
+          "type_key": "study_fund",
+          "status": "not_required"
+        },
+        {
+          "type_key": "life_insurance_savings",
+          "status": "not_required"
+        },
+        {
+          "type_key": "real_estate",
+          "status": "not_required"
+        },
+        {
+          "type_key": "mortgage_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_taken",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_given",
+          "status": "not_required"
+        },
+        {
+          "type_key": "contents_insurance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "business_ownership",
+          "status": "not_required"
+        },
+        {
+          "type_key": "private_investment",
+          "status": "not_required"
+        },
+        {
+          "type_key": "crypto",
+          "status": "not_required"
+        },
+        {
+          "type_key": "poa_account",
+          "status": "not_required"
+        },
+        {
+          "type_key": "prior_declaration",
+          "status": "not_required"
+        },
+        {
+          "type_key": "other_assets",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-02-09T10:05:00Z",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"],
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?"
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-02-10T08:25:00Z",
+          "body": "היי, כן בוא נתחיל"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-02-10T08:26:00Z",
+          "body": "מעולה. נתחיל מהרכב, מאזדה 3: אשמח לקבל צילום של רישיון הרכב בתוקף, ואת מסמך הרכישה או הקבלה מרכישת הרכב."
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-02-10T08:28:00Z",
+          "body": "הנה הרישיון. את הקבלה אין לי"
+        },
+        {
+          "id": "msg-5",
+          "direction": "outbound",
+          "at": "2026-02-10T08:30:00Z",
+          "body": "תודה, הרישיון התקבל. במקום הקבלה די בהצהרת עלות: כתוב לי כאן כמה עלה לך הרכב בקירוב."
+        },
+        {
+          "id": "msg-6",
+          "direction": "inbound",
+          "at": "2026-02-10T08:38:00Z",
+          "body": "שילמתי 85,000 ש\"ח"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "stated_costs": {
+          "doc-car-cost": 85000
+        },
+        "no_list_change": true,
+        "new_instance_stated_amounts": [],
+        "message_includes_any": ["85,000", "85000", "85 אלף"],
+        "message_excludes": ["חתום", "דף", "חתימה"],
+        "mentions_valuation_date": false,
+        "max_question_marks": 1
+      },
+      "notes": "Change chat-stated-cost: the cost-declaration item already exists and is pending; the client writes the price. The planner states it on that item (stated_costs) and confirms the recorded amount."
+    },
+    {
+      "id": "dec_29",
+      "now": "2026-02-10T08:40:00Z",
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-02-11T08:25:00Z",
+        "templates": ["capital_intro", "capital_reminder"]
+      },
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "אילו נכסי נדל\"ן רשומים על שמך, בארץ או בחו\"ל, כולל בבעלות חלקית?",
+              "answer": "דירה ברחוב הרצל 5, קניתי יד שנייה ב-2003"
+            }
+          ]
+        }
+      },
+      "documents": [
+        {
+          "id": "doc-house-tabu",
+          "type_key": "real_estate",
+          "paper_key": "tabu_extract",
+          "status": "pending",
+          "name": "נסח טאבו - דירה ברחוב הרצל 5",
+          "description": null
+        },
+        {
+          "id": "doc-house-cost",
+          "type_key": "real_estate",
+          "paper_key": "cost_declaration",
+          "status": "pending",
+          "name": "הצהרת עלות - דירה ברחוב הרצל 5",
+          "description": null
+        },
+        {
+          "id": "doc-house-contract",
+          "type_key": "real_estate",
+          "paper_key": "purchase_contract",
+          "status": "retired",
+          "name": "חוזה רכישה - דירה ברחוב הרצל 5",
+          "description": null
+        },
+        {
+          "id": "doc-house-assessment",
+          "type_key": "real_estate",
+          "paper_key": "purchase_tax_assessment",
+          "status": "retired",
+          "name": "שומת מס רכישה - דירה ברחוב הרצל 5",
+          "description": null
+        },
+        {
+          "type_key": "bank_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "securities_portfolio",
+          "status": "not_required"
+        },
+        {
+          "type_key": "pension_provident",
+          "status": "not_required"
+        },
+        {
+          "type_key": "study_fund",
+          "status": "not_required"
+        },
+        {
+          "type_key": "life_insurance_savings",
+          "status": "not_required"
+        },
+        {
+          "type_key": "vehicle",
+          "status": "not_required"
+        },
+        {
+          "type_key": "mortgage_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_taken",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_given",
+          "status": "not_required"
+        },
+        {
+          "type_key": "contents_insurance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "business_ownership",
+          "status": "not_required"
+        },
+        {
+          "type_key": "private_investment",
+          "status": "not_required"
+        },
+        {
+          "type_key": "crypto",
+          "status": "not_required"
+        },
+        {
+          "type_key": "poa_account",
+          "status": "not_required"
+        },
+        {
+          "type_key": "prior_declaration",
+          "status": "not_required"
+        },
+        {
+          "type_key": "other_assets",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-02-09T10:05:00Z",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"],
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?"
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-02-10T08:25:00Z",
+          "body": "היי, כן בוא נתחיל"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-02-10T08:26:00Z",
+          "body": "לגבי הדירה ברחוב הרצל 5: מאחר שאין לך את חוזה הרכישה ובשומת מס הרכישה לא מופיעה עלות הרכישה, די בהצהרת עלות - כתוב לי כאן כמה לפי הערכתך שילמת על הדירה. בנוסף נדרש נסח טאבו עדכני."
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-02-10T08:38:00Z",
+          "body": "לפי הערכתי שילמתי על הדירה 1.2 מיליון שקל. את הטאבו אוציא השבוע"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "stated_costs": {
+          "doc-house-cost": 1200000
+        },
+        "no_list_change": true,
+        "new_instance_stated_amounts": [],
+        "message_includes_any": ["1,200,000", "1.2 מיליון", "1200000"],
+        "message_excludes": ["חתום", "דף", "חתימה"],
+        "mentions_valuation_date": false,
+        "max_question_marks": 1
+      },
+      "notes": "Change chat-stated-cost: a property cost declaration stated in the chat as \"1.2 מיליון\". The planner states 1200000 on the pending cost-declaration item; the tabu stays awaited."
+    },
+    {
+      "id": "dec_30",
+      "now": "2026-02-10T08:40:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-02-09T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?",
+              "answer": "מאזדה 3 משנת 2019"
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-02-11T08:25:00Z",
+        "templates": ["capital_intro", "capital_reminder"]
+      },
+      "documents": [
+        {
+          "id": "doc-car-licence",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_license",
+          "status": "pending",
+          "name": "העתק רישיון רכב בתוקף - מאזדה 3",
+          "description": null
+        },
+        {
+          "id": "doc-car-receipt",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_purchase_document",
+          "status": "retired",
+          "name": "מסמך רכישה / קבלה - מאזדה 3",
+          "description": null
+        },
+        {
+          "id": "doc-car-cost",
+          "type_key": "vehicle",
+          "paper_key": "vehicle_cost_declaration",
+          "status": "pending",
+          "name": "הצהרת עלות - מאזדה 3",
+          "description": null
+        },
+        {
+          "type_key": "bank_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "securities_portfolio",
+          "status": "not_required"
+        },
+        {
+          "type_key": "pension_provident",
+          "status": "not_required"
+        },
+        {
+          "type_key": "study_fund",
+          "status": "not_required"
+        },
+        {
+          "type_key": "life_insurance_savings",
+          "status": "not_required"
+        },
+        {
+          "type_key": "real_estate",
+          "status": "not_required"
+        },
+        {
+          "type_key": "mortgage_balance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_taken",
+          "status": "not_required"
+        },
+        {
+          "type_key": "loan_given",
+          "status": "not_required"
+        },
+        {
+          "type_key": "contents_insurance",
+          "status": "not_required"
+        },
+        {
+          "type_key": "business_ownership",
+          "status": "not_required"
+        },
+        {
+          "type_key": "private_investment",
+          "status": "not_required"
+        },
+        {
+          "type_key": "crypto",
+          "status": "not_required"
+        },
+        {
+          "type_key": "poa_account",
+          "status": "not_required"
+        },
+        {
+          "type_key": "prior_declaration",
+          "status": "not_required"
+        },
+        {
+          "type_key": "other_assets",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-02-09T10:05:00Z",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"],
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?"
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-02-10T08:25:00Z",
+          "body": "היי, כן בוא נתחיל"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-02-10T08:26:00Z",
+          "body": "מעולה. נתחיל מהרכב, מאזדה 3: אשמח לקבל צילום של רישיון הרכב בתוקף, ואת מסמך הרכישה או הקבלה מרכישת הרכב."
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-02-10T08:28:00Z",
+          "body": "הנה הרישיון. את הקבלה אין לי"
+        },
+        {
+          "id": "msg-5",
+          "direction": "outbound",
+          "at": "2026-02-10T08:30:00Z",
+          "body": "תודה, הרישיון התקבל. במקום הקבלה די בהצהרת עלות: כתוב לי כאן כמה עלה לך הרכב בקירוב."
+        },
+        {
+          "id": "msg-6",
+          "direction": "inbound",
+          "at": "2026-02-10T08:38:00Z",
+          "body": "שילמתי שמונים וחמש אלף"
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "stated_costs": {},
+        "no_list_change": true,
+        "new_instance_stated_amounts": [],
+        "message_includes_any": ["ספרות", "מספר", "במספרים"],
+        "mentions_valuation_date": false,
+        "max_question_marks": 1
+      },
+      "notes": "Change chat-stated-cost: the price is written in words only. Code accepts digits only, so the planner states nothing and asks the client to write the amount in digits."
     }
   ]
 }

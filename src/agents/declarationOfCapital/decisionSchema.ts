@@ -4,7 +4,7 @@ import { isWallClockDateTime } from '../../util/time.js';
 import { ASAP_SEND_AT } from '../shared/sendAtGuard.js';
 import { renderTemplateBody } from '../../twilio/renderTemplate.js';
 import type { WaTemplateRow } from '../../db/types.js';
-import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault } from './catalog.js';
+import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault, paperMayBeStatedInChat } from './catalog.js';
 import type { ApprovedPropertyFile } from './provenFacts.js';
 
 /**
@@ -28,6 +28,21 @@ const PAPER_KEY_VALUES = ['', ...CAPITAL_DOCUMENT_PAPER_VALUES] as [string, ...s
 //                   verifies the collected documents first and asks for the reply in a
 //                   second cycle, which may not choose 'collect' (its schema drops it).
 export const DECISION_VALUES = ['goal_complete', 'follow_up', 'collect'] as const;
+
+/**
+ * A purchase cost the client stated in the conversation, on an instance the
+ * answer creates (openspec `chat-stated-cost`): the amount, its currency code
+ * and the client's own words. Non-nullable against the Anthropic union budget
+ * (tests/anthropicSchema.test.ts): `amount: 0` = no statement, the other
+ * fields then ''. Accepted only on a cost-declaration paper, after
+ * validate_message checked the quote and the amount.
+ */
+const StatedCostOnInstanceSchema = z.object({
+  amount: z.number(),
+  currency: z.string(),
+  message_id: z.string(),
+  quote: z.string(),
+});
 /** The values the follow-up cycle after verification may choose: it cannot collect again. */
 export const AFTER_VERIFICATION_DECISION_VALUES = ['goal_complete', 'follow_up'] as const;
 
@@ -107,6 +122,8 @@ export const DecisionResponseSchema = z.object({
               file_ids: z.array(z.string()),
               /** The paper this instance stands for, from the type's papers (REQUIRED DOCUMENTS lists them); '' for a type without papers. */
               paper_key: z.enum(PAPER_KEY_VALUES),
+              /** The cost the client stated in the chat for this cost-declaration instance; amount 0 = none. */
+              stated_cost: StatedCostOnInstanceSchema,
             }),
           )
           .nullable(),
@@ -135,6 +152,8 @@ export const DecisionResponseSchema = z.object({
             file_ids: z.array(z.string()),
             /** The paper this instance stands for (see resolved_documents); '' for a type without papers. */
             paper_key: z.enum(PAPER_KEY_VALUES),
+            /** The cost the client stated in the chat for this cost-declaration instance (see resolved_documents); amount 0 = none. */
+            stated_cost: StatedCostOnInstanceSchema,
           }),
         ),
         /** The client statement the addition rests on — a real inbound message_id + verbatim quote. */
@@ -174,6 +193,24 @@ export const DecisionResponseSchema = z.object({
     )
     .nullable(),
   /**
+   * Capital-declaration stated costs (openspec `chat-stated-cost`): a purchase
+   * cost the client stated in the conversation for an EXISTING pending
+   * cost-declaration item (a property's הצהרת עלות, a vehicle's הצהרת עלות).
+   * Code checks the item's paper, the quote and that the amount is written in
+   * the quote; the item is then settled with no file. A cost for an instance
+   * created in this answer goes on that instance's `stated_cost` instead.
+   * Always present; [] = none (an array, not a nullable: the union budget).
+   */
+  stated_costs: z.array(
+    z.object({
+      document_id: z.string(),
+      amount: z.number(),
+      /** Three-letter code; ILS unless the client named another currency. */
+      currency: z.string(),
+      evidence: z.object({ message_id: z.string(), quote: z.string() }),
+    }),
+  ),
+  /**
    * Capital-declaration attestation gate (null for other agents): 'request' —
    * this decision's message IS the closing completeness summary (valid only
    * when every row is settled); 'confirmed' — the client explicitly confirmed
@@ -206,6 +243,7 @@ const INTAKE_FIELDS = [
   'resolved_documents',
   'added_instances',
   'retired_documents',
+  'stated_costs',
   'attestation',
   'attestation_evidence',
 ] as const;
@@ -216,7 +254,8 @@ export type PrunableDecisionField =
   | (typeof TAX_FETCH_FIELDS)[number]
   | (typeof INTAKE_FIELDS)[number];
 
-const PRUNED_FIELD_NULLS: { [K in PrunableDecisionField]: null } = {
+/** What a pruned field reads as once restored: null, or [] for the one always-present array (`stated_costs`). */
+const PRUNED_FIELD_DEFAULTS: { [K in PrunableDecisionField]: DecisionResponse[K] } = {
   email_subject: null,
   email_body: null,
   whatsapp_text: null,
@@ -227,6 +266,7 @@ const PRUNED_FIELD_NULLS: { [K in PrunableDecisionField]: null } = {
   resolved_documents: null,
   added_instances: null,
   retired_documents: null,
+  stated_costs: [],
   attestation: null,
   attestation_evidence: null,
 };
@@ -261,7 +301,7 @@ export function decisionSchemaKey(ctx: DecisionContext): string {
 
 /** Puts explicit nulls back into the fields the request schema omitted, restoring the full contract. */
 export function restorePrunedNulls(parsed: Partial<DecisionResponse>): DecisionResponse {
-  return { ...PRUNED_FIELD_NULLS, ...parsed } as DecisionResponse;
+  return { ...PRUNED_FIELD_DEFAULTS, ...parsed } as DecisionResponse;
 }
 
 export interface MatchedFile {
@@ -321,6 +361,20 @@ export interface ResolvedInstance {
   fileIds: string[];
   /** The paper of the type this instance stands for (openspec `document-papers`); null for a type without papers. */
   paperKey: string | null;
+  /** The cost the client stated in the chat for this instance (openspec `chat-stated-cost`), validated; null when none. */
+  statedCost: StatedCost | null;
+}
+
+/** A purchase cost the client stated in the conversation (openspec `chat-stated-cost`): the amount, its currency and the client's words. */
+export interface StatedCost {
+  amount: number;
+  currency: string;
+  evidence: QuoteEvidence;
+}
+
+/** One validated stated cost for an existing pending cost-declaration item. */
+export interface StatedCostDecision extends StatedCost {
+  documentId: string;
 }
 
 /** One validated intake resolution (capital declaration). */
@@ -354,6 +408,8 @@ export type NormalizedDecision =
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
+      /** Costs stated in the chat for existing items (openspec `chat-stated-cost`); costs on new instances travel on the instances. */
+      statedCosts: StatedCostDecision[];
       attestation: AttestationDecision | null;
     }
   | {
@@ -367,6 +423,7 @@ export type NormalizedDecision =
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
+      statedCosts: StatedCostDecision[];
       /** Only 'confirmed' (a state change); a 'request' is message-bound and rejected. */
       attestation: AttestationDecision | null;
     }
@@ -382,6 +439,8 @@ export type NormalizedDecision =
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
+      /** Costs stated in the chat for existing items (openspec `chat-stated-cost`); costs on new instances travel on the instances. */
+      statedCosts: StatedCostDecision[];
       attestation: AttestationDecision | null;
     };
 
@@ -695,7 +754,14 @@ function validateResolutions(raw: DecisionResponse, ctx: DecisionContext): Docum
 
 /** Shared instance normalization + caps for resolutions and post-resolution additions. */
 function normalizeInstances(
-  raw: { name: string; description: string | null; already_provided: boolean; file_ids?: string[] | null; paper_key?: string }[],
+  raw: {
+    name: string;
+    description: string | null;
+    already_provided: boolean;
+    file_ids?: string[] | null;
+    paper_key?: string;
+    stated_cost?: { amount: number; currency: string; message_id: string; quote: string };
+  }[],
   multiInstance: boolean,
   /** The catalog type of the row / anchor: decides which papers the instances may name (openspec `document-papers`). */
   typeKey: string | null,
@@ -707,6 +773,15 @@ function normalizeInstances(
     alreadyProvided: i.already_provided,
     fileIds: [...new Set(i.file_ids ?? [])],
     paperKey: i.paper_key?.trim() || null,
+    // Carried raw here; validateStatedCosts checks the paper, the quote and the amount.
+    statedCost:
+      i.stated_cost && i.stated_cost.amount !== 0
+        ? {
+            amount: i.stated_cost.amount,
+            currency: i.stated_cost.currency.trim().toUpperCase(),
+            evidence: { message_id: i.stated_cost.message_id, quote: i.stated_cost.quote },
+          }
+        : null,
   }));
   if (instances.length === 0) {
     throw new Error(`${what} needs at least one instance ({name, description})`);
@@ -725,6 +800,130 @@ function normalizeInstances(
     throw new Error(`${what}: at most ${MAX_RESOLUTION_INSTANCES} instances`);
   }
   return instances;
+}
+
+/** Hebrew multipliers a client writes after a number ("85 אלף", "1.5 מיליון"). */
+const AMOUNT_MULTIPLIERS: readonly { word: string; factor: number }[] = [
+  { word: 'מיליון', factor: 1_000_000 },
+  { word: 'אלף', factor: 1_000 },
+];
+
+/**
+ * Whether `amount` is written in `quote` (openspec `chat-stated-cost`): as
+ * digits with or without thousand separators ("85,000", "85000", "1.250.000"),
+ * or as digits followed by "אלף" / "מיליון" ("85 אלף", "1.5 מיליון"). Number
+ * words ("שמונים וחמש אלף") are not parsed: the amount goes into the tax
+ * declaration, so it must be the client's own digits.
+ */
+export function amountAppearsIn(amount: number, quote: string): boolean {
+  if (!(amount > 0) || !Number.isFinite(amount)) return false;
+  const text = quote.replace(/[\u200e\u200f\u202a-\u202e]/g, '');
+  const tokens = text.matchAll(/(\d+(?:[.,]\d+)*)(?:\s*(מיליון|אלף))?/g);
+  for (const match of tokens) {
+    const digits = match[1]!;
+    let value: number;
+    if (/^\d{1,3}(?:[.,]\d{3})+$/.test(digits)) {
+      value = Number(digits.replace(/[.,]/g, '')); // thousand separators only
+    } else if (/^\d+,\d+$/.test(digits)) {
+      value = Number(digits.replace(',', '.')); // a decimal comma
+    } else {
+      value = Number(digits); // plain digits or a decimal point
+    }
+    if (!Number.isFinite(value)) continue;
+    const factor = AMOUNT_MULTIPLIERS.find((m) => m.word === match[2])?.factor ?? 1;
+    if (Math.abs(value * factor - amount) < 0.005) return true;
+  }
+  return false;
+}
+
+/** A three-letter currency code, upper-cased; rejects anything else. */
+function normalizeCurrency(currency: string, what: string): string {
+  const code = currency.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) throw new Error(`${what}: currency must be a three-letter code (ILS, USD, EUR), got "${currency}"`);
+  return code;
+}
+
+/** A pending cost-declaration row a cost may be stated on, or the reason it may not. */
+function statedCostTargetFault(row: TypedRow | undefined, documentId: string): string | null {
+  if (!row) return `document ${documentId} is not an already-resolved catalog row of this client`;
+  if (!paperMayBeStatedInChat(row.paperKey)) {
+    return `document ${documentId} is not a cost declaration (paper ${row.paperKey ?? 'none'}) — only a cost declaration may be stated in the chat; every other item needs the document itself`;
+  }
+  if (row.status !== 'pending') return `document ${documentId} is ${row.status}, not pending — a stated cost closes an awaited item only`;
+  return null;
+}
+
+/**
+ * Validates the costs the client stated in the chat (openspec
+ * `chat-stated-cost`): on existing items (`stated_costs`) and on the instances
+ * this answer creates (`stated_cost`). Three checks per cost, reported into
+ * `checks`: the target is a pending cost-declaration item (or a new
+ * cost-declaration instance); the quote is verbatim in a stored inbound message
+ * (the existing evidence rule — its failure is the gate's business_rules); the
+ * amount is written in the quote. The first failure rejects the whole answer.
+ */
+function validateStatedCosts(
+  raw: DecisionResponse,
+  ctx: DecisionContext,
+  resolutions: DocumentResolution[],
+  additions: InstanceAddition[],
+  checks: GateCheck[],
+): StatedCostDecision[] {
+  const entries = raw.stated_costs ?? [];
+  const instanceCosts = [
+    ...resolutions.flatMap((r) => (r.resolution === 'required' ? r.instances : [])),
+    ...additions.flatMap((a) => a.instances),
+  ].filter((i) => i.statedCost !== null);
+  if (entries.length === 0 && instanceCosts.length === 0) return [];
+  const intake = ctx.intake;
+  if (!intake) throw new Error('stated_costs is not applicable to this agent — leave it empty');
+  const expected = 'a pending cost-declaration item';
+
+  const verifyAmount = (cost: StatedCost, what: string): void => {
+    const ok = amountAppearsIn(cost.amount, cost.evidence.quote);
+    const note = ok
+      ? null
+      : cost.amount > 0
+        ? `${what}: the amount ${cost.amount} is not written in the quote as a number — if the client wrote it in words, ask for the price in digits`
+        : `${what}: the amount must be greater than 0`;
+    checks.push(check('stated_cost_amount_in_quote', ok, note, { observed: cost.evidence.quote, expected: String(cost.amount) }));
+    if (!ok) throw new Error(note!);
+  };
+
+  const byId = new Map(intake.typedRows.map((r) => [r.id, r]));
+  const seen = new Set<string>();
+  const result: StatedCostDecision[] = [];
+  for (const entry of entries) {
+    const what = `stated cost of ${entry.document_id}`;
+    if (seen.has(entry.document_id)) throw new Error(`stated_costs targets document ${entry.document_id} twice`);
+    seen.add(entry.document_id);
+    const row = byId.get(entry.document_id);
+    const fault = statedCostTargetFault(row, entry.document_id);
+    checks.push(
+      check('stated_cost_item_allows', fault === null, fault && `${what}: ${fault}`, {
+        observed: row ? `paper ${row.paperKey ?? 'none'}, status ${row.status}` : 'unknown document',
+        expected,
+      }),
+    );
+    if (fault) throw new Error(`${what}: ${fault}`);
+    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, what);
+    const cost: StatedCost = { amount: entry.amount, currency: normalizeCurrency(entry.currency, what), evidence };
+    verifyAmount(cost, what);
+    result.push({ documentId: entry.document_id, ...cost });
+  }
+  for (const instance of instanceCosts) {
+    const what = `stated cost of the new instance "${instance.name}"`;
+    const allowed = paperMayBeStatedInChat(instance.paperKey);
+    const fault = allowed ? null : `${what}: paper ${instance.paperKey ?? 'none'} is not a cost declaration — only a cost declaration may be stated in the chat`;
+    checks.push(check('stated_cost_item_allows', allowed, fault, { observed: `new instance, paper ${instance.paperKey ?? 'none'}`, expected }));
+    if (fault) throw new Error(fault);
+    const cost = instance.statedCost!;
+    const evidence = validateEvidence(cost.evidence, intake.inboundTexts, what);
+    const normalized: StatedCost = { amount: cost.amount, currency: normalizeCurrency(cost.currency, what), evidence };
+    verifyAmount(normalized, what);
+    instance.statedCost = normalized;
+  }
+  return result;
 }
 
 /**
@@ -843,10 +1042,15 @@ function validateAttestation(raw: DecisionResponse, ctx: DecisionContext): Attes
     if (raw.decision !== 'follow_up') {
       throw new Error("attestation 'request' must come with a follow_up decision — the scheduled message IS the summary");
     }
+    // A cost stated in this answer settles an item only now (openspec
+    // `chat-stated-cost`): the summary waits for the next cycle like any change.
     const changesThisCycle =
-      (raw.resolved_documents ?? []).length + (raw.added_instances ?? []).length + (raw.retired_documents ?? []).length;
+      (raw.resolved_documents ?? []).length +
+      (raw.added_instances ?? []).length +
+      (raw.retired_documents ?? []).length +
+      (raw.stated_costs ?? []).length;
     if (!intake.allSettled || changesThisCycle > 0) {
-      throw new Error("attestation 'request' is valid only when every document is already settled (approved / not_required) and no new resolutions, additions or retirements are being made");
+      throw new Error("attestation 'request' is valid only when every document is already settled (approved / stated / not_required) and no new resolutions, additions, retirements or stated costs are being made in this answer — the summary goes in the next cycle");
     }
     return { action: 'request' };
   }
@@ -924,12 +1128,15 @@ export function gateDecision(
   }
   const proposed = `${parsed.decision} / ${parsed.channel ?? '—'}`;
   const schemaCheck = check('json_schema', true, null, { observed: answerSize });
+  // Named checks some validators report on their own (the stated-cost checks),
+  // listed between the schema check and the business-rules verdict.
+  const extra: GateCheck[] = [];
   try {
-    const decision = normalizeDecision(parsed, ctx);
-    return { decision, checks: [schemaCheck, check('business_rules', true, null, { observed: proposed })] };
+    const decision = normalizeDecision(parsed, ctx, extra);
+    return { decision, checks: [schemaCheck, ...extra, check('business_rules', true, null, { observed: proposed })] };
   } catch (err) {
     const message = messageOf(err);
-    throw new DecisionRejectedError(message, [schemaCheck, check('business_rules', false, message, { observed: proposed })]);
+    throw new DecisionRejectedError(message, [schemaCheck, ...extra, check('business_rules', false, message, { observed: proposed })]);
   }
 }
 
@@ -959,7 +1166,7 @@ function filledMessageFields(raw: DecisionResponse): string[] {
   return filled;
 }
 
-export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT): NormalizedDecision {
+export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT, checks: GateCheck[] = []): NormalizedDecision {
   const ties = answerTiesFiles(raw);
   if (raw.decision === 'collect') {
     if (ctx.afterVerification) {
@@ -993,6 +1200,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
   const resolutions = validateResolutions(raw, ctx);
   const addedInstances = validateAddedInstances(raw, ctx);
   const retired = validateRetirements(raw, ctx);
+  const statedCosts = validateStatedCosts(raw, ctx, resolutions, addedInstances, checks);
   const attestation = validateAttestation(raw, ctx);
   const matchedFiles = validateMatchedFiles(raw, ctx);
   if (raw.decision === 'collect') {
@@ -1005,6 +1213,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
       resolutions,
       addedInstances,
       retired,
+      statedCosts,
       attestation,
     };
   }
@@ -1018,6 +1227,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
       resolutions,
       addedInstances,
       retired,
+      statedCosts,
       attestation,
     };
   }
@@ -1036,6 +1246,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = 
     resolutions,
     addedInstances,
     retired,
+    statedCosts,
     attestation,
   };
 }

@@ -28,11 +28,13 @@ import {
   collectionsStepDetail,
   resolutionsStepDetail,
   retirementsStepDetail,
+  statedCostsStepDetail,
+  type AppliedStatedCost,
   type CompanySplitDetail,
 } from './applyStepDetails.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
-import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState, type NormalizedDecision } from './decisionSchema.js';
+import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState, type NormalizedDecision, type StatedCost } from './decisionSchema.js';
 import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys, type TaxFetchContext } from './taxFetch/flow.js';
 import { getProviderSpec } from './taxFetch/providers.js';
 import { clientIdNumber } from './taxFetch/clientId.js';
@@ -127,6 +129,8 @@ interface ChecklistChanges {
   createdWithFiles: NewRowFiles[];
   /** Rows born 'claimed' (the client says the office already holds the document): the accountant is told once. */
   claimedAtCreation: string[];
+  /** Rows created in this cycle whose instance carried a cost the client stated in the chat (openspec `chat-stated-cost`): closed by apply_stated_costs. */
+  createdStated: { row: ClientDocumentRow; cost: StatedCost }[];
 }
 
 /** What the collect step decided and did: the input of the verification targets and of the apply_collections row. */
@@ -150,10 +154,11 @@ interface CollectionOutcome {
 export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const run = await loadPlanningContext(ctx);
   const decision = await askPlanner(run);
-  const changes: ChecklistChanges = { applied: 0, createdWithFiles: [], claimedAtCreation: [] };
+  const changes: ChecklistChanges = { applied: 0, createdWithFiles: [], claimedAtCreation: [], createdStated: [] };
   await applyResolutions(run, decision, changes);
   await applyAdditions(run, decision, changes);
   await applyRetirements(run, decision, changes);
+  await applyStatedCosts(run, decision, changes);
   await settleChecklistChanges(run, changes);
   await applyAttestationConfirmed(run, decision);
   const collection = await collectFiles(run, decision, changes);
@@ -306,9 +311,12 @@ async function buildIntakeState(
   return { intake, attestationConfirmed };
 }
 
-/** Every row is settled: approved, not needed, or retired. The verification pipeline, not receipt, is what closes a document. */
+/** Every row is settled: approved, stated in the chat, not needed, or retired. The verification pipeline (or the client's checked statement), not receipt, is what closes a document. */
 function allDocumentsSettled(documents: readonly ClientDocumentRow[]): boolean {
-  return documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired');
+  return (
+    documents.length > 0 &&
+    documents.every((d) => d.status === 'approved' || d.status === 'stated' || d.status === 'not_required' || d.status === 'retired')
+  );
 }
 
 /**
@@ -481,6 +489,10 @@ async function applyResolutions(run: PlanRun, decision: NormalizedDecision, chan
       if (!rows) continue;
       changes.applied += 1;
       rows.forEach((row, i) => changes.createdWithFiles.push({ row, fileIds: resolution.instances[i]?.fileIds ?? [] }));
+      rows.forEach((row, i) => {
+        const cost = resolution.instances[i]?.statedCost;
+        if (cost) changes.createdStated.push({ row, cost });
+      });
       changes.claimedAtCreation.push(...rows.filter((r) => r.status === 'claimed').map((r) => r.name));
       recordAudit({
         actorType: 'agent',
@@ -516,6 +528,10 @@ async function applyAdditions(run: PlanRun, decision: NormalizedDecision, change
     if (!rows || rows.length === 0) continue;
     changes.applied += 1;
     rows.forEach((row, i) => changes.createdWithFiles.push({ row, fileIds: addition.instances[i]?.fileIds ?? [] }));
+    rows.forEach((row, i) => {
+      const cost = addition.instances[i]?.statedCost;
+      if (cost) changes.createdStated.push({ row, cost });
+    });
     changes.claimedAtCreation.push(...rows.filter((r) => r.status === 'claimed').map((r) => r.name));
     recordAudit({
       actorType: 'agent',
@@ -566,6 +582,59 @@ async function applyRetirements(run: PlanRun, decision: NormalizedDecision, chan
   }
   if (changes.applied > before) {
     recordPlannerStep(run, 'apply_retirements', retirementsStepDetail(decision.retired, (id) => docName(run, id), changes.applied - before));
+  }
+}
+
+/**
+ * apply_stated_costs — a cost declaration closed by the client's own chat
+ * message (openspec `chat-stated-cost`): the costs the planner stated on
+ * existing pending items, and on the instances this cycle just created. The
+ * gate checked the paper, the quote and the amount; here the row is settled
+ * ('stated', no file) with the statement as its evidence. Never a collecting
+ * answer: nothing is verified afterwards.
+ */
+async function applyStatedCosts(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
+  const { client, clientId } = run;
+  const before = changes.applied;
+  const targets: AppliedStatedCost[] = [
+    ...decision.statedCosts,
+    ...changes.createdStated.map((c) => ({ documentId: c.row.id, ...c.cost })),
+  ];
+  const applied: AppliedStatedCost[] = [];
+  for (const target of targets) {
+    const evidence = {
+      source: 'chat' as const,
+      message_id: target.evidence.message_id,
+      quote: target.evidence.quote,
+      amount: target.amount,
+      currency: target.currency,
+    };
+    const row = await clientDocuments.markStated(target.documentId, clientId, evidence);
+    if (!row) continue;
+    changes.applied += 1;
+    applied.push(target);
+    recordAudit({
+      actorType: 'agent',
+      action: 'document.stated',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      targetType: 'client_document',
+      targetId: row.id,
+      detail: {
+        clientName: client.name,
+        name: row.name,
+        typeKey: row.type_key,
+        paperKey: row.paper_key,
+        amount: target.amount,
+        currency: target.currency,
+        evidence: target.evidence,
+      },
+    });
+  }
+  if (applied.length > 0) {
+    // Rows created this cycle are not in run.documents yet: name them from the created rows.
+    const createdNames = new Map(changes.createdStated.map((c) => [c.row.id, c.row.name]));
+    recordPlannerStep(run, 'apply_stated_costs', statedCostsStepDetail(applied, (id) => docName(run, id) ?? createdNames.get(id), changes.applied - before));
   }
 }
 

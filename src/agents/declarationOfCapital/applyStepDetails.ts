@@ -5,6 +5,7 @@ import {
   type DocumentRetirement,
   type EvidenceRef,
   type InstanceAddition,
+  type StatedCost,
 } from './decisionSchema.js';
 import type { RefusedTie } from './fileTies.js';
 
@@ -65,6 +66,25 @@ export function retirementsStepDetail(retired: DocumentRetirement[], docName: Na
   return {
     count,
     rows: retired.map((r) => ({ id: r.documentId, name: named(docName, r.documentId), ...evidenceDetail(r.evidence) })),
+  };
+}
+
+/** One cost the client stated in the chat, as plan.ts applied it (openspec `chat-stated-cost`): the row it closed and the statement. */
+export interface AppliedStatedCost extends StatedCost {
+  documentId: string;
+}
+
+export function statedCostsStepDetail(stated: AppliedStatedCost[], docName: NameLookup, count: number) {
+  return {
+    count,
+    rows: stated.map((s) => ({
+      id: s.documentId,
+      name: named(docName, s.documentId),
+      amount: s.amount,
+      currency: s.currency,
+      quote: s.evidence.quote,
+      messageId: s.evidence.message_id,
+    })),
   };
 }
 

@@ -719,6 +719,10 @@ interface DecideCase {
     new_instance_file_ids?: string[];
     /** Exactly the file ids the decision pairs with an existing document (matched_files). */
     matched_file_ids?: string[];
+    /** Row id -> amount: exactly the existing items the decision states a chat cost on (stated_costs), with the amount (openspec `chat-stated-cost`). */
+    stated_costs?: Record<string, number>;
+    /** Exactly the amounts stated on instances the decision creates (an instance's stated_cost), order-free. */
+    new_instance_stated_amounts?: number[];
     attestation?: 'request' | 'confirmed' | null;
     /** The decision's document-fetch action (null = none), e.g. 'client_agreed'. */
     tax_fetch_action?: string | null;
@@ -747,7 +751,7 @@ interface DecideCtx {
   templates: Array<{ content_sid: string; name: string; body: string; variable_count: number }>;
 }
 
-const SETTLED_STATUSES = new Set<DocumentStatus>(['not_required', 'approved', 'retired', 'claimed', 'collected']);
+const SETTLED_STATUSES = new Set<DocumentStatus>(['not_required', 'approved', 'stated', 'retired', 'claimed', 'collected']);
 
 function clientRow(c: DecideCase): ClientRow {
   const createdAt = new Date(c.client.created_at);
@@ -959,7 +963,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
       })),
     inboundTexts,
     approvedPropertyFiles: approvedPropertyFilesOf(documents),
-    allSettled: documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'not_required' || d.status === 'retired'),
+    allSettled: documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'stated' || d.status === 'not_required' || d.status === 'retired'),
     attestationRequested: requestedAt !== null,
     confirmableMessageIds: new Set(
       requestedAt === null ? [] : history.filter((m) => m.direction === 'inbound' && (m.sent_at ?? m.created_at) > requestedAt).map((m) => m.id),
@@ -1156,6 +1160,22 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       const paired = decision.matched_files.map((m) => m.file_id).sort();
       const wanted = e.matched_file_ids.slice().sort();
       checks.push({ key: 'matched_file_ids', expected: wanted, actual: paired, pass: JSON.stringify(wanted) === JSON.stringify(paired) });
+    }
+    if (e.stated_costs !== undefined) {
+      const sortKeys = (o: Record<string, number>) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
+      const actual = sortKeys(Object.fromEntries(decision.statedCosts.map((c) => [c.documentId, c.amount])));
+      const wanted = sortKeys(e.stated_costs);
+      checks.push({ key: 'stated_costs', expected: wanted, actual, pass: JSON.stringify(wanted) === JSON.stringify(actual) });
+    }
+    if (e.new_instance_stated_amounts !== undefined) {
+      const amounts = [
+        ...decision.resolutions.flatMap((r) => (r.resolution === 'required' ? r.instances : [])),
+        ...decision.addedInstances.flatMap((a) => a.instances),
+      ]
+        .flatMap((i) => (i.statedCost ? [i.statedCost.amount] : []))
+        .sort((a, b) => a - b);
+      const wanted = e.new_instance_stated_amounts.slice().sort((a, b) => a - b);
+      checks.push({ key: 'new_instance_stated_amounts', expected: wanted, actual: amounts, pass: JSON.stringify(wanted) === JSON.stringify(amounts) });
     }
     info.evidence_quotes = [
       ...decision.resolutions.map((r) => r.evidence.quote),

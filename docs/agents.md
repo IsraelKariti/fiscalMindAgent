@@ -1159,6 +1159,30 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   evals: `purchase_contract_dinovitz_2001.pdf`,
   `payments_appendix_dinovitz_2001.pdf`, `tabu_extract_dinovitz_2025.pdf`
   (cases `cls_18`–`cls_20`).
+- **Chat-stated cost** (2026-10-12, openspec `chat-stated-cost`, migration
+  062). A cost declaration — the property paper `cost_declaration` and the
+  vehicle paper `vehicle_cost_declaration`, both `clientMayStateInChat: true`
+  on `CatalogPaper` (`paperMayBeStatedInChat`) — may be closed by the
+  client's own WhatsApp message instead of a file. `vehicle` therefore
+  declares papers too (`vehicle_license`, `vehicle_purchase_document`,
+  `vehicle_cost_declaration`; 062 backfills existing rows by name prefix).
+  The planner answers `stated_costs` (existing pending item) or an
+  instance's `stated_cost` (a row created in the same answer; `amount: 0` =
+  none, a non-nullable shape against the Anthropic union budget);
+  `validateStatedCosts` checks the paper, the quote (the usual evidence
+  rule) and that the amount is written in the quote as digits or "N אלף" /
+  "N מיליון" (`amountAppearsIn`), reporting `stated_cost_item_allows` and
+  `stated_cost_amount_in_quote` in the `validate_message` row. The prompt
+  keeps the paper first: the statement is accepted only after the client said
+  the receipt / contract is missing. `applyStatedCosts` (step
+  `apply_stated_costs`, audit `document.stated`) sets the new status `stated`
+  with `resolution_evidence = {source:'chat', message_id, quote, amount,
+  currency}`; `stated` is settled like `approved` (`allDocumentsSettled`, the
+  card's progress count, INTAKE STATUS) and the documents section shows
+  `הוצהר בצ'אט: <amount> <currency> — "<quote>"` (`statedCostLine`). The
+  documents card shows a stated row with its own badge and a clickable note
+  that opens the Conversation tab on that message (`focusMessage` on the tab
+  context; every bubble carries `id="message-<id>"`).
 - **Goal-driven real-estate clarification** (2026-10-10, openspec
   `real-estate-goal-driven-clarification`, no migration). The catalog
   description and the planner's real-estate case state the goal first — proof
@@ -1407,7 +1431,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   the REAL user — an accountant's session never gets the data, and the monday
   embed has no provider so the toggle never renders there.
 - **Apply phase**: `plan.ts` records one `apply_resolutions` /
-  `apply_additions` / `apply_retirements` / `apply_collections` /
+  `apply_additions` / `apply_retirements` / `apply_stated_costs` / `apply_collections` /
   `apply_attestation` / `send_reply` row per decision field that changed
   state (never for a no-op). The detail names every document the step
   touched next to its id (`applyStepDetails.ts`: `name`, `anchorName`,

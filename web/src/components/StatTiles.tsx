@@ -22,7 +22,7 @@ export function StatTiles({ documents, emails, nextScheduled, goalStatus, dueDat
     // 'approved' (capital declaration: verified) counts as done; 'not_required'
     // and 'retired' rows are outside the goal. Doc-collector lists carry
     // none of these statuses.
-    const collected = documents.filter((d) => d.status === 'collected' || d.status === 'approved').length;
+    const collected = documents.filter((d) => d.status === 'collected' || d.status === 'approved' || d.status === 'stated').length;
     const total = documents.filter((d) => d.status !== 'not_required' && d.status !== 'retired').length;
 
     const delivered = emails.filter((e) => e.status !== 'draft');

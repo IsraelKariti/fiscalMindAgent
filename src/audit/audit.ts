@@ -24,6 +24,8 @@ export type AuditAction =
   | 'document.resolved'
   | 'document.instances_added'
   | 'document.retired'
+  // A cost declaration closed by the client's own chat message (openspec `chat-stated-cost`).
+  | 'document.stated'
   | 'document.verified'
   | 'document.verification_failed'
   | 'document.status_changed'
@@ -55,6 +57,7 @@ export type AuditAction =
   | 'apply_resolutions'
   | 'apply_additions'
   | 'apply_retirements'
+  | 'apply_stated_costs'
   | 'apply_collections'
   | 'apply_attestation'
   | 'send_reply'

@@ -28,6 +28,7 @@ const incidentAnswer = JSON.stringify({
   resolved_documents: null,
   added_instances: null,
   retired_documents: null,
+  stated_costs: [],
   attestation: null,
   attestation_evidence: null,
 });

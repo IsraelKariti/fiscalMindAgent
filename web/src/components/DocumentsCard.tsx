@@ -18,6 +18,8 @@ interface Props {
   emptyTextKey?: MessageStringKey;
   /** Capital-declaration flow: grouped statuses, verification badges. */
   capital?: boolean;
+  /** Opens the conversation on the message a chat-stated cost rests on (openspec `chat-stated-cost`). */
+  onFocusMessage?: (messageId: string) => void;
 }
 
 /** The view/download icon pair for one received file. */
@@ -160,11 +162,12 @@ const CAPITAL_GROUPS: { status: DocumentStatus; labelKey: keyof Messages; collap
   { status: 'claimed', labelKey: 'groupClaimed' },
   { status: 'collected', labelKey: 'groupCollected' },
   { status: 'approved', labelKey: 'groupApproved' },
+  { status: 'stated', labelKey: 'groupStated' },
   { status: 'not_required', labelKey: 'groupNotRequired', collapsed: true },
   { status: 'retired', labelKey: 'groupRetired', collapsed: true },
 ];
 
-export function DocumentsCard({ clientId, documents, files, onChanged, titleKey, emptyTextKey, capital }: Props) {
+export function DocumentsCard({ clientId, documents, files, onChanged, titleKey, emptyTextKey, capital, onFocusMessage }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
@@ -182,12 +185,12 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
   // Files whose analysis matched no checklist item — the accountant must see these.
   const unmatched = files.filter((f) => f.client_document_id === null);
 
-  // Capital flow: done = verified; not_required/retired rows are outside the goal.
+  // Capital flow: done = verified, or a cost the client stated in the chat; not_required/retired rows are outside the goal.
   const inGoal = capital
     ? documents.filter((d) => d.status !== 'not_required' && d.status !== 'retired')
     : documents;
   const done = capital
-    ? documents.filter((d) => d.status === 'approved').length
+    ? documents.filter((d) => d.status === 'approved' || d.status === 'stated').length
     : documents.filter((d) => d.status === 'collected').length;
 
   const run = async (action: () => Promise<unknown>) => {
@@ -243,7 +246,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
       });
     } else if (doc.status === 'collected') {
       actions.push({ key: 'approve', label: t.approveManually, onSelect: () => setStatus(doc, 'approved') });
-    } else if (doc.status === 'approved' || doc.status === 'not_required' || doc.status === 'retired') {
+    } else if (doc.status === 'approved' || doc.status === 'stated' || doc.status === 'not_required' || doc.status === 'retired') {
       actions.push({ key: 'reopen', label: t.reopenDocument, onSelect: () => setStatus(doc, 'pending') });
     }
     actions.push({
@@ -261,6 +264,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         ? { className: 'badge-danger', label: t.verificationFailedStatus }
         : { className: 'badge-note', label: t.inVerificationStatus },
       approved: { className: 'badge-success', label: t.approvedStatus },
+      stated: { className: 'badge-success', label: t.statedStatus },
       not_required: { className: 'badge-neutral', label: t.notRequiredStatus },
       retired: { className: 'badge-note', label: t.retiredStatus },
     };
@@ -285,6 +289,22 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         )}
         {(doc.status === 'pending' || doc.status === 'collected') && (failed || stalled) && reasons && (
           <div className="doc-verification-note">{t.verificationReasonsPrefix + reasons}</div>
+        )}
+        {doc.status === 'stated' && doc.resolution_evidence?.source === 'chat' && (
+          <div className="doc-verification-note muted">
+            {doc.resolution_evidence.message_id && onFocusMessage ? (
+              <button
+                type="button"
+                className="doc-evidence-link"
+                title={t.statedChatNoteTitle}
+                onClick={() => onFocusMessage(doc.resolution_evidence!.message_id!)}
+              >
+                {`${t.statedChatNotePrefix}"${doc.resolution_evidence.quote ?? ''}"`}
+              </button>
+            ) : (
+              `${t.statedChatNotePrefix}"${doc.resolution_evidence.quote ?? ''}"`
+            )}
+          </div>
         )}
         {(doc.status === 'not_required' || doc.status === 'retired') && doc.resolution_evidence && (
           <div className="doc-verification-note muted">

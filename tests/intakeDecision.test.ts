@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  amountAppearsIn,
   DecisionRejectedError,
   decisionSchemaForContext,
   gateDecision,
@@ -99,11 +100,15 @@ function baseRaw(overrides: Partial<DecisionResponse> = {}): DecisionResponse {
     resolved_documents: null,
     added_instances: null,
     retired_documents: null,
+    stated_costs: [],
     attestation: null,
     attestation_evidence: null,
     ...overrides,
   };
 }
+
+/** No cost stated on an instance (openspec `chat-stated-cost`): amount 0 = none. */
+const NO_COST = { amount: 0, currency: '', message_id: '', quote: '' };
 
 /** A real sentence of msg-1: what a "needed" resolution or an addition may rest on. */
 const CASH_QUOTE = { message_id: 'msg-1', quote: 'יש לי קצת מזומן בבית' };
@@ -186,8 +191,8 @@ describe('intake resolutions (normalizeDecision)', () => {
           document_id: 'doc-vehicle',
           resolution: 'required',
           instances: [
-            { name: '  רישיון רכב - מאזדה 3 ', description: null, already_provided: false, file_ids: [], paper_key: '' },
-            { name: 'רישיון רכב - טויוטה', description: 'רכב שני', already_provided: false, file_ids: [], paper_key: '' },
+            { name: '  רישיון רכב - מאזדה 3 ', description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST },
+            { name: 'רישיון רכב - טויוטה', description: 'רכב שני', already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST },
           ],
           evidence: CASH_QUOTE,
         },
@@ -211,7 +216,7 @@ describe('intake resolutions (normalizeDecision)', () => {
             {
               document_id,
               resolution: 'required',
-              instances: [{ name: 'חוזה רכישה — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key }],
+              instances: [{ name: 'חוזה רכישה — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key, stated_cost: NO_COST }],
               evidence: CASH_QUOTE,
             },
           ],
@@ -222,8 +227,9 @@ describe('intake resolutions (normalizeDecision)', () => {
     assert.equal(ok.resolution === 'required' ? ok.instances[0]!.paperKey : null, 'purchase_contract');
     assert.throws(() => on(''), /names no paper/);
     assert.throws(() => on('fund_name'), /not a paper of type "real_estate"/);
-    // A vehicle instance (type without papers) must not name a paper.
-    assert.throws(() => on('tabu_extract', 'doc-vehicle'), /type without papers/);
+    // A vehicle instance names one of the vehicle papers (openspec `chat-stated-cost`); a crypto instance (type without papers) must not name a paper.
+    assert.throws(() => on('tabu_extract', 'doc-vehicle'), /not a paper of type "vehicle"/);
+    assert.throws(() => on('tabu_extract', 'doc-crypto'), /type without papers/);
     // The same rule for an addition: the anchor's type decides.
     const added = (paper_key: string) =>
       normalizeDecision(
@@ -231,7 +237,7 @@ describe('intake resolutions (normalizeDecision)', () => {
           added_instances: [
             {
               anchor_document_id: 'doc-contract',
-              instances: [{ name: 'נסח טאבו — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key }],
+              instances: [{ name: 'נסח טאבו — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key, stated_cost: NO_COST }],
               evidence: CASH_QUOTE,
               proven_by_file_id: '',
             },
@@ -252,7 +258,7 @@ describe('intake resolutions (normalizeDecision)', () => {
                 {
                   document_id: 'doc-re',
                   resolution: 'required',
-                  instances: [{ name: 'חוזה', description: null, already_provided: false, file_ids: [], paper_key: '' }],
+                  instances: [{ name: 'חוזה', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST }],
                   evidence: CASH_QUOTE,
                 },
               ],
@@ -276,7 +282,7 @@ describe('intake resolutions (normalizeDecision)', () => {
         {
           document_id: 'doc-crypto',
           resolution: 'required',
-          instances: [{ name: 'דוח קריפטו', description: null, already_provided: false, file_ids: [], paper_key: '' }],
+          instances: [{ name: 'דוח קריפטו', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST }],
           evidence: CASH_QUOTE,
         },
       ],
@@ -309,8 +315,8 @@ describe('intake resolutions (normalizeDecision)', () => {
             document_id: 'doc-cash',
             resolution: 'required',
             instances: [
-              { name: 'א', description: null, already_provided: false, file_ids: [], paper_key: '' },
-              { name: 'ב', description: null, already_provided: false, file_ids: [], paper_key: '' },
+              { name: 'א', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST },
+              { name: 'ב', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST },
             ],
             evidence: CASH_QUOTE,
           },
@@ -323,7 +329,7 @@ describe('intake resolutions (normalizeDecision)', () => {
           {
             document_id: 'doc-vehicle',
             resolution: 'required',
-            instances: Array.from({ length: 11 }, (_, i) => ({ name: `רכב ${i}`, description: null, already_provided: false, file_ids: [], paper_key: '' })),
+            instances: Array.from({ length: 11 }, (_, i) => ({ name: `רכב ${i}`, description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST })),
             evidence: CASH_QUOTE,
           },
         ]),
@@ -332,7 +338,7 @@ describe('intake resolutions (normalizeDecision)', () => {
     const entry = {
       document_id: 'doc-vehicle',
       resolution: 'required' as const,
-      instances: [{ name: 'רכב', description: null, already_provided: false, file_ids: [], paper_key: '' }],
+      instances: [{ name: 'רכב', description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST }],
       evidence: CASH_QUOTE,
     };
     assert.throws(() => on([entry, entry]), /twice/);
@@ -427,8 +433,8 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
         {
           anchor_document_id: 'doc-contract',
           instances: [
-            { name: 'נסח טאבו - דירה ברחוב הרצל 5', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' },
-            { name: 'שומת מס רכישה - דירה ברחוב הרצל 5', description: null, already_provided: true, file_ids: [], paper_key: 'purchase_tax_assessment' },
+            { name: 'נסח טאבו - דירה ברחוב הרצל 5', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST },
+            { name: 'שומת מס רכישה - דירה ברחוב הרצל 5', description: null, already_provided: true, file_ids: [], paper_key: 'purchase_tax_assessment', stated_cost: NO_COST },
           ],
           evidence: CASH_QUOTE,
           proven_by_file_id: '',
@@ -441,7 +447,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
   });
 
   it('rejects additions on unknown anchors, single-instance types, duplicate anchors, and non-intake agents', () => {
-    const instances = [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' }];
+    const instances = [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST }];
     assert.throws(
       () =>
         normalizeDecision(
@@ -507,12 +513,12 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
           baseRaw({
             attestation: 'request',
             added_instances: [
-              { anchor_document_id: 'doc-contract', instances: [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' }], evidence: CASH_QUOTE, proven_by_file_id: '' },
+              { anchor_document_id: 'doc-contract', instances: [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST }], evidence: CASH_QUOTE, proven_by_file_id: '' },
             ],
           }),
           ctxWith(settled),
         ),
-      /no new resolutions, additions or retirements/,
+      /no new resolutions, additions, retirements or stated costs/,
     );
     assert.throws(
       () =>
@@ -523,7 +529,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
           }),
           ctxWith(settled),
         ),
-      /no new resolutions, additions or retirements/,
+      /no new resolutions, additions, retirements or stated costs/,
     );
   });
 });
@@ -532,9 +538,9 @@ describe('a list item is created only on the client\'s quoted words (openspec un
   // These answers tie a file to a row, so they are 'collect' decisions: no message, no send_at.
   const tyingRaw = (overrides: Partial<DecisionResponse> = {}): DecisionResponse =>
     baseRaw({ decision: 'collect', channel: null, email_subject: null, email_body: null, send_at: null, ...overrides });
-  const instances = [{ name: 'אישור קרן השתלמות בהראל', description: null, already_provided: false, file_ids: ['file-1', 'file-1'], paper_key: '' }];
+  const instances = [{ name: 'אישור קרן השתלמות בהראל', description: null, already_provided: false, file_ids: ['file-1', 'file-1'], paper_key: 'vehicle_license', stated_cost: NO_COST }];
   // The contract anchor is a real_estate row: an added instance there names one of the property papers.
-  const contractInstances = instances.map((i) => ({ ...i, paper_key: 'tabu_extract' }));
+  const contractInstances = instances.map((i) => ({ ...i, paper_key: 'tabu_extract', stated_cost: NO_COST }));
   const required = (evidence: { message_id: string; quote: string } | null) =>
     normalizeDecision(
       tyingRaw({ resolved_documents: [{ document_id: 'doc-vehicle', resolution: 'required', instances, evidence }] }),
@@ -601,7 +607,7 @@ describe('an approved property paper as evidence (proven_by_file_id, openspec re
       ],
       approvedPropertyFiles,
     });
-  const appendix = [{ name: 'נספח תשלומים - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'payments_appendix' }];
+  const appendix = [{ name: 'נספח תשלומים - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'payments_appendix', stated_cost: NO_COST }];
 
   it('a private seller retires the appendix item, recording the file as the evidence', () => {
     const raw = baseRaw({ retired_documents: [{ document_id: 'doc-appendix', evidence: null, proven_by_file_id: 'file-contract' }] });
@@ -631,7 +637,7 @@ describe('an approved property paper as evidence (proven_by_file_id, openspec re
     assert.throws(() => normalizeDecision(retire('doc-tabu', 'file-contract'), ctxWith(withPapers(PRIVATE))), /proves nothing that calls for retiring/);
     assert.throws(() => normalizeDecision(retire('doc-appendix', 'file-contract'), ctxWith(withPapers(BUILDER))), /proves nothing that calls for retiring/);
     assert.throws(() => normalizeDecision(retire('doc-vehicle-licence', 'file-contract'), ctxWith(withPapers(PRIVATE))), /only for a property's payments appendix/);
-    const tabu = [{ name: 'נסח טאבו - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract' }];
+    const tabu = [{ name: 'נסח טאבו - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST }];
     assert.throws(
       () => normalizeDecision(baseRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances: tabu, evidence: null, proven_by_file_id: 'file-contract' }] }), ctxWith(withPapers(BUILDER))),
       /proves nothing that calls for these instances/,
@@ -642,5 +648,172 @@ describe('an approved property paper as evidence (proven_by_file_id, openspec re
     );
     // Neither a quote nor a file: the plain evidence rule still applies.
     assert.throws(() => normalizeDecision(baseRaw({ retired_documents: [{ document_id: 'doc-appendix', evidence: null, proven_by_file_id: '' }] }), ctxWith(withPapers(PRIVATE))), /requires evidence/);
+  });
+});
+
+describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
+  const PRICE_MSG = 'אין לי את הקבלה, שילמתי 85,000 ש"ח על המאזדה. על הדירה שילמתי לפי הערכתי 1.2 מיליון';
+  const costIntake = () =>
+    baseIntake({
+      typedRows: [
+        ...baseIntake().typedRows,
+        { id: 'doc-car-cost', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_cost_declaration' },
+        { id: 'doc-car-cost-done', status: 'approved', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_cost_declaration' },
+        { id: 'doc-car-receipt', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_purchase_document' },
+        { id: 'doc-house-cost', status: 'pending', typeKey: 'real_estate', multiInstance: true, paperKey: 'cost_declaration' },
+        { id: 'doc-bank', status: 'pending', typeKey: 'bank_balance', multiInstance: true, paperKey: null },
+      ],
+      inboundTexts: new Map([...baseIntake().inboundTexts, ['msg-price', PRICE_MSG]]),
+    });
+  const stated = (document_id: string, amount: number, quote: string, currency = 'ILS') =>
+    baseRaw({ stated_costs: [{ document_id, amount, currency, evidence: { message_id: 'msg-price', quote } }] });
+
+  it('amountAppearsIn: digits with or without separators, "N אלף" / "N מיליון"; never number words', () => {
+    assert.equal(amountAppearsIn(85000, 'שילמתי 85,000 ש"ח'), true);
+    assert.equal(amountAppearsIn(85000, 'שילמתי 85000'), true);
+    assert.equal(amountAppearsIn(85000, 'הרכב עלה 85 אלף'), true);
+    assert.equal(amountAppearsIn(1500000, 'בערך 1.5 מיליון'), true);
+    assert.equal(amountAppearsIn(1250000, 'שילמתי 1,250,000 שקל על הדירה'), true);
+    assert.equal(amountAppearsIn(1250000, 'שילמתי 1.250.000'), true);
+    assert.equal(amountAppearsIn(85000, 'שילמתי שמונים וחמש אלף'), false);
+    assert.equal(amountAppearsIn(85000, 'אין לי את הקבלה'), false);
+    assert.equal(amountAppearsIn(85000, 'הרכב עלה 58,000'), false);
+    assert.equal(amountAppearsIn(0, 'שילמתי 0'), false);
+    // A date in the quote is not an amount.
+    assert.equal(amountAppearsIn(31.12, 'ליום 31.12.2025'), false);
+  });
+
+  it('accepts a cost on a pending cost-declaration item and keeps amount, currency and the quote', () => {
+    const decision = normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000 ש"ח', 'ils'), ctxWith(costIntake()));
+    assert.deepEqual(decision.statedCosts, [
+      { documentId: 'doc-car-cost', amount: 85000, currency: 'ILS', evidence: { message_id: 'msg-price', quote: 'שילמתי 85,000 ש"ח' } },
+    ]);
+    const house = normalizeDecision(stated('doc-house-cost', 1200000, 'שילמתי לפי הערכתי 1.2 מיליון'), ctxWith(costIntake()));
+    assert.equal(house.statedCosts[0]!.amount, 1200000);
+  });
+
+  it('accepts a cost on a new cost-declaration instance and leaves the other instances untouched', () => {
+    const raw = baseRaw({
+      added_instances: [
+        {
+          anchor_document_id: 'doc-car-receipt',
+          instances: [
+            {
+              name: 'הצהרת עלות - מאזדה 3',
+              description: null,
+              already_provided: false,
+              file_ids: [],
+              paper_key: 'vehicle_cost_declaration',
+              stated_cost: { amount: 85000, currency: 'ILS', message_id: 'msg-price', quote: 'שילמתי 85,000 ש"ח על המאזדה' },
+            },
+            { name: 'רישיון רכב - מאזדה 3', description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST },
+          ],
+          evidence: { message_id: 'msg-price', quote: 'אין לי את הקבלה' },
+          proven_by_file_id: '',
+        },
+      ],
+    });
+    const decision = normalizeDecision(raw, ctxWith(costIntake()));
+    const [cost, licence] = decision.addedInstances[0]!.instances;
+    assert.deepEqual(cost!.statedCost, { amount: 85000, currency: 'ILS', evidence: { message_id: 'msg-price', quote: 'שילמתי 85,000 ש"ח על המאזדה' } });
+    assert.equal(licence!.statedCost, null);
+    assert.deepEqual(decision.statedCosts, []);
+  });
+
+  it('rejects by name: not a cost declaration, not pending, unknown item, a licence instance, a bad currency', () => {
+    const ctx = ctxWith(costIntake());
+    assert.throws(() => normalizeDecision(stated('doc-bank', 12000, 'שילמתי 85,000'), ctx), /only a cost declaration may be stated/);
+    assert.throws(() => normalizeDecision(stated('doc-car-receipt', 85000, 'שילמתי 85,000'), ctx), /only a cost declaration may be stated/);
+    assert.throws(() => normalizeDecision(stated('doc-car-cost-done', 85000, 'שילמתי 85,000'), ctx), /is approved, not pending/);
+    assert.throws(() => normalizeDecision(stated('doc-nope', 85000, 'שילמתי 85,000'), ctx), /not an already-resolved catalog row/);
+    assert.throws(() => normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000', 'שקלים'), ctx), /three-letter code/);
+    const licence = baseRaw({
+      added_instances: [
+        {
+          anchor_document_id: 'doc-car-receipt',
+          instances: [
+            {
+              name: 'רישיון רכב - מאזדה 3',
+              description: null,
+              already_provided: false,
+              file_ids: [],
+              paper_key: 'vehicle_license',
+              stated_cost: { amount: 85000, currency: 'ILS', message_id: 'msg-price', quote: 'שילמתי 85,000' },
+            },
+          ],
+          evidence: { message_id: 'msg-price', quote: 'אין לי את הקבלה' },
+          proven_by_file_id: '',
+        },
+      ],
+    });
+    assert.throws(() => normalizeDecision(licence, ctx), /paper vehicle_license is not a cost declaration/);
+  });
+
+  it('rejects the quote and the amount: not verbatim, amount missing, amount in words, amount 0, twice the same item', () => {
+    const ctx = ctxWith(costIntake());
+    assert.throws(() => normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000 דולר'), ctx), /not contained verbatim/);
+    assert.throws(() => normalizeDecision(stated('doc-car-cost', 85000, 'אין לי את הקבלה'), ctx), /is not written in the quote as a number/);
+    assert.throws(() => normalizeDecision(stated('doc-car-cost', 90000, 'שילמתי 85,000'), ctx), /is not written in the quote as a number/);
+    assert.throws(() => normalizeDecision(stated('doc-car-cost', 0, 'שילמתי 85,000'), ctx), /greater than 0/);
+    assert.throws(
+      () =>
+        normalizeDecision(
+          baseRaw({
+            stated_costs: [
+              { document_id: 'doc-car-cost', amount: 85000, currency: 'ILS', evidence: { message_id: 'msg-price', quote: 'שילמתי 85,000' } },
+              { document_id: 'doc-car-cost', amount: 85000, currency: 'ILS', evidence: { message_id: 'msg-price', quote: 'שילמתי 85,000' } },
+            ],
+          }),
+          ctx,
+        ),
+      /twice/,
+    );
+    assert.throws(() => normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000'), ctxWith(undefined)), /not applicable/);
+  });
+
+  it('validate_message lists the stated-cost checks before business_rules, on success and on failure', () => {
+    const ctx = ctxWith(costIntake());
+    const schema = decisionSchemaForContext(ctx);
+    const ok = gateDecision(JSON.stringify(stated('doc-car-cost', 85000, 'שילמתי 85,000 ש"ח')), schema, ctx);
+    assert.deepEqual(
+      ok.checks.map((c) => [c.key, c.passed]),
+      [['json_schema', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', true], ['business_rules', true]],
+    );
+    assert.equal(ok.checks[1]!.observed, 'paper vehicle_cost_declaration, status pending');
+    assert.equal(ok.checks[2]!.expected, '85000');
+    assert.throws(
+      () => gateDecision(JSON.stringify(stated('doc-car-cost', 85000, 'אין לי את הקבלה')), schema, ctx),
+      (err: unknown) => {
+        assert.ok(err instanceof DecisionRejectedError);
+        assert.deepEqual(
+          err.checks.map((c) => [c.key, c.passed]),
+          [['json_schema', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', false], ['business_rules', false]],
+        );
+        assert.equal(err.checks[2]!.observed, 'אין לי את הקבלה');
+        return true;
+      },
+    );
+    assert.throws(
+      () => gateDecision(JSON.stringify(stated('doc-bank', 85000, 'שילמתי 85,000')), schema, ctx),
+      (err: unknown) => {
+        assert.ok(err instanceof DecisionRejectedError);
+        assert.deepEqual(
+          err.checks.map((c) => [c.key, c.passed]),
+          [['json_schema', true], ['stated_cost_item_allows', false], ['business_rules', false]],
+        );
+        assert.match(err.checks[1]!.note ?? '', /only a cost declaration/);
+        return true;
+      },
+    );
+  });
+
+  it('a statement alone ties no file: it stays a follow_up with a message, and the pruned schema restores an empty list', () => {
+    const decision = normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000 ש"ח'), ctxWith(costIntake()));
+    assert.equal(decision.decision, 'follow_up');
+    // A context without intake drops the field; the restored answer still has [] there.
+    const noIntake = ctxWith(undefined);
+    const parsed = decisionSchemaForContext(noIntake).parse({ ...baseRaw(), stated_costs: undefined, resolved_documents: undefined, added_instances: undefined, retired_documents: undefined, attestation: undefined, attestation_evidence: undefined });
+    assert.equal('stated_costs' in parsed, false);
+    assert.deepEqual(normalizeDecision({ ...baseRaw(), ...parsed, stated_costs: [] }, noIntake).statedCosts, []);
   });
 });

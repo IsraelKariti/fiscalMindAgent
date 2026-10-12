@@ -41,6 +41,8 @@ export interface DocumentPatch {
   name?: string;
   description?: string | null;
   status?: DocumentStatus;
+  /** null clears the evidence behind an agent-made resolution (the accountant reopened the row). */
+  resolutionEvidence?: null;
 }
 
 /** Updates only the provided fields; returns the updated row (null if the document isn't the client's). */
@@ -57,6 +59,7 @@ export async function updateForClient(
       sets.push(`${field} = $${values.length}`);
     }
   }
+  if (patch.resolutionEvidence === null) sets.push('resolution_evidence = NULL');
   if (sets.length === 0) {
     const { rows } = await pool.query<ClientDocumentRow>(
       'SELECT * FROM client_documents WHERE id = $1 AND client_id = $2',
@@ -309,6 +312,26 @@ export async function retire(
   const { rows } = await pool.query<ClientDocumentRow>(
     `UPDATE client_documents SET status = 'retired', resolution_evidence = $3, updated_at = now()
      WHERE id = $1 AND client_id = $2 AND status IN ('pending', 'claimed', 'collected', 'approved') RETURNING *`,
+    [id, clientId, JSON.stringify(evidence)],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * A cost declaration the client stated in the conversation (openspec
+ * `chat-stated-cost`): the pending row is settled with no file, the message,
+ * quote, amount and currency kept as its evidence. Only a 'pending' row moves
+ * (validate_message checked the paper and the quote); returns null when the
+ * row is not the client's pending row.
+ */
+export async function markStated(
+  id: string,
+  clientId: string,
+  evidence: Extract<ResolutionEvidence, { source: 'chat' }>,
+): Promise<ClientDocumentRow | null> {
+  const { rows } = await pool.query<ClientDocumentRow>(
+    `UPDATE client_documents SET status = 'stated', resolution_evidence = $3, updated_at = now()
+     WHERE id = $1 AND client_id = $2 AND status = 'pending' RETURNING *`,
     [id, clientId, JSON.stringify(evidence)],
   );
   return rows[0] ?? null;

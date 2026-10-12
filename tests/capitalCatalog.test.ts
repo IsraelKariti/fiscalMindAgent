@@ -9,6 +9,7 @@ import {
   isEmployerBound,
   isInstitutionBound,
   paperBelongsToType,
+  paperMayBeStatedInChat,
   papersOf,
 } from '../src/agents/declarationOfCapital/catalog.js';
 
@@ -100,7 +101,7 @@ describe('capital-declaration catalog', () => {
     assert.equal(paperBelongsToType(null, 'real_estate'), false);
   });
 
-  it('real_estate declares the seven property papers and no other type declares papers yet', () => {
+  it('real_estate declares the seven property papers; only real_estate and vehicle declare papers', () => {
     assert.deepEqual(
       papersOf('real_estate').map((p) => p.key),
       [
@@ -116,6 +117,25 @@ describe('capital-declaration catalog', () => {
     for (const p of papersOf('real_estate')) assert.ok(p.analysisHintHe && p.analysisHintHe.length > 40, p.key);
     assert.deepEqual(papersOf('bank_balance'), []);
     assert.deepEqual(papersOf(null), []);
-    assert.equal(CAPITAL_DOCUMENT_CATALOG.filter((t) => t.papers).length, 1);
+    assert.deepEqual(
+      CAPITAL_DOCUMENT_CATALOG.filter((t) => t.papers).map((t) => t.key),
+      ['real_estate', 'vehicle'],
+    );
+  });
+
+  it('vehicle declares the licence, the purchase paper and the cost declaration', () => {
+    assert.deepEqual(papersOf('vehicle').map((p) => p.key), ['vehicle_license', 'vehicle_purchase_document', 'vehicle_cost_declaration']);
+    for (const p of papersOf('vehicle')) assert.ok(p.analysisHintHe && p.analysisHintHe.length > 40, p.key);
+  });
+
+  it('exactly the two cost declarations may be stated in the chat', () => {
+    const statable = CAPITAL_DOCUMENT_CATALOG.flatMap((t) => (t.papers ?? []).filter((p) => p.clientMayStateInChat).map((p) => p.key));
+    assert.deepEqual(statable.sort(), ['cost_declaration', 'vehicle_cost_declaration']);
+    assert.equal(paperMayBeStatedInChat('cost_declaration'), true);
+    assert.equal(paperMayBeStatedInChat('vehicle_cost_declaration'), true);
+    assert.equal(paperMayBeStatedInChat('purchase_contract'), false);
+    assert.equal(paperMayBeStatedInChat('vehicle_license'), false);
+    assert.equal(paperMayBeStatedInChat(null), false);
+    assert.equal(paperMayBeStatedInChat('no_such_paper'), false);
   });
 });

@@ -26,6 +26,15 @@ test('apply_retirements: name and quote per row; old id-only rows fall back to t
   assert.deepEqual(old, [{ key: 'retired_documents', items: ['d1', 'd2'] }]);
 });
 
+test('apply_stated_costs: name, amount, currency and quote per row (openspec chat-stated-cost)', () => {
+  const rows = stepSummaryOf('apply_stated_costs', {
+    clientName: 'דני',
+    count: 1,
+    rows: [{ id: 'd1', name: BANK, amount: 85000, currency: 'ILS', quote: 'שילמתי 85,000', messageId: 'm1' }],
+  });
+  assert.deepEqual(rows, [{ key: 'stated_costs', items: [`${BANK}: 85,000 ILS · "שילמתי 85,000"`] }]);
+});
+
 test('apply_resolutions: verdict per document, quote for not_required, instances for required', () => {
   const rows = stepSummaryOf('apply_resolutions', {
     clientName: 'דני',

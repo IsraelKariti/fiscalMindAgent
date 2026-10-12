@@ -1,0 +1,776 @@
+{
+  "ranAt": "2026-10-12T11:22:17.496Z",
+  "finishedAt": "2026-10-12T11:22:54.189Z",
+  "models": [
+    "gemini-3.1-pro-preview"
+  ],
+  "stages": [
+    "generate_message"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-3.1-pro-preview": {
+      "model": "gemini-3.1-pro-preview",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000012,
+      "thinkingCostPerToken": 0.000012,
+      "cachedCostPerToken": 2e-7
+    }
+  },
+  "results": [
+    {
+      "stage": "generate_message",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "dec_27",
+      "notes": "Change chat-stated-cost: the client names a price but has not said whether the receipt exists. Paper first: nothing is stated or changed, and the reply asks once whether the receipt or purchase document is in his hands.",
+      "ranAt": "2026-10-12T11:22:17.613Z",
+      "latencyMs": 13119,
+      "attempts": 1,
+      "inputTokens": 24973,
+      "outputTokens": 238,
+      "thinkingTokens": 588,
+      "cachedTokens": 0,
+      "costUsd": 0.059857999999999995,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "תודה ישראל. האם יש לך את הקבלה או מסמך הרכישה של הרכב? אם לא, נשתמש בסכום שציינת.\nבנוסף, אשמח לקבל צילום של רישיון הרכב בתוקף.",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "stated_costs": [],
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client provided the cost of the vehicle but did not explicitly state whether they have the purchase document or receipt. According to the instructions, I must ask if they have the document before recording the stated cost, and also remind them to send the vehicle license.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "asap"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "קבלה",
+            "מסמך רכישה",
+            "מסמך הרכישה"
+          ],
+          "actual": [
+            "קבלה",
+            "מסמך הרכישה"
+          ],
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client provided the cost of the vehicle but did not explicitly state whether they have the purchase document or receipt. According to the instructions, I must ask if they have the document before recording the stated cost, and also remind them to send the vehicle license.",
+        "send_at": "asap",
+        "message": "תודה ישראל. האם יש לך את הקבלה או מסמך הרכישה של הרכב? אם לא, נשתמש בסכום שציינת.\nבנוסף, אשמח לקבל צילום של רישיון הרכב בתוקף.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "dec_28",
+      "notes": "Change chat-stated-cost: the cost-declaration item already exists and is pending; the client writes the price. The planner states it on that item (stated_costs) and confirms the recorded amount.",
+      "ranAt": "2026-10-12T11:22:17.616Z",
+      "latencyMs": 20270,
+      "attempts": 1,
+      "inputTokens": 25126,
+      "outputTokens": 324,
+      "thinkingTokens": 1685,
+      "cachedTokens": 0,
+      "costUsd": 0.07436000000000001,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "תודה, רשמתי שהרכב עלה 85,000 ש\"ח.\nשמתי לב שבהודעה הקודמת לא צורף קובץ של רישיון הרכב. תוכל בבקשה לצרף את הצילום שלו כאן?",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "stated_costs": [
+          {
+            "document_id": "doc-car-cost",
+            "amount": 85000,
+            "currency": "ILS",
+            "evidence": {
+              "message_id": "msg-6",
+              "quote": "שילמתי 85,000 ש\"ח"
+            }
+          }
+        ],
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client provided the cost of the car, which resolves doc-car-cost. However, the car license file was not actually attached in the previous message, so it is still pending. I need to ask the client to attach it.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "asap"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:40:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "85,000",
+            "85000",
+            "85 אלף"
+          ],
+          "actual": [
+            "85,000"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.דף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתימה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {
+            "doc-car-cost": 85000
+          },
+          "actual": {
+            "doc-car-cost": 85000
+          },
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client provided the cost of the car, which resolves doc-car-cost. However, the car license file was not actually attached in the previous message, so it is still pending. I need to ask the client to attach it.",
+        "send_at": "asap",
+        "message": "תודה, רשמתי שהרכב עלה 85,000 ש\"ח.\nשמתי לב שבהודעה הקודמת לא צורף קובץ של רישיון הרכב. תוכל בבקשה לצרף את הצילום שלו כאן?",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "dec_30",
+      "notes": "Change chat-stated-cost: the price is written in words only. Code accepts digits only, so the planner states nothing and asks the client to write the amount in digits.",
+      "ranAt": "2026-10-12T11:22:30.741Z",
+      "latencyMs": 16281,
+      "attempts": 1,
+      "inputTokens": 25093,
+      "outputTokens": 282,
+      "thinkingTokens": 1491,
+      "cachedTokens": 0,
+      "costUsd": 0.071462,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "תודה! כדי שהמערכת תוכל לקלוט את הסכום, אשמח אם תוכל לכתוב אותו בספרות (למשל 85,000). בנוסף, אני רואה שצילום רישיון הרכב לא עבר בהודעה הקודמת - תוכל בבקשה לצרף אותו שוב?",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "stated_costs": [],
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client provided the vehicle cost in words ('שמונים וחמש אלף'). According to the instructions, the amount must be written in numbers for the system to process it. I will ask the client to write the amount in digits. Additionally, the client mentioned sending the license in a previous message but no file was attached, so I will ask them to attach it again.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "asap"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:40:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "ספרות",
+            "מספר",
+            "במספרים"
+          ],
+          "actual": [
+            "ספרות"
+          ],
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client provided the vehicle cost in words ('שמונים וחמש אלף'). According to the instructions, the amount must be written in numbers for the system to process it. I will ask the client to write the amount in digits. Additionally, the client mentioned sending the license in a previous message but no file was attached, so I will ask them to attach it again.",
+        "send_at": "asap",
+        "message": "תודה! כדי שהמערכת תוכל לקלוט את הסכום, אשמח אם תוכל לכתוב אותו בספרות (למשל 85,000). בנוסף, אני רואה שצילום רישיון הרכב לא עבר בהודעה הקודמת - תוכל בבקשה לצרף אותו שוב?",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "dec_26",
+      "notes": "Change chat-stated-cost: the client says the receipt is lost and names the price in the same message. The planner adds the vehicle cost declaration with stated_cost 85000 from that quote, retires the receipt item, and the reply confirms the recorded amount without asking for a signed page.",
+      "ranAt": "2026-10-12T11:22:17.517Z",
+      "latencyMs": 33947,
+      "attempts": 1,
+      "inputTokens": 25015,
+      "outputTokens": 528,
+      "thinkingTokens": 3542,
+      "cachedTokens": 0,
+      "costUsd": 0.09887,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "מעולה, רשמתי שהרכב עלה 85,000 ש\"ח ואין צורך בקבלה.\nאמתין לרישיון הרכב בערב. תודה!",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": [
+          {
+            "anchor_document_id": "doc-car-licence",
+            "instances": [
+              {
+                "name": "הצהרת עלות - מאזדה 3",
+                "description": null,
+                "already_provided": false,
+                "file_ids": [],
+                "paper_key": "vehicle_cost_declaration",
+                "stated_cost": {
+                  "amount": 85000,
+                  "currency": "ILS",
+                  "message_id": "msg-4",
+                  "quote": "שילמתי עליו 85,000 ש\"ח"
+                }
+              }
+            ],
+            "evidence": {
+              "message_id": "msg-4",
+              "quote": "את הקבלה של הרכב אין לי, שילמתי עליו 85,000 ש\"ח"
+            },
+            "proven_by_file_id": ""
+          }
+        ],
+        "retired_documents": [
+          {
+            "document_id": "doc-car-receipt",
+            "evidence": {
+              "message_id": "msg-4",
+              "quote": "את הקבלה של הרכב אין לי"
+            },
+            "proven_by_file_id": ""
+          }
+        ],
+        "stated_costs": [],
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client stated they don't have the receipt and provided the cost (85,000 NIS). I will retire the receipt document, add a cost declaration instance with the stated cost, and reply to acknowledge the amount and wait for the license in the evening.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "asap"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "85,000",
+            "85000",
+            "85 אלף"
+          ],
+          "actual": [
+            "85,000"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.דף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתימה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {
+            "vehicle": 1
+          },
+          "actual": {
+            "vehicle": 1
+          },
+          "pass": true
+        },
+        {
+          "key": "retired_documents",
+          "expected": [
+            "doc-car-receipt"
+          ],
+          "actual": [
+            "doc-car-receipt"
+          ],
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [
+            85000
+          ],
+          "actual": [
+            85000
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client stated they don't have the receipt and provided the cost (85,000 NIS). I will retire the receipt document, add a cost declaration instance with the stated cost, and reply to acknowledge the amount and wait for the license in the evening.",
+        "send_at": "asap",
+        "message": "מעולה, רשמתי שהרכב עלה 85,000 ש\"ח ואין צורך בקבלה.\nאמתין לרישיון הרכב בערב. תודה!",
+        "resolutions": [],
+        "added_instance_names": [
+          "הצהרת עלות - מאזדה 3"
+        ],
+        "evidence_quotes": [
+          "את הקבלה של הרכב אין לי, שילמתי עליו 85,000 ש\"ח"
+        ],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 1,
+        "retired": 1
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "dec_29",
+      "notes": "Change chat-stated-cost: a property cost declaration stated in the chat as \"1.2 מיליון\". The planner states 1200000 on the pending cost-declaration item; the tabu stays awaited.",
+      "ranAt": "2026-10-12T11:22:17.619Z",
+      "latencyMs": 36566,
+      "attempts": 1,
+      "inputTokens": 25829,
+      "outputTokens": 321,
+      "thinkingTokens": 4015,
+      "cachedTokens": 0,
+      "costUsd": 0.10369,
+      "error": null,
+      "output": {
+        "email_subject": null,
+        "email_body": null,
+        "whatsapp_text": "מעולה, רשמתי שהעלות היא 1.2 מיליון ש\"ח. קח את הזמן עם נסח הטאבו ושלח אותו לכאן כשתפיק אותו.",
+        "whatsapp_template": null,
+        "tax_fetch_action": null,
+        "tax_fetch_provider": null,
+        "tax_fetch_document_keys": null,
+        "resolved_documents": null,
+        "added_instances": null,
+        "retired_documents": null,
+        "stated_costs": [
+          {
+            "document_id": "doc-house-cost",
+            "amount": 1200000,
+            "currency": "ILS",
+            "evidence": {
+              "message_id": "msg-4",
+              "quote": "לפי הערכתי שילמתי על הדירה 1.2 מיליון שקל"
+            }
+          }
+        ],
+        "attestation": null,
+        "attestation_evidence": null,
+        "decision": "follow_up",
+        "reasoning": "The client provided the estimated cost for the apartment. I am updating the stated_costs for the cost declaration document and acknowledging the amount to the client. Since the client mentioned they will get the tabu extract this week, I am telling them to take their time.",
+        "collected_document_ids": [],
+        "matched_files": [],
+        "channel": "whatsapp",
+        "send_at": "asap"
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "channel",
+          "expected": "whatsapp",
+          "actual": "whatsapp",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:40:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "1,200,000",
+            "1.2 מיליון",
+            "1200000"
+          ],
+          "actual": [
+            "1.2 מיליון"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.דף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתימה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {
+            "doc-house-cost": 1200000
+          },
+          "actual": {
+            "doc-house-cost": 1200000
+          },
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "reasoning": "The client provided the estimated cost for the apartment. I am updating the stated_costs for the cost declaration document and acknowledging the amount to the client. Since the client mentioned they will get the tabu extract this week, I am telling them to take their time.",
+        "send_at": "asap",
+        "message": "מעולה, רשמתי שהעלות היא 1.2 מיליון ש\"ח. קח את הזמן עם נסח הטאבו ושלח אותו לכאן כשתפיק אותו.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "generate_message": {
+      "gemini-3.1-pro-preview": {
+        "total": 5,
+        "passed": 5,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 24037,
+          "p50": 20270,
+          "p90": 33947,
+          "min": 13119,
+          "max": 36566
+        },
+        "inputTokens": 126036,
+        "outputTokens": 1693,
+        "thinkingTokens": 11321,
+        "cachedTokens": 0,
+        "costUsd": 0.40824,
+        "unpriced": 0
+      }
+    }
+  }
+}

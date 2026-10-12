@@ -29,6 +29,12 @@ export interface CatalogPaper {
   shortNameHe: string;
   /** Anatomy / lookalike guidance for the file-reading models only (never shown to clients). */
   analysisHintHe?: string;
+  /**
+   * The client may state this paper's content in the conversation instead of
+   * sending it (openspec `chat-stated-cost`): today the two cost declarations.
+   * A paper without the flag always needs a received document.
+   */
+  clientMayStateInChat?: true;
 }
 
 /**
@@ -113,6 +119,7 @@ const REAL_ESTATE_PAPERS: readonly CatalogPaper[] = [
   {
     key: 'cost_declaration',
     shortNameHe: 'הצהרת עלות',
+    clientMayStateInChat: true,
     analysisHintHe:
       'הצהרת עלות: דף קצר, מודפס או בכתב יד, שהלקוח כתב וחתם עליו, ובו עלות הרכישה של הנכס (גם אם משוערת) — לרוב גם זיהוי הנכס (כתובת) ולעיתים שנת הרכישה ושמות הרוכשים, אך די בסכום ובחתימה. אינה הצהרת עלות: מסמך של בנק, של רשות או של עורך דין.',
   },
@@ -127,6 +134,32 @@ const REAL_ESTATE_PAPERS: readonly CatalogPaper[] = [
     shortNameHe: 'דוח מצבת תשלומים מהקבלן',
     analysisHintHe:
       'דוח מצבת תשלומים / אישור תשלומים מהקבלן או מהיזם: מסמך על נייר של החברה הקבלנית, המציג לדירה שטרם נמסרה כמה שולם בפועל עד כה וכמה נותר לתשלום, לרוב כטבלה של תשלומים לפי לוח החוזה. אינו דוח מצבת תשלומים: נספח התשלומים של החוזה (התוכנית), קבלה בודדת, או אישור יתרת משכנתא.',
+  },
+];
+
+/**
+ * The papers of a vehicle (openspec `chat-stated-cost`): the licence, the
+ * purchase paper, and the cost declaration the client may state in the chat.
+ */
+const VEHICLE_PAPERS: readonly CatalogPaper[] = [
+  {
+    key: 'vehicle_license',
+    shortNameHe: 'רישיון רכב',
+    analysisHintHe:
+      'רישיון רכב ישראלי (מסמך משרד התחבורה): בשורת הכותרת העליונה — מספר רכב, סוג, ותאריך "בתוקף עד"; בגוף — שם הבעלים ומספר הזהות, תוצר, דגם וכינוי מסחרי, מועד עליה לכביש, מספר שילדה. אינו רישיון רכב: חשבונית או קבלה מרכישת הרכב, פוליסת ביטוח רכב, או ספח התשלום לחידוש הרישיון בלבד ("חידוש רישיון רכב" / "הודעת זיכוי").',
+  },
+  {
+    key: 'vehicle_purchase_document',
+    shortNameHe: 'מסמך רכישה / קבלה',
+    analysisHintHe:
+      'מסמך רכישה או קבלה מרכישת הרכב: חשבונית מס / קבלה מסוכנות או ממגרש, זיכרון דברים או הסכם מכר רכב בין מוכר לקונה, או טופס העברת בעלות — מופיעים בו זיהוי הרכב (מספר רישוי, תוצר, דגם) והסכום ששולם. אינו מסמך רכישה: רישיון הרכב, פוליסת ביטוח, או דף שהלקוח כתב וחתם עליו (זו הצהרת עלות).',
+  },
+  {
+    key: 'vehicle_cost_declaration',
+    shortNameHe: 'הצהרת עלות',
+    clientMayStateInChat: true,
+    analysisHintHe:
+      'הצהרת עלות: דף קצר, מודפס או בכתב יד, שהלקוח כתב וחתם עליו, ובו עלות הרכישה של הרכב (גם אם משוערת) — לרוב גם זיהוי הרכב (תוצר, דגם או מספר רישוי). אינה הצהרת עלות: חשבונית, קבלה, רישיון רכב או מסמך של גוף אחר.',
   },
 ];
 
@@ -216,7 +249,7 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
       'נכס שנרכש יד שנייה — חוזה רכישה בלבד. ' +
       'נכס שנרכש מקבלן — חוזה רכישה + נספח תשלומים (השניים יחידה אחת); אם עד יום 31.12.{{tax_year}} הדירה טרם נמסרה וטרם שולם עליה התשלום האחרון ("על הנייר") — חובה גם דוח מצבת תשלומים / אישור תשלומים מהקבלן או היזם, המציג כמה שולם בפועל עד כה וכמה נותר לתשלום. ' +
       'אם צוין רק שהנכס נרכש, בלי לציין יד שנייה או קבלן — חוזה רכישה בלבד, והשיחה תברר רק אם אין נייר מאושר שמכריע (חוזה מאושר שבו המוכר אדם פרטי = יד שנייה; המוכר קבלן או חברה = מקבלן). ' +
-      'חלופה שנייה, רק כשהלקוח אינו מוצא את חוזה הרכישה (בדרך כלל ברכישה ישנה) או את נספח התשלומים ברכישה מקבלן: במקום מסמכי הרכישה — שומת מס רכישה מהאזור האישי באתר רשות המסים + נסח טאבו. אם בשומה לא מופיעה עלות הרכישה (נדיר) — במקום השומה: הצהרת עלות חתומה — הלקוח כותב על דף כמה לפי הערכתו שילם על הנכס וחותם — לצד נסח הטאבו. ' +
+      'חלופה שנייה, רק כשהלקוח אינו מוצא את חוזה הרכישה (בדרך כלל ברכישה ישנה) או את נספח התשלומים ברכישה מקבלן: במקום מסמכי הרכישה — שומת מס רכישה מהאזור האישי באתר רשות המסים + נסח טאבו. אם בשומה לא מופיעה עלות הרכישה (נדיר) — במקום השומה: הצהרת עלות — הלקוח כותב על דף כמה לפי הערכתו שילם על הנכס וחותם, או מוסר את הסכום במילותיו בשיחה (בצ\'אט) — לצד נסח הטאבו. ' +
       'נכס בירושה — צו ירושה + נסח טאבו; נכס במתנה — נסח טאבו עדכני בלבד; בשני המקרים הנכס מדווח בעלות נומינלית של 1 ש"ח. ' +
       'נכס שכבר נכלל בהצהרת הון קודמת שנערכה במשרדנו — אין צורך במסמכים מחדש: העלות והחוזה שמורים במערכת המשרד.',
     discoveryQuestionHe:
@@ -266,13 +299,14 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     descriptionHe:
       'לכל כלי רכב בבעלותך (פרטי, מסחרי, אופנוע) — בהצהרה מצוינים יצרן, דגם, שנת ייצור, מספר רישוי ועלות הרכישה. שני מסמכים לכל רכב: ' +
       'חובה לכל רכב — העתק רישיון רכב בתוקף (רישיון שפג תוקפו אינו קביל). ' +
-      'לגבי העלות — מסמך רכישה או קבלה מרכישת הרכב (חשבונית מס/קבלה וכדומה). אם אין בידי הלקוח מסמך רכישה או קבלה — במקומם הצהרת עלות מהלקוח, שבה הוא מצהיר כמה עלה לו הרכב.',
+      'לגבי העלות — מסמך רכישה או קבלה מרכישת הרכב (חשבונית מס/קבלה וכדומה). אם אין בידי הלקוח מסמך רכישה או קבלה — במקומם הצהרת עלות מהלקוח, שבה הוא מצהיר כמה עלה לו הרכב: דף חתום, או הסכום במילותיו בשיחה (בצ\'אט).',
     discoveryQuestionHe:
       'כמה כלי רכב (פרטי, מסחרי, אופנוע) רשומים על שמך, ומה הם? לגבי כל רכב — האם מסמך הרכישה או הקבלה מרכישת הרכב נמצאים בידיך?',
     analysisHintHe:
       'אנטומיית רישיון רכב ישראלי (מסמך משרד התחבורה): בשורת הכותרת העליונה — מספר רכב, סוג, ותאריך "בתוקף עד" (תוקף הרישיון); בגוף — שם הבעלים ומספר הזהות, תוצר, דגם וכינוי מסחרי, מועד עליה לכביש (מציין את שנת הייצור), מספר שילדה. הרישיון הוא המקור לכל פרטי הרכב שבהצהרה מלבד עלות הרכישה. אינו קביל: רישיון שפג תוקפו, או החלק התחתון של הדף בלבד ("חידוש רישיון רכב" / "הודעת זיכוי" — ספח תשלום לחידוש, לא הרישיון עצמו); רישיון הרכב תקף רק לאחר תשלום האגרה ומעבר מבחן הכשירות (טסט). אין לבלבל את "בתוקף עד" עם "תאריך רישום", "תאריך בעלות" או תאריך ההדפסה.',
     multiInstance: true,
     dateDependent: false,
+    papers: VEHICLE_PAPERS,
   },
   {
     key: 'contents_insurance',
@@ -368,6 +402,11 @@ export const CAPITAL_DOCUMENT_PAPER_VALUES: readonly string[] = [...PAPERS_BY_KE
 /** The paper with this key, from any type; undefined for unknown keys. */
 export function getCatalogPaper(key: string | null | undefined): CatalogPaper | undefined {
   return key ? PAPERS_BY_KEY.get(key)?.paper : undefined;
+}
+
+/** Whether the client may state this paper in the chat instead of sending it (openspec `chat-stated-cost`); false for unknown keys. */
+export function paperMayBeStatedInChat(paperKey: string | null | undefined): boolean {
+  return getCatalogPaper(paperKey)?.clientMayStateInChat === true;
 }
 
 /** The papers a type declares — empty for a type without papers or an unknown / ad-hoc type. */

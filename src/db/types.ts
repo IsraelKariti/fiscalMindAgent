@@ -132,9 +132,11 @@ export interface ClientRow {
  * 'claimed' = the client says they delivered it outside email (fax/in person)
  * or that the office already holds it, awaits the accountant's confirmation;
  * 'approved' = the automatic verification pipeline accepted the received file
- * (never set by hand); 'retired' (migration 050) = the requirements ladder
- * replaced this document with different ones — out of the goal, but never
- * presented as "the client doesn't have the asset".
+ * (never set by hand); 'stated' (migration 062, openspec `chat-stated-cost`)
+ * = a cost declaration the client stated in the conversation — settled like
+ * 'approved' but with no file, the evidence on the row; 'retired' (migration
+ * 050) = the requirements ladder replaced this document with different ones —
+ * out of the goal, but never presented as "the client doesn't have the asset".
  */
 export type DocumentStatus =
   | 'unresolved'
@@ -143,6 +145,7 @@ export type DocumentStatus =
   | 'claimed'
   | 'collected'
   | 'approved'
+  | 'stated'
   | 'retired';
 
 /**
@@ -165,7 +168,11 @@ export type ResolutionEvidence =
   // change (openspec `real-estate-goal-driven-clarification`): the verified
   // file, the row it was approved for, and the fact (a private seller retires
   // the appendix; a builder seller adds it).
-  | { source: 'approved_file'; file_id: string; document_id: string; fact: 'seller_private' | 'seller_builder' };
+  | { source: 'approved_file'; file_id: string; document_id: string; fact: 'seller_private' | 'seller_builder' }
+  // A cost the client stated in the conversation (openspec `chat-stated-cost`):
+  // the inbound message, the verbatim quote that carries the amount, and the
+  // amount with its currency code — the content of the cost declaration.
+  | { source: 'chat'; message_id: string; quote: string; amount: number; currency: string };
 
 export interface ClientDocumentRow {
   id: string;

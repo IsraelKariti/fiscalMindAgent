@@ -114,6 +114,17 @@ const MAPPINGS: Record<string, Mapping> = {
     });
     return { rows: list('retired_documents', items), consumed: ['rows', 'count'] };
   },
+  apply_stated_costs: (d) => {
+    const rows = Array.isArray(d['rows']) ? d['rows'] : [];
+    const items = rows.map((r) => {
+      if (!isRecord(r)) return JSON.stringify(r);
+      const amount = typeof r['amount'] === 'number' ? r['amount'].toLocaleString('en-US') : str(r['amount']) ?? '?';
+      const quote = str(r['quote']);
+      const head = `${docLabel(r)}: ${amount} ${str(r['currency']) ?? ''}`.trim();
+      return quote ? `${head} · "${quote}"` : head;
+    });
+    return { rows: list('stated_costs', items), consumed: ['rows', 'count'] };
+  },
   apply_collections: (d) => {
     const pairs = Array.isArray(d['pairs']) ? d['pairs'] : [];
     const pairItems = pairs.map((p) => {

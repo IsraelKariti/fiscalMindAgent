@@ -19,6 +19,9 @@ import {
 
 const ctx: DecisionContext = { emailAllowed: false, whatsappAllowed: true, windowOpen: true, templates: [] };
 
+/** No cost stated on an instance (openspec `chat-stated-cost`): amount 0 = none. */
+const NO_COST = { amount: 0, currency: '', message_id: '', quote: '' };
+
 const base: DecisionResponse = {
   decision: 'collect',
   reasoning: 'the client sent the Leumi certificate',
@@ -36,6 +39,7 @@ const base: DecisionResponse = {
   resolved_documents: null,
   added_instances: null,
   retired_documents: null,
+  stated_costs: [],
   attestation: null,
   attestation_evidence: null,
 };
@@ -74,7 +78,7 @@ describe('answerTiesFiles', () => {
           added_instances: [
             {
               anchor_document_id: 'doc-study',
-              instances: [{ name: 'קרן השתלמות הראל', description: null, already_provided: false, file_ids: ['file-harel'], paper_key: '' }],
+              instances: [{ name: 'קרן השתלמות הראל', description: null, already_provided: false, file_ids: ['file-harel'], paper_key: '', stated_cost: NO_COST }],
               evidence: { message_id: 'msg-1', quote: 'כן' },
               proven_by_file_id: '',
             },
@@ -143,6 +147,30 @@ describe('the collect decision (normalizeDecision)', () => {
     assert.throws(
       () => normalizeDecision(answer({ decision: 'follow_up', channel: 'whatsapp', whatsapp_text: 'תודה', send_at: '2026-09-23 17:00' }), ctx),
       /follow_up answer must not tie files/,
+    );
+  });
+
+  it('a cost stated in the chat ties no file: it is a follow_up with a message, never a collect (openspec chat-stated-cost)', () => {
+    const intake = {
+      resolvable: [],
+      typedRows: [{ id: 'doc-car-cost', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_cost_declaration' }],
+      inboundTexts: new Map([['msg-1', 'אין לי את הקבלה, שילמתי 85,000']]),
+      allSettled: false,
+      attestationRequested: false,
+      confirmableMessageIds: new Set<string>(),
+      attestationConfirmed: false,
+    };
+    const stated = [{ document_id: 'doc-car-cost', amount: 85000, currency: 'ILS', evidence: { message_id: 'msg-1', quote: 'שילמתי 85,000' } }];
+    assert.equal(answerTiesFiles(answer({ collected_document_ids: [], matched_files: [], stated_costs: stated })), false);
+    const decision = normalizeDecision(
+      answer({ decision: 'follow_up', collected_document_ids: [], matched_files: [], stated_costs: stated, channel: 'whatsapp', whatsapp_text: 'רשמתי 85,000 ש"ח', send_at: '2026-09-23 17:00' }),
+      { ...ctx, intake },
+    );
+    assert.equal(decision.decision, 'follow_up');
+    assert.equal(decision.statedCosts.length, 1);
+    assert.throws(
+      () => normalizeDecision(answer({ collected_document_ids: [], matched_files: [], stated_costs: stated }), { ...ctx, intake }),
+      /ties no file/,
     );
   });
 

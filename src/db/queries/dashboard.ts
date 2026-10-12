@@ -33,7 +33,7 @@ export async function listClientSummaries(userId: string): Promise<ClientSummary
        SELECT client_id,
               -- 'not_required' / 'retired' rows (capital-declaration intake) are not part of the goal.
               count(*) FILTER (WHERE status NOT IN ('not_required', 'retired')) AS total,
-              count(*) FILTER (WHERE status IN ('collected', 'approved')) AS collected
+              count(*) FILTER (WHERE status IN ('collected', 'approved', 'stated')) AS collected
        FROM client_documents
        GROUP BY client_id
      ) d ON d.client_id = c.id
@@ -70,7 +70,7 @@ export async function listClientSummariesForInstance(agentInstanceId: string): P
        SELECT client_id,
               -- 'not_required' / 'retired' rows (capital-declaration intake) are not part of the goal.
               count(*) FILTER (WHERE status NOT IN ('not_required', 'retired')) AS total,
-              count(*) FILTER (WHERE status IN ('collected', 'approved')) AS collected
+              count(*) FILTER (WHERE status IN ('collected', 'approved', 'stated')) AS collected
        FROM client_documents
        GROUP BY client_id
      ) d ON d.client_id = c.id

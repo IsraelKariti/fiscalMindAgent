@@ -259,6 +259,14 @@ export function buildDeadlineSection(token: string, client: ClientRow, now: Date
   return `${fence(token, PLATFORM_SECTIONS.deadline)}\nAll documents should be collected by: ${dueDate} (${distance})\n${endFence(token, PLATFORM_SECTIONS.deadline)}`;
 }
 
+/** The "הוצהר בצ'אט" line of a row the client's statement closed (openspec `chat-stated-cost`); null for every other row. */
+export function statedCostLine(doc: Pick<ClientDocumentRow, 'status' | 'resolution_evidence'>): string | null {
+  const ev = doc.resolution_evidence;
+  if (doc.status !== 'stated' || !ev || !('source' in ev) || ev.source !== 'chat') return null;
+  const amount = Number.isFinite(ev.amount) ? ev.amount.toLocaleString('en-US') : String(ev.amount);
+  return `הוצהר בצ'אט: ${amount} ${sanitizeInline(ev.currency, 3)} — "${sanitizeInline(ev.quote, 200)}"`;
+}
+
 /** Lives in `contents` (not the template) so the system prompt stays static and cacheable. */
 export function buildDocumentsSection(token: string, documents: ClientDocumentRow[], taxYear?: number): string {
   // Retired rows (capital declaration: replaced by other documents via the
@@ -298,6 +306,10 @@ export function buildDocumentsSection(token: string, documents: ClientDocumentRo
     // client a fact this line settles.
     const proven = provenFactsLine(provenFactsOf(doc));
     if (proven) extras.push(proven);
+    // A cost declaration the client stated in the chat (openspec
+    // `chat-stated-cost`): settled with no file; the model never asks for it again.
+    const stated = statedCostLine(doc);
+    if (stated) extras.push(stated);
     // A pending row that already failed verification tells the model exactly
     // what to ask the client to fix (reasons are our own code's Hebrew strings).
     const verification = doc.verification as { passed?: boolean; reasons?: unknown } | null;

@@ -89,9 +89,11 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | `generate_message` LLM call, at most one corrective retry; bill usage | `DOC/plan.ts` · `askPlanner` → `DOC/decide.ts` · `decide`, `buildDecisionCall` |
 | `validate_message` gate: shape, then business rules | `DOC/decisionSchema.ts` · `gateDecision` → `normalizeDecision` (`validateResolutions`, `validateAddedInstances`, `validateRetirements`, `validateAttestation`, `validateMatchedFiles`, `validateTaxFetch`, `normalizeFollowUpMessage`, `answerTiesFiles`, `correctionSuffix`) |
 | An approved property paper cited instead of a client quote (`proven_by_file_id`): only the appendix change its seller kind implies | `DOC/decisionSchema.ts` · `validateProvenByFile` (pool: `DOC/provenFacts.ts` · `approvedPropertyFilesOf`) |
+| A cost the client stated in the chat (`stated_costs` / an instance's `stated_cost`): the item is a pending cost declaration, the quote is verbatim, the amount is written in the quote (checks `stated_cost_item_allows`, `stated_cost_amount_in_quote`) | `DOC/decisionSchema.ts` · `validateStatedCosts` (`statedCostTargetFault`, `amountAppearsIn`) |
 | `apply_resolutions` | `DOC/plan.ts` · `applyResolutions` |
 | `apply_additions` | `DOC/plan.ts` · `applyAdditions` |
 | `apply_retirements` | `DOC/plan.ts` · `applyRetirements` |
+| `apply_stated_costs` — a cost declaration closed by the client's chat message: the row becomes `stated` with the statement as its evidence | `DOC/plan.ts` · `applyStatedCosts` (`clientDocuments.markStated`) |
 | A changed checklist voids the attestation; reload; tell the accountant about rows born claimed | `DOC/plan.ts` · `settleChecklistChanges` |
 | `apply_attestation` (confirmed) | `DOC/plan.ts` · `applyAttestationConfirmed` |
 | Which proposed file ties are allowed (split parents, company agreement) | `SH/fileEvidence.ts` · `applicableFilePairs`; `DOC/fileTies.ts` · `filterPairsByCompany` (`companyRefusal`, `paperRefusal`) |

@@ -295,8 +295,13 @@ export function Timeline({
   channels,
   hideStatusFooter = false,
   clientId,
+  focusedMessageId = null,
+  onFocusedMessageShown,
 }: {
   emails: Email[];
+  /** Scroll to this message and highlight it briefly (openspec `chat-stated-cost`); the caller clears it through onFocusedMessageShown. */
+  focusedMessageId?: string | null;
+  onFocusedMessageShown?: () => void;
   /**
    * Enables the admin-only LLM trace toggle (calls + audited code steps woven
    * between the messages). Only shown to an admin viewer (ViewerProvider); the
@@ -360,6 +365,20 @@ export function Timeline({
   const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const bodyRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
+  // The bubble a focus request highlighted; cleared after a moment.
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focusedMessageId) return;
+    const el = listRef.current?.querySelector<HTMLElement>(`#message-${CSS.escape(focusedMessageId)}`);
+    if (el) {
+      el.scrollIntoView({ block: 'center' });
+      setHighlightedId(focusedMessageId);
+    }
+    onFocusedMessageShown?.();
+    if (!el) return;
+    const timer = window.setTimeout(() => setHighlightedId((id) => (id === focusedMessageId ? null : id)), 2000);
+    return () => window.clearTimeout(timer);
+  }, [focusedMessageId, onFocusedMessageShown]);
   // Admin-only LLM trace. The toggle exists only for an admin viewer with a
   // clientId; the accountant never sees it and the endpoint behind it
   // (requireAdmin, checked on the REAL user) refuses their session anyway.
@@ -745,7 +764,11 @@ export function Timeline({
               (!prev || subjectKey(email.subject) !== subjectKey(prev.subject));
             const attachments = filesByEmail.get(email.id) ?? [];
             return (
-              <li key={email.id} className={`timeline-item ${outbound ? 'outbound' : 'inbound'}`}>
+              <li
+                key={email.id}
+                id={`message-${email.id}`}
+                className={`timeline-item ${outbound ? 'outbound' : 'inbound'}${highlightedId === email.id ? ' highlighted' : ''}`}
+              >
                 <div className="timeline-meta">
                   {showChannelBadges && (
                     <span className={`channel-badge channel-${email.channel}`}>{channelLabel(email.channel)}</span>

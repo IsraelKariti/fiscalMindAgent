@@ -61,6 +61,7 @@ export type DocumentStatus =
   | 'claimed'
   | 'collected'
   | 'approved'
+  | 'stated'
   | 'retired';
 
 /** The verification pipeline's latest verdict for a row (subset the UI renders). */
@@ -93,14 +94,17 @@ export interface ClientDocument {
   /** The client quote behind an agent-made 'not_required' — from a stored inbound message or the intake questionnaire; or the file behind a per-company split row. */
   resolution_evidence: {
     message_id?: string;
-    /** 'approved_file': an approved property paper whose proven seller kind retired this row. */
-    source?: 'form' | 'form_empty' | 'file' | 'approved_file';
+    /** 'approved_file': an approved property paper whose proven seller kind retired this row; 'chat': a cost the client stated in the conversation. */
+    source?: 'form' | 'form_empty' | 'file' | 'approved_file' | 'chat';
     question?: string;
     quote?: string;
     file_id?: string;
     issuer?: string;
     employer?: string;
     fact?: 'seller_private' | 'seller_builder';
+    /** 'chat' only: the stated purchase cost and its currency code. */
+    amount?: number;
+    currency?: string;
   } | null;
   created_at: string;
   updated_at: string;

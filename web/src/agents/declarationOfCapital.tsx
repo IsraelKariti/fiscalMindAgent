@@ -30,6 +30,8 @@ const clientTabs: ClientTab[] = [
           drafting={ctx.drafting}
           draftFailed={ctx.draftFailed}
           draftStale={ctx.draftStale}
+          focusedMessageId={ctx.focusedMessageId}
+          onFocusedMessageShown={ctx.clearFocusedMessage}
           onRetryDraft={async () => {
             await ctx.api.retryDraft(ctx.client.id);
             // The server restamped the drafting state — refetch so the placeholder
@@ -87,6 +89,7 @@ const clientTabs: ClientTab[] = [
             documents={ctx.documents}
             files={ctx.files}
             capital
+            onFocusMessage={ctx.focusMessage}
             onChanged={async () => {
               // A document change can flip goal_status and (re)schedule messages — refresh everything.
               await ctx.load();

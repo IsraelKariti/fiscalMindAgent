@@ -49,6 +49,19 @@ export function ClientView({
     lastViewedTab.set(clientId, tab);
   };
 
+  // A request from another tab (the documents card's "stated in chat" note) to
+  // show one message in the conversation: switch tabs, the timeline scrolls.
+  const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null);
+  const focusMessage = useCallback(
+    (messageId: string) => {
+      setActiveTab('conversation');
+      lastViewedTab.set(clientId, 'conversation');
+      setFocusedMessageId(messageId);
+    },
+    [clientId],
+  );
+  const clearFocusedMessage = useCallback(() => setFocusedMessageId(null), []);
+
   // `background`: the app's own refresh (interval, SSE tick, tab re-shown), not
   // something the user did — it must not keep an admin's view-as session alive.
   const load = useCallback(async (opts?: RequestOpts) => {
@@ -159,6 +172,9 @@ export function ClientView({
     drafting,
     draftFailed,
     draftStale,
+    focusMessage,
+    focusedMessageId,
+    clearFocusedMessage,
   };
 
   return (

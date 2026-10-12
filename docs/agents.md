@@ -381,6 +381,51 @@ Industry pattern followed: one app with an agent registry
   on legacy CLI-era rows, for which no agent acts). Per-agent scalar fields
   go in `clients.agent_fields` JSONB; relational per-agent data gets its own
   tables keyed by `client_id` (pattern: `client_documents`).
+- **Client identity and soft delete** (2026-10-12, migration 063, openspec
+  `soft-delete-clients`, spec `client-lifecycle`). A client is its id for
+  life; within one instance no two *live* clients share an email address
+  (case-insensitive) or a WhatsApp phone — the partial unique indexes
+  `clients_instance_email_address_key` / `clients_instance_wa_phone_key`
+  carry `WHERE deleted_at IS NULL`, so the database, not the lookups, owns
+  the rule. **Deleting a client keeps everything**: `DELETE
+  /api/agents/:agentId/clients/:id` cancels the pending send under the client
+  lock, `clients.markDeleted` stamps `deleted_at` / `deleted_by` (the admin
+  while viewing as), the roster tick fires and a `client.deleted` audit row
+  is written; messages, documents, files, blobs, tax-fetch sessions, LLM
+  calls and audit links stay, nothing is wiped from blob storage (a later
+  retention change may purge). A double delete answers "not found". Account
+  deletion (the user's own) still erases by cascade. The same email / phone
+  can then be added again — the ordinary insert path makes a brand-new
+  client with its own history; the deleted record is never revived. **A
+  deleted client is out of every roster and every work path**: the queries
+  module appends one `LIVE` predicate (`deleted_at IS NULL`) to every
+  lookup that drives work — `getById` (workers, planner, resync, status sync),
+  `getByIdForUser`, `getByIdForInstance`, `listForUser` / `listForInstance`,
+  the email / phone lookups (inbound routing, kickoff, import scan, add
+  form), `listDraftingWithoutSchedule`, `listOverdueForAgentTypes`,
+  `markOverdueStopped`, the two `updateDetails*` writes — plus
+  `dashboard.ts` (summaries, activity, file counts),
+  `agentInstances.listAllWithClientCounts` and the admin review queue. Work
+  in flight that re-reads its client (`setFutureEmail`, `sendEmailWorker`,
+  `resyncScheduledJobs`, the tax-fetch runner, `plan.ts`' fresh read)
+  finds `null` and ends with a log line; an inbound message from a deleted
+  client's number is an unknown number unless a live client has it. Display
+  reads that must still show a deleted client use `clients.getAnyById`
+  (admin conversation viewer, call detail) — never a work path. **The admin
+  sees deleted clients read-only**, under view-as only (`isViewingAs(req)`:
+  `realUserId !== userId`, `src/api/viewAs.ts`): `GET …/clients?deleted=1`
+  (403 otherwise; `listDeletedForInstance`, newest first, with the deleter's
+  name as `deletedBy`), and the per-client READ routes (client, events,
+  thread, files, file streaming, documents list) load with `includeDeleted`
+  while every write route stays live-only and answers 404. The sidebar
+  shows a "לקוחות שנמחקו" toggle only while impersonating, `ClientView`
+  renders a deletion banner and passes `readOnly` through `ClientTabContext`
+  so `Timeline`, `DocumentsCard`, `ClientHeader` and `WhatsAppCard` render
+  no action control; the accountant's own session never sees the toggle and
+  a deleted client's link answers "client not found". The delete modal says
+  the client leaves the list, the data is kept, and the same phone / email
+  can be added again. DB-backed test: `npm run test:db`
+  (`tests/clientLifecycle.test.ts`, needs the local database with 063).
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
   UNIQUE (migration 021): each agent instance that uses WhatsApp gets its own
   dedicated Twilio number, assigned by an admin (AdminDashboard agents section
@@ -872,7 +917,9 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   WhatsApp half of that ambiguity is resolved since migration 021: each
   number is dedicated to one instance, so the `To` number picks the agent.
   Also deferred: BullMQ repeatable-job queue for `'none'`-model periodic
-  agents.
+  agents; a retention / purge rule for deleted clients' personal data and
+  blobs (soft delete keeps `document_files` rows, so a purge job has the
+  keys); undelete.
 - Per-agent LLM cost attribution shipped with migration 023: `llmUsage.add`
   writes both the lifetime `llm_model_usage` counters and a daily
   `llm_usage_daily` bucket per (day, accountant, agent instance, model), days

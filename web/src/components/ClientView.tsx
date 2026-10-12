@@ -11,6 +11,7 @@ import {
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { AgentTypeUI, ClientTabContext } from '../agents/types';
 import { useT } from '../i18n';
+import { formatTimestamp } from '../format';
 
 // Per-client last-viewed tab, in memory only: switching between clients
 // restores each client's tab, but a page load always starts on Conversation.
@@ -121,8 +122,13 @@ export function ClientView({
   // never-contacted client whose first message is being drafted and held for
   // the accountant (openspec `first-message-approval`), which the server marks
   // with drafting_since (or draft_failed_at when that attempt threw).
+  // A deleted client (admin view-as only — the accountant's route 404s): the
+  // record is shown as it stands, with no action control anywhere and no
+  // "drafting…" placeholder (nothing will ever be drafted for it).
+  const readOnly = client?.deletedAt != null;
   const drafting =
     client !== null &&
+    !readOnly &&
     client.goal_status === 'pending' &&
     !nextScheduled &&
     (!client.paused || client.drafting_since != null || client.draft_failed_at != null);
@@ -175,10 +181,16 @@ export function ClientView({
     focusMessage,
     focusedMessageId,
     clearFocusedMessage,
+    readOnly,
   };
 
   return (
     <div className="client-view dashboard">
+      {readOnly && client.deletedAt && (
+        <div className="deleted-client-banner" role="status">
+          {t.deletedClientBanner(formatTimestamp(client.deletedAt), client.deletedBy)}
+        </div>
+      )}
       {tabs.length > 1 && (
         <div className="client-tabs" role="tablist" aria-label={t.clientSectionsAria}>
           {tabs.map((tab) => (

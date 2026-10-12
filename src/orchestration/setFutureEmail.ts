@@ -13,7 +13,12 @@ import type { PlanHints } from '../agents/types.js';
  */
 export async function setFutureEmail(clientId: string, hints?: PlanHints): Promise<void> {
   const client = await clients.getById(clientId);
-  if (!client) throw new Error(`setFutureEmail: client ${clientId} not found`);
+  if (!client) {
+    // No live client: deleted meanwhile (openspec `soft-delete-clients`) or
+    // never existed — the job ends quietly, nothing is drafted or sent.
+    logger.info('setFutureEmail: no live client, nothing planned', { clientId });
+    return;
+  }
   if (client.goal_status === 'complete') return;
   if (client.paused) {
     // A paused, never-contacted manual-kickoff client is holding its first

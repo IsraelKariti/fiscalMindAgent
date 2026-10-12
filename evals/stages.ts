@@ -776,6 +776,8 @@ function clientRow(c: DecideCase): ClientRow {
     admin_paused: false,
     drafting_since: null,
     draft_failed_at: null,
+    deleted_at: null,
+    deleted_by: null,
     created_at: createdAt,
     updated_at: createdAt,
   };

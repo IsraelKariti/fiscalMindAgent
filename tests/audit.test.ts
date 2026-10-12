@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { redactForAudit } from '../src/audit/redact.js';
+import type { AuditEvent } from '../src/audit/audit.js';
 
 test('masks secret-looking keys at any depth', () => {
   const out = redactForAudit({
@@ -48,4 +49,16 @@ test('passes through primitives and null unchanged', () => {
   assert.equal(redactForAudit(5), 5);
   assert.equal(redactForAudit(true), true);
   assert.equal(redactForAudit('short'), 'short');
+});
+
+test('client.deleted is an audit action (openspec soft-delete-clients)', () => {
+  // Type-level: the literal must be a member of AuditAction for this to compile.
+  const event: AuditEvent = {
+    actorType: 'accountant',
+    action: 'client.deleted',
+    actorUserId: 'admin',
+    agentInstanceId: 'instance',
+    clientId: 'client',
+  };
+  assert.equal(event.action, 'client.deleted');
 });

@@ -41,6 +41,10 @@ export interface Client {
   drafting_since: string | null;
   /** Set when the last planning attempt threw; the timeline shows a Retry button. */
   draft_failed_at: string | null;
+  /** Soft-deleted (openspec `soft-delete-clients`): out of the roster, read-only for an admin viewing as. null = live. */
+  deletedAt: string | null;
+  /** Display name of the user who deleted the client; set on the deleted list only. */
+  deletedBy: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -842,6 +846,9 @@ function makeWorkspaceApi(prefix: string) {
   return {
     dashboard: (opts?: RequestOpts) => request<DashboardSummary>(`${prefix}/dashboard`, undefined, opts),
     listClients: (opts?: RequestOpts) => request<{ clients: Client[] }>(`${prefix}/clients`, undefined, opts),
+    /** The instance's deleted clients — an admin viewing as only (403 otherwise). */
+    listDeletedClients: (opts?: RequestOpts) =>
+      request<{ clients: Client[] }>(`${prefix}/clients?deleted=1`, undefined, opts),
     createClient: (args: {
       name: string;
       email: string;

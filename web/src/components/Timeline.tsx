@@ -294,6 +294,7 @@ export function Timeline({
   onRetrySend,
   channels,
   hideStatusFooter = false,
+  readOnly = false,
   clientId,
   focusedMessageId = null,
   onFocusedMessageShown,
@@ -340,6 +341,12 @@ export function Timeline({
   channels: readonly MessageChannel[];
   /** Goal-less agents (customer service) pass goalStatus="complete" just to mute the scheduling UI — hide its footer too. */
   hideStatusFooter?: boolean;
+  /**
+   * A deleted client under admin view-as (openspec `soft-delete-clients`): the
+   * thread and a preserved draft show as recorded, with no action button and
+   * none of the "drafting…" / paused / retry placeholders.
+   */
+  readOnly?: boolean;
 }) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
@@ -852,7 +859,7 @@ export function Timeline({
                 {pendingReview && (
                   <span className="badge badge-pending review-pending-badge">{t.adminMsgStatusHeld}</span>
                 )}
-                {pendingReview && !paused && (
+                {!readOnly && pendingReview && !paused && (
                   <button
                     type="button"
                     className="btn btn-primary btn-small approve-draft-btn"
@@ -862,7 +869,7 @@ export function Timeline({
                     {approveBusy ? t.approvingDraft : t.reviewApprove}
                   </button>
                 )}
-                {paused ? (
+                {readOnly ? null : paused ? (
                   <button
                     type="button"
                     className="btn btn-ghost btn-small resume-btn"
@@ -938,7 +945,7 @@ export function Timeline({
           {/* Paused with no preserved draft (a reply obsoleted it while paused, or the
               pause landed mid-redraft): nothing is scheduled and nothing will be until
               the accountant resumes, which has the agent redraft. */}
-          {paused && !nextScheduled && goalStatus === 'pending' && !drafting && (
+          {!readOnly && paused && !nextScheduled && goalStatus === 'pending' && !drafting && (
             <li className="timeline-item outbound scheduled">
               <div className="bubble bubble-scheduled bubble-paused">
                 <span className="paused-icon">{icon.pause}</span>
@@ -956,7 +963,7 @@ export function Timeline({
           )}
           {/* Drafting failed (the attempt threw) or stalled (killed mid-flight and will
               never finish): swap the pulsing placeholder for a notice with a manual retry. */}
-          {(!paused || drafting) && !nextScheduled && goalStatus === 'pending' && (draftFailed || draftStale) && (
+          {!readOnly && (!paused || drafting) && !nextScheduled && goalStatus === 'pending' && (draftFailed || draftStale) && (
             <li className="timeline-item outbound scheduled">
               <div className="bubble bubble-scheduled bubble-draft-failed">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -977,7 +984,7 @@ export function Timeline({
           )}
           {/* Goal open but nothing scheduled: the agent is between decisions — a fresh
               client awaiting its first draft, or a follow-up being drafted after a send/reply. */}
-          {(!paused || drafting) && !nextScheduled && goalStatus === 'pending' && !draftFailed && !draftStale && (
+          {!readOnly && (!paused || drafting) && !nextScheduled && goalStatus === 'pending' && !draftFailed && !draftStale && (
             <li className="timeline-item outbound scheduled drafting">
               <div className="bubble bubble-scheduled bubble-drafting">
                 <svg

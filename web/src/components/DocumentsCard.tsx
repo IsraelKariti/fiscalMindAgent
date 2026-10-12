@@ -20,6 +20,8 @@ interface Props {
   capital?: boolean;
   /** Opens the conversation on the message a chat-stated cost rests on (openspec `chat-stated-cost`). */
   onFocusMessage?: (messageId: string) => void;
+  /** A deleted client under admin view-as (openspec `soft-delete-clients`): no row actions, no add form; files still open. */
+  readOnly?: boolean;
 }
 
 /** The view/download icon pair for one received file. */
@@ -167,7 +169,7 @@ const CAPITAL_GROUPS: { status: DocumentStatus; labelKey: keyof Messages; collap
   { status: 'retired', labelKey: 'groupRetired', collapsed: true },
 ];
 
-export function DocumentsCard({ clientId, documents, files, onChanged, titleKey, emptyTextKey, capital, onFocusMessage }: Props) {
+export function DocumentsCard({ clientId, documents, files, onChanged, titleKey, emptyTextKey, capital, onFocusMessage, readOnly = false }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [name, setName] = useState('');
@@ -278,7 +280,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
             {doc.description && <span className="doc-desc muted">{doc.description}</span>}
           </span>
           <span className={`badge ${badge.className}`}>{badge.label}</span>
-          <ActionMenu items={actions} label={t.rowActions} disabled={busy} />
+          {!readOnly && <ActionMenu items={actions} label={t.rowActions} disabled={busy} />}
         </div>
         {linked.length > 0 && (
           <ul className="doc-file-list">
@@ -337,7 +339,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
             <input
               type="checkbox"
               checked={doc.status === 'collected'}
-              disabled={busy}
+              disabled={busy || readOnly}
               onChange={() => setStatus(doc, doc.status === 'collected' ? 'pending' : 'collected')}
             />
             <span className="doc-text">
@@ -353,9 +355,11 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
           >
             {doc.status === 'collected' ? t.collectedStatus : doc.status === 'claimed' ? t.claimedStatus : t.pendingStatus}
           </span>
-          <button className="chip-x" title={t.removeDocument} disabled={busy} onClick={() => run(() => api.deleteDocument(clientId, doc.id))}>
-            ×
-          </button>
+          {!readOnly && (
+            <button className="chip-x" title={t.removeDocument} disabled={busy} onClick={() => run(() => api.deleteDocument(clientId, doc.id))}>
+              ×
+            </button>
+          )}
         </div>
         {showFileList && (
           <ul className="doc-file-list">
@@ -445,6 +449,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         {viewing && <FileViewModal clientId={clientId} file={viewing} onClose={() => setViewing(null)} />}
       </div>
 
+      {!readOnly && (
       <form className="doc-add-form panel-footer" onSubmit={add}>
         <input
           value={name}
@@ -462,6 +467,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
           {t.addDocument}
         </button>
       </form>
+      )}
     </section>
   );
 }

@@ -8,6 +8,8 @@ import { ConfirmModal } from './ConfirmModal';
 interface Props {
   client: Client;
   onSaved: (client: Client) => Promise<void>;
+  /** A deleted client under admin view-as (openspec `soft-delete-clients`): status only, no toggle. */
+  readOnly?: boolean;
 }
 
 /**
@@ -15,7 +17,7 @@ interface Props {
  * client's consent; the server records who enabled it and when, and lets the
  * agent start using the channel.
  */
-export function WhatsAppCard({ client, onSaved }: Props) {
+export function WhatsAppCard({ client, onSaved, readOnly = false }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   // Prefill in local Israeli format; the server normalizes either form to E.164.
@@ -54,7 +56,13 @@ export function WhatsAppCard({ client, onSaved }: Props) {
 
       {error && <div className="error-banner">{error}</div>}
 
-      {client.wa_enabled ? (
+      {readOnly ? (
+        <div className="btn-row">
+          <span className="settings-mailbox-address" dir="ltr">
+            {client.wa_phone && formatPhoneForDisplay(client.wa_phone)}
+          </span>
+        </div>
+      ) : client.wa_enabled ? (
         <div className="btn-row">
           <span className="settings-mailbox-address" dir="ltr">
             {client.wa_phone && formatPhoneForDisplay(client.wa_phone)}

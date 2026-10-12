@@ -5,7 +5,6 @@ import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as dashboard from '../db/queries/dashboard.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
-import { deleteBlob } from '../storage/blob.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import { normalizeE164 } from '../util/phone.js';
@@ -30,10 +29,12 @@ import { resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { capitalClientTaxYear, defaultTaxYear } from '../agents/shared/taxYear.js';
 import { applyFormIntake, type FormAnswer } from '../agents/declarationOfCapital/formIntake.js';
 import { logger } from '../util/logger.js';
+import { recordAudit } from '../audit/audit.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { streamFile } from './fileStream.js';
 import { DueDateSchema } from './schemas.js';
 import { toWorkspaceClient, toWorkspaceEmail } from './workspaceSerialize.js';
+import { isViewingAs } from './viewAs.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -110,12 +111,32 @@ workspaceRouter.get(
   }),
 );
 
+// `?deleted=1` lists the instance's soft-deleted clients (openspec
+// `soft-delete-clients`) — only for an admin viewing as the accountant; the
+// accountant's own session gets 403, so deleted clients never reach them.
 workspaceRouter.get(
   '/clients',
   wrap(async (req, res) => {
+    if (req.query['deleted'] === '1') {
+      if (!isViewingAs(req)) {
+        res.status(403).json({ error: 'Deleted clients are visible to an administrator only.' });
+        return;
+      }
+      res.json({ clients: (await clients.listDeletedForInstance(req.agentInstance!.id)).map(toWorkspaceClient) });
+      return;
+    }
     res.json({ clients: (await clients.listForInstance(req.agentInstance!.id)).map(toWorkspaceClient) });
   }),
 );
+
+/**
+ * The client a READ route shows: live, or — for an admin viewing as — also a
+ * deleted one (read-only view). Write routes keep the plain live read, so
+ * every change to a deleted client answers "not found".
+ */
+async function readableClient(req: Parameters<RequestHandler>[0], id: string | null) {
+  return id ? clients.getByIdForInstance(id, req.agentInstance!.id, { includeDeleted: isViewingAs(req) }) : null;
+}
 
 // SSE stream of "this instance's client roster changed" ticks (import scan, daily
 // auto-enroll, add/delete from another tab), relayed from Redis pub/sub so enrollments
@@ -248,8 +269,7 @@ workspaceRouter.post(
 workspaceRouter.get(
   '/clients/:id',
   wrap(async (req, res) => {
-    const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = await readableClient(req, uuidParam(req.params.id));
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -282,8 +302,7 @@ workspaceRouter.get(
 workspaceRouter.get(
   '/clients/:id/events',
   wrap(async (req, res) => {
-    const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = await readableClient(req, uuidParam(req.params.id));
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -399,6 +418,11 @@ workspaceRouter.put(
   }),
 );
 
+// Soft delete (openspec `soft-delete-clients`): the client leaves the roster
+// and keeps everything — messages, documents, files, blobs, tax-fetch sessions,
+// LLM calls and audit links — for the records and for the admin's read-only
+// view. Nothing is wiped from blob storage. The same email / phone may then be
+// added again as a brand-new client (the unique indexes cover live rows only).
 workspaceRouter.delete(
   '/clients/:id',
   wrap(async (req, res) => {
@@ -408,20 +432,27 @@ workspaceRouter.delete(
       res.status(404).json({ error: 'Client not found.' });
       return;
     }
-    // Cancel the pending BullMQ send under the client lock so an in-flight draft/send settles first,
-    // then snapshot blob keys before the cascade wipes the document_files rows.
+    // Cancel the pending BullMQ send under the client lock so an in-flight
+    // draft/send settles first; work that re-reads the client afterwards finds
+    // no live row and stops.
     await withClientLock(client.id, () => removeFutureEmail(client.id));
-    const files = await documentFiles.listForClient(client.id);
-    await clients.removeForInstance(client.id, req.agentInstance!.id);
+    // False = already deleted meanwhile (a double delete) — "not found", as above.
+    if (!(await clients.markDeleted(client.id, req.agentInstance!.id, req.realUserId ?? req.userId ?? null))) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
     publishInstanceClientsUpdated(req.agentInstance!.id);
-    // Best-effort blob cleanup after the rows are gone — a failure only orphans a blob.
-    await Promise.all(
-      files.map((file) =>
-        deleteBlob(file.blob_key).catch((err) =>
-          logger.error('delete client: blob cleanup failed', { blobKey: file.blob_key, err }),
-        ),
-      ),
-    );
+    // realUserId over userId: while viewing as, the actor is the admin.
+    recordAudit({
+      actorType: 'accountant',
+      action: 'client.deleted',
+      actorUserId: req.realUserId ?? req.userId ?? null,
+      agentInstanceId: req.agentInstance!.id,
+      clientId: client.id,
+      targetType: 'client',
+      targetId: client.id,
+      detail: { clientName: client.name, emailAddress: client.email_address, waPhone: client.wa_phone },
+    });
     res.json({ ok: true });
   }),
 );
@@ -429,8 +460,7 @@ workspaceRouter.delete(
 workspaceRouter.get(
   '/clients/:id/files',
   wrap(async (req, res) => {
-    const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = await readableClient(req, uuidParam(req.params.id));
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -444,9 +474,8 @@ workspaceRouter.get(
 // decides that the file belongs to a client of this instance.
 function serveFile(disposition: 'attachment' | 'inline'): RequestHandler {
   return wrap(async (req, res) => {
-    const id = uuidParam(req.params.id);
     const fileId = uuidParam(req.params.fileId);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = await readableClient(req, uuidParam(req.params.id));
     const file = client && fileId ? await documentFiles.getForClient(fileId, client.id) : null;
     if (!file) {
       res.status(404).json({ error: 'File not found.' });
@@ -462,8 +491,7 @@ workspaceRouter.get('/clients/:id/files/:fileId/view', serveFile('inline'));
 workspaceRouter.get(
   '/clients/:id/emails',
   wrap(async (req, res) => {
-    const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = await readableClient(req, uuidParam(req.params.id));
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;

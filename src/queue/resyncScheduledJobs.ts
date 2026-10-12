@@ -22,10 +22,16 @@ export async function resyncScheduledJobs(): Promise<void> {
       const current = await scheduledJobs.getForClient(row.client_id);
       if (!current || current.bullmq_job_id !== row.bullmq_job_id) return;
 
-      // Paused sends are deliberately absent from Redis (the row preserves the
-      // draft and time for resume) — don't resurrect them here.
+      // A deleted client's row is inert (openspec `soft-delete-clients`): the
+      // live read is null and the send must never be re-queued. Paused sends
+      // are deliberately absent from Redis (the row preserves the draft and
+      // time for resume) — don't resurrect them either.
       const client = await clients.getById(row.client_id);
-      if (client?.paused) return;
+      if (!client) {
+        logger.info('scheduled send of a deleted client left unqueued', { clientId: row.client_id, jobId: row.bullmq_job_id });
+        return;
+      }
+      if (client.paused) return;
 
       // Failed sends wait for a manual retry (retryFailedSend) — auto-refiring
       // them at boot would retry into the same broken provider setup.

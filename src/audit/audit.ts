@@ -73,6 +73,9 @@ export type AuditAction =
   // verified document's printed id / replaced by a questionnaire or CRM cell.
   | 'client.spouse_inferred'
   | 'client.spouse_updated'
+  // Soft delete (openspec `soft-delete-clients`): the client left the roster,
+  // its record and data stay. Actor = the admin while viewing as.
+  | 'client.deleted'
   | 'agent.auto_provisioned'
   | 'wa_business.connected'
   | 'wa_business.disconnected'

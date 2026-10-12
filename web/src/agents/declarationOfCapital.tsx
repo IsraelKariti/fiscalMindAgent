@@ -30,6 +30,7 @@ const clientTabs: ClientTab[] = [
           drafting={ctx.drafting}
           draftFailed={ctx.draftFailed}
           draftStale={ctx.draftStale}
+          readOnly={ctx.readOnly}
           focusedMessageId={ctx.focusedMessageId}
           onFocusedMessageShown={ctx.clearFocusedMessage}
           onRetryDraft={async () => {
@@ -89,6 +90,7 @@ const clientTabs: ClientTab[] = [
             documents={ctx.documents}
             files={ctx.files}
             capital
+            readOnly={ctx.readOnly}
             onFocusMessage={ctx.focusMessage}
             onChanged={async () => {
               // A document change can flip goal_status and (re)schedule messages — refresh everything.
@@ -108,6 +110,7 @@ const clientTabs: ClientTab[] = [
         <ClientHeader
           client={ctx.client}
           withDueDate
+          readOnly={ctx.readOnly}
           onSaved={async (updated) => {
             ctx.setClient(updated);
             await ctx.onClientUpdated();
@@ -115,6 +118,7 @@ const clientTabs: ClientTab[] = [
         />
         <WhatsAppCard
           client={ctx.client}
+          readOnly={ctx.readOnly}
           onSaved={async (updated) => {
             ctx.setClient(updated);
             // Toggling the channel re-plans the next message — refresh the schedule too.

@@ -213,7 +213,7 @@ export async function countPendingReview(): Promise<number> {
      FROM emails e
      JOIN clients c ON c.id = e.client_id
      JOIN agent_instances i ON i.id = c.agent_instance_id
-     WHERE e.review_status = 'pending' AND i.agent_type = 'declaration_of_capital'`,
+     WHERE e.review_status = 'pending' AND i.agent_type = 'declaration_of_capital' AND c.deleted_at IS NULL`,
   );
   return rows[0]?.count ?? 0;
 }
@@ -241,7 +241,7 @@ export async function listPendingReview(): Promise<ReviewQueueRow[]> {
      LEFT JOIN agent_instances i ON i.id = c.agent_instance_id
      LEFT JOIN users u ON u.id = c.user_id
      LEFT JOIN scheduled_jobs sj ON sj.client_id = e.client_id
-     WHERE e.review_status = 'pending' AND i.agent_type = 'declaration_of_capital'
+     WHERE e.review_status = 'pending' AND i.agent_type = 'declaration_of_capital' AND c.deleted_at IS NULL
      ORDER BY COALESCE(sj.scheduled_for, e.created_at) ASC`,
   );
   return rows;

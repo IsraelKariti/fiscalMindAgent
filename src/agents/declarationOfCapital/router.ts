@@ -4,6 +4,7 @@ import * as clients from '../../db/queries/clients.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import { withClientLock } from '../../db/withClientLock.js';
 import { recordAudit } from '../../audit/audit.js';
+import { isViewingAs } from '../../api/viewAs.js';
 import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
@@ -154,7 +155,8 @@ export function buildRouter(): Router {
     '/clients/:id/documents',
     wrap(async (req, res) => {
       const id = uuidParam(req.params.id);
-      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+      // Read route: an admin viewing as also sees a deleted client's list (openspec `soft-delete-clients`).
+      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, { includeDeleted: isViewingAs(req) }) : null;
       if (!client) {
         res.status(404).json({ error: 'Client not found.' });
         return;

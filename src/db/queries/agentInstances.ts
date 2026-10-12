@@ -56,7 +56,7 @@ export async function listAllWithClientCounts(): Promise<AgentInstanceWithClient
   const { rows } = await pool.query<AgentInstanceWithClientCount>(
     `SELECT i.*, COUNT(c.id)::int AS client_count
      FROM agent_instances i
-     LEFT JOIN clients c ON c.agent_instance_id = i.id
+     LEFT JOIN clients c ON c.agent_instance_id = i.id AND c.deleted_at IS NULL
      GROUP BY i.id
      ORDER BY i.created_at ASC`,
   );

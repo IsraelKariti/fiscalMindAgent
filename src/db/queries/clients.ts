@@ -13,28 +13,51 @@ function isUniqueViolationOn(err: unknown, constraint: string): boolean {
   );
 }
 
+/**
+ * "Live" = not soft-deleted (migration 063, openspec `soft-delete-clients`).
+ * Every lookup that drives work — rosters, routing, workers, the planner —
+ * carries this predicate, so a deleted client is invisible to everything that
+ * acts. Only the explicit any-row readers (getAnyById, listDeletedForInstance,
+ * getByIdForInstance with includeDeleted) see deleted rows; they serve the
+ * admin's read-only views. The partial unique indexes enforce "no two live
+ * clients share an email / phone" in the database, so a missed filter here can
+ * at worst show a stale row, never create a duplicate.
+ */
+const LIVE = 'deleted_at IS NULL';
+
+/** The live client with this id — what workers and the planner want: a deleted client ends their work. */
 export async function getById(id: string): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(`SELECT * FROM clients WHERE id = $1 AND ${LIVE}`, [id]);
+  return rows[0] ?? null;
+}
+
+/** The client with this id whether live or deleted — display reads only (admin call / conversation views). */
+export async function getAnyById(id: string): Promise<ClientRow | null> {
   const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE id = $1', [id]);
   return rows[0] ?? null;
 }
 
 /** getById constrained to one user's roster — API routes use this so users can't reach others' clients. */
 export async function getByIdForUser(id: string, userId: string): Promise<ClientRow | null> {
-  const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE id = $1 AND user_id = $2', [id, userId]);
+  const { rows } = await pool.query<ClientRow>(`SELECT * FROM clients WHERE id = $1 AND user_id = $2 AND ${LIVE}`, [
+    id,
+    userId,
+  ]);
   return rows[0] ?? null;
 }
 
 export async function listForUser(userId: string): Promise<ClientRow[]> {
-  const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE user_id = $1 ORDER BY created_at DESC', [
-    userId,
-  ]);
+  const { rows } = await pool.query<ClientRow>(
+    `SELECT * FROM clients WHERE user_id = $1 AND ${LIVE} ORDER BY created_at DESC`,
+    [userId],
+  );
   return rows;
 }
 
 /** Case-insensitive: addresses are stored lowercased, but callers may pass any casing. */
 export async function getByEmailAddressForUser(userId: string, emailAddress: string): Promise<ClientRow | null> {
   const { rows } = await pool.query<ClientRow>(
-    'SELECT * FROM clients WHERE user_id = $1 AND lower(email_address) = lower($2)',
+    `SELECT * FROM clients WHERE user_id = $1 AND lower(email_address) = lower($2) AND ${LIVE}`,
     [userId, emailAddress],
   );
   return rows[0] ?? null;
@@ -88,18 +111,42 @@ export async function insert(args: {
   }
 }
 
-/** getById constrained to one agent instance — agent-scoped API routes use this. */
-export async function getByIdForInstance(id: string, agentInstanceId: string): Promise<ClientRow | null> {
-  const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE id = $1 AND agent_instance_id = $2', [
-    id,
-    agentInstanceId,
-  ]);
+/**
+ * getById constrained to one agent instance — agent-scoped API routes use this.
+ * Live only by default; `includeDeleted` is for the workspace READ routes under
+ * an admin's view-as (openspec `soft-delete-clients`) — write routes never pass it.
+ */
+export async function getByIdForInstance(
+  id: string,
+  agentInstanceId: string,
+  opts: { includeDeleted?: boolean } = {},
+): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(
+    `SELECT * FROM clients WHERE id = $1 AND agent_instance_id = $2${opts.includeDeleted ? '' : ` AND ${LIVE}`}`,
+    [id, agentInstanceId],
+  );
   return rows[0] ?? null;
 }
 
 export async function listForInstance(agentInstanceId: string): Promise<ClientRow[]> {
   const { rows } = await pool.query<ClientRow>(
-    'SELECT * FROM clients WHERE agent_instance_id = $1 ORDER BY created_at DESC',
+    `SELECT * FROM clients WHERE agent_instance_id = $1 AND ${LIVE} ORDER BY created_at DESC`,
+    [agentInstanceId],
+  );
+  return rows;
+}
+
+/** A deleted client as the admin's list shows it: the row plus the deleter's display name. */
+export type DeletedClientRow = ClientRow & { deleted_by_name: string | null };
+
+/** The instance's deleted clients, newest deletion first — the admin's "deleted clients" toggle under view-as. */
+export async function listDeletedForInstance(agentInstanceId: string): Promise<DeletedClientRow[]> {
+  const { rows } = await pool.query<DeletedClientRow>(
+    `SELECT c.*, COALESCE(u.name, u.email) AS deleted_by_name
+     FROM clients c
+     LEFT JOIN users u ON u.id = c.deleted_by
+     WHERE c.agent_instance_id = $1 AND c.deleted_at IS NOT NULL
+     ORDER BY c.deleted_at DESC`,
     [agentInstanceId],
   );
   return rows;
@@ -111,7 +158,7 @@ export async function getByEmailAddressForInstance(
   emailAddress: string,
 ): Promise<ClientRow | null> {
   const { rows } = await pool.query<ClientRow>(
-    'SELECT * FROM clients WHERE agent_instance_id = $1 AND lower(email_address) = lower($2)',
+    `SELECT * FROM clients WHERE agent_instance_id = $1 AND lower(email_address) = lower($2) AND ${LIVE}`,
     [agentInstanceId, emailAddress],
   );
   return rows[0] ?? null;
@@ -119,10 +166,10 @@ export async function getByEmailAddressForInstance(
 
 /** Inbound WhatsApp routing: the instance's client with this (E.164) number. */
 export async function getByWaPhoneForInstance(agentInstanceId: string, waPhone: string): Promise<ClientRow | null> {
-  const { rows } = await pool.query<ClientRow>('SELECT * FROM clients WHERE agent_instance_id = $1 AND wa_phone = $2', [
-    agentInstanceId,
-    waPhone,
-  ]);
+  const { rows } = await pool.query<ClientRow>(
+    `SELECT * FROM clients WHERE agent_instance_id = $1 AND wa_phone = $2 AND ${LIVE}`,
+    [agentInstanceId, waPhone],
+  );
   return rows[0] ?? null;
 }
 
@@ -142,18 +189,24 @@ export async function updateDetailsForInstance(
   }
   if (sets.length === 0) return getByIdForInstance(id, agentInstanceId);
   const { rows } = await pool.query<ClientRow>(
-    `UPDATE clients SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 AND agent_instance_id = $2 RETURNING *`,
+    `UPDATE clients SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 AND agent_instance_id = $2 AND ${LIVE} RETURNING *`,
     values,
   );
   return rows[0] ?? null;
 }
 
-/** Deletes the instance's client; documents, files, emails and the scheduled-job row cascade. */
-export async function removeForInstance(id: string, agentInstanceId: string): Promise<boolean> {
-  const { rowCount } = await pool.query('DELETE FROM clients WHERE id = $1 AND agent_instance_id = $2', [
-    id,
-    agentInstanceId,
-  ]);
+/**
+ * Soft-deletes the instance's client (openspec `soft-delete-clients`): stamps
+ * deleted_at / deleted_by and keeps the row and everything under it. False when
+ * the client is not the instance's or is already deleted — the route answers
+ * "not found" either way, so a double delete changes nothing.
+ */
+export async function markDeleted(id: string, agentInstanceId: string, actorUserId: string | null): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `UPDATE clients SET deleted_at = now(), deleted_by = $3
+     WHERE id = $1 AND agent_instance_id = $2 AND deleted_at IS NULL`,
+    [id, agentInstanceId, actorUserId],
+  );
   return (rowCount ?? 0) > 0;
 }
 
@@ -181,7 +234,7 @@ export async function updateDetailsForUser(
   }
   if (sets.length === 0) return getByIdForUser(id, userId);
   const { rows } = await pool.query<ClientRow>(
-    `UPDATE clients SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 AND user_id = $2 RETURNING *`,
+    `UPDATE clients SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 AND user_id = $2 AND ${LIVE} RETURNING *`,
     values,
   );
   return rows[0] ?? null;
@@ -281,17 +334,12 @@ export async function listDraftingWithoutSchedule(withinSeconds: number): Promis
   const { rows } = await pool.query<{ id: string }>(
     `SELECT c.id FROM clients c
      WHERE c.drafting_since > now() - make_interval(secs => $1)
+       AND c.deleted_at IS NULL
        AND c.goal_status = 'pending' AND NOT c.paused
        AND NOT EXISTS (SELECT 1 FROM scheduled_jobs s WHERE s.client_id = c.id)`,
     [withinSeconds],
   );
   return rows.map((r) => r.id);
-}
-
-/** Deletes the client; documents, files, emails and the scheduled-job row go with it via FK cascades. */
-export async function removeForUser(id: string, userId: string): Promise<boolean> {
-  const { rowCount } = await pool.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [id, userId]);
-  return (rowCount ?? 0) > 0;
 }
 
 export async function updateGoalStatus(id: string, goalStatus: GoalStatus): Promise<void> {
@@ -310,6 +358,7 @@ export async function listOverdueForAgentTypes(todayLocal: string, agentTypes: s
     `SELECT c.* FROM clients c
      JOIN agent_instances ai ON ai.id = c.agent_instance_id
      WHERE ai.agent_type = ANY($2::text[])
+       AND c.deleted_at IS NULL
        AND c.goal_status = 'pending' AND c.paused = false AND c.user_id IS NOT NULL
        AND (c.agent_fields->>'due_date') ~ '^\\d{4}-\\d{2}-\\d{2}$'
        AND (c.agent_fields->>'due_date') < $1
@@ -331,7 +380,7 @@ export async function markOverdueStopped(id: string): Promise<ClientRow | null> 
      SET paused = true,
          agent_fields = agent_fields || jsonb_build_object('overdue_notified_at', $2::text, 'overdue_stopped_at', $2::text),
          updated_at = now()
-     WHERE id = $1 AND goal_status = 'pending' AND paused = false
+     WHERE id = $1 AND deleted_at IS NULL AND goal_status = 'pending' AND paused = false
        AND (agent_fields->>'overdue_notified_at') IS NULL
      RETURNING *`,
     [id, new Date().toISOString()],

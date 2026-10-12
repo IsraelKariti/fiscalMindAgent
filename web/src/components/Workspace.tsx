@@ -52,6 +52,11 @@ export function Workspace({
   const [mailbox, setMailbox] = useState<MailboxStatus | null>(null);
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<Client | null>(null);
+  // Admin view-as only (openspec `soft-delete-clients`): the sidebar lists the
+  // instance's deleted clients instead of the live roster. Never offered to
+  // the accountant's own session (the API answers 403 anyway).
+  const [showDeleted, setShowDeleted] = useState(false);
+  const canShowDeleted = Boolean(impersonatingEmail);
 
   // Which agent workspace this shell shows and which view is open, driven by
   // the route (URL hash on standalone, in-memory on monday — workspaceRoute.ts).
@@ -93,6 +98,9 @@ export function Workspace({
   useEffect(() => {
     setClients([]);
   }, [agentId]);
+  useEffect(() => {
+    if (!canShowDeleted) setShowDeleted(false);
+  }, [canShowDeleted]);
 
   const enterAgent = (next: AgentInstance) => {
     navigate({ kind: 'agent', agentId: next.id });
@@ -111,7 +119,7 @@ export function Workspace({
 
   const loadClients = useCallback(async (opts?: RequestOpts) => {
     if (!wsApi || !lastClientKey) return;
-    const { clients: list } = await wsApi.listClients(opts);
+    const { clients: list } = showDeleted ? await wsApi.listDeletedClients(opts) : await wsApi.listClients(opts);
     setClients(list);
     // An agent-level route — and a link to a client that no longer exists —
     // resolves to the screen viewed before a refresh: settings (which owns the
@@ -130,7 +138,7 @@ export function Workspace({
     const restored = stored && list.some((c) => c.id === stored) ? stored : list[0]?.id;
     if (restored) replaceRoute({ kind: 'client', agentId: current.agentId, clientId: restored });
     else if (current.kind === 'client') replaceRoute({ kind: 'agent', agentId: current.agentId });
-  }, [wsApi, lastClientKey, replaceRoute]);
+  }, [wsApi, lastClientKey, replaceRoute, showDeleted]);
 
   useEffect(() => {
     if (route.kind === 'client' && lastClientKey) sessionStorage.setItem(lastClientKey, route.clientId);
@@ -223,6 +231,8 @@ export function Workspace({
           onSelectSettings={() => navigate({ kind: 'settings', agentId: agent.id })}
           onAddClient={agentUI.importOnlyClients ? undefined : () => setAdding(true)}
           onDeleteClient={setDeleting}
+          showDeleted={showDeleted}
+          onToggleShowDeleted={canShowDeleted ? setShowDeleted : undefined}
           userEmail={userEmail}
           impersonatingEmail={impersonatingEmail ?? null}
           onStopImpersonating={onStopImpersonating}

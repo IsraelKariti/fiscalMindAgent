@@ -30,6 +30,8 @@ function toAdminClient(c: ClientRow) {
     paused: c.paused,
     adminPaused: c.admin_paused,
     createdAt: c.created_at,
+    /** Soft-deleted (openspec `soft-delete-clients`): still listed, so its calls and conversation stay reachable. */
+    deletedAt: c.deleted_at,
   };
 }
 
@@ -50,7 +52,7 @@ function toAdminMessage(m: EmailRow) {
   };
 }
 
-/** GET /api/admin/agents/:agentInstanceId/clients — the instance's clients with their last activity. */
+/** GET /api/admin/agents/:agentInstanceId/clients — the instance's clients (deleted ones last, flagged) with their last activity. */
 export const adminListInstanceClients: RequestHandler = async (req, res) => {
   const id = z.string().uuid().safeParse(req.params.agentInstanceId);
   const instance = id.success ? await agentInstances.getById(id.data) : null;
@@ -58,7 +60,7 @@ export const adminListInstanceClients: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'Agent not found.' });
     return;
   }
-  const list = await clients.listForInstance(instance.id);
+  const list = [...(await clients.listForInstance(instance.id)), ...(await clients.listDeletedForInstance(instance.id))];
   const lastAt = await emails.lastMessageAtByClient(list.map((c) => c.id));
   res.json({
     clients: list.map((c) => ({ ...toAdminClient(c), lastMessageAt: lastAt.get(c.id) ?? null })),
@@ -72,7 +74,8 @@ export const adminListInstanceClients: RequestHandler = async (req, res) => {
  */
 export const adminGetClientConversation: RequestHandler = async (req, res) => {
   const clientId = z.string().uuid().safeParse(req.params.clientId);
-  const client = clientId.success ? await clients.getById(clientId.data) : null;
+  // Display read: a deleted client's conversation stays readable (openspec `soft-delete-clients`).
+  const client = clientId.success ? await clients.getAnyById(clientId.data) : null;
   if (!client) {
     res.status(404).json({ error: 'Client not found.' });
     return;
@@ -302,7 +305,7 @@ export const adminGetLlmCall: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'Call not found.' });
     return;
   }
-  const client = row.client_id ? await clients.getById(row.client_id) : null;
+  const client = row.client_id ? await clients.getAnyById(row.client_id) : null;
   res.json({
     call: {
       ...toAdminCall(row),

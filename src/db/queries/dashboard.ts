@@ -47,7 +47,7 @@ export async function listClientSummaries(userId: string): Promise<ClientSummary
        GROUP BY client_id
      ) e ON e.client_id = c.id
      LEFT JOIN scheduled_jobs sj ON sj.client_id = c.id
-     WHERE c.user_id = $1
+     WHERE c.user_id = $1 AND c.deleted_at IS NULL
      ORDER BY c.created_at DESC`,
     [userId],
   );
@@ -84,7 +84,7 @@ export async function listClientSummariesForInstance(agentInstanceId: string): P
        GROUP BY client_id
      ) e ON e.client_id = c.id
      LEFT JOIN scheduled_jobs sj ON sj.client_id = c.id
-     WHERE c.agent_instance_id = $1
+     WHERE c.agent_instance_id = $1 AND c.deleted_at IS NULL
      ORDER BY c.created_at DESC`,
     [agentInstanceId],
   );
@@ -102,7 +102,7 @@ export async function listEmailActivity(userId: string, days: number): Promise<E
     `SELECT COALESCE(e.sent_at, e.created_at) AS at, e.direction
      FROM emails e
      JOIN clients c ON c.id = e.client_id
-     WHERE c.user_id = $1 AND e.status IN ('sent', 'received')
+     WHERE c.user_id = $1 AND c.deleted_at IS NULL AND e.status IN ('sent', 'received')
        AND COALESCE(e.sent_at, e.created_at) >= now() - make_interval(days => $2)`,
     [userId, days],
   );
@@ -114,7 +114,7 @@ export async function countFilesForUser(userId: string): Promise<number> {
     `SELECT count(*)::int AS count
      FROM document_files f
      JOIN clients c ON c.id = f.client_id
-     WHERE c.user_id = $1`,
+     WHERE c.user_id = $1 AND c.deleted_at IS NULL`,
     [userId],
   );
   return rows[0]?.count ?? 0;
@@ -126,7 +126,7 @@ export async function listEmailActivityForInstance(agentInstanceId: string, days
     `SELECT COALESCE(e.sent_at, e.created_at) AS at, e.direction
      FROM emails e
      JOIN clients c ON c.id = e.client_id
-     WHERE c.agent_instance_id = $1 AND e.status IN ('sent', 'received')
+     WHERE c.agent_instance_id = $1 AND c.deleted_at IS NULL AND e.status IN ('sent', 'received')
        AND COALESCE(e.sent_at, e.created_at) >= now() - make_interval(days => $2)`,
     [agentInstanceId, days],
   );
@@ -138,7 +138,7 @@ export async function countFilesForInstance(agentInstanceId: string): Promise<nu
     `SELECT count(*)::int AS count
      FROM document_files f
      JOIN clients c ON c.id = f.client_id
-     WHERE c.agent_instance_id = $1`,
+     WHERE c.agent_instance_id = $1 AND c.deleted_at IS NULL`,
     [agentInstanceId],
   );
   return rows[0]?.count ?? 0;

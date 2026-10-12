@@ -394,6 +394,31 @@ code {
   border-radius: 8px;
 }
 
+/* Admin view-as only: the "deleted clients" toggle under the clients heading. */
+.sidebar-deleted-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin: 0 10px 6px;
+}
+
+.client-item-deleted {
+  display: block;
+  font-size: 0.72rem;
+}
+
+/* A deleted client opened under view-as: read-only, the banner says when and by whom. */
+.deleted-client-banner {
+  padding: 9px 13px;
+  border-radius: 10px;
+  margin: 0 0 10px;
+  background: var(--pending-bg);
+  color: var(--pending);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
 .client-list {
   list-style: none;
   margin: 0;

@@ -7,6 +7,8 @@ import { useT } from '../i18n';
 interface Props {
   client: Client;
   onSaved: (client: Client) => Promise<void>;
+  /** A deleted client under admin view-as (openspec `soft-delete-clients`): no Edit button. */
+  readOnly?: boolean;
   /** Doc collector only: shows and edits the collection due date (agent_fields.due_date). */
   withDueDate?: boolean;
 }
@@ -95,7 +97,7 @@ function MetaChip({ icon, label, value, warn = false }: { icon: React.ReactNode;
   );
 }
 
-export function ClientHeader({ client, onSaved, withDueDate = false }: Props) {
+export function ClientHeader({ client, onSaved, withDueDate = false, readOnly = false }: Props) {
   const { t } = useT();
   const api = useWorkspaceApi();
   const [editing, setEditing] = useState(false);
@@ -152,7 +154,7 @@ export function ClientHeader({ client, onSaved, withDueDate = false }: Props) {
                 : t.docCollectionInProgress}
           </span>
         </div>
-        {!editing ? (
+        {readOnly ? null : !editing ? (
           <button
             className="btn btn-ghost"
             onClick={() => {

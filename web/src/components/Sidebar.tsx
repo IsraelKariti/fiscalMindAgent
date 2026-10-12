@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
-import { contactLabel, displayClientName, isOverdueStopped } from '../format';
+import { contactLabel, displayClientName, formatTimestamp, isOverdueStopped } from '../format';
 import { useT } from '../i18n';
 
 export interface AgentOption {
@@ -31,6 +31,12 @@ interface Props {
   /** Absent for inbound-only agents, whose clients enroll themselves — the + button hides. */
   onAddClient?: () => void;
   onDeleteClient: (client: Client) => void;
+  /**
+   * Admin view-as only (openspec `soft-delete-clients`): the "deleted clients"
+   * toggle. Absent for the accountant's own session — the toggle never renders.
+   */
+  showDeleted?: boolean;
+  onToggleShowDeleted?: (on: boolean) => void;
   userEmail: string | null;
   impersonatingEmail: string | null;
   onStopImpersonating?: () => void;
@@ -124,6 +130,8 @@ export function Sidebar({
   onSelectSettings,
   onAddClient,
   onDeleteClient,
+  showDeleted = false,
+  onToggleShowDeleted,
   userEmail,
   impersonatingEmail,
   onStopImpersonating,
@@ -230,16 +238,22 @@ export function Sidebar({
         )}
         <div className="side-heading">
           <span className="side-heading-label">
-            {t.clientsHeading}
+            {showDeleted ? t.sidebarDeletedHeading : t.clientsHeading}
             {clients.length > 0 && <span className="side-count">{clients.length}</span>}
           </span>
           <span className="side-heading-rule" />
-          {onAddClient && (
+          {onAddClient && !showDeleted && (
             <button className="icon-btn" onClick={onAddClient} title={t.addClient}>
               {icon.plus}
             </button>
           )}
         </div>
+        {onToggleShowDeleted && (
+          <label className="muted sidebar-deleted-toggle" title={t.sidebarDeletedToggleTitle}>
+            <input type="checkbox" checked={showDeleted} onChange={(e) => onToggleShowDeleted(e.target.checked)} />
+            {t.sidebarDeletedToggle}
+          </label>
+        )}
         {clients.length > 0 && (
           <input
             type="search"
@@ -263,8 +277,12 @@ export function Sidebar({
                   <span className="client-item-text">
                     <span className="client-item-name">{displayClientName(client.name)}</span>
                     <span className="client-item-email muted" dir="ltr">{contactLabel(client)}</span>
+                    {client.deletedAt && (
+                      <span className="client-item-deleted muted">{t.deletedOn(formatTimestamp(client.deletedAt))}</span>
+                    )}
                   </span>
                 </button>
+                {!client.deletedAt && (
                 <button
                   className="client-delete"
                   title={t.deleteClientAction(displayClientName(client.name))}
@@ -278,10 +296,13 @@ export function Sidebar({
                     <path d="M14 11v6" />
                   </svg>
                 </button>
+                )}
               </li>
             );
           })}
-          {clients.length === 0 && <li className="muted sidebar-empty">{t.sidebarNoClients}</li>}
+          {clients.length === 0 && (
+            <li className="muted sidebar-empty">{showDeleted ? t.sidebarNoDeleted : t.sidebarNoClients}</li>
+          )}
           {clients.length > 0 && visibleClients.length === 0 && (
             <li className="muted sidebar-empty">{t.sidebarNoMatches}</li>
           )}

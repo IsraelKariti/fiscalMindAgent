@@ -247,6 +247,14 @@ const he = {
   sidebarNoClients: 'אין עדיין לקוחות',
   sidebarSearchPlaceholder: 'חיפוש לפי שם או אימייל',
   sidebarNoMatches: 'לא נמצאו לקוחות תואמים',
+  // Admin view-as only (openspec `soft-delete-clients`)
+  sidebarDeletedToggle: 'לקוחות שנמחקו',
+  sidebarDeletedToggleTitle: 'הצגת הלקוחות שנמחקו מהרשימה (לצפייה בלבד; זמין למנהל בלבד)',
+  sidebarDeletedHeading: 'לקוחות שנמחקו',
+  sidebarNoDeleted: 'אין לקוחות שנמחקו',
+  deletedOn: (date: string) => `נמחק ב־${date}`,
+  deletedClientBanner: (date: string, by: string | null) =>
+    by ? `הלקוח נמחק ב־${date} על ידי ${by}. הרשומה מוצגת לצפייה בלבד.` : `הלקוח נמחק ב־${date}. הרשומה מוצגת לצפייה בלבד.`,
   systemPrompt: 'פרומפט המערכת',
   settings: 'הגדרות',
   impersonationTitle: 'אתם צופים בדשבורד של המשתמש הזה כמנהל',
@@ -539,7 +547,8 @@ const he = {
   deleteClientFailed: 'מחיקת הלקוח נכשלה.',
   deleteQuestionPrefix: 'למחוק את ',
   deleteQuestionSuffix: '?',
-  deleteWarning: 'גם המיילים, המסמכים והקבצים של הלקוח יימחקו. לא ניתן לבטל את הפעולה.',
+  deleteWarning:
+    'הלקוח יוסר מהרשימה והסוכן יפסיק לפנות אליו. ההודעות, המסמכים והקבצים נשמרים לתיעוד. ניתן להוסיף שוב לקוח עם אותו מספר טלפון או אימייל — כלקוח חדש.',
   deleting: 'מוחק…',
   deleteClient: 'מחיקת הלקוח',
 

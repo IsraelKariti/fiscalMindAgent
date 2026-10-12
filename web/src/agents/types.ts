@@ -35,6 +35,12 @@ export interface ClientTabContext {
   focusedMessageId: string | null;
   /** The Conversation tab reports that it handled (or could not find) the focused message. */
   clearFocusedMessage: () => void;
+  /**
+   * The client is soft-deleted (openspec `soft-delete-clients`): an admin
+   * viewing as reads the record as it stands — tabs render no action control
+   * (no reply, pause, resume, rename, WhatsApp, document or delete actions).
+   */
+  readOnly: boolean;
 }
 
 /** Message keys whose value is a plain string (tab labels can't take arguments). */

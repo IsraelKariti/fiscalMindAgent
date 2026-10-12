@@ -120,6 +120,10 @@ export interface ClientRow {
   drafting_since: Date | null;
   /** Set when the last planning attempt threw; the UI shows a Retry button. */
   draft_failed_at: Date | null;
+  /** Soft delete (migration 063): set when the client was deleted; the row and all its data stay. NULL = live. */
+  deleted_at: Date | null;
+  /** The user who deleted the client (the admin while viewing as); NULL when live or the user is gone. */
+  deleted_by: string | null;
   created_at: Date;
   updated_at: Date;
 }

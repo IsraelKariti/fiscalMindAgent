@@ -6,9 +6,13 @@ import type { ClientRow, EmailRow } from '../db/types.js';
  * the accountant, so every workspace/agent-router response that serializes a
  * raw ClientRow or EmailRow goes through these.
  */
-export function toWorkspaceClient(client: ClientRow): Omit<ClientRow, 'admin_paused'> {
-  const { admin_paused: _adminPaused, ...rest } = client;
-  return rest;
+export function toWorkspaceClient(
+  client: ClientRow & { deleted_by_name?: string | null },
+): Omit<ClientRow, 'admin_paused' | 'deleted_by'> & { deletedAt: Date | null; deletedBy: string | null } {
+  // deleted_by (a user id) stays server-side; the list of deleted clients
+  // resolves it to the deleter's name (openspec `soft-delete-clients`).
+  const { admin_paused: _adminPaused, deleted_by: _deletedBy, deleted_by_name, ...rest } = client;
+  return { ...rest, deletedAt: client.deleted_at, deletedBy: deleted_by_name ?? null };
 }
 
 export function toWorkspaceEmail(email: EmailRow): Omit<EmailRow, 'review_status' | 'held_at'> {

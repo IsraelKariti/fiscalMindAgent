@@ -842,6 +842,42 @@
         "verdict": { "passed": false, "failed_keys": ["as_of_date", "type_fields"] }
       },
       "notes": "openspec debt-amortization-schedule: the schedule stops at 10.06.2025 with 24,256.00 still owed, so the balance at 31.12.2025 cannot be read from it — outstanding_balance and as_of_date stay null and the existing as_of_date and type_fields checks reject the document (the 24,256.00 of the last printed row must not be reported as the year-end balance)"
+    },
+    {
+      "id": "ext_27",
+      "file": "vehicle_licence_expired_jan_2026.pdf",
+      "contentType": "application/pdf",
+      "filename": "רישיון רכב מאזדה.pdf",
+      "doc": { "type_key": "vehicle", "name": "העתק רישיון רכב - מאזדה 3", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "owner_ids": ["123456782"],
+        "valid_until": "2026-01-15",
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "license_plate": "98765432", "production_year": 2019, "purchase_cost": null },
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec vehicle-license-valid-at-valuation-date: the licence expired on 15.01.2026 — after the valuation date 31.12.2025 but before the verification (2026-02-01). It was valid on the valuation date, so not_expired passes and the document is accepted; the model must still read the valid-until date as printed and must not call the document the wrong type because it is expired today"
+    },
+    {
+      "id": "ext_28",
+      "file": "vehicle_licence_expired_jul_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "רישיון רכב ישן.pdf",
+      "doc": { "type_key": "vehicle", "name": "העתק רישיון רכב - מאזדה 3", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "owner_ids": ["123456782"],
+        "valid_until": "2025-07-20",
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "license_plate": "76543210", "production_year": 2019, "purchase_cost": null },
+        "verdict": { "passed": false, "failed_keys": ["not_expired"] }
+      },
+      "notes": "openspec vehicle-license-valid-at-valuation-date: the licence expired on 20.07.2025, before the valuation date 31.12.2025, so not_expired fails (expected 2025-12-31) and the note asks for the licence that was valid on that date; it is still a vehicle licence (is_expected_type true) with its fields read"
     }
   ]
 }

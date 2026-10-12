@@ -164,7 +164,10 @@ monday WorkForm is the only source of which documents a declaration needs):
   properties as `already_provided`) lives in the catalog's `real_estate`
   description + `prompt.md`'s special-case block.
 - **Vehicle spec** (2026-08-31; the office's vehicle matrix): every vehicle
-  needs a valid (unexpired) vehicle-license copy plus a purchase
+  needs a vehicle-license copy that was valid on 31.12 of the tax year (since
+  2026-10-12, openspec `vehicle-license-valid-at-valuation-date`: a licence
+  that expired after that date is accepted however late the file arrives; one
+  that expired before it is not) plus a purchase
   document/receipt, falling back to a client cost declaration when neither
   exists — encoded in the catalog's `vehicle` entry, `prompt.md`'s
   special-case block (two instances per vehicle; the receipt →
@@ -175,8 +178,9 @@ monday WorkForm is the only source of which documents a declaration needs):
   extraction; e.g. the license's "valid until" header field, the bottom
   renewal/payment slip of the page not being the license) — and
   `checks.notExpired` — the verification extractor also pulls the document's
-  own validity date (`valid_until`), and `runChecks` deterministically fails
-  a well-formed date that is past at verification time; sibling instances of
+  own validity date (`valid_until`), and `notExpiredCheck` deterministically
+  fails a well-formed date before 31.12 of the tax year (expected =
+  `<taxYear>-12-31`; the verification time plays no part); sibling instances of
   the same type carrying no validity date (receipt, cost declaration) are
   unaffected.
 - **Spouse identity** (2026-09-23; openspec `spouse-identity`): a client
@@ -257,7 +261,8 @@ monday WorkForm is the only source of which documents a declaration needs):
   exported helper per check — `legibleCheck`, `expectedTypeCheck`,
   `identityChecks` (subject, id_checksum, id_matches_client, spouse_adopted,
   co_owners, client_id_on_file, in today's order), `asOfDateCheck`,
-  `notExpiredCheck` (null without a well-formed valid-until),
+  `notExpiredCheck` (valid-until vs 31.12 of the tax year; null without a
+  well-formed valid-until),
   `typeFieldsCheck` (a required null, an empty any-of group, or a malformed
   value — bad date form, year outside 1950..taxYear+1, non-finite number,
   a number below the field's own `min`, pattern mismatch — fails; observed lists every field as `label: value`),

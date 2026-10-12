@@ -104,7 +104,7 @@ export interface CheckContext {
   /** The client's marital status from the questionnaire; null/absent = unknown. */
   maritalStatus?: MaritalStatus | null;
   taxYear: number;
-  /** Verification time — the not_expired check is judged against this. */
+  /** Verification time (kept for the trace; no check judges against it since `vehicle-license-valid-at-valuation-date`). */
   now: Date;
   /** The required document's name (checklist row) — the expected_type check's reference, when known. */
   documentName?: string | null;
@@ -177,11 +177,6 @@ function renderTypeFieldValue(value: TypeFieldValue, kind: FieldKind): string {
   if (value === null) return 'לא נמצא';
   if (typeof value === 'number') return Number.isFinite(value) && kind !== 'year' ? value.toLocaleString('en-US') : String(value);
   return value;
-}
-
-/** Local-time "YYYY-MM-DD" — comparable lexicographically with extracted dates. */
-function localDateString(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -298,24 +293,25 @@ export function asOfDateCheck(answer: ExtractedAnswer, ctx: CheckContext): Check
 }
 
 /**
- * `not_expired` — a validity-dated document (vehicle license) must not be
- * expired at verification time. Judged only when a well-formed valid-until
- * date was actually extracted (skipped otherwise): sibling instances of the same
- * type without one (a purchase receipt, a cost declaration) are unaffected,
- * and a license whose validity field is unreadable is left to the
- * expected-type judgment (the catalog description says an expired license is
- * unacceptable).
+ * `not_expired` — a validity-dated document (vehicle license) must have been
+ * valid on the valuation date, 31.12 of the tax year (openspec
+ * `vehicle-license-valid-at-valuation-date`): a licence that expired after that
+ * date is accepted however late the file is verified. Judged only when a
+ * well-formed valid-until date was actually extracted (skipped otherwise):
+ * sibling instances of the same type without one (a purchase receipt, a cost
+ * declaration) are unaffected, and a license whose validity field is
+ * unreadable is left to the expected-type judgment.
  */
 export function notExpiredCheck(answer: ExtractedAnswer, ctx: CheckContext): CheckResult {
   const validUntil = answer.valid_until && DATE_RE.test(answer.valid_until) ? answer.valid_until : null;
   if (!validUntil) return skipped('not_expired', SKIP_REASONS_HE.noValidUntil);
-  const today = localDateString(ctx.now);
+  const valuationDate = `${ctx.taxYear}-12-31`;
   return entry(
     'not_expired',
-    validUntil >= today,
-    `המסמך בתוקף עד ${validUntil} — תוקפו פג; יש לשלוח עותק עדכני בתוקף`,
+    validUntil >= valuationDate,
+    `המסמך בתוקף עד ${validUntil} — תוקפו פג לפני יום 31.12.${ctx.taxYear} (המועד הקובע); יש לשלוח את הרישיון שהיה בתוקף בתאריך זה`,
     validUntil,
-    today,
+    valuationDate,
   );
 }
 

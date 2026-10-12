@@ -348,6 +348,40 @@ const DOCS: Record<string, string> = {
      </table>
      <p class="muted">The licence fee was paid. This licence is valid only together with compulsory insurance.</p>`,
   ),
+  // openspec vehicle-license-valid-at-valuation-date: a licence that expired after 31.12.2025 but before the verification (harness now = 2026-02-01) — accepted.
+  'vehicle_licence_expired_jan_2026.pdf': page(
+    'Vehicle licence',
+    `<div class="letterhead"><div class="logo" style="color:#1a237e">State of Israel — Ministry of Transport</div><div class="he"><div class="logo" style="color:#1a237e">מדינת ישראל — משרד התחבורה והבטיחות בדרכים</div></div></div>
+     <h1 class="he">רישיון רכב</h1>
+     <h1>Vehicle licence</h1>
+     <table>
+       <tr><th>Registration number (מספר רכב)</th><td>987-65-432</td></tr>
+       <tr><th>Owner (שם בעל הרכב)</th><td>${client.name} (${client.nameHe})</td></tr>
+       <tr><th>Owner ID (ת.ז.)</th><td>${client.id}</td></tr>
+       <tr><th>Make and model (תוצר ודגם)</th><td>Mazda 3 (מאזדה 3)</td></tr>
+       <tr><th>Year of manufacture (שנת ייצור)</th><td>2019</td></tr>
+       <tr><th>Ownership type (סוג בעלות)</th><td>Private (פרטי)</td></tr>
+       <tr><th>Valid until (בתוקף עד)</th><td>15.01.2026</td></tr>
+     </table>
+     <p class="muted">The licence fee was paid. This licence is valid only together with compulsory insurance.</p>`,
+  ),
+  // openspec vehicle-license-valid-at-valuation-date: a licence that expired before 31.12.2025 — rejected by not_expired.
+  'vehicle_licence_expired_jul_2025.pdf': page(
+    'Vehicle licence',
+    `<div class="letterhead"><div class="logo" style="color:#1a237e">State of Israel — Ministry of Transport</div><div class="he"><div class="logo" style="color:#1a237e">מדינת ישראל — משרד התחבורה והבטיחות בדרכים</div></div></div>
+     <h1 class="he">רישיון רכב</h1>
+     <h1>Vehicle licence</h1>
+     <table>
+       <tr><th>Registration number (מספר רכב)</th><td>765-43-210</td></tr>
+       <tr><th>Owner (שם בעל הרכב)</th><td>${client.name} (${client.nameHe})</td></tr>
+       <tr><th>Owner ID (ת.ז.)</th><td>${client.id}</td></tr>
+       <tr><th>Make and model (תוצר ודגם)</th><td>Mazda 3 (מאזדה 3)</td></tr>
+       <tr><th>Year of manufacture (שנת ייצור)</th><td>2019</td></tr>
+       <tr><th>Ownership type (סוג בעלות)</th><td>Private (פרטי)</td></tr>
+       <tr><th>Valid until (בתוקף עד)</th><td>20.07.2025</td></tr>
+     </table>
+     <p class="muted">The licence fee was paid. This licence is valid only together with compulsory insurance.</p>`,
+  ),
   'menora_pension_2025.pdf': page(
     'Menora Mivtachim pension annual report',
     `<div class="letterhead"><div class="logo" style="color:#7a1fa2">Menora Mivtachim Pension</div><div class="he"><div class="logo" style="color:#7a1fa2">מנורה מבטחים פנסיה</div></div></div>

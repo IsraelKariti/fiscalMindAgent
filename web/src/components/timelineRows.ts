@@ -1,4 +1,4 @@
-import type { AdminConversation, AdminConversationMessage, AdminConversationStep, Email, LlmCallSummary } from '../api';
+import type { AdminConversation, AdminConversationMessage, AdminConversationStep, Email, LlmCallSummary } from '../api.js';
 
 /**
  * Admin-only trace rows woven between the messages: the LLM calls and the

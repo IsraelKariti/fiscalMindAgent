@@ -40,24 +40,24 @@ When the next scheduled message awaits admin approval, the scheduled bubble SHAL
 - **WHEN** the accountant paused the client while its draft awaited approval
 - **THEN** the paused bubble keeps the awaiting-approval badge next to the paused note
 
-### Requirement: "Send now" does not send a message that waits for the admin
-When the next scheduled message awaits admin approval (pending or already held), the "Send now" confirmation SHALL state, in Hebrew, that the message waits for the admin's approval and will be sent only after it, and SHALL offer no send action, only close. The send-now request itself SHALL be refused with a clear error naming the reason, and SHALL NOT move the message in the queue or change its planned time. Browser-native dialogs MUST NOT be used.
+### Requirement: No "Send now" on a message that waits for the admin
+When the next scheduled message awaits admin approval (pending or already held), the scheduled bubble SHALL NOT offer the "Send now" control; the badge explains the state. A page that still shows the control (loaded before the draft was marked for review) SHALL, on confirm, be refused with a clear error naming the reason, and the modal SHALL then state, in Hebrew, that the message waits for the admin's approval and offer only close. The request SHALL NOT move the message in the queue or change its planned time. Browser-native dialogs MUST NOT be used.
 
-#### Scenario: Send now on a pending draft
-- **WHEN** the accountant clicks "Send now" on a scheduled message that awaits approval
-- **THEN** the modal explains that the message waits for the admin's approval and offers only close; nothing is sent and the planned time is unchanged
+#### Scenario: Pending draft, time ahead
+- **WHEN** the accountant opens a client whose scheduled message awaits approval and whose planned time is still ahead
+- **THEN** the bubble shows the badge, the regenerate control and the pause control, and no "Send now" control
 
-#### Scenario: Send now on a held draft
-- **WHEN** the accountant clicks "Send now" on a message the worker already held
-- **THEN** the same modal is shown and nothing changes
+#### Scenario: Held draft
+- **WHEN** the worker already held the message
+- **THEN** the bubble shows the badge, the held note and the regenerate control only
 
 #### Scenario: Stale page
 - **WHEN** the page was loaded before the draft was marked for review and the accountant confirms "Send now"
-- **THEN** the request is refused with an error that says the message waits for the admin's approval, the modal shows that error, and the planned time is unchanged
+- **THEN** the request is refused, the modal explains that the message waits for the admin's approval and offers only close, and the planned time is unchanged
 
 #### Scenario: Approved draft
-- **WHEN** the admin approved the draft and the accountant clicks "Send now"
-- **THEN** the regular confirmation is shown and confirming sends the message now, as today
+- **WHEN** the admin approved the draft
+- **THEN** the bubble shows the "Send now" control, and confirming it sends the message now, as today
 
 ### Requirement: A held message offers no pause control
 When the worker already held the next scheduled message (its planned time arrived without the admin's approval), the scheduled bubble SHALL NOT offer the pause control. The regenerate control SHALL stay. A scheduled message whose planned time is still ahead SHALL keep the pause control, whether or not it awaits approval.

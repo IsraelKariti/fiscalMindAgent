@@ -901,14 +901,18 @@ export function Timeline({
                   </>
                 ) : (
                   <>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-small send-now-btn"
-                      onClick={() => setConfirmingSendNow(true)}
-                      disabled={regenBusy}
-                    >
-                      {t.sendNow}
-                    </button>
+                    {/* A draft awaiting admin approval cannot be sent by the accountant
+                        (openspec `review-wait-visibility`): the badge says so, no control. */}
+                    {!nextScheduled.reviewPending && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-small send-now-btn"
+                        onClick={() => setConfirmingSendNow(true)}
+                        disabled={regenBusy}
+                      >
+                        {t.sendNow}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn btn-ghost btn-small regenerate-btn"

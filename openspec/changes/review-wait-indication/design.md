@@ -24,7 +24,7 @@ See proposal.md — Why. Today the review state of the scheduled draft reaches t
 
 3. **Refuse "send now" before touching the queue.** `sendFutureEmailNow` reads the draft (id from the job id, as the route already does) and returns a new result `awaiting_review` when `review_status === 'pending'` (covers both `draft` and `held` status); the route maps it to 409 with a Hebrew-ready error key. The check runs before the queue lookup so a stale page cannot promote the job. Alternative: let the worker keep holding and only fix the UI — rejected, a stale tab would still restamp the planned time to "now".
 
-4. **The modal decides from `nextScheduled` at click time.** `SendNowModal` gets a `waitingForAdmin` prop; when true it renders the explanation and a single close button. The server error for the stale-page case is shown in the same modal's error banner, as today. No browser dialog.
+4. **Hide the control, keep the guard.** The "Send now" button of the scheduled bubble is rendered only when `nextScheduled.reviewPending` is false. `SendNowModal` keeps a `waitingForAdmin` prop and switches to the explanation with a single close button when the server answers 409 with `code: 'awaiting_review'`, which only a stale page can hit. No browser dialog. Alternative: show the button and explain on click — rejected on 2026-10-13, a control that can never act is noise once the badge says why.
 
 5. **Paused keeps the badge.** The badge depends only on `reviewPending`, not on `paused`, so no extra logic; the resume modal wording is unchanged (a held draft is kept by resume, commit `47d03e6`).
 

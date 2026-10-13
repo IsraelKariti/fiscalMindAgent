@@ -917,14 +917,18 @@ export function Timeline({
                     >
                       {regenBusy ? t.regeneratingDraft : t.regenerateDraft}
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-small pause-btn"
-                      onClick={() => togglePause(true)}
-                      disabled={pauseBusy || regenBusy}
-                    >
-                      {t.pauseSchedule}
-                    </button>
+                    {/* A held message is already stopped (openspec `review-wait-visibility`):
+                        pausing it would only block the admin's approval, so no pause control. */}
+                    {nextScheduled.heldAt == null && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-small pause-btn"
+                        onClick={() => togglePause(true)}
+                        disabled={pauseBusy || regenBusy}
+                      >
+                        {t.pauseSchedule}
+                      </button>
+                    )}
                   </>
                 )}
               </div>

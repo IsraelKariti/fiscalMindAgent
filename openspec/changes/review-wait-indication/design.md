@@ -28,6 +28,8 @@ See proposal.md — Why. Today the review state of the scheduled draft reaches t
 
 5. **Paused keeps the badge.** The badge depends only on `reviewPending`, not on `paused`, so no extra logic; the resume modal wording is unchanged (a held draft is kept by resume, commit `47d03e6`).
 
+6. **Hide pause on a held message, from `heldAt`.** In `Timeline.tsx` the pause button of the scheduled bubble is rendered only when `nextScheduled.heldAt` is null. No API change: a held draft is exactly the case where pausing has no effect on the send (the job already ran) and would only make the admin's approval answer 409. Alternative: hide pause whenever the planned time passed by the clock — rejected, a message a second past its time is still about to be sent by the worker, and pausing it is legitimate.
+
 ## Risks / Trade-offs
 
 - [The accountant now learns that an admin reviews the messages] → accepted by the product owner on 2026-10-13; the badge names "admin approval" plainly, no mechanism is exposed.

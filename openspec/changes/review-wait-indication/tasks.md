@@ -13,7 +13,8 @@
 - [x] 2.2 In `web/src/i18n.tsx`, add the Hebrew strings: the badge text for every viewer ("ממתינה לאישור מנהל"), the held note ("הזמן המתוכנן עבר — ההודעה ממתינה לאישור המנהל"), the send-now waiting explanation and its close label, and the 409 error text.
 - [x] 2.3 In `web/src/components/Timeline.tsx`, show the badge from `nextScheduled.reviewPending` for every viewer (also while paused); keep the approve control on the trace-based `pendingReview` for admins only; add the held note case to the scheduled note (precedence: paused, send-failed, held, time).
 - [x] 2.4 In `web/src/components/SendNowModal.tsx`, add a `waitingForAdmin` prop: when true, render the explanation and a single close button, no send; `Timeline.tsx` passes `nextScheduled.reviewPending`.
-- [ ] 2.5 Run `npm run typecheck` and `npm run lint` (web); check the bubble in both the accountant view and the admin view-as on a review-mode client: pending with time ahead, held after the time, paused with a pending draft, and send now on each.
+- [x] 2.6 In `web/src/components/Timeline.tsx`, render the pause button of the scheduled bubble only when `nextScheduled.heldAt` is null (a held message offers regenerate only); the paused bubble and the resume control are unchanged.
+- [ ] 2.5 Run `npm run typecheck` and `npm run lint` (web); check the bubble in both the accountant view and the admin view-as on a review-mode client: pending with time ahead, held after the time (no pause control), paused with a pending draft, and send now on each.
 
 ## 3. Docs and wrap-up
 

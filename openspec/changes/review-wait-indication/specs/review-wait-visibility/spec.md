@@ -58,3 +58,18 @@ When the next scheduled message awaits admin approval (pending or already held),
 #### Scenario: Approved draft
 - **WHEN** the admin approved the draft and the accountant clicks "Send now"
 - **THEN** the regular confirmation is shown and confirming sends the message now, as today
+
+### Requirement: A held message offers no pause control
+When the worker already held the next scheduled message (its planned time arrived without the admin's approval), the scheduled bubble SHALL NOT offer the pause control. The regenerate control SHALL stay. A scheduled message whose planned time is still ahead SHALL keep the pause control, whether or not it awaits approval.
+
+#### Scenario: Held message
+- **WHEN** the planned time passed and the worker held the message
+- **THEN** the bubble shows the awaiting-approval badge, the held note and the regenerate control, and no pause control
+
+#### Scenario: Pending message, time ahead
+- **WHEN** the message awaits approval and its planned time is one hour ahead
+- **THEN** the bubble shows the pause control as today
+
+#### Scenario: Client paused before the hold
+- **WHEN** the accountant paused the client while the message awaited approval, and the planned time then passed
+- **THEN** the bubble shows the paused note with the resume control, as today; nothing in this requirement changes the paused bubble

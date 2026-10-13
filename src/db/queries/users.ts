@@ -39,7 +39,11 @@ export async function listAll(): Promise<UserListRow[]> {
             (w.email IS NOT NULL) AS whitelisted,
             (u.google_sub IS NOT NULL) AS signed_in
      FROM users u
-     LEFT JOIN agent_mailboxes m ON m.user_id = u.id
+     -- One mailbox per agent instance (migration 024): take the oldest so a
+     -- user with several agents is still one row.
+     LEFT JOIN LATERAL (
+       SELECT email_address FROM agent_mailboxes WHERE user_id = u.id ORDER BY created_at LIMIT 1
+     ) m ON TRUE
      LEFT JOIN whitelisted_emails w ON w.email = lower(u.email)
      ORDER BY u.created_at DESC`,
   );

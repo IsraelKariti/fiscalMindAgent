@@ -77,6 +77,16 @@ export async function spentSince(since: Date, agentInstanceId?: string): Promise
   return Number(rows[0]?.spent ?? 0) || 0;
 }
 
+/** Priced spend (SUM(cost), unpriced rows count as 0) of every call of each client, keyed by client id — the admin clients table's cost column. */
+export async function costByClient(clientIds: string[]): Promise<Map<string, number>> {
+  if (clientIds.length === 0) return new Map();
+  const { rows } = await pool.query<{ client_id: string; spent: string | null }>(
+    'SELECT client_id, SUM(cost)::float8 AS spent FROM llm_calls WHERE client_id = ANY($1) GROUP BY client_id',
+    [clientIds],
+  );
+  return new Map(rows.map((r) => [r.client_id, Number(r.spent ?? 0) || 0]));
+}
+
 export async function insert(call: InsertLlmCall): Promise<void> {
   await pool.query(
     `INSERT INTO llm_calls (

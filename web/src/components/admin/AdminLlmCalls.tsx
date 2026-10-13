@@ -439,7 +439,7 @@ export function AdminLlmCalls({
               <tbody>
                 {calls.map((c) => (
                   <tr key={c.id} onClick={() => onViewCall(c.id)} style={{ cursor: 'pointer' }}>
-                    <td dir="ltr">{formatTimestamp(c.createdAt)}</td>
+                    <td dir="auto">{formatTimestamp(c.createdAt)}</td>
                     <td className="admin-table-name">{c.clientName ? displayClientName(c.clientName) : '—'}</td>
                     <td>
                       {t.llmPurposeLabels[c.purpose] ?? humanizePurpose(c.purpose)}

@@ -428,6 +428,8 @@ export interface AdminClient {
   adminPaused: boolean;
   createdAt: string;
   lastMessageAt?: string | null;
+  /** Priced spend (USD) of every LLM call of this client so far; 0 when none. */
+  cost?: number;
 }
 
 export interface AdminConversationMessage {

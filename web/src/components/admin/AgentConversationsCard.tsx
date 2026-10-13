@@ -179,6 +179,7 @@ export function AgentConversationsCard({ instanceId }: { instanceId: string }) {
                   <th>{t.adminConversationsColClient}</th>
                   <th>{t.adminConversationsColStatus}</th>
                   <th>{t.adminConversationsColLastMessage}</th>
+                  <th>{t.adminConversationsColCost}</th>
                   <th />
                 </tr>
               </thead>
@@ -196,7 +197,8 @@ export function AgentConversationsCard({ instanceId }: { instanceId: string }) {
                         <span className="badge badge-danger">{t.adminClientPausedBadge}</span>
                       )}
                     </td>
-                    <td dir="ltr">{c.lastMessageAt ? formatTimestamp(c.lastMessageAt) : '—'}</td>
+                    <td dir="auto">{c.lastMessageAt ? formatTimestamp(c.lastMessageAt) : '—'}</td>
+                    <td dir="ltr">{c.cost ? formatUsd(c.cost) : '—'}</td>
                     <td>
                       <button className="btn btn-ghost btn-small" onClick={() => setViewing(c.id)}>
                         {t.adminConversationView}

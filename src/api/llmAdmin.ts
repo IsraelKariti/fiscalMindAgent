@@ -61,9 +61,10 @@ export const adminListInstanceClients: RequestHandler = async (req, res) => {
     return;
   }
   const list = [...(await clients.listForInstance(instance.id)), ...(await clients.listDeletedForInstance(instance.id))];
-  const lastAt = await emails.lastMessageAtByClient(list.map((c) => c.id));
+  const ids = list.map((c) => c.id);
+  const [lastAt, cost] = await Promise.all([emails.lastMessageAtByClient(ids), llmCalls.costByClient(ids)]);
   res.json({
-    clients: list.map((c) => ({ ...toAdminClient(c), lastMessageAt: lastAt.get(c.id) ?? null })),
+    clients: list.map((c) => ({ ...toAdminClient(c), lastMessageAt: lastAt.get(c.id) ?? null, cost: cost.get(c.id) ?? 0 })),
   });
 };
 

@@ -733,6 +733,7 @@ const he = {
   adminConversationsColClient: 'לקוח',
   adminConversationsColStatus: 'סטטוס',
   adminConversationsColLastMessage: 'הודעה אחרונה',
+  adminConversationsColCost: 'עלות מצטברת',
   adminConversationView: 'צפייה בשיחה',
   adminConversationTitle: (name: string) => `השיחה עם ${name}`,
   adminConversationLoadFailed: 'טעינת השיחה נכשלה.',

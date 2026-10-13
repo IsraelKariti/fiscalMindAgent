@@ -182,7 +182,7 @@ A step that is not about a received file SHALL keep the single-column modal with
 - **THEN** the modal is the single-column modal, with no document pane and no document request
 
 #### Scenario: File no longer exists
-- **WHEN** the admin opens a file step whose file was deleted with its client
+- **WHEN** the admin opens a file step whose file was removed on its own after the step ran (a split source cleaned up, a failed upload); deleting the client no longer removes files
 - **THEN** the single-column modal opens with all the recorded details and a "document no longer available" note
 
 #### Scenario: Opened from a step link without impersonation

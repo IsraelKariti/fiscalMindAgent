@@ -329,3 +329,43 @@ The text inside a diagram must be easy to read without zooming.
   checks in order, and a "Fields" line links to the type's extraction
   page. When a type's `verify` list changes, update both the child page
   and the card.
+
+### Animated cartoon explainers are the standard
+
+When a topic is a mechanism with states and events (a thing moves between
+places, and buttons or timers change what happens to it), do not stop at a
+static flow chart. Build an **interactive cartoon animation** as a Claude
+artifact, in the style of "Agent Message Flow"
+(https://claude.ai/artifact/WbMaq15UPjgLKjvPT6zK6v). The user prefers this
+to any other way of explaining a mechanism (2026-10-13). Whenever a concept
+can be shown this way, build it, and link it from the Notion page of that
+topic.
+
+- **One scene**, an inline SVG: stations (the planner, the queue, the
+  worker, the client, the side spots) drawn as simple cartoon characters
+  and places. One **character** is the thing being explained (an envelope
+  for a message, a file for a document) and it travels between the
+  stations. Each station has an English label, a Hebrew line, and the
+  function name in small monospace text.
+- **Event buttons** under the scene, one per real event (timer fires, send
+  now, pause, resume, regenerate, admin approves, client replies, retry).
+  A button is enabled only in the states where the real page offers it.
+  Pressing it animates the character and lights the station it ends at.
+- **A state chip** with a coloured dot, and **toggles** for modes that
+  change the outcome (review mode, provider down).
+- **A log line** after every event: one plain English sentence, the same
+  in Hebrew, and a code chip with the function chain that ran
+  (`inboundTurn → removeFutureEmail → setFutureEmail`).
+- **A state × event grid** under the scene: every state as a row, every
+  event as a column, one emoji plus three words per cell, "—" when the
+  button is hidden. A cell outlined in red marks a known bug.
+- Motion is small and literal: a belt moves, a clock ring counts down, a
+  stamp slams, a phone buzzes, a paused character shows "z z z". Respect
+  `prefers-reduced-motion`.
+- Fonts: Fredoka for titles, Rubik for text, JetBrains Mono for code.
+  Colours as tokens: queue teal, admin purple, pause yellow, failure red,
+  sent green. Light and dark theme.
+- The Notion page gets the same link card as a flow chart (rule above):
+  a `blue_bg` callout in the process tab, title = link "(open the chart)",
+  gray lines "Shows:" and "Try:" (what to press). Before building a new
+  animation, list the existing artifacts and reuse a matching one.

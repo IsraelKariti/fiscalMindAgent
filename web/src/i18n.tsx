@@ -369,6 +369,12 @@ const he = {
   sendNowConfirm: (channel: 'email' | 'whatsapp'): string =>
     channel === 'whatsapp' ? 'לשלוח את הודעת הוואטסאפ המתוזמנת עכשיו?' : 'לשלוח את המייל המתוזמן עכשיו?',
   sendNowFailed: 'שליחת ההודעה נכשלה.',
+  /** Review mode (openspec `review-wait-visibility`): shown to every viewer, accountant included. */
+  reviewWaitBadge: 'ממתינה לאישור מנהל',
+  reviewHeldNote: (ts: string) => `הזמן המתוכנן (${ts}) עבר — ההודעה ממתינה לאישור המנהל`,
+  sendNowWaitingTitle: 'ההודעה ממתינה לאישור המנהל',
+  sendNowWaitingBody: 'ההודעה תישלח רק אחרי שהמנהל יאשר אותה. אי אפשר לשלוח אותה עכשיו.',
+  close: 'סגור',
   pauseSchedule: 'השהה',
   resumeSchedule: 'חידוש המעקבים',
   resuming: 'מחדש…',

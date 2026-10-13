@@ -1,10 +1,11 @@
 import * as emails from '../db/queries/emails.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
+import { awaitsAdminReview } from './reviewWait.js';
 import { sendEmailQueue } from '../queue/sendEmailQueue.js';
 import { logger } from '../util/logger.js';
 
-export type SendNowResult = 'promoted' | 'already_sending' | 'none_scheduled' | 'send_failed';
+export type SendNowResult = 'promoted' | 'already_sending' | 'none_scheduled' | 'send_failed' | 'awaiting_review';
 
 /**
  * Re-enqueues the mirrored send under its own job id with no delay and stamps
@@ -33,6 +34,11 @@ export async function sendFutureEmailNow(clientId: string): Promise<SendNowResul
   // A failed send has its own recovery path (retryFailedSend); the UI disables
   // Send now, so this only catches stale tabs.
   if (row.send_failed_at) return 'send_failed';
+  // Admin review (openspec `review-wait-visibility`): a draft the admin has not
+  // approved can only end up held by the worker, so refuse before touching the
+  // queue — a stale tab must not promote the job or restamp the planned time.
+  const [, , draftId] = row.bullmq_job_id.split(':');
+  if (draftId && awaitsAdminReview(await emails.getById(draftId))) return 'awaiting_review';
 
   const job = await sendEmailQueue.getJob(row.bullmq_job_id);
   if (!job) {

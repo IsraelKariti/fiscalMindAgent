@@ -183,6 +183,10 @@ export interface NextScheduled {
   scheduledFor: string;
   /** Set when the send attempt threw — the timeline shows the draft as failed with a Retry. */
   sendFailedAt: string | null;
+  /** The draft awaits admin approval (review mode) — the timeline badge, and "send now" is refused. */
+  reviewPending: boolean;
+  /** Set when the worker already held the draft because its time arrived unapproved. */
+  heldAt: string | null;
   channel: MessageChannel;
   subject: string | null;
   body: string | null;
@@ -217,6 +221,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** The server's machine-readable reason, when it sends one (e.g. `awaiting_review`). */
+    public code?: string,
   ) {
     super(message);
   }
@@ -305,7 +311,10 @@ async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts):
     onImpersonationEnded?.();
     throw new ImpersonationEndedError();
   }
-  if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? `Request failed (${res.status})`);
+  if (!res.ok) {
+    const body = data as { error?: string; code?: string };
+    throw new ApiError(res.status, body.error ?? `Request failed (${res.status})`, body.code);
+  }
   return data as T;
 }
 

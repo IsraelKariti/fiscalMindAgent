@@ -21,6 +21,7 @@ import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
 import { retryFailedSend } from '../orchestration/retryFailedSend.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
+import { reviewWaitState } from '../orchestration/reviewWait.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { isHeldFirstMessageClient } from '../orchestration/heldFirstMessage.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
@@ -284,6 +285,9 @@ workspaceRouter.get(
       nextScheduled = {
         scheduledFor: job.scheduled_for,
         sendFailedAt: job.send_failed_at,
+        // Admin review (openspec `review-wait-visibility`): every viewer learns
+        // from this same read that the draft waits for the admin.
+        ...reviewWaitState(draft),
         channel: draft?.channel ?? 'email',
         subject: draft?.subject ?? null,
         body: draft?.body ?? null,
@@ -614,6 +618,10 @@ workspaceRouter.post(
     const result = await withClientLock(client.id, () => sendFutureEmailNow(client.id));
     if (result === 'none_scheduled') {
       res.status(409).json({ error: 'There is no scheduled email to send.' });
+      return;
+    }
+    if (result === 'awaiting_review') {
+      res.status(409).json({ error: "The message is waiting for the admin's approval — it is sent after the approval.", code: 'awaiting_review' });
       return;
     }
     if (result === 'send_failed') {

@@ -852,12 +852,14 @@ export function Timeline({
                         <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
                         <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                       </svg>
-                      {formatTimestamp(nextScheduled.scheduledFor)}
+                      {nextScheduled.heldAt
+                        ? t.reviewHeldNote(formatTimestamp(nextScheduled.scheduledFor))
+                        : formatTimestamp(nextScheduled.scheduledFor)}
                     </>
                   )}
                 </span>
-                {pendingReview && (
-                  <span className="badge badge-pending review-pending-badge">{t.adminMsgStatusHeld}</span>
+                {nextScheduled.reviewPending && (
+                  <span className="badge badge-pending review-pending-badge">{t.reviewWaitBadge}</span>
                 )}
                 {!readOnly && pendingReview && !paused && (
                   <button
@@ -1038,6 +1040,7 @@ export function Timeline({
       {confirmingSendNow && nextScheduled && (
         <SendNowModal
           channel={nextScheduled.channel}
+          waitingForAdmin={nextScheduled.reviewPending}
           onSendNow={onSendNow}
           onClose={() => setConfirmingSendNow(false)}
         />

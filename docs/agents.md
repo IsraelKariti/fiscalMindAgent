@@ -572,7 +572,11 @@ tenancy / admin impersonation / monday token auth.
 - `GET /api/agents` — caller's enabled instances.
 - `/api/agents/:agentId/...` — the agent-scoped workspace (clients, emails,
   files, dashboard, SSE); `resolveAgentInstance` middleware sets
-  `req.agentInstance` (404 on other users' or disabled instances).
+  `req.agentInstance` (404 on other users' or disabled instances). The
+  client read's `nextScheduled` carries `reviewPending` (the draft awaits
+  admin approval) and `heldAt` (the worker already held it at its time)
+  for every viewer — the timeline badge and the send-now refusal read
+  them (`src/orchestration/reviewWait.ts`, openspec `review-wait-visibility`).
 - Same three shapes under `/api/monday/app/...` (monday sessionToken auth).
 - Account-level (not agent-scoped): `GET /api/mailbox` (`src/api/account.ts`)
   — read-only status of the legacy account mailbox; there is no

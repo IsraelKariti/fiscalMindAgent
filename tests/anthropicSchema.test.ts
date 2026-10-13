@@ -5,7 +5,6 @@ import { toAnthropicSchema, restoreOmittedNulls } from '../src/gemini/anthropicS
 import {
   DecisionResponseSchema,
   decisionSchemaForContext,
-  EMAIL_ONLY_CONTEXT,
   normalizeDecision,
   restorePrunedNulls,
   type DecisionContext,
@@ -52,8 +51,8 @@ describe('toAnthropicSchema', () => {
       'stated_costs',
     ]);
     const props = converted.properties as Record<string, Record<string, unknown>>;
-    assert.equal(props.email_subject!.type, 'string');
-    assert.deepEqual(props.channel!.enum, ['email', 'whatsapp']);
+    assert.equal(props.whatsapp_text!.type, 'string');
+    assert.deepEqual(props.attestation!.enum, ['request', 'confirmed']);
     // Collapsed object union keeps its own shape and required list.
     assert.equal(props.whatsapp_template!.type, 'object');
     assert.deepEqual(props.whatsapp_template!.required, ['template_id', 'variables']);
@@ -98,7 +97,7 @@ describe('restoreOmittedNulls', () => {
     };
     const restored = restoreOmittedNulls(decisionJsonSchema, answer);
     const parsed = DecisionResponseSchema.parse(restored);
-    assert.equal(parsed.channel, null);
+    assert.equal(parsed.whatsapp_text, null);
     assert.equal(parsed.send_at, null);
     assert.equal(parsed.resolved_documents, null);
     assert.equal(parsed.attestation, null);
@@ -111,7 +110,6 @@ describe('restoreOmittedNulls', () => {
       collected_document_ids: [],
       matched_files: [],
       stated_costs: [],
-      channel: 'whatsapp',
       whatsapp_text: 'שלום',
       send_at: '2026-09-02 10:00',
       resolved_documents: [
@@ -126,7 +124,7 @@ describe('restoreOmittedNulls', () => {
     const entry = parsed.resolved_documents?.[0];
     assert.equal(entry?.evidence, null);
     assert.equal(entry?.instances?.[0]!.description, null);
-    assert.equal(parsed.email_subject, null);
+    assert.equal(parsed.tax_fetch_action, null);
     assert.equal(parsed.whatsapp_template, null);
   });
 
@@ -137,10 +135,7 @@ describe('restoreOmittedNulls', () => {
       collected_document_ids: [],
       matched_files: [],
       stated_costs: [],
-      channel: 'email',
-      email_subject: 'שלום',
-      email_body: 'גוף',
-      whatsapp_text: null,
+      whatsapp_text: 'שלום',
       whatsapp_template: null,
       send_at: '2026-09-02 10:00',
       tax_fetch_action: null,
@@ -192,8 +187,6 @@ describe('decisionSchemaForContext', () => {
   }
 
   const CAPITAL_DECLARATION_CONTEXT: DecisionContext = {
-    emailAllowed: false,
-    whatsappAllowed: true,
     windowOpen: true,
     templates: [],
     intake: {
@@ -208,7 +201,6 @@ describe('decisionSchemaForContext', () => {
   };
 
   const DOC_COLLECTOR_CONTEXT: DecisionContext = {
-    whatsappAllowed: true,
     windowOpen: false,
     templates: [],
     taxFetch: [
@@ -216,12 +208,17 @@ describe('decisionSchemaForContext', () => {
     ],
   };
 
-  it('capital declaration: drops email + tax-fetch fields and fits the Anthropic budget', () => {
+  it('capital declaration: drops the tax-fetch fields and fits the Anthropic budget', () => {
     const json = schemaFor(CAPITAL_DECLARATION_CONTEXT);
     const props = json.properties as Record<string, unknown>;
-    for (const gone of ['email_subject', 'email_body', 'tax_fetch_action', 'tax_fetch_provider', 'tax_fetch_document_keys']) {
+    for (const gone of ['tax_fetch_action', 'tax_fetch_provider', 'tax_fetch_document_keys']) {
       assert.equal(props[gone], undefined, `${gone} should be pruned`);
     }
+    // openspec `planner-answer-schema`: the form has no channel and no email field at all.
+    for (const never of ['channel', 'email_subject', 'email_body']) {
+      assert.equal(never in props, false, `${never} must not exist in the form`);
+    }
+    assert.notEqual(props.whatsapp_text, undefined);
     assert.notEqual(props.resolved_documents, undefined);
     assert.notEqual(props.attestation, undefined);
     assert.ok(countUnions(json) <= ANTHROPIC_UNION_BUDGET, `raw unions: ${countUnions(json)}`);
@@ -234,17 +231,8 @@ describe('decisionSchemaForContext', () => {
     for (const gone of ['resolved_documents', 'added_instances', 'retired_documents', 'attestation', 'attestation_evidence']) {
       assert.equal(props[gone], undefined, `${gone} should be pruned`);
     }
-    assert.notEqual(props.email_subject, undefined);
+    assert.notEqual(props.whatsapp_text, undefined);
     assert.notEqual(props.tax_fetch_action, undefined);
-    assert.ok(countUnions(json) <= ANTHROPIC_UNION_BUDGET, `raw unions: ${countUnions(json)}`);
-  });
-
-  it('email-only context: also drops the whatsapp fields', () => {
-    const json = schemaFor(EMAIL_ONLY_CONTEXT);
-    const props = json.properties as Record<string, unknown>;
-    for (const gone of ['whatsapp_text', 'whatsapp_template', 'tax_fetch_action', 'resolved_documents']) {
-      assert.equal(props[gone], undefined, `${gone} should be pruned`);
-    }
     assert.ok(countUnions(json) <= ANTHROPIC_UNION_BUDGET, `raw unions: ${countUnions(json)}`);
   });
 
@@ -255,7 +243,6 @@ describe('decisionSchemaForContext', () => {
       collected_document_ids: [],
       matched_files: [],
       stated_costs: [],
-      channel: 'whatsapp',
       whatsapp_text: 'שלום',
       whatsapp_template: null,
       send_at: '2026-09-02 10:00',

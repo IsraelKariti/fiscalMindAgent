@@ -148,7 +148,8 @@ export function buildSystemPrompt(
 /** Lives in `contents` (like the documents section) so the system prompt stays static and cacheable. */
 export function buildWhatsAppSection(token: string, wa: WaChannelState): string {
   if (!wa.allowed) {
-    return `${fence(token, PLATFORM_SECTIONS.whatsapp)}\nstatus: UNAVAILABLE (${wa.unavailableReason ?? 'unavailable'}) — use email only\n${endFence(token, PLATFORM_SECTIONS.whatsapp)}`;
+    // Dead in practice: plan.ts refuses to run the planner without a usable channel (loadWaChannelOrThrow).
+    return `${fence(token, PLATFORM_SECTIONS.whatsapp)}\nstatus: UNAVAILABLE (${wa.unavailableReason ?? 'unavailable'}) — no message can be sent\n${endFence(token, PLATFORM_SECTIONS.whatsapp)}`;
   }
   const windowLine = wa.windowOpen
     ? `24h window: OPEN — free-form messages (whatsapp_text) allowed until ${

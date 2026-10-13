@@ -437,11 +437,8 @@ function verificationResultsForPrompt(run: PlanRun): VerificationResultPromptInp
 /** What the validate_message gate is allowed to accept in this cycle. */
 function buildDecisionContext(run: PlanRun): DecisionContext {
   return {
-    // WhatsApp-only: the planner may never choose email.
-    emailAllowed: false,
     // The follow-up cycle after a verification batch may not collect again.
     afterVerification: run.afterVerification,
-    whatsappAllowed: run.waState.allowed,
     windowOpen: run.waState.windowOpen,
     templates: run.waState.templates,
     taxFetch: run.taxFetchContexts.map((c) => ({
@@ -1103,13 +1100,15 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
   if (delayMs < 0 && resolved.requested === 'time') {
     logger.warn('LLM send_at is in the past; sending immediately', { clientId, send_at: sendAtLabel });
   }
+  // WhatsApp only (openspec `planner-answer-schema`): the message is free-form text or a rendered template.
   const message = decision.message;
+  const body = message.kind === 'freeform' ? message.body : message.renderedBody;
   const { emailId } = await scheduleDraftMessage(clientId, {
     channel: message.channel,
-    subject: message.channel === 'email' ? message.subject : '',
-    body: message.channel === 'email' || message.kind === 'freeform' ? message.body : message.renderedBody,
-    waContentSid: message.channel === 'whatsapp' && message.kind === 'template' ? message.contentSid : null,
-    waContentVariables: message.channel === 'whatsapp' && message.kind === 'template' ? message.variables : null,
+    subject: '',
+    body,
+    waContentSid: message.kind === 'template' ? message.contentSid : null,
+    waContentVariables: message.kind === 'template' ? message.variables : null,
     delayMs: Math.max(0, delayMs),
     reasoning: decision.reasoning,
     // Held first message (openspec `first-message-approval`): stored, not queued.
@@ -1118,10 +1117,10 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
   recordPlannerStep(run, 'send_reply', {
     emailId,
     channel: message.channel,
-    kind: message.channel === 'whatsapp' ? message.kind : 'email',
+    kind: message.kind,
     send_at: sendAtLabel,
     requested: resolved.requested,
-    chars: (message.channel === 'email' || message.kind === 'freeform' ? message.body : message.renderedBody).length,
+    chars: body.length,
   });
   await applyAttestationRequest(run, decision, emailId, sendAtLabel, resolved.requested);
   const fetch = taxFetchDecisionOf(run, decision);
@@ -1132,7 +1131,7 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
   logger.info('follow-up scheduled', {
     clientId,
     channel: message.channel,
-    kind: message.channel === 'whatsapp' ? message.kind : 'email',
+    kind: message.kind,
     send_at: sendAtLabel,
     requested: resolved.requested,
     send_at_utc: sendAtUtc.toISOString(),

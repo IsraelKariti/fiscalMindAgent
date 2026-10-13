@@ -16,9 +16,6 @@ const incidentAnswer = JSON.stringify({
     'The assistant just sent message #9, which announced the initiation of the Altshuler Shaham pension document fetch. No new message is needed as the client is expected to provide the SMS code in response to the last message.',
   collected_document_ids: [],
   matched_files: [],
-  channel: null,
-  email_subject: null,
-  email_body: null,
   whatsapp_text: null,
   whatsapp_template: null,
   send_at: null,
@@ -35,7 +32,6 @@ const incidentAnswer = JSON.stringify({
 
 // The channel/fetch state at the time of the incident.
 const ctx: DecisionContext = {
-  whatsappAllowed: true,
   windowOpen: true,
   templates: [],
   taxFetch: [
@@ -59,7 +55,6 @@ describe('keepalive contract (normalizeDecision)', () => {
     const raw = DecisionResponseSchema.parse(
       JSON.parse(incidentAnswer.replace('"whatsapp_text":null', '"whatsapp_text":"רק בודק - קיבלת את הקוד?"')),
     );
-    raw.channel = 'whatsapp';
     raw.send_at = '2026-08-02 11:05';
     const decision = normalizeDecision(raw, ctx);
     assert.equal(decision.decision, 'follow_up');
@@ -83,7 +78,7 @@ describe('correctionSuffix', () => {
     const suffix = correctionSuffix(incidentAnswer, caught);
     assert.ok(suffix.includes(incidentAnswer));
     assert.ok(suffix.includes((caught as Error).message));
-    assert.ok(suffix.includes('MUST include exactly one full message'));
+    assert.ok(suffix.includes('MUST include exactly one WhatsApp message'));
   });
 });
 
@@ -92,7 +87,6 @@ describe('asap send_at (openspec reply-send-asap)', () => {
     const raw = DecisionResponseSchema.parse(
       JSON.parse(incidentAnswer.replace('"whatsapp_text":null', '"whatsapp_text":"מתחיל עכשיו"')),
     );
-    raw.channel = 'whatsapp';
     raw.send_at = ' ASAP ';
     const decision = normalizeDecision(raw, ctx);
     assert.equal(decision.decision, 'follow_up');
@@ -104,7 +98,6 @@ describe('asap send_at (openspec reply-send-asap)', () => {
     const raw = DecisionResponseSchema.parse(
       JSON.parse(incidentAnswer.replace('"whatsapp_text":null', '"whatsapp_text":"מתחיל עכשיו"')),
     );
-    raw.channel = 'whatsapp';
     raw.send_at = 'soon';
     assert.throws(() => normalizeDecision(raw, ctx), /missing\/invalid send_at/);
   });

@@ -9,7 +9,6 @@ import {
   DecisionRejectedError,
   decisionSchemaForContext,
   decisionSchemaKey,
-  EMAIL_ONLY_CONTEXT,
   gateDecision,
   type DecisionContext,
   type DecisionResponse,
@@ -25,14 +24,25 @@ import type { z } from 'zod';
  */
 const schemaCache = new Map<string, { zod: z.ZodType<Partial<DecisionResponse>>; json: Record<string, unknown> }>();
 
+/**
+ * The JSON request schema sent to the model for one context. `$refStrategy:
+ * 'none'` inlines every sub-schema: zod-to-json-schema otherwise emits a `$ref`
+ * for a Zod object reused in two places (StatedCostOnInstanceSchema, since
+ * 2026-10-12), and Anthropic rejects a `$ref` under `properties` with a 400
+ * "References must be defined under '$defs'" — every planner call on a Claude
+ * model failed that way (found by the evals, 2026-10-13).
+ */
+export function decisionJsonSchemaForContext(ctx: DecisionContext): Record<string, unknown> {
+  const json = zodToJsonSchema(decisionSchemaForContext(ctx) as never, { $refStrategy: 'none' }) as Record<string, unknown>;
+  delete json.$schema;
+  return json;
+}
+
 function schemasForContext(ctx: DecisionContext): { zod: z.ZodType<Partial<DecisionResponse>>; json: Record<string, unknown> } {
   const key = decisionSchemaKey(ctx);
   let entry = schemaCache.get(key);
   if (!entry) {
-    const zodSchema = decisionSchemaForContext(ctx);
-    const json = zodToJsonSchema(zodSchema as never) as Record<string, unknown>;
-    delete json.$schema;
-    entry = { zod: zodSchema, json };
+    entry = { zod: decisionSchemaForContext(ctx), json: decisionJsonSchemaForContext(ctx) };
     schemaCache.set(key, entry);
   }
   return entry;
@@ -79,7 +89,7 @@ export function buildDecisionCall({ systemInstruction, contents, ctx }: Decision
 export async function decide(
   systemInstruction: string,
   contents: string,
-  ctx: DecisionContext = EMAIL_ONLY_CONTEXT,
+  ctx: DecisionContext,
   opts: {
     /** Per-call llm_calls attribution; each validation attempt logs its own row. */
     log?: LlmCallLogContext;

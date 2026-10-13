@@ -63,8 +63,6 @@ const TEMPERATURES: Record<LlmCallPurpose, number> = {
 };
 
 const CAPITAL_DECISION_CONTEXT: DecisionContext = {
-  emailAllowed: false,
-  whatsappAllowed: true,
   windowOpen: true,
   templates: [],
   intake: {

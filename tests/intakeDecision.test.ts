@@ -21,7 +21,7 @@ describe('validate_message check list (gateDecision)', () => {
     const text = JSON.stringify(baseRaw());
     assert.deepEqual(checks, [
       { key: 'json_schema', passed: true, note: null, observed: `${text.length} chars`, expected: null },
-      { key: 'business_rules', passed: true, note: null, observed: 'follow_up / email', expected: null },
+      { key: 'business_rules', passed: true, note: null, observed: 'follow_up / freeform', expected: null },
     ]);
   });
 
@@ -74,7 +74,7 @@ describe('validate_message check list (gateDecision)', () => {
           [['json_schema', true], ['business_rules', false]],
         );
         assert.match(err.checks[1]!.note ?? '', /requires evidence/);
-        assert.equal(err.checks[1]!.observed, 'follow_up / email');
+        assert.equal(err.checks[1]!.observed, 'follow_up / freeform');
         return true;
       },
     );
@@ -88,10 +88,7 @@ function baseRaw(overrides: Partial<DecisionResponse> = {}): DecisionResponse {
     reasoning: 'test',
     collected_document_ids: [],
     matched_files: [],
-    channel: 'email',
-    email_subject: 'Re: הצהרת הון',
-    email_body: 'תוכן',
-    whatsapp_text: null,
+    whatsapp_text: 'תוכן',
     whatsapp_template: null,
     send_at: '2026-08-20 10:00',
     tax_fetch_action: null,
@@ -139,7 +136,7 @@ function baseIntake(overrides: Partial<IntakeDecisionState> = {}): IntakeDecisio
 }
 
 function ctxWith(intake?: IntakeDecisionState): DecisionContext {
-  return { whatsappAllowed: false, windowOpen: false, templates: [], intake };
+  return { windowOpen: true, templates: [], intake };
 }
 
 describe('intake resolutions (normalizeDecision)', () => {
@@ -372,9 +369,7 @@ describe('attestation gate (normalizeDecision)', () => {
           baseRaw({
             attestation: 'request',
             decision: 'goal_complete',
-            channel: null,
-            email_subject: null,
-            email_body: null,
+            whatsapp_text: null,
             send_at: null,
           }),
           ctxWith(settled),
@@ -537,7 +532,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
 describe('a list item is created only on the client\'s quoted words (openspec unlisted-files)', () => {
   // These answers tie a file to a row, so they are 'collect' decisions: no message, no send_at.
   const tyingRaw = (overrides: Partial<DecisionResponse> = {}): DecisionResponse =>
-    baseRaw({ decision: 'collect', channel: null, email_subject: null, email_body: null, send_at: null, ...overrides });
+    baseRaw({ decision: 'collect', whatsapp_text: null, send_at: null, ...overrides });
   const instances = [{ name: 'אישור קרן השתלמות בהראל', description: null, already_provided: false, file_ids: ['file-1', 'file-1'], paper_key: 'vehicle_license', stated_cost: NO_COST }];
   // The contract anchor is a real_estate row: an added instance there names one of the property papers.
   const contractInstances = instances.map((i) => ({ ...i, paper_key: 'tabu_extract', stated_cost: NO_COST }));

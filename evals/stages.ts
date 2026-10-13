@@ -1000,9 +1000,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
   });
   const afterVerification = c.after_verification === true || c.verification_results !== undefined;
   const decisionCtx: DecisionContext = {
-    emailAllowed: false,
     afterVerification,
-    whatsappAllowed: true,
     windowOpen: waState.windowOpen,
     templates,
     taxFetch: taxFetchPrompt.map((p) => ({
@@ -1063,17 +1061,16 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
 
     if (decision.decision === 'collect') {
       // The gate already refuses a message on a collecting answer; the check makes the rule visible in the report.
-      const messageFields = [raw.whatsapp_text, raw.whatsapp_template, raw.email_subject, raw.email_body, raw.send_at].filter((v) => v != null && v !== '');
+      const messageFields = [raw.whatsapp_text, raw.whatsapp_template, raw.send_at].filter((v) => v != null && v !== '');
       checks.push({ key: 'no_message', expected: 'no message fields, send_at null', actual: messageFields.length === 0 ? 'none' : `${messageFields.length} filled`, pass: messageFields.length === 0 });
       checks.push({ key: 'ties', expected: '>0', actual: decision.collected_document_ids.length + decision.matched_files.length, pass: true });
     }
 
     if (decision.decision === 'follow_up') {
       const message = decision.message;
-      checks.push(eq('channel', 'whatsapp', message.channel));
-      const kind = message.channel === 'whatsapp' ? message.kind : 'email';
+      const kind = message.kind;
       if (e.message_kind) checks.push(eq('message_kind', e.message_kind, kind));
-      const body = message.channel === 'whatsapp' ? (message.kind === 'freeform' ? message.body : message.renderedBody) : message.body;
+      const body = message.kind === 'freeform' ? message.body : message.renderedBody;
       info.message = body;
       if (e.mentions_valuation_date !== false) {
         const wanted = `31.12.${taxYear}`;

@@ -17,7 +17,7 @@ import {
 // message; a follow_up ties nothing; the follow-up cycle after verification is
 // never offered 'collect'.
 
-const ctx: DecisionContext = { emailAllowed: false, whatsappAllowed: true, windowOpen: true, templates: [] };
+const ctx: DecisionContext = { windowOpen: true, templates: [] };
 
 /** No cost stated on an instance (openspec `chat-stated-cost`): amount 0 = none. */
 const NO_COST = { amount: 0, currency: '', message_id: '', quote: '' };
@@ -27,9 +27,6 @@ const base: DecisionResponse = {
   reasoning: 'the client sent the Leumi certificate',
   collected_document_ids: ['doc-bank-leumi'],
   matched_files: [{ file_id: 'file-1', document_id: 'doc-bank-leumi', evidence: null }],
-  channel: null,
-  email_subject: null,
-  email_body: null,
   whatsapp_text: null,
   whatsapp_template: null,
   send_at: null,
@@ -110,7 +107,7 @@ describe('the collect decision (normalizeDecision)', () => {
   });
 
   it('rejects collect with a message text', () => {
-    assert.throws(() => normalizeDecision(answer({ channel: 'whatsapp', whatsapp_text: 'תודה, קיבלתי' }), ctx), /leave whatsapp_text null/);
+    assert.throws(() => normalizeDecision(answer({ whatsapp_text: 'תודה, קיבלתי' }), ctx), /leave whatsapp_text null/);
   });
 
   it('rejects collect with a template message', () => {
@@ -145,7 +142,7 @@ describe('the collect decision (normalizeDecision)', () => {
 
   it('rejects a follow_up that ties a file', () => {
     assert.throws(
-      () => normalizeDecision(answer({ decision: 'follow_up', channel: 'whatsapp', whatsapp_text: 'תודה', send_at: '2026-09-23 17:00' }), ctx),
+      () => normalizeDecision(answer({ decision: 'follow_up', whatsapp_text: 'תודה', send_at: '2026-09-23 17:00' }), ctx),
       /follow_up answer must not tie files/,
     );
   });
@@ -163,7 +160,7 @@ describe('the collect decision (normalizeDecision)', () => {
     const stated = [{ document_id: 'doc-car-cost', amount: 85000, currency: 'ILS', evidence: { message_id: 'msg-1', quote: 'שילמתי 85,000' } }];
     assert.equal(answerTiesFiles(answer({ collected_document_ids: [], matched_files: [], stated_costs: stated })), false);
     const decision = normalizeDecision(
-      answer({ decision: 'follow_up', collected_document_ids: [], matched_files: [], stated_costs: stated, channel: 'whatsapp', whatsapp_text: 'רשמתי 85,000 ש"ח', send_at: '2026-09-23 17:00' }),
+      answer({ decision: 'follow_up', collected_document_ids: [], matched_files: [], stated_costs: stated, whatsapp_text: 'רשמתי 85,000 ש"ח', send_at: '2026-09-23 17:00' }),
       { ...ctx, intake },
     );
     assert.equal(decision.decision, 'follow_up');
@@ -176,7 +173,7 @@ describe('the collect decision (normalizeDecision)', () => {
 
   it('still accepts a follow_up that ties nothing and carries a message', () => {
     const decision = normalizeDecision(
-      answer({ decision: 'follow_up', collected_document_ids: [], matched_files: [], channel: 'whatsapp', whatsapp_text: 'מה שלומך?', send_at: '2026-09-23 17:00' }),
+      answer({ decision: 'follow_up', collected_document_ids: [], matched_files: [], whatsapp_text: 'מה שלומך?', send_at: '2026-09-23 17:00' }),
       ctx,
     );
     assert.equal(decision.decision, 'follow_up');
@@ -189,6 +186,6 @@ describe('correctionSuffix', () => {
     assert.ok(suffix.includes('"collect"'));
     assert.ok(suffix.includes('every message field and send_at MUST be null'));
     assert.ok(suffix.includes('"follow_up"'));
-    assert.ok(suffix.includes('exactly one full message'));
+    assert.ok(suffix.includes('exactly one WhatsApp message'));
   });
 });

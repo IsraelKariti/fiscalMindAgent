@@ -64,10 +64,10 @@ export const DecisionResponseSchema = z.object({
       evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
     }),
   ),
-  /** Which channel the follow-up goes out on; null/'email' unless the prompt offered WhatsApp. */
-  channel: z.enum(['email', 'whatsapp']).nullable(),
-  email_subject: z.string().nullable(),
-  email_body: z.string().nullable(),
+  // The agent messages on WhatsApp only (openspec `planner-answer-schema`): a
+  // follow_up carries exactly one of the two WhatsApp fields below, and the code
+  // derives the channel and the kind from which one is filled. There is no
+  // channel field and no email field in the form.
   /** Free-form WhatsApp text — only valid while the 24h customer-service window is open. */
   whatsapp_text: z.string().nullable(),
   /** Pre-approved template + its {{n}} variable values — the only WhatsApp option outside the window. */
@@ -226,18 +226,16 @@ export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
 /**
  * Response-schema pruning (2026-09-01 prod incident): Anthropic's
  * structured-output grammar compiler budgets ~16 union/optional-typed
- * parameters per schema; the full decision schema has 19 nullable fields and
- * is rejected with a 400 even after the adapter's null-union collapse. Every
- * context leaves whole field groups permanently invalid anyway — a
- * WhatsApp-only agent can never fill the email fields, only the capital
- * declaration has intake fields, tax-fetch fields only exist when a provider
- * is offered — so the request schema omits those groups outright and the
- * parsed answer gets its nulls back (restorePrunedNulls) before
- * normalizeDecision, whose "set but not applicable" rejections still guard
- * whatever remains.
+ * parameters per schema (nested ones count too); the full decision schema has
+ * more nullable places than that and is rejected with a 400 even after the
+ * adapter's null-union collapse. Every context leaves whole field groups
+ * permanently invalid anyway — only the capital declaration has intake fields,
+ * tax-fetch fields only exist when a provider is offered — so the request
+ * schema omits those groups outright and the parsed answer gets its nulls back
+ * (restorePrunedNulls) before normalizeDecision, whose "set but not
+ * applicable" rejections still guard whatever remains. The WhatsApp-only form
+ * must stay at or under 15 nullable places (tests/decisionSchemaBudget.test.ts).
  */
-const EMAIL_FIELDS = ['email_subject', 'email_body'] as const;
-const WHATSAPP_FIELDS = ['whatsapp_text', 'whatsapp_template'] as const;
 const TAX_FETCH_FIELDS = ['tax_fetch_action', 'tax_fetch_provider', 'tax_fetch_document_keys'] as const;
 const INTAKE_FIELDS = [
   'resolved_documents',
@@ -248,18 +246,10 @@ const INTAKE_FIELDS = [
   'attestation_evidence',
 ] as const;
 
-export type PrunableDecisionField =
-  | (typeof EMAIL_FIELDS)[number]
-  | (typeof WHATSAPP_FIELDS)[number]
-  | (typeof TAX_FETCH_FIELDS)[number]
-  | (typeof INTAKE_FIELDS)[number];
+export type PrunableDecisionField = (typeof TAX_FETCH_FIELDS)[number] | (typeof INTAKE_FIELDS)[number];
 
 /** What a pruned field reads as once restored: null, or [] for the one always-present array (`stated_costs`). */
 const PRUNED_FIELD_DEFAULTS: { [K in PrunableDecisionField]: DecisionResponse[K] } = {
-  email_subject: null,
-  email_body: null,
-  whatsapp_text: null,
-  whatsapp_template: null,
   tax_fetch_action: null,
   tax_fetch_provider: null,
   tax_fetch_document_keys: null,
@@ -274,8 +264,6 @@ const PRUNED_FIELD_DEFAULTS: { [K in PrunableDecisionField]: DecisionResponse[K]
 /** The field groups a given context can never legally fill — the ones the request schema drops. */
 export function prunedDecisionFields(ctx: DecisionContext): PrunableDecisionField[] {
   return [
-    ...(ctx.emailAllowed === false ? EMAIL_FIELDS : []),
-    ...(ctx.whatsappAllowed ? [] : WHATSAPP_FIELDS),
     ...((ctx.taxFetch ?? []).length === 0 ? TAX_FETCH_FIELDS : []),
     ...(ctx.intake ? [] : INTAKE_FIELDS),
   ];
@@ -311,8 +299,8 @@ export interface MatchedFile {
   evidence: EvidenceRef | null;
 }
 
+/** The one WhatsApp message a follow_up schedules; `channel` is a constant the code supplies, never the model. */
 export type FollowUpMessage =
-  | { channel: 'email'; subject: string; body: string }
   | { channel: 'whatsapp'; kind: 'freeform'; body: string }
   | { channel: 'whatsapp'; kind: 'template'; contentSid: string; variables: string[]; renderedBody: string };
 
@@ -506,12 +494,12 @@ export interface IntakeDecisionState {
   attestationConfirmed: boolean;
 }
 
-/** What the surrounding code knows about the WhatsApp channel when validating the LLM's choice. */
+/**
+ * What the surrounding code knows about the WhatsApp channel when validating
+ * the LLM's choice. The planner runs only when the channel is usable
+ * (plan.ts throws otherwise), so there is no "allowed" flag here.
+ */
 export interface DecisionContext {
-  /** False for WhatsApp-only agents: the email channel may never be chosen. Undefined = allowed. */
-  emailAllowed?: boolean;
-  /** Client opted in + sender number assigned + something is actually sendable. */
-  whatsappAllowed: boolean;
   /** The 24h customer-service window is open (free-form WhatsApp permitted). */
   windowOpen: boolean;
   /** Approved templates the LLM may pick from (by content_sid). */
@@ -526,8 +514,6 @@ export interface DecisionContext {
    */
   afterVerification?: boolean;
 }
-
-export const EMAIL_ONLY_CONTEXT: DecisionContext = { whatsappAllowed: false, windowOpen: false, templates: [] };
 
 /**
  * The tax_fetch_action values valid in a given state — the single source of
@@ -566,31 +552,33 @@ export function allowedTaxFetchActions(state: string, available: boolean, client
 }
 
 /** Just the message-shaping fields, so agents reusing this needn't carry every field. */
-export type FollowUpMessageInput = Pick<
-  DecisionResponse,
-  'channel' | 'email_subject' | 'email_body' | 'whatsapp_text' | 'whatsapp_template'
->;
+export type FollowUpMessageInput = Pick<DecisionResponse, 'whatsapp_text' | 'whatsapp_template'>;
 
+/** The message kind a raw answer proposes, read the way normalization reads it; '—' when it carries none. */
+export function proposedMessageKind(raw: FollowUpMessageInput): 'freeform' | 'template' | '—' {
+  const hasText = raw.whatsapp_text != null && raw.whatsapp_text.trim() !== '';
+  if (hasText) return 'freeform';
+  if (raw.whatsapp_template != null) return 'template';
+  return '—';
+}
+
+/**
+ * The one WhatsApp message of a follow_up (openspec `planner-answer-schema`):
+ * free-form text while the window is open, an approved template otherwise.
+ * The model fills exactly one of the two fields; the code supplies the channel.
+ */
 export function normalizeFollowUpMessage(raw: FollowUpMessageInput, ctx: DecisionContext): FollowUpMessage {
-  // Old-style / email answers: a missing channel means email (backward-safe).
-  if (raw.channel !== 'whatsapp') {
-    if (ctx.emailAllowed === false) {
-      throw new Error(`follow_up chose email but this agent messages on WhatsApp only — set channel to "whatsapp": ${JSON.stringify(raw)}`);
-    }
-    if (raw.email_body == null || raw.email_subject == null) {
-      throw new Error(`follow_up email decision missing subject/body: ${JSON.stringify(raw)}`);
-    }
-    return { channel: 'email', subject: raw.email_subject, body: raw.email_body };
+  const hasText = raw.whatsapp_text != null && raw.whatsapp_text.trim() !== '';
+  if (hasText && raw.whatsapp_template != null) {
+    throw new Error(
+      `follow_up filled both whatsapp_text and whatsapp_template — a follow_up carries exactly one WhatsApp message: ${JSON.stringify(raw)}`,
+    );
   }
-
-  if (!ctx.whatsappAllowed) {
-    throw new Error(`follow_up chose whatsapp but the channel is unavailable for this client: ${JSON.stringify(raw)}`);
-  }
-  if (raw.whatsapp_text != null && raw.whatsapp_text.trim() !== '') {
+  if (hasText) {
     if (!ctx.windowOpen) {
       throw new Error(`follow_up chose free-form whatsapp outside the 24h window: ${JSON.stringify(raw)}`);
     }
-    return { channel: 'whatsapp', kind: 'freeform', body: raw.whatsapp_text };
+    return { channel: 'whatsapp', kind: 'freeform', body: raw.whatsapp_text! };
   }
   if (raw.whatsapp_template != null) {
     const template = ctx.templates.find((t) => t.content_sid === raw.whatsapp_template!.template_id);
@@ -611,7 +599,9 @@ export function normalizeFollowUpMessage(raw: FollowUpMessageInput, ctx: Decisio
       renderedBody: renderTemplateBody(template.body, variables),
     };
   }
-  throw new Error(`follow_up chose whatsapp but filled neither whatsapp_text nor whatsapp_template: ${JSON.stringify(raw)}`);
+  throw new Error(
+    `follow_up needs exactly one WhatsApp message but filled neither whatsapp_text nor whatsapp_template: ${JSON.stringify(raw)}`,
+  );
 }
 
 /** Resolves and validates the (provider, action) pair; rejects an action invalid for that provider's state. */
@@ -1089,7 +1079,7 @@ export function correctionSuffix(invalidAnswer: string, err: unknown): string {
     'Your rejected answer:',
     invalidAnswer,
     `Validation error: ${message}`,
-    'Return a corrected, complete JSON decision now. Remember the three decision values: "collect" when the answer ties a file to a document (collected_document_ids, matched_files or an instance\'s file_ids) — then every message field and send_at MUST be null, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one full message (the chosen channel\'s fields) and a send_at — a future "YYYY-MM-DD HH:MM" time, or "asap" for a reply to a client who is waiting right now — "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed.',
+    'Return a corrected, complete JSON decision now. Remember the three decision values: "collect" when the answer ties a file to a document (collected_document_ids, matched_files or an instance\'s file_ids) — then every message field and send_at MUST be null, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one WhatsApp message (whatsapp_text inside the 24h window, or whatsapp_template) and a send_at — a future "YYYY-MM-DD HH:MM" time, or "asap" for a reply to a client who is waiting right now — "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed.',
   ].join('\n');
 }
 
@@ -1126,7 +1116,7 @@ export function gateDecision(
     const message = messageOf(err);
     throw new DecisionRejectedError(message, [check('json_schema', false, message, { observed: answerSize })]);
   }
-  const proposed = `${parsed.decision} / ${parsed.channel ?? '—'}`;
+  const proposed = `${parsed.decision} / ${proposedMessageKind(parsed)}`;
   const schemaCheck = check('json_schema', true, null, { observed: answerSize });
   // Named checks some validators report on their own (the stated-cost checks),
   // listed between the schema check and the business-rules verdict.
@@ -1160,13 +1150,11 @@ function filledMessageFields(raw: DecisionResponse): string[] {
   const filled: string[] = [];
   if (raw.whatsapp_text != null && raw.whatsapp_text.trim() !== '') filled.push('whatsapp_text');
   if (raw.whatsapp_template != null) filled.push('whatsapp_template');
-  if (raw.email_subject != null && raw.email_subject.trim() !== '') filled.push('email_subject');
-  if (raw.email_body != null && raw.email_body.trim() !== '') filled.push('email_body');
   if (raw.send_at != null) filled.push('send_at');
   return filled;
 }
 
-export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext = EMAIL_ONLY_CONTEXT, checks: GateCheck[] = []): NormalizedDecision {
+export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, checks: GateCheck[] = []): NormalizedDecision {
   const ties = answerTiesFiles(raw);
   if (raw.decision === 'collect') {
     if (ctx.afterVerification) {

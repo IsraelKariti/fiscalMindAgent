@@ -45,8 +45,10 @@ activation is not email-gated and no mailbox is required — the instance's
 - The import gate is a **WhatsApp sender**, not a mailbox
   (`notReady: 'no_wa_sender'`), and sources without a mapped phone column
   refuse to enroll (`'no_phone_column'`).
-- The planner may never choose email: `DecisionContext.emailAllowed=false`
-  rejects it in `normalizeFollowUpMessage`, and `planFollowUp` throws upfront
+- The planner's answer form has no channel and no email field (openspec
+  `planner-answer-schema`): a follow_up fills `whatsapp_text` or
+  `whatsapp_template`, `normalizeFollowUpMessage` derives the kind and the
+  code supplies the channel; `planFollowUp` throws upfront
   when the WhatsApp channel is unavailable (no opt-in / no sender / window
   closed with zero approved templates) instead of asking the LLM. First
   contact always goes out as an **approved template** (the 24h window is

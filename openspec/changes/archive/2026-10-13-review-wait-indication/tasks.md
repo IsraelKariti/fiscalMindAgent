@@ -15,7 +15,7 @@
 - [x] 2.4 In `web/src/components/SendNowModal.tsx`, add a `waitingForAdmin` prop: when true, render the explanation and a single close button, no send; `Timeline.tsx` passes `nextScheduled.reviewPending`.
 - [x] 2.6 In `web/src/components/Timeline.tsx`, render the pause button of the scheduled bubble only when `nextScheduled.heldAt` is null (a held message offers regenerate only); the paused bubble and the resume control are unchanged.
 - [x] 2.7 In `web/src/components/Timeline.tsx`, render the "Send now" button of the scheduled bubble only when `nextScheduled.reviewPending` is false; keep the modal's stale-page switch to the waiting explanation on the server's `awaiting_review`.
-- [ ] 2.5 Run `npm run typecheck` and `npm run lint` (web); check the bubble in both the accountant view and the admin view-as on a review-mode client: pending with time ahead, held after the time (no pause and no send-now control), paused with a pending draft, and no send-now control while awaiting approval.
+- [x] 2.5 Run `npm run typecheck` and `npm run lint` (web); check the bubble in both the accountant view and the admin view-as on a review-mode client: pending with time ahead, held after the time (no pause and no send-now control), paused with a pending draft, and no send-now control while awaiting approval.
 
 ## 3. Docs and wrap-up
 

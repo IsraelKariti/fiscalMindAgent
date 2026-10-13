@@ -7,7 +7,7 @@ Admin-only review and approval of agent drafts that are held for human review be
 ## Requirements
 
 ### Requirement: Approve control is visible only to impersonating admins
-The workspace timeline SHALL show the "אישור ההודעה" (approve message) control on a review-pending draft only when the viewer is an admin who is impersonating the accountant. An accountant viewing their own workspace SHALL never see the control, the "ממתינה לאישור" (awaiting approval) badge, or any approval modal.
+The workspace timeline SHALL show the "אישור ההודעה" (approve message) control on a review-pending draft only when the viewer is an admin who is impersonating the accountant. An accountant viewing their own workspace SHALL never see the control or any approval modal. The "ממתינה לאישור" (awaiting approval) badge is NOT admin-only: it is shown to every viewer, as the `review-wait-visibility` capability requires.
 
 #### Scenario: Admin in impersonation sees the control
 - **WHEN** an admin opens a client's workspace through impersonation and the client's next scheduled message is a draft awaiting review
@@ -15,7 +15,7 @@ The workspace timeline SHALL show the "אישור ההודעה" (approve message
 
 #### Scenario: Accountant never sees the control
 - **WHEN** an accountant (non-admin) opens the same client's workspace while the draft awaits review
-- **THEN** the timeline shows the scheduled message without the awaiting-approval badge, without the approve control, and no approval modal can be opened
+- **THEN** the timeline shows the scheduled message with the awaiting-approval badge, without the approve control, and no approval modal can be opened
 
 ### Requirement: Past-due approval shows a send-immediately warning before confirming
 When the admin clicks the approve control and the draft is past due, the system SHALL open an in-app warning modal that states, in Hebrew, that the planned send time has passed and the message will be sent immediately on approval. The modal SHALL offer confirm and cancel. The message SHALL be approved only after the admin confirms. Browser-native dialogs (alert, confirm, prompt) MUST NOT be used.

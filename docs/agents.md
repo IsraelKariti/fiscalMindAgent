@@ -1494,6 +1494,20 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   localStorage) and fetches the admin endpoint, which `requireAdmin` gates on
   the REAL user — an accountant's session never gets the data, and the monday
   embed has no provider so the toggle never renders there.
+  The two toggles (LLM calls / code steps) feed `mergeTrace`
+  (`web/src/components/timelineRows.ts`, unit-tested in
+  `tests/timelineRows.test.ts`). The endpoint flags every unsent outbound
+  row other than the live job's draft as `discarded` (a re-plan — admin
+  regenerate, a reply before the send, a resume redraft — keeps the row and
+  only drops its job), and flags its `send_reply` step and the
+  `generate_message` call that wrote it. With the LLM calls toggle off none
+  of these show; with it on (openspec `conversation-trace`, "Discarded drafts
+  are shown with the LLM calls") each discarded draft is a greyed
+  `DiscardedDraftRow` bubble at its `createdAt` with a "טיוטה שנזנחה" badge
+  and no controls, its call shows like any call, and its step shows when the
+  code steps toggle is on as well. Discarded drafts never enter
+  `visibleEmails`, so the message count and the "no messages" notice ignore
+  them; the channel filter applies to them like to messages.
 - **Apply phase**: `plan.ts` records one `apply_resolutions` /
   `apply_additions` / `apply_retirements` / `apply_stated_costs` / `apply_collections` /
   `apply_attestation` / `send_reply` row per decision field that changed

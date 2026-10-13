@@ -4,6 +4,7 @@ import {
   api,
   ApiError,
   type AdminConversation,
+  type AdminConversationMessage,
   type AdminConversationStep,
   type DocumentFile,
   type Email,
@@ -20,6 +21,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { FileViewModal } from './FileViewModal';
 import { StepDetailModal, gateReasonOf, gateResultOf } from './StepDetailModal';
 import { SendNowModal } from './SendNowModal';
+import { mergeTrace, type TraceEntry } from './timelineRows';
 
 type ChannelFilter = 'all' | MessageChannel;
 
@@ -45,51 +47,6 @@ function isTimelineAttachment(file: DocumentFile): boolean {
 // "whatsapp-media-<yyyymmdd-hhmmss>[-N].ext", which means nothing to the accountant.
 function hasSyntheticName(file: DocumentFile): boolean {
   return /^whatsapp-media-[\d-]+\./.test(file.filename);
-}
-
-/**
- * Admin-only trace rows woven between the messages: the LLM calls and the
- * audited code steps (gates, apply_*, send_reply) of this client, as served
- * by the admin conversation endpoint. Ties on the same instant break steps →
- * calls → messages, so a cycle reads inbound, regex, scan, decide,
- * validate_message, apply_*, send_reply, outbound.
- */
-type TraceEntry =
-  | { kind: 'call'; at: number; call: LlmCallSummary }
-  | { kind: 'step'; at: number; step: AdminConversationStep };
-
-type TimelineRow = { kind: 'message'; at: number; email: Email; index: number } | TraceEntry;
-
-const ROW_RANK = { step: 0, call: 1, message: 2 } as const;
-
-function mergeTrace(
-  emails: Email[],
-  trace: AdminConversation | null,
-  show: { calls: boolean; steps: boolean },
-): TimelineRow[] {
-  const rows: TimelineRow[] = emails.map((email, index) => ({
-    kind: 'message',
-    at: Date.parse(email.sent_at ?? email.created_at),
-    email,
-    index,
-  }));
-  if (!trace) return rows;
-  // A call's row is written when the answer arrives (createdAt = end), while
-  // its gate is audited right after — order calls by their START so the call
-  // precedes the gate that checks it.
-  // A generate_message call (and its send_reply) whose draft a replan threw
-  // away never produced a visible message — dropped along with the draft.
-  if (show.calls)
-    for (const call of trace.calls) {
-      if (call.discarded) continue;
-      rows.push({ kind: 'call', at: Date.parse(call.createdAt) - (call.durationMs ?? 0), call });
-    }
-  if (show.steps)
-    for (const step of trace.steps) {
-      if (step.discarded) continue;
-      rows.push({ kind: 'step', at: Date.parse(step.occurredAt), step });
-    }
-  return rows.sort((a, b) => a.at - b.at || ROW_RANK[a.kind] - ROW_RANK[b.kind]);
 }
 
 // Two independent toggles (LLM calls / code steps), each remembered per browser.
@@ -165,9 +122,45 @@ interface StepFilesProps {
   onOpenFile: (file: DocumentFile) => void;
 }
 
-function TraceRow({ entry, files }: { entry: TraceEntry; files: StepFilesProps }) {
+/** What a trace row needs to draw a discarded draft like the ordinary bubbles around it. */
+interface DraftRowProps {
+  showChannelBadge: boolean;
+  channelLabel: (channel: MessageChannel) => string;
+}
+
+function TraceRow({ entry, files, draft }: { entry: TraceEntry; files: StepFilesProps; draft: DraftRowProps }) {
   if (entry.kind === 'call') return <CallChip call={entry.call} files={files} />;
+  if (entry.kind === 'draft') return <DiscardedDraftRow message={entry.message} {...draft} />;
   return <StepRow step={entry.step} files={files} />;
+}
+
+/**
+ * A draft a re-plan threw away (openspec `conversation-trace`, "Discarded
+ * drafts are shown with the LLM calls"): a greyed outbound bubble at the time
+ * the draft was written, with its text and a "discarded draft" badge. It
+ * offers no action — the live scheduled bubble keeps approve / send now /
+ * regenerate / pause.
+ */
+function DiscardedDraftRow({ message: m, showChannelBadge, channelLabel }: { message: AdminConversationMessage } & DraftRowProps) {
+  const { t } = useT();
+  return (
+    <li className="timeline-item outbound discarded">
+      <div className="timeline-meta">
+        {showChannelBadge && <span className={`channel-badge channel-${m.channel}`}>{channelLabel(m.channel)}</span>}
+        <span className="muted">{formatTimestamp(m.createdAt)}</span>
+        <span className="badge badge-neutral discarded-draft-badge">{t.adminMsgStatusDiscarded}</span>
+      </div>
+      <div className="bubble bubble-discarded">
+        {m.channel === 'email' && m.subject !== '' && <div className="bubble-subject" dir="auto">{m.subject}</div>}
+        <div className="bubble-body" dir="auto">{m.body}</div>
+        {m.reasoning && (
+          <div className="bubble-reasoning muted" dir="auto">
+            {t.reviewReasoningLabel}: {m.reasoning}
+          </div>
+        )}
+      </div>
+    </li>
+  );
 }
 
 /**
@@ -497,6 +490,12 @@ export function Timeline({
   const showChannelFilter = multiChannel && hasWhatsApp;
   const showChannelBadges = multiChannel && hasWhatsApp;
   const visibleEmails = filter === 'all' ? emails : emails.filter((e) => e.channel === filter);
+  // The same channel filter on the trace's discarded drafts (its calls and steps
+  // carry no channel and always show).
+  const visibleTrace = useMemo(
+    () => (trace && filter !== 'all' ? { ...trace, messages: trace.messages.filter((m) => m.channel === filter) } : trace),
+    [trace, filter],
+  );
   // Pausing preserves the draft and its time, so the bubble stays visible while
   // paused — just with a paused note and a Resume button instead of Send now.
   const showScheduled = nextScheduled !== null && (filter === 'all' || nextScheduled.channel === filter);
@@ -751,13 +750,14 @@ export function Timeline({
         )}
         {traceError && traceOn && <div className="error-banner">{traceError}</div>}
         <ol className="timeline" ref={listRef}>
-          {mergeTrace(visibleEmails, traceOn ? trace : null, { calls: showCalls, steps: showSteps }).map((row) => {
+          {mergeTrace(visibleEmails, traceOn ? visibleTrace : null, { calls: showCalls, steps: showSteps }).map((row) => {
             if (row.kind !== 'message') {
               return (
                 <TraceRow
-                  key={`${row.kind}-${row.kind === 'call' ? row.call.id : row.step.id}`}
+                  key={`${row.kind}-${row.kind === 'call' ? row.call.id : row.kind === 'draft' ? row.message.id : row.step.id}`}
                   entry={row}
                   files={{ byId: filesById, childrenByParent, attachmentLabel, onOpenFile: setViewingFile }}
+                  draft={{ showChannelBadge: showChannelBadges, channelLabel }}
                 />
               );
             }

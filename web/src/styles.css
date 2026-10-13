@@ -1458,6 +1458,29 @@ textarea {
   font-size: 13px;
 }
 
+/* A draft a re-plan threw away (admin trace, LLM calls toggle on): the dashed
+   ghost grammar of the scheduled bubble, but grey and faded — clearly old,
+   clearly not the live draft. No controls. */
+.timeline-item.discarded .bubble,
+.bubble-discarded {
+  border: 1.5px dashed var(--border-strong);
+  background: var(--surface);
+  opacity: 0.65;
+}
+
+.timeline-item.discarded .bubble:hover {
+  box-shadow: none;
+}
+
+.timeline-item.discarded .bubble-reasoning {
+  margin-top: 6px;
+  font-size: 0.85em;
+}
+
+.discarded-draft-badge {
+  align-self: center;
+}
+
 /* A paused scheduled message keeps its bubble but reads as inactive. */
 .timeline-item.paused .bubble-scheduled {
   opacity: 0.6;

@@ -59,16 +59,57 @@ parts) from Claude's shell. Dev ports are driven by the root `.env`
 
 When the user pastes a step link (`<site>/#/steps/<id>`), read it with
 `npm run step -- "<link>"` — it prints that code step from the local
-database. Never fetch the link over HTTP (the site needs a login). The host
-says which environment the link belongs to: a link from a non-local host
-(sandbox, production) cannot be read from the shell, so ask the user for the
-modal's "copy details" text instead. Pasted "copy details" text (the link,
-then JSON) is complete on its own — no lookup needed.
+database. Never fetch the link over HTTP (the site needs a login). The
+script reads the local database only; for a step from another host see
+"Production problems" below. Pasted "copy details" text (the link, then
+JSON) is complete on its own — no lookup needed.
 
 LLM call links (`<site>/#/llm-calls/<id>`) work the same way: read a local
 one with `npm run call -- "<link>"` (prints the call: prompt, response,
-model, file), and ask for the call modal's "copy details" text for any other
-host.
+model, file).
+
+## Production problems
+
+Production data IS readable from this machine. Never say "I cannot read
+production" and never ask the user to paste anything before trying the
+routes below. The shell is logged in to Azure (`az account show` →
+"FiscalMind Production"), and the user's Chrome is logged in to
+`https://agent.fiscalmind.app` as admin.
+
+A client URL `.../#/as/<email>/agents/<instanceId>/clients/<clientId>` gives
+the client id; grep for it everywhere.
+
+1. **Logs** (no credential needed):
+   `az webapp log download --name fiscalmind-il-worker --resource-group
+   fiscalmind-israel --log-file <scratch>/worker.zip` (same for
+   `fiscalmind-il-web`; sandbox apps are `sandbox-il-*`). Unzip, grep
+   `LogFiles/*_default_docker.log` for the client id, read the ERROR line and
+   its stack trace. Planner/queue work logs in the worker, manual UI actions
+   (redraft, resume) in the web app. Timestamps are UTC (Israel = +3 summer,
+   +2 winter).
+2. **Deployed code**: production runs an older commit than master. Read the
+   image tag with `az webapp config container show --name fiscalmind-il-worker
+   --resource-group fiscalmind-israel` (the sha after `fiscalmind-agent:`)
+   and read code at that commit with `git show <sha>:<path>`, not HEAD.
+3. **Database rows (LLM calls, steps, conversation)** through the user's
+   Chrome with the browser tools. Load them, then open a NEW tab directly on
+   a JSON API URL, e.g.
+   `https://agent.fiscalmind.app/api/admin/llm-calls?clientId=<clientId>&limit=40`.
+   Read it with `get_page_text`, or run `fetch('/api/admin/llm-calls/<callId>',
+   {credentials:'include'})` in the javascript tool and print only the slices
+   you need (the tool output is cut at ~1.5 KB). Useful endpoints:
+   `/api/admin/llm-calls/<callId>` (request = prompt + schema, response),
+   `/api/admin/audit-events/<stepId>` (one code step),
+   `/api/admin/clients/<clientId>/conversation` (messages, calls, steps).
+   Never open the client workspace page itself first: its live streams freeze
+   the tab for every later tool call. If a tab stops answering, create a new
+   one instead of retrying.
+4. Only if Chrome is unavailable: ask the user for the step or call modal's
+   "copy details" text.
+
+Not reachable: a direct connection to the production Postgres (firewall
+allows Azure IPs only) and the app-setting secrets (blocked by the permission
+filter). Do not try them.
 
 ## Multi-agent architecture
 

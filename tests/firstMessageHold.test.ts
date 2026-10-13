@@ -53,6 +53,11 @@ describe('resumeAction', () => {
     assert.equal(resumeAction({ row: row('2026-10-09T09:00:00Z'), jobState: 'active', now }), 'already_queued');
   });
 
+  it('keeps a draft held for admin review (its finished job sits on the id; approval sends it)', () => {
+    assert.equal(resumeAction({ row: row('2026-10-09T09:00:00Z'), jobState: 'completed', draftHeld: true, now }), 'keep');
+    assert.equal(resumeAction({ row: row('2026-10-09T09:00:00Z'), jobState: null, draftHeld: true, now }), 'keep');
+  });
+
   it('redrafts when a finished job squats on the id or the id is unparseable', () => {
     assert.equal(resumeAction({ row: row('2026-10-09T09:00:00Z'), jobState: 'completed', now }), 'redraft');
     assert.equal(resumeAction({ row: row('2026-10-11T11:00:00Z', 'garbage'), jobState: null, now }), 'redraft');

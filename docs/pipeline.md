@@ -72,7 +72,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | First draft, held: paused + never contacted + manual kickoff → planner runs in hold mode | `api/draftFirstEmail.ts` · `draftFirstEmail` → `orchestration/setFutureEmail.ts` · `setFutureEmail` (`orchestration/heldFirstMessage.ts` · `isHeldFirstMessageClient`, `holdsFirstMessage`) → D |
 | Store the held draft with its planned time, queue nothing | `orchestration/scheduleDraftEmail.ts` · `scheduleDraftMessage` (`hold`) |
 | The same intake on the first resume from the workspace | `api/workspace.ts` · pause route handler |
-| Resume: restore the preserved draft at its time / send it now when its time passed / redraft | `orchestration/resumeFutureEmail.ts` · `resumeFutureEmail` → `orchestration/resumeDecision.ts` · `resumeAction`; send now = `orchestration/sendFutureEmailNow.ts` · `enqueuePreservedSendNow` |
+| Resume: restore the preserved draft at its time / send it now when its time passed / keep a draft held for admin review / redraft | `orchestration/resumeFutureEmail.ts` · `resumeFutureEmail` → `orchestration/resumeDecision.ts` · `resumeAction`; send now = `orchestration/sendFutureEmailNow.ts` · `enqueuePreservedSendNow` |
 | Past-due warning before the resume (workspace, click time) | `web/src/components/Timeline.tsx` · `requestResume` |
 | Retry of a failed held first draft | `api/workspace.ts` · redraft route handler |
 

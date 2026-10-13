@@ -1,3 +1,4 @@
+import * as emails from '../db/queries/emails.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { sendEmailQueue } from '../queue/sendEmailQueue.js';
@@ -12,19 +13,26 @@ import { logger } from '../util/logger.js';
  * the future, re-enqueue the very same draft under its original job id and
  * time; if that time passed, send the very same draft right away (openspec
  * `first-message-approval` — the workspace warns the accountant first; the
- * text they read is the text that goes out). Only when nothing was preserved
- * (a reply obsoleted the draft while paused) or the mirror row cannot be
- * re-queued does the agent redraft from current state. Call with
+ * text they read is the text that goes out). A draft held for admin review
+ * (048) stays held: the admin's approval sends it. Only when nothing was
+ * preserved (a reply obsoleted the draft while paused) or the mirror row
+ * cannot be re-queued does the agent redraft from current state. Call with
  * clients.paused already cleared and under withClientLock.
  */
 export async function resumeFutureEmail(clientId: string): Promise<void> {
   const row = await scheduledJobs.getForClient(clientId);
   const existing = row ? await sendEmailQueue.getJob(row.bullmq_job_id) : null;
   const jobState = existing ? await existing.getState() : null;
-  const action = resumeAction({ row, jobState, now: new Date() });
+  const draftHeld = row ? await isDraftHeld(row.bullmq_job_id) : false;
+  const action = resumeAction({ row, jobState, draftHeld, now: new Date() });
 
   if (row && action === 'already_queued') {
     // Still (or again) queued — e.g. the pause raced an active send. Nothing to restore.
+    publishClientUpdated(clientId);
+    return;
+  }
+  if (row && action === 'keep') {
+    logger.info('resumed client has a draft held for admin review, keeping it', { clientId, jobId: row.bullmq_job_id });
     publishClientUpdated(clientId);
     return;
   }
@@ -53,4 +61,12 @@ export async function resumeFutureEmail(clientId: string): Promise<void> {
 
   await removeFutureEmail(clientId);
   await setFutureEmail(clientId);
+}
+
+/** Whether the job's draft is parked for admin review ('held'); false for an unparseable id or a missing draft. */
+async function isDraftHeld(bullmqJobId: string): Promise<boolean> {
+  const emailId = bullmqJobId.split(':')[2];
+  if (!emailId) return false;
+  const draft = await emails.getById(emailId);
+  return draft?.status === 'held';
 }

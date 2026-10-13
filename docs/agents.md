@@ -78,8 +78,9 @@ so the timeline shows the text with the paused note and a Resume button. The
 accountant's Resume is the approval: `resumeFutureEmail` restores the same
 draft for its planned time, or — when that time passed — sends the same draft
 immediately (the workspace warns in an in-app modal first; this late-resume
-rule applies to every preserved draft, not only the first). Only when nothing
-is preserved does a resume redraft. A reply arriving while held re-drafts the
+rule applies to every preserved draft, not only the first). A draft held for
+admin review (048) stays held on resume — the admin's approval sends it. Only
+when nothing is preserved does a resume redraft. A reply arriving while held re-drafts the
 held message (still paused, nothing sent). Nothing changes on the monday board.
 Since 2026-08-24 the declaration flow is **questionnaire-driven** (the office's
 monday WorkForm is the only source of which documents a declaration needs):

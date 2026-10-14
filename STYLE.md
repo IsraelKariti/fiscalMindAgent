@@ -351,6 +351,15 @@ topic.
   now, pause, resume, regenerate, admin approves, client replies, retry).
   A button is enabled only in the states where the real page offers it.
   Pressing it animates the character and lights the station it ends at.
+- **Manual step walking is required** (2026-10-14). Every run is a list of
+  named resting steps (for example "On the desk → At the door → Measured →
+  Stamp → Result"), and the user can walk them by hand: a "Next ▶" button,
+  a "◀ Back" button, "↺ Start again", and one clickable chip per step so
+  any step can be opened directly. Going forward one step plays that step's
+  small motion; jumping back or far forward draws the step at once. "Play"
+  is only a timer that presses Next; it must never be the only way to see a
+  step. Mode toggles (vendor, review mode) redraw the current step in place.
+  Buttons that cannot act in the current step are greyed, never hidden.
 - **A state chip** with a coloured dot, and **toggles** for modes that
   change the outcome (review mode, provider down).
 - **A log line** after every event: one plain English sentence, the same

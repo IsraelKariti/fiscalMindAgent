@@ -3,6 +3,7 @@ import type { genaiClient } from './client.js';
 import { env } from '../config/env.js';
 import { declaredToolsOf, type ToolContinuation } from './requestLog.js';
 import { runOpenAiToolTurns, toOpenAiTools, type OpenAiResponseData } from './toolTransport.js';
+import { sentRequestOf } from './wireRequest.js';
 import { logger } from '../util/logger.js';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
@@ -107,7 +108,8 @@ export async function generateContentOpenAI(request: GeminiRequest): Promise<Gen
     // shape (every property required, additionalProperties:false on every
     // object, null unions as type arrays / anyOf), so the model's answer is
     // guaranteed to match the schema word for word (checked 2026-10-14).
-    body.text = { format: { type: 'json_schema', name: 'response', strict: true, schema: jsonSchema } };
+    // The schema as sent comes from wireRequest.ts, the copy the call log stores.
+    body.text = { format: { type: 'json_schema', name: 'response', strict: true, schema: sentRequestOf('openai', request)?.responseJsonSchema } };
   }
   const tools = declaredToolsOf(request.config);
   if (tools.length > 0) {

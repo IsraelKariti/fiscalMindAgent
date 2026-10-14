@@ -530,6 +530,19 @@ export interface LlmCallDetail extends LlmCallSummary {
     /** The continuation rule of a tool-call stage (the planner): the closing tool and the turn cap. */
     continuation?: unknown;
     config?: Record<string, unknown>;
+    /**
+     * What the provider adapter actually sent, when it changed the request
+     * (Anthropic, OpenAI; openspec `conversation-trace`): the schema or the
+     * tools as received, the strict flag, the declared fields left out. Absent
+     * for Gemini (sent as declared) and for rows older than the copy.
+     */
+    sent?: {
+      provider: string;
+      responseJsonSchema?: unknown;
+      tools?: { name: string; description: string; parameters: unknown; strict: boolean }[];
+      strict: boolean;
+      omitted: string[];
+    };
   };
   response: string | null;
 }

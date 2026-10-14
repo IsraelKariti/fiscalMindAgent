@@ -4405,6 +4405,16 @@ button.meta-chip:hover {
   margin-block: 4px 8px;
   font-size: 0.9em;
 }
+/* The call modal's schema / tools pane: the note about an old row or the fields the adapter left out, and the collapsed declared version under the sent one. */
+.llm-sent-note {
+  margin-block: 4px 8px;
+  font-size: 0.9em;
+}
+.llm-declared {
+  margin-block-start: 8px;
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var(--border, rgba(0, 0, 0, 0.08));
+}
 .llm-call-turn {
   font-size: 0.8em;
 }

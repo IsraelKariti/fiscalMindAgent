@@ -165,9 +165,24 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
   const doc = useDocumentOf(call?.documentFileId ? call.id : null, api.adminGetCallFile);
   const twoPane = isTwoPane(doc);
 
-  const schema = call?.request?.config?.['responseJsonSchema'];
+  // The schema / tools as declared in the code, and — when the provider adapter
+  // changed them before sending (Anthropic, OpenAI) — as the provider received
+  // them (`request.sent`, openspec `conversation-trace`). The panes show the
+  // sent version and keep the declared one collapsed when the two differ; an
+  // old row (no `sent`) shows the declared one with a note.
+  const declaredSchema = call?.request?.config?.['responseJsonSchema'];
+  const sent = call?.request?.sent;
+  const schema = sent?.responseJsonSchema !== undefined ? sent.responseJsonSchema : declaredSchema;
+  const schemaDiffers = sent?.responseJsonSchema !== undefined && JSON.stringify(sent.responseJsonSchema) !== JSON.stringify(declaredSchema);
   // A tool-call stage (the planner, openspec `planner-answer-tools`): the offered tools in the request, the calls as the response.
-  const tools = declaredToolsOf(call?.request?.config?.['tools']);
+  const declaredTools = declaredToolsOf(call?.request?.config?.['tools']);
+  const tools: (DeclaredTool & { strict?: boolean })[] = sent?.tools ?? declaredTools;
+  const toolsDiffer =
+    sent?.tools !== undefined &&
+    JSON.stringify(sent.tools.map((t) => ({ name: t.name, parameters: t.parameters }))) !==
+      JSON.stringify(declaredTools.map((t) => ({ name: t.name, parameters: t.parameters })));
+  const sentLabel = sent ? (sent.provider === 'anthropic' ? 'Anthropic' : sent.provider === 'openai' ? 'OpenAI' : sent.provider) : null;
+  const sentNote = sent && sent.omitted.length > 0 ? t.adminLlmCallOmitted(sent.omitted.join(', ')) : null;
   const { history, query } = splitContents(call?.request?.contents);
   const response = call?.response != null && call.response.trim() !== '' ? maybePrettyJson(call.response) : null;
   const toolCalls = response ? toolCallsOf(response.text) : null;
@@ -299,16 +314,28 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
               {schema !== undefined && (
                 <details>
                   <summary className="muted" style={{ cursor: 'pointer' }}>
-                    {t.adminLlmCallSchema}
+                    {sentLabel ? t.adminLlmCallSchemaSentTo(sentLabel) : t.adminLlmCallSchema}
                   </summary>
+                  {!sent && <p className="muted llm-sent-note">{t.adminLlmCallSentNotRecorded}</p>}
+                  {sentNote && <p className="muted llm-sent-note">{sentNote}</p>}
                   <CallPane tone="schema" text={JSON.stringify(schema, null, 2)} ltr copyTitle={t.copyText} />
+                  {schemaDiffers && (
+                    <details className="llm-declared">
+                      <summary className="muted" style={{ cursor: 'pointer' }}>
+                        {t.adminLlmCallDeclared}
+                      </summary>
+                      <CallPane tone="schema" text={JSON.stringify(declaredSchema, null, 2)} ltr copyTitle={t.copyText} />
+                    </details>
+                  )}
                 </details>
               )}
               {tools.length > 0 && (
                 <details>
                   <summary className="muted" style={{ cursor: 'pointer' }}>
-                    {t.adminLlmCallTools} ({tools.length})
+                    {sentLabel ? t.adminLlmCallToolsSentTo(sentLabel) : t.adminLlmCallTools} ({tools.length})
                   </summary>
+                  {!sent && <p className="muted llm-sent-note">{t.adminLlmCallSentNotRecorded}</p>}
+                  {sentNote && <p className="muted llm-sent-note">{sentNote}</p>}
                   {continuation && (
                     <p className="muted llm-stage-continuation">{t.llmStageContinuation(continuation.untilTool, continuation.maxTurns)}</p>
                   )}
@@ -316,6 +343,7 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                     <div key={tool.name} className="llm-stage-tool">
                       <div dir="ltr" style={{ textAlign: 'left' }}>
                         <span className="badge badge-neutral mono">{tool.name}</span>
+                        {tool.strict && <span className="badge badge-neutral mono" style={{ marginInlineStart: 6 }}>strict</span>}
                         <span className="muted" style={{ marginInlineStart: 8 }}>
                           {tool.description}
                         </span>
@@ -323,6 +351,21 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                       <CallPane tone="schema" text={JSON.stringify(tool.parameters, null, 2)} ltr copyTitle={t.copyText} />
                     </div>
                   ))}
+                  {toolsDiffer && (
+                    <details className="llm-declared">
+                      <summary className="muted" style={{ cursor: 'pointer' }}>
+                        {t.adminLlmCallDeclared}
+                      </summary>
+                      {declaredTools.map((tool) => (
+                        <div key={tool.name} className="llm-stage-tool">
+                          <div dir="ltr" style={{ textAlign: 'left' }}>
+                            <span className="badge badge-neutral mono">{tool.name}</span>
+                          </div>
+                          <CallPane tone="schema" text={JSON.stringify(tool.parameters, null, 2)} ltr copyTitle={t.copyText} />
+                        </div>
+                      ))}
+                    </details>
+                  )}
                 </details>
               )}
 

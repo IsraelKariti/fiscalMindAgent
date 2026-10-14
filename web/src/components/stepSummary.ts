@@ -80,7 +80,42 @@ type Mapping = (d: Detail) => { rows: SummaryRow[]; consumed: string[] };
 
 const list = (key: string, items: string[] | null): SummaryRow[] => (items && items.length > 0 ? [{ key, items }] : []);
 
+/** A list row that says "none" (a dash) instead of disappearing when the list is empty. */
+const listOrNone = (key: string, v: unknown): SummaryRow => {
+  const items = strList(v) ?? [];
+  return items.length > 0 ? { key, items } : { key, value: '—' };
+};
+const yesNo = (key: string, v: unknown): SummaryRow => ({ key, value: v === true ? 'כן' : 'לא' });
+
 const MAPPINGS: Record<string, Mapping> = {
+  // The provider adapter's translation of a request (openspec
+  // `conversation-trace`): every list is shown even when empty, so the
+  // reader sees "nothing removed" rather than a missing row.
+  translate_request: (d) => ({
+    rows: [
+      ...(str(d['provider']) ? [{ key: 'provider', value: str(d['provider'])! }] : []),
+      ...(str(d['purpose']) ? [{ key: 'purpose', value: str(d['purpose'])! }] : []),
+      ...(str(d['model']) ? [{ key: 'model', value: str(d['model'])! }] : []),
+      yesNo('schema_changed', d['schema_changed']),
+      listOrNone('null_removed', d['null_removed']),
+      listOrNone('required_dropped', d['required_dropped']),
+      listOrNone('keywords_stripped', d['keywords_stripped']),
+      listOrNone('additional_properties_forced', d['additional_properties_forced']),
+      listOrNone('omitted', d['omitted']),
+      yesNo('tools_strict', d['tools_strict']),
+    ],
+    consumed: ['provider', 'purpose', 'model', 'schema_changed', 'null_removed', 'required_dropped', 'keywords_stripped', 'additional_properties_forced', 'omitted', 'tools_strict'],
+  }),
+  // The nulls the adapter put back into the answer; an empty list says so.
+  restore_answer: (d) => ({
+    rows: [
+      ...(str(d['provider']) ? [{ key: 'provider', value: str(d['provider'])! }] : []),
+      ...(str(d['purpose']) ? [{ key: 'purpose', value: str(d['purpose'])! }] : []),
+      ...(str(d['model']) ? [{ key: 'model', value: str(d['model'])! }] : []),
+      listOrNone('filled', d['filled']),
+    ],
+    consumed: ['provider', 'purpose', 'model', 'filled'],
+  }),
   apply_resolutions: (d) => {
     const rows = Array.isArray(d['rows']) ? d['rows'] : [];
     const items = rows.map((r) => {

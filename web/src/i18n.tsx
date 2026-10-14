@@ -777,6 +777,15 @@ const he = {
   adminLlmCallHistory: 'היסטוריית השיחה (תורות קודמים)',
   adminLlmCallQuery: 'השאילתה (query)',
   adminLlmCallSchema: 'סכמת התשובה שנכפתה',
+  /** The schema / tools pane heading when the call row carries the copy the provider received (openspec `conversation-trace`). */
+  adminLlmCallSchemaSentTo: (provider: string) => `סכמת התשובה שנכפתה · כפי שנשלחה ל-${provider}`,
+  adminLlmCallToolsSentTo: (provider: string) => `הכלים שהוצעו למודל · כפי שנשלחו ל-${provider}`,
+  /** The collapsed declared version under a sent pane that differs from it. */
+  adminLlmCallDeclared: 'הגרסה כפי שהוגדרה בקוד (לפני תרגום המתאם)',
+  /** An old call row, recorded before the sent copy existed. */
+  adminLlmCallSentNotRecorded: 'הגרסה שנשלחה לספק לא נשמרה (קריאה ישנה); מוצגת הסכמה כפי שהוגדרה בקוד.',
+  /** The sent pane's note when the adapter left declared request fields out. */
+  adminLlmCallOmitted: (fields: string) => `שדות שהמתאם השמיט מהבקשה: ${fields}`,
   adminLlmCallTools: 'הכלים שהוצעו למודל',
   adminLlmCallToolCalls: 'קריאות הכלים בתשובה',
   adminLlmCallTurns: (n: number) => `${n} סבבים`,
@@ -888,10 +897,23 @@ const he = {
     'wa.media_sent': 'WhatsApp Media Sent',
     'injection.cycle_suppressed': 'Injection: Cycle Suppressed',
     'llm.budget_exceeded': 'LLM Budget Exceeded',
+    // The provider adapter's translation around an LLM call (openspec `conversation-trace`).
+    translate_request: 'Translate Request (provider adapter)',
+    restore_answer: 'Restore Answer (provider adapter)',
   } as Record<string, string>,
   // Hebrew labels of the fields in the "what the step did" section
   // (stepSummary.ts row keys). Unknown keys fall back to humanizePurpose().
   stepFieldLabels: {
+    // translate_request / restore_answer: what the provider adapter changed (openspec `conversation-trace`).
+    purpose: 'שלב הקריאה',
+    schema_changed: 'הסכמה שונתה',
+    null_removed: 'שדות שאיבדו את אפשרות ה-null (הפכו לרשות)',
+    required_dropped: 'שדות שהוסרו מרשימת required',
+    keywords_stripped: 'מילות סכמה שנמחקו (צומת: מילה)',
+    additional_properties_forced: 'אובייקטים שקיבלו additionalProperties:false',
+    omitted: 'שדות בקשה שהושמטו',
+    tools_strict: 'הכלים סומנו strict',
+    filled: 'שדות שמולאו ב-null (המודל השמיט אותם)',
     resolved_documents: 'הכרעות שיושמו',
     added_instances: 'מופעים שנוספו (מסמך עוגן: מופעים)',
     retired_documents: 'מסמכים שהוצאו מהרשימה',

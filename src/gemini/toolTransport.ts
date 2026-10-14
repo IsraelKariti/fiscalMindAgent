@@ -1,6 +1,6 @@
 import { FunctionCallingConfigMode, type GenerateContentConfig } from '@google/genai';
 import type Anthropic from '@anthropic-ai/sdk';
-import { toAnthropicSchema } from './anthropicSchema.js';
+import { toAnthropicSchema, type SchemaChanges } from './anthropicSchema.js';
 import type { DeclaredTool, LoggedToolCall, ToolContinuation } from './requestLog.js';
 
 /**
@@ -38,12 +38,14 @@ export function toolRequestConfig(tools: LlmToolSpec[]): Pick<GenerateContentCon
  * Anthropic: strict tools (`strict: true` makes the compiler guarantee each
  * call matches its schema). Each parameter schema is flat and fully required,
  * so the keyword stripping of toAnthropicSchema is the only translation.
+ * `changes`, when given, records what that stripping changed, paths prefixed
+ * by the tool name (openspec `conversation-trace`).
  */
-export function toAnthropicTools(tools: DeclaredTool[]): Anthropic.Tool[] {
+export function toAnthropicTools(tools: DeclaredTool[], changes?: SchemaChanges): Anthropic.Tool[] {
   return tools.map((t) => ({
     name: t.name,
     description: t.description,
-    input_schema: toAnthropicSchema(t.parameters) as Anthropic.Tool.InputSchema,
+    input_schema: toAnthropicSchema(t.parameters, changes, t.name) as Anthropic.Tool.InputSchema,
     strict: true,
   }));
 }
@@ -53,15 +55,22 @@ export function callsFromAnthropicContent(content: readonly { type: string; name
   return content.filter((b) => b.type === 'tool_use').map((b) => ({ name: b.name ?? '', args: b.input ?? {} }));
 }
 
-/** OpenAI Responses: strict function tools — every parameter required and no extra key, so strict mode accepts them as they are. */
-export function toOpenAiTools(tools: DeclaredTool[]): Record<string, unknown>[] {
-  return tools.map((t) => ({
-    type: 'function',
-    name: t.name,
-    description: t.description,
-    parameters: { ...t.parameters, additionalProperties: false },
-    strict: true,
-  }));
+/**
+ * OpenAI Responses: strict function tools — every parameter required and no
+ * extra key, so strict mode accepts them as they are. `changes`, when given,
+ * records the tools that had no `additionalProperties: false` and got one.
+ */
+export function toOpenAiTools(tools: DeclaredTool[], changes?: SchemaChanges): Record<string, unknown>[] {
+  return tools.map((t) => {
+    if (t.parameters.additionalProperties !== false) changes?.additionalPropertiesForced.push(t.name);
+    return {
+      type: 'function',
+      name: t.name,
+      description: t.description,
+      parameters: { ...t.parameters, additionalProperties: false },
+      strict: true,
+    };
+  });
 }
 
 /** The `function_call` output items of a Responses answer as calls, in order (`arguments` is a JSON string). */

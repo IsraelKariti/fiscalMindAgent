@@ -68,14 +68,20 @@ export interface LoggableRequest {
   };
 }
 
-/** The exact model input, reduced to a loggable JSON shape. */
-export function requestForLog(request: LoggableRequest): Record<string, unknown> {
+/**
+ * The exact model input, reduced to a loggable JSON shape. `sent`, when the
+ * provider adapter changed the request before sending (wireRequest.ts), is
+ * stored next to the declared config so the call modal can show the schema
+ * or tools as the provider received them (openspec `conversation-trace`).
+ */
+export function requestForLog(request: LoggableRequest, sent?: Record<string, unknown> | null): Record<string, unknown> {
   const cfg = request.config ?? {};
   return {
     model: request.model,
     ...(typeof cfg.systemInstruction === 'string' ? { systemInstruction: textForLog(cfg.systemInstruction) } : {}),
     contents: contentsForLog(request.contents),
     ...(request.continuation ? { continuation: request.continuation } : {}),
+    ...(sent ? { sent } : {}),
     config: {
       ...(cfg.temperature !== undefined ? { temperature: cfg.temperature } : {}),
       ...(cfg.responseMimeType !== undefined ? { responseMimeType: cfg.responseMimeType } : {}),

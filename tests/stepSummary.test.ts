@@ -242,3 +242,44 @@ test('apply_collections: an employer row of the split shows its employer after t
     { key: 'created_by_company', items: ['קרן השתלמות ניב — מיטב — ראנדקום בע"מ ← scan-p34-35.pdf (ראנדקום בע"מ)', 'קרן השתלמות ניב — מור ← scan-p20-21.pdf'] },
   ]);
 });
+
+// openspec `conversation-trace` (adapter-translation-visible): the two
+// translation steps list every change, and an empty list reads as a dash
+// instead of vanishing, so "nothing filled" is visible.
+test('translate_request: provider, stage, every change list (empty ones as a dash), booleans as yes/no', () => {
+  const rows = stepSummaryOf('translate_request', {
+    clientName: 'x',
+    provider: 'anthropic',
+    purpose: 'injection_detection_llm',
+    model: 'claude-opus-5',
+    schema_changed: true,
+    null_removed: ['evidence'],
+    required_dropped: ['evidence'],
+    keywords_stripped: [],
+    additional_properties_forced: [],
+    omitted: ['temperature'],
+    tools_strict: false,
+  });
+  assert.deepEqual(rows, [
+    { key: 'provider', value: 'anthropic' },
+    { key: 'purpose', value: 'injection_detection_llm' },
+    { key: 'model', value: 'claude-opus-5' },
+    { key: 'schema_changed', value: 'כן' },
+    { key: 'null_removed', items: ['evidence'] },
+    { key: 'required_dropped', items: ['evidence'] },
+    { key: 'keywords_stripped', value: '—' },
+    { key: 'additional_properties_forced', value: '—' },
+    { key: 'omitted', items: ['temperature'] },
+    { key: 'tools_strict', value: 'לא' },
+  ]);
+});
+
+test('restore_answer: the filled paths, or a dash when the adapter filled nothing', () => {
+  assert.deepEqual(stepSummaryOf('restore_answer', { provider: 'anthropic', purpose: 'p', model: 'm', filled: ['evidence', 'parties[].id_number'] }), [
+    { key: 'provider', value: 'anthropic' },
+    { key: 'purpose', value: 'p' },
+    { key: 'model', value: 'm' },
+    { key: 'filled', items: ['evidence', 'parties[].id_number'] },
+  ]);
+  assert.deepEqual(stepSummaryOf('restore_answer', { provider: 'anthropic', purpose: 'p', model: 'm', filled: [] }).at(-1), { key: 'filled', value: '—' });
+});

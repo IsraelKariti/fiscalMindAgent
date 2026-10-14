@@ -66,3 +66,20 @@ test('callDetailsText: link first, then the whole call as JSON, nothing dropped'
   assert.equal(parsed.documentFileId, null);
   assert.equal(parsed.documentFileName, null);
 });
+
+// openspec `conversation-trace` (adapter-translation-visible): the copied
+// details carry the request as sent next to the declared one.
+test('callDetailsText: the sent copy of the request is in the pasted JSON', () => {
+  const call = {
+    id: ID,
+    request: {
+      model: 'claude-opus-5',
+      config: { responseJsonSchema: { type: 'object', properties: { evidence: { type: ['string', 'null'] } }, required: ['evidence'] } },
+      sent: { provider: 'anthropic', responseJsonSchema: { type: 'object', properties: { evidence: { type: 'string' } } }, strict: true, omitted: ['temperature'] },
+    },
+  };
+  const text = callDetailsText(call, ORIGIN);
+  const pasted = JSON.parse(text.slice(text.indexOf('\n\n') + 2)) as typeof call;
+  assert.deepEqual(pasted.request.sent, call.request.sent);
+  assert.deepEqual(pasted.request.config, call.request.config);
+});

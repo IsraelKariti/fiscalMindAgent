@@ -8,6 +8,8 @@ import { generateContentAnthropic } from './anthropic.js';
 import { generateContentOpenAI, OpenAiApiError } from './openai.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
 import { assertWithinBudget, noteSpend } from './budget.js';
+import { restoreStepOf, traceStepsEnabled, translateStepOf, translationOf, type Translation } from './wireRequest.js';
+import { recordAudit } from '../audit/audit.js';
 import { appendFile } from 'node:fs/promises';
 import { logger } from '../util/logger.js';
 
@@ -95,9 +97,10 @@ async function recordCall(
   log: LlmCallLogContext,
   request: LlmRequest,
   provider: string,
+  translation: Translation | null,
   startedAt: number,
   attempts: number,
-  outcome: { response: GenerateContentResponse } | { error: unknown },
+  outcome: { response: GenerateContentResponse; traceSteps: boolean } | { error: unknown },
 ): Promise<void> {
   try {
     const usage =
@@ -126,7 +129,7 @@ async function recordCall(
       thinkingPricePerToken: pricing?.thinkingCostPerToken ?? null,
       cachedPricePerToken: pricing?.cachedCostPerToken ?? null,
       cost: pricing ? computeCost(pricing, usage) : null,
-      request: requestForLog(request),
+      request: requestForLog(request, translation ? (translation.sent as unknown as Record<string, unknown>) : null),
       response: 'response' in outcome ? responseForLog(outcome.response) : null,
     };
     if (log.sink && log.sink !== 'db') {
@@ -136,6 +139,12 @@ async function recordCall(
     }
     noteSpend(log.agentInstanceId, row.cost);
     await llmCalls.insert(row);
+    // The adapter put nulls back into the answer (Anthropic, schema stages):
+    // the second code step of the translation, timestamped after the call row.
+    const restoreStep = 'response' in outcome && outcome.traceSteps ? restoreStepOf(outcome.response, provider, log.purpose, request.model) : null;
+    if (restoreStep) {
+      recordAudit({ actorType: 'system', severity: 'info', agentInstanceId: log.agentInstanceId, clientId: log.clientId, ...restoreStep });
+    }
   } catch (err) {
     logger.error('llm call logging failed', err, { purpose: log.purpose, clientId: log.clientId });
   }
@@ -173,6 +182,17 @@ export async function generateWithRetryDetailed(
   if (log && (!log.sink || log.sink === 'db')) {
     await assertWithinBudget({ purpose: log.purpose, agentInstanceId: log.agentInstanceId, clientId: log.clientId });
   }
+  // What the provider adapter changes before sending (null for Gemini). The
+  // sent copy lands in the call row; the changes are a code step of the
+  // client's trace, recorded once per call (every attempt sends the same
+  // request) and only for a DB-logged call of a client (openspec
+  // `conversation-trace`, "adapter translations are code steps").
+  const translation = translationOf(provider, timedRequest);
+  const traceSteps = traceStepsEnabled(log);
+  const translateStep = traceSteps ? translateStepOf(translation, log!.purpose, timedRequest.model) : null;
+  if (translateStep) {
+    recordAudit({ actorType: 'system', severity: 'info', agentInstanceId: log!.agentInstanceId, clientId: log!.clientId, ...translateStep });
+  }
   const startedAt = Date.now();
   for (let attempt = 0; ; attempt++) {
     try {
@@ -184,9 +204,11 @@ export async function generateWithRetryDetailed(
             : await genaiClient.models.generateContent(providerRequest);
       // DB sink: fire-and-forget (logging never delays the call). File sink
       // (the evals harness): awaited, so a process that exits right after its
-      // last answer still has every row on disk.
+      // last answer still has every row on disk. The restore step (the nulls
+      // the adapter put back) is recorded inside, after the call row, so the
+      // trace reads translate → call → restore.
       if (log) {
-        const recorded = recordCall(log, timedRequest, provider, startedAt, attempt + 1, { response });
+        const recorded = recordCall(log, timedRequest, provider, translation, startedAt, attempt + 1, { response, traceSteps });
         if (log.sink && log.sink !== 'db') await recorded;
         else void recorded;
       }
@@ -205,7 +227,7 @@ export async function generateWithRetryDetailed(
         // The Anthropic SDK wraps transport failures/timeouts in its own classes.
         err instanceof Anthropic.APIConnectionError;
       if (!retryable || attempt >= MAX_ATTEMPTS - 1) {
-        if (log) void recordCall(log, timedRequest, provider, startedAt, attempt + 1, { error: err });
+        if (log) void recordCall(log, timedRequest, provider, translation, startedAt, attempt + 1, { error: err });
         throw err;
       }
       const delayMs = Math.round(BASE_DELAY_MS * 2 ** attempt * (0.5 + Math.random() * 0.5));

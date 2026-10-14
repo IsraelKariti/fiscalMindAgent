@@ -146,3 +146,22 @@ Chart: Notion "File handling", "Steps 5 to 7 in detail". Step 1
 | After a website fetch delivered documents: verify, then one cycle | `DOC/taxFetch/deliver.ts` · `deliver` → `DOC/verifyDocument.ts` · `verifyBatchAndReplan` |
 | The follow-up cycle may not collect again | `DOC/decisionSchema.ts` · `normalizeDecision` (afterVerification); `DOC/plan.ts` · `decideCollectOrClaim`, `splitItemsByCompany` (skipped) |
 | 12. The planner tells the client the result | `DOC/plan.ts` · `scheduleReply` (with `verificationResultsForPrompt` in the prompt) |
+
+## G. Around every LLM call (all stages)
+
+Every `runLlmCall` goes through one retry loop. When the model's provider is
+Anthropic or OpenAI, the provider adapter changes the request before sending
+and (Anthropic) the answer on the way back; both are code steps of the
+client's trace and the call row keeps the request as sent
+(`llm_calls.request.sent`). Gemini sends the request as declared: no steps,
+no sent copy.
+
+| Step | File · function |
+| --- | --- |
+| The code computes what the adapter will send (schema / tools as the provider receives them, `temperature` left out) | `gemini/wireRequest.ts` · `translationOf` (`gemini/anthropicSchema.ts` · `toAnthropicSchema`; `gemini/toolTransport.ts` · `toAnthropicTools`, `toOpenAiTools`) |
+| `translate_request`: the trace step listing what changed (null options removed, fields dropped from `required`, keywords stripped, request fields left out, tools strict) | `gemini/generate.ts` · `generateWithRetryDetailed` → `gemini/wireRequest.ts` · `translateStepOf`, `translationStepDetail` |
+| The adapter sends exactly that copy | `gemini/anthropic.ts` · `generateContentAnthropic`; `gemini/openai.ts` · `generateContentOpenAI` (both read `sentRequestOf`) |
+| The call row stores the declared request plus the sent copy | `gemini/generate.ts` · `recordCall` → `gemini/requestLog.ts` · `requestForLog(request, sent)` |
+| Anthropic only: the adapter puts null back into every nullable field the model left out, and marks the paths on the response | `gemini/anthropicSchema.ts` · `restoreOmittedNulls` (`restoredFields`) |
+| `restore_answer`: the trace step listing the filled paths (recorded after the call row, so the trace reads translate → call → restore) | `gemini/generate.ts` · `recordCall` → `gemini/wireRequest.ts` · `restoreStepOf` |
+| Steps are recorded only for a DB-logged call of a client (never for the evals harness) | `gemini/wireRequest.ts` · `traceStepsEnabled` |

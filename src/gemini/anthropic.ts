@@ -2,9 +2,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Content, GenerateContentResponse, Part } from '@google/genai';
 import type { genaiClient } from './client.js';
 import { env } from '../config/env.js';
-import { restoreOmittedNulls, toAnthropicSchema } from './anthropicSchema.js';
+import { restoreOmittedNulls } from './anthropicSchema.js';
 import { declaredToolsOf } from './requestLog.js';
 import { callsFromAnthropicContent, toAnthropicTools } from './toolTransport.js';
+import { sentRequestOf } from './wireRequest.js';
 
 type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
 
@@ -79,6 +80,9 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
   }
   const jsonSchema = request.config?.responseJsonSchema;
   const tools = declaredToolsOf(request.config);
+  // The schema as sent comes from wireRequest.ts — the same copy the call log
+  // stores, so the log can never drift from the wire.
+  const sentSchema = sentRequestOf('anthropic', request)?.responseJsonSchema;
 
   const response = await getClient().messages.create(
     {
@@ -87,7 +91,7 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
       messages: toMessages(request.contents),
       ...(systemInstruction ? { system: systemInstruction } : {}),
       ...(jsonSchema
-        ? { output_config: { format: { type: 'json_schema' as const, schema: toAnthropicSchema(jsonSchema) as Record<string, unknown> } } }
+        ? { output_config: { format: { type: 'json_schema' as const, schema: sentSchema as Record<string, unknown> } } }
         : {}),
       ...(tools.length > 0 ? { tools: toAnthropicTools(tools), tool_choice: { type: 'any' as const } } : {}),
     },
@@ -105,10 +109,14 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
     .join('');
   // toAnthropicSchema turned "null when unused" fields into "omitted when
   // unused"; put the explicit nulls back so callers see the Gemini-shaped
-  // answer their Zod schemas expect.
+  // answer their Zod schemas expect. `restoredFields` (the paths filled) rides
+  // on the response for the `restore_answer` trace step (wireRequest.ts).
+  let restoredFields: string[] | undefined;
   if (text && jsonSchema) {
     try {
-      text = JSON.stringify(restoreOmittedNulls(jsonSchema, JSON.parse(text)));
+      const filled: string[] = [];
+      text = JSON.stringify(restoreOmittedNulls(jsonSchema, JSON.parse(text), filled));
+      restoredFields = filled;
     } catch {
       // Not parseable JSON — hand it through; the caller's validation owns the rejection.
     }
@@ -122,6 +130,7 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
   return {
     text: text || undefined,
     ...(calls.length > 0 ? { functionCalls: calls } : {}),
+    ...(restoredFields ? { restoredFields } : {}),
     usageMetadata: {
       promptTokenCount: response.usage.input_tokens + cacheRead + cacheCreation,
       // Anthropic folds thinking tokens into output_tokens and bills them at

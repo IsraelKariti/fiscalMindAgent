@@ -52,6 +52,11 @@ export type AuditAction =
   | 'verify_extraction'
   | 'planner.rerun_after_verification'
   | 'llm.budget_exceeded'
+  // The provider adapter's translation of an LLM request and the restore of
+  // its answer (openspec `conversation-trace`): informational code steps,
+  // recorded by gemini/generate.ts around every Anthropic / OpenAI call.
+  | 'translate_request'
+  | 'restore_answer'
   // Apply phase of the planner (plan.ts): one row per decision field that
   // changed state, never for a no-op.
   | 'apply_resolutions'

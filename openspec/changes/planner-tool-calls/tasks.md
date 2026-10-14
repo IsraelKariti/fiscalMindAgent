@@ -37,6 +37,6 @@
 
 ## 7. Docs and close
 
-- [ ] 7.1 Update `docs/pipeline.md` (generate_message → tool calls → `assembleDecision` → `normalizeDecision`) and `docs/agents.md` where the answer form is described; verify a read-through
-- [ ] 7.2 Notion: update the "Schemas" and "Anthropic constraints" research pages (the planner now answers with tools; link "The Heavy Form") following `STYLE.md`; verify by fetch
+- [x] 7.1 Update `docs/pipeline.md` (generate_message → tool calls → `assembleDecision` → `normalizeDecision`) and `docs/agents.md` where the answer form is described; verify a read-through
+- [x] 7.2 Notion: update the "Schemas" and "Anthropic constraints" research pages (the planner now answers with tools; link "The Heavy Form") following `STYLE.md`; verify by fetch
 - [ ] 7.3 Commit per the git workflow, deploy, set the production `generate_message` model back to Claude in `#/llm-stages`, confirm one live planner call in the production trace; then `/opsx:archive planner-tool-calls`

@@ -46,5 +46,5 @@
 
 - [x] 7.1 Update `docs/pipeline.md` (generate_message → tool calls → `assembleDecision` → `normalizeDecision`) and `docs/agents.md` where the answer form is described; verify a read-through
 - [x] 7.2 Notion: update the "Schemas" and "Anthropic constraints" research pages (the planner now answers with tools; link "The Heavy Form") following `STYLE.md`; verify by fetch
-  2026-10-14, later: Schemas got the card "OpenAI: one call per turn" and the animation "One Call Per Turn" (https://claude.ai/artifact/3RDvJYCrV4rJgFF4xWX8X9); Anthropic constraints points to them.
+  2026-10-14, later: Schemas got the card "OpenAI: one call per turn" and the animation "One Call Per Turn" (https://claude.ai/artifact/3RDvJYCrV4rJgFF4xWX8X9); Anthropic constraints points to them. The "5. Conversation planner" page lists the eleven tools, marks the old form as history and links "The Planner's Tools" (https://claude.ai/artifact/23vL1cQRy3UDucCCLmV6cS).
 - [ ] 7.3 Commit per the git workflow, deploy, set the production `generate_message` model back to Claude in `#/llm-stages`, confirm one live planner call in the production trace; then `/opsx:archive planner-tool-calls`

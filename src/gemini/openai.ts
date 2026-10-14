@@ -103,9 +103,11 @@ export async function generateContentOpenAI(request: GeminiRequest): Promise<Gen
   };
   if (systemInstruction) body.instructions = systemInstruction;
   if (jsonSchema) {
-    // strict:false — the agents' schemas are written for Gemini and don't meet
-    // OpenAI's strict-mode constraints (additionalProperties:false everywhere).
-    body.text = { format: { type: 'json_schema', name: 'response', strict: false, schema: jsonSchema } };
+    // strict:true — every stage schema already meets OpenAI's strict-mode
+    // shape (every property required, additionalProperties:false on every
+    // object, null unions as type arrays / anyOf), so the model's answer is
+    // guaranteed to match the schema word for word (checked 2026-10-14).
+    body.text = { format: { type: 'json_schema', name: 'response', strict: true, schema: jsonSchema } };
   }
   const tools = declaredToolsOf(request.config);
   if (tools.length > 0) {

@@ -20,7 +20,9 @@ import {
  * stated-cost sub-form nested four levels deep in two lists). Instead the
  * model is offered small tools, each with a FLAT parameter list — every
  * parameter required, never nullable, never an object or a list of objects —
- * and answers with one or more calls in a single turn. `assembleDecision`
+ * and answers with one or more calls, `conclude` among them (one turn on
+ * Gemini/Anthropic; OpenAI is asked again until `conclude`, see llmCall.ts).
+ * `assembleDecision`
  * turns the calls into the raw `DecisionResponse` the form used to deliver,
  * so `normalizeDecision` stays the single business-rule authority.
  *

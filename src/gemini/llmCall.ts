@@ -6,6 +6,7 @@ import {
   usageFromResponse,
   type GeminiUsage,
   type LlmCallLogContext,
+  type LlmRequest,
 } from './generate.js';
 import { toolCallsOf, type LoggedToolCall } from './requestLog.js';
 import { toolRequestConfig, type LlmToolSpec } from './toolTransport.js';
@@ -25,8 +26,11 @@ export type { LlmToolSpec };
  *
  * A stage answers EITHER with one JSON object (`responseJsonSchema`) OR with
  * tool calls (`tools`, openspec `planner-answer-tools`: the model must call
- * one or more of the tools in a single turn; no tool result goes back).
- * Exactly one of the two is set.
+ * one or more of the tools; Gemini and Anthropic make them in a single turn,
+ * OpenAI's reasoning models one per turn, so `finalTool` names the call that
+ * closes the answer and the OpenAI adapter keeps asking — every call answered
+ * "recorded" — until it arrives, at most MAX_TOOL_TURNS turns). Exactly one of
+ * the two is set.
  *
  * Builders take plain data (rows, bytes, sanitized text) and import nothing
  * from db/, so they can run without a database.
@@ -41,8 +45,13 @@ export interface LlmCallSpec {
   responseJsonSchema?: Record<string, unknown>;
   /** The tools the model must answer with (forced tool choice, parallel calls allowed). */
   tools?: LlmToolSpec[];
+  /** The tool whose call closes a tool answer; a turn without it is continued (see above). Only with `tools`. */
+  finalTool?: string;
   temperature: number;
 }
+
+/** Turns one tool answer may take in all, first turn included; reached without `finalTool`, the calls go to the gate as they are. */
+export const MAX_TOOL_TURNS = 6;
 
 export interface RunLlmCallOptions {
   /** Per-call llm_calls attribution (or a file sink for the evals harness). */
@@ -90,7 +99,13 @@ export function requestConfigOf(spec: LlmCallSpec): NonNullable<GeminiRequest['c
  */
 export async function runLlmCall(spec: LlmCallSpec, opts: RunLlmCallOptions = {}): Promise<LlmCallResult> {
   const model = opts.model ?? (await getGeminiModel(spec.purpose));
-  const request: GeminiRequest = { model, contents: spec.contents, config: requestConfigOf(spec) };
+  if (spec.finalTool && !spec.tools) throw new Error(`${spec.purpose}: finalTool needs tools`);
+  const request: LlmRequest = {
+    model,
+    contents: spec.contents,
+    config: requestConfigOf(spec),
+    ...(spec.finalTool ? { continuation: { untilTool: spec.finalTool, maxTurns: MAX_TOOL_TURNS } } : {}),
+  };
   const log: LlmCallLogContext | undefined = opts.log ? { ...opts.log, purpose: opts.log.purpose ?? spec.purpose } : undefined;
   const { response, attempts } = await generateWithRetryDetailed(request, log);
   const usage = usageFromResponse(response);

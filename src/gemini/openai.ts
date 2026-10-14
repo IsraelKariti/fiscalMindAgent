@@ -1,8 +1,9 @@
 import type { Content, GenerateContentResponse, Part } from '@google/genai';
 import type { genaiClient } from './client.js';
 import { env } from '../config/env.js';
-import { declaredToolsOf } from './requestLog.js';
-import { callsFromOpenAiOutput, toOpenAiTools } from './toolTransport.js';
+import { declaredToolsOf, type ToolContinuation } from './requestLog.js';
+import { runOpenAiToolTurns, toOpenAiTools, type OpenAiResponseData } from './toolTransport.js';
+import { logger } from '../util/logger.js';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 
@@ -17,7 +18,7 @@ export class OpenAiApiError extends Error {
   }
 }
 
-type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
+type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0] & { continuation?: ToolContinuation };
 
 interface OpenAiContentItem {
   type: 'input_text' | 'output_text' | 'input_image' | 'input_file';
@@ -115,44 +116,40 @@ export async function generateContentOpenAI(request: GeminiRequest): Promise<Gen
   }
 
   const timeoutMs = request.config?.httpOptions?.timeout;
-  const res = await fetch(OPENAI_RESPONSES_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
-  });
-  if (!res.ok) {
-    const errBody = (await res.text().catch(() => '')).slice(0, 500);
-    throw new OpenAiApiError(res.status, `OpenAI HTTP ${res.status}: ${errBody}`);
-  }
-
-  const data = (await res.json()) as {
-    output?: unknown;
-    usage?: {
-      input_tokens?: number;
-      output_tokens?: number;
-      input_tokens_details?: { cached_tokens?: number };
-      output_tokens_details?: { reasoning_tokens?: number };
-    };
+  // Each turn gets its own deadline; the shared retry loop (generate.ts) wraps
+  // the whole exchange, so a transient failure on a later turn replays it.
+  const send = async (turnBody: Record<string, unknown>): Promise<OpenAiResponseData> => {
+    const res = await fetch(OPENAI_RESPONSES_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(turnBody),
+      signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
+    });
+    if (!res.ok) {
+      const errBody = (await res.text().catch(() => '')).slice(0, 500);
+      throw new OpenAiApiError(res.status, `OpenAI HTTP ${res.status}: ${errBody}`);
+    }
+    return (await res.json()) as OpenAiResponseData;
   };
-  const text = extractText(data.output);
-  const calls = callsFromOpenAiOutput(data.output);
-  const reasoningTokens = data.usage?.output_tokens_details?.reasoning_tokens ?? 0;
+
+  const { output, calls, usage, turns } = await runOpenAiToolTurns(body, tools.length > 0 ? request.continuation : undefined, send);
+  if (turns > 1) logger.info('openai tool answer continued', { model: request.model, turns, calls: calls.map((c) => c.name) });
+  const text = extractText(output);
   return {
     text: text || undefined,
     ...(calls.length > 0 ? { functionCalls: calls } : {}),
     usageMetadata: {
-      promptTokenCount: data.usage?.input_tokens ?? 0,
+      promptTokenCount: usage.inputTokens,
       // OpenAI's output_tokens includes reasoning; Gemini reports them apart,
       // and usageFromResponse/pricing assume the disjoint convention.
-      candidatesTokenCount: Math.max(0, (data.usage?.output_tokens ?? 0) - reasoningTokens),
-      thoughtsTokenCount: reasoningTokens,
+      candidatesTokenCount: Math.max(0, usage.outputTokens - usage.reasoningTokens),
+      thoughtsTokenCount: usage.reasoningTokens,
       // Like Gemini's cachedContentTokenCount, OpenAI's cached_tokens are a
       // subset of input_tokens — the convention usageFromResponse assumes.
-      cachedContentTokenCount: data.usage?.input_tokens_details?.cached_tokens ?? 0,
+      cachedContentTokenCount: usage.cachedTokens,
     },
   } as GenerateContentResponse;
 }

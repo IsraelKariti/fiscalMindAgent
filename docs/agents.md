@@ -50,7 +50,9 @@ activation is not email-gated and no mailbox is required — the instance's
   `send_whatsapp_text`, `send_whatsapp_template`, `mark_collected`, `tie_file`,
   `resolve_document`, `add_instance`, `state_cost`, `retire_document`,
   `attestation`, `tax_fetch` (per context, `toolsForContext`); the model calls
-  several in one turn and `assembleDecision` rebuilds the `DecisionResponse`
+  several (in one turn on Gemini/Anthropic; OpenAI's reasoning models make one
+  call per turn, so the adapter answers each `recorded` and asks again until
+  `conclude`, `LlmCallSpec.finalTool`) and `assembleDecision` rebuilds the `DecisionResponse`
   shape that `normalizeDecision` reads. No channel and no email tool: a
   follow_up calls `send_whatsapp_text` or
   `send_whatsapp_template`, `normalizeFollowUpMessage` derives the kind and the

@@ -18,7 +18,8 @@ import {
  * Per-context tool sets (openspec `planner-answer-tools`): the full set minus
  * the tools the context can never use (decisionTools.ts), keyed by the tool
  * names offered. Every provider gets the same flat tools; the planner answers
- * with one or more calls in a single turn.
+ * with one or more calls — in a single turn on Gemini and Anthropic, over up
+ * to MAX_TOOL_TURNS turns on OpenAI (llmCall.ts).
  */
 const toolsCache = new Map<string, DecisionToolJson[]>();
 
@@ -65,6 +66,9 @@ export function buildDecisionCall({ systemInstruction, contents, ctx }: Decision
       systemInstruction,
       contents,
       tools,
+      // `conclude` closes the answer: a provider whose model makes one call per
+      // turn (OpenAI) is asked again until it arrives.
+      finalTool: 'conclude',
       temperature: 0.3,
     },
     tools,

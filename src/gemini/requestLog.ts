@@ -39,10 +39,24 @@ function contentsForLog(contents: unknown): unknown {
   });
 }
 
+/**
+ * Continuation of a tool-call answer (openspec `planner-answer-tools`): when a
+ * turn's calls include no `untilTool`, the provider adapter answers every call
+ * with the literal result "recorded" and asks for the next calls, up to
+ * `maxTurns` turns in all; the calls of all turns form one answer. Needed for
+ * OpenAI's reasoning models, which make one action call per turn; Gemini and
+ * Anthropic make all calls in one turn and ignore it.
+ */
+export interface ToolContinuation {
+  untilTool: string;
+  maxTurns: number;
+}
+
 /** Structural view of the request — every Gemini-shaped request satisfies it. */
 export interface LoggableRequest {
   model: string;
   contents?: unknown;
+  continuation?: ToolContinuation;
   config?: {
     systemInstruction?: unknown;
     temperature?: unknown;
@@ -61,6 +75,7 @@ export function requestForLog(request: LoggableRequest): Record<string, unknown>
     model: request.model,
     ...(typeof cfg.systemInstruction === 'string' ? { systemInstruction: textForLog(cfg.systemInstruction) } : {}),
     contents: contentsForLog(request.contents),
+    ...(request.continuation ? { continuation: request.continuation } : {}),
     config: {
       ...(cfg.temperature !== undefined ? { temperature: cfg.temperature } : {}),
       ...(cfg.responseMimeType !== undefined ? { responseMimeType: cfg.responseMimeType } : {}),

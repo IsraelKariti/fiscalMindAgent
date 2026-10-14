@@ -2,8 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { FunctionCallingConfigMode } from '@google/genai';
 import {
+  CONTINUATION_RESULT,
   callsFromAnthropicContent,
   callsFromOpenAiOutput,
+  runOpenAiToolTurns,
   toAnthropicTools,
   toOpenAiTools,
   toolRequestConfig,
@@ -92,6 +94,65 @@ describe('OpenAI translation', () => {
   });
 });
 
+// OpenAI's reasoning models make one action call per turn (measured 2026-10-14),
+// so the adapter answers every call "recorded" and asks again until `conclude`.
+describe('OpenAI continuation until the final tool', () => {
+  const call = (name: string, id: string) => ({ type: 'function_call', name, arguments: '{}', call_id: id });
+  const turn = (id: string, items: unknown[], input = 100, cached = 0) => ({
+    id,
+    output: items,
+    usage: { input_tokens: input, output_tokens: 10, input_tokens_details: { cached_tokens: cached }, output_tokens_details: { reasoning_tokens: 3 } },
+  });
+  const first = { model: 'gpt-6-astra', input: [{ role: 'user' }], tools: [{ name: 't' }], tool_choice: 'required', parallel_tool_calls: true };
+  const until = { untilTool: 'conclude', maxTurns: 6 };
+
+  it('stops after one turn when conclude is among the calls', async () => {
+    const sent: Record<string, unknown>[] = [];
+    const res = await runOpenAiToolTurns(first, until, async (b) => (sent.push(b), turn('r1', [call('send_whatsapp_text', 'a'), call('conclude', 'b')])));
+    assert.equal(res.turns, 1);
+    assert.deepEqual(res.calls.map((c) => c.name), ['send_whatsapp_text', 'conclude']);
+    assert.equal(sent.length, 1);
+  });
+
+  it('feeds each call back as "recorded" against the previous response until conclude, summing the usage', async () => {
+    const sent: Record<string, unknown>[] = [];
+    const answers = [
+      turn('r1', [{ type: 'reasoning', summary: [] }, call('resolve_document', 'c1')], 1000, 900),
+      turn('r2', [call('send_whatsapp_text', 'c2')], 1100, 1000),
+      turn('r3', [call('conclude', 'c3')], 1200, 1100),
+    ];
+    const res = await runOpenAiToolTurns(first, until, async (b) => (sent.push(b), answers[sent.length - 1]!));
+    assert.equal(res.turns, 3);
+    assert.deepEqual(res.calls.map((c) => c.name), ['resolve_document', 'send_whatsapp_text', 'conclude']);
+    assert.deepEqual(res.usage, { inputTokens: 3300, outputTokens: 30, cachedTokens: 3000, reasoningTokens: 9 });
+    // The second request names the first response and carries only the tool results.
+    assert.equal(sent[1]!.previous_response_id, 'r1');
+    assert.deepEqual(sent[1]!.input, [{ type: 'function_call_output', call_id: 'c1', output: CONTINUATION_RESULT }]);
+    assert.equal(sent[1]!.tool_choice, 'required');
+    assert.deepEqual(sent[1]!.tools, first.tools);
+    assert.equal(sent[2]!.previous_response_id, 'r2');
+    assert.ok(!('instructions' in sent[1]!));
+  });
+
+  it('gives up at maxTurns and on a turn without calls; the gate then reports the missing conclude', async () => {
+    let n = 0;
+    const capped = await runOpenAiToolTurns(first, { untilTool: 'conclude', maxTurns: 3 }, async () => turn(`r${++n}`, [call('add_instance', `c${n}`)]));
+    assert.equal(capped.turns, 3);
+    assert.deepEqual(capped.calls.map((c) => c.name), ['add_instance', 'add_instance', 'add_instance']);
+    n = 0;
+    const silent = await runOpenAiToolTurns(first, until, async () => turn(`r${++n}`, n === 1 ? [call('add_instance', 'c1')] : [{ type: 'message', content: [] }]));
+    assert.equal(silent.turns, 2);
+    assert.deepEqual(silent.calls.map((c) => c.name), ['add_instance']);
+  });
+
+  it('without a continuation rule a single turn is all there is', async () => {
+    let n = 0;
+    const res = await runOpenAiToolTurns(first, undefined, async () => turn(`r${++n}`, [call('add_instance', 'c1')]));
+    assert.equal(res.turns, 1);
+    assert.equal(n, 1);
+  });
+});
+
 describe('logging', () => {
   it('requestForLog keeps the tools and the forced-choice config', () => {
     const logged = requestForLog({ model: 'm', contents: 'hi', config: { temperature: 0.3, ...toolRequestConfig(tools) } });
@@ -99,6 +160,9 @@ describe('logging', () => {
     assert.ok(Array.isArray(config.tools));
     assert.ok(config.toolConfig);
     assert.equal(config.responseJsonSchema, undefined);
+    assert.equal(logged.continuation, undefined);
+    const continued = requestForLog({ model: 'm', contents: 'hi', continuation: { untilTool: 'conclude', maxTurns: 6 }, config: toolRequestConfig(tools) });
+    assert.deepEqual(continued.continuation, { untilTool: 'conclude', maxTurns: 6 });
   });
 
   it('toolCallsOf reads a plain functionCalls property or the parts of the first candidate; responseForLog stores the calls as JSON', () => {

@@ -4,8 +4,16 @@ How the conversation planner answers: a set of small tools, each with a flat par
 
 ## ADDED Requirements
 
-### Requirement: The planner answers with tool calls, in one turn
-The `generate_message` stage SHALL offer the model a set of tools and SHALL force a tool answer (the model may not answer in plain text). The model SHALL answer in a single turn with one or more tool calls; the system SHALL NOT send tool results back to the model and SHALL NOT run a second model turn except the one corrective retry of the `validate_message` gate. Plain text in the answer SHALL be ignored. The same contract SHALL hold on every model provider the admin can select for this stage (Gemini, Anthropic, OpenAI).
+### Requirement: The planner answers with tool calls
+The `generate_message` stage SHALL offer the model a set of tools and SHALL force a tool answer (the model may not answer in plain text). The model SHALL answer with one or more tool calls, one of them `conclude`, which closes the answer. On Gemini and Anthropic the answer SHALL be a single turn: the system SHALL NOT send tool results back and SHALL NOT run a second model turn except the one corrective retry of the `validate_message` gate. On OpenAI, whose reasoning models make one action call per turn, the system SHALL continue the same answer while a turn's calls include no `conclude`: it SHALL answer every call of the turn with the literal tool result `recorded`, SHALL ask for the next calls with the same tools and the same forced tool choice, and SHALL stop after `conclude`, after a turn without calls, or after 6 turns in all. The calls of all turns, in order, SHALL form one answer and one LLM call record with the summed token usage. Plain text in the answer SHALL be ignored. The same tools and the same gate SHALL hold on every model provider the admin can select for this stage (Gemini, Anthropic, OpenAI).
+
+#### Scenario: OpenAI reaches conclude on a later turn
+- **WHEN** an OpenAI model answers the first turn with `resolve_document(…)` only, the second turn with `send_whatsapp_text(…)` only and the third turn with `conclude(decision: "follow_up", …)`
+- **THEN** the system sends `recorded` for the first call before the second turn and for the second call before the third turn, and the gate receives the three calls as one answer
+
+#### Scenario: OpenAI never concludes
+- **WHEN** an OpenAI model makes six turns and none of them calls `conclude`
+- **THEN** the system stops asking, the gate rejects the answer with the note that `conclude` must be called exactly once, and the model gets the one corrective retry
 
 #### Scenario: Follow-up answer with a message
 - **WHEN** the model answers with the calls `conclude(decision: "follow_up", reasoning: …)` and `send_whatsapp_text(text: …, send_at: "asap")`

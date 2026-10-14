@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { genaiClient } from './client.js';
 import { providerForModel } from './modelSettings.js';
 import { computeCost, getPricingForModel } from './pricing.js';
-import { requestForLog, responseForLog } from './requestLog.js';
+import { requestForLog, responseForLog, type ToolContinuation } from './requestLog.js';
 import { generateContentAnthropic } from './anthropic.js';
 import { generateContentOpenAI, OpenAiApiError } from './openai.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
@@ -51,6 +51,13 @@ function sleep(ms: number): Promise<void> {
 type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
 
 /**
+ * A Gemini-shaped request plus the optional continuation rule of a tool-call
+ * stage (requestLog.ts `ToolContinuation`). Only the OpenAI adapter reads it;
+ * the Gemini SDK and the Anthropic adapter get the plain request.
+ */
+export type LlmRequest = GeminiRequest & { continuation?: ToolContinuation };
+
+/**
  * Attribution for the per-call llm_calls row (049). Call sites that pass it
  * get every call recorded — exact input, response, tokens by kind, and prices
  * at call time; call sites that don't stay counters-only (llmUsage.add).
@@ -86,7 +93,7 @@ export type LlmCallFileRow = llmCalls.InsertLlmCall & { ts: string };
  */
 async function recordCall(
   log: LlmCallLogContext,
-  request: GeminiRequest,
+  request: LlmRequest,
   provider: string,
   startedAt: number,
   attempts: number,
@@ -136,7 +143,7 @@ async function recordCall(
 
 /** Exponential backoff with jitter: ~2s, 4s, 8s, 16s between the 5 attempts. */
 export async function generateWithRetry(
-  request: GeminiRequest,
+  request: LlmRequest,
   log?: LlmCallLogContext,
 ): Promise<GenerateContentResponse> {
   return (await generateWithRetryDetailed(request, log)).response;
@@ -144,16 +151,19 @@ export async function generateWithRetry(
 
 /** generateWithRetry plus how many provider round trips the answer took. */
 export async function generateWithRetryDetailed(
-  request: GeminiRequest,
+  request: LlmRequest,
   log?: LlmCallLogContext,
 ): Promise<{ response: GenerateContentResponse; attempts: number; provider: string }> {
-  const timedRequest = {
+  const timedRequest: LlmRequest = {
     ...request,
     config: {
       ...request.config,
       httpOptions: { timeout: ATTEMPT_TIMEOUT_MS, ...request.config?.httpOptions },
     },
   };
+  // The Gemini SDK and the Anthropic adapter get the request without the continuation key.
+  const { continuation: _continuation, ...providerRequest } = timedRequest;
+  void _continuation;
   // GPT/Claude models ride the same retry loop but are served by their own
   // APIs; each translation layer keeps the request/response Gemini-shaped.
   const provider = providerForModel(timedRequest.model);
@@ -170,8 +180,8 @@ export async function generateWithRetryDetailed(
         provider === 'openai'
           ? await generateContentOpenAI(timedRequest)
           : provider === 'anthropic'
-            ? await generateContentAnthropic(timedRequest)
-            : await genaiClient.models.generateContent(timedRequest);
+            ? await generateContentAnthropic(providerRequest)
+            : await genaiClient.models.generateContent(providerRequest);
       // DB sink: fire-and-forget (logging never delays the call). File sink
       // (the evals harness): awaited, so a process that exits right after its
       // last answer still has every row on disk.

@@ -30,9 +30,11 @@
 
 ## 6. Evals and live checks
 
-- [ ] 6.1 `evals/stages.ts`: `generate_message.build` returns the tool spec and `parse(result)` assembles the calls; adapt the harness so `parse` receives the call result (other stages read `result.text`); verify `npm run evals -- --stage generate_message --models <gemini model>` runs and `judge` is untouched
-- [ ] 6.2 Run the planner evals on all three providers (`--models` with the Gemini, Claude and OpenAI models configured in `LLM_MODEL_OPTIONS`) and record the gate-acceptance rate next to `latest.json`; verify no case fails on `tool_calls` more than once (the retry) and note any provider that emits one call per turn
-- [ ] 6.3 Live acceptance probe: send the real tool set for a capital-declaration client without a fetch offer to `claude-opus-5` once and record "accepted" in this file; verify no "grammar too large" and the answer is tool calls
+- [x] 6.1 `evals/stages.ts`: `generate_message.build` returns the tool spec and `parse(result)` assembles the calls; adapt the harness so `parse` receives the call result (other stages read `result.text`); verify `npm run evals -- --stage generate_message --models <gemini model>` runs and `judge` is untouched
+- [x] 6.2 Run the planner evals on all three providers (`--models` with the Gemini, Claude and OpenAI models configured in `LLM_MODEL_OPTIONS`) and record the gate-acceptance rate next to `latest.json`; verify no case fails on `tool_calls` more than once (the retry) and note any provider that emits one call per turn
+  Run of 2026-10-14 (31 planner cases, results in the session scratch folder, `latest.json` untouched): `gemini-3.1-pro-preview` 27/31 (1 shape fault: no `conclude` call, 1 provider 504, 2 content checks); `claude-opus-5` 28/31 (1 shape fault: no `conclude`, 2 content checks); `gpt-6-astra` 0/31 — the OpenAI Responses API returned exactly ONE function call per turn in every case (`tool_choice: required`, `parallel_tool_calls: true`), so `conclude` was never present. Decision on OpenAI pending the owner (see design.md, Open Questions).
+- [x] 6.3 Live acceptance probe: send the real tool set for a capital-declaration client without a fetch offer to `claude-opus-5` once and record "accepted" in this file; verify no "grammar too large" and the answer is tool calls
+  Accepted 2026-10-14: 31 planner calls on `claude-opus-5` with the eleven strict tools, every one answered with tool calls, no HTTP 400.
 - [ ] 6.4 Local end-to-end: one planner cycle for a test client on each provider (Gemini locally, Claude, OpenAI if a key exists) and check the trace shows `validate_message` with `tool_calls` + `business_rules` and the call modal shows tools and calls; verify in the browser
 
 ## 7. Docs and close

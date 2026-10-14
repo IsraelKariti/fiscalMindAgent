@@ -5,7 +5,7 @@ Since the 12 Oct 2026 deploy every planner call on a Claude model fails with HTT
 ## What Changes
 
 - **BREAKING (internal)**: the `generate_message` stage no longer asks for one JSON object. The model is given a set of tools, each with a flat parameter list, and must answer with one or more tool calls in a single turn (forced tool choice, parallel calls). The code assembles the calls into the same normalized decision the rest of the pipeline already consumes; the business rules (evidence quotes, instance caps, message rules, attestation gate) do not change.
-- One tool per planner action: `conclude` (decision + reasoning, exactly once), `send_whatsapp_text`, `send_whatsapp_template`, `mark_collected`, `tie_file`, `resolve_document`, `add_instance`, `state_cost`, `retire_document`, `request_attestation`, `confirm_attestation`, `tax_fetch`. Every parameter is required; "none" is an empty value (`''`, `[]`, `0`); no parameter is nullable and no parameter object nests deeper than one level.
+- One tool per planner action: `conclude` (decision + reasoning, exactly once), `send_whatsapp_text`, `send_whatsapp_template`, `mark_collected`, `tie_file`, `resolve_document`, `add_instance`, `state_cost`, `retire_document`, `attestation` (action request / confirmed), `tax_fetch`. Every parameter is required; "none" is an empty value (`''`, `[]`, `0`); no parameter is nullable and no parameter object nests deeper than one level.
 - The set of tools offered per call replaces today's field-group pruning: no intake → no checklist tools; no fetch provider → no `tax_fetch`; the after-verification cycle → no `mark_collected`/`tie_file` and no `collect` value.
 - The three vendor adapters (Gemini, Anthropic, OpenAI) learn to send tool definitions, force a tool answer, and return the list of calls. Anthropic tools are sent strict; OpenAI tools are sent strict (all parameters required, no extra keys), replacing today's `strict:false` for this stage.
 - The `validate_message` gate's first check becomes `tool_calls` (every call names an offered tool and its parameters match that tool's schema; exactly one `conclude`), followed by the unchanged `business_rules` check.
@@ -13,7 +13,7 @@ Since the 12 Oct 2026 deploy every planner call on a Claude model fails with HTT
 - LLM call logging, the admin call modal and the `#/llm-stages` page show the tool list in the request and the tool calls in the response.
 - The evals harness builds the same tool request and judges the assembled decision with the same code gate.
 - The nullable-place budget test is replaced by a per-tool shape test (zero nullable, zero optional, depth ≤ 1) and the live acceptance check of the real tool set on `claude-opus-5`.
-- The `attestation` null problem disappears: a missing `request_attestation`/`confirm_attestation` call simply means "no attestation action".
+- The `attestation` null problem disappears: a missing `attestation` call simply means "no attestation action".
 - Stated cost of a new instance stays in the same answer (`state_cost` naming the instance) — the 12 Oct behaviour is kept without the nested sub-form.
 
 ## Capabilities

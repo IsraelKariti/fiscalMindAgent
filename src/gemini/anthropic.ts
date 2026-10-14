@@ -3,6 +3,8 @@ import type { Content, GenerateContentResponse, Part } from '@google/genai';
 import type { genaiClient } from './client.js';
 import { env } from '../config/env.js';
 import { restoreOmittedNulls, toAnthropicSchema } from './anthropicSchema.js';
+import { declaredToolsOf } from './requestLog.js';
+import { callsFromAnthropicContent, toAnthropicTools } from './toolTransport.js';
 
 type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
 
@@ -64,10 +66,11 @@ function toMessages(contents: GeminiRequest['contents']): Anthropic.MessageParam
  * Serves a Gemini-shaped generateContent request via Anthropic's Messages API,
  * returning a GenerateContentResponse-compatible object — the same contract as
  * openai.ts, covering exactly what the agents use: text + inlineData contents,
- * systemInstruction, responseJsonSchema, and token usage. `temperature` is
- * intentionally NOT forwarded — Claude Opus 5 / Sonnet 5 reject sampling
- * params. `thinking` is left at each model's default (adaptive on Opus 5 /
- * Sonnet 5, off on Haiku 4.5).
+ * systemInstruction, responseJsonSchema OR tools (forced tool choice, parallel
+ * calls allowed, the calls returned as `functionCalls`), and token usage.
+ * `temperature` is intentionally NOT forwarded — Claude Opus 5 / Sonnet 5
+ * reject sampling params. `thinking` is left at each model's default (adaptive
+ * on Opus 5 / Sonnet 5, off on Haiku 4.5).
  */
 export async function generateContentAnthropic(request: GeminiRequest): Promise<GenerateContentResponse> {
   const systemInstruction = request.config?.systemInstruction;
@@ -75,6 +78,7 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
     throw new Error('unsupported systemInstruction shape for Anthropic translation');
   }
   const jsonSchema = request.config?.responseJsonSchema;
+  const tools = declaredToolsOf(request.config);
 
   const response = await getClient().messages.create(
     {
@@ -85,6 +89,7 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
       ...(jsonSchema
         ? { output_config: { format: { type: 'json_schema' as const, schema: toAnthropicSchema(jsonSchema) as Record<string, unknown> } } }
         : {}),
+      ...(tools.length > 0 ? { tools: toAnthropicTools(tools), tool_choice: { type: 'any' as const } } : {}),
     },
     { timeout: request.config?.httpOptions?.timeout },
   );
@@ -93,6 +98,7 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
     throw new Error(`Anthropic model refused the request: ${response.stop_details?.explanation ?? 'no explanation'}`);
   }
 
+  const calls = callsFromAnthropicContent(response.content);
   let text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')
     .map((block) => block.text)
@@ -115,6 +121,7 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
   const cacheCreation = response.usage.cache_creation_input_tokens ?? 0;
   return {
     text: text || undefined,
+    ...(calls.length > 0 ? { functionCalls: calls } : {}),
     usageMetadata: {
       promptTokenCount: response.usage.input_tokens + cacheRead + cacheCreation,
       // Anthropic folds thinking tokens into output_tokens and bills them at

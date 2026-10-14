@@ -39,7 +39,6 @@ import { buildDecisionCall } from '../src/agents/declarationOfCapital/decide.js'
 import {
   allowedTaxFetchActions,
   normalizeDecision,
-  restorePrunedNulls,
   type DecisionContext,
   type DecisionResponse,
   type IntakeDecisionState,
@@ -55,7 +54,8 @@ import { getProviderSpec } from '../src/agents/declarationOfCapital/taxFetch/pro
 import { env } from '../src/config/env.js';
 import { zonedTimeToUtc } from '../src/util/time.js';
 import type { LlmCallPurpose } from '../src/gemini/modelCatalog.js';
-import type { LlmCallSpec } from '../src/gemini/llmCall.js';
+import type { LlmCallSpec, LlmToolCall } from '../src/gemini/llmCall.js';
+import { assembleDecision, parseToolCalls, toolsForContext, type ToolCall } from '../src/agents/declarationOfCapital/decisionTools.js';
 import type {
   ClientDocumentRow,
   ClientRow,
@@ -91,8 +91,8 @@ export interface Judgement {
 
 export interface BuiltCall {
   spec: LlmCallSpec;
-  /** The stage's own schema parse of the answer text — what gets stored as `output`. */
-  parse: (text: string) => unknown;
+  /** The stage's own parse of the answer (the text of a form stage, the tool calls of the planner) — what gets stored as `output`. */
+  parse: (res: { text: string; toolCalls: LlmToolCall[] }) => unknown;
 }
 
 export interface StageAdapter<C = unknown, Ctx = unknown> {
@@ -175,7 +175,7 @@ const injectionScreen: StageAdapter<InjectionCase, Record<string, unknown>> = {
       c.kind === 'file'
         ? buildFileScreenCall({ bytes: modelFileOf(c.file).bytes, contentType: modelFileOf(c.file).contentType, filename: c.filename })
         : buildInjectionScreenCall(joinSnippets(textSnippets(c)));
-    return { spec, parse: (text) => InjectionScreenSchema.parse(JSON.parse(text)) };
+    return { spec, parse: (res) => InjectionScreenSchema.parse(JSON.parse(res.text)) };
   },
   judge(c, output) {
     const raw = output as { suspected_injection: boolean; evidence: string | null };
@@ -246,7 +246,7 @@ const formIntake: StageAdapter<FormIntakeCase, FormIntakeCtx> = {
   build(c, ctx) {
     const { answered, emptyQuestions, rows } = formAnswers(c, ctx);
     const { spec, schema } = buildFormIntakeCall({ answered, emptyQuestions, rows, taxYear: ctx.taxYear });
-    return { spec, parse: (text) => schema.parse(JSON.parse(text)) };
+    return { spec, parse: (res) => schema.parse(JSON.parse(res.text)) };
   },
   judge(c, output, ctx) {
     const data = output as FormIntakeResponse;
@@ -323,7 +323,7 @@ const splitFileStage: StageAdapter<SplitFileCase, Record<string, never>> = {
   },
   build(c) {
     const spec = buildFileSplitCall({ bytes: readFile(c.file), filename: c.filename, pageCount: splitPageCount(c.file) });
-    return { spec, parse: (text) => FileSplitSchema.parse(JSON.parse(text)) };
+    return { spec, parse: (res) => FileSplitSchema.parse(JSON.parse(res.text)) };
   },
   judge(c, output) {
     const raw = output as FileSplit;
@@ -404,7 +404,7 @@ const analyzeFile: StageAdapter<AnalyzeFileCase, AnalyzeFileCtx> = {
       requiredDocuments: ctx.checklist,
       taxYear: ctx.taxYear,
     });
-    return { spec, parse: (text) => CapitalFileAnalysisSchema.parse(JSON.parse(text)) };
+    return { spec, parse: (res) => CapitalFileAnalysisSchema.parse(JSON.parse(res.text)) };
   },
   judge(c, output, ctx) {
     const raw = output as FileAnalysis;
@@ -513,7 +513,7 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
       filename: c.filename,
       taxYear: ctx.taxYear,
     });
-    return { spec, parse: (text) => documentTypeSpec(c.doc.type_key).schema.parse(JSON.parse(text)) };
+    return { spec, parse: (res) => documentTypeSpec(c.doc.type_key).schema.parse(JSON.parse(res.text)) };
   },
   judge(c, output, ctx) {
     const data = output as ExtractedAnswer;
@@ -1038,22 +1038,29 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       };
     });
     const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPrompt, taxYear, intakePrompt, unsentDraftRows(c), verificationResults, decisionCtx.afterVerification === true);
-    const { spec, schema } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
-    return { spec, parse: (text) => restorePrunedNulls(schema.parse(JSON.parse(text))) };
+    const { spec } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
+    // The planner answers with tool calls (openspec `planner-answer-tools`); the judge runs the gate on them.
+    return { spec, parse: (res) => ({ calls: res.toolCalls }) };
   },
   judge(c, output, ctx) {
-    const raw = output as DecisionResponse;
+    const { calls } = output as { calls: ToolCall[] };
     const { taxYear, now, documents, decisionCtx } = decideInputs(c, ctx);
     const e = c.expects;
     const checks: Check[] = [];
-    const info: Record<string, unknown> = { reasoning: raw.reasoning, send_at: raw.send_at };
+    const info: Record<string, unknown> = { calls: calls.map((k) => k.name) };
+    const concluded = calls.find((k) => k.name === 'conclude')?.args as { decision?: unknown } | undefined;
+    let raw: DecisionResponse;
     let decision: ReturnType<typeof normalizeDecision>;
     try {
+      // The same two checks as validate_message: tool_calls (offered tools, per-tool schema, one conclude), then the business rules.
+      raw = assembleDecision(parseToolCalls(calls, toolsForContext(decisionCtx)));
+      info.reasoning = raw.reasoning;
+      info.send_at = raw.send_at;
       decision = normalizeDecision(raw, decisionCtx);
     } catch (err) {
-      // The gate rejected the answer (missing/fabricated evidence, wrong channel, bad send_at, …): the app would retry once, then fail the cycle.
+      // The gate rejected the answer (bad calls, missing/fabricated evidence, wrong channel, bad send_at, …): the app would retry once, then fail the cycle.
       checks.push({ key: 'gate', expected: 'accepted', actual: errorMessage(err).slice(0, 500), pass: false });
-      checks.push(eq('decision', e.decision, raw.decision));
+      checks.push(eq('decision', e.decision, concluded?.decision));
       return { checks, info };
     }
     checks.push({ key: 'gate', expected: 'accepted', actual: 'accepted', pass: true });

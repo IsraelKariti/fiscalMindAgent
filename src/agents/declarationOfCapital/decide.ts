@@ -1,49 +1,34 @@
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { logger } from '../../util/logger.js';
 import type { GeminiUsage, LlmCallLogContext } from '../../gemini/generate.js';
 import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import { recordAudit } from '../../audit/audit.js';
 import { check } from '../shared/gateChecks.js';
+import { DecisionRejectedError, type DecisionContext, type NormalizedDecision } from './decisionSchema.js';
 import {
   correctionSuffix,
-  DecisionRejectedError,
-  decisionSchemaForContext,
-  decisionSchemaKey,
+  decisionToolsKey,
+  describeCalls,
   gateDecision,
-  type DecisionContext,
-  type DecisionResponse,
-  type NormalizedDecision,
-} from './decisionSchema.js';
-import type { z } from 'zod';
+  toolJsonSchemas,
+  type DecisionToolJson,
+  type ToolCall,
+} from './decisionTools.js';
 
 /**
- * Per-context response schemas (the full contract minus the field groups the
- * context can never accept — see decisionSchema.ts), keyed by the pruned-field
- * set. Pruning keeps the schema under Anthropic's structured-output complexity
- * budget; Gemini/OpenAI simply get the smaller schema too.
+ * Per-context tool sets (openspec `planner-answer-tools`): the full set minus
+ * the tools the context can never use (decisionTools.ts), keyed by the tool
+ * names offered. Every provider gets the same flat tools; the planner answers
+ * with one or more calls in a single turn.
  */
-const schemaCache = new Map<string, { zod: z.ZodType<Partial<DecisionResponse>>; json: Record<string, unknown> }>();
+const toolsCache = new Map<string, DecisionToolJson[]>();
 
-/**
- * The JSON request schema sent to the model for one context. `$refStrategy:
- * 'none'` inlines every sub-schema: zod-to-json-schema otherwise emits a `$ref`
- * for a Zod object reused in two places (StatedCostOnInstanceSchema, since
- * 2026-10-12), and Anthropic rejects a `$ref` under `properties` with a 400
- * "References must be defined under '$defs'" — every planner call on a Claude
- * model failed that way (found by the evals, 2026-10-13).
- */
-export function decisionJsonSchemaForContext(ctx: DecisionContext): Record<string, unknown> {
-  const json = zodToJsonSchema(decisionSchemaForContext(ctx) as never, { $refStrategy: 'none' }) as Record<string, unknown>;
-  delete json.$schema;
-  return json;
-}
-
-function schemasForContext(ctx: DecisionContext): { zod: z.ZodType<Partial<DecisionResponse>>; json: Record<string, unknown> } {
-  const key = decisionSchemaKey(ctx);
-  let entry = schemaCache.get(key);
+/** The tools sent to the model for one context, as name + description + flat JSON-schema parameters. */
+export function decisionToolsForContext(ctx: DecisionContext): DecisionToolJson[] {
+  const key = decisionToolsKey(ctx);
+  let entry = toolsCache.get(key);
   if (!entry) {
-    entry = { zod: decisionSchemaForContext(ctx), json: decisionJsonSchemaForContext(ctx) };
-    schemaCache.set(key, entry);
+    entry = toolJsonSchemas(ctx);
+    toolsCache.set(key, entry);
   }
   return entry;
 }
@@ -71,18 +56,18 @@ export interface DecisionCallInput {
 /** The exact generate_message request — shared with the evals harness so it tests what the app sends. */
 export function buildDecisionCall({ systemInstruction, contents, ctx }: DecisionCallInput): {
   spec: LlmCallSpec;
-  schema: z.ZodType<Partial<DecisionResponse>>;
+  tools: DecisionToolJson[];
 } {
-  const schemas = schemasForContext(ctx);
+  const tools = decisionToolsForContext(ctx);
   return {
     spec: {
       purpose: 'generate_message',
       systemInstruction,
       contents,
-      responseJsonSchema: schemas.json,
+      tools,
       temperature: 0.3,
     },
-    schema: schemas.zod,
+    tools,
   };
 }
 
@@ -100,23 +85,24 @@ export async function decide(
   let lastError: unknown;
   let model = '';
   for (let attempt = 1; attempt <= MAX_DECISION_ATTEMPTS; attempt++) {
-    const { spec, schema } = buildDecisionCall({ systemInstruction, contents: requestContents, ctx });
+    const { spec } = buildDecisionCall({ systemInstruction, contents: requestContents, ctx });
     const result = await runLlmCall(spec, { log: opts.log });
     model = result.model;
-    const { text, usage: callUsage } = result;
+    const { usage: callUsage } = result;
+    const calls: ToolCall[] = result.toolCalls;
     usage.inputTokens += callUsage.inputTokens;
     usage.outputTokens += callUsage.outputTokens;
     usage.thinkingTokens += callUsage.thinkingTokens;
     usage.cachedTokens += callUsage.cachedTokens;
     logger.info('gemini tokens used', { model, ...callUsage });
 
-    // Step validate_message: schema parse + normalizeDecision (evidence quotes,
-    // instance caps, channel rules, attestation gate). One audit row per
-    // attempt with the verdict; a rejection is fed back for one corrective pass.
-    // gateDecision runs the two checks in order (`json_schema`, then
-    // `business_rules`) and, on rejection, throws with the checks that ran.
+    // Step validate_message: the two checks in order — `tool_calls` (offered
+    // tools, per-tool schema, exactly one conclude) then `business_rules`
+    // (assembly + normalizeDecision: evidence quotes, instance caps, message
+    // rules, attestation gate). One audit row per attempt with the verdict; a
+    // rejection is fed back for one corrective pass.
     try {
-      const { decision, checks } = gateDecision(text, schema, ctx);
+      const { decision, checks } = gateDecision(calls, ctx);
       recordAudit({
         actorType: 'system',
         action: 'validate_message',
@@ -148,14 +134,14 @@ export async function decide(
           attempt,
           result: false,
           error: message,
-          checks: err instanceof DecisionRejectedError ? err.checks : [check('json_schema', false, message)],
+          checks: err instanceof DecisionRejectedError ? err.checks : [check('tool_calls', false, message, { observed: describeCalls(calls) })],
         },
       });
       if (attempt < MAX_DECISION_ATTEMPTS) {
         logger.warn('decision rejected by validation; retrying once with corrective feedback', {
           error: err instanceof Error ? err.message : String(err),
         });
-        requestContents = `${contents}${correctionSuffix(text, err)}`;
+        requestContents = `${contents}${correctionSuffix(calls, err)}`;
       }
     }
   }

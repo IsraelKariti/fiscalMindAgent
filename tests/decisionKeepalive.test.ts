@@ -1,11 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  correctionSuffix,
-  DecisionResponseSchema,
-  normalizeDecision,
-  type DecisionContext,
-} from '../src/agents/declarationOfCapital/decisionSchema.js';
+import { DecisionResponseSchema, normalizeDecision, type DecisionContext } from '../src/agents/declarationOfCapital/decisionSchema.js';
+import { correctionSuffix } from '../src/agents/declarationOfCapital/decisionTools.js';
+import { callsOf } from './helpers/decisionCalls.js';
 
 // The exact decision Gemini returned in the 2026-08-02 production incident:
 // "no message needed, the client will reply with the SMS code" — a follow_up
@@ -75,8 +72,9 @@ describe('correctionSuffix', () => {
       caught = err;
     }
     assert.ok(caught instanceof Error);
-    const suffix = correctionSuffix(incidentAnswer, caught);
-    assert.ok(suffix.includes(incidentAnswer));
+    const calls = callsOf(raw);
+    const suffix = correctionSuffix(calls, caught);
+    assert.ok(suffix.includes(JSON.stringify(calls)));
     assert.ok(suffix.includes((caught as Error).message));
     assert.ok(suffix.includes('MUST include exactly one WhatsApp message'));
   });

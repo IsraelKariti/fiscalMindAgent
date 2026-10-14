@@ -7,8 +7,12 @@ import {
   type GeminiUsage,
   type LlmCallLogContext,
 } from './generate.js';
+import { toolCallsOf, type LoggedToolCall } from './requestLog.js';
+import { toolRequestConfig, type LlmToolSpec } from './toolTransport.js';
 
 type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
+
+export type { LlmToolSpec };
 
 /**
  * The exact request of one LLM stage, minus the model — what a `build*Call`
@@ -18,6 +22,11 @@ type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
  * prompts: the runtime does `runLlmCall(build…(), { log })`, the harness does
  * `runLlmCall(build…(), { model, log: { sink } })` and judges the answer with
  * the stage's own code gate.
+ *
+ * A stage answers EITHER with one JSON object (`responseJsonSchema`) OR with
+ * tool calls (`tools`, openspec `planner-answer-tools`: the model must call
+ * one or more of the tools in a single turn; no tool result goes back).
+ * Exactly one of the two is set.
  *
  * Builders take plain data (rows, bytes, sanitized text) and import nothing
  * from db/, so they can run without a database.
@@ -29,7 +38,9 @@ export interface LlmCallSpec {
   /** The user turn(s): untrusted client data only, fenced/sanitized by the builder. */
   contents: GeminiRequest['contents'];
   /** JSON schema the answer must satisfy (zod-to-json-schema output, $schema removed). */
-  responseJsonSchema: Record<string, unknown>;
+  responseJsonSchema?: Record<string, unknown>;
+  /** The tools the model must answer with (forced tool choice, parallel calls allowed). */
+  tools?: LlmToolSpec[];
   temperature: number;
 }
 
@@ -40,8 +51,14 @@ export interface RunLlmCallOptions {
   model?: string;
 }
 
+/** One tool call the model made: the tool's name and its raw arguments. */
+export type LlmToolCall = LoggedToolCall;
+
 export interface LlmCallResult {
+  /** The answer text of a form-answer stage; '' for a tool-call stage. */
   text: string;
+  /** The calls of a tool-call stage, in the order the model made them; [] for a form-answer stage. */
+  toolCalls: LlmToolCall[];
   usage: GeminiUsage;
   /** The model that actually served the call, for per-model usage accounting. */
   model: string;
@@ -50,28 +67,40 @@ export interface LlmCallResult {
   attempts: number;
 }
 
+/** The Gemini-shaped request config of a spec: a response schema, or tools with a forced tool answer. */
+export function requestConfigOf(spec: LlmCallSpec): NonNullable<GeminiRequest['config']> {
+  const base = {
+    ...(spec.systemInstruction !== undefined ? { systemInstruction: spec.systemInstruction } : {}),
+    temperature: spec.temperature,
+  };
+  if (spec.tools) {
+    if (spec.responseJsonSchema) throw new Error(`${spec.purpose}: a call spec sets either tools or responseJsonSchema, not both`);
+    return { ...base, ...toolRequestConfig(spec.tools) };
+  }
+  if (!spec.responseJsonSchema) throw new Error(`${spec.purpose}: a call spec needs tools or a responseJsonSchema`);
+  return { ...base, responseMimeType: 'application/json', responseJsonSchema: spec.responseJsonSchema };
+}
+
 /**
  * Resolves the model (per-purpose admin setting unless overridden), sends the
- * spec through the shared retry loop and returns the raw answer text. Throws
- * on an empty answer (refusal): every stage needs JSON back.
+ * spec through the shared retry loop and returns the raw answer: the text of a
+ * form-answer stage (throws on an empty answer — a refusal — since every such
+ * stage needs JSON back), or the tool calls of a tool-call stage (an empty
+ * list is returned as is: the stage's gate rejects it and asks again).
  */
 export async function runLlmCall(spec: LlmCallSpec, opts: RunLlmCallOptions = {}): Promise<LlmCallResult> {
   const model = opts.model ?? (await getGeminiModel(spec.purpose));
-  const request: GeminiRequest = {
-    model,
-    contents: spec.contents,
-    config: {
-      ...(spec.systemInstruction !== undefined ? { systemInstruction: spec.systemInstruction } : {}),
-      responseMimeType: 'application/json',
-      responseJsonSchema: spec.responseJsonSchema,
-      temperature: spec.temperature,
-    },
-  };
+  const request: GeminiRequest = { model, contents: spec.contents, config: requestConfigOf(spec) };
   const log: LlmCallLogContext | undefined = opts.log ? { ...opts.log, purpose: opts.log.purpose ?? spec.purpose } : undefined;
   const { response, attempts } = await generateWithRetryDetailed(request, log);
+  const usage = usageFromResponse(response);
+  const provider = providerForModel(model);
+  if (spec.tools) {
+    return { text: '', toolCalls: toolCallsOf(response), usage, model, provider, attempts };
+  }
   const text = response.text;
   if (!text) {
     throw new Error(`${spec.purpose}: model returned no text (refusal or empty response): ${JSON.stringify(response)}`);
   }
-  return { text, usage: usageFromResponse(response), model, provider: providerForModel(model), attempts };
+  return { text, toolCalls: [], usage, model, provider, attempts };
 }

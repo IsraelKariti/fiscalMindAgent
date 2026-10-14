@@ -253,7 +253,7 @@ async function runCase(loaded: ReturnType<typeof loadStage>, { stageName, model,
     Object.assign(row, res.usage, { attempts: res.attempts });
     const pricing = await getPricingForModel(model);
     row.costUsd = pricing ? computeCost(pricing, res.usage) : null;
-    const output = built.parse(res.text);
+    const output = built.parse(res);
     row.output = output;
     const { checks, info } = loaded.stage.judge(c, output, loaded.ctx);
     row.checks = checks;

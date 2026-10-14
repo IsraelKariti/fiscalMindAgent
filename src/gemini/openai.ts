@@ -1,6 +1,8 @@
 import type { Content, GenerateContentResponse, Part } from '@google/genai';
 import type { genaiClient } from './client.js';
 import { env } from '../config/env.js';
+import { declaredToolsOf } from './requestLog.js';
+import { callsFromOpenAiOutput, toOpenAiTools } from './toolTransport.js';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 
@@ -104,6 +106,13 @@ export async function generateContentOpenAI(request: GeminiRequest): Promise<Gen
     // OpenAI's strict-mode constraints (additionalProperties:false everywhere).
     body.text = { format: { type: 'json_schema', name: 'response', strict: false, schema: jsonSchema } };
   }
+  const tools = declaredToolsOf(request.config);
+  if (tools.length > 0) {
+    // The planner's flat tools: forced tool answer, several calls in one turn.
+    body.tools = toOpenAiTools(tools);
+    body.tool_choice = 'required';
+    body.parallel_tool_calls = true;
+  }
 
   const timeoutMs = request.config?.httpOptions?.timeout;
   const res = await fetch(OPENAI_RESPONSES_URL, {
@@ -130,9 +139,11 @@ export async function generateContentOpenAI(request: GeminiRequest): Promise<Gen
     };
   };
   const text = extractText(data.output);
+  const calls = callsFromOpenAiOutput(data.output);
   const reasoningTokens = data.usage?.output_tokens_details?.reasoning_tokens ?? 0;
   return {
     text: text || undefined,
+    ...(calls.length > 0 ? { functionCalls: calls } : {}),
     usageMetadata: {
       promptTokenCount: data.usage?.input_tokens ?? 0,
       // OpenAI's output_tokens includes reasoning; Gemini reports them apart,

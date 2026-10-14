@@ -106,7 +106,7 @@ export const PROMPT_TEMPLATE = loadPrompt(new URL('./prompt.md', import.meta.url
  * prompt.md's keepalive section.
  */
 const KEEPALIVE_CONTRACT =
-  'חוזה תזמון (תקף תמיד, גם אם ההנחיות למעלה נוסחו אחרת): בכל החלטת follow_up חובה לכלול בדיוק הודעה אחת מלאה - הערוץ שנבחר ושדות ההודעה שלו - וגם send_at - מועד עתידי, או "asap" לתשובה ללקוח שפעיל עכשיו וממתין לה. תשובת follow_up עם שדות הודעה ריקים או בלי send_at תיפסל ולא תבוצע; "אין צורך בהודעה" אינו מצב קיים. ההודעה המתוזמנת נשלחת רק אם הלקוח שותק עד send_at - כל הודעה נכנסת ממנו מבטלת אותה ומפעילה תכנון מחדש - ולכן מתזמנים אותה תמיד: היא המנגנון שמבטיח שהשיחה לא תמות אם הלקוח שכח או פספס.';
+  'חוזה תזמון (תקף תמיד, גם אם ההנחיות למעלה נוסחו אחרת): בכל החלטת follow_up חובה לכלול בדיוק קריאה אחת לכלי הודעה (send_whatsapp_text או send_whatsapp_template) עם ההודעה המלאה וגם send_at - מועד עתידי, או "asap" לתשובה ללקוח שפעיל עכשיו וממתין לה. תשובת follow_up בלי קריאת הודעה או בלי send_at תיפסל ולא תבוצע; "אין צורך בהודעה" אינו מצב קיים. ההודעה המתוזמנת נשלחת רק אם הלקוח שותק עד send_at - כל הודעה נכנסת ממנו מבטלת אותה ומפעילה תכנון מחדש - ולכן מתזמנים אותה תמיד: היא המנגנון שמבטיח שהשיחה לא תמות אם הלקוח שכח או פספס.';
 
 export function renderPromptTemplate(template: string, vars: Record<PromptPlaceholder, string>): string {
   return renderTemplate(template, vars);
@@ -152,10 +152,10 @@ export function buildWhatsAppSection(token: string, wa: WaChannelState): string 
     return `${fence(token, PLATFORM_SECTIONS.whatsapp)}\nstatus: UNAVAILABLE (${wa.unavailableReason ?? 'unavailable'}) — no message can be sent\n${endFence(token, PLATFORM_SECTIONS.whatsapp)}`;
   }
   const windowLine = wa.windowOpen
-    ? `24h window: OPEN — free-form messages (whatsapp_text) allowed until ${
+    ? `24h window: OPEN — free-form messages (send_whatsapp_text) allowed until ${
         wa.windowClosesAt ? formatLocalDateTime(wa.windowClosesAt, env.ACCOUNTANT_TIMEZONE) : 'unknown'
       } local time; an explicit send_at must be before that (send_at "asap" always is).`
-    : `24h window: CLOSED — the client has not written on WhatsApp in the last 24h; only the approved templates below may be sent (whatsapp_template).`;
+    : `24h window: CLOSED — the client has not written on WhatsApp in the last 24h; only the approved templates below may be sent (send_whatsapp_template).`;
   const templates =
     wa.templates.length === 0
       ? '(no approved templates)'
@@ -226,7 +226,7 @@ export function buildTaxFetchSection(token: string, providers: TaxFetchPromptInp
       `status: ${p.state}`,
       otpLine,
       taxFetchStateGuidance(p.state, p),
-      `tax_fetch_action מותר כעת עבור מקור זה: ${actions}.`,
+      `פעולות tax_fetch (action) מותרות כעת עבור מקור זה: ${actions}.`,
     ].join('\n');
   });
 
@@ -236,7 +236,7 @@ export function buildTaxFetchSection(token: string, providers: TaxFetchPromptInp
     '',
     blocks.join('\n\n'),
     '',
-    'בכל מצב אחר, או כשאין פעולה לבצע, השאר את tax_fetch_action, tax_fetch_provider ו-tax_fetch_document_keys כולם null.',
+    'פעולת משיכה נמסרת בקריאה אחת לכלי tax_fetch (action, provider, document_keys). בכל מצב אחר, או כשאין פעולה לבצע, אל תקרא ל-tax_fetch כלל.',
     endFence(token, PLATFORM_SECTIONS.documentFetch),
   ].join('\n');
 }
@@ -393,9 +393,9 @@ export function buildIntakeSection(token: string, intake?: IntakePromptInput): s
     intake.attestation === 'confirmed'
       ? 'אישור סופיות (attestation): הלקוח כבר אישר את סיכום ההצהרה — אין לבקש אישור נוסף.'
       : intake.attestation === 'requested'
-        ? 'אישור סופיות (attestation): הודעת הסיכום נשלחה ללקוח — ממתינים לאישורו. תשובת אישור מפורשת שלו נקלטת עם attestation="confirmed" בצירוף attestation_evidence.'
+        ? 'אישור סופיות (attestation): הודעת הסיכום נשלחה ללקוח — ממתינים לאישורו. תשובת אישור מפורשת שלו נקלטת בקריאה ל-attestation עם action="confirmed" בצירוף הראיה (evidence_message_id, evidence_quote).'
         : intake.allSettled
-          ? 'אישור סופיות (attestation): כל המסמכים הוסדרו — ההודעה הבאה צריכה להיות הודעת הסיכום הקצרה (attestation="request"): תודה, הפריטים שהלקוח מסר שאין לו, ושאלת אישור אחת. בלי לפרט את המסמכים שהתקבלו.'
+          ? 'אישור סופיות (attestation): כל המסמכים הוסדרו — ההודעה הבאה צריכה להיות הודעת הסיכום הקצרה (קריאה ל-attestation עם action="request"): תודה, הפריטים שהלקוח מסר שאין לו, ושאלת אישור אחת. בלי לפרט את המסמכים שהתקבלו.'
           : 'אישור סופיות (attestation): עדיין לא רלוונטי — יש מסמכים שטרם הוסדרו.';
   return [
     fence(token, PLATFORM_SECTIONS.intake),

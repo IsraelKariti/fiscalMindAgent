@@ -1,27 +1,27 @@
 ## 1. Prerequisites
 
-- [ ] 1.1 Archive `whatsapp-only-decision-schema` with "Sync now" so `openspec/specs/planner-answer-schema/spec.md` exists; verify `openspec validate --change planner-tool-calls` passes against it
+- [x] 1.1 Archive `whatsapp-only-decision-schema` with "Sync now" so `openspec/specs/planner-answer-schema/spec.md` exists; verify `openspec validate --change planner-tool-calls` passes against it
 
 ## 2. Tool definitions and assembly (pure code)
 
-- [ ] 2.1 Create `src/agents/declarationOfCapital/decisionTools.ts`: the twelve tools as Zod scalar objects with name + description, `toolsForContext(ctx)` (intake / fetch / after-verification subsets), `toolJsonSchemas(ctx)` (`$refStrategy:'none'`, `$schema` removed, `additionalProperties:false`); verify `npm run typecheck`
-- [ ] 2.2 Add `assembleDecision(calls, ctx)` in `decisionTools.ts` that returns today's `DecisionResponse` shape (evidence `''`/`''` → null, resolve+add_instance grouping, state_cost routing, attestation mapping) and throws named errors for the cardinality rules; verify with unit tests covering every scenario of the `planner-answer-tools` spec (`tests/decisionTools.test.ts`)
-- [ ] 2.3 Replace `tests/decisionSchemaBudget.test.ts` with the shape test in `tests/decisionTools.test.ts`: for the four contexts every tool has zero nullable, zero optional, no object / list-of-objects parameter, at most 20 tools; verify `npm test` passes and the test fails when a nested parameter is added in a scratch copy
-- [ ] 2.4 Rewire `gateDecision(calls, ctx)` to run `tool_calls` (offered tool, Zod parse per call, exactly one `conclude`, `observed` = count + names) then `assembleDecision` + `normalizeDecision` as `business_rules`; update `DecisionRejectedError` callers and `correctionSuffix(calls, err)`; verify `tests/intakeDecision.test.ts`, `collectDecision.test.ts`, `decisionKeepalive.test.ts` pass after converting their inputs with a `callsOf(raw)` helper
-- [ ] 2.5 Remove `DecisionResponseSchema` pruning, `restorePrunedNulls`, `decisionSchemaForContext`, `decisionSchemaKey` and `decisionJsonSchemaForContext` where no longer used (keep the `DecisionResponse` type); verify `npm run typecheck` and grep shows no caller
+- [x] 2.1 Create `src/agents/declarationOfCapital/decisionTools.ts`: the eleven tools as Zod scalar objects with name + description (`attestation` is one tool with an `action`, see design), `toolsForContext(ctx)` (intake / fetch / after-verification subsets), `toolJsonSchemas(ctx)` (`$refStrategy:'none'`, `$schema` removed, `additionalProperties:false`); verify `npm run typecheck`
+- [x] 2.2 Add `assembleDecision(calls, ctx)` in `decisionTools.ts` that returns today's `DecisionResponse` shape (evidence `''`/`''` → null, resolve+add_instance grouping, state_cost routing, attestation mapping) and throws named errors for the cardinality rules; verify with unit tests covering every scenario of the `planner-answer-tools` spec (`tests/decisionTools.test.ts`)
+- [x] 2.3 Replace `tests/decisionSchemaBudget.test.ts` with the shape test in `tests/decisionTools.test.ts`: for the four contexts every tool has zero nullable, zero optional, no object / list-of-objects parameter, at most 20 tools; verify `npm test` passes and the test fails when a nested parameter is added in a scratch copy
+- [x] 2.4 Rewire `gateDecision(calls, ctx)` to run `tool_calls` (offered tool, Zod parse per call, exactly one `conclude`, `observed` = count + names) then `assembleDecision` + `normalizeDecision` as `business_rules`; update `DecisionRejectedError` callers and `correctionSuffix(calls, err)`; verify `tests/intakeDecision.test.ts`, `collectDecision.test.ts`, `decisionKeepalive.test.ts` pass after converting their inputs with a `callsOf(raw)` helper
+- [x] 2.5 Remove `DecisionResponseSchema` pruning, `restorePrunedNulls`, `decisionSchemaForContext`, `decisionSchemaKey` and `decisionJsonSchemaForContext` where no longer used (keep the `DecisionResponse` type); verify `npm run typecheck` and grep shows no caller
 
 ## 3. LLM transport: tools on every provider
 
-- [ ] 3.1 Extend `LlmCallSpec` (`tools` + `toolChoice`, `responseJsonSchema` optional, exactly one set) and `LlmCallResult.toolCalls`; `runLlmCall` builds the Gemini request with `tools`/`toolConfig` (mode ANY, allowed names) and no `responseMimeType`/`responseJsonSchema` for a tool call; verify `npm run typecheck` and a unit test that the request shape is right for both variants
-- [ ] 3.2 Anthropic adapter: translate tools to strict `tools` + `tool_choice: any`, read `tool_use` blocks into `functionCalls`; keep the schema path; verify pure translation tests in `tests/anthropicSchema.test.ts` (tool list, parsed calls from a fixture response)
-- [ ] 3.3 OpenAI adapter: translate tools to strict `function` tools + `tool_choice: 'required'` + `parallel_tool_calls: true`, read `function_call` items (parse `arguments`); verify a translation test with a fixture response
-- [ ] 3.4 Logging: `requestForLog` records `config.tools`/`toolConfig`; `recordCall` stores the calls as JSON text when the response has calls; verify a unit test on `requestForLog` and one on the stored response text
+- [x] 3.1 Extend `LlmCallSpec` (`tools` + `toolChoice`, `responseJsonSchema` optional, exactly one set) and `LlmCallResult.toolCalls`; `runLlmCall` builds the Gemini request with `tools`/`toolConfig` (mode ANY, allowed names) and no `responseMimeType`/`responseJsonSchema` for a tool call; verify `npm run typecheck` and a unit test that the request shape is right for both variants
+- [x] 3.2 Anthropic adapter: translate tools to strict `tools` + `tool_choice: any`, read `tool_use` blocks into `functionCalls`; keep the schema path; verify pure translation tests (`tests/toolTransport.test.ts`: tool list, parsed calls from a fixture response)
+- [x] 3.3 OpenAI adapter: translate tools to strict `function` tools + `tool_choice: 'required'` + `parallel_tool_calls: true`, read `function_call` items (parse `arguments`); verify a translation test with a fixture response
+- [x] 3.4 Logging: `requestForLog` records `config.tools`/`toolConfig`; `recordCall` stores the calls as JSON text when the response has calls; verify a unit test on `requestForLog` and one on the stored response text
 
 ## 4. Planner call and prompt
 
-- [ ] 4.1 `buildDecisionCall` returns the tool spec for the context; `decide()` passes `result.toolCalls` to the gate and quotes them in the retry; verify `npm run typecheck` and the decision tests
-- [ ] 4.2 Rewrite `prompt.md` actions 1–4 and the message section for tool calls (same rules, tool names instead of field names, "do not call" instead of "leave null"); verify the prompt fixture test (if any) and a read-through that no `whatsapp_text`/`attestation:` field name remains in the prompt
-- [ ] 4.3 `llmStages.ts`: the `generate_message` entry lists the tools (name, description, parameters) instead of one schema; verify the `#/llm-stages` API returns them (`GET /api/admin/llm-stages`)
+- [x] 4.1 `buildDecisionCall` returns the tool spec for the context; `decide()` passes `result.toolCalls` to the gate and quotes them in the retry; verify `npm run typecheck` and the decision tests
+- [x] 4.2 Rewrite `prompt.md` actions 1–4 and the message section for tool calls (same rules, tool names instead of field names, "do not call" instead of "leave null"); verify the prompt fixture test (if any) and a read-through that no `whatsapp_text`/`attestation:` field name remains in the prompt
+- [x] 4.3 `llmStages.ts`: the `generate_message` entry lists the tools (name, description, parameters) instead of one schema; verify the `#/llm-stages` API returns them (`GET /api/admin/llm-stages`)
 
 ## 5. Admin UI
 

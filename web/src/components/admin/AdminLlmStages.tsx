@@ -96,15 +96,15 @@ function Pane({ children, tone, ltr }: { children: ReactNode; tone: string; ltr?
   );
 }
 
-/** The response schema as a field table (or the raw JSON), with the label and the toggle. */
-function SchemaBlock({ schema, variant }: { schema: Record<string, unknown>; variant?: string }) {
+/** The response schema (or one tool's parameters) as a field table (or the raw JSON), with the label and the toggle. */
+function SchemaBlock({ schema, variant, label }: { schema: Record<string, unknown>; variant?: string; label?: string }) {
   const { t } = useT();
   const [rawSchema, setRawSchema] = useState(false);
   const rows = useMemo(() => schemaRows(schema), [schema]);
   return (
     <>
       <div className="llm-stage-label">
-        {t.llmStageSchema}
+        {label ?? t.llmStageSchema}
         {variant && <span className="muted"> · {variant}</span>}
         <button type="button" className="btn btn-link" onClick={() => setRawSchema((r) => !r)} style={{ marginInlineStart: 8 }}>
           {t.llmStageRawSchema}
@@ -146,6 +146,33 @@ function SchemaBlock({ schema, variant }: { schema: Record<string, unknown>; var
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * The tools of a tool-call stage (the planner, openspec `planner-answer-tools`):
+ * one block per tool — its name, the description the model reads, and its flat
+ * parameters as the same field table a response schema gets.
+ */
+function ToolsBlock({ tools }: { tools: LlmStage['tools'] & object }) {
+  const { t } = useT();
+  return (
+    <div className="llm-pane-wrap llm-pane-copy-left">
+      <div className="llm-stage-label">
+        {t.llmStageTools} <span className="muted">· {tools.length}</span>
+      </div>
+      {tools.map((tool) => (
+        <div key={tool.name} className="llm-stage-tool">
+          <div dir="ltr" style={{ textAlign: 'left' }}>
+            <span className="badge badge-neutral mono">{tool.name}</span>
+            <span className="muted" style={{ marginInlineStart: 8 }}>
+              {tool.description}
+            </span>
+          </div>
+          <SchemaBlock schema={tool.parameters} label={t.llmStageToolParams} />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -236,8 +263,8 @@ function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () =>
               </Pane>
             </div>
           ))}
-          {/* The stage-level schema, unless every variant showed its own. */}
-          {stage.prompts.some((p) => !p.schema) && <SchemaBlock schema={stage.schema} />}
+          {/* The stage-level answer: its tools, or its schema unless every variant showed its own. */}
+          {stage.tools ? <ToolsBlock tools={stage.tools} /> : stage.schema && stage.prompts.some((p) => !p.schema) && <SchemaBlock schema={stage.schema} />}
           <div style={{ marginTop: 8 }}>
             <button type="button" className="btn" onClick={onViewCalls}>
               {t.llmStageViewCalls}

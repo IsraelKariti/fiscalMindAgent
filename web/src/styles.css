@@ -4395,6 +4395,12 @@ button.meta-chip:hover {
   font-weight: 600;
   font-size: 0.9rem;
 }
+/* One tool of a tool-call stage (the planner): name badge + description, then its parameters. */
+.llm-stage-tool {
+  margin-block: 10px;
+  padding-block-start: 8px;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+}
 .llm-placeholder {
   background: rgba(255, 196, 0, 0.35);
   border-radius: 3px;

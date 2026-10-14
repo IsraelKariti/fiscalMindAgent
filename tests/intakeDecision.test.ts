@@ -3,55 +3,51 @@ import assert from 'node:assert/strict';
 import {
   amountAppearsIn,
   DecisionRejectedError,
-  decisionSchemaForContext,
-  gateDecision,
   normalizeDecision,
   type DecisionContext,
   type DecisionResponse,
   type IntakeDecisionState,
 } from '../src/agents/declarationOfCapital/decisionSchema.js';
+import { describeCalls, gateDecision, toolsForContext } from '../src/agents/declarationOfCapital/decisionTools.js';
+import { callsOf } from './helpers/decisionCalls.js';
 
 describe('validate_message check list (gateDecision)', () => {
   const ctx = ctxWith(baseIntake());
-  const schema = decisionSchemaForContext(ctx);
 
   it('a valid answer passes both checks', () => {
-    const { decision, checks } = gateDecision(JSON.stringify(baseRaw()), schema, ctx);
+    const calls = callsOf(baseRaw());
+    const { decision, checks } = gateDecision(calls, ctx);
     assert.equal(decision.decision, 'follow_up');
-    const text = JSON.stringify(baseRaw());
     assert.deepEqual(checks, [
-      { key: 'json_schema', passed: true, note: null, observed: `${text.length} chars`, expected: null },
+      { key: 'tool_calls', passed: true, note: null, observed: describeCalls(calls), expected: null },
       { key: 'business_rules', passed: true, note: null, observed: 'follow_up / freeform', expected: null },
     ]);
+    assert.equal(checks[0]!.observed, '2 calls: conclude, send_whatsapp_text');
   });
 
-  it('an answer that still carries the retired suspected_injection field is accepted and the field has no effect', () => {
-    const raw = {
-      ...baseRaw({
-        resolved_documents: [
-          {
-            document_id: 'doc-vehicle',
-            resolution: 'not_required',
-            instances: null,
-            evidence: { message_id: 'msg-1', quote: 'אין לי רכב בכלל' },
-          },
-        ],
-      }),
-      suspected_injection: true,
-    };
-    const { decision } = gateDecision(JSON.stringify(raw), schema, ctx);
-    assert.equal('suspected_injection' in decision, false);
+  it('a resolution with a verbatim quote passes through the gate', () => {
+    const raw = baseRaw({
+      resolved_documents: [
+        {
+          document_id: 'doc-vehicle',
+          resolution: 'not_required',
+          instances: null,
+          evidence: { message_id: 'msg-1', quote: 'אין לי רכב בכלל' },
+        },
+      ],
+    });
+    const { decision } = gateDecision(callsOf(raw), ctx);
     assert.equal(decision.resolutions.length, 1);
   });
 
-  it('a schema-invalid answer fails json_schema only — business_rules never ran', () => {
-    for (const text of ['not json at all', JSON.stringify({ decision: 'follow_up' })]) {
+  it('a shape-invalid answer fails tool_calls only — business_rules never ran', () => {
+    for (const calls of [[], [{ name: 'conclude', args: { decision: 'follow_up' } }], [{ name: 'nope', args: {} }]]) {
       assert.throws(
-        () => gateDecision(text, schema, ctx),
+        () => gateDecision(calls, ctx),
         (err: unknown) => {
           assert.ok(err instanceof DecisionRejectedError);
           assert.equal(err.checks.length, 1);
-          assert.equal(err.checks[0]!.key, 'json_schema');
+          assert.equal(err.checks[0]!.key, 'tool_calls');
           assert.equal(err.checks[0]!.passed, false);
           assert.ok((err.checks[0]!.note ?? '').length > 0);
           return true;
@@ -60,18 +56,18 @@ describe('validate_message check list (gateDecision)', () => {
     }
   });
 
-  it('an answer normalization rejects passes json_schema and fails business_rules with the rejection text', () => {
-    const text = JSON.stringify(
+  it('an answer normalization rejects passes tool_calls and fails business_rules with the rejection text', () => {
+    const calls = callsOf(
       baseRaw({ resolved_documents: [{ document_id: 'doc-vehicle', resolution: 'not_required', instances: null, evidence: null }] }),
     );
     assert.throws(
-      () => gateDecision(text, schema, ctx),
+      () => gateDecision(calls, ctx),
       (err: unknown) => {
         assert.ok(err instanceof DecisionRejectedError);
         assert.match(err.message, /requires evidence/);
         assert.deepEqual(
           err.checks.map((c) => [c.key, c.passed]),
-          [['json_schema', true], ['business_rules', false]],
+          [['tool_calls', true], ['business_rules', false]],
         );
         assert.match(err.checks[1]!.note ?? '', /requires evidence/);
         assert.equal(err.checks[1]!.observed, 'follow_up / freeform');
@@ -245,11 +241,10 @@ describe('intake resolutions (normalizeDecision)', () => {
     assert.equal(added('tabu_extract').addedInstances[0]!.instances[0]!.paperKey, 'tabu_extract');
     assert.throws(() => added(''), /names no paper/);
     // The rejection surfaces through business_rules of validate_message.
-    const schema = decisionSchemaForContext(ctxWith(intake));
     assert.throws(
       () =>
         gateDecision(
-          JSON.stringify(
+          callsOf(
             baseRaw({
               resolved_documents: [
                 {
@@ -261,12 +256,11 @@ describe('intake resolutions (normalizeDecision)', () => {
               ],
             }),
           ),
-          schema,
           ctxWith(intake),
         ),
       (err: unknown) => {
         assert.ok(err instanceof DecisionRejectedError);
-        assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['json_schema', true], ['business_rules', false]]);
+        assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', false]]);
         assert.match(err.checks[1]!.note ?? '', /names no paper/);
         return true;
       },
@@ -768,33 +762,32 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
 
   it('validate_message lists the stated-cost checks before business_rules, on success and on failure', () => {
     const ctx = ctxWith(costIntake());
-    const schema = decisionSchemaForContext(ctx);
-    const ok = gateDecision(JSON.stringify(stated('doc-car-cost', 85000, 'שילמתי 85,000 ש"ח')), schema, ctx);
+    const ok = gateDecision(callsOf(stated('doc-car-cost', 85000, 'שילמתי 85,000 ש"ח')), ctx);
     assert.deepEqual(
       ok.checks.map((c) => [c.key, c.passed]),
-      [['json_schema', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', true], ['business_rules', true]],
+      [['tool_calls', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', true], ['business_rules', true]],
     );
     assert.equal(ok.checks[1]!.observed, 'paper vehicle_cost_declaration, status pending');
     assert.equal(ok.checks[2]!.expected, '85000');
     assert.throws(
-      () => gateDecision(JSON.stringify(stated('doc-car-cost', 85000, 'אין לי את הקבלה')), schema, ctx),
+      () => gateDecision(callsOf(stated('doc-car-cost', 85000, 'אין לי את הקבלה')), ctx),
       (err: unknown) => {
         assert.ok(err instanceof DecisionRejectedError);
         assert.deepEqual(
           err.checks.map((c) => [c.key, c.passed]),
-          [['json_schema', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', false], ['business_rules', false]],
+          [['tool_calls', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', false], ['business_rules', false]],
         );
         assert.equal(err.checks[2]!.observed, 'אין לי את הקבלה');
         return true;
       },
     );
     assert.throws(
-      () => gateDecision(JSON.stringify(stated('doc-bank', 85000, 'שילמתי 85,000')), schema, ctx),
+      () => gateDecision(callsOf(stated('doc-bank', 85000, 'שילמתי 85,000')), ctx),
       (err: unknown) => {
         assert.ok(err instanceof DecisionRejectedError);
         assert.deepEqual(
           err.checks.map((c) => [c.key, c.passed]),
-          [['json_schema', true], ['stated_cost_item_allows', false], ['business_rules', false]],
+          [['tool_calls', true], ['stated_cost_item_allows', false], ['business_rules', false]],
         );
         assert.match(err.checks[1]!.note ?? '', /only a cost declaration/);
         return true;
@@ -802,13 +795,12 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
     );
   });
 
-  it('a statement alone ties no file: it stays a follow_up with a message, and the pruned schema restores an empty list', () => {
+  it('a statement alone ties no file: it stays a follow_up with a message, and a context without intake offers no state_cost tool', () => {
     const decision = normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000 ש"ח'), ctxWith(costIntake()));
     assert.equal(decision.decision, 'follow_up');
-    // A context without intake drops the field; the restored answer still has [] there.
+    // A context without intake is not offered the checklist tools at all; an answer without them reads as "no statement".
     const noIntake = ctxWith(undefined);
-    const parsed = decisionSchemaForContext(noIntake).parse({ ...baseRaw(), stated_costs: undefined, resolved_documents: undefined, added_instances: undefined, retired_documents: undefined, attestation: undefined, attestation_evidence: undefined });
-    assert.equal('stated_costs' in parsed, false);
-    assert.deepEqual(normalizeDecision({ ...baseRaw(), ...parsed, stated_costs: [] }, noIntake).statedCosts, []);
+    assert.ok(!toolsForContext(noIntake).some((t) => t.name === 'state_cost'));
+    assert.deepEqual(normalizeDecision({ ...baseRaw(), stated_costs: [] }, noIntake).statedCosts, []);
   });
 });

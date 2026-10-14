@@ -224,73 +224,12 @@ export const DecisionResponseSchema = z.object({
 export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
 
 /**
- * Response-schema pruning (2026-09-01 prod incident): Anthropic's
- * structured-output grammar compiler budgets ~16 union/optional-typed
- * parameters per schema (nested ones count too); the full decision schema has
- * more nullable places than that and is rejected with a 400 even after the
- * adapter's null-union collapse. Every context leaves whole field groups
- * permanently invalid anyway — only the capital declaration has intake fields,
- * tax-fetch fields only exist when a provider is offered — so the request
- * schema omits those groups outright and the parsed answer gets its nulls back
- * (restorePrunedNulls) before normalizeDecision, whose "set but not
- * applicable" rejections still guard whatever remains. The WhatsApp-only form
- * must stay at or under 15 nullable places (tests/decisionSchemaBudget.test.ts).
+ * The request no longer carries this form (openspec `planner-answer-tools`,
+ * 2026-10-14): the model answers with flat tool calls (decisionTools.ts) and
+ * `assembleDecision` rebuilds this shape, so every validator below still reads
+ * the full `DecisionResponse`. Which tools a context is offered replaces the
+ * former field-group pruning.
  */
-const TAX_FETCH_FIELDS = ['tax_fetch_action', 'tax_fetch_provider', 'tax_fetch_document_keys'] as const;
-const INTAKE_FIELDS = [
-  'resolved_documents',
-  'added_instances',
-  'retired_documents',
-  'stated_costs',
-  'attestation',
-  'attestation_evidence',
-] as const;
-
-export type PrunableDecisionField = (typeof TAX_FETCH_FIELDS)[number] | (typeof INTAKE_FIELDS)[number];
-
-/** What a pruned field reads as once restored: null, or [] for the one always-present array (`stated_costs`). */
-const PRUNED_FIELD_DEFAULTS: { [K in PrunableDecisionField]: DecisionResponse[K] } = {
-  tax_fetch_action: null,
-  tax_fetch_provider: null,
-  tax_fetch_document_keys: null,
-  resolved_documents: null,
-  added_instances: null,
-  retired_documents: null,
-  stated_costs: [],
-  attestation: null,
-  attestation_evidence: null,
-};
-
-/** The field groups a given context can never legally fill — the ones the request schema drops. */
-export function prunedDecisionFields(ctx: DecisionContext): PrunableDecisionField[] {
-  return [
-    ...((ctx.taxFetch ?? []).length === 0 ? TAX_FETCH_FIELDS : []),
-    ...(ctx.intake ? [] : INTAKE_FIELDS),
-  ];
-}
-
-/** The response contract actually sent for one context: the full schema minus its pruned groups. */
-export function decisionSchemaForContext(ctx: DecisionContext): z.ZodType<Partial<DecisionResponse>> {
-  // The follow-up cycle after a verification batch cannot collect again: the
-  // request schema itself withholds the value, so the model cannot loop.
-  const base = ctx.afterVerification
-    ? DecisionResponseSchema.extend({ decision: z.enum(AFTER_VERIFICATION_DECISION_VALUES) })
-    : DecisionResponseSchema;
-  const pruned = prunedDecisionFields(ctx);
-  if (pruned.length === 0) return base as z.ZodType<Partial<DecisionResponse>>;
-  const mask = Object.fromEntries(pruned.map((f) => [f, true as const])) as { [K in PrunableDecisionField]?: true };
-  return base.omit(mask) as z.ZodType<Partial<DecisionResponse>>;
-}
-
-/** The cache key of a context's request schema: the pruned groups plus the decision values it offers. */
-export function decisionSchemaKey(ctx: DecisionContext): string {
-  return `${ctx.afterVerification ? 'after-verification' : 'full'}|${prunedDecisionFields(ctx).join(',')}`;
-}
-
-/** Puts explicit nulls back into the fields the request schema omitted, restoring the full contract. */
-export function restorePrunedNulls(parsed: Partial<DecisionResponse>): DecisionResponse {
-  return { ...PRUNED_FIELD_DEFAULTS, ...parsed } as DecisionResponse;
-}
 
 export interface MatchedFile {
   file_id: string;
@@ -1065,24 +1004,6 @@ function normalizeSendAt(value: string | null): string | null {
   return isWallClockDateTime(trimmed) ? trimmed : null;
 }
 
-/**
- * Appended to the original contents for decide()'s corrective pass: the model's
- * own rejected answer plus the exact validation error, so it can repair any
- * contract violation (null message/send_at, unknown template, disallowed
- * tax-fetch action, ...) instead of the whole planning cycle dying on it.
- */
-export function correctionSuffix(invalidAnswer: string, err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
-  return [
-    '',
-    'SYSTEM NOTE: your previous answer was rejected by schema validation and was NOT executed.',
-    'Your rejected answer:',
-    invalidAnswer,
-    `Validation error: ${message}`,
-    'Return a corrected, complete JSON decision now. Remember the three decision values: "collect" when the answer ties a file to a document (collected_document_ids, matched_files or an instance\'s file_ids) — then every message field and send_at MUST be null, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one WhatsApp message (whatsapp_text inside the 24h window, or whatsapp_template) and a send_at — a future "YYYY-MM-DD HH:MM" time, or "asap" for a reply to a client who is waiting right now — "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed.',
-  ].join('\n');
-}
-
 /** A decision answer the gate rejected; `checks` is the audit row's check list for that attempt. */
 export class DecisionRejectedError extends Error {
   constructor(
@@ -1091,42 +1012,6 @@ export class DecisionRejectedError extends Error {
   ) {
     super(message);
     this.name = 'DecisionRejectedError';
-  }
-}
-
-/**
- * Step validate_message, pure: the model's raw answer text through the two
- * checks in order — `json_schema` (JSON parse + the context's schema) then
- * `business_rules` (normalizeDecision). Returns the decision with both checks
- * passed, or throws DecisionRejectedError carrying only the checks that ran
- * (`business_rules` is absent when parsing already failed).
- */
-export function gateDecision(
-  text: string,
-  schema: z.ZodType<Partial<DecisionResponse>>,
-  ctx: DecisionContext,
-): { decision: NormalizedDecision; checks: GateCheck[] } {
-  const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 500);
-  // What each check looked at: the raw answer's size, then the decision it proposed.
-  const answerSize = `${text.length} chars`;
-  let parsed: DecisionResponse;
-  try {
-    parsed = restorePrunedNulls(schema.parse(JSON.parse(text)));
-  } catch (err) {
-    const message = messageOf(err);
-    throw new DecisionRejectedError(message, [check('json_schema', false, message, { observed: answerSize })]);
-  }
-  const proposed = `${parsed.decision} / ${proposedMessageKind(parsed)}`;
-  const schemaCheck = check('json_schema', true, null, { observed: answerSize });
-  // Named checks some validators report on their own (the stated-cost checks),
-  // listed between the schema check and the business-rules verdict.
-  const extra: GateCheck[] = [];
-  try {
-    const decision = normalizeDecision(parsed, ctx, extra);
-    return { decision, checks: [schemaCheck, ...extra, check('business_rules', true, null, { observed: proposed })] };
-  } catch (err) {
-    const message = messageOf(err);
-    throw new DecisionRejectedError(message, [schemaCheck, ...extra, check('business_rules', false, message, { observed: proposed })]);
   }
 }
 

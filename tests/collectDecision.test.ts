@@ -1,16 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import {
   answerTiesFiles,
-  correctionSuffix,
   DecisionResponseSchema,
-  decisionSchemaForContext,
-  decisionSchemaKey,
   normalizeDecision,
   type DecisionContext,
   type DecisionResponse,
 } from '../src/agents/declarationOfCapital/decisionSchema.js';
+import { correctionSuffix, decisionToolsKey, toolJsonSchemas } from '../src/agents/declarationOfCapital/decisionTools.js';
 
 // openspec `verification-reply` (change no-draft-when-collecting): an answer
 // that ties a file to a document is a 'collect' decision and carries no
@@ -43,22 +40,26 @@ const base: DecisionResponse = {
 
 const answer = (over: Partial<DecisionResponse>): DecisionResponse => DecisionResponseSchema.parse({ ...base, ...over });
 
-describe('request schema per cycle (decisionSchemaForContext)', () => {
+describe('tool set per cycle (toolsForContext)', () => {
   const decisionEnum = (c: DecisionContext): unknown => {
-    const json = zodToJsonSchema(decisionSchemaForContext(c) as never) as { properties: Record<string, { enum?: unknown }> };
-    return json.properties.decision!.enum;
+    const conclude = toolJsonSchemas(c).find((t) => t.name === 'conclude')!;
+    return (conclude.parameters.properties as Record<string, { enum?: unknown }>).decision!.enum;
   };
+  const names = (c: DecisionContext) => toolJsonSchemas(c).map((t) => t.name);
 
-  it('offers collect in a regular cycle', () => {
+  it('offers collect, mark_collected and tie_file in a regular cycle', () => {
     assert.deepEqual(decisionEnum(ctx), ['goal_complete', 'follow_up', 'collect']);
+    assert.ok(names(ctx).includes('tie_file') && names(ctx).includes('mark_collected'));
   });
 
-  it('offers only goal_complete and follow_up in the follow-up cycle after verification', () => {
-    assert.deepEqual(decisionEnum({ ...ctx, afterVerification: true }), ['goal_complete', 'follow_up']);
+  it('offers only goal_complete and follow_up, and no collecting tool, in the follow-up cycle after verification', () => {
+    const after = { ...ctx, afterVerification: true };
+    assert.deepEqual(decisionEnum(after), ['goal_complete', 'follow_up']);
+    assert.ok(!names(after).includes('tie_file') && !names(after).includes('mark_collected'));
   });
 
-  it('keys the two cycles apart in the schema cache', () => {
-    assert.notEqual(decisionSchemaKey(ctx), decisionSchemaKey({ ...ctx, afterVerification: true }));
+  it('keys the two cycles apart in the tool cache', () => {
+    assert.notEqual(decisionToolsKey(ctx), decisionToolsKey({ ...ctx, afterVerification: true }));
   });
 });
 
@@ -182,9 +183,9 @@ describe('the collect decision (normalizeDecision)', () => {
 
 describe('correctionSuffix', () => {
   it('states the three-value rule', () => {
-    const suffix = correctionSuffix('{}', new Error('boom'));
+    const suffix = correctionSuffix([], new Error('boom'));
     assert.ok(suffix.includes('"collect"'));
-    assert.ok(suffix.includes('every message field and send_at MUST be null'));
+    assert.ok(suffix.includes('make NO send_whatsapp_text / send_whatsapp_template call'));
     assert.ok(suffix.includes('"follow_up"'));
     assert.ok(suffix.includes('exactly one WhatsApp message'));
   });

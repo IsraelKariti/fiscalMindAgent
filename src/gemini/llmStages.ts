@@ -11,7 +11,8 @@ import { ANALYSIS_PROMPT, YEAR_CONTEXT } from '../agents/declarationOfCapital/an
 import { CapitalFileAnalysisSchema } from '../agents/declarationOfCapital/analyzeFileRules.js';
 import { FILE_SPLIT_PROMPT, FILE_SPLIT_TEMPERATURE } from '../agents/declarationOfCapital/splitFile.js';
 import { FileSplitSchema } from '../agents/declarationOfCapital/splitFileRules.js';
-import { decisionSchemaForContext, type DecisionContext } from '../agents/declarationOfCapital/decisionSchema.js';
+import type { DecisionContext } from '../agents/declarationOfCapital/decisionSchema.js';
+import { toolJsonSchemas, type DecisionToolJson } from '../agents/declarationOfCapital/decisionTools.js';
 import { buildUntrustedDataDoctrine } from '../agents/shared/promptSafety.js';
 
 /**
@@ -49,8 +50,10 @@ export interface LlmStageDescription {
   prompts: LlmStagePrompt[];
   /** The layout of the user turn(s). */
   query: { variant: string; parts: LlmStageQueryPart[] }[];
-  /** Response JSON schema (the first/most complete variant). */
-  schema: Record<string, unknown>;
+  /** Response JSON schema (the first/most complete variant) — for a stage that answers with one JSON object. */
+  schema?: Record<string, unknown>;
+  /** The tools the model answers with (openspec `planner-answer-tools`) — for a stage that answers with tool calls. */
+  tools?: DecisionToolJson[];
 }
 
 const TEMPERATURES: Record<LlmCallPurpose, number> = {
@@ -129,7 +132,7 @@ const STAGES: StageStatic[] = [
   {
     purpose: 'generate_message',
     title: 'Conversation planner',
-    file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md) — an answer that ties a file is a "collect" decision with no message (step withhold_reply, label "Reply deferred"); the code verifies the collected documents (extract_document), then runs once more and that second call writes the reply',
+    file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md; tools: decisionTools.ts — the model answers with one or more tool calls in one turn, assembleDecision rebuilds the decision) — an answer that ties a file is a "collect" decision with no message (step withhold_reply, label "Reply deferred"); the code verifies the collected documents (extract_document), then runs once more and that second call writes the reply',
     gate: 'validate_message',
     prompts: [
       {
@@ -148,7 +151,8 @@ const STAGES: StageStatic[] = [
         ],
       },
     ],
-    schema: jsonSchema(decisionSchemaForContext(CAPITAL_DECISION_CONTEXT)),
+    // Documented for the capital declaration without a fetch offer (production today); per call the set drops what the client cannot use.
+    tools: toolJsonSchemas(CAPITAL_DECISION_CONTEXT),
   },
   {
     purpose: 'file_splitting',

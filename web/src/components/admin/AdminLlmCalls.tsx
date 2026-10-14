@@ -72,6 +72,37 @@ function maybePrettyJson(text: string): { text: string; isJson: boolean } {
   }
 }
 
+interface DeclaredTool {
+  name: string;
+  description: string;
+  parameters: unknown;
+}
+
+/** The tools a logged request offered (`config.tools[].functionDeclarations`); [] for a form-answer call. */
+function declaredToolsOf(tools: unknown): DeclaredTool[] {
+  if (!Array.isArray(tools)) return [];
+  return tools.flatMap((t) => {
+    const declarations = (t as { functionDeclarations?: unknown })?.functionDeclarations;
+    if (!Array.isArray(declarations)) return [];
+    return declarations.map((d) => {
+      const decl = d as { name?: unknown; description?: unknown; parametersJsonSchema?: unknown; parameters?: unknown };
+      return { name: String(decl.name ?? ''), description: String(decl.description ?? ''), parameters: decl.parametersJsonSchema ?? decl.parameters ?? {} };
+    });
+  });
+}
+
+/** The calls of a tool-call answer (a JSON list of {name, args}); null when the response is anything else. */
+function toolCallsOf(responseText: string): { name: string; args: unknown }[] | null {
+  try {
+    const parsed = JSON.parse(responseText) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    if (!parsed.every((c) => typeof c === 'object' && c !== null && typeof (c as { name?: unknown }).name === 'string' && 'args' in (c as object))) return null;
+    return parsed as { name: string; args: unknown }[];
+  } catch {
+    return null;
+  }
+}
+
 /**
  * One scrollable text pane of the drill-down (input / schema / response /
  * system instruction): tinted background per field so boundaries are obvious,
@@ -128,8 +159,11 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
   const twoPane = isTwoPane(doc);
 
   const schema = call?.request?.config?.['responseJsonSchema'];
+  // A tool-call stage (the planner, openspec `planner-answer-tools`): the offered tools in the request, the calls as the response.
+  const tools = declaredToolsOf(call?.request?.config?.['tools']);
   const { history, query } = splitContents(call?.request?.contents);
   const response = call?.response != null && call.response.trim() !== '' ? maybePrettyJson(call.response) : null;
+  const toolCalls = response ? toolCallsOf(response.text) : null;
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
@@ -260,10 +294,37 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                   <CallPane tone="schema" text={JSON.stringify(schema, null, 2)} ltr copyTitle={t.copyText} />
                 </details>
               )}
+              {tools.length > 0 && (
+                <details>
+                  <summary className="muted" style={{ cursor: 'pointer' }}>
+                    {t.adminLlmCallTools} ({tools.length})
+                  </summary>
+                  {tools.map((tool) => (
+                    <div key={tool.name} className="llm-stage-tool">
+                      <div dir="ltr" style={{ textAlign: 'left' }}>
+                        <span className="badge badge-neutral mono">{tool.name}</span>
+                        <span className="muted" style={{ marginInlineStart: 8 }}>
+                          {tool.description}
+                        </span>
+                      </div>
+                      <CallPane tone="schema" text={JSON.stringify(tool.parameters, null, 2)} ltr copyTitle={t.copyText} />
+                    </div>
+                  ))}
+                </details>
+              )}
 
-              <h3>{t.adminLlmCallResponse}</h3>
+              <h3>{toolCalls ? t.adminLlmCallToolCalls : t.adminLlmCallResponse}</h3>
               {response === null ? (
                 <p className="muted">{t.adminLlmCallNoResponse}</p>
+              ) : toolCalls ? (
+                toolCalls.map((tc, i) => (
+                  <div key={i} className="llm-stage-tool">
+                    <div dir="ltr" style={{ textAlign: 'left' }}>
+                      <span className="badge badge-neutral mono">{tc.name}</span>
+                    </div>
+                    <CallPane tone="response" text={JSON.stringify(tc.args, null, 2)} ltr copyTitle={t.copyText} />
+                  </div>
+                ))
               ) : (
                 <CallPane tone="response" text={response.text} ltr={response.isJson} copyTitle={t.copyText} />
               )}

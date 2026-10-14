@@ -48,6 +48,9 @@ export interface LoggableRequest {
     temperature?: unknown;
     responseMimeType?: unknown;
     responseJsonSchema?: unknown;
+    /** The tools offered to a tool-call stage (openspec `planner-answer-tools`) and the forced-choice config. */
+    tools?: unknown;
+    toolConfig?: unknown;
   };
 }
 
@@ -62,6 +65,60 @@ export function requestForLog(request: LoggableRequest): Record<string, unknown>
       ...(cfg.temperature !== undefined ? { temperature: cfg.temperature } : {}),
       ...(cfg.responseMimeType !== undefined ? { responseMimeType: cfg.responseMimeType } : {}),
       ...(cfg.responseJsonSchema !== undefined ? { responseJsonSchema: cfg.responseJsonSchema } : {}),
+      ...(cfg.tools !== undefined ? { tools: cfg.tools } : {}),
+      ...(cfg.toolConfig !== undefined ? { toolConfig: cfg.toolConfig } : {}),
     },
   };
+}
+
+/** A tool as runLlmCall declares it under `config.tools[].functionDeclarations` (JSON-schema parameters). */
+export interface DeclaredTool {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+/** The tools a Gemini-shaped request offers, flattened; [] for a form-answer request. */
+export function declaredToolsOf(config: { tools?: unknown } | undefined): DeclaredTool[] {
+  const tools = Array.isArray(config?.tools) ? (config!.tools as { functionDeclarations?: unknown }[]) : [];
+  return tools.flatMap((t) =>
+    (Array.isArray(t.functionDeclarations) ? (t.functionDeclarations as Record<string, unknown>[]) : []).map((d) => ({
+      name: String(d.name ?? ''),
+      description: String(d.description ?? ''),
+      parameters: (d.parametersJsonSchema as Record<string, unknown> | undefined) ?? (d.parameters as Record<string, unknown> | undefined) ?? { type: 'object', properties: {} },
+    })),
+  );
+}
+
+/** One tool call as logged and as handed to the stage's gate: the tool name and its raw arguments. */
+export interface LoggedToolCall {
+  name: string;
+  args: unknown;
+}
+
+/** Structural view of a response's function calls — the SDK class exposes `functionCalls`; the translation layers set it as a plain property. */
+interface ResponseWithCalls {
+  functionCalls?: { name?: string; args?: unknown }[];
+  candidates?: { content?: { parts?: { functionCall?: { name?: string; args?: unknown } }[] } }[];
+  text?: string;
+}
+
+/** The tool calls of a response, in order; [] when the model answered with text only. */
+export function toolCallsOf(response: ResponseWithCalls): LoggedToolCall[] {
+  const calls =
+    response.functionCalls ??
+    response.candidates?.[0]?.content?.parts?.flatMap((p) => (p.functionCall ? [p.functionCall] : [])) ??
+    [];
+  return calls.map((c) => ({ name: c.name ?? '', args: c.args ?? {} }));
+}
+
+/**
+ * The response as stored in llm_calls.response: a tool-call answer as the JSON
+ * list of its calls, a form answer as its text. Reads the calls first so the
+ * SDK's `text` getter is not touched on a response without text parts.
+ */
+export function responseForLog(response: ResponseWithCalls): string | null {
+  const calls = toolCallsOf(response);
+  if (calls.length > 0) return JSON.stringify(calls);
+  return response.text ?? null;
 }

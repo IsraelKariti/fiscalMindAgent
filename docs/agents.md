@@ -45,9 +45,15 @@ activation is not email-gated and no mailbox is required — the instance's
 - The import gate is a **WhatsApp sender**, not a mailbox
   (`notReady: 'no_wa_sender'`), and sources without a mapped phone column
   refuse to enroll (`'no_phone_column'`).
-- The planner's answer form has no channel and no email field (openspec
-  `planner-answer-schema`): a follow_up fills `whatsapp_text` or
-  `whatsapp_template`, `normalizeFollowUpMessage` derives the kind and the
+- The planner answers with flat tool calls, not one JSON form (openspec
+  `planner-answer-tools`, 2026-10-14): `decisionTools.ts` offers `conclude`,
+  `send_whatsapp_text`, `send_whatsapp_template`, `mark_collected`, `tie_file`,
+  `resolve_document`, `add_instance`, `state_cost`, `retire_document`,
+  `attestation`, `tax_fetch` (per context, `toolsForContext`); the model calls
+  several in one turn and `assembleDecision` rebuilds the `DecisionResponse`
+  shape that `normalizeDecision` reads. No channel and no email tool: a
+  follow_up calls `send_whatsapp_text` or
+  `send_whatsapp_template`, `normalizeFollowUpMessage` derives the kind and the
   code supplies the channel; `planFollowUp` throws upfront
   when the WhatsApp channel is unavailable (no opt-in / no sender / window
   closed with zero approved templates) instead of asking the LLM. First
@@ -1012,9 +1018,10 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   failed check ends the list), `validate_classification` (`matched_id_known`,
   `matched_type_agrees`, then `not_injection_suspected` / `legible` — the
   quarantine checks are reported but never change `result`),
-  `validate_message` (one row per decide attempt: `json_schema`, then
-  `business_rules` via `gateDecision` in `decisionSchema.ts`; the second is
-  absent when parsing failed), `verify_extraction` (the per-document table
+  `validate_message` (one row per decide attempt: `tool_calls` — offered
+  tools, per-tool schema, exactly one `conclude` — then `business_rules` via
+  `gateDecision` in `decisionTools.ts`; the second is absent when the calls
+  failed), `verify_extraction` (the per-document table
   from `verifyChecks.ts`, judged over the document's OWNER parties:
   `legible`, `expected_type`, `subject` (some owner is the client or the
   spouse), `id_checksum` (every owner id), `id_matches_client` (passes when
@@ -1446,8 +1453,8 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `AgentContext`) — also when the batch is empty because the code refused
   every tie or every collected document was claimed without a file. That
   follow-up cycle writes the single reply with every verdict in view; its
-  request schema has no `collect` value (`DecisionContext.afterVerification`,
-  `decisionSchemaForContext`) and its ties are ignored, so it cannot verify
+  tool set has no `collect` value and no collecting tool (`DecisionContext.afterVerification`,
+  `toolsForContext`) and its ties are ignored, so it cannot verify
   again — no loop. Message-bound actions (attestation request, fetch action —
   `client_agreed` assumes this cycle's message is the intro) are absent from
   the collecting answer; the follow-up decides them. `verifyCollectedDocument`

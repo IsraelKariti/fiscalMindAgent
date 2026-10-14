@@ -598,7 +598,16 @@ export interface LlmStage {
   /** `schema` is set when the variant has an answer schema of its own (the extraction stage: one per document type). */
   prompts: { variant: string; systemPrompt: string; schema?: Record<string, unknown> }[];
   query: { variant: string; parts: { kind: 'text' | 'binary'; body: string }[] }[];
-  schema: Record<string, unknown>;
+  /** The answer schema of a stage that answers with one JSON object. */
+  schema?: Record<string, unknown>;
+  /** The tools of a stage that answers with tool calls (the planner): name, description, flat parameter schema. */
+  tools?: LlmStageTool[];
+}
+
+export interface LlmStageTool {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
 }
 
 /** The LLM spend cap (GET/PUT /admin/llm-budget): daily USD ceilings (0 = unlimited) and today's priced spend. */

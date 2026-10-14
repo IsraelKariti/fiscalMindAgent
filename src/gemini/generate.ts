@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { genaiClient } from './client.js';
 import { providerForModel } from './modelSettings.js';
 import { computeCost, getPricingForModel } from './pricing.js';
-import { requestForLog } from './requestLog.js';
+import { requestForLog, responseForLog } from './requestLog.js';
 import { generateContentAnthropic } from './anthropic.js';
 import { generateContentOpenAI, OpenAiApiError } from './openai.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
@@ -120,7 +120,7 @@ async function recordCall(
       cachedPricePerToken: pricing?.cachedCostPerToken ?? null,
       cost: pricing ? computeCost(pricing, usage) : null,
       request: requestForLog(request),
-      response: 'response' in outcome ? (outcome.response.text ?? null) : null,
+      response: 'response' in outcome ? responseForLog(outcome.response) : null,
     };
     if (log.sink && log.sink !== 'db') {
       const line: LlmCallFileRow = { ts: new Date().toISOString(), ...row };

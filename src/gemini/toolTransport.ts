@@ -133,7 +133,8 @@ export function continuationInput(output: unknown): { type: 'function_call_outpu
  * turn whatever the request says (measured 2026-10-14); feeding each call back
  * as recorded is the only way they reach `conclude`. `send` is injected so the
  * unit tests drive the loop without the network. Returns the calls of all turns
- * in order and the summed usage.
+ * in order — each stamped with its turn when a continuation rule is set, so the
+ * trace can show which turn made it — and the summed usage.
  */
 export async function runOpenAiToolTurns(
   first: Record<string, unknown>,
@@ -151,7 +152,7 @@ export async function runOpenAiToolTurns(
     addUsage(usage, data);
     if (Array.isArray(data.output)) output.push(...data.output);
     const turnCalls = callsFromOpenAiOutput(data.output);
-    calls.push(...turnCalls);
+    calls.push(...(continuation ? turnCalls.map((c) => ({ ...c, turn: turns })) : turnCalls));
     const done =
       !continuation ||
       turnCalls.length === 0 ||

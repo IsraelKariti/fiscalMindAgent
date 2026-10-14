@@ -109,11 +109,13 @@ export function declaredToolsOf(config: { tools?: unknown } | undefined): Declar
 export interface LoggedToolCall {
   name: string;
   args: unknown;
+  /** The model turn that made the call (1-based), set only by a continued answer (`ToolContinuation`); absent = the single turn. */
+  turn?: number;
 }
 
 /** Structural view of a response's function calls — the SDK class exposes `functionCalls`; the translation layers set it as a plain property. */
 interface ResponseWithCalls {
-  functionCalls?: { name?: string; args?: unknown }[];
+  functionCalls?: { name?: string; args?: unknown; turn?: number }[];
   candidates?: { content?: { parts?: { functionCall?: { name?: string; args?: unknown } }[] } }[];
   text?: string;
 }
@@ -124,7 +126,7 @@ export function toolCallsOf(response: ResponseWithCalls): LoggedToolCall[] {
     response.functionCalls ??
     response.candidates?.[0]?.content?.parts?.flatMap((p) => (p.functionCall ? [p.functionCall] : [])) ??
     [];
-  return calls.map((c) => ({ name: c.name ?? '', args: c.args ?? {} }));
+  return calls.map((c) => ({ name: c.name ?? '', args: c.args ?? {}, ...('turn' in c && typeof c.turn === 'number' ? { turn: c.turn } : {}) }));
 }
 
 /**

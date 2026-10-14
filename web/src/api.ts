@@ -527,6 +527,8 @@ export interface LlmCallDetail extends LlmCallSummary {
     model?: string;
     systemInstruction?: string;
     contents?: unknown;
+    /** The continuation rule of a tool-call stage (the planner): the closing tool and the turn cap. */
+    continuation?: unknown;
     config?: Record<string, unknown>;
   };
   response: string | null;
@@ -602,6 +604,8 @@ export interface LlmStage {
   schema?: Record<string, unknown>;
   /** The tools of a stage that answers with tool calls (the planner): name, description, flat parameter schema. */
   tools?: LlmStageTool[];
+  /** The continuation rule of a tool-call stage: the call that closes the answer and the cap on turns (OpenAI asks again until it). */
+  continuation?: { untilTool: string; maxTurns: number };
 }
 
 export interface LlmStageTool {

@@ -4401,6 +4401,13 @@ button.meta-chip:hover {
   padding-block-start: 8px;
   border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08));
 }
+.llm-stage-continuation {
+  margin-block: 4px 8px;
+  font-size: 0.9em;
+}
+.llm-call-turn {
+  font-size: 0.8em;
+}
 .llm-placeholder {
   background: rgba(255, 196, 0, 0.35);
   border-radius: 3px;

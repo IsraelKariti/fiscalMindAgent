@@ -26,8 +26,12 @@
 
 ## 5. Admin UI
 
-- [ ] 5.1 `AdminLlmCalls.tsx`: when `request.config.tools` exists render the tool list (reusing the schema rows), and render a response that is a JSON array of `{name, args}` as one card per call; old rows unchanged; verify `npm run build:gui` and a browser check on a local planner call
-- [ ] 5.2 `AdminLlmStages.tsx`: render a stage's tool list (one block per tool) when the stage has `tools`; verify a browser check of `#/llm-stages`
+- [x] 5.1 `AdminLlmCalls.tsx`: when `request.config.tools` exists render the tool list (reusing the schema rows), and render a response that is a JSON array of `{name, args}` as one card per call; old rows unchanged; verify `npm run build:gui` and a browser check on a local planner call
+  Browser check 2026-10-14 on a temporary local row (deleted after): tools list (10), one card per call with its parameters.
+- [x] 5.2 `AdminLlmStages.tsx`: render a stage's tool list (one block per tool) when the stage has `tools`; verify a browser check of `#/llm-stages`
+  Browser check 2026-10-14: the planner card lists its 10 tools with parameter rows and the continuation line.
+- [x] 5.3 Continuation in the trace (task 3.5 follow-up): every call of a continued answer carries `turn`; the modal shows "N turns" and "turn N of M" badges and states the continuation rule under the tools; `#/llm-stages` states the rule under the tool list (`LlmStageDescription.continuation`); verify unit tests and a browser check of a local OpenAI planner call
+  Browser check 2026-10-14 on a temporary three-turn row: heading "3 turns", badges "turn 1/2/3 of 3", continuation line under the tools.
 
 ## 6. Evals and live checks
 
@@ -42,4 +46,5 @@
 
 - [x] 7.1 Update `docs/pipeline.md` (generate_message → tool calls → `assembleDecision` → `normalizeDecision`) and `docs/agents.md` where the answer form is described; verify a read-through
 - [x] 7.2 Notion: update the "Schemas" and "Anthropic constraints" research pages (the planner now answers with tools; link "The Heavy Form") following `STYLE.md`; verify by fetch
+  2026-10-14, later: Schemas got the card "OpenAI: one call per turn" and the animation "One Call Per Turn" (https://claude.ai/artifact/3RDvJYCrV4rJgFF4xWX8X9); Anthropic constraints points to them.
 - [ ] 7.3 Commit per the git workflow, deploy, set the production `generate_message` model back to Claude in `#/llm-stages`, confirm one live planner call in the production trace; then `/opsx:archive planner-tool-calls`

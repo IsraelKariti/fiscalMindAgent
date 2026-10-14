@@ -91,16 +91,23 @@ function declaredToolsOf(tools: unknown): DeclaredTool[] {
   });
 }
 
-/** The calls of a tool-call answer (a JSON list of {name, args}); null when the response is anything else. */
-function toolCallsOf(responseText: string): { name: string; args: unknown }[] | null {
+/** The calls of a tool-call answer (a JSON list of {name, args, turn?}); null when the response is anything else. */
+function toolCallsOf(responseText: string): { name: string; args: unknown; turn?: number }[] | null {
   try {
     const parsed = JSON.parse(responseText) as unknown;
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
     if (!parsed.every((c) => typeof c === 'object' && c !== null && typeof (c as { name?: unknown }).name === 'string' && 'args' in (c as object))) return null;
-    return parsed as { name: string; args: unknown }[];
+    return parsed as { name: string; args: unknown; turn?: number }[];
   } catch {
     return null;
   }
+}
+
+/** The continuation rule a logged request carried (`request.continuation`), when it is one. */
+function continuationOf(value: unknown): { untilTool: string; maxTurns: number } | null {
+  const c = value as { untilTool?: unknown; maxTurns?: unknown } | null | undefined;
+  if (!c || typeof c !== 'object' || typeof c.untilTool !== 'string' || typeof c.maxTurns !== 'number') return null;
+  return { untilTool: c.untilTool, maxTurns: c.maxTurns };
 }
 
 /**
@@ -164,6 +171,9 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
   const { history, query } = splitContents(call?.request?.contents);
   const response = call?.response != null && call.response.trim() !== '' ? maybePrettyJson(call.response) : null;
   const toolCalls = response ? toolCallsOf(response.text) : null;
+  // A continued answer (OpenAI: one call per turn, asked again until `conclude`): the rule in the request, the turn on every call.
+  const continuation = continuationOf(call?.request?.continuation);
+  const turnCount = toolCalls ? Math.max(0, ...toolCalls.map((tc) => tc.turn ?? 0)) : 0;
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
@@ -299,6 +309,9 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                   <summary className="muted" style={{ cursor: 'pointer' }}>
                     {t.adminLlmCallTools} ({tools.length})
                   </summary>
+                  {continuation && (
+                    <p className="muted llm-stage-continuation">{t.llmStageContinuation(continuation.untilTool, continuation.maxTurns)}</p>
+                  )}
                   {tools.map((tool) => (
                     <div key={tool.name} className="llm-stage-tool">
                       <div dir="ltr" style={{ textAlign: 'left' }}>
@@ -313,7 +326,10 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                 </details>
               )}
 
-              <h3>{toolCalls ? t.adminLlmCallToolCalls : t.adminLlmCallResponse}</h3>
+              <h3>
+                {toolCalls ? t.adminLlmCallToolCalls : t.adminLlmCallResponse}
+                {turnCount > 1 && <span className="muted"> · {t.adminLlmCallTurns(turnCount)}</span>}
+              </h3>
               {response === null ? (
                 <p className="muted">{t.adminLlmCallNoResponse}</p>
               ) : toolCalls ? (
@@ -321,6 +337,11 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                   <div key={i} className="llm-stage-tool">
                     <div dir="ltr" style={{ textAlign: 'left' }}>
                       <span className="badge badge-neutral mono">{tc.name}</span>
+                      {turnCount > 1 && tc.turn !== undefined && (
+                        <span className="badge badge-neutral llm-call-turn" style={{ marginInlineStart: 8 }}>
+                          {t.adminLlmCallTurn(tc.turn, turnCount)}
+                        </span>
+                      )}
                     </div>
                     <CallPane tone="response" text={JSON.stringify(tc.args, null, 2)} ltr copyTitle={t.copyText} />
                   </div>

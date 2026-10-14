@@ -124,6 +124,10 @@ describe('OpenAI continuation until the final tool', () => {
     const res = await runOpenAiToolTurns(first, until, async (b) => (sent.push(b), answers[sent.length - 1]!));
     assert.equal(res.turns, 3);
     assert.deepEqual(res.calls.map((c) => c.name), ['resolve_document', 'send_whatsapp_text', 'conclude']);
+    // Every call carries the turn that made it, and the stored response keeps it for the trace.
+    assert.deepEqual(res.calls.map((c) => c.turn), [1, 2, 3]);
+    assert.deepEqual(toolCallsOf({ functionCalls: res.calls }).map((c) => c.turn), [1, 2, 3]);
+    assert.ok(JSON.parse(responseForLog({ functionCalls: res.calls })!)[2].turn === 3);
     assert.deepEqual(res.usage, { inputTokens: 3300, outputTokens: 30, cachedTokens: 3000, reasoningTokens: 9 });
     // The second request names the first response and carries only the tool results.
     assert.equal(sent[1]!.previous_response_id, 'r1');
@@ -150,6 +154,7 @@ describe('OpenAI continuation until the final tool', () => {
     const res = await runOpenAiToolTurns(first, undefined, async () => turn(`r${++n}`, [call('add_instance', 'c1')]));
     assert.equal(res.turns, 1);
     assert.equal(n, 1);
+    assert.equal(res.calls[0]!.turn, undefined);
   });
 });
 

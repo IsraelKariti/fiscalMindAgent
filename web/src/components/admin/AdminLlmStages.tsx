@@ -154,13 +154,18 @@ function SchemaBlock({ schema, variant, label }: { schema: Record<string, unknow
  * one block per tool — its name, the description the model reads, and its flat
  * parameters as the same field table a response schema gets.
  */
-function ToolsBlock({ tools }: { tools: LlmStage['tools'] & object }) {
+function ToolsBlock({ tools, continuation }: { tools: LlmStage['tools'] & object; continuation: LlmStage['continuation'] }) {
   const { t } = useT();
   return (
     <div className="llm-pane-wrap llm-pane-copy-left">
       <div className="llm-stage-label">
         {t.llmStageTools} <span className="muted">· {tools.length}</span>
       </div>
+      {continuation && (
+        <p className="muted llm-stage-continuation">
+          {t.llmStageContinuation(continuation.untilTool, continuation.maxTurns)}
+        </p>
+      )}
       {tools.map((tool) => (
         <div key={tool.name} className="llm-stage-tool">
           <div dir="ltr" style={{ textAlign: 'left' }}>
@@ -264,7 +269,7 @@ function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () =>
             </div>
           ))}
           {/* The stage-level answer: its tools, or its schema unless every variant showed its own. */}
-          {stage.tools ? <ToolsBlock tools={stage.tools} /> : stage.schema && stage.prompts.some((p) => !p.schema) && <SchemaBlock schema={stage.schema} />}
+          {stage.tools ? <ToolsBlock tools={stage.tools} continuation={stage.continuation} /> : stage.schema && stage.prompts.some((p) => !p.schema) && <SchemaBlock schema={stage.schema} />}
           <div style={{ marginTop: 8 }}>
             <button type="button" className="btn" onClick={onViewCalls}>
               {t.llmStageViewCalls}

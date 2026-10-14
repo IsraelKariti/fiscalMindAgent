@@ -14,6 +14,8 @@ import { FileSplitSchema } from '../agents/declarationOfCapital/splitFileRules.j
 import type { DecisionContext } from '../agents/declarationOfCapital/decisionSchema.js';
 import { toolJsonSchemas, type DecisionToolJson } from '../agents/declarationOfCapital/decisionTools.js';
 import { buildUntrustedDataDoctrine } from '../agents/shared/promptSafety.js';
+import { MAX_TOOL_TURNS } from './llmCall.js';
+import type { ToolContinuation } from './requestLog.js';
 
 /**
  * The pipeline's LLM stages, described from the SAME constants the call sites
@@ -54,6 +56,8 @@ export interface LlmStageDescription {
   schema?: Record<string, unknown>;
   /** The tools the model answers with (openspec `planner-answer-tools`) — for a stage that answers with tool calls. */
   tools?: DecisionToolJson[];
+  /** The continuation rule of a tool-call stage: the call that closes the answer and the turn cap (OpenAI's reasoning models make one call per turn). */
+  continuation?: ToolContinuation;
 }
 
 const TEMPERATURES: Record<LlmCallPurpose, number> = {
@@ -132,7 +136,7 @@ const STAGES: StageStatic[] = [
   {
     purpose: 'generate_message',
     title: 'Conversation planner',
-    file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md; tools: decisionTools.ts — the model answers with one or more tool calls in one turn, assembleDecision rebuilds the decision) — an answer that ties a file is a "collect" decision with no message (step withhold_reply, label "Reply deferred"); the code verifies the collected documents (extract_document), then runs once more and that second call writes the reply',
+    file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md; tools: decisionTools.ts — the model answers with one or more tool calls ending in conclude: one turn on Gemini/Anthropic, on OpenAI each call is answered "recorded" and the model asked again until conclude (toolTransport.ts · runOpenAiToolTurns); assembleDecision rebuilds the decision) — an answer that ties a file is a "collect" decision with no message (step withhold_reply, label "Reply deferred"); the code verifies the collected documents (extract_document), then runs once more and that second call writes the reply',
     gate: 'validate_message',
     prompts: [
       {
@@ -153,6 +157,7 @@ const STAGES: StageStatic[] = [
     ],
     // Documented for the capital declaration without a fetch offer (production today); per call the set drops what the client cannot use.
     tools: toolJsonSchemas(CAPITAL_DECISION_CONTEXT),
+    continuation: { untilTool: 'conclude', maxTurns: MAX_TOOL_TURNS },
   },
   {
     purpose: 'file_splitting',

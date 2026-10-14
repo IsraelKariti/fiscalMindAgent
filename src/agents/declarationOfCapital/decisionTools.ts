@@ -477,7 +477,7 @@ export function correctionSuffix(calls: ToolCall[], err: unknown): string {
     '',
     'SYSTEM NOTE: your previous answer was rejected by validation and was NOT executed.',
     'Your rejected tool calls:',
-    JSON.stringify(calls),
+    JSON.stringify(calls.map((c) => ({ name: c.name, args: c.args }))),
     `Validation error: ${message}`,
     'Answer again with corrected tool calls, all in this one answer. Call conclude exactly once. Remember the three decision values: "collect" when the answer ties a file to a document (mark_collected, tie_file, or an add_instance with file_ids) — then make NO send_whatsapp_text / send_whatsapp_template call, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one WhatsApp message (send_whatsapp_text inside the 24h window, or send_whatsapp_template) with its send_at — a future "YYYY-MM-DD HH:MM" time, or "asap" for a reply to a client who is waiting right now — "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed.',
   ].join('\n');

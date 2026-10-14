@@ -114,7 +114,11 @@ When the `validate_message` gate rejects an answer, the one corrective retry SHA
 - **THEN** the second request ends with the rejected calls and the note, and its answer is again tool calls
 
 ### Requirement: The trace shows tools and calls
-An LLM call record of this stage SHALL store the offered tools in the request and the list of calls (tool name and parameters) as the response. The admin call modal SHALL show the tool list where it shows the response schema for other stages, and SHALL show each call with its name and parameters. The `#/llm-stages` page SHALL list the stage's tools and their parameters instead of one response schema.
+An LLM call record of this stage SHALL store the offered tools and the continuation rule (the closing tool and the turn cap) in the request, and the list of calls (tool name, parameters and, for a continued answer, the turn that made the call) as the response. The admin call modal SHALL show the tool list where it shows the response schema for other stages, SHALL state the continuation rule next to it, SHALL show each call with its name and parameters, and for an answer of more than one turn SHALL show the number of turns and a "turn N of M" mark on every call. The `#/llm-stages` page SHALL list the stage's tools and their parameters instead of one response schema, and SHALL state the continuation rule.
+
+#### Scenario: Admin opens a continued OpenAI call
+- **WHEN** an admin opens the LLM call modal of a `generate_message` call that an OpenAI model answered in three turns
+- **THEN** the calls heading says three turns, each call carries "turn N of 3", and the request pane states that the model is asked again until `conclude`, six turns at most
 
 #### Scenario: Admin opens a planner call
 - **WHEN** an admin opens the LLM call modal of a `generate_message` call made after this change

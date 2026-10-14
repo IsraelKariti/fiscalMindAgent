@@ -26,4 +26,4 @@
 
 ## 5. Finish
 
-- [ ] 5.1 `npm run typecheck` and `npm test` pass; commit per the repo git workflow (pull --rebase, typecheck, push).
+- [x] 5.1 `npm run typecheck` and `npm test` pass; commit per the repo git workflow (pull --rebase, typecheck, push).

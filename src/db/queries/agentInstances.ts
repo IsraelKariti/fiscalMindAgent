@@ -23,6 +23,21 @@ export async function getByIdForUser(id: string, userId: string): Promise<AgentI
   return rows[0] ?? null;
 }
 
+/**
+ * Whether an instance whose id starts with `idPrefix` exists (a Twilio
+ * friendly name may carry a cut id — src/twilio/numberOwnership.ts). At
+ * least 8 hex characters: shorter prefixes are not looked up.
+ */
+export async function existsByIdPrefix(idPrefix: string): Promise<boolean> {
+  const prefix = idPrefix.toLowerCase();
+  if (!/^[0-9a-f]{8}[0-9a-f-]*$/.test(prefix)) return false;
+  const { rows } = await pool.query<{ ok: boolean }>(
+    'SELECT true AS ok FROM agent_instances WHERE id::text LIKE $1 LIMIT 1',
+    [`${prefix}%`],
+  );
+  return rows.length > 0;
+}
+
 export async function getById(id: string): Promise<AgentInstanceRow | null> {
   const { rows } = await pool.query<AgentInstanceRow>('SELECT * FROM agent_instances WHERE id = $1', [id]);
   return rows[0] ?? null;

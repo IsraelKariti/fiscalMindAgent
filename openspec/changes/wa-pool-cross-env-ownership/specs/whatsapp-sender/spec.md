@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Twilio number name records the owning agent
-A number the platform owns on Twilio SHALL carry, in its Twilio friendly name, the agent instance that currently uses it: the platform SHALL set the name to `fiscalmind <agent type> <agent instance id>` when it buys the number for an instance and when an admin assigns the number to an instance, and SHALL set it to `fiscalmind pool` when the number is unassigned (explicitly, or because the accountant account was deleted). The rename on assignment SHALL be best-effort: a rename failure is logged and does not undo or fail the assignment. A number the account does not own (an externally registered number entered by hand) is never renamed.
+A number the platform owns on Twilio SHALL carry, in its Twilio friendly name, the agent instance that currently uses it: the platform SHALL set the name to `fiscalmind <agent instance id> <agent type>`, cut to Twilio's 64-character name limit so that the id is always complete, when it buys the number for an instance and when an admin assigns the number to an instance, and SHALL set it to `fiscalmind pool` when the number is unassigned (explicitly, or because the accountant account was deleted). A name written in the earlier order (`fiscalmind <agent type> <id>`), whose id Twilio cut short, SHALL still be read as recording that instance. The rename on assignment SHALL be best-effort: a rename failure is logged and does not undo or fail the assignment. A number the account does not own (an externally registered number entered by hand) is never renamed.
 
 #### Scenario: Assign a pool number
 - **WHEN** an admin assigns an owned number named `fiscalmind pool` to an agent instance
-- **THEN** after the assignment the number's Twilio friendly name is `fiscalmind <agent type> <instance id>` of that instance
+- **THEN** after the assignment the number's Twilio friendly name is `fiscalmind <instance id> <agent type>` of that instance, cut to 64 characters
 
 #### Scenario: Re-assign within the same environment
 - **WHEN** an admin assigns a number that another agent instance of this environment used until now
@@ -23,7 +23,7 @@ A number the platform owns on Twilio SHALL carry, in its Twilio friendly name, t
 When a number owned on Twilio is not assigned in this environment but its friendly name records an agent instance id that does not exist in this environment's database, the number SHALL be treated as in use by another environment: the pool / orphaned-numbers list SHALL report it with that flag, the admin UI SHALL show it greyed out with the note "in use in another environment" and without a choose or release button, and the platform SHALL refuse to assign it to an agent instance or to release it, returning a conflict error that says the number is in use in another environment. A number whose name records an instance id that exists in this environment, or whose name follows no ownership convention, SHALL be offered as free, as today.
 
 #### Scenario: Production number seen from local development
-- **WHEN** an admin in local development opens the pool and a number is named `fiscalmind declaration_of_capital <id>` where `<id>` is not an agent instance in the local database
+- **WHEN** an admin in local development opens the pool and a number is named `fiscalmind <id> declaration_of_capital` (or in the earlier order with the id cut short) where `<id>` is not an agent instance in the local database
 - **THEN** the number is listed greyed out with the note "in use in another environment" and cannot be chosen
 
 #### Scenario: Manual assignment of a number owned elsewhere

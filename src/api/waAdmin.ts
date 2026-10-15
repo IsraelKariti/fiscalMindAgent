@@ -36,13 +36,15 @@ const SenderUpsertSchema = z
  * dev share one Twilio account but not a database, so a number's Twilio
  * friendly name records which agent instance uses it. The owner recorded
  * there is "elsewhere" when its instance id is not a row of this database —
- * instance ids are UUIDs, unique across environments. A label naming a local
- * instance (e.g. left by a failed best-effort rename) does not lock the number.
+ * instance ids are UUIDs, unique across environments (the id may be cut
+ * short by Twilio's 64-character name limit, hence the prefix lookup). A
+ * label naming a local instance (e.g. left by a failed best-effort rename)
+ * does not lock the number.
  */
 async function ownerElsewhere(friendlyName: string | null | undefined): Promise<NumberOwner | null> {
   const owner = parseOwnerLabel(friendlyName);
   if (!owner) return null;
-  return (await agentInstances.getById(owner.instanceId)) ? null : owner;
+  return (await agentInstances.existsByIdPrefix(owner.instanceId)) ? null : owner;
 }
 
 /** The owner another environment recorded on `phoneNumber`, or null (free, local, or not owned here). */

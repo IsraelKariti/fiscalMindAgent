@@ -478,11 +478,14 @@ Industry pattern followed: one app with an agent registry
   reported but never undoes the save. Because the environments share the
   account but not a database, the number's **Twilio friendly name is the
   cross-environment ownership record** (`src/twilio/numberOwnership.ts`):
-  buying and assigning name it `fiscalmind <agentType> <instanceId>`
-  (`markNumberAsOwned`), unassigning and deleting an accountant rename it
-  `fiscalmind pool` (`markNumberAsPooled`), both best-effort. The pool list
-  (`GET /api/admin/wa-numbers/orphaned`) flags a number `claimedElsewhere`
-  when its name records an instance id that is not in this database; the
+  buying and assigning name it `fiscalmind <instanceId> <agentType>` cut to
+  Twilio's 64-character limit (`markNumberAsOwned`; the id goes first so
+  only the type gets cut — older labels had the type first and arrive with
+  a cut id, which the parser accepts), unassigning and deleting an
+  accountant rename it `fiscalmind pool` (`markNumberAsPooled`), both
+  best-effort. The pool list (`GET /api/admin/wa-numbers/orphaned`) flags a
+  number `claimedElsewhere` when its name records an instance id (prefix
+  lookup) that is not in this database; the
   pool modal and the Settings orphaned-numbers section show it greyed out
   with "in use in another environment" and no button, and assigning or
   releasing such a number answers 409. Inbound routing is by the

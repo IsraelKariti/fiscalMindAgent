@@ -1,6 +1,6 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { LLM_CALL_PURPOSES, providerForModel, type LlmCallPurpose } from './modelCatalog.js';
-import { getGeminiModel } from './modelSettings.js';
+import { getGeminiModel, resolveBackupModel } from './modelSettings.js';
 import { FORM_INTAKE_PROMPT } from '../agents/declarationOfCapital/formIntakeCall.js';
 import { buildFormIntakeSchema } from '../agents/declarationOfCapital/formIntakeRules.js';
 import { CAPITAL_DOCUMENT_CATALOG } from '../agents/declarationOfCapital/catalog.js';
@@ -47,6 +47,9 @@ export interface LlmStageDescription {
   /** The model the admin setting currently resolves to, and its provider. */
   model: string;
   provider: string;
+  /** The backup model on another provider (openspec `llm-model-settings`), or null when the stage has none. */
+  backupModel: string | null;
+  backupProvider: string | null;
   temperature: number;
   placeholders: string[];
   prompts: LlmStagePrompt[];
@@ -95,7 +98,7 @@ function placeholdersOf(texts: string[]): string[] {
   return [...found].filter(Boolean).sort();
 }
 
-type StageStatic = Omit<LlmStageDescription, 'model' | 'provider' | 'temperature' | 'placeholders'>;
+type StageStatic = Omit<LlmStageDescription, 'model' | 'provider' | 'backupModel' | 'backupProvider' | 'temperature' | 'placeholders'>;
 
 const STAGES: StageStatic[] = [
   {
@@ -195,8 +198,8 @@ export function undocumentedPurposes(): string[] {
   return LLM_CALL_PURPOSES.filter((p) => !documented.has(p));
 }
 
-/** Static description (no DB): everything but the currently resolved model. */
-export function describeLlmStagesStatic(): Omit<LlmStageDescription, 'model' | 'provider'>[] {
+/** Static description (no DB): everything but the currently resolved models. */
+export function describeLlmStagesStatic(): Omit<LlmStageDescription, 'model' | 'provider' | 'backupModel' | 'backupProvider'>[] {
   return STAGES.map((s) => ({
     ...s,
     temperature: TEMPERATURES[s.purpose],
@@ -204,12 +207,19 @@ export function describeLlmStagesStatic(): Omit<LlmStageDescription, 'model' | '
   }));
 }
 
-/** The full description including the model each purpose currently resolves to (admin setting). */
+/** The full description including the model (and backup) each purpose currently resolves to (admin settings). */
 export async function describeLlmStages(): Promise<LlmStageDescription[]> {
   return Promise.all(
     describeLlmStagesStatic().map(async (s) => {
       const model = await getGeminiModel(s.purpose);
-      return { ...s, model, provider: providerForModel(model) };
+      const backupModel = await resolveBackupModel(s.purpose, model);
+      return {
+        ...s,
+        model,
+        provider: providerForModel(model),
+        backupModel,
+        backupProvider: backupModel ? providerForModel(backupModel) : null,
+      };
     }),
   );
 }

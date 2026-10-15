@@ -17,11 +17,16 @@ import { computeCost, getPricingForModel } from '../gemini/pricing.js';
 import {
   LLM_MODEL_OPTIONS,
   availableModelOptions,
+  backupConflict,
+  getGeminiModel,
   getGeminiModelState,
+  getPurposeBackupModels,
   getPurposeModels,
   LLM_CALL_PURPOSES,
   saveGeminiModel,
+  savePurposeBackupModel,
   savePurposeModel,
+  type LlmCallPurpose,
 } from '../gemini/modelSettings.js';
 import { getBudgetState, saveBudgetSettings } from '../gemini/budget.js';
 import { auditAdminMutation } from '../audit/adminAudit.js';
@@ -539,15 +544,35 @@ export const adminGetModel: RequestHandler = async (_req, res) => {
 };
 
 async function modelStateResponse() {
-  const [state, purposes] = await Promise.all([getGeminiModelState(), getPurposeModels()]);
-  return { ...state, purposes, options: availableModelOptions() };
+  const [state, purposes, backups] = await Promise.all([getGeminiModelState(), getPurposeModels(), getPurposeBackupModels()]);
+  // A backup that shares the primary's provider is unusable (resolveBackupModel ignores it) — shown as none.
+  const effective = (p: LlmCallPurpose) => purposes[p] ?? state.model;
+  const shownBackups = Object.fromEntries(
+    LLM_CALL_PURPOSES.map((p) => [p, backups[p] && !backupConflict(effective(p), backups[p]!) ? backups[p] : null]),
+  ) as Record<LlmCallPurpose, string | null>;
+  return { ...state, purposes, backups: shownBackups, options: availableModelOptions() };
+}
+
+/** The error the model routes answer when a primary and a backup would share a provider (openspec `llm-model-settings`). */
+const sameProviderError = (purpose: LlmCallPurpose) =>
+  `The backup of ${purpose} must be from a different provider than its model.`;
+
+/**
+ * Among `purposes`, the first stage whose stored backup shares a provider
+ * with `primary` — the model about to become that stage's primary. Null when
+ * the change is free of conflicts.
+ */
+async function backupConflictingStage(primary: string, purposes: readonly LlmCallPurpose[]): Promise<LlmCallPurpose | null> {
+  const backups = await getPurposeBackupModels();
+  return purposes.find((p) => backups[p] !== null && backupConflict(primary, backups[p]!)) ?? null;
 }
 
 /**
  * PUT /api/admin/model/purpose — pin one call site (conversation, form intake,
  * file classification, document extraction) to a model, or with model: null
  * let it follow the global model again. Applies to every accountant and
- * client.
+ * client. Refused when the new primary would share a provider with the
+ * stage's backup (the admin changes or clears the backup first).
  */
 export const adminSetPurposeModel: RequestHandler = async (req, res) => {
   const parsed = PurposeModelSchema.safeParse(req.body);
@@ -555,8 +580,35 @@ export const adminSetPurposeModel: RequestHandler = async (req, res) => {
     res.status(400).json({ error: 'Unknown model or call type.' });
     return;
   }
+  // With model: null the stage follows the global model, so that is the primary to check.
+  const nextPrimary = parsed.data.model ?? (await getGeminiModelState()).model;
+  if (await backupConflictingStage(nextPrimary, [parsed.data.purpose])) {
+    res.status(400).json({ error: sameProviderError(parsed.data.purpose) });
+    return;
+  }
   await savePurposeModel(parsed.data.purpose, parsed.data.model);
   logger.info('llm per-call model changed', { adminUserId: req.realUserId, ...parsed.data });
+  res.json(await modelStateResponse());
+};
+
+/**
+ * PUT /api/admin/model/purpose/backup — set one call site's backup model, the
+ * one that takes the call when the primary does not answer, or with
+ * model: null clear it. The backup must be from another provider than the
+ * stage's effective primary (openspec `llm-model-settings`).
+ */
+export const adminSetPurposeBackupModel: RequestHandler = async (req, res) => {
+  const parsed = PurposeModelSchema.safeParse(req.body);
+  if (!parsed.success || (parsed.data.model !== null && !availableModelOptions().includes(parsed.data.model))) {
+    res.status(400).json({ error: 'Unknown model or call type.' });
+    return;
+  }
+  if (parsed.data.model !== null && backupConflict(await getGeminiModel(parsed.data.purpose), parsed.data.model)) {
+    res.status(400).json({ error: sameProviderError(parsed.data.purpose) });
+    return;
+  }
+  await savePurposeBackupModel(parsed.data.purpose, parsed.data.model);
+  logger.info('llm per-call backup model changed', { adminUserId: req.realUserId, ...parsed.data });
   res.json(await modelStateResponse());
 };
 
@@ -591,6 +643,15 @@ export const adminSetModel: RequestHandler = async (req, res) => {
   // same way as an unknown one — it was never offered in the options list.
   if (!parsed.success || !availableModelOptions().includes(parsed.data.model)) {
     res.status(400).json({ error: 'Unknown model.' });
+    return;
+  }
+  // The global model is the primary of every stage without its own; none of
+  // their backups may share its provider.
+  const overrides = await getPurposeModels();
+  const following = LLM_CALL_PURPOSES.filter((p) => overrides[p] === null);
+  const conflicting = await backupConflictingStage(parsed.data.model, following);
+  if (conflicting) {
+    res.status(400).json({ error: sameProviderError(conflicting) });
     return;
   }
   await saveGeminiModel(parsed.data.model);

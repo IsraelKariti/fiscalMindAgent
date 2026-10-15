@@ -608,6 +608,9 @@ export interface LlmStage {
   gate: string;
   model: string;
   provider: string;
+  /** The backup model on another provider (openspec `llm-model-settings`), or null when the stage has none. */
+  backupModel: string | null;
+  backupProvider: string | null;
   temperature: number;
   placeholders: string[];
   /** `schema` is set when the variant has an answer schema of its own (the extraction stage: one per document type). */
@@ -641,6 +644,8 @@ export interface GeminiModelState {
   updatedAt: string | null;
   /** Per-call-site default; null = follows the global model. */
   purposes: Record<LlmCallPurpose, string | null>;
+  /** Per-call-site backup model on another provider; null = none (openspec `llm-model-settings`). */
+  backups: Record<LlmCallPurpose, string | null>;
   options: string[];
 }
 
@@ -1122,6 +1127,8 @@ export const api = {
     request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),
   adminSetPurposeModel: (purpose: LlmCallPurpose, model: string | null) =>
     request<GeminiModelState>('/admin/model/purpose', { method: 'PUT', body: JSON.stringify({ purpose, model }) }),
+  adminSetPurposeBackupModel: (purpose: LlmCallPurpose, model: string | null) =>
+    request<GeminiModelState>('/admin/model/purpose/backup', { method: 'PUT', body: JSON.stringify({ purpose, model }) }),
   adminGetKillSwitch: () => request<KillSwitchState>('/admin/kill-switch'),
   adminSetKillSwitch: (on: boolean) =>
     request<KillSwitchState>('/admin/kill-switch', { method: 'PUT', body: JSON.stringify({ on }) }),

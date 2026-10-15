@@ -283,3 +283,26 @@ test('restore_answer: the filled paths, or a dash when the adapter filled nothin
   ]);
   assert.deepEqual(stepSummaryOf('restore_answer', { provider: 'anthropic', purpose: 'p', model: 'm', filled: [] }).at(-1), { key: 'filled', value: '—' });
 });
+
+test('fallback_model: both models, their providers and the reason (openspec llm-model-settings)', () => {
+  assert.deepEqual(
+    stepSummaryOf('fallback_model', {
+      purpose: 'file_classification',
+      from_model: 'gemini-3.7-flash',
+      from_provider: 'gemini',
+      to_model: 'claude-opus-5',
+      to_provider: 'anthropic',
+      failure_reason: 'status 503',
+      failure_error: 'overloaded',
+    }),
+    [
+      { key: 'purpose', value: 'file_classification' },
+      { key: 'from_model', value: 'gemini-3.7-flash' },
+      { key: 'from_provider', value: 'gemini' },
+      { key: 'to_model', value: 'claude-opus-5' },
+      { key: 'to_provider', value: 'anthropic' },
+      { key: 'failure_reason', value: 'status 503' },
+      { key: 'failure_error', value: 'overloaded' },
+    ],
+  );
+});

@@ -1,6 +1,17 @@
 import type { Accountant, WhitelistEntry } from '../../api';
 import { useT } from '../../i18n';
 
+/**
+ * Which provider serves a model id — the same prefix rule as the server's
+ * providerForModel. Used to offer only other-provider models as a stage's
+ * backup (openspec `llm-model-settings`); the server stays the authority.
+ */
+export function providerOfModel(model: string): 'gemini' | 'openai' | 'anthropic' {
+  if (model.startsWith('gpt-')) return 'openai';
+  if (model.startsWith('claude-')) return 'anthropic';
+  return 'gemini';
+}
+
 /** Display names for the pickable model ids (brand names, not translated). */
 export const MODEL_LABELS: Record<string, string> = {
   'gemini-2.5-flash': 'Gemini 2.5 Flash',

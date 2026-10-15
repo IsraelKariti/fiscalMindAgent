@@ -15,7 +15,7 @@ import { formatTimestamp, humanizePurpose } from '../../format';
 import { useT } from '../../i18n';
 import { ConfirmModal } from '../ConfirmModal';
 import { Spinner } from '../Spinner';
-import { MODEL_LABELS } from './shared';
+import { MODEL_LABELS, providerOfModel } from './shared';
 import { PictureCard } from './PictureCard';
 
 interface Props {
@@ -51,7 +51,10 @@ export function AdminSettings({ userEmail }: Props) {
   };
 
   const [modelState, setModelState] = useState<GeminiModelState | null>(null);
-  const [modelNotice, setModelNotice] = useState<'saved' | 'load_failed' | 'save_failed' | null>(null);
+  // A refused save keeps the server's message (e.g. "backup must be from a
+  // different provider"), so the admin reads why; the pickers stay on the
+  // saved state because the state is only replaced by a successful answer.
+  const [modelNotice, setModelNotice] = useState<'saved' | 'load_failed' | { error: string } | null>(null);
   const [modelSaving, setModelSaving] = useState(false);
   const modelNoticeTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -60,20 +63,31 @@ export function AdminSettings({ userEmail }: Props) {
     return () => clearTimeout(modelNoticeTimer.current);
   }, []);
 
-  const changePurposeModel = async (purpose: LlmCallPurpose, model: string) => {
+  const saveModelSetting = async (save: () => Promise<GeminiModelState>) => {
     setModelSaving(true);
     setModelNotice(null);
     if (modelNoticeTimer.current) clearTimeout(modelNoticeTimer.current);
     try {
-      setModelState(await api.adminSetPurposeModel(purpose, model));
+      setModelState(await save());
       setModelNotice('saved');
       modelNoticeTimer.current = setTimeout(() => setModelNotice(null), 3000);
-    } catch {
-      setModelNotice('save_failed');
+    } catch (err) {
+      const message = err instanceof ApiError && err.status === 400 ? err.message : t.llmModelSaveFailed;
+      setModelNotice({ error: message.includes('different provider') ? t.llmBackupSameProvider : message });
     } finally {
       setModelSaving(false);
     }
   };
+
+  const changePurposeModel = (purpose: LlmCallPurpose, model: string) =>
+    saveModelSetting(() => api.adminSetPurposeModel(purpose, model));
+
+  /** The backup model of one stage (openspec `llm-model-settings`); '' clears it. */
+  const changePurposeBackup = (purpose: LlmCallPurpose, model: string) =>
+    saveModelSetting(() => api.adminSetPurposeBackupModel(purpose, model === '' ? null : model));
+
+  /** The model a stage actually runs on: its own pick, else the global model. */
+  const effectiveModel = (state: GeminiModelState, purpose: LlmCallPurpose) => state.purposes[purpose] ?? state.model;
 
   // The LLM spend cap: daily USD ceilings, platform-wide and per agent instance.
   const [budget, setBudget] = useState<LlmBudgetState | null>(null);
@@ -319,35 +333,60 @@ export function AdminSettings({ userEmail }: Props) {
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-              {LLM_CALL_PURPOSES.map((purpose) => (
-                <label key={purpose} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span>{t.llmPurposeLabels[purpose] ?? humanizePurpose(purpose)}</span>
-                  <div className="model-picker model-picker--fill" dir="ltr">
-                    <select
-                      value={modelState.purposes[purpose] ?? modelState.model}
-                      disabled={modelSaving}
-                      aria-label={t.llmPurposeLabels[purpose] ?? humanizePurpose(purpose)}
-                      onChange={(e) => changePurposeModel(purpose, e.target.value)}
-                    >
-                      {/* The env-default model may predate the options list; keep it selectable. */}
-                      {!modelState.options.includes(modelState.purposes[purpose] ?? modelState.model) && (
-                        <option value={modelState.purposes[purpose] ?? modelState.model}>
-                          {modelState.purposes[purpose] ?? modelState.model}
-                        </option>
-                      )}
-                      {modelState.options.map((m) => (
-                        <option key={m} value={m}>
-                          {MODEL_LABELS[m] ?? m}
-                        </option>
-                      ))}
-                    </select>
+              {LLM_CALL_PURPOSES.map((purpose) => {
+                const primary = effectiveModel(modelState, purpose);
+                const primaryProvider = providerOfModel(primary);
+                const backup = modelState.backups[purpose] ?? '';
+                const stageLabel = t.llmPurposeLabels[purpose] ?? humanizePurpose(purpose);
+                return (
+                  <div key={purpose} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span>{stageLabel}</span>
+                      <div className="model-picker model-picker--fill" dir="ltr">
+                        <select
+                          value={primary}
+                          disabled={modelSaving}
+                          aria-label={stageLabel}
+                          onChange={(e) => changePurposeModel(purpose, e.target.value)}
+                        >
+                          {/* The env-default model may predate the options list; keep it selectable. */}
+                          {!modelState.options.includes(primary) && <option value={primary}>{primary}</option>}
+                          {modelState.options.map((m) => (
+                            <option key={m} value={m}>
+                              {MODEL_LABELS[m] ?? m}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </label>
+                    {/* The backup takes the call when the primary does not answer; only other providers are offered (openspec `llm-model-settings`). */}
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span className="muted" style={{ fontSize: '0.85em' }}>{t.llmBackupLabel}</span>
+                      <div className="model-picker model-picker--fill" dir="ltr">
+                        <select
+                          value={backup}
+                          disabled={modelSaving}
+                          aria-label={`${stageLabel} — ${t.llmBackupLabel}`}
+                          onChange={(e) => changePurposeBackup(purpose, e.target.value)}
+                        >
+                          <option value="">{t.llmBackupNone}</option>
+                          {modelState.options
+                            .filter((m) => providerOfModel(m) !== primaryProvider)
+                            .map((m) => (
+                              <option key={m} value={m}>
+                                {MODEL_LABELS[m] ?? m}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </label>
                   </div>
-                </label>
-              ))}
+                );
+              })}
             </div>
             {modelSaving && <span className="muted">{t.saving}</span>}
             {modelNotice === 'saved' && <div className="ok-banner">{t.llmModelSaved}</div>}
-            {modelNotice === 'save_failed' && <div className="error-banner">{t.llmModelSaveFailed}</div>}
+            {modelNotice !== null && typeof modelNotice === 'object' && <div className="error-banner">{modelNotice.error}</div>}
           </>
         )}
       </div>

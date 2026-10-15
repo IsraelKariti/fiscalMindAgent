@@ -165,3 +165,17 @@ no sent copy.
 | Anthropic only: the adapter puts null back into every nullable field the model left out, and marks the paths on the response | `gemini/anthropicSchema.ts` · `restoreOmittedNulls` (`restoredFields`) |
 | `restore_answer`: the trace step listing the filled paths (recorded after the call row, so the trace reads translate → call → restore) | `gemini/generate.ts` · `recordCall` → `gemini/wireRequest.ts` · `restoreStepOf` |
 | Steps are recorded only for a DB-logged call of a client (never for the evals harness) | `gemini/wireRequest.ts` · `traceStepsEnabled` |
+
+Each stage may have a **backup model** on another provider (openspec
+`llm-model-settings`, admin settings → "מודל השפה"). With one set, the
+primary gets one attempt and one retry; when it still did not answer, the
+same request goes to the backup with the full retry loop.
+
+| Step | File · function |
+| --- | --- |
+| The code resolves the stage's backup (null when none, unavailable, or on the primary's provider) | `gemini/modelSettings.ts` · `resolveBackupModel` (`gemini/modelCatalog.ts` · `backupConflict`) |
+| Primary attempted with a cap of 2 attempts when a backup exists; a pinned model (evals harness) never falls back | `gemini/llmCall.ts` · `runWithBackup` → `gemini/generate.ts` · `generateWithRetryDetailed(request, log, maxAttempts)` |
+| Was it the provider that failed? (API error of any status, timeout, network — never the budget stop) | `gemini/generate.ts` · `isProviderFailure`, `failureReasonOf` |
+| `fallback_model`: the trace step naming the primary, the backup, their providers and the failure reason (between the primary's error row and the backup's call row) | `gemini/llmCall.ts` · `runWithBackup` → `gemini/wireRequest.ts` · `fallbackStepOf` |
+| The same request on the backup, full retry loop, own call row; the result names the backup model | `gemini/llmCall.ts` · `runWithBackup` → `gemini/generate.ts` · `generateWithRetryDetailed` |
+| The admin saves / refuses the pair (backup must be from another provider; a colliding primary change is refused too) | `api/admin.ts` · `adminSetPurposeBackupModel`, `adminSetPurposeModel`, `adminSetModel` (`backupConflictingStage`) |

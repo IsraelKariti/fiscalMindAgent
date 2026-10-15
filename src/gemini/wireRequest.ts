@@ -129,10 +129,44 @@ export function translationStepDetail(translation: Translation, purpose: string,
   };
 }
 
-/** One of the two translation code steps, as the retry loop records it (actor and severity added there). */
+/** One of the per-call code steps, as the call path records it (actor and severity added there). */
 export interface TraceStep {
-  action: 'translate_request' | 'restore_answer';
+  action: 'translate_request' | 'restore_answer' | 'fallback_model';
   detail: Record<string, unknown>;
+}
+
+/** A model and its provider, as the fallback step names the two sides of a switch. */
+export interface StepModel {
+  model: string;
+  provider: string;
+}
+
+/** Why the primary failed: the provider's HTTP status, 'timeout' / 'network' when it never answered, 'error' otherwise. */
+export interface FailureReason {
+  kind: number | 'timeout' | 'network' | 'error';
+  message: string;
+}
+
+const FALLBACK_MESSAGE_CAP = 500;
+
+/**
+ * The `fallback_model` step (openspec `llm-model-settings`): the primary
+ * model did not answer and the same request goes to the stage's backup on
+ * another provider. Flat detail, so the step modal renders it as rows.
+ */
+export function fallbackStepOf(purpose: string, from: StepModel, reason: FailureReason, to: StepModel): TraceStep {
+  return {
+    action: 'fallback_model',
+    detail: {
+      purpose,
+      from_model: from.model,
+      from_provider: from.provider,
+      to_model: to.model,
+      to_provider: to.provider,
+      failure_reason: typeof reason.kind === 'number' ? `status ${reason.kind}` : reason.kind,
+      failure_error: reason.message.slice(0, FALLBACK_MESSAGE_CAP),
+    },
+  };
 }
 
 /** What the retry loop knows about the call's logging: the client and the sink. */

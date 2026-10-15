@@ -64,8 +64,17 @@ export function providerForModel(model: string): LlmProvider {
 }
 
 /**
+ * True when both models are served by the same provider. A stage's backup
+ * model must be elsewhere (openspec `llm-model-settings`): a provider outage
+ * takes every model of that provider down with it.
+ */
+export function backupConflict(primary: string, backup: string): boolean {
+  return providerForModel(primary) === providerForModel(backup);
+}
+
+/**
  * The pipeline's LLM call sites, by their llm_calls.purpose value. The admin
- * can pin a default model to each (modelSettings.ts).
+ * can pin a default model and a backup model to each (modelSettings.ts).
  */
 export const LLM_CALL_PURPOSES = [
   'generate_message',

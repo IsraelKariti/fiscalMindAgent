@@ -57,6 +57,9 @@ export type AuditAction =
   // recorded by gemini/generate.ts around every Anthropic / OpenAI call.
   | 'translate_request'
   | 'restore_answer'
+  // The primary model did not answer and the stage's backup model on another
+  // provider took the call (openspec `llm-model-settings`); gemini/llmCall.ts.
+  | 'fallback_model'
   // Apply phase of the planner (plan.ts): one row per decision field that
   // changed state, never for a no-op.
   | 'apply_resolutions'

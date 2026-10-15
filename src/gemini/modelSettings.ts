@@ -3,6 +3,7 @@ import { env } from '../config/env.js';
 import {
   LLM_CALL_PURPOSES,
   LLM_MODEL_OPTIONS,
+  backupConflict,
   providerForModel,
   type LlmCallPurpose,
   type LlmModelOption,
@@ -11,7 +12,7 @@ import {
 // The static catalog itself is pure and lives in modelCatalog.ts (schemas and
 // tests import it without dragging in env/DB); re-exported here so existing
 // import sites keep working.
-export { LLM_CALL_PURPOSES, LLM_MODEL_OPTIONS, providerForModel } from './modelCatalog.js';
+export { LLM_CALL_PURPOSES, LLM_MODEL_OPTIONS, backupConflict, providerForModel } from './modelCatalog.js';
 export type { LlmCallPurpose, LlmModelOption, LlmProvider } from './modelCatalog.js';
 
 export const GEMINI_MODEL_SETTING_KEY = 'gemini_model';
@@ -19,6 +20,11 @@ export const GEMINI_MODEL_SETTING_KEY = 'gemini_model';
 /** app_settings key of the per-call-site default (absent = the global model). */
 export function purposeModelSettingKey(purpose: LlmCallPurpose): string {
   return `llm_model:${purpose}`;
+}
+
+/** app_settings key of the per-call-site backup model (absent = no backup). */
+export function purposeBackupSettingKey(purpose: LlmCallPurpose): string {
+  return `llm_backup_model:${purpose}`;
 }
 
 /**
@@ -82,6 +88,39 @@ export async function getPurposeModels(): Promise<Record<LlmCallPurpose, string 
 export async function savePurposeModel(purpose: LlmCallPurpose, model: LlmModelOption | null): Promise<void> {
   if (model === null) await appSettings.remove(purposeModelSettingKey(purpose));
   else await appSettings.upsert(purposeModelSettingKey(purpose), model);
+}
+
+/**
+ * The admin's backup model of one call site, or null when unset or no longer
+ * available (its provider's API key removed). Stored as saved: whether it
+ * still sits on another provider than the primary is checked where it is
+ * used (resolveBackupModel) and where it is saved (the admin routes).
+ */
+export async function getPurposeBackupModel(purpose: LlmCallPurpose): Promise<string | null> {
+  const row = await appSettings.get(purposeBackupSettingKey(purpose));
+  return row && (availableModelOptions() as readonly string[]).includes(row.value) ? row.value : null;
+}
+
+export async function getPurposeBackupModels(): Promise<Record<LlmCallPurpose, string | null>> {
+  const entries = await Promise.all(LLM_CALL_PURPOSES.map(async (p) => [p, await getPurposeBackupModel(p)] as const));
+  return Object.fromEntries(entries) as Record<LlmCallPurpose, string | null>;
+}
+
+/** Set (or with null, clear) the backup model of one call site. */
+export async function savePurposeBackupModel(purpose: LlmCallPurpose, model: LlmModelOption | null): Promise<void> {
+  if (model === null) await appSettings.remove(purposeBackupSettingKey(purpose));
+  else await appSettings.upsert(purposeBackupSettingKey(purpose), model);
+}
+
+/**
+ * The model a call of this purpose falls back to when `primaryModel` does
+ * not answer (openspec `llm-model-settings`), or null when the stage has no
+ * usable backup: none set, its provider unavailable, or — defensively, the
+ * admin routes refuse such a pair — the same provider as the primary.
+ */
+export async function resolveBackupModel(purpose: LlmCallPurpose, primaryModel: string): Promise<string | null> {
+  const backup = await getPurposeBackupModel(purpose);
+  return backup && !backupConflict(primaryModel, backup) ? backup : null;
 }
 
 export async function getGeminiModelState(): Promise<GeminiModelState> {

@@ -1,8 +1,10 @@
 import type { genaiClient } from './client.js';
-import { getGeminiModel } from './modelSettings.js';
+import { getGeminiModel, resolveBackupModel } from './modelSettings.js';
 import { providerForModel, type LlmCallPurpose } from './modelCatalog.js';
 import {
+  failureReasonOf,
   generateWithRetryDetailed,
+  isProviderFailure,
   usageFromResponse,
   type GeminiUsage,
   type LlmCallLogContext,
@@ -10,6 +12,9 @@ import {
 } from './generate.js';
 import { toolCallsOf, type LoggedToolCall } from './requestLog.js';
 import { toolRequestConfig, type LlmToolSpec } from './toolTransport.js';
+import { fallbackStepOf, traceStepsEnabled } from './wireRequest.js';
+import { recordAudit } from '../audit/audit.js';
+import { logger } from '../util/logger.js';
 
 type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
 
@@ -98,16 +103,18 @@ export function requestConfigOf(spec: LlmCallSpec): NonNullable<GeminiRequest['c
  * list is returned as is: the stage's gate rejects it and asks again).
  */
 export async function runLlmCall(spec: LlmCallSpec, opts: RunLlmCallOptions = {}): Promise<LlmCallResult> {
-  const model = opts.model ?? (await getGeminiModel(spec.purpose));
+  const primary = opts.model ?? (await getGeminiModel(spec.purpose));
   if (spec.finalTool && !spec.tools) throw new Error(`${spec.purpose}: finalTool needs tools`);
   const request: LlmRequest = {
-    model,
+    model: primary,
     contents: spec.contents,
     config: requestConfigOf(spec),
     ...(spec.finalTool ? { continuation: { untilTool: spec.finalTool, maxTurns: MAX_TOOL_TURNS } } : {}),
   };
   const log: LlmCallLogContext | undefined = opts.log ? { ...opts.log, purpose: opts.log.purpose ?? spec.purpose } : undefined;
-  const { response, attempts } = await generateWithRetryDetailed(request, log);
+  // A pinned model (the evals harness) is the only one tried.
+  const backup = opts.model ? null : await resolveBackupModel(spec.purpose, primary);
+  const { response, attempts, model } = await runWithBackup(spec.purpose, request, backup, log);
   const usage = usageFromResponse(response);
   const provider = providerForModel(model);
   if (spec.tools) {
@@ -118,4 +125,49 @@ export async function runLlmCall(spec: LlmCallSpec, opts: RunLlmCallOptions = {}
     throw new Error(`${spec.purpose}: model returned no text (refusal or empty response): ${JSON.stringify(response)}`);
   }
   return { text, toolCalls: [], usage, model, provider, attempts };
+}
+
+/** The primary gets one attempt and one retry when a backup stands behind it. */
+const PRIMARY_ATTEMPTS_WITH_BACKUP = 2;
+
+/**
+ * Sends the request on its model and, when the stage has a backup model and
+ * the primary did not answer (openspec `llm-model-settings`), sends the same
+ * request once more on the backup with the full retry loop. The primary's
+ * failed call keeps its own error row; the switch is a `fallback_model` step
+ * of the client's trace (never for the evals harness); the backup's call row
+ * and result name the backup model. Only a provider failure switches: the
+ * budget stop and any other error propagate as they are.
+ */
+async function runWithBackup(
+  purpose: LlmCallPurpose,
+  request: LlmRequest,
+  backup: string | null,
+  log: LlmCallLogContext | undefined,
+): Promise<{ response: Awaited<ReturnType<typeof generateWithRetryDetailed>>['response']; attempts: number; model: string }> {
+  if (!backup) {
+    const { response, attempts } = await generateWithRetryDetailed(request, log);
+    return { response, attempts, model: request.model };
+  }
+  try {
+    const { response, attempts } = await generateWithRetryDetailed(request, log, PRIMARY_ATTEMPTS_WITH_BACKUP);
+    return { response, attempts, model: request.model };
+  } catch (err) {
+    if (!isProviderFailure(err)) throw err;
+    const reason = failureReasonOf(err);
+    const from = { model: request.model, provider: providerForModel(request.model) };
+    const to = { model: backup, provider: providerForModel(backup) };
+    logger.warn('LLM call fell back to backup model', { purpose, from, to, reason: reason.kind, clientId: log?.clientId ?? null });
+    if (traceStepsEnabled(log)) {
+      recordAudit({
+        actorType: 'system',
+        severity: 'warning',
+        agentInstanceId: log!.agentInstanceId,
+        clientId: log!.clientId,
+        ...fallbackStepOf(purpose, from, reason, to),
+      });
+    }
+    const { response, attempts } = await generateWithRetryDetailed({ ...request, model: backup }, log);
+    return { response, attempts, model: backup };
+  }
 }

@@ -831,10 +831,13 @@ const he = {
   accountantsRefreshFailed: 'רענון רשימת רואי החשבון נכשל.',
   llmModelTitle: 'מודל השפה',
   llmModelDesc:
-    'המודל של כל אחד מארבעת סוגי הקריאות ל־LLM, עבור כל רואי החשבון וכל הלקוחות. שינוי נכנס לתוקף מייד, מהקריאה הבאה. זרוע ניסוי של לקוח גוברת על ההגדרה הזו.',
+    'המודל של כל אחד מסוגי הקריאות ל־LLM, עבור כל רואי החשבון וכל הלקוחות. שינוי נכנס לתוקף מייד, מהקריאה הבאה. לכל שלב אפשר לבחור גם מודל גיבוי מספק אחר: אם המודל הראשי לא עונה (ניסיון אחד וניסיון חוזר אחד), אותה קריאה נשלחת למודל הגיבוי.',
   llmModelSaved: 'נשמר. כל הקריאות הבאות ישתמשו במודל הזה.',
   llmModelLoadFailed: 'טעינת הגדרת המודל נכשלה.',
   llmModelSaveFailed: 'שמירת המודל נכשלה.',
+  llmBackupLabel: 'מודל גיבוי',
+  llmBackupNone: 'ללא',
+  llmBackupSameProvider: 'מודל הגיבוי חייב להיות מספק אחר מזה של המודל הראשי.',
   adminConversationShowSteps: 'הצג קריאות LLM ושלבי קוד בציר הזמן',
   conversationTraceCalls: 'קריאות LLM',
   conversationTraceSteps: 'שלבי קוד',
@@ -900,6 +903,8 @@ const he = {
     // The provider adapter's translation around an LLM call (openspec `conversation-trace`).
     translate_request: 'Translate Request (provider adapter)',
     restore_answer: 'Restore Answer (provider adapter)',
+    // The primary model did not answer and the backup model took the call (openspec `llm-model-settings`).
+    fallback_model: 'Fallback Model (backup provider)',
   } as Record<string, string>,
   // Hebrew labels of the fields in the "what the step did" section
   // (stepSummary.ts row keys). Unknown keys fall back to humanizePurpose().
@@ -914,6 +919,13 @@ const he = {
     omitted: 'שדות בקשה שהושמטו',
     tools_strict: 'הכלים סומנו strict',
     filled: 'שדות שמולאו ב-null (המודל השמיט אותם)',
+    // fallback_model: the switch from the primary to the backup model (openspec `llm-model-settings`).
+    from_model: 'המודל הראשי (לא ענה)',
+    from_provider: 'הספק הראשי',
+    to_model: 'מודל הגיבוי',
+    to_provider: 'ספק הגיבוי',
+    failure_reason: 'סיבת הכשל',
+    failure_error: 'הודעת השגיאה',
     resolved_documents: 'הכרעות שיושמו',
     added_instances: 'מופעים שנוספו (מסמך עוגן: מופעים)',
     retired_documents: 'מסמכים שהוצאו מהרשימה',

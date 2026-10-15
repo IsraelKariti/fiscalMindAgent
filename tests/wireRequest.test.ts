@@ -4,7 +4,7 @@ import { describeLlmStagesStatic } from '../src/gemini/llmStages.js';
 import { emptySchemaChanges, restoreOmittedNulls, toAnthropicSchema } from '../src/gemini/anthropicSchema.js';
 import { toAnthropicTools, toOpenAiTools } from '../src/gemini/toolTransport.js';
 import { requestForLog, type DeclaredTool } from '../src/gemini/requestLog.js';
-import { restoredFieldsOf, sentRequestOf, traceStepsOf, translationOf, translationStepDetail } from '../src/gemini/wireRequest.js';
+import { fallbackStepOf, restoredFieldsOf, sentRequestOf, traceStepsOf, translationOf, translationStepDetail } from '../src/gemini/wireRequest.js';
 
 // openspec `conversation-trace` (adapter-translation-visible): the translators
 // report what they changed, the sent copy is computed from the same
@@ -263,5 +263,32 @@ describe('the trace steps per provider', () => {
     assert.equal(restoredFieldsOf(null), null);
     const detail = translationStepDetail(translationOf('openai', schemaRequest(injection))!, 'p', 'm');
     assert.equal(detail.schema_changed, false);
+  });
+});
+
+describe('fallbackStepOf (openspec llm-model-settings)', () => {
+  const from = { model: 'gemini-3.7-flash', provider: 'gemini' };
+  const to = { model: 'claude-opus-5', provider: 'anthropic' };
+
+  it('names both models, their providers and the reason', () => {
+    const step = fallbackStepOf('file_classification', from, { kind: 'timeout', message: 'The operation was aborted' }, to);
+    assert.equal(step.action, 'fallback_model');
+    assert.deepEqual(step.detail, {
+      purpose: 'file_classification',
+      from_model: 'gemini-3.7-flash',
+      from_provider: 'gemini',
+      to_model: 'claude-opus-5',
+      to_provider: 'anthropic',
+      failure_reason: 'timeout',
+      failure_error: 'The operation was aborted',
+    });
+  });
+
+  it('writes an HTTP status as "status N" and caps the error text', () => {
+    assert.equal(fallbackStepOf('p', from, { kind: 503, message: 'overloaded' }, to).detail.failure_reason, 'status 503');
+    assert.equal(fallbackStepOf('p', from, { kind: 401, message: 'unauthorized' }, to).detail.failure_reason, 'status 401');
+    assert.equal(fallbackStepOf('p', from, { kind: 'network', message: 'fetch failed' }, to).detail.failure_reason, 'network');
+    const long = fallbackStepOf('p', from, { kind: 500, message: 'x'.repeat(2000) }, to).detail.failure_error as string;
+    assert.equal(long.length, 500);
   });
 });

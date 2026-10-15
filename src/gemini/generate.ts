@@ -7,7 +7,7 @@ import { requestForLog, responseForLog, type ToolContinuation } from './requestL
 import { generateContentAnthropic } from './anthropic.js';
 import { generateContentOpenAI, OpenAiApiError } from './openai.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
-import { assertWithinBudget, noteSpend } from './budget.js';
+import { assertWithinBudget, LlmBudgetExceededError, noteSpend } from './budget.js';
 import { restoreStepOf, traceStepsEnabled, translateStepOf, translationOf, type Translation } from './wireRequest.js';
 import { recordAudit } from '../audit/audit.js';
 import { appendFile } from 'node:fs/promises';
@@ -160,10 +160,53 @@ export async function generateWithRetry(
   return (await generateWithRetryDetailed(request, log)).response;
 }
 
-/** generateWithRetry plus how many provider round trips the answer took. */
+/**
+ * Why a call failed, for the fallback step and the log: the HTTP status the
+ * provider answered, or 'timeout' / 'network' when it never answered, or
+ * 'error' for anything else, plus the error text.
+ */
+export function failureReasonOf(err: unknown): { kind: number | 'timeout' | 'network' | 'error'; message: string } {
+  const status =
+    err instanceof ApiError || err instanceof OpenAiApiError
+      ? err.status
+      : err instanceof Anthropic.APIError && typeof err.status === 'number'
+        ? err.status
+        : null;
+  const message = err instanceof Error ? err.message : String(err);
+  if (status !== null) return { kind: status, message };
+  if (isTimeoutAbort(err)) return { kind: 'timeout', message };
+  if (isNetworkError(err) || err instanceof Anthropic.APIConnectionError) return { kind: 'network', message };
+  return { kind: 'error', message };
+}
+
+/**
+ * True when the provider failed to serve the call — an API error of any
+ * status, a timeout, or a transport failure — i.e. the primary "did not
+ * answer" and a backup model may take over (openspec `llm-model-settings`).
+ * False for the budget stop (nothing was sent) and for any other error.
+ */
+export function isProviderFailure(err: unknown): boolean {
+  if (err instanceof LlmBudgetExceededError) return false;
+  return (
+    err instanceof ApiError ||
+    err instanceof OpenAiApiError ||
+    err instanceof Anthropic.APIError ||
+    err instanceof Anthropic.APIConnectionError ||
+    isNetworkError(err) ||
+    isTimeoutAbort(err)
+  );
+}
+
+/**
+ * generateWithRetry plus how many provider round trips the answer took.
+ * `maxAttempts` caps the loop (default MAX_ATTEMPTS); a stage with a backup
+ * model gives its primary only 2, one attempt and one retry, before falling
+ * back (llmCall.ts · runWithBackup).
+ */
 export async function generateWithRetryDetailed(
   request: LlmRequest,
   log?: LlmCallLogContext,
+  maxAttempts: number = MAX_ATTEMPTS,
 ): Promise<{ response: GenerateContentResponse; attempts: number; provider: string }> {
   const timedRequest: LlmRequest = {
     ...request,
@@ -228,7 +271,7 @@ export async function generateWithRetryDetailed(
         isTimeoutAbort(err) ||
         // The Anthropic SDK wraps transport failures/timeouts in its own classes.
         err instanceof Anthropic.APIConnectionError;
-      if (!retryable || attempt >= MAX_ATTEMPTS - 1) {
+      if (!retryable || attempt >= maxAttempts - 1) {
         if (log) void recordCall(log, timedRequest, provider, translation, startedAt, attempt + 1, { error: err });
         throw err;
       }

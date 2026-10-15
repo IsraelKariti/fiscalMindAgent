@@ -116,6 +116,14 @@ const MAPPINGS: Record<string, Mapping> = {
     ],
     consumed: ['provider', 'purpose', 'model', 'filled'],
   }),
+  // The primary model did not answer and the backup took the call (openspec
+  // `llm-model-settings`): both sides of the switch and why.
+  fallback_model: (d) => ({
+    rows: (['purpose', 'from_model', 'from_provider', 'to_model', 'to_provider', 'failure_reason', 'failure_error'] as const)
+      .filter((k) => str(d[k]))
+      .map((k) => ({ key: k, value: str(d[k])! })),
+    consumed: ['purpose', 'from_model', 'from_provider', 'to_model', 'to_provider', 'failure_reason', 'failure_error'],
+  }),
   apply_resolutions: (d) => {
     const rows = Array.isArray(d['rows']) ? d['rows'] : [];
     const items = rows.map((r) => {

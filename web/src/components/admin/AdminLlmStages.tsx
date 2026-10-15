@@ -230,6 +230,11 @@ function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () =>
           <span className="badge badge-neutral">
             {t.llmStageModel}: {MODEL_LABELS[stage.model] ?? stage.model} ({stage.provider})
           </span>
+          {/* The backup model on another provider (openspec `llm-model-settings`), or none. */}
+          <span className="badge badge-neutral">
+            {t.llmBackupLabel}:{' '}
+            {stage.backupModel ? `${MODEL_LABELS[stage.backupModel] ?? stage.backupModel} (${stage.backupProvider})` : t.llmBackupNone}
+          </span>
           <span className="badge badge-neutral">
             {t.llmStageTemperature}: {stage.temperature}
           </span>

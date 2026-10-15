@@ -123,6 +123,7 @@ const he = {
   adminWaPoolTitle: 'בחירת מספר מהמאגר',
   adminWaPoolDesc: 'מספרי Twilio בבעלות החשבון שאינם משויכים כרגע לאף סוכן. בחירת מספר תקצה אותו לסוכן הזה.',
   adminWaPoolSelect: 'בחירה',
+  adminWaNumberClaimedElsewhere: 'בשימוש בסביבה אחרת',
   adminWaDetachAction: 'ניתוק מהסוכן',
   adminWaDetachDesc: 'ביטול הקצאת המספר לסוכן בלבד — המספר נשאר בחשבון Twilio (והחיוב נמשך) וניתן להקצות אותו מחדש.',
   adminWaAssignLead: 'לסוכן הזה אין מספר WhatsApp. בחרו איך להקצות אחד:',

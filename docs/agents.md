@@ -475,7 +475,17 @@ Industry pattern followed: one app with an agent registry
   change to every sender whose agent has no own icon
   (`pushSenderPicture(phone, pictureUrl)`): profile logo only, the webhook
   is left as it is whatever it points at, and a Twilio failure there is
-  reported but never undoes the save. Inbound routing is by the
+  reported but never undoes the save. Because the environments share the
+  account but not a database, the number's **Twilio friendly name is the
+  cross-environment ownership record** (`src/twilio/numberOwnership.ts`):
+  buying and assigning name it `fiscalmind <agentType> <instanceId>`
+  (`markNumberAsOwned`), unassigning and deleting an accountant rename it
+  `fiscalmind pool` (`markNumberAsPooled`), both best-effort. The pool list
+  (`GET /api/admin/wa-numbers/orphaned`) flags a number `claimedElsewhere`
+  when its name records an instance id that is not in this database; the
+  pool modal and the Settings orphaned-numbers section show it greyed out
+  with "in use in another environment" and no button, and assigning or
+  releasing such a number answers 409. Inbound routing is by the
   `To` number → instance; outbound `from` is the client's instance's number.
   Since migration 046 an accountant can connect **their own WABA**
   (`wa_business_accounts`, one per user) from the workspace Settings →

@@ -649,11 +649,14 @@ export interface GeminiModelState {
   options: string[];
 }
 
-/** A Twilio-owned (billed) number not assigned to any agent instance. */
+/** A Twilio-owned (billed) number not assigned to any agent instance here. */
 export interface OrphanedWaNumber {
   phoneNumber: string;
   friendlyName: string;
   dateCreated: string;
+  /** Its Twilio name records an agent of another environment (prod/sandbox/dev share the account): never selectable here. */
+  claimedElsewhere: boolean;
+  owner: { agentType: string; instanceId: string } | null;
 }
 
 /** An account with admin access (users.is_admin — DB-managed, not the env allowlist). */

@@ -2,6 +2,7 @@ import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
 import { isTwilioConfigured, twilioClient } from './client.js';
 import { buildSenderCreateBody, planSenderUpdate } from './senderProfile.js';
+import { POOL_LABEL } from './numberOwnership.js';
 
 /**
  * The picture URL callers pass in (`pictureUrl`) is the instance's effective
@@ -158,33 +159,35 @@ export async function listOwnedNumbers(): Promise<OwnedNumber[]> {
 }
 
 /**
- * After a number is unassigned from an agent, rewrite its Twilio friendly name
- * so the available-numbers pool doesn't keep showing the old agent's label.
+ * Rewrites an owned number's Twilio friendly name — the ownership record every
+ * environment on the shared Twilio account reads (see numberOwnership.ts).
  * Best-effort: does nothing when Twilio isn't configured or the number isn't
  * owned by this account (manually assigned external numbers), and swallows
- * failures — unassignment must not fail over a cosmetic rename.
+ * failures — assignment and unassignment must not fail over a rename.
  */
-export async function markNumberAsPooled(phoneNumber: string): Promise<void> {
+async function renameOwnedNumber(phoneNumber: string, friendlyName: string): Promise<void> {
   if (!isTwilioConfigured()) return;
   try {
     const client = twilioClient();
     const [owned] = await client.incomingPhoneNumbers.list({ phoneNumber, limit: 1 });
     if (!owned) return;
-    await client.incomingPhoneNumbers(owned.sid).update({ friendlyName: 'fiscalmind pool' });
-    logger.info('twilio number renamed to pool', { phoneNumber });
+    await client.incomingPhoneNumbers(owned.sid).update({ friendlyName });
+    logger.info('twilio number renamed', { phoneNumber, friendlyName });
   } catch (err) {
-    logger.error('failed to rename unassigned twilio number', err);
+    logger.error('failed to rename twilio number', err, { phoneNumber, friendlyName });
   }
 }
 
-/**
- * Looks up the Twilio sender of a number and applies `plan` to it (the
- * sender list is the only lookup the Senders API has). Returns null when
- * Twilio isn't configured, the number has no sender on this account
- * (externally registered numbers), or the plan is empty; else the fields
- * worth logging. Twilio errors propagate — each caller decides what a failure
- * means.
- */
+/** After a number is unassigned from an agent: record it as free. */
+export async function markNumberAsPooled(phoneNumber: string): Promise<void> {
+  await renameOwnedNumber(phoneNumber, POOL_LABEL);
+}
+
+/** After a number is assigned to an agent instance: record that instance as its owner. */
+export async function markNumberAsOwned(phoneNumber: string, label: string): Promise<void> {
+  await renameOwnedNumber(phoneNumber, label);
+}
+
 async function updateSender(
   phoneNumber: string,
   plan: (current: { callbackUrl: string | null | undefined; logoUrl: string | null | undefined }) => ReturnType<typeof planSenderUpdate>,

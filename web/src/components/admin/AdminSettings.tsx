@@ -466,7 +466,7 @@ export function AdminSettings({ userEmail }: Props) {
         ) : (
           <ul className="doc-list">
             {orphans.map((n) => (
-              <li key={n.phoneNumber} className="doc-row">
+              <li key={n.phoneNumber} className={n.claimedElsewhere ? 'doc-row doc-row-disabled' : 'doc-row'}>
                 <span className="doc-text">
                   <span className="doc-name" dir="ltr">
                     {n.phoneNumber}
@@ -476,21 +476,25 @@ export function AdminSettings({ userEmail }: Props) {
                     {formatTimestamp(n.dateCreated)}
                   </span>
                 </span>
-                <button
-                  className="btn btn-ghost btn-small"
-                  disabled={orphanReleasing !== null}
-                  title={t.adminWaNumberReleaseTitle}
-                  onClick={() => setOrphanReleaseConfirm(n.phoneNumber)}
-                >
-                  {orphanReleasing === n.phoneNumber ? (
-                    <>
-                      <Spinner />
-                      {t.adminWaNumberReleasing}
-                    </>
-                  ) : (
-                    t.adminWaNumberRelease
-                  )}
-                </button>
+                {n.claimedElsewhere ? (
+                  <span className="muted">{t.adminWaNumberClaimedElsewhere}</span>
+                ) : (
+                  <button
+                    className="btn btn-ghost btn-small"
+                    disabled={orphanReleasing !== null}
+                    title={t.adminWaNumberReleaseTitle}
+                    onClick={() => setOrphanReleaseConfirm(n.phoneNumber)}
+                  >
+                    {orphanReleasing === n.phoneNumber ? (
+                      <>
+                        <Spinner />
+                        {t.adminWaNumberReleasing}
+                      </>
+                    ) : (
+                      t.adminWaNumberRelease
+                    )}
+                  </button>
+                )}
               </li>
             ))}
           </ul>

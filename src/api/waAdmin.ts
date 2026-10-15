@@ -10,12 +10,14 @@ import {
   getSenderLiveStatus,
   isProvisioningConfigured,
   listOwnedNumbers,
+  markNumberAsOwned,
   markNumberAsPooled,
   NumberNotOwnedError,
   provisionWhatsAppNumber,
   releaseWhatsAppNumber,
 } from '../twilio/provision.js';
 import { isTwilioConfigured } from '../twilio/client.js';
+import { ownerLabel, parseOwnerLabel, type NumberOwner } from '../twilio/numberOwnership.js';
 import { senderPictureFor } from '../storage/agentPicture.js';
 import { normalizeE164 } from '../util/phone.js';
 import { logger } from '../util/logger.js';
@@ -28,6 +30,29 @@ const SenderUpsertSchema = z
     phoneNumber: z.string().min(1),
   })
   .strict();
+
+/**
+ * Cross-environment ownership (openspec `whatsapp-sender`): prod, sandbox and
+ * dev share one Twilio account but not a database, so a number's Twilio
+ * friendly name records which agent instance uses it. The owner recorded
+ * there is "elsewhere" when its instance id is not a row of this database —
+ * instance ids are UUIDs, unique across environments. A label naming a local
+ * instance (e.g. left by a failed best-effort rename) does not lock the number.
+ */
+async function ownerElsewhere(friendlyName: string | null | undefined): Promise<NumberOwner | null> {
+  const owner = parseOwnerLabel(friendlyName);
+  if (!owner) return null;
+  return (await agentInstances.getById(owner.instanceId)) ? null : owner;
+}
+
+/** The owner another environment recorded on `phoneNumber`, or null (free, local, or not owned here). */
+async function ownerElsewhereOf(phoneNumber: string): Promise<NumberOwner | null> {
+  if (!isTwilioConfigured()) return null;
+  const owned = (await listOwnedNumbers()).find((n) => n.phoneNumber === phoneNumber);
+  return owned ? ownerElsewhere(owned.friendlyName) : null;
+}
+
+const IN_USE_ELSEWHERE = 'This number is in use in another environment (per its Twilio name); unassign it there first.';
 
 const TemplateCreateSchema = z
   .object({
@@ -77,6 +102,18 @@ export const adminUpsertWaSender: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'Agent instance not found.' });
     return;
   }
+  // Never take a number another environment uses: its webhook would move
+  // here and that environment would stop receiving client replies.
+  try {
+    if (await ownerElsewhereOf(phoneNumber)) {
+      res.status(409).json({ error: IN_USE_ELSEWHERE });
+      return;
+    }
+  } catch (err) {
+    logger.error('wa number ownership check failed', err, { phoneNumber });
+    res.status(502).json({ error: 'Checking the number’s owner on Twilio failed; the number was not assigned.' });
+    return;
+  }
   // Claim the number's inbound webhook for this environment (and give the
   // sender this instance's picture) before recording the assignment — a pool
   // number may still point at the environment that provisioned it, which
@@ -95,6 +132,8 @@ export const adminUpsertWaSender: RequestHandler = async (req, res) => {
       agentInstanceId: sender.agent_instance_id,
       phoneNumber,
     });
+    // Record the owner on Twilio for the other environments (best-effort).
+    await markNumberAsOwned(phoneNumber, ownerLabel(instance.agent_type, instance.id));
     res.status(201).json({ sender: { agentInstanceId: sender.agent_instance_id, phoneNumber: sender.phone_number } });
   } catch (err) {
     // 23505 = unique_violation: the number is already assigned to another agent.
@@ -141,7 +180,7 @@ export const adminProvisionWaSender: RequestHandler = async (req, res) => {
   let provisioned;
   try {
     provisioned = await provisionWhatsAppNumber(
-      `fiscalmind ${instance.agent_type} ${instance.id}`,
+      ownerLabel(instance.agent_type, instance.id),
       ownWaba?.waba_id,
       await senderPictureFor(instance),
     );
@@ -206,7 +245,9 @@ export const adminDeleteWaSender: RequestHandler = async (req, res) => {
 
 /**
  * GET /api/admin/wa-numbers/orphaned — numbers the Twilio account owns (and is
- * billed monthly for) that are not assigned to any agent instance.
+ * billed monthly for) that are not assigned to any agent instance here. A
+ * number whose Twilio name records an agent of another environment is
+ * returned flagged `claimedElsewhere` (shown greyed out, never selectable).
  */
 export const adminListOrphanedWaNumbers: RequestHandler = async (_req, res) => {
   if (!isTwilioConfigured()) {
@@ -215,7 +256,15 @@ export const adminListOrphanedWaNumbers: RequestHandler = async (_req, res) => {
   }
   const [owned, senders] = await Promise.all([listOwnedNumbers(), waSenders.listAll()]);
   const assigned = new Set(senders.map((s) => s.phone_number));
-  res.json({ numbers: owned.filter((n) => !assigned.has(n.phoneNumber)) });
+  const numbers = await Promise.all(
+    owned
+      .filter((n) => !assigned.has(n.phoneNumber))
+      .map(async (n) => {
+        const owner = await ownerElsewhere(n.friendlyName);
+        return { ...n, claimedElsewhere: owner !== null, owner };
+      }),
+  );
+  res.json({ numbers });
 };
 
 const OrphanedReleaseSchema = z.object({ phoneNumber: z.string().min(1) }).strict();
@@ -241,6 +290,10 @@ export const adminReleaseOrphanedWaNumber: RequestHandler = async (req, res) => 
     return;
   }
   try {
+    if (await ownerElsewhereOf(phoneNumber)) {
+      res.status(409).json({ error: IN_USE_ELSEWHERE });
+      return;
+    }
     await releaseWhatsAppNumber(phoneNumber);
   } catch (err) {
     if (err instanceof NumberNotOwnedError) {

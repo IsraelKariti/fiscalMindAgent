@@ -30,7 +30,7 @@ export function WaPoolModal({ numbers, error, onSelect, onClose }: Props) {
         ) : (
           <ul className="doc-list">
             {numbers.map((n) => (
-              <li key={n.phoneNumber} className="doc-row">
+              <li key={n.phoneNumber} className={n.claimedElsewhere ? 'doc-row doc-row-disabled' : 'doc-row'}>
                 <span className="doc-text">
                   <span className="doc-name" dir="ltr">
                     {n.phoneNumber}
@@ -40,9 +40,13 @@ export function WaPoolModal({ numbers, error, onSelect, onClose }: Props) {
                     {formatTimestamp(n.dateCreated)}
                   </span>
                 </span>
-                <button className="btn btn-ghost btn-small" onClick={() => onSelect(n.phoneNumber)}>
-                  {t.adminWaPoolSelect}
-                </button>
+                {n.claimedElsewhere ? (
+                  <span className="muted">{t.adminWaNumberClaimedElsewhere}</span>
+                ) : (
+                  <button className="btn btn-ghost btn-small" onClick={() => onSelect(n.phoneNumber)}>
+                    {t.adminWaPoolSelect}
+                  </button>
+                )}
               </li>
             ))}
           </ul>

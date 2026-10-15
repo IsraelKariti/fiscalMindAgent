@@ -13,8 +13,10 @@ import { recordAudit } from '../audit/audit.js';
 import { appendFile } from 'node:fs/promises';
 import { logger } from '../util/logger.js';
 
-// Transient LLM-API failures: rate limit, server error, overloaded ("high demand"), timeout.
-const RETRYABLE_STATUSES = new Set([429, 500, 503, 504]);
+// Transient LLM-API failures: rate limit, server error, overloaded ("high demand"),
+// timeout, and Gemini's 499 CANCELLED ("The operation was cancelled."), which the
+// preview models return for a slow request that the server gave up on.
+const RETRYABLE_STATUSES = new Set([429, 499, 500, 503, 504]);
 const MAX_ATTEMPTS = 5;
 const BASE_DELAY_MS = 2_000;
 

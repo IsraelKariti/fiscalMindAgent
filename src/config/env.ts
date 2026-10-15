@@ -46,6 +46,10 @@ const EnvSchema = z.object({
     .url()
     .transform((u) => u.replace(/\/$/, ''))
     .default('http://localhost:3000'),
+  // Reserved ngrok domain of this clone's dev tunnel (scripts/devNgrok.mjs).
+  // Also the public https base for WhatsApp sender pictures when APP_BASE_URL
+  // is plain http (src/storage/logos.ts publicPictureBase).
+  NGROK_DOMAIN: z.string().min(1).optional(),
   // Web-application OAuth client (Google Cloud Console) for dashboard sign-in.
   // Optional so the worker/CLI can run without them; the auth endpoints return
   // 503 until both are set.

@@ -6,6 +6,7 @@ import {
   logoBlobKeyFromPath,
   logoUrl,
   newLogoBlobKey,
+  publicPictureBase,
   senderPictureUrl,
   sniffImageType,
 } from '../src/storage/logos.js';
@@ -64,4 +65,15 @@ test('senderPictureUrl: https only — a local http base yields undefined at eve
   assert.equal(senderPictureUrl({ instanceKey: 'logos/a.png', appLogoKey: null, appBaseUrl: BASE }), `${BASE}/logos/a.png`);
   assert.equal(senderPictureUrl({ instanceKey: 'logos/a.png', appLogoKey: null, appBaseUrl: 'http://localhost:3000' }), undefined);
   assert.equal(senderPictureUrl({ instanceKey: null, appLogoKey: null, appBaseUrl: 'http://localhost:3000' }), undefined);
+});
+
+test('publicPictureBase: https app base wins, a plain http base falls back to the ngrok tunnel, else stays as is', () => {
+  assert.equal(publicPictureBase(BASE, 'x.ngrok-free.dev'), BASE);
+  assert.equal(publicPictureBase('http://localhost:3000', 'x.ngrok-free.dev'), 'https://x.ngrok-free.dev');
+  assert.equal(publicPictureBase('http://localhost:3000', 'https://x.ngrok-free.dev/'), 'https://x.ngrok-free.dev');
+  assert.equal(publicPictureBase('http://localhost:3000', undefined), 'http://localhost:3000');
+  assert.equal(
+    senderPictureUrl({ instanceKey: null, appLogoKey: null, appBaseUrl: publicPictureBase('http://localhost:3000', 'x.ngrok-free.dev') }),
+    'https://x.ngrok-free.dev/petal-seal.png',
+  );
 });

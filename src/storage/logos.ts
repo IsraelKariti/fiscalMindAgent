@@ -78,9 +78,21 @@ export function effectivePictureUrl(input: {
 }
 
 /**
+ * The base URL Meta can fetch pictures from: the app base when it is already
+ * https, else the dev ngrok tunnel (https://<domain>, which forwards to the
+ * same web process), else the app base unchanged (pictures are then skipped).
+ */
+export function publicPictureBase(appBaseUrl: string, ngrokDomain: string | undefined): string {
+  if (appBaseUrl.startsWith('https://')) return appBaseUrl;
+  if (ngrokDomain) return `https://${ngrokDomain.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
+  return appBaseUrl;
+}
+
+/**
  * The URL to hand Twilio for the sender profile. Meta fetches the image
  * itself, so only a public https URL is usable — a plain http base (local
- * dev) yields undefined and the caller skips the picture with a log line.
+ * dev without ngrok) yields undefined and the caller skips the picture with
+ * a log line.
  */
 export function senderPictureUrl(input: Parameters<typeof effectivePictureUrl>[0]): string | undefined {
   const { url } = effectivePictureUrl(input);

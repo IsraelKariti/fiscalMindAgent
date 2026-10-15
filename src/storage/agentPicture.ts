@@ -2,7 +2,7 @@ import * as appSettings from '../db/queries/appSettings.js';
 import type { AgentInstanceRow } from '../db/types.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
-import { APP_LOGO_SETTING_KEY, effectivePictureUrl, senderPictureUrl, type EffectivePicture } from './logos.js';
+import { APP_LOGO_SETTING_KEY, effectivePictureUrl, publicPictureBase, senderPictureUrl, type EffectivePicture } from './logos.js';
 
 /**
  * DB/env-aware wrappers over src/storage/logos.ts: the picture one agent
@@ -23,12 +23,14 @@ export async function effectivePictureFor(instance: PictureInstance, appLogoKey?
 }
 
 /**
- * The URL to hand Twilio for this instance's sender, or undefined (with a log
- * line) when the app base is not public https — local dev.
+ * The URL to hand Twilio for this instance's sender, built on the public https
+ * base (APP_BASE_URL, or the dev ngrok tunnel when that is plain http), or
+ * undefined (with a log line) when there is no public https base at all.
  */
 export async function senderPictureFor(instance: PictureInstance, appLogoKey?: string | null): Promise<string | undefined> {
   const appKey = appLogoKey === undefined ? await getAppLogoKey() : appLogoKey;
-  const input = { instanceKey: instance.logo_blob_key, appLogoKey: appKey, appBaseUrl: env.APP_BASE_URL };
+  const appBaseUrl = publicPictureBase(env.APP_BASE_URL, env.NGROK_DOMAIN);
+  const input = { instanceKey: instance.logo_blob_key, appLogoKey: appKey, appBaseUrl };
   const url = senderPictureUrl(input);
   if (!url) {
     logger.info('wa sender picture skipped: not a public https URL', {

@@ -183,7 +183,7 @@ function StepRow({ step: s, files }: { step: AdminConversationStep; files: StepF
     <li className={`timeline-trace timeline-trace-step ${s.severity === 'critical' ? 'timeline-trace-critical' : ''}`} dir="ltr">
       <button type="button" className="timeline-trace-gate" aria-label={`${t.gateModalOpen}: ${s.action}`} onClick={() => setOpen(true)}>
         <span className="timeline-trace-icon" aria-hidden="true">{glyph}</span>
-        <span className="muted">{formatTimestamp(s.occurredAt)}</span>
+        <span className="muted" dir="rtl">{formatTimestamp(s.occurredAt)}</span>
         <span className="mono">{s.action}</span>
         {result !== null && <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`}>result: {String(result)}</span>}
         {reason && <span className="muted timeline-trace-reason">{reason}</span>}

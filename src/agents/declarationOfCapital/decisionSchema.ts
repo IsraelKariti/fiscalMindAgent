@@ -441,8 +441,10 @@ export interface IntakeDecisionState {
 export interface DecisionContext {
   /** The 24h customer-service window is open (free-form WhatsApp permitted). */
   windowOpen: boolean;
-  /** Approved templates the LLM may pick from (by content_sid). */
+  /** Approved templates the LLM may pick from (by content_sid): the ones usable for this client. */
   templates: WaTemplateRow[];
+  /** The agent type's other templates, not usable for this client, each with the reason (openspec `whatsapp-templates`). */
+  hiddenTemplates?: { template: WaTemplateRow; reason: string }[];
   /** Per-provider fetch state; empty/absent when no fetch applies to this client. */
   taxFetch?: TaxFetchDecisionState[];
   /** Capital-declaration intake state; absent for other agent types. */
@@ -520,9 +522,16 @@ export function normalizeFollowUpMessage(raw: FollowUpMessageInput, ctx: Decisio
     return { channel: 'whatsapp', kind: 'freeform', body: raw.whatsapp_text! };
   }
   if (raw.whatsapp_template != null) {
-    const template = ctx.templates.find((t) => t.content_sid === raw.whatsapp_template!.template_id);
+    const chosenId = raw.whatsapp_template.template_id;
+    const template = ctx.templates.find((t) => t.content_sid === chosenId);
     if (!template) {
-      throw new Error(`follow_up chose unknown whatsapp template ${raw.whatsapp_template.template_id}`);
+      const hidden = ctx.hiddenTemplates?.find((h) => h.template.content_sid === chosenId);
+      if (hidden) {
+        throw new Error(
+          `follow_up chose template ${hidden.template.name} (${chosenId}) which is not usable for this client: ${hidden.reason}`,
+        );
+      }
+      throw new Error(`follow_up chose unknown whatsapp template ${chosenId}`);
     }
     const variables = raw.whatsapp_template.variables;
     if (variables.length !== template.variable_count) {

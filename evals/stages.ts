@@ -63,8 +63,10 @@ import type {
   DocumentStatus,
   EmailRow,
   UserRow,
+  WaTemplatePurpose,
   WaTemplateRow,
 } from '../src/db/types.js';
+import { splitTemplatesByPurpose } from '../src/agents/declarationOfCapital/templatePurpose.js';
 
 /**
  * One adapter per LLM stage: how a case becomes the exact runLlmCall() spec
@@ -748,7 +750,7 @@ interface DecideCase {
 interface DecideCtx {
   taxYear: number;
   accountant: { name: string; hebrew_name: string | null; email: string };
-  templates: Array<{ content_sid: string; name: string; body: string; variable_count: number }>;
+  templates: Array<{ content_sid: string; name: string; body: string; variable_count: number; purpose?: WaTemplatePurpose }>;
 }
 
 const SETTLED_STATUSES = new Set<DocumentStatus>(['not_required', 'approved', 'stated', 'retired', 'claimed', 'collected']);
@@ -880,7 +882,7 @@ function templateRows(c: DecideCase, ctx: DecideCtx): WaTemplateRow[] {
   return c.wa.templates.map((name) => {
     const t = ctx.templates.find((x) => x.name === name);
     if (!t) throw new Error(`generate_message case ${c.id}: unknown template "${name}"`);
-    return { id: `tpl-${t.name}`, content_sid: t.content_sid, name: t.name, body: t.body, variable_count: t.variable_count, agent_type: 'declaration_of_capital', created_at: new Date('2025-01-01T00:00:00Z') };
+    return { id: `tpl-${t.name}`, content_sid: t.content_sid, name: t.name, body: t.body, variable_count: t.variable_count, agent_type: 'declaration_of_capital', purpose: t.purpose ?? 'reopen', created_at: new Date('2025-01-01T00:00:00Z') };
   });
 }
 
@@ -930,13 +932,16 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
       created_at: at,
     } as DocumentFileRow;
   });
-  const templates = templateRows(c, ctx);
+  // Like plan.ts: intro templates only before the first delivered message, reopen ones after (openspec `whatsapp-templates`).
+  const firstContactDone = history.some((m) => m.direction === 'outbound' && m.status === 'sent');
+  const { templates, hiddenTemplates } = splitTemplatesByPurpose(templateRows(c, ctx), firstContactDone);
   const waState: WaChannelState = {
     allowed: true,
     unavailableReason: null,
     windowOpen: c.wa.windowOpen,
     windowClosesAt: c.wa.windowClosesAt ? new Date(c.wa.windowClosesAt) : null,
     templates,
+    hiddenTemplates,
   };
   const requestedAt = c.attestation?.requestedAt ? new Date(c.attestation.requestedAt) : null;
   const attestationConfirmed = c.attestation?.confirmed === true;
@@ -1003,6 +1008,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
     afterVerification,
     windowOpen: waState.windowOpen,
     templates,
+    hiddenTemplates,
     taxFetch: taxFetchPrompt.map((p) => ({
       provider: p.provider,
       state: p.state,

@@ -46,6 +46,7 @@ import { env } from '../../config/env.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
 import type { ClientDocumentRow, ClientRow, DocumentFileRow, EmailRow } from '../../db/types.js';
+import { splitTemplatesByPurpose } from './templatePurpose.js';
 
 /** Covers a realistic burst of client messages; older drafts add nothing the documents list doesn't already show. */
 const MAX_UNSENT_DRAFTS = 5;
@@ -54,7 +55,7 @@ const MAX_UNSENT_DRAFTS = 5;
  * What the agent may do on WhatsApp right now: the client must be opted in
  * with a valid number, the accountant must have a sender, and there must be
  * something sendable (an open 24h window for free-form text, or at least one
- * approved template).
+ * approved template usable for this client).
  */
 export async function getWaChannelState(client: ClientRow, now: Date, agentType: string): Promise<WaChannelState> {
   if (!client.wa_enabled || !client.wa_phone) {
@@ -64,6 +65,7 @@ export async function getWaChannelState(client: ClientRow, now: Date, agentType:
       windowOpen: false,
       windowClosesAt: null,
       templates: [],
+      hiddenTemplates: [],
     };
   }
   const sender = client.agent_instance_id ? await waSenders.getByInstanceId(client.agent_instance_id) : null;
@@ -74,22 +76,31 @@ export async function getWaChannelState(client: ClientRow, now: Date, agentType:
       windowOpen: false,
       windowClosesAt: null,
       templates: [],
+      hiddenTemplates: [],
     };
   }
-  const windowClosesAt = windowCloseTime(await emails.lastInboundWhatsAppAt(client.id));
+  const [lastInboundAt, firstContactDone, allTemplates] = await Promise.all([
+    emails.lastInboundWhatsAppAt(client.id),
+    emails.hasDeliveredOutbound(client.id),
+    waTemplates.listForAgentType(agentType),
+  ]);
+  const windowClosesAt = windowCloseTime(lastInboundAt);
   const windowOpen = windowClosesAt !== null && now < windowClosesAt;
-  const templates = await waTemplates.listForAgentType(agentType);
+  const { templates, hiddenTemplates } = splitTemplatesByPurpose(allTemplates, firstContactDone);
   if (!windowOpen && templates.length === 0) {
+    const missing = firstContactDone ? 'reopen' : 'intro';
     return {
       allowed: false,
-      unavailableReason: 'the 24h window is closed and no approved templates exist',
+      unavailableReason: `the 24h window is closed and no '${missing}' template is registered for this agent type`,
       windowOpen: false,
       windowClosesAt: null,
       templates: [],
+      hiddenTemplates,
     };
   }
-  return { allowed: true, unavailableReason: null, windowOpen, windowClosesAt, templates };
+  return { allowed: true, unavailableReason: null, windowOpen, windowClosesAt, templates, hiddenTemplates };
 }
+
 
 /**
  * One planning cycle in progress: what every step below shares. `documents`
@@ -441,6 +452,7 @@ function buildDecisionContext(run: PlanRun): DecisionContext {
     afterVerification: run.afterVerification,
     windowOpen: run.waState.windowOpen,
     templates: run.waState.templates,
+    hiddenTemplates: run.waState.hiddenTemplates,
     taxFetch: run.taxFetchContexts.map((c) => ({
       provider: c.provider,
       state: c.state,

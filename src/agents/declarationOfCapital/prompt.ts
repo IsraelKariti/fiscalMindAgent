@@ -12,6 +12,7 @@ import {
   sanitizeUntrusted,
 } from '../shared/promptSafety.js';
 import { loadPrompt, renderTemplate } from '../shared/promptFile.js';
+import type { HiddenTemplate } from './templatePurpose.js';
 import { formatUpcomingDates } from '../shared/upcomingDates.js';
 import { getCatalogPaper, getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
 import { provenFactsLine, provenFactsOf } from './provenFacts.js';
@@ -41,7 +42,10 @@ export interface WaChannelState {
   /** The 24h customer-service window is open (free-form messages permitted). */
   windowOpen: boolean;
   windowClosesAt: Date | null;
+  /** Templates usable for this client: `intro` ones before the first delivered message, `reopen` ones after. */
   templates: WaTemplateRow[];
+  /** The agent type's other templates, hidden from the planner with the reason (openspec `whatsapp-templates`). */
+  hiddenTemplates: HiddenTemplate[];
 }
 
 export const WHATSAPP_UNAVAILABLE: WaChannelState = {
@@ -50,6 +54,7 @@ export const WHATSAPP_UNAVAILABLE: WaChannelState = {
   windowOpen: false,
   windowClosesAt: null,
   templates: [],
+  hiddenTemplates: [],
 };
 
 function formatDate(d: Date): string {
@@ -160,9 +165,11 @@ export function buildWhatsAppSection(token: string, wa: WaChannelState): string 
     wa.templates.length === 0
       ? '(no approved templates)'
       : wa.templates
-          .map((t) => `[template_id: ${t.content_sid}] ${t.name} — "${t.body}" (${t.variable_count} variables)`)
+          .map((t) => `[template_id: ${t.content_sid}] ${t.name} (${t.purpose}) — "${t.body}" (${t.variable_count} variables)`)
           .join('\n');
-  return `${fence(token, PLATFORM_SECTIONS.whatsapp)}\nstatus: ENABLED — the client agreed to receive WhatsApp messages\n${windowLine}\napproved templates:\n${templates}\n${endFence(token, PLATFORM_SECTIONS.whatsapp)}`;
+  const hidden = wa.hiddenTemplates.map((h) => `[hidden] ${h.template.name} (${h.template.purpose}) — ${h.reason}`).join('\n');
+  const hiddenBlock = hidden ? `\nnot usable for this client (do not send):\n${hidden}` : '';
+  return `${fence(token, PLATFORM_SECTIONS.whatsapp)}\nstatus: ENABLED — the client agreed to receive WhatsApp messages\n${windowLine}\napproved templates:\n${templates}${hiddenBlock}\n${endFence(token, PLATFORM_SECTIONS.whatsapp)}`;
 }
 
 /** Per-state Hebrew note, parameterized by the provider's site + OTP channel. */

@@ -1,0 +1,157 @@
+{
+  "ranAt": "2026-10-15T11:05:38.260Z",
+  "finishedAt": "2026-10-15T11:05:51.420Z",
+  "models": [
+    "gemini-2.5-flash"
+  ],
+  "stages": [
+    "injection_detection_llm",
+    "questionnaire_schema_mapping",
+    "file_splitting",
+    "file_classification",
+    "extract_document",
+    "generate_message"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
+    }
+  },
+  "results": [
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_31",
+      "notes": "openspec whatsapp-templates (prod 2026-10-15): the client asked a question three days ago and never got a reply, and the window is closed. The intro template is hidden (already delivered), so the answer must be a reopen template, never the intro again; the real explanation about the sold car waits for the first free-form message after the client replies.",
+      "ranAt": "2026-10-15T11:05:41.748Z",
+      "latencyMs": 9650,
+      "attempts": 1,
+      "inputTokens": 26744,
+      "outputTokens": 165,
+      "thinkingTokens": 1507,
+      "cachedTokens": 0,
+      "costUsd": 0.012203199999999999,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "conclude",
+            "args": {
+              "reasoning": "The client asked a clarifying question about the car license, implying he might have sold the car. Since the 24-hour window is closed, I need to send a 'reopen' template to prompt a response and open the window. Once the window is open, I can address his question directly. I will use the 'capital_update' template and schedule it for the next working day.",
+              "decision": "follow_up"
+            }
+          },
+          {
+            "name": "send_whatsapp_template",
+            "args": {
+              "template_id": "HXEVAL0003",
+              "variables": [
+                "ישראל",
+                "כהן ושות' רואי חשבון"
+              ],
+              "send_at": "2026-02-15 09:00"
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "template",
+          "actual": "template",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 3",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-13T08:30:00Z",
+          "actual": "2026-02-15 09:00",
+          "pass": true
+        },
+        {
+          "key": "message_excludes.קיבלנו את השאלון",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.נוכל להתחיל",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "conclude",
+          "send_whatsapp_template"
+        ],
+        "reasoning": "The client asked a clarifying question about the car license, implying he might have sold the car. Since the 24-hour window is closed, I need to send a 'reopen' template to prompt a response and open the window. Once the window is open, I can address his question directly. I will use the 'capital_update' template and schedule it for the next working day.",
+        "send_at": "2026-02-15 09:00",
+        "message": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nנשמח להמשיך מהנקודה שבה עצרנו באיסוף המסמכים להצהרת ההון.\nכשנוח לך — השב לי כאן שאתה מוכן, ונמשיך.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "generate_message": {
+      "gemini-2.5-flash": {
+        "total": 1,
+        "passed": 1,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 9650,
+          "p50": 9650,
+          "p90": 9650,
+          "min": 9650,
+          "max": 9650
+        },
+        "inputTokens": 26744,
+        "outputTokens": 165,
+        "thinkingTokens": 1507,
+        "cachedTokens": 0,
+        "costUsd": 0.012203,
+        "unpriced": 0
+      }
+    }
+  }
+}

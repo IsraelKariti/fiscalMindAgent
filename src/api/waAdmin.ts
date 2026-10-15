@@ -41,6 +41,8 @@ const TemplateCreateSchema = z
       .string()
       .nullish()
       .refine((t) => t == null || getAgentTypeIfKnown(t) !== undefined, 'Unknown agent type.'),
+    // `intro` = first contact only; `reopen` (default) = later closed-window contacts.
+    purpose: z.enum(['intro', 'reopen']).optional(),
   })
   .strict();
 
@@ -303,6 +305,7 @@ export const adminListWaTemplates: RequestHandler = async (_req, res) => {
       body: t.body,
       variableCount: t.variable_count,
       agentType: t.agent_type,
+      purpose: t.purpose,
     })),
   });
 };
@@ -328,6 +331,7 @@ export const adminCreateWaTemplate: RequestHandler = async (req, res) => {
       body: template.body,
       variableCount: template.variable_count,
       agentType: template.agent_type,
+      purpose: template.purpose,
     },
   });
 };

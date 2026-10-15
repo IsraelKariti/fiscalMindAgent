@@ -58,13 +58,22 @@ activation is not email-gated and no mailbox is required — the instance's
   `send_whatsapp_template`, `normalizeFollowUpMessage` derives the kind and the
   code supplies the channel; `planFollowUp` throws upfront
   when the WhatsApp channel is unavailable (no opt-in / no sender / window
-  closed with zero approved templates) instead of asking the LLM. First
-  contact always goes out as an **approved template** (the 24h window is
-  closed until the client first replies); the prompt tells the model to send
-  the full intake questionnaire as its first free-form message once the
-  window opens. Operational prerequisite: at least one approved `wa_templates`
-  row must exist (admin: waAdmin routes) or the agent cannot start
-  conversations.
+  closed with no template usable for the client) instead of asking the LLM.
+  Every `wa_templates` row has a **purpose** (migration 064, openspec
+  `whatsapp-templates`): `intro` is offered only until a WhatsApp message was
+  delivered to the client (`emails.hasDeliveredOutbound`), `reopen` only
+  after; `splitTemplatesByPurpose` (`templatePurpose.ts`) decides, the prompt
+  lists the rest under `[hidden]` with the reason, and
+  `normalizeFollowUpMessage` rejects a hidden template with that reason
+  (`business_rules`). First contact always goes out as the **intro template**
+  (the 24h window is closed until the client first replies); the prompt tells
+  the model to send the full intake questionnaire as its first free-form
+  message once the window opens. A later closed-window contact (reminder or
+  late answer) goes out as the seeded `capital_declaration_update` reopen
+  template, which only asks the client to reply; the real content follows in
+  the first free-form message. Operational prerequisite: one `intro` and one
+  `reopen` row for the agent type (seeded by migrations 051 and 064; admin:
+  waAdmin routes) or the agent cannot start or resume conversations.
 It is also a **manual-kickoff** type (`AgentTypeDefinition.manualKickoff`):
 the client-import scan enrolls its clients *paused* with no first draft, and
 the first message is drafted only on an explicit accountant trigger —

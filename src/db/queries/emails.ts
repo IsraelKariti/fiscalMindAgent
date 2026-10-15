@@ -247,6 +247,23 @@ export async function listPendingReview(): Promise<ReviewQueueRow[]> {
   return rows;
 }
 
+/**
+ * Whether any WhatsApp message was ever delivered to the client (status
+ * `sent`). Drafts, held first messages and discarded rows do not count: until
+ * one send went out, the client is still at first contact (openspec
+ * `whatsapp-templates`).
+ */
+export async function hasDeliveredOutbound(clientId: string): Promise<boolean> {
+  const { rows } = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM emails
+       WHERE client_id = $1 AND direction = 'outbound' AND channel = 'whatsapp' AND status = 'sent'
+     ) AS exists`,
+    [clientId],
+  );
+  return rows[0]?.exists === true;
+}
+
 /** When the client last wrote on WhatsApp — determines whether the 24h free-form window is open. */
 export async function lastInboundWhatsAppAt(clientId: string): Promise<Date | null> {
   const { rows } = await pool.query<{ last_at: Date | null }>(

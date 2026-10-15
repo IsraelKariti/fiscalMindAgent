@@ -85,6 +85,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | The cycle | `DOC/plan.ts` · `planFollowUp` |
 | Load the snapshot: thread, checklist, files, channel, fetch contexts, intake state | `DOC/plan.ts` · `loadPlanningContext` (`loadWaChannelOrThrow`, `lastInboundWhatsAppAt`, `buildIntakeState`, `allDocumentsSettled`) |
 | No usable WhatsApp channel → the cycle fails loudly | `DOC/plan.ts` · `loadWaChannelOrThrow` (`getWaChannelState`) |
+| Which templates this client may get: intro only before the first delivered message, reopen only after; the rest listed as hidden | `DOC/templatePurpose.ts` · `splitTemplatesByPurpose` (`hiddenTemplateReason`; `emails.hasDeliveredOutbound`) |
 | Build the prompt (lost files, fetch section, unsent drafts, verification results) | `DOC/plan.ts` · `buildPlannerPrompt` (`taxFetchPromptInputs`, `loadUnsentDrafts`, `verificationResultsForPrompt`) → `DOC/prompt.ts` · `buildPrompt` |
 | The facts an approved property paper proved (the "הוכח במסמך שאושר" line of the list and of VERIFICATION RESULTS) | `DOC/provenFacts.ts` · `provenFactsOf`, `provenFactsLine` |
 | What the gate may accept this cycle | `DOC/plan.ts` · `buildDecisionContext` |

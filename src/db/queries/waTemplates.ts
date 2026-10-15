@@ -1,5 +1,5 @@
 import { pool } from '../pool.js';
-import type { WaTemplateRow } from '../types.js';
+import type { WaTemplatePurpose, WaTemplateRow } from '../types.js';
 
 export async function listAll(): Promise<WaTemplateRow[]> {
   const { rows } = await pool.query<WaTemplateRow>('SELECT * FROM wa_templates ORDER BY created_at');
@@ -26,11 +26,12 @@ export async function insert(args: {
   body: string;
   variableCount: number;
   agentType?: string | null;
+  purpose?: WaTemplatePurpose;
 }): Promise<WaTemplateRow> {
   const { rows } = await pool.query<WaTemplateRow>(
-    `INSERT INTO wa_templates (content_sid, name, body, variable_count, agent_type)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [args.contentSid, args.name, args.body, args.variableCount, args.agentType ?? null],
+    `INSERT INTO wa_templates (content_sid, name, body, variable_count, agent_type, purpose)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [args.contentSid, args.name, args.body, args.variableCount, args.agentType ?? null, args.purpose ?? 'reopen'],
   );
   const row = rows[0];
   if (!row) throw new Error('insert: no row returned');

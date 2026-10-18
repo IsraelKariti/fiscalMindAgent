@@ -7,7 +7,6 @@ import {
   isValidIsraeliId,
   legibleCheck,
   namesLooselyMatch,
-  notExpiredCheck,
   periodCoversValuationDateCheck,
   typeFieldValue,
   typeFieldsCheck,
@@ -322,28 +321,6 @@ describe('the single checks', () => {
     assert.equal(verify({ ...baseFields, outstanding_balance: -1 }).passed, false);
   });
 
-  it('not_expired: judged at 31.12 of the tax year — fails a licence that expired before it, passes one valid on it or that expired after it, skips a missing or malformed date', () => {
-    // Tax year 2025: the valuation date is 2025-12-31. A licence valid until 2025-07-20 expired before it.
-    const expired = notExpiredCheck({ ...baseFields, valid_until: '2025-07-20' }, baseCtx)!;
-    assert.equal(expired.passed, false);
-    assert.ok(expired.reason!.includes('2025-07-20'));
-    assert.ok(expired.reason!.includes('31.12.2025'));
-    assert.equal(expired.expected, '2025-12-31');
-    // Valid on the valuation date itself.
-    assert.equal(notExpiredCheck({ ...baseFields, valid_until: '2025-12-31' }, baseCtx)!.passed, true);
-    // Expired after the valuation date but before the verification (now = 2026-05-15): still accepted.
-    const late = notExpiredCheck({ ...baseFields, valid_until: '2026-03-20' }, { ...baseCtx, now: new Date('2026-05-15T10:00:00') })!;
-    assert.equal(late.passed, true);
-    assert.equal(late.expected, '2025-12-31');
-    assert.equal(notExpiredCheck({ ...baseFields, valid_until: '2026-07-20' }, baseCtx)!.passed, true);
-    const missing = notExpiredCheck({ ...baseFields, valid_until: null }, baseCtx);
-    assert.equal(missing.passed, null);
-    assert.equal(missing.reason, SKIP_REASONS_HE.noValidUntil);
-    assert.equal(missing.observed, null);
-    assert.equal(notExpiredCheck({ ...baseFields, valid_until: '20/07/2025' }, baseCtx).passed, null);
-    // A type that does not run the check (loan_taken) ignores a past date entirely.
-    assert.equal(verify({ ...baseFields, valid_until: '2020-01-01' }).passed, true);
-  });
 
   it('typeFieldValue normalises by kind: "" and "/" are null, 0 stays 0, numbers in strings parse', () => {
     const plate: TypeField = { key: 'license_plate', kind: 'text', labelHe: 'מספר רישוי', required: false };

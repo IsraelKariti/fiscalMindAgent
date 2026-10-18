@@ -99,7 +99,7 @@ export interface ClientDocument {
   resolution_evidence: {
     message_id?: string;
     /** 'approved_file': an approved property paper whose proven seller kind retired this row; 'chat': a cost the client stated in the conversation. */
-    source?: 'form' | 'form_empty' | 'file' | 'approved_file' | 'chat';
+    source?: 'form' | 'form_empty' | 'file' | 'approved_file' | 'chat' | 'chat_vehicle';
     question?: string;
     quote?: string;
     file_id?: string;
@@ -109,6 +109,9 @@ export interface ClientDocument {
     /** 'chat' only: the stated purchase cost and its currency code. */
     amount?: number;
     currency?: string;
+    /** 'chat_vehicle' only: every client statement the vehicle declaration rests on, and the facts merged from them. */
+    statements?: { message_id?: string; quote?: string }[];
+    facts?: { manufacturer?: string; model?: string; production_year?: number; license_plate?: string; purchase_cost?: number; currency?: string };
   } | null;
   created_at: string;
   updated_at: string;

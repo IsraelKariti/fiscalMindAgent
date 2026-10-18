@@ -97,6 +97,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | `apply_additions` | `DOC/plan.ts` · `applyAdditions` |
 | `apply_retirements` | `DOC/plan.ts` · `applyRetirements` |
 | `apply_stated_costs` — a cost declaration closed by the client's chat message: the row becomes `stated` with the statement as its evidence | `DOC/plan.ts` · `applyStatedCosts` (`clientDocuments.markStated`) |
+| `apply_vehicle_declarations` — the client's statement about a vehicle (make, model, year, plate, cost — any subset) merged into the vehicle declaration row, which becomes `stated`; a later statement adds facts | `DOC/plan.ts` · `applyVehicleDeclarations` (`clientDocuments.markStatedVehicle`, `vehicleDeclaration.ts` · `mergeVehicleEvidence`) |
 | A changed checklist voids the attestation; reload; tell the accountant about rows born claimed | `DOC/plan.ts` · `settleChecklistChanges` |
 | `apply_attestation` (confirmed) | `DOC/plan.ts` · `applyAttestationConfirmed` |
 | Which proposed file ties are allowed (split parents, company agreement) | `SH/fileEvidence.ts` · `applicableFilePairs`; `DOC/fileTies.ts` · `filterPairsByCompany` (`companyRefusal`, `paperRefusal`) |

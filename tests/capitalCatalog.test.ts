@@ -10,6 +10,7 @@ import {
   isInstitutionBound,
   paperBelongsToType,
   paperMayBeStatedInChat,
+  paperStatedBy,
   papersOf,
 } from '../src/agents/declarationOfCapital/catalog.js';
 
@@ -123,16 +124,21 @@ describe('capital-declaration catalog', () => {
     );
   });
 
-  it('vehicle declares the licence, the purchase paper and the cost declaration', () => {
-    assert.deepEqual(papersOf('vehicle').map((p) => p.key), ['vehicle_license', 'vehicle_purchase_document', 'vehicle_cost_declaration']);
+  it('vehicle declares the licence, the purchase paper and the client vehicle declaration', () => {
+    assert.deepEqual(papersOf('vehicle').map((p) => p.key), ['vehicle_license', 'vehicle_purchase_document', 'vehicle_declaration']);
     for (const p of papersOf('vehicle')) assert.ok(p.analysisHintHe && p.analysisHintHe.length > 40, p.key);
   });
 
   it('exactly the two cost declarations may be stated in the chat', () => {
     const statable = CAPITAL_DOCUMENT_CATALOG.flatMap((t) => (t.papers ?? []).filter((p) => p.clientMayStateInChat).map((p) => p.key));
-    assert.deepEqual(statable.sort(), ['cost_declaration', 'vehicle_cost_declaration']);
+    assert.deepEqual(statable.sort(), ['cost_declaration', 'vehicle_declaration']);
     assert.equal(paperMayBeStatedInChat('cost_declaration'), true);
-    assert.equal(paperMayBeStatedInChat('vehicle_cost_declaration'), true);
+    assert.equal(paperMayBeStatedInChat('vehicle_declaration'), true);
+    // openspec vehicle-declaration: each statable paper has its own planner tool.
+    assert.equal(paperStatedBy('cost_declaration'), 'state_cost');
+    assert.equal(paperStatedBy('vehicle_declaration'), 'state_vehicle');
+    assert.equal(paperStatedBy('vehicle_license'), null);
+    assert.equal(paperStatedBy(null), null);
     assert.equal(paperMayBeStatedInChat('purchase_contract'), false);
     assert.equal(paperMayBeStatedInChat('vehicle_license'), false);
     assert.equal(paperMayBeStatedInChat(null), false);

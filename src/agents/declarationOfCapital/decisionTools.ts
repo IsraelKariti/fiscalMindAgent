@@ -135,13 +135,31 @@ const INTAKE_TOOLS: DecisionTool[] = [
   {
     name: 'state_cost',
     description:
-      'A purchase cost the client stated in the chat for a cost-declaration item: an existing item (document_id set, instance_name "") or an item added in this answer (document_id "", instance_name = that add_instance name).',
+      'A purchase cost the client stated in the chat for a PROPERTY cost-declaration item (paper cost_declaration only — a vehicle is stated with state_vehicle, never here): an existing item (document_id set, instance_name "") or an item added in this answer (document_id "", instance_name = that add_instance name).',
     params: z
       .object({
         document_id: z.string(),
         instance_name: z.string(),
         amount: z.number().describe('The amount as a number.'),
         currency: z.string().describe('Three-letter code; ILS unless the client named another currency.'),
+        ...EVIDENCE_PARAMS,
+      })
+      .strict(),
+  },
+  {
+    name: 'state_vehicle',
+    description:
+      "Vehicle facts the client stated in the chat for a client-vehicle-declaration item (paper vehicle_declaration): an existing item (document_id set, instance_name \"\") — pending, or already stated when adding facts — or an item added in this answer (document_id \"\", instance_name = that add_instance name). Give ONLY facts the client wrote in the quoted message, spelled as there — the car's name in the item name or the questionnaire is not a quote and must stay ''; '' / 0 = not stated. All empty with a quote = the client knows nothing more (the item still closes).",
+    params: z
+      .object({
+        document_id: z.string(),
+        instance_name: z.string(),
+        manufacturer: z.string().describe("The make as the client wrote it; '' when not stated."),
+        model: z.string().describe("The model as the client wrote it; '' when not stated."),
+        production_year: z.number().describe('Four-digit production year; 0 when not stated.'),
+        license_plate: z.string().describe("The plate, digits only; '' when not stated."),
+        purchase_cost: z.number().describe('The purchase cost as a number; 0 when not stated.'),
+        currency: z.string().describe("Three-letter code; ILS unless the client named another currency; '' when no cost."),
         ...EVIDENCE_PARAMS,
       })
       .strict(),
@@ -191,6 +209,7 @@ export const DECISION_TOOL_NAMES = [
   'resolve_document',
   'add_instance',
   'state_cost',
+  'state_vehicle',
   'retire_document',
   'attestation',
   'tax_fetch',
@@ -290,6 +309,7 @@ const strs = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
 
 type RawInstance = NonNullable<NonNullable<DecisionResponse['added_instances']>[number]['instances']>[number];
 const NO_COST = { amount: 0, currency: '', message_id: '', quote: '' };
+const NO_VEHICLE = { manufacturer: '', model: '', production_year: 0, license_plate: '', purchase_cost: 0, currency: '', message_id: '', quote: '' };
 
 /**
  * Turns the parsed calls of one answer into the raw form `normalizeDecision`
@@ -345,6 +365,7 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
       file_ids: strs(a.file_ids),
       paper_key: str(a.paper_key),
       stated_cost: { ...NO_COST },
+      stated_vehicle: { ...NO_VEHICLE },
     } as RawInstance,
   }));
 
@@ -370,6 +391,37 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
       );
     }
     target.instance.stated_cost = { amount, currency, message_id: evidence.message_id, quote: evidence.quote };
+  }
+
+  // Vehicle statements (openspec `vehicle-declaration`): for an existing item, or for an instance added in this answer (by name).
+  const statedVehicles: DecisionResponse['stated_vehicles'] = [];
+  for (const v of of('state_vehicle')) {
+    const documentId = str(v.document_id).trim();
+    const instanceName = str(v.instance_name).trim();
+    if ((documentId === '') === (instanceName === '')) {
+      throw new Error('state_vehicle names exactly one target: document_id for an existing item, or instance_name for an item added in this answer');
+    }
+    const num = (x: unknown): number => (typeof x === 'number' ? x : Number(x) || 0);
+    const facts = {
+      manufacturer: str(v.manufacturer),
+      model: str(v.model),
+      production_year: num(v.production_year),
+      license_plate: str(v.license_plate),
+      purchase_cost: num(v.purchase_cost),
+      currency: str(v.currency),
+    };
+    const evidence = evidenceOf(v) ?? { message_id: '', quote: '' };
+    if (documentId !== '') {
+      statedVehicles.push({ document_id: documentId, ...facts, evidence });
+      continue;
+    }
+    const target = instances.find((i) => i.instance.name.trim() === instanceName);
+    if (!target) {
+      throw new Error(
+        `state_vehicle names instance "${instanceName}" but no add_instance call of this answer has that name — use the exact name of the add_instance call`,
+      );
+    }
+    target.instance.stated_vehicle = { ...facts, message_id: evidence.message_id, quote: evidence.quote };
   }
 
   const resolvedDocuments: NonNullable<DecisionResponse['resolved_documents']> = resolved.map((r) => {
@@ -416,6 +468,7 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
     added_instances: additions.size > 0 ? [...additions.values()] : null,
     retired_documents: retired.length > 0 ? retired : null,
     stated_costs: statedCosts,
+    stated_vehicles: statedVehicles,
     attestation: attestation ? (str(attestation.action) as DecisionResponse['attestation']) : null,
     attestation_evidence: attestation ? evidenceOf(attestation) : null,
   };

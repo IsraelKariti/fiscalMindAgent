@@ -365,7 +365,7 @@ const DOCS: Record<string, string> = {
      </table>
      <p class="muted">The licence fee was paid. This licence is valid only together with compulsory insurance.</p>`,
   ),
-  // openspec vehicle-license-valid-at-valuation-date: a licence that expired before 31.12.2025 — rejected by not_expired.
+  // openspec vehicle-license-optional: a licence that expired before 31.12.2025 — accepted all the same (the type runs no validity check).
   'vehicle_licence_expired_jul_2025.pdf': page(
     'Vehicle licence',
     `<div class="letterhead"><div class="logo" style="color:#1a237e">State of Israel — Ministry of Transport</div><div class="he"><div class="logo" style="color:#1a237e">מדינת ישראל — משרד התחבורה והבטיחות בדרכים</div></div></div>

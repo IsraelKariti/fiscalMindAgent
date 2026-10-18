@@ -18,6 +18,7 @@ const ctx: DecisionContext = { windowOpen: true, templates: [] };
 
 /** No cost stated on an instance (openspec `chat-stated-cost`): amount 0 = none. */
 const NO_COST = { amount: 0, currency: '', message_id: '', quote: '' };
+const NO_VEHICLE = { manufacturer: '', model: '', production_year: 0, license_plate: '', purchase_cost: 0, currency: '', message_id: '', quote: '' };
 
 const base: DecisionResponse = {
   decision: 'collect',
@@ -34,6 +35,7 @@ const base: DecisionResponse = {
   added_instances: null,
   retired_documents: null,
   stated_costs: [],
+  stated_vehicles: [],
   attestation: null,
   attestation_evidence: null,
 };
@@ -76,7 +78,7 @@ describe('answerTiesFiles', () => {
           added_instances: [
             {
               anchor_document_id: 'doc-study',
-              instances: [{ name: 'קרן השתלמות הראל', description: null, already_provided: false, file_ids: ['file-harel'], paper_key: '', stated_cost: NO_COST }],
+              instances: [{ name: 'קרן השתלמות הראל', description: null, already_provided: false, file_ids: ['file-harel'], paper_key: '', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }],
               evidence: { message_id: 'msg-1', quote: 'כן' },
               proven_by_file_id: '',
             },
@@ -151,7 +153,7 @@ describe('the collect decision (normalizeDecision)', () => {
   it('a cost stated in the chat ties no file: it is a follow_up with a message, never a collect (openspec chat-stated-cost)', () => {
     const intake = {
       resolvable: [],
-      typedRows: [{ id: 'doc-car-cost', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_cost_declaration' }],
+      typedRows: [{ id: 'doc-car-cost', status: 'pending', typeKey: 'real_estate', multiInstance: true, paperKey: 'cost_declaration' }],
       inboundTexts: new Map([['msg-1', 'אין לי את הקבלה, שילמתי 85,000']]),
       allSettled: false,
       attestationRequested: false,

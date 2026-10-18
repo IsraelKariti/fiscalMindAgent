@@ -49,6 +49,24 @@ export function callsOf(raw: DecisionResponse): ToolCall[] {
         },
       });
     }
+    const v = i.stated_vehicle;
+    if (v && (v.manufacturer || v.model || v.production_year || v.license_plate || v.purchase_cost || v.quote)) {
+      calls.push({
+        name: 'state_vehicle',
+        args: {
+          document_id: '',
+          instance_name: i.name,
+          manufacturer: v.manufacturer,
+          model: v.model,
+          production_year: v.production_year,
+          license_plate: v.license_plate,
+          purchase_cost: v.purchase_cost,
+          currency: v.currency,
+          evidence_message_id: v.message_id,
+          evidence_quote: v.quote,
+        },
+      });
+    }
   };
   for (const r of raw.resolved_documents ?? []) {
     calls.push({ name: 'resolve_document', args: { document_id: r.document_id, resolution: r.resolution, ...ev(r.evidence) } });
@@ -64,6 +82,22 @@ export function callsOf(raw: DecisionResponse): ToolCall[] {
     calls.push({
       name: 'state_cost',
       args: { document_id: s.document_id, instance_name: '', amount: s.amount, currency: s.currency, ...ev(s.evidence) },
+    });
+  }
+  for (const v of raw.stated_vehicles ?? []) {
+    calls.push({
+      name: 'state_vehicle',
+      args: {
+        document_id: v.document_id,
+        instance_name: '',
+        manufacturer: v.manufacturer,
+        model: v.model,
+        production_year: v.production_year,
+        license_plate: v.license_plate,
+        purchase_cost: v.purchase_cost,
+        currency: v.currency,
+        ...ev(v.evidence),
+      },
     });
   }
   if (raw.attestation) calls.push({ name: 'attestation', args: { action: raw.attestation, ...ev(raw.attestation_evidence) } });

@@ -66,6 +66,7 @@ export type AuditAction =
   | 'apply_additions'
   | 'apply_retirements'
   | 'apply_stated_costs'
+  | 'apply_vehicle_declarations'
   | 'apply_collections'
   | 'apply_attestation'
   | 'send_reply'

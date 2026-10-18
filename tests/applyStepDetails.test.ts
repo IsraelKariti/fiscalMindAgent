@@ -21,7 +21,7 @@ test('apply_resolutions rows carry the document name next to the id, and the quo
   const detail = resolutionsStepDetail(
     [
       { documentId: 'd1', resolution: 'not_required', evidence },
-      { documentId: 'd2', resolution: 'required', instances: [{ name: 'x', description: null, alreadyProvided: false, fileIds: [], paperKey: null, statedCost: null }], evidence },
+      { documentId: 'd2', resolution: 'required', instances: [{ name: 'x', description: null, alreadyProvided: false, fileIds: [], paperKey: null, statedCost: null, statedVehicle: null }], evidence },
     ],
     docName,
     2,
@@ -39,8 +39,8 @@ test('apply_additions entries name the anchor document and list the instance nam
       {
         anchorDocumentId: 'd3',
         instances: [
-          { name: 'טופס 106 — מעסיק א', description: null, alreadyProvided: false, fileIds: [], paperKey: null, statedCost: null },
-          { name: 'טופס 106 — מעסיק ב', description: null, alreadyProvided: true, fileIds: [], paperKey: null, statedCost: null },
+          { name: 'טופס 106 — מעסיק א', description: null, alreadyProvided: false, fileIds: [], paperKey: null, statedCost: null, statedVehicle: null },
+          { name: 'טופס 106 — מעסיק ב', description: null, alreadyProvided: true, fileIds: [], paperKey: null, statedCost: null, statedVehicle: null },
         ],
         evidence,
       },
@@ -187,7 +187,7 @@ test('an addition or retirement that rests on an approved property paper names t
   const retired = retirementsStepDetail([{ documentId: 'd2', evidence: fileEvidence }], docName, 1);
   assert.deepEqual(retired.rows, [{ id: 'd2', name: 'קרן השתלמות — אלטשולר', quote: 'הוכח בקובץ שאושר (המוכר אדם פרטי)', provenByFileId: 'f-contract' }]);
   const added = additionsStepDetail(
-    [{ anchorDocumentId: 'd1', instances: [{ name: 'נספח', description: null, alreadyProvided: false, fileIds: [], paperKey: 'payments_appendix', statedCost: null }], evidence: { ...fileEvidence, fact: 'seller_builder' } }],
+    [{ anchorDocumentId: 'd1', instances: [{ name: 'נספח', description: null, alreadyProvided: false, fileIds: [], paperKey: 'payments_appendix', statedCost: null, statedVehicle: null }], evidence: { ...fileEvidence, fact: 'seller_builder' } }],
     docName,
     1,
   );

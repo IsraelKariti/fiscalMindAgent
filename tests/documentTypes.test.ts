@@ -180,16 +180,15 @@ describe('vehicle', () => {
     assert.ok(neither.reason!.includes('אף אחד מהשדות "מספר רישוי" / "עלות הרכישה" לא נמצא'));
   });
 
-  it('an expired licence fails not_expired; a receipt without a validity date skips it', () => {
-    // ctx.now is 2026-01-15; a license valid until 2025-07-20 has lapsed.
-    const expired = vehicle.verify({ ...licence, valid_until: '2025-07-20' }, baseCtx);
-    assert.equal(expired.passed, false);
-    assert.ok(expired.reasons[0]!.includes('2025-07-20'));
-    assert.equal(vehicle.verify({ ...licence, valid_until: '2026-01-15' }, baseCtx).passed, true);
+  it('any licence passes whatever its validity date; the type runs no not_expired check', () => {
+    // openspec vehicle-license-optional: the licence is helpful, not required — a licence that
+    // expired in 2022 is accepted for the 2025 declaration, and no not_expired row is reported.
+    for (const validUntil of ['2022-04-22', '2025-07-20', '2026-01-15', null]) {
+      const verdict = vehicle.verify({ ...licence, valid_until: validUntil }, baseCtx);
+      assert.equal(verdict.passed, true, String(validUntil));
+      assert.equal(verdict.checks.find((c) => c.key === 'not_expired'), undefined);
+    }
     const receipt = vehicle.verify({ ...licence, valid_until: null, license_plate: null, purchase_cost: 95_000 }, baseCtx);
-    const notExpired = receipt.checks.find((c) => c.key === 'not_expired')!;
-    assert.equal(notExpired.passed, null);
-    assert.equal(notExpired.reason, SKIP_REASONS_HE.noValidUntil);
     assert.equal(receipt.passed, true);
   });
 

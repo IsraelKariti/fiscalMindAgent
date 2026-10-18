@@ -24,6 +24,23 @@ interface Props {
   readOnly?: boolean;
 }
 
+/** The facts of a client vehicle declaration as "label: value" pairs, the unknown word for a fact the client has not stated (openspec `vehicle-declaration`). */
+function vehicleFactsText(
+  facts: { manufacturer?: string; model?: string; production_year?: number; license_plate?: string; purchase_cost?: number; currency?: string },
+  labels: Record<string, string>,
+  unknown: string,
+): string {
+  const value = (key: 'manufacturer' | 'model' | 'production_year' | 'license_plate' | 'purchase_cost'): string => {
+    const v = facts[key];
+    if (v === undefined || v === null || v === '') return unknown;
+    if (key === 'purchase_cost' && typeof v === 'number') return `${v.toLocaleString('en-US')} ${facts.currency ?? 'ILS'}`;
+    return String(v);
+  };
+  return (['manufacturer', 'model', 'production_year', 'license_plate', 'purchase_cost'] as const)
+    .map((key) => `${labels[key] ?? key}: ${value(key)}`)
+    .join(' · ');
+}
+
 /** The view/download icon pair for one received file. */
 function FileActions({ clientId, file, onView }: { clientId: string; file: DocumentFile; onView: (file: DocumentFile) => void }) {
   const { t } = useT();
@@ -291,6 +308,27 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         )}
         {(doc.status === 'pending' || doc.status === 'collected') && (failed || stalled) && reasons && (
           <div className="doc-verification-note">{t.verificationReasonsPrefix + reasons}</div>
+        )}
+        {doc.status === 'stated' && doc.resolution_evidence?.source === 'chat_vehicle' && (
+          <div className="doc-verification-note muted">
+            <div>{vehicleFactsText(doc.resolution_evidence.facts ?? {}, t.vehicleFactLabels, t.vehicleFactUnknown)}</div>
+            {(doc.resolution_evidence.statements ?? []).map((statement, i) => (
+              <div key={i}>
+                {statement.message_id && onFocusMessage ? (
+                  <button
+                    type="button"
+                    className="doc-evidence-link"
+                    title={t.statedChatNoteTitle}
+                    onClick={() => onFocusMessage(statement.message_id!)}
+                  >
+                    {`${t.statedChatNotePrefix}"${statement.quote ?? ''}"`}
+                  </button>
+                ) : (
+                  `${t.statedChatNotePrefix}"${statement.quote ?? ''}"`
+                )}
+              </div>
+            ))}
+          </div>
         )}
         {doc.status === 'stated' && doc.resolution_evidence?.source === 'chat' && (
           <div className="doc-verification-note muted">

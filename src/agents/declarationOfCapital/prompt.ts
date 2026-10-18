@@ -16,6 +16,7 @@ import type { HiddenTemplate } from './templatePurpose.js';
 import { formatUpcomingDates } from '../shared/upcomingDates.js';
 import { getCatalogPaper, getCatalogType, isEmployerBound, isInstitutionBound } from './catalog.js';
 import { provenFactsLine, provenFactsOf } from './provenFacts.js';
+import { vehicleEvidenceOf, vehicleFactsLine } from './vehicleDeclaration.js';
 import { MAX_EMPLOYER, cleanEmployer } from './splitChildNames.js';
 import { readMaritalStatus, readSpouse, type SpouseSource } from './spouseIdentity.js';
 import type { LostFilesByMessage } from './lostFiles.js';
@@ -275,6 +276,21 @@ export function statedCostLine(doc: Pick<ClientDocumentRow, 'status' | 'resoluti
   return `הוצהר בצ'אט: ${amount} ${sanitizeInline(ev.currency, 3)} — "${sanitizeInline(ev.quote, 200)}"`;
 }
 
+/**
+ * The "הוצהר בצ'אט" line of a vehicle declaration the client stated (openspec
+ * `vehicle-declaration`): every fact by name, "לא ידוע" for one not yet stated —
+ * the model never asks a stated fact again and may still fill an unknown one.
+ */
+export function statedVehicleLine(doc: Pick<ClientDocumentRow, 'status' | 'resolution_evidence' | 'paper_key'>): string | null {
+  if (doc.status !== 'stated') return null;
+  const ev = vehicleEvidenceOf(doc.resolution_evidence, doc.paper_key);
+  if (!ev) return null;
+  const last = ev.statements[ev.statements.length - 1];
+  const quote = last ? ` — "${sanitizeInline(last.quote, 200)}"` : '';
+  const count = ev.statements.length > 1 ? ` (${ev.statements.length} הודעות)` : '';
+  return `הוצהר בצ'אט${count}: ${sanitizeInline(vehicleFactsLine(ev.facts), 300)}${quote}`;
+}
+
 /** Lives in `contents` (not the template) so the system prompt stays static and cacheable. */
 export function buildDocumentsSection(token: string, documents: ClientDocumentRow[], taxYear?: number): string {
   // Retired rows (capital declaration: replaced by other documents via the
@@ -316,7 +332,7 @@ export function buildDocumentsSection(token: string, documents: ClientDocumentRo
     if (proven) extras.push(proven);
     // A cost declaration the client stated in the chat (openspec
     // `chat-stated-cost`): settled with no file; the model never asks for it again.
-    const stated = statedCostLine(doc);
+    const stated = statedVehicleLine(doc) ?? statedCostLine(doc);
     if (stated) extras.push(stated);
     // A pending row that already failed verification tells the model exactly
     // what to ask the client to fix (reasons are our own code's Hebrew strings).

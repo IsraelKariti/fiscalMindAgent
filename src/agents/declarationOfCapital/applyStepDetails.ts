@@ -6,7 +6,9 @@ import {
   type EvidenceRef,
   type InstanceAddition,
   type StatedCost,
+  type StatedVehicle,
 } from './decisionSchema.js';
+import { vehicleFactsLine } from './vehicleDeclaration.js';
 import type { RefusedTie } from './fileTies.js';
 
 /**
@@ -82,6 +84,28 @@ export function statedCostsStepDetail(stated: AppliedStatedCost[], docName: Name
       name: named(docName, s.documentId),
       amount: s.amount,
       currency: s.currency,
+      quote: s.evidence.quote,
+      messageId: s.evidence.message_id,
+    })),
+  };
+}
+
+/** One vehicle statement the client made, as plan.ts applied it (openspec `vehicle-declaration`): the row it filled and the statement. */
+export interface AppliedStatedVehicle extends StatedVehicle {
+  documentId: string;
+  /** How many statements the row holds after this one (1 = first). */
+  statementCount: number;
+}
+
+export function vehicleDeclarationsStepDetail(stated: AppliedStatedVehicle[], docName: NameLookup, count: number) {
+  return {
+    count,
+    rows: stated.map((s) => ({
+      id: s.documentId,
+      name: named(docName, s.documentId),
+      facts: s.facts,
+      factsLine: vehicleFactsLine(s.facts),
+      statementCount: s.statementCount,
       quote: s.evidence.quote,
       messageId: s.evidence.message_id,
     })),

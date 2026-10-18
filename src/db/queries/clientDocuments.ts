@@ -338,6 +338,26 @@ export async function markStated(
 }
 
 /**
+ * The client's statement about a vehicle (openspec `vehicle-declaration`): the
+ * declaration row is settled with no file and keeps every statement and the
+ * merged facts as its evidence. A pending row moves to 'stated'; a row already
+ * stated takes the extended evidence (a later message added facts). Returns
+ * null when the row is not the client's pending or stated row.
+ */
+export async function markStatedVehicle(
+  id: string,
+  clientId: string,
+  evidence: Extract<ResolutionEvidence, { source: 'chat_vehicle' }>,
+): Promise<ClientDocumentRow | null> {
+  const { rows } = await pool.query<ClientDocumentRow>(
+    `UPDATE client_documents SET status = 'stated', resolution_evidence = $3, updated_at = now()
+     WHERE id = $1 AND client_id = $2 AND status IN ('pending', 'stated') RETURNING *`,
+    [id, clientId, JSON.stringify(evidence)],
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * Stores a verification verdict without changing status — the stalled
  * (3-strikes) and unverifiable outcomes, where the row stays 'collected' and
  * the accountant takes over.

@@ -499,7 +499,7 @@ interface VerifyDocumentCase {
 }
 interface VerifyDocumentCtx {
   taxYear: number;
-  /** Verification time (ISO) — the not_expired check is judged against it. */
+  /** Verification time (ISO) — the verification context's "now". */
   now: string;
 }
 
@@ -725,6 +725,10 @@ interface DecideCase {
     stated_costs?: Record<string, number>;
     /** Exactly the amounts stated on instances the decision creates (an instance's stated_cost), order-free. */
     new_instance_stated_amounts?: number[];
+    /** Row id -> facts: exactly the existing vehicle declarations the decision states facts on (stated_vehicles); each listed fact must match, extra stated facts are allowed (openspec `vehicle-declaration`). */
+    stated_vehicles?: Record<string, Record<string, string | number>>;
+    /** One entry per vehicle-declaration instance the decision creates with a statement (an instance's stated_vehicle): each listed fact must match, extra facts allowed; {} = a statement with any (or no) facts. Order-free. */
+    new_instance_stated_vehicles?: Record<string, string | number>[];
     attestation?: 'request' | 'confirmed' | null;
     /** The decision's document-fetch action (null = none), e.g. 'client_agreed'. */
     tax_fetch_action?: string | null;
@@ -1188,6 +1192,29 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
         .sort((a, b) => a - b);
       const wanted = e.new_instance_stated_amounts.slice().sort((a, b) => a - b);
       checks.push({ key: 'new_instance_stated_amounts', expected: wanted, actual: amounts, pass: JSON.stringify(wanted) === JSON.stringify(amounts) });
+    }
+    // openspec vehicle-declaration: the facts stated on existing / new vehicle declarations (listed facts must match; extra facts allowed).
+    const factsMatch = (wanted: Record<string, string | number>, actual: Record<string, unknown>) =>
+      Object.entries(wanted).every(([k, v]) => String(actual[k]) === String(v));
+    if (e.stated_vehicles !== undefined) {
+      const actual = Object.fromEntries(decision.statedVehicles.map((v) => [v.documentId, v.facts as Record<string, unknown>]));
+      const wantedIds = Object.keys(e.stated_vehicles).sort();
+      const pass = JSON.stringify(Object.keys(actual).sort()) === JSON.stringify(wantedIds) && wantedIds.every((id) => factsMatch(e.stated_vehicles![id]!, actual[id]!));
+      checks.push({ key: 'stated_vehicles', expected: e.stated_vehicles, actual, pass });
+    }
+    if (e.new_instance_stated_vehicles !== undefined) {
+      const stated = [
+        ...decision.resolutions.flatMap((r) => (r.resolution === 'required' ? r.instances : [])),
+        ...decision.addedInstances.flatMap((a) => a.instances),
+      ].flatMap((i) => (i.statedVehicle ? [i.statedVehicle.facts as Record<string, unknown>] : []));
+      const unmatched = [...stated];
+      const allFound = e.new_instance_stated_vehicles.every((w) => {
+        const at = unmatched.findIndex((a) => factsMatch(w, a));
+        if (at < 0) return false;
+        unmatched.splice(at, 1);
+        return true;
+      });
+      checks.push({ key: 'new_instance_stated_vehicles', expected: e.new_instance_stated_vehicles, actual: stated, pass: allFound && unmatched.length === 0 });
     }
     info.evidence_quotes = [
       ...decision.resolutions.map((r) => r.evidence.quote),

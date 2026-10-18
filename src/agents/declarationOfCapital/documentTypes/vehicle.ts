@@ -3,7 +3,6 @@ import {
   expectedTypeCheck,
   identityChecks,
   legibleCheck,
-  notExpiredCheck,
   typeFieldsCheck,
   verdictOf,
   type CheckContext,
@@ -15,15 +14,15 @@ import { jsonSchemaOf, type DocumentTypeSpec, type TypeField } from './types.js'
 /**
  * כלי רכב (`vehicle`): the extraction contract of this document type —
  * its answer schema, its prompt and its checks.
- * Checks: legibility; expected type; the owner identity (the client or the spouse must own it); not expired; the typed fields.
+ * Checks: legibility; expected type; the owner identity (the client or the spouse must own it); the typed fields.
  * Change a field here and in the prompt line together; the registry test
  * (tests/documentTypes.test.ts) fails when the two disagree.
  */
 
 // A vehicle item is either the licence or the purchase paper, so no field is
 // required on its own: a licence must yield the plate, a receipt the cost
-// (ANY_OF). A licence must also have been valid on 31.12 of the tax year:
-// not_expired runs when the document carries a valid-until date.
+// (ANY_OF). The licence's "valid until" date is read for the record only:
+// the type runs no validity check (openspec `vehicle-license-optional`).
 /** This type's own fields, in answer order; the prompt below carries one instruction line per key. */
 const FIELDS: readonly TypeField[] = [
   { key: 'license_plate', kind: 'text', labelHe: 'מספר רישוי', required: false, pattern: /^\d{7,8}$/, patternHintHe: 'מספר הרישוי חייב להכיל 7 או 8 ספרות בלבד' },
@@ -63,16 +62,16 @@ const PROMPT = `אתה מחלץ נתונים ממסמך עבור אימות או
 
 המסמך המצופה: {{expected_name}}
 תיאור: {{expected_description}}
-{{paper_context}}מסמכים קבילים לסוג זה: לכל כלי רכב בבעלותך (פרטי, מסחרי, אופנוע) — בהצהרה מצוינים יצרן, דגם, שנת ייצור, מספר רישוי ועלות הרכישה. שני מסמכים לכל רכב: חובה לכל רכב — העתק רישיון הרכב שהיה בתוקף ביום 31.12.{{tax_year}} (המועד הקובע): רישיון שתוקפו פג אחרי תאריך זה קביל גם אם כבר אינו בתוקף היום; רישיון שתוקפו פג לפני 31.12.{{tax_year}} אינו קביל, ובמקרה כזה נדרש הרישיון שהיה בתוקף בתאריך זה. לגבי העלות — מסמך רכישה או קבלה מרכישת הרכב (חשבונית מס/קבלה וכדומה). אם אין בידי הלקוח מסמך רכישה או קבלה — במקומם הצהרת עלות מהלקוח, שבה הוא מצהיר כמה עלה לו הרכב.
-אנטומיית רישיון רכב ישראלי (מסמך משרד התחבורה): בשורת הכותרת העליונה — מספר רכב, סוג, ותאריך "בתוקף עד" (תוקף הרישיון); בגוף — שם הבעלים ומספר הזהות, תוצר, דגם וכינוי מסחרי, מועד עליה לכביש (מציין את שנת הייצור), מספר שילדה. הרישיון הוא המקור לכל פרטי הרכב שבהצהרה מלבד עלות הרכישה. תוקף הרישיון נבחן לפי "בתוקף עד" מול יום 31.12 של שנת המס (המועד הקובע): רישיון שתוקפו פג אחרי תאריך זה קביל גם אם כבר אינו בתוקף היום; רישיון שתוקפו פג לפניו אינו קביל. אינו קביל גם: החלק התחתון של הדף בלבד ("חידוש רישיון רכב" / "הודעת זיכוי" — ספח תשלום לחידוש, לא הרישיון עצמו); רישיון הרכב תקף רק לאחר תשלום האגרה ומעבר מבחן הכשירות (טסט). אין לבלבל את "בתוקף עד" עם "תאריך רישום", "תאריך בעלות" או תאריך ההדפסה.
+{{paper_context}}מסמכים קבילים לסוג זה: לכל כלי רכב בבעלותך (פרטי, מסחרי, אופנוע) — בהצהרה מצוינים יצרן, דגם, שנת ייצור, מספר רישוי ועלות הרכישה, על פי דברי הלקוח. שני מסמכים מועילים לכל רכב, ומבקשים את שניהם יחד: העתק רישיון הרכב (כל עותק מתאים, גם רישיון שתוקפו פג — הוא המקור ליצרן, לדגם, לשנת הייצור ולמספר הרישוי) ומסמך רכישה או קבלה מרכישת הרכב (חשבונית מס/קבלה וכדומה — המקור לעלות). אף אחד מהם אינו חובה: אם אין בידי הלקוח את הרישיון או את מסמך הרכישה — במקומם הצהרת הלקוח על הרכב, שבה הוא מוסר את הפרטים הידועים לו (גם אם חלקיים, גם עלות משוערת): במילותיו בשיחה או בדף חתום.
+אנטומיית רישיון רכב ישראלי (מסמך משרד התחבורה): בשורת הכותרת העליונה — מספר רכב, סוג, ותאריך "בתוקף עד" (תוקף הרישיון); בגוף — שם הבעלים ומספר הזהות, תוצר, דגם וכינוי מסחרי, מועד עליה לכביש (מציין את שנת הייצור), מספר שילדה. הרישיון הוא המקור לכל פרטי הרכב שבהצהרה מלבד עלות הרכישה. תוקף הרישיון אינו נבחן: גם רישיון שתוקפו פג מזמן קביל — חלץ את "בתוקף עד" לידיעה בלבד. אינו קביל: החלק התחתון של הדף בלבד ("חידוש רישיון רכב" / "הודעת זיכוי" — ספח תשלום לחידוש, לא הרישיון עצמו). אין לבלבל את "בתוקף עד" עם "תאריך רישום", "תאריך בעלות" או תאריך ההדפסה.
 שדות ייעודיים לסוג מסמך זה — חלץ כל אחד מהם לשדה הנקוב, או null אם אינו מופיע במסמך:
 - license_plate: מספר הרכב (מספר הרישוי) מכותרת רישיון הרכב — ספרות בלבד, ללא מקפים ורווחים. null אם המסמך אינו רישיון רכב.
 - manufacturer: שם היצרן ("תוצר") מגוף רישיון הרכב. null אם המסמך אינו רישיון רכב.
 - model: הדגם והכינוי המסחרי מגוף רישיון הרכב. null אם המסמך אינו רישיון רכב.
 - production_year: שנת הייצור — ארבע ספרות, משדה "שנת ייצור" או משנת "מועד עליה לכביש" ברישיון הרכב. null אם המסמך אינו רישיון רכב.
-- purchase_cost: הסכום ששולם עבור הרכב, ממסמך הרכישה, מהקבלה או מהצהרת העלות של הלקוח. null אם המסמך הוא רישיון רכב.
+- purchase_cost: הסכום ששולם עבור הרכב, ממסמך הרכישה, מהקבלה או מהצהרת הלקוח על הרכב. null אם המסמך הוא רישיון רכב.
 לפחות אחד מהשדות license_plate / purchase_cost חייב להימצא במסמך.
-מסמך מהסוג הזה עשוי לשאת תאריך תוקף משלו — אתר וחלץ בקפידה את שדה "בתוקף עד" (valid_until).
+מסמך מהסוג הזה עשוי לשאת תאריך תוקף משלו — אתר וחלץ את שדה "בתוקף עד" (valid_until) לידיעה בלבד; תוקף שפג אינו פוסל את המסמך.
 
 קרא את תוכן הקובץ עצמו והשב לפי הסכמה:
 - is_expected_type: האם תוכן הקובץ הוא אכן מסמך מהסוג המצופה שלמעלה.
@@ -94,7 +93,6 @@ function verify(answer: ExtractedAnswer, ctx: CheckContext): ChecksVerdict {
       legibleCheck(answer),
       expectedTypeCheck(answer, ctx),
       ...identity,
-      notExpiredCheck(answer, ctx),
       typeFieldsCheck(answer, ctx, FIELDS, ANY_OF),
     ],
     owners,

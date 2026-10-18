@@ -183,26 +183,21 @@ monday WorkForm is the only source of which documents a declaration needs):
   for inheritance; current Tabu only for gifts; office-held prior-declaration
   properties as `already_provided`) lives in the catalog's `real_estate`
   description + `prompt.md`'s special-case block.
-- **Vehicle spec** (2026-08-31; the office's vehicle matrix): every vehicle
-  needs a vehicle-license copy that was valid on 31.12 of the tax year (since
-  2026-10-12, openspec `vehicle-license-valid-at-valuation-date`: a licence
-  that expired after that date is accepted however late the file arrives; one
-  that expired before it is not) plus a purchase
-  document/receipt, falling back to a client cost declaration when neither
-  exists — encoded in the catalog's `vehicle` entry, `prompt.md`'s
-  special-case block (two instances per vehicle; the receipt →
-  cost-declaration swap reuses the ladder actions) and form intake's special
-  keys. Two new optional catalog fields, both type-generic and seeded from a
-  real license sample: `analysisHintHe` — document anatomy + lookalike traps
-  for the file-reading models only (ingestion classification + verification
-  extraction; e.g. the license's "valid until" header field, the bottom
-  renewal/payment slip of the page not being the license) — and
-  `checks.notExpired` — the verification extractor also pulls the document's
-  own validity date (`valid_until`), and `notExpiredCheck` deterministically
-  fails a well-formed date before 31.12 of the tax year (expected =
-  `<taxYear>-12-31`; the verification time plays no part); sibling instances of
-  the same type carrying no validity date (receipt, cost declaration) are
-  unaffected.
+- **Vehicle spec** (2026-08-31, the office's vehicle matrix; goal-first since
+  2026-10-18, openspec `vehicle-license-optional`): the goal per vehicle is the
+  facts the declaration lists — make, model, production year, plate and
+  purchase cost — from the client. The vehicle licence (details) and the
+  purchase document / receipt (cost) are the preferred sources, asked for
+  together as helpful papers, never mandatory: a licence passes whatever its
+  "valid until" date (`notExpiredCheck` is gone; `valid_until` is still read
+  for the record), and a paper the client cannot send is replaced by the
+  client's own vehicle declaration (see "Vehicle declaration" below). Encoded
+  in the catalog's `vehicle` entry (description, `analysisHintHe` — document
+  anatomy + lookalike traps for the file-reading models only, e.g. the
+  licence's "valid until" header field, the bottom renewal/payment slip of the
+  page not being the licence), `prompt.md`'s special-case block (two instances
+  per vehicle, licence + receipt; the missing-paper → declaration swap reuses
+  the ladder actions) and form intake's special keys.
 - **Spouse identity** (2026-09-23; openspec `spouse-identity`): a client
   has at most ONE spouse on file — `agent_fields.spouse = {name, id_number,
   name_source, id_source}` (sources `questionnaire` > `crm` > `document`)
@@ -1262,12 +1257,14 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `payments_appendix_dinovitz_2001.pdf`, `tabu_extract_dinovitz_2025.pdf`
   (cases `cls_18`–`cls_20`).
 - **Chat-stated cost** (2026-10-12, openspec `chat-stated-cost`, migration
-  062). A cost declaration — the property paper `cost_declaration` and the
-  vehicle paper `vehicle_cost_declaration`, both `clientMayStateInChat: true`
-  on `CatalogPaper` (`paperMayBeStatedInChat`) — may be closed by the
-  client's own WhatsApp message instead of a file. `vehicle` therefore
-  declares papers too (`vehicle_license`, `vehicle_purchase_document`,
-  `vehicle_cost_declaration`; 062 backfills existing rows by name prefix).
+  062). A cost declaration — the property paper `cost_declaration`
+  (`clientMayStateInChat: true` on `CatalogPaper`, `paperMayBeStatedInChat`;
+  `paperStatedBy` names the tool: `state_cost` for it, `state_vehicle` for the
+  vehicle declaration below) — may be closed by the client's own WhatsApp
+  message instead of a file. `vehicle` therefore declares papers too
+  (`vehicle_license`, `vehicle_purchase_document` and, since 2026-10-18,
+  `vehicle_declaration` in place of the former `vehicle_cost_declaration`;
+  062 backfilled existing rows by name prefix, 066 renames the paper).
   The planner answers `stated_costs` (existing pending item) or an
   instance's `stated_cost` (a row created in the same answer; `amount: 0` =
   none, a non-nullable shape against the Anthropic union budget);
@@ -1285,6 +1282,29 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   documents card shows a stated row with its own badge and a clickable note
   that opens the Conversation tab on that message (`focusMessage` on the tab
   context; every bubble carries `id="message-<id>"`).
+- **Vehicle declaration** (2026-10-18, openspec `vehicle-license-optional`,
+  capability `vehicle-declaration`, migration 066). One item per vehicle,
+  paper `vehicle_declaration` ("הצהרת הלקוח על הרכב"), replaces the licence or
+  the receipt the client cannot send: the planner adds it once (`add_instance`),
+  retires the missing paper's item on the client's words, and records the
+  facts the client wrote with the tool `state_vehicle` (make, model,
+  production year, plate, cost + currency — any subset, '' / 0 = not stated;
+  no fact at all is allowed when the client says they know nothing more).
+  `validateStatedVehicles` (`decisionSchema.ts`) reports
+  `stated_vehicle_item_allows` (a pending OR stated `vehicle_declaration`
+  item, or a new instance of that paper) and `stated_vehicle_facts_in_quote`
+  (`vehicleDeclaration.ts` · `vehicleFactMissingFromQuote`: year and plate as
+  digits, the cost through `amountAppearsIn`, make/model as text); `state_cost`
+  now refuses a vehicle item. `applyVehicleDeclarations` (step
+  `apply_vehicle_declarations`, audit `document.stated`) merges the statement
+  into the row's evidence — `{source:'chat_vehicle', statements:[{message_id,
+  quote}], facts}` (`mergeVehicleEvidence`: a newer fact replaces an older
+  one, every quote is kept) — through `clientDocuments.markStatedVehicle`
+  (pending or stated → stated). The documents section shows
+  `הוצהר בצ'אט (N הודעות): תוצר: … · דגם: לא ידוע · …` (`statedVehicleLine`);
+  the card lists the facts and one clickable note per statement; the step
+  summary row is `vehicle_declarations`. `vehicleEvidenceOf` also reads a
+  pre-066 `source:'chat'` cost on a vehicle-declaration row.
 - **Goal-driven real-estate clarification** (2026-10-10, openspec
   `real-estate-goal-driven-clarification`, no migration). The catalog
   description and the planner's real-estate case state the goal first — proof
@@ -1547,7 +1567,8 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `visibleEmails`, so the message count and the "no messages" notice ignore
   them; the channel filter applies to them like to messages.
 - **Apply phase**: `plan.ts` records one `apply_resolutions` /
-  `apply_additions` / `apply_retirements` / `apply_stated_costs` / `apply_collections` /
+  `apply_additions` / `apply_retirements` / `apply_stated_costs` /
+  `apply_vehicle_declarations` / `apply_collections` /
   `apply_attestation` / `send_reply` row per decision field that changed
   state (never for a no-op). The detail names every document the step
   touched next to its id (`applyStepDetails.ts`: `name`, `anchorName`,

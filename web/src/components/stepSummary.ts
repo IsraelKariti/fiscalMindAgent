@@ -168,6 +168,17 @@ const MAPPINGS: Record<string, Mapping> = {
     });
     return { rows: list('stated_costs', items), consumed: ['rows', 'count'] };
   },
+  apply_vehicle_declarations: (d) => {
+    const rows = Array.isArray(d['rows']) ? d['rows'] : [];
+    const items = rows.map((r) => {
+      if (!isRecord(r)) return JSON.stringify(r);
+      const facts = str(r['factsLine']);
+      const quote = str(r['quote']);
+      const head = facts ? `${docLabel(r)}: ${facts}` : docLabel(r);
+      return quote ? `${head} · "${quote}"` : head;
+    });
+    return { rows: list('vehicle_declarations', items), consumed: ['rows', 'count'] };
+  },
   apply_collections: (d) => {
     const pairs = Array.isArray(d['pairs']) ? d['pairs'] : [];
     const pairItems = pairs.map((p) => {

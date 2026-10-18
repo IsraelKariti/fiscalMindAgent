@@ -1,0 +1,611 @@
+{
+  "ranAt": "2026-10-18T20:53:27.833Z",
+  "finishedAt": "2026-10-18T20:54:27.781Z",
+  "models": [
+    "gemini-2.5-flash",
+    "gemini-3.1-pro-preview"
+  ],
+  "stages": [
+    "generate_message"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 3,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
+    },
+    "gemini-3.1-pro-preview": {
+      "model": "gemini-3.1-pro-preview",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000012,
+      "thinkingCostPerToken": 0.000012,
+      "cachedCostPerToken": 2e-7
+    }
+  },
+  "results": [
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_28",
+      "notes": "Change chat-stated-cost: the client vehicle declaration already exists and is pending; the client writes the price. The planner states it on that item (state_vehicle → stated_vehicles) and confirms the recorded amount.",
+      "ranAt": "2026-10-18T20:53:27.908Z",
+      "latencyMs": 8449,
+      "attempts": 1,
+      "inputTokens": 28791,
+      "outputTokens": 194,
+      "thinkingTokens": 1256,
+      "cachedTokens": 0,
+      "costUsd": 0.012262299999999999,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "state_cost",
+            "args": {
+              "instance_name": "",
+              "amount": 85000,
+              "evidence_quote": "שילמתי 85,000 ש\"ח",
+              "currency": "ILS",
+              "document_id": "doc-car-cost",
+              "evidence_message_id": "msg-6"
+            }
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "מעולה ישראל, רשמתי את עלות הרכב על סך 85,000 ש\"ח. אשמח לקבל את צילום רישיון הרכב בערב כשתתפנה.",
+              "send_at": "asap"
+            }
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "reasoning": "Client provided car cost, recorded it. Reminded about car license which is pending. All other documents are not_required or will be stated/collected.",
+              "decision": "follow_up"
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "stated cost of doc-car-cost: document doc-car-cost is the client's vehicle declaration — a vehicle is stated with state_vehicle, not state_cost",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "state_cost",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "Client provided car cost, recorded it. Reminded about car license which is pending. All other documents are not_required or will be stated/collected.",
+        "send_at": "asap"
+      },
+      "pass": false
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_34",
+      "notes": "openspec vehicle-declaration: no receipt and no idea of the price. The receipt is not required: the planner retires the receipt item, adds the client vehicle declaration and closes it with a statement that carries no cost (the quote is the client's 'no idea'), and the reply does not press for a price.",
+      "ranAt": "2026-10-18T20:53:28.090Z",
+      "latencyMs": 14882,
+      "attempts": 1,
+      "inputTokens": 28698,
+      "outputTokens": 518,
+      "thinkingTokens": 2753,
+      "cachedTokens": 0,
+      "costUsd": 0.0167869,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "retire_document",
+            "args": {
+              "proven_by_file_id": "",
+              "document_id": "doc-car-receipt",
+              "evidence_quote": "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה, קניתי אותו לפני המון שנים",
+              "evidence_message_id": "msg-4"
+            }
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "evidence_quote": "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה, קניתי אותו לפני המון שנים",
+              "name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "description": "",
+              "anchor_document_id": "doc-car-licence",
+              "already_provided": false,
+              "paper_key": "vehicle_declaration",
+              "evidence_message_id": "msg-4",
+              "proven_by_file_id": "",
+              "file_ids": []
+            }
+          },
+          {
+            "name": "state_vehicle",
+            "args": {
+              "currency": "",
+              "model": "3",
+              "evidence_quote": "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה, קניתי אותו לפני המון שנים",
+              "document_id": "",
+              "manufacturer": "מאזדה",
+              "purchase_cost": 0,
+              "instance_name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "evidence_message_id": "msg-4",
+              "license_plate": "",
+              "production_year": 2019
+            }
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "send_at": "asap",
+              "text": "היי ישראל, תודה על העדכון. רשמתי שאין לך קבלה על הרכב ושעלות הרכישה לא ידועה לך - זה בסדר גמור. אשמח לקבל את רישיון הרכב בערב כשתשלח.\nרק כדי לוודא שכיסינו הכל, האם יש לך נכסים או התחייבויות נוספים שלא דיברנו עליהם עד עכשיו?"
+            }
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "The client stated they don't have the car receipt and don't know the cost, so retiring the receipt document and creating a vehicle declaration with the stated details. Acknowledging the car license will be sent later. Asking a general question to ensure no other assets/liabilities are missed."
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "vehicle statement on the new instance \"הצהרת הלקוח על הרכב - מאזדה 3\": the תוצר (manufacturer) is not written in the quote — copy the fact as the client wrote it, or ask the client to write it plainly",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "retire_document",
+          "add_instance",
+          "state_vehicle",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "The client stated they don't have the car receipt and don't know the cost, so retiring the receipt document and creating a vehicle declaration with the stated details. Acknowledging the car license will be sent later. Asking a general question to ensure no other assets/liabilities are missed.",
+        "send_at": "asap"
+      },
+      "pass": false
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "dec_28",
+      "notes": "Change chat-stated-cost: the client vehicle declaration already exists and is pending; the client writes the price. The planner states it on that item (state_vehicle → stated_vehicles) and confirms the recorded amount.",
+      "ranAt": "2026-10-18T20:53:42.981Z",
+      "latencyMs": 16161,
+      "attempts": 1,
+      "inputTokens": 29167,
+      "outputTokens": 211,
+      "thinkingTokens": 1760,
+      "cachedTokens": 0,
+      "costUsd": 0.081986,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "state_vehicle",
+            "args": {
+              "manufacturer": "",
+              "evidence_message_id": "msg-6",
+              "currency": "ILS",
+              "license_plate": "",
+              "model": "",
+              "instance_name": "",
+              "document_id": "doc-car-cost",
+              "purchase_cost": 85000,
+              "evidence_quote": "שילמתי 85,000 ש\"ח",
+              "production_year": 0
+            }
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "reasoning": "The client provided the car cost. I will record it and acknowledge, waiting for the license in the evening.",
+              "decision": "follow_up"
+            }
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "מעולה, רשמתי 85,000 ש\"ח.\nאמתין לרישיון הרכב בערב, קח את הזמן.",
+              "send_at": "asap"
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:40:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "85,000",
+            "85000",
+            "85 אלף"
+          ],
+          "actual": [
+            "85,000"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.דף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתימה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "stated_vehicles",
+          "expected": {
+            "doc-car-cost": {
+              "purchase_cost": 85000,
+              "currency": "ILS"
+            }
+          },
+          "actual": {
+            "doc-car-cost": {
+              "purchase_cost": 85000,
+              "currency": "ILS"
+            }
+          },
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "state_vehicle",
+          "conclude",
+          "send_whatsapp_text"
+        ],
+        "reasoning": "The client provided the car cost. I will record it and acknowledge, waiting for the license in the evening.",
+        "send_at": "asap",
+        "message": "מעולה, רשמתי 85,000 ש\"ח.\nאמתין לרישיון הרכב בערב, קח את הזמן.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "dec_34",
+      "notes": "openspec vehicle-declaration: no receipt and no idea of the price. The receipt is not required: the planner retires the receipt item, adds the client vehicle declaration and closes it with a statement that carries no cost (the quote is the client's 'no idea'), and the reply does not press for a price.",
+      "ranAt": "2026-10-18T20:53:42.985Z",
+      "latencyMs": 44787,
+      "attempts": 1,
+      "inputTokens": 29044,
+      "outputTokens": 447,
+      "thinkingTokens": 6258,
+      "cachedTokens": 0,
+      "costUsd": 0.138548,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "add_instance",
+            "args": {
+              "name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "already_provided": false,
+              "paper_key": "vehicle_declaration",
+              "evidence_quote": "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה",
+              "evidence_message_id": "msg-4",
+              "description": "",
+              "proven_by_file_id": "",
+              "anchor_document_id": "doc-car-licence",
+              "file_ids": []
+            }
+          },
+          {
+            "name": "state_vehicle",
+            "args": {
+              "purchase_cost": 0,
+              "evidence_message_id": "msg-4",
+              "production_year": 0,
+              "evidence_quote": "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה",
+              "manufacturer": "",
+              "currency": "",
+              "model": "",
+              "document_id": "",
+              "instance_name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "license_plate": ""
+            }
+          },
+          {
+            "name": "retire_document",
+            "args": {
+              "evidence_quote": "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה",
+              "proven_by_file_id": "",
+              "document_id": "doc-car-receipt",
+              "evidence_message_id": "msg-4"
+            }
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "send_at": "asap",
+              "text": "בסדר גמור ישראל, רשמתי שאין קבלה ושהעלות לא ידועה, זה לגמרי בסדר. אשמח לקבל את הרישיון בערב כשיהיה לך נוח."
+            }
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "The client stated they don't have the receipt and don't know the cost, and will send the license in the evening. Retiring receipt, adding and stating vehicle declaration, and replying asap to confirm."
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חובה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "question_excludes.עלה",
+          "expected": "not asked",
+          "actual": "not asked",
+          "pass": true
+        },
+        {
+          "key": "question_excludes.שילמת",
+          "expected": "not asked",
+          "actual": "not asked",
+          "pass": true
+        },
+        {
+          "key": "question_excludes.מחיר",
+          "expected": "not asked",
+          "actual": "not asked",
+          "pass": true
+        },
+        {
+          "key": "question_excludes.עלות",
+          "expected": "not asked",
+          "actual": "not asked",
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {
+            "vehicle": 1
+          },
+          "actual": {
+            "vehicle": 1
+          },
+          "pass": true
+        },
+        {
+          "key": "retired_documents",
+          "expected": [
+            "doc-car-receipt"
+          ],
+          "actual": [
+            "doc-car-receipt"
+          ],
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_vehicles",
+          "expected": [
+            {}
+          ],
+          "actual": [
+            {}
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "add_instance",
+          "state_vehicle",
+          "retire_document",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "The client stated they don't have the receipt and don't know the cost, and will send the license in the evening. Retiring receipt, adding and stating vehicle declaration, and replying asap to confirm.",
+        "send_at": "asap",
+        "message": "בסדר גמור ישראל, רשמתי שאין קבלה ושהעלות לא ידועה, זה לגמרי בסדר. אשמח לקבל את הרישיון בערב כשיהיה לך נוח.",
+        "resolutions": [],
+        "added_instance_names": [
+          "הצהרת הלקוח על הרכב - מאזדה 3"
+        ],
+        "evidence_quotes": [
+          "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה"
+        ],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 1,
+        "retired": 1
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "generate_message": {
+      "gemini-2.5-flash": {
+        "total": 2,
+        "passed": 0,
+        "passRate": 0,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 11666,
+          "p50": 8449,
+          "p90": 8449,
+          "min": 8449,
+          "max": 14882
+        },
+        "inputTokens": 57489,
+        "outputTokens": 712,
+        "thinkingTokens": 4009,
+        "cachedTokens": 0,
+        "costUsd": 0.029049,
+        "unpriced": 0
+      },
+      "gemini-3.1-pro-preview": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 30474,
+          "p50": 16161,
+          "p90": 16161,
+          "min": 16161,
+          "max": 44787
+        },
+        "inputTokens": 58211,
+        "outputTokens": 658,
+        "thinkingTokens": 8018,
+        "cachedTokens": 0,
+        "costUsd": 0.220534,
+        "unpriced": 0
+      }
+    }
+  }
+}

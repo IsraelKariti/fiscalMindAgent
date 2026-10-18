@@ -31,7 +31,8 @@ export interface CatalogPaper {
   analysisHintHe?: string;
   /**
    * The client may state this paper's content in the conversation instead of
-   * sending it (openspec `chat-stated-cost`): today the two cost declarations.
+   * sending it (openspec `chat-stated-cost`, `vehicle-declaration`): the property
+   * cost declaration and the client's vehicle declaration (see paperStatedBy).
    * A paper without the flag always needs a received document.
    */
   clientMayStateInChat?: true;
@@ -155,11 +156,11 @@ const VEHICLE_PAPERS: readonly CatalogPaper[] = [
       'מסמך רכישה או קבלה מרכישת הרכב: חשבונית מס / קבלה מסוכנות או ממגרש, זיכרון דברים או הסכם מכר רכב בין מוכר לקונה, או טופס העברת בעלות — מופיעים בו זיהוי הרכב (מספר רישוי, תוצר, דגם) והסכום ששולם. אינו מסמך רכישה: רישיון הרכב, פוליסת ביטוח, או דף שהלקוח כתב וחתם עליו (זו הצהרת עלות).',
   },
   {
-    key: 'vehicle_cost_declaration',
-    shortNameHe: 'הצהרת עלות',
+    key: 'vehicle_declaration',
+    shortNameHe: 'הצהרת הלקוח על הרכב',
     clientMayStateInChat: true,
     analysisHintHe:
-      'הצהרת עלות: דף קצר, מודפס או בכתב יד, שהלקוח כתב וחתם עליו, ובו עלות הרכישה של הרכב (גם אם משוערת) — לרוב גם זיהוי הרכב (תוצר, דגם או מספר רישוי). אינה הצהרת עלות: חשבונית, קבלה, רישיון רכב או מסמך של גוף אחר.',
+      'הצהרת הלקוח על הרכב: דף קצר, מודפס או בכתב יד, שהלקוח כתב וחתם עליו, ובו פרטי הרכב כפי שהוא מוסר אותם — תוצר, דגם, שנת ייצור, מספר רישוי ו/או עלות הרכישה (גם אם משוערת); די בחלק מהפרטים ובחתימה. אינה הצהרת הלקוח: חשבונית, קבלה, רישיון רכב או מסמך של גוף אחר.',
   },
 ];
 
@@ -299,13 +300,13 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     shortNameHe: 'כלי רכב',
     nameHe: 'מסמכי כלי רכב',
     descriptionHe:
-      'לכל כלי רכב בבעלותך (פרטי, מסחרי, אופנוע) — בהצהרה מצוינים יצרן, דגם, שנת ייצור, מספר רישוי ועלות הרכישה. שני מסמכים לכל רכב: ' +
-      'חובה לכל רכב — העתק רישיון הרכב שהיה בתוקף ביום 31.12.{{tax_year}} (המועד הקובע): רישיון שתוקפו פג אחרי תאריך זה קביל גם אם כבר אינו בתוקף היום; רישיון שתוקפו פג לפני 31.12.{{tax_year}} אינו קביל, ובמקרה כזה נדרש הרישיון שהיה בתוקף בתאריך זה. ' +
-      'לגבי העלות — מסמך רכישה או קבלה מרכישת הרכב (חשבונית מס/קבלה וכדומה). אם אין בידי הלקוח מסמך רכישה או קבלה — במקומם הצהרת עלות מהלקוח, שבה הוא מצהיר כמה עלה לו הרכב: דף חתום, או הסכום במילותיו בשיחה (בצ\'אט).',
+      'לכל כלי רכב בבעלותך (פרטי, מסחרי, אופנוע) — בהצהרה מצוינים יצרן, דגם, שנת ייצור, מספר רישוי ועלות הרכישה, על פי דברי הלקוח. שני מסמכים מועילים לכל רכב, ומבקשים את שניהם יחד: ' +
+      'העתק רישיון הרכב (כל עותק מתאים, גם רישיון שתוקפו פג — הוא המקור ליצרן, לדגם, לשנת הייצור ולמספר הרישוי) ומסמך רכישה או קבלה מרכישת הרכב (חשבונית מס/קבלה וכדומה — המקור לעלות). ' +
+      'אף אחד מהם אינו חובה: אם אין בידי הלקוח את הרישיון או את מסמך הרכישה — במקומם הצהרת הלקוח על הרכב, שבה הוא מוסר את הפרטים הידועים לו (גם אם חלקיים, גם עלות משוערת): במילותיו בשיחה (בצ\'אט) או בדף חתום.',
     discoveryQuestionHe:
       'כמה כלי רכב (פרטי, מסחרי, אופנוע) רשומים על שמך, ומה הם? לגבי כל רכב — האם מסמך הרכישה או הקבלה מרכישת הרכב נמצאים בידיך?',
     analysisHintHe:
-      'אנטומיית רישיון רכב ישראלי (מסמך משרד התחבורה): בשורת הכותרת העליונה — מספר רכב, סוג, ותאריך "בתוקף עד" (תוקף הרישיון); בגוף — שם הבעלים ומספר הזהות, תוצר, דגם וכינוי מסחרי, מועד עליה לכביש (מציין את שנת הייצור), מספר שילדה. הרישיון הוא המקור לכל פרטי הרכב שבהצהרה מלבד עלות הרכישה. תוקף הרישיון נבחן לפי "בתוקף עד" מול יום 31.12 של שנת המס (המועד הקובע): רישיון שתוקפו פג אחרי תאריך זה קביל גם אם כבר אינו בתוקף היום; רישיון שתוקפו פג לפניו אינו קביל. אינו קביל גם: החלק התחתון של הדף בלבד ("חידוש רישיון רכב" / "הודעת זיכוי" — ספח תשלום לחידוש, לא הרישיון עצמו); רישיון הרכב תקף רק לאחר תשלום האגרה ומעבר מבחן הכשירות (טסט). אין לבלבל את "בתוקף עד" עם "תאריך רישום", "תאריך בעלות" או תאריך ההדפסה.',
+      'אנטומיית רישיון רכב ישראלי (מסמך משרד התחבורה): בשורת הכותרת העליונה — מספר רכב, סוג, ותאריך "בתוקף עד" (תוקף הרישיון); בגוף — שם הבעלים ומספר הזהות, תוצר, דגם וכינוי מסחרי, מועד עליה לכביש (מציין את שנת הייצור), מספר שילדה. הרישיון הוא המקור לכל פרטי הרכב שבהצהרה מלבד עלות הרכישה. תוקף הרישיון אינו נבחן: גם רישיון שתוקפו פג מזמן קביל — חלץ את "בתוקף עד" לידיעה בלבד. אינו קביל: החלק התחתון של הדף בלבד ("חידוש רישיון רכב" / "הודעת זיכוי" — ספח תשלום לחידוש, לא הרישיון עצמו). אין לבלבל את "בתוקף עד" עם "תאריך רישום", "תאריך בעלות" או תאריך ההדפסה.',
     multiInstance: true,
     dateDependent: false,
     papers: VEHICLE_PAPERS,
@@ -409,6 +410,16 @@ export function getCatalogPaper(key: string | null | undefined): CatalogPaper | 
 /** Whether the client may state this paper in the chat instead of sending it (openspec `chat-stated-cost`); false for unknown keys. */
 export function paperMayBeStatedInChat(paperKey: string | null | undefined): boolean {
   return getCatalogPaper(paperKey)?.clientMayStateInChat === true;
+}
+
+/**
+ * The planner tool that states a statable paper in the chat: the vehicle
+ * declaration takes `state_vehicle` (openspec `vehicle-declaration`), the
+ * property cost declaration `state_cost`; null for a paper that needs a document.
+ */
+export function paperStatedBy(paperKey: string | null | undefined): 'state_cost' | 'state_vehicle' | null {
+  if (!paperMayBeStatedInChat(paperKey)) return null;
+  return paperKey === 'vehicle_declaration' ? 'state_vehicle' : 'state_cost';
 }
 
 /** The papers a type declares — empty for a type without papers or an unknown / ad-hoc type. */

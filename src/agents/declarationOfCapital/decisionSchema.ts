@@ -4,7 +4,9 @@ import { isWallClockDateTime } from '../../util/time.js';
 import { ASAP_SEND_AT } from '../shared/sendAtGuard.js';
 import { renderTemplateBody } from '../../twilio/renderTemplate.js';
 import type { WaTemplateRow } from '../../db/types.js';
-import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault, paperMayBeStatedInChat } from './catalog.js';
+import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault, paperStatedBy } from './catalog.js';
+import type { VehicleFacts } from '../../db/types.js';
+import { VEHICLE_FACT_KEYS, VEHICLE_FACT_LABELS_HE, hasAnyVehicleFact, vehicleFactMissingFromQuote } from './vehicleDeclaration.js';
 import type { ApprovedPropertyFile } from './provenFacts.js';
 
 /**
@@ -39,6 +41,20 @@ export const DECISION_VALUES = ['goal_complete', 'follow_up', 'collect'] as cons
  */
 const StatedCostOnInstanceSchema = z.object({
   amount: z.number(),
+  currency: z.string(),
+  message_id: z.string(),
+  quote: z.string(),
+});
+/**
+ * Vehicle facts the client stated for a vehicle-declaration instance created in
+ * this answer (openspec `vehicle-declaration`); every field '' / 0 = not stated.
+ */
+const StatedVehicleOnInstanceSchema = z.object({
+  manufacturer: z.string(),
+  model: z.string(),
+  production_year: z.number(),
+  license_plate: z.string(),
+  purchase_cost: z.number(),
   currency: z.string(),
   message_id: z.string(),
   quote: z.string(),
@@ -124,6 +140,8 @@ export const DecisionResponseSchema = z.object({
               paper_key: z.enum(PAPER_KEY_VALUES),
               /** The cost the client stated in the chat for this cost-declaration instance; amount 0 = none. */
               stated_cost: StatedCostOnInstanceSchema,
+              /** The vehicle facts the client stated in the chat for this vehicle-declaration instance (openspec `vehicle-declaration`); all empty = none. */
+              stated_vehicle: StatedVehicleOnInstanceSchema,
             }),
           )
           .nullable(),
@@ -154,6 +172,8 @@ export const DecisionResponseSchema = z.object({
             paper_key: z.enum(PAPER_KEY_VALUES),
             /** The cost the client stated in the chat for this cost-declaration instance (see resolved_documents); amount 0 = none. */
             stated_cost: StatedCostOnInstanceSchema,
+            /** The vehicle facts the client stated in the chat for this vehicle-declaration instance (openspec `vehicle-declaration`); all empty = none. */
+            stated_vehicle: StatedVehicleOnInstanceSchema,
           }),
         ),
         /** The client statement the addition rests on — a real inbound message_id + verbatim quote. */
@@ -206,6 +226,24 @@ export const DecisionResponseSchema = z.object({
       document_id: z.string(),
       amount: z.number(),
       /** Three-letter code; ILS unless the client named another currency. */
+      currency: z.string(),
+      evidence: z.object({ message_id: z.string(), quote: z.string() }),
+    }),
+  ),
+  /**
+   * Vehicle facts the client stated in the chat (openspec `vehicle-declaration`)
+   * for an EXISTING vehicle-declaration item — pending, or already stated when a
+   * later message adds facts. Facts for an instance created in this answer go
+   * on that instance's `stated_vehicle`. Always present; [] = none.
+   */
+  stated_vehicles: z.array(
+    z.object({
+      document_id: z.string(),
+      manufacturer: z.string(),
+      model: z.string(),
+      production_year: z.number(),
+      license_plate: z.string(),
+      purchase_cost: z.number(),
       currency: z.string(),
       evidence: z.object({ message_id: z.string(), quote: z.string() }),
     }),
@@ -290,6 +328,8 @@ export interface ResolvedInstance {
   paperKey: string | null;
   /** The cost the client stated in the chat for this instance (openspec `chat-stated-cost`), validated; null when none. */
   statedCost: StatedCost | null;
+  /** The vehicle facts the client stated for this instance (openspec `vehicle-declaration`), validated; null when none. */
+  statedVehicle: StatedVehicle | null;
 }
 
 /** A purchase cost the client stated in the conversation (openspec `chat-stated-cost`): the amount, its currency and the client's words. */
@@ -301,6 +341,16 @@ export interface StatedCost {
 
 /** One validated stated cost for an existing pending cost-declaration item. */
 export interface StatedCostDecision extends StatedCost {
+  documentId: string;
+}
+
+/** Vehicle facts the client stated in the conversation (openspec `vehicle-declaration`): any subset of the facts, and the client's words. */
+export interface StatedVehicle {
+  facts: VehicleFacts;
+  evidence: QuoteEvidence;
+}
+
+export interface StatedVehicleDecision extends StatedVehicle {
   documentId: string;
 }
 
@@ -337,6 +387,8 @@ export type NormalizedDecision =
       retired: DocumentRetirement[];
       /** Costs stated in the chat for existing items (openspec `chat-stated-cost`); costs on new instances travel on the instances. */
       statedCosts: StatedCostDecision[];
+      /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
+      statedVehicles: StatedVehicleDecision[];
       attestation: AttestationDecision | null;
     }
   | {
@@ -351,6 +403,8 @@ export type NormalizedDecision =
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
       statedCosts: StatedCostDecision[];
+      /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
+      statedVehicles: StatedVehicleDecision[];
       /** Only 'confirmed' (a state change); a 'request' is message-bound and rejected. */
       attestation: AttestationDecision | null;
     }
@@ -368,6 +422,8 @@ export type NormalizedDecision =
       retired: DocumentRetirement[];
       /** Costs stated in the chat for existing items (openspec `chat-stated-cost`); costs on new instances travel on the instances. */
       statedCosts: StatedCostDecision[];
+      /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
+      statedVehicles: StatedVehicleDecision[];
       attestation: AttestationDecision | null;
     };
 
@@ -699,6 +755,7 @@ function normalizeInstances(
     file_ids?: string[] | null;
     paper_key?: string;
     stated_cost?: { amount: number; currency: string; message_id: string; quote: string };
+    stated_vehicle?: RawStatedVehicle;
   }[],
   multiInstance: boolean,
   /** The catalog type of the row / anchor: decides which papers the instances may name (openspec `document-papers`). */
@@ -720,6 +777,8 @@ function normalizeInstances(
             evidence: { message_id: i.stated_cost.message_id, quote: i.stated_cost.quote },
           }
         : null,
+    // Carried raw here; validateStatedVehicles checks the paper, the quote and the facts.
+    statedVehicle: rawStatedVehicle(i.stated_vehicle),
   }));
   if (instances.length === 0) {
     throw new Error(`${what} needs at least one instance ({name, description})`);
@@ -784,7 +843,11 @@ function normalizeCurrency(currency: string, what: string): string {
 /** A pending cost-declaration row a cost may be stated on, or the reason it may not. */
 function statedCostTargetFault(row: TypedRow | undefined, documentId: string): string | null {
   if (!row) return `document ${documentId} is not an already-resolved catalog row of this client`;
-  if (!paperMayBeStatedInChat(row.paperKey)) {
+  const tool = paperStatedBy(row.paperKey);
+  if (tool === 'state_vehicle') {
+    return `document ${documentId} is the client's vehicle declaration — a vehicle is stated with state_vehicle, not state_cost`;
+  }
+  if (tool !== 'state_cost') {
     return `document ${documentId} is not a cost declaration (paper ${row.paperKey ?? 'none'}) — only a cost declaration may be stated in the chat; every other item needs the document itself`;
   }
   if (row.status !== 'pending') return `document ${documentId} is ${row.status}, not pending — a stated cost closes an awaited item only`;
@@ -851,8 +914,13 @@ function validateStatedCosts(
   }
   for (const instance of instanceCosts) {
     const what = `stated cost of the new instance "${instance.name}"`;
-    const allowed = paperMayBeStatedInChat(instance.paperKey);
-    const fault = allowed ? null : `${what}: paper ${instance.paperKey ?? 'none'} is not a cost declaration — only a cost declaration may be stated in the chat`;
+    const tool = paperStatedBy(instance.paperKey);
+    const allowed = tool === 'state_cost';
+    const fault = allowed
+      ? null
+      : tool === 'state_vehicle'
+        ? `${what}: paper vehicle_declaration is the client's vehicle declaration — a vehicle is stated with state_vehicle, not state_cost`
+        : `${what}: paper ${instance.paperKey ?? 'none'} is not a cost declaration — only a cost declaration may be stated in the chat`;
     checks.push(check('stated_cost_item_allows', allowed, fault, { observed: `new instance, paper ${instance.paperKey ?? 'none'}`, expected }));
     if (fault) throw new Error(fault);
     const cost = instance.statedCost!;
@@ -860,6 +928,147 @@ function validateStatedCosts(
     const normalized: StatedCost = { amount: cost.amount, currency: normalizeCurrency(cost.currency, what), evidence };
     verifyAmount(normalized, what);
     instance.statedCost = normalized;
+  }
+  return result;
+}
+
+/** The raw form of a vehicle statement on an instance: the flat tool fields, '' / 0 = not stated. */
+interface RawStatedVehicle {
+  manufacturer: string;
+  model: string;
+  production_year: number;
+  license_plate: string;
+  purchase_cost: number;
+  currency: string;
+  message_id: string;
+  quote: string;
+}
+
+/**
+ * The stated facts of a raw vehicle statement (openspec `vehicle-declaration`):
+ * '' / 0 means "not stated". Null when nothing at all was given (no fact and no
+ * quote) — a quote with no fact is kept so the gate rejects it with a note.
+ */
+function rawStatedVehicle(raw: RawStatedVehicle | undefined): StatedVehicle | null {
+  if (!raw) return null;
+  const facts: VehicleFacts = {};
+  if (raw.manufacturer.trim()) facts.manufacturer = raw.manufacturer.trim();
+  if (raw.model.trim()) facts.model = raw.model.trim();
+  if (raw.production_year !== 0) facts.production_year = raw.production_year;
+  if (raw.license_plate.trim()) facts.license_plate = raw.license_plate.replace(/[^\d]/g, '');
+  if (raw.purchase_cost !== 0) {
+    facts.purchase_cost = raw.purchase_cost;
+    facts.currency = raw.currency.trim().toUpperCase() || 'ILS';
+  }
+  if (!hasAnyVehicleFact(facts) && raw.quote.trim() === '' && raw.message_id.trim() === '') return null;
+  return { facts, evidence: { message_id: raw.message_id, quote: raw.quote } };
+}
+
+/** A vehicle-declaration row a statement may fill, or the reason it may not. */
+function statedVehicleTargetFault(row: TypedRow | undefined, documentId: string): string | null {
+  if (!row) return `document ${documentId} is not an already-resolved catalog row of this client`;
+  const tool = paperStatedBy(row.paperKey);
+  if (tool === 'state_cost') return `document ${documentId} is a property cost declaration — state it with state_cost, not state_vehicle`;
+  if (tool !== 'state_vehicle') {
+    return `document ${documentId} is not the client's vehicle declaration (paper ${row.paperKey ?? 'none'}) — only a vehicle declaration may be stated with state_vehicle; every other item needs the document itself`;
+  }
+  if (row.status !== 'pending' && row.status !== 'stated') {
+    return `document ${documentId} is ${row.status} — a vehicle statement fills an awaited or already stated declaration only`;
+  }
+  return null;
+}
+
+/**
+ * Validates the vehicle facts the client stated in the chat (openspec
+ * `vehicle-declaration`): on existing items (`stated_vehicles`) and on the
+ * instances this answer creates (`stated_vehicle`). Checks per statement,
+ * reported into `checks`: the target is a pending or stated vehicle-declaration
+ * item (or a new vehicle-declaration instance); the quote is verbatim in a
+ * stored inbound message (the evidence rule — its failure is business_rules);
+ * every stated fact is written in the quote (a statement with no fact closes the
+ * declaration with everything unknown — the quote is the client's "don't know")
+ * (numbers as digits, a cost also as "N אלף" / "N מיליון", text as text). The
+ * first failure rejects the whole answer.
+ */
+function validateStatedVehicles(
+  raw: DecisionResponse,
+  ctx: DecisionContext,
+  resolutions: DocumentResolution[],
+  additions: InstanceAddition[],
+  checks: GateCheck[],
+): StatedVehicleDecision[] {
+  const entries = raw.stated_vehicles ?? [];
+  const instanceStatements = [
+    ...resolutions.flatMap((r) => (r.resolution === 'required' ? r.instances : [])),
+    ...additions.flatMap((a) => a.instances),
+  ].filter((i) => i.statedVehicle !== null);
+  if (entries.length === 0 && instanceStatements.length === 0) return [];
+  const intake = ctx.intake;
+  if (!intake) throw new Error('stated_vehicles is not applicable to this agent — leave it empty');
+  const expected = 'a pending or stated vehicle declaration item';
+
+  const normalizeFacts = (facts: VehicleFacts, what: string): VehicleFacts => {
+    const out: VehicleFacts = { ...facts };
+    if (out.production_year !== undefined && !(Number.isInteger(out.production_year) && out.production_year >= 1900 && out.production_year <= 2100)) {
+      throw new Error(`${what}: production_year must be a four-digit year, got ${out.production_year}`);
+    }
+    if (out.purchase_cost !== undefined) {
+      if (!(out.purchase_cost > 0)) throw new Error(`${what}: purchase_cost must be greater than 0`);
+      out.currency = normalizeCurrency(out.currency ?? 'ILS', what);
+    } else {
+      delete out.currency;
+    }
+    return out;
+  };
+  const verifyFacts = (statement: StatedVehicle, what: string): void => {
+    const labels = VEHICLE_FACT_KEYS.filter((k) => statement.facts[k] !== undefined)
+      .map((k) => VEHICLE_FACT_LABELS_HE[k])
+      .join(', ');
+    // No fact at all is allowed: the client said they know nothing more, and the
+    // quote is those words — the declaration closes with every fact unknown.
+    const missing = hasAnyVehicleFact(statement.facts) ? vehicleFactMissingFromQuote(statement.facts, statement.evidence.quote, amountAppearsIn) : null;
+    const note = missing
+      ? `${what}: the ${VEHICLE_FACT_LABELS_HE[missing]} (${missing}) is not written in the quote — copy the fact as the client wrote it, or ask the client to write it plainly`
+      : null;
+    checks.push(check('stated_vehicle_facts_in_quote', note === null, note, { observed: statement.evidence.quote, expected: labels || 'none (the client knows nothing more)' }));
+    if (note) throw new Error(note);
+  };
+
+  const byId = new Map(intake.typedRows.map((r) => [r.id, r]));
+  const seen = new Set<string>();
+  const result: StatedVehicleDecision[] = [];
+  for (const entry of entries) {
+    const what = `vehicle statement on ${entry.document_id}`;
+    if (seen.has(entry.document_id)) throw new Error(`stated_vehicles targets document ${entry.document_id} twice — merge the facts into one call`);
+    seen.add(entry.document_id);
+    const row = byId.get(entry.document_id);
+    const fault = statedVehicleTargetFault(row, entry.document_id);
+    checks.push(
+      check('stated_vehicle_item_allows', fault === null, fault && `${what}: ${fault}`, {
+        observed: row ? `paper ${row.paperKey ?? 'none'}, status ${row.status}` : 'unknown document',
+        expected,
+      }),
+    );
+    if (fault) throw new Error(`${what}: ${fault}`);
+    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, what);
+    const rawStatement = rawStatedVehicle({ ...entry, message_id: entry.evidence.message_id, quote: entry.evidence.quote });
+    const statement: StatedVehicle = { facts: normalizeFacts(rawStatement?.facts ?? {}, what), evidence };
+    verifyFacts(statement, what);
+    result.push({ documentId: entry.document_id, ...statement });
+  }
+  for (const instance of instanceStatements) {
+    const what = `vehicle statement on the new instance "${instance.name}"`;
+    const allowed = paperStatedBy(instance.paperKey) === 'state_vehicle';
+    const fault = allowed
+      ? null
+      : `${what}: paper ${instance.paperKey ?? 'none'} is not the client's vehicle declaration — only a vehicle_declaration instance may carry vehicle facts`;
+    checks.push(check('stated_vehicle_item_allows', allowed, fault, { observed: `new instance, paper ${instance.paperKey ?? 'none'}`, expected }));
+    if (fault) throw new Error(fault);
+    const statement = instance.statedVehicle!;
+    const evidence = validateEvidence(statement.evidence, intake.inboundTexts, what);
+    const normalized: StatedVehicle = { facts: normalizeFacts(statement.facts, what), evidence };
+    verifyFacts(normalized, what);
+    instance.statedVehicle = normalized;
   }
   return result;
 }
@@ -986,9 +1195,10 @@ function validateAttestation(raw: DecisionResponse, ctx: DecisionContext): Attes
       (raw.resolved_documents ?? []).length +
       (raw.added_instances ?? []).length +
       (raw.retired_documents ?? []).length +
-      (raw.stated_costs ?? []).length;
+      (raw.stated_costs ?? []).length +
+      (raw.stated_vehicles ?? []).length;
     if (!intake.allSettled || changesThisCycle > 0) {
-      throw new Error("attestation 'request' is valid only when every document is already settled (approved / stated / not_required) and no new resolutions, additions, retirements or stated costs are being made in this answer — the summary goes in the next cycle");
+      throw new Error("attestation 'request' is valid only when every document is already settled (approved / stated / not_required) and no new resolutions, additions, retirements, stated costs or vehicle statements are being made in this answer — the summary goes in the next cycle");
     }
     return { action: 'request' };
   }
@@ -1083,6 +1293,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
   const addedInstances = validateAddedInstances(raw, ctx);
   const retired = validateRetirements(raw, ctx);
   const statedCosts = validateStatedCosts(raw, ctx, resolutions, addedInstances, checks);
+  const statedVehicles = validateStatedVehicles(raw, ctx, resolutions, addedInstances, checks);
   const attestation = validateAttestation(raw, ctx);
   const matchedFiles = validateMatchedFiles(raw, ctx);
   if (raw.decision === 'collect') {
@@ -1096,6 +1307,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       addedInstances,
       retired,
       statedCosts,
+      statedVehicles,
       attestation,
     };
   }
@@ -1110,6 +1322,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       addedInstances,
       retired,
       statedCosts,
+      statedVehicles,
       attestation,
     };
   }
@@ -1129,6 +1342,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
     addedInstances,
     retired,
     statedCosts,
+    statedVehicles,
     attestation,
   };
 }

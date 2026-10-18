@@ -18,6 +18,7 @@ import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/monday
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { getCatalogType } from './catalog.js';
 import { approvedPropertyFilesOf, provenFactsLine, provenFactsOf } from './provenFacts.js';
+import { mergeVehicleEvidence, vehicleEvidenceOf } from './vehicleDeclaration.js';
 import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
 import { childDisplayName } from './splitChildNames.js';
 import { assignFilesToNewRows, filterPairsByCompany, type NewRowFiles } from './fileTies.js';
@@ -29,12 +30,14 @@ import {
   resolutionsStepDetail,
   retirementsStepDetail,
   statedCostsStepDetail,
+  vehicleDeclarationsStepDetail,
   type AppliedStatedCost,
+  type AppliedStatedVehicle,
   type CompanySplitDetail,
 } from './applyStepDetails.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
-import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState, type NormalizedDecision, type StatedCost } from './decisionSchema.js';
+import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState, type NormalizedDecision, type StatedCost, type StatedVehicle } from './decisionSchema.js';
 import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys, type TaxFetchContext } from './taxFetch/flow.js';
 import { getProviderSpec } from './taxFetch/providers.js';
 import { clientIdNumber } from './taxFetch/clientId.js';
@@ -142,6 +145,8 @@ interface ChecklistChanges {
   claimedAtCreation: string[];
   /** Rows created in this cycle whose instance carried a cost the client stated in the chat (openspec `chat-stated-cost`): closed by apply_stated_costs. */
   createdStated: { row: ClientDocumentRow; cost: StatedCost }[];
+  /** Rows created in this cycle whose instance carried vehicle facts the client stated in the chat (openspec `vehicle-declaration`): filled by apply_vehicle_declarations. */
+  createdStatedVehicles: { row: ClientDocumentRow; statement: StatedVehicle }[];
 }
 
 /** What the collect step decided and did: the input of the verification targets and of the apply_collections row. */
@@ -165,11 +170,12 @@ interface CollectionOutcome {
 export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const run = await loadPlanningContext(ctx);
   const decision = await askPlanner(run);
-  const changes: ChecklistChanges = { applied: 0, createdWithFiles: [], claimedAtCreation: [], createdStated: [] };
+  const changes: ChecklistChanges = { applied: 0, createdWithFiles: [], claimedAtCreation: [], createdStated: [], createdStatedVehicles: [] };
   await applyResolutions(run, decision, changes);
   await applyAdditions(run, decision, changes);
   await applyRetirements(run, decision, changes);
   await applyStatedCosts(run, decision, changes);
+  await applyVehicleDeclarations(run, decision, changes);
   await settleChecklistChanges(run, changes);
   await applyAttestationConfirmed(run, decision);
   const collection = await collectFiles(run, decision, changes);
@@ -501,6 +507,8 @@ async function applyResolutions(run: PlanRun, decision: NormalizedDecision, chan
       rows.forEach((row, i) => {
         const cost = resolution.instances[i]?.statedCost;
         if (cost) changes.createdStated.push({ row, cost });
+        const vehicle = resolution.instances[i]?.statedVehicle;
+        if (vehicle) changes.createdStatedVehicles.push({ row, statement: vehicle });
       });
       changes.claimedAtCreation.push(...rows.filter((r) => r.status === 'claimed').map((r) => r.name));
       recordAudit({
@@ -540,6 +548,8 @@ async function applyAdditions(run: PlanRun, decision: NormalizedDecision, change
     rows.forEach((row, i) => {
       const cost = addition.instances[i]?.statedCost;
       if (cost) changes.createdStated.push({ row, cost });
+      const vehicle = addition.instances[i]?.statedVehicle;
+      if (vehicle) changes.createdStatedVehicles.push({ row, statement: vehicle });
     });
     changes.claimedAtCreation.push(...rows.filter((r) => r.status === 'claimed').map((r) => r.name));
     recordAudit({
@@ -644,6 +654,60 @@ async function applyStatedCosts(run: PlanRun, decision: NormalizedDecision, chan
     // Rows created this cycle are not in run.documents yet: name them from the created rows.
     const createdNames = new Map(changes.createdStated.map((c) => [c.row.id, c.row.name]));
     recordPlannerStep(run, 'apply_stated_costs', statedCostsStepDetail(applied, (id) => docName(run, id) ?? createdNames.get(id), changes.applied - before));
+  }
+}
+
+/**
+ * apply_vehicle_declarations — the client's statement about a vehicle (openspec
+ * `vehicle-declaration`): the facts the planner stated on existing vehicle
+ * declaration items (pending, or already stated when a later message adds
+ * facts) and on the instances this cycle just created. The gate checked the
+ * paper, the quote and the facts; here the statement is merged into the row's
+ * evidence (newer facts win) and the row is settled ('stated', no file).
+ */
+async function applyVehicleDeclarations(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
+  const { client, clientId } = run;
+  const before = changes.applied;
+  const targets: { documentId: string; statement: StatedVehicle; previous: ClientDocumentRow | null }[] = [
+    ...decision.statedVehicles.map((v) => ({ documentId: v.documentId, statement: { facts: v.facts, evidence: v.evidence }, previous: run.documents.find((d) => d.id === v.documentId) ?? null })),
+    ...changes.createdStatedVehicles.map((c) => ({ documentId: c.row.id, statement: c.statement, previous: null })),
+  ];
+  const applied: AppliedStatedVehicle[] = [];
+  for (const target of targets) {
+    const evidence = mergeVehicleEvidence(
+      target.previous ? vehicleEvidenceOf(target.previous.resolution_evidence, target.previous.paper_key) : null,
+      { message_id: target.statement.evidence.message_id, quote: target.statement.evidence.quote },
+      target.statement.facts,
+    );
+    const row = await clientDocuments.markStatedVehicle(target.documentId, clientId, evidence);
+    if (!row) continue;
+    changes.applied += 1;
+    applied.push({ documentId: target.documentId, ...target.statement, statementCount: evidence.statements.length });
+    recordAudit({
+      actorType: 'agent',
+      action: 'document.stated',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      targetType: 'client_document',
+      targetId: row.id,
+      detail: {
+        clientName: client.name,
+        name: row.name,
+        typeKey: row.type_key,
+        paperKey: row.paper_key,
+        facts: evidence.facts,
+        stated: target.statement.facts,
+        evidence: target.statement.evidence,
+      },
+    });
+  }
+  if (applied.length > 0) {
+    const createdNames = new Map(changes.createdStatedVehicles.map((c) => [c.row.id, c.row.name]));
+    recordPlannerStep(
+      run,
+      'apply_vehicle_declarations',
+      vehicleDeclarationsStepDetail(applied, (id) => docName(run, id) ?? createdNames.get(id), changes.applied - before),
+    );
   }
 }
 

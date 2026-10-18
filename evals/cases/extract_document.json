@@ -859,7 +859,7 @@
         "fields": { "license_plate": "98765432", "production_year": 2019, "purchase_cost": null },
         "verdict": { "passed": true }
       },
-      "notes": "openspec vehicle-license-valid-at-valuation-date: the licence expired on 15.01.2026 — after the valuation date 31.12.2025 but before the verification (2026-02-01). It was valid on the valuation date, so not_expired passes and the document is accepted; the model must still read the valid-until date as printed and must not call the document the wrong type because it is expired today"
+      "notes": "openspec vehicle-license-optional: the licence expired on 15.01.2026, before the verification (2026-02-01). The type runs no validity check, so the document is accepted; the model must still read the valid-until date as printed and must not call the document the wrong type because it is expired today"
     },
     {
       "id": "ext_28",
@@ -875,9 +875,9 @@
         "legible": true,
         "injection_suspected": false,
         "fields": { "license_plate": "76543210", "production_year": 2019, "purchase_cost": null },
-        "verdict": { "passed": false, "failed_keys": ["not_expired"] }
+        "verdict": { "passed": true }
       },
-      "notes": "openspec vehicle-license-valid-at-valuation-date: the licence expired on 20.07.2025, before the valuation date 31.12.2025, so not_expired fails (expected 2025-12-31) and the note asks for the licence that was valid on that date; it is still a vehicle licence (is_expected_type true) with its fields read"
+      "notes": "openspec vehicle-license-optional: the licence expired on 20.07.2025, before the valuation date 31.12.2025 — the licence is a helpful paper, not a required one, so the type runs no validity check and the document passes; the valid-until date is read for the record and the fields are read as from any licence"
     }
   ]
 }

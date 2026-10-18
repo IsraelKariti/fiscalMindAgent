@@ -209,7 +209,6 @@ export const SKIP_REASONS_HE = {
   noSpouseAdopted: 'לא אומץ בן/בת זוג בבדיקה זו',
   noSubjectMatch: 'המסמך לא זוהה כשייך ללקוח או לבן/בת הזוג',
   noCoOwners: 'אין בעלים נוספים במסמך',
-  noValidUntil: 'במסמך לא נקרא תאריך תוקף',
   periodNotRead: 'תאריכי התקופה לא נקראו במלואם',
 } as const;
 
@@ -292,28 +291,6 @@ export function asOfDateCheck(answer: ExtractedAnswer, ctx: CheckContext): Check
   );
 }
 
-/**
- * `not_expired` — a validity-dated document (vehicle license) must have been
- * valid on the valuation date, 31.12 of the tax year (openspec
- * `vehicle-license-valid-at-valuation-date`): a licence that expired after that
- * date is accepted however late the file is verified. Judged only when a
- * well-formed valid-until date was actually extracted (skipped otherwise):
- * sibling instances of the same type without one (a purchase receipt, a cost
- * declaration) are unaffected, and a license whose validity field is
- * unreadable is left to the expected-type judgment.
- */
-export function notExpiredCheck(answer: ExtractedAnswer, ctx: CheckContext): CheckResult {
-  const validUntil = answer.valid_until && DATE_RE.test(answer.valid_until) ? answer.valid_until : null;
-  if (!validUntil) return skipped('not_expired', SKIP_REASONS_HE.noValidUntil);
-  const valuationDate = `${ctx.taxYear}-12-31`;
-  return entry(
-    'not_expired',
-    validUntil >= valuationDate,
-    `המסמך בתוקף עד ${validUntil} — תוקפו פג לפני יום 31.12.${ctx.taxYear} (המועד הקובע); יש לשלוח את הרישיון שהיה בתוקף בתאריך זה`,
-    validUntil,
-    valuationDate,
-  );
-}
 
 /**
  * `type_fields` — every required field read and well formed, and at least

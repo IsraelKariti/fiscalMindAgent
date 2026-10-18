@@ -94,6 +94,7 @@ function baseRaw(overrides: Partial<DecisionResponse> = {}): DecisionResponse {
     added_instances: null,
     retired_documents: null,
     stated_costs: [],
+    stated_vehicles: [],
     attestation: null,
     attestation_evidence: null,
     ...overrides,
@@ -102,6 +103,7 @@ function baseRaw(overrides: Partial<DecisionResponse> = {}): DecisionResponse {
 
 /** No cost stated on an instance (openspec `chat-stated-cost`): amount 0 = none. */
 const NO_COST = { amount: 0, currency: '', message_id: '', quote: '' };
+const NO_VEHICLE = { manufacturer: '', model: '', production_year: 0, license_plate: '', purchase_cost: 0, currency: '', message_id: '', quote: '' };
 
 /** A real sentence of msg-1: what a "needed" resolution or an addition may rest on. */
 const CASH_QUOTE = { message_id: 'msg-1', quote: 'יש לי קצת מזומן בבית' };
@@ -184,8 +186,8 @@ describe('intake resolutions (normalizeDecision)', () => {
           document_id: 'doc-vehicle',
           resolution: 'required',
           instances: [
-            { name: '  רישיון רכב - מאזדה 3 ', description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST },
-            { name: 'רישיון רכב - טויוטה', description: 'רכב שני', already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST },
+            { name: '  רישיון רכב - מאזדה 3 ', description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE },
+            { name: 'רישיון רכב - טויוטה', description: 'רכב שני', already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE },
           ],
           evidence: CASH_QUOTE,
         },
@@ -209,7 +211,7 @@ describe('intake resolutions (normalizeDecision)', () => {
             {
               document_id,
               resolution: 'required',
-              instances: [{ name: 'חוזה רכישה — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key, stated_cost: NO_COST }],
+              instances: [{ name: 'חוזה רכישה — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key, stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }],
               evidence: CASH_QUOTE,
             },
           ],
@@ -230,7 +232,7 @@ describe('intake resolutions (normalizeDecision)', () => {
           added_instances: [
             {
               anchor_document_id: 'doc-contract',
-              instances: [{ name: 'נסח טאבו — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key, stated_cost: NO_COST }],
+              instances: [{ name: 'נסח טאבו — דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key, stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }],
               evidence: CASH_QUOTE,
               proven_by_file_id: '',
             },
@@ -250,7 +252,7 @@ describe('intake resolutions (normalizeDecision)', () => {
                 {
                   document_id: 'doc-re',
                   resolution: 'required',
-                  instances: [{ name: 'חוזה', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST }],
+                  instances: [{ name: 'חוזה', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }],
                   evidence: CASH_QUOTE,
                 },
               ],
@@ -273,7 +275,7 @@ describe('intake resolutions (normalizeDecision)', () => {
         {
           document_id: 'doc-crypto',
           resolution: 'required',
-          instances: [{ name: 'דוח קריפטו', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST }],
+          instances: [{ name: 'דוח קריפטו', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }],
           evidence: CASH_QUOTE,
         },
       ],
@@ -306,8 +308,8 @@ describe('intake resolutions (normalizeDecision)', () => {
             document_id: 'doc-cash',
             resolution: 'required',
             instances: [
-              { name: 'א', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST },
-              { name: 'ב', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST },
+              { name: 'א', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE },
+              { name: 'ב', description: null, already_provided: false, file_ids: [], paper_key: '', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE },
             ],
             evidence: CASH_QUOTE,
           },
@@ -320,7 +322,7 @@ describe('intake resolutions (normalizeDecision)', () => {
           {
             document_id: 'doc-vehicle',
             resolution: 'required',
-            instances: Array.from({ length: 11 }, (_, i) => ({ name: `רכב ${i}`, description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST })),
+            instances: Array.from({ length: 11 }, (_, i) => ({ name: `רכב ${i}`, description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE })),
             evidence: CASH_QUOTE,
           },
         ]),
@@ -329,7 +331,7 @@ describe('intake resolutions (normalizeDecision)', () => {
     const entry = {
       document_id: 'doc-vehicle',
       resolution: 'required' as const,
-      instances: [{ name: 'רכב', description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST }],
+      instances: [{ name: 'רכב', description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }],
       evidence: CASH_QUOTE,
     };
     assert.throws(() => on([entry, entry]), /twice/);
@@ -422,8 +424,8 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
         {
           anchor_document_id: 'doc-contract',
           instances: [
-            { name: 'נסח טאבו - דירה ברחוב הרצל 5', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST },
-            { name: 'שומת מס רכישה - דירה ברחוב הרצל 5', description: null, already_provided: true, file_ids: [], paper_key: 'purchase_tax_assessment', stated_cost: NO_COST },
+            { name: 'נסח טאבו - דירה ברחוב הרצל 5', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE },
+            { name: 'שומת מס רכישה - דירה ברחוב הרצל 5', description: null, already_provided: true, file_ids: [], paper_key: 'purchase_tax_assessment', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE },
           ],
           evidence: CASH_QUOTE,
           proven_by_file_id: '',
@@ -436,7 +438,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
   });
 
   it('rejects additions on unknown anchors, single-instance types, duplicate anchors, and non-intake agents', () => {
-    const instances = [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST }];
+    const instances = [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }];
     assert.throws(
       () =>
         normalizeDecision(
@@ -502,12 +504,12 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
           baseRaw({
             attestation: 'request',
             added_instances: [
-              { anchor_document_id: 'doc-contract', instances: [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST }], evidence: CASH_QUOTE, proven_by_file_id: '' },
+              { anchor_document_id: 'doc-contract', instances: [{ name: 'מסמך', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }], evidence: CASH_QUOTE, proven_by_file_id: '' },
             ],
           }),
           ctxWith(settled),
         ),
-      /no new resolutions, additions, retirements or stated costs/,
+      /no new resolutions, additions, retirements, stated costs or vehicle statements/,
     );
     assert.throws(
       () =>
@@ -518,7 +520,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
           }),
           ctxWith(settled),
         ),
-      /no new resolutions, additions, retirements or stated costs/,
+      /no new resolutions, additions, retirements, stated costs or vehicle statements/,
     );
   });
 });
@@ -527,9 +529,9 @@ describe('a list item is created only on the client\'s quoted words (openspec un
   // These answers tie a file to a row, so they are 'collect' decisions: no message, no send_at.
   const tyingRaw = (overrides: Partial<DecisionResponse> = {}): DecisionResponse =>
     baseRaw({ decision: 'collect', whatsapp_text: null, send_at: null, ...overrides });
-  const instances = [{ name: 'אישור קרן השתלמות בהראל', description: null, already_provided: false, file_ids: ['file-1', 'file-1'], paper_key: 'vehicle_license', stated_cost: NO_COST }];
+  const instances = [{ name: 'אישור קרן השתלמות בהראל', description: null, already_provided: false, file_ids: ['file-1', 'file-1'], paper_key: 'vehicle_license', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }];
   // The contract anchor is a real_estate row: an added instance there names one of the property papers.
-  const contractInstances = instances.map((i) => ({ ...i, paper_key: 'tabu_extract', stated_cost: NO_COST }));
+  const contractInstances = instances.map((i) => ({ ...i, paper_key: 'tabu_extract', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }));
   const required = (evidence: { message_id: string; quote: string } | null) =>
     normalizeDecision(
       tyingRaw({ resolved_documents: [{ document_id: 'doc-vehicle', resolution: 'required', instances, evidence }] }),
@@ -596,7 +598,7 @@ describe('an approved property paper as evidence (proven_by_file_id, openspec re
       ],
       approvedPropertyFiles,
     });
-  const appendix = [{ name: 'נספח תשלומים - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'payments_appendix', stated_cost: NO_COST }];
+  const appendix = [{ name: 'נספח תשלומים - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'payments_appendix', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }];
 
   it('a private seller retires the appendix item, recording the file as the evidence', () => {
     const raw = baseRaw({ retired_documents: [{ document_id: 'doc-appendix', evidence: null, proven_by_file_id: 'file-contract' }] });
@@ -626,7 +628,7 @@ describe('an approved property paper as evidence (proven_by_file_id, openspec re
     assert.throws(() => normalizeDecision(retire('doc-tabu', 'file-contract'), ctxWith(withPapers(PRIVATE))), /proves nothing that calls for retiring/);
     assert.throws(() => normalizeDecision(retire('doc-appendix', 'file-contract'), ctxWith(withPapers(BUILDER))), /proves nothing that calls for retiring/);
     assert.throws(() => normalizeDecision(retire('doc-vehicle-licence', 'file-contract'), ctxWith(withPapers(PRIVATE))), /only for a property's payments appendix/);
-    const tabu = [{ name: 'נסח טאבו - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST }];
+    const tabu = [{ name: 'נסח טאבו - דינוביץ 47', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }];
     assert.throws(
       () => normalizeDecision(baseRaw({ added_instances: [{ anchor_document_id: 'doc-contract', instances: tabu, evidence: null, proven_by_file_id: 'file-contract' }] }), ctxWith(withPapers(BUILDER))),
       /proves nothing that calls for these instances/,
@@ -646,8 +648,13 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
     baseIntake({
       typedRows: [
         ...baseIntake().typedRows,
-        { id: 'doc-car-cost', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_cost_declaration' },
-        { id: 'doc-car-cost-done', status: 'approved', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_cost_declaration' },
+        // openspec vehicle-declaration: state_cost serves the property cost declaration only; a vehicle takes state_vehicle.
+        { id: 'doc-car-cost', status: 'pending', typeKey: 'real_estate', multiInstance: true, paperKey: 'cost_declaration' },
+        { id: 'doc-car-cost-done', status: 'approved', typeKey: 'real_estate', multiInstance: true, paperKey: 'cost_declaration' },
+        { id: 'doc-car-decl', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_declaration' },
+        { id: 'doc-car-decl-stated', status: 'stated', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_declaration' },
+        { id: 'doc-car-decl-done', status: 'approved', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_declaration' },
+        { id: 'doc-car-licence', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_license' },
         { id: 'doc-car-receipt', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_purchase_document' },
         { id: 'doc-house-cost', status: 'pending', typeKey: 'real_estate', multiInstance: true, paperKey: 'cost_declaration' },
         { id: 'doc-bank', status: 'pending', typeKey: 'bank_balance', multiInstance: true, paperKey: null },
@@ -685,17 +692,18 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
     const raw = baseRaw({
       added_instances: [
         {
-          anchor_document_id: 'doc-car-receipt',
+          anchor_document_id: 'doc-house-cost',
           instances: [
             {
-              name: 'הצהרת עלות - מאזדה 3',
+              name: 'הצהרת עלות - דירה ברחוב הרצל',
               description: null,
               already_provided: false,
               file_ids: [],
-              paper_key: 'vehicle_cost_declaration',
+              paper_key: 'cost_declaration',
               stated_cost: { amount: 85000, currency: 'ILS', message_id: 'msg-price', quote: 'שילמתי 85,000 ש"ח על המאזדה' },
+              stated_vehicle: NO_VEHICLE,
             },
-            { name: 'רישיון רכב - מאזדה 3', description: null, already_provided: false, file_ids: [], paper_key: 'vehicle_license', stated_cost: NO_COST },
+            { name: 'נסח טאבו - דירה ברחוב הרצל', description: null, already_provided: false, file_ids: [], paper_key: 'tabu_extract', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE },
           ],
           evidence: { message_id: 'msg-price', quote: 'אין לי את הקבלה' },
           proven_by_file_id: '',
@@ -703,9 +711,9 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
       ],
     });
     const decision = normalizeDecision(raw, ctxWith(costIntake()));
-    const [cost, licence] = decision.addedInstances[0]!.instances;
+    const [cost, tabu] = decision.addedInstances[0]!.instances;
     assert.deepEqual(cost!.statedCost, { amount: 85000, currency: 'ILS', evidence: { message_id: 'msg-price', quote: 'שילמתי 85,000 ש"ח על המאזדה' } });
-    assert.equal(licence!.statedCost, null);
+    assert.equal(tabu!.statedCost, null);
     assert.deepEqual(decision.statedCosts, []);
   });
 
@@ -713,6 +721,8 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
     const ctx = ctxWith(costIntake());
     assert.throws(() => normalizeDecision(stated('doc-bank', 12000, 'שילמתי 85,000'), ctx), /only a cost declaration may be stated/);
     assert.throws(() => normalizeDecision(stated('doc-car-receipt', 85000, 'שילמתי 85,000'), ctx), /only a cost declaration may be stated/);
+    // openspec vehicle-declaration: the vehicle declaration has its own tool.
+    assert.throws(() => normalizeDecision(stated('doc-car-decl', 85000, 'שילמתי 85,000'), ctx), /stated with state_vehicle, not state_cost/);
     assert.throws(() => normalizeDecision(stated('doc-car-cost-done', 85000, 'שילמתי 85,000'), ctx), /is approved, not pending/);
     assert.throws(() => normalizeDecision(stated('doc-nope', 85000, 'שילמתי 85,000'), ctx), /not an already-resolved catalog row/);
     assert.throws(() => normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000', 'שקלים'), ctx), /three-letter code/);
@@ -728,6 +738,7 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
               file_ids: [],
               paper_key: 'vehicle_license',
               stated_cost: { amount: 85000, currency: 'ILS', message_id: 'msg-price', quote: 'שילמתי 85,000' },
+              stated_vehicle: NO_VEHICLE,
             },
           ],
           evidence: { message_id: 'msg-price', quote: 'אין לי את הקבלה' },
@@ -767,7 +778,7 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
       ok.checks.map((c) => [c.key, c.passed]),
       [['tool_calls', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', true], ['business_rules', true]],
     );
-    assert.equal(ok.checks[1]!.observed, 'paper vehicle_cost_declaration, status pending');
+    assert.equal(ok.checks[1]!.observed, 'paper cost_declaration, status pending');
     assert.equal(ok.checks[2]!.expected, '85000');
     assert.throws(
       () => gateDecision(callsOf(stated('doc-car-cost', 85000, 'אין לי את הקבלה')), ctx),
@@ -802,5 +813,131 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
     const noIntake = ctxWith(undefined);
     assert.ok(!toolsForContext(noIntake).some((t) => t.name === 'state_cost'));
     assert.deepEqual(normalizeDecision({ ...baseRaw(), stated_costs: [] }, noIntake).statedCosts, []);
+  });
+});
+
+describe('vehicle facts stated in the chat (openspec vehicle-declaration)', () => {
+  const CAR_MSG = 'לא מוצא את הרישיון. זו מאזדה 3 משנת 2019, מספר 12-345-67. שילמתי בערך 85 אלף';
+  const carIntake = () =>
+    baseIntake({
+      typedRows: [
+        ...baseIntake().typedRows,
+        { id: 'doc-car-decl', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_declaration' },
+        { id: 'doc-car-decl-stated', status: 'stated', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_declaration' },
+        { id: 'doc-car-decl-done', status: 'approved', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_declaration' },
+        { id: 'doc-car-licence', status: 'pending', typeKey: 'vehicle', multiInstance: true, paperKey: 'vehicle_license' },
+        { id: 'doc-house-cost', status: 'pending', typeKey: 'real_estate', multiInstance: true, paperKey: 'cost_declaration' },
+      ],
+      inboundTexts: new Map([...baseIntake().inboundTexts, ['msg-car', CAR_MSG]]),
+    });
+  type Facts = Partial<{ manufacturer: string; model: string; production_year: number; license_plate: string; purchase_cost: number; currency: string }>;
+  const vehicle = (document_id: string, facts: Facts, quote: string) =>
+    baseRaw({
+      stated_vehicles: [
+        {
+          document_id,
+          manufacturer: facts.manufacturer ?? '',
+          model: facts.model ?? '',
+          production_year: facts.production_year ?? 0,
+          license_plate: facts.license_plate ?? '',
+          purchase_cost: facts.purchase_cost ?? 0,
+          currency: facts.currency ?? '',
+          evidence: { message_id: 'msg-car', quote },
+        },
+      ],
+    });
+
+  it('accepts facts on a pending or an already stated vehicle declaration and keeps the facts and the quote', () => {
+    const quote = 'זו מאזדה 3 משנת 2019, מספר 12-345-67';
+    const decision = normalizeDecision(vehicle('doc-car-decl', { manufacturer: 'מאזדה', model: '3', production_year: 2019, license_plate: '12-345-67' }, quote), ctxWith(carIntake()));
+    assert.deepEqual(decision.statedVehicles, [
+      { documentId: 'doc-car-decl', facts: { manufacturer: 'מאזדה', model: '3', production_year: 2019, license_plate: '1234567' }, evidence: { message_id: 'msg-car', quote } },
+    ]);
+    assert.equal(decision.decision, 'follow_up');
+    // A later message adds the cost to the stated item: "N אלף" counts, the currency defaults to ILS.
+    const later = normalizeDecision(vehicle('doc-car-decl-stated', { purchase_cost: 85000 }, 'שילמתי בערך 85 אלף'), ctxWith(carIntake()));
+    assert.deepEqual(later.statedVehicles[0]!.facts, { purchase_cost: 85000, currency: 'ILS' });
+  });
+
+  it('accepts facts on a new vehicle-declaration instance created in the same answer', () => {
+    const raw = baseRaw({
+      added_instances: [
+        {
+          anchor_document_id: 'doc-car-licence',
+          instances: [
+            {
+              name: 'הצהרת הלקוח על הרכב - מאזדה 3',
+              description: null,
+              already_provided: false,
+              file_ids: [],
+              paper_key: 'vehicle_declaration',
+              stated_cost: NO_COST,
+              stated_vehicle: { manufacturer: 'מאזדה', model: '3', production_year: 2019, license_plate: '', purchase_cost: 0, currency: '', message_id: 'msg-car', quote: 'זו מאזדה 3 משנת 2019' },
+            },
+          ],
+          evidence: { message_id: 'msg-car', quote: 'לא מוצא את הרישיון' },
+          proven_by_file_id: '',
+        },
+      ],
+    });
+    const decision = normalizeDecision(raw, ctxWith(carIntake()));
+    assert.deepEqual(decision.addedInstances[0]!.instances[0]!.statedVehicle, {
+      facts: { manufacturer: 'מאזדה', model: '3', production_year: 2019 },
+      evidence: { message_id: 'msg-car', quote: 'זו מאזדה 3 משנת 2019' },
+    });
+    assert.deepEqual(decision.statedVehicles, []);
+  });
+
+  it('rejects: a fact not in the quote (named), the wrong item, an approved item, the property tool on a vehicle; accepts a statement with no fact', () => {
+    const ctx = ctxWith(carIntake());
+    assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { production_year: 2019 }, 'זו מאזדה 3'), ctx), /שנת ייצור \(production_year\) is not written in the quote/);
+    assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { license_plate: '1234567' }, 'זו מאזדה 3'), ctx), /מספר רישוי \(license_plate\) is not written/);
+    assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { manufacturer: 'טויוטה' }, 'זו מאזדה 3'), ctx), /תוצר \(manufacturer\) is not written/);
+    assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { purchase_cost: 90000 }, 'שילמתי בערך 85 אלף'), ctx), /עלות הרכישה \(purchase_cost\) is not written/);
+    // No fact at all is a valid statement: the client's "don't know" closes the declaration with every fact unknown.
+    assert.deepEqual(normalizeDecision(vehicle('doc-car-decl', {}, 'לא מוצא את הרישיון'), ctx).statedVehicles[0]!.facts, {});
+    assert.throws(() => normalizeDecision(vehicle('doc-car-licence', { manufacturer: 'מאזדה' }, 'זו מאזדה 3'), ctx), /only a vehicle declaration may be stated with state_vehicle/);
+    assert.throws(() => normalizeDecision(vehicle('doc-house-cost', { manufacturer: 'מאזדה' }, 'זו מאזדה 3'), ctx), /state it with state_cost, not state_vehicle/);
+    assert.throws(() => normalizeDecision(vehicle('doc-car-decl-done', { manufacturer: 'מאזדה' }, 'זו מאזדה 3'), ctx), /is approved — a vehicle statement fills/);
+    assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { manufacturer: 'מאזדה' }, 'זו מאזדה 3 חדשה'), ctx), /not contained verbatim/);
+    assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { production_year: 19 }, 'משנת 2019'), ctx), /four-digit year/);
+    assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { manufacturer: 'מאזדה' }, 'זו מאזדה 3'), ctxWith(undefined)), /not applicable/);
+  });
+
+  it('validate_message lists the vehicle checks before business_rules, on success and on failure', () => {
+    const ctx = ctxWith(carIntake());
+    const quote = 'זו מאזדה 3 משנת 2019, מספר 12-345-67';
+    const ok = gateDecision(callsOf(vehicle('doc-car-decl', { manufacturer: 'מאזדה', production_year: 2019, license_plate: '1234567' }, quote)), ctx);
+    assert.deepEqual(
+      ok.checks.map((c) => [c.key, c.passed]),
+      [['tool_calls', true], ['stated_vehicle_item_allows', true], ['stated_vehicle_facts_in_quote', true], ['business_rules', true]],
+    );
+    assert.equal(ok.checks[1]!.observed, 'paper vehicle_declaration, status pending');
+    assert.equal(ok.checks[2]!.observed, quote);
+    assert.equal(ok.checks[2]!.expected, 'תוצר, שנת ייצור, מספר רישוי');
+    assert.throws(
+      () => gateDecision(callsOf(vehicle('doc-car-decl', { license_plate: '1234567' }, 'זו מאזדה 3')), ctx),
+      (err: unknown) => {
+        assert.ok(err instanceof DecisionRejectedError);
+        assert.deepEqual(
+          err.checks.map((c) => [c.key, c.passed]),
+          [['tool_calls', true], ['stated_vehicle_item_allows', true], ['stated_vehicle_facts_in_quote', false], ['business_rules', false]],
+        );
+        assert.match(err.checks[2]!.note ?? '', /מספר רישוי/);
+        return true;
+      },
+    );
+    assert.throws(
+      () => gateDecision(callsOf(vehicle('doc-car-licence', { manufacturer: 'מאזדה' }, 'זו מאזדה 3')), ctx),
+      (err: unknown) => {
+        assert.ok(err instanceof DecisionRejectedError);
+        assert.deepEqual(
+          err.checks.map((c) => [c.key, c.passed]),
+          [['tool_calls', true], ['stated_vehicle_item_allows', false], ['business_rules', false]],
+        );
+        assert.equal(err.checks[1]!.observed, 'paper vehicle_license, status pending');
+        return true;
+      },
+    );
   });
 });

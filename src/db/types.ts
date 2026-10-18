@@ -182,7 +182,21 @@ export type ResolutionEvidence =
   // A cost the client stated in the conversation (openspec `chat-stated-cost`):
   // the inbound message, the verbatim quote that carries the amount, and the
   // amount with its currency code — the content of the cost declaration.
-  | { source: 'chat'; message_id: string; quote: string; amount: number; currency: string };
+  | { source: 'chat'; message_id: string; quote: string; amount: number; currency: string }
+  // The client's own statement about a vehicle (openspec `vehicle-declaration`):
+  // every inbound message it rests on (the item may be stated over several
+  // turns) and the facts merged from them — any subset; an absent fact is unknown.
+  | { source: 'chat_vehicle'; statements: { message_id: string; quote: string }[]; facts: VehicleFacts };
+
+/** The facts of a vehicle declaration the client stated; a missing key = not stated. Currency rides with the cost. */
+export interface VehicleFacts {
+  manufacturer?: string;
+  model?: string;
+  production_year?: number;
+  license_plate?: string;
+  purchase_cost?: number;
+  currency?: string;
+}
 
 export interface ClientDocumentRow {
   id: string;

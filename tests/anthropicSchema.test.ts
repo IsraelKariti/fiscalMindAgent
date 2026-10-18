@@ -43,6 +43,7 @@ describe('toAnthropicSchema', () => {
       'matched_files',
       'reasoning',
       'stated_costs',
+      'stated_vehicles',
     ]);
     const props = converted.properties as Record<string, Record<string, unknown>>;
     assert.equal(props.whatsapp_text!.type, 'string');
@@ -61,7 +62,7 @@ describe('toAnthropicSchema', () => {
     assert.deepEqual(entry.required, ['document_id', 'resolution']);
     const instanceItem = ((entry.properties as Record<string, Record<string, unknown>>).instances!
       .items as Record<string, unknown>);
-    assert.deepEqual(instanceItem.required, ['name', 'already_provided', 'file_ids', 'paper_key', 'stated_cost']);
+    assert.deepEqual(instanceItem.required, ['name', 'already_provided', 'file_ids', 'paper_key', 'stated_cost', 'stated_vehicle']);
     assert.equal((instanceItem.properties as Record<string, Record<string, unknown>>).description!.type, 'string');
   });
 
@@ -88,6 +89,7 @@ describe('restoreOmittedNulls', () => {
       collected_document_ids: ['doc-1'],
       matched_files: [],
       stated_costs: [],
+      stated_vehicles: [],
     };
     const restored = restoreOmittedNulls(decisionJsonSchema, answer);
     const parsed = DecisionResponseSchema.parse(restored);
@@ -104,13 +106,14 @@ describe('restoreOmittedNulls', () => {
       collected_document_ids: [],
       matched_files: [],
       stated_costs: [],
+      stated_vehicles: [],
       whatsapp_text: 'שלום',
       send_at: '2026-09-02 10:00',
       resolved_documents: [
         {
           document_id: 'row-1',
           resolution: 'required',
-          instances: [{ name: 'חשבון בנק לאומי', already_provided: false, file_ids: [], paper_key: '', stated_cost: { amount: 0, currency: '', message_id: '', quote: '' } }],
+          instances: [{ name: 'חשבון בנק לאומי', already_provided: false, file_ids: [], paper_key: '', stated_cost: { amount: 0, currency: '', message_id: '', quote: '' }, stated_vehicle: { manufacturer: '', model: '', production_year: 0, license_plate: '', purchase_cost: 0, currency: '', message_id: '', quote: '' } }],
         },
       ],
     };
@@ -129,6 +132,7 @@ describe('restoreOmittedNulls', () => {
       collected_document_ids: [],
       matched_files: [],
       stated_costs: [],
+      stated_vehicles: [],
       whatsapp_text: 'שלום',
       whatsapp_template: null,
       send_at: '2026-09-02 10:00',

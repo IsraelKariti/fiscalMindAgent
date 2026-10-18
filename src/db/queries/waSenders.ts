@@ -42,12 +42,18 @@ export async function listForUser(userId: string): Promise<WaSenderWithInstance[
 }
 
 /** Assigns (or re-assigns) an agent instance's WhatsApp sender number. */
-export async function upsertForInstance(agentInstanceId: string, phoneNumber: string): Promise<WaSenderRow> {
+/**
+ * `displayName` is the WhatsApp display name the platform submitted when it
+ * bought the number; a hand assignment passes nothing and the stored name is
+ * cleared, since it described a registration this platform did for another
+ * number.
+ */
+export async function upsertForInstance(agentInstanceId: string, phoneNumber: string, displayName?: string): Promise<WaSenderRow> {
   const { rows } = await pool.query<WaSenderRow>(
-    `INSERT INTO wa_senders (agent_instance_id, phone_number) VALUES ($1, $2)
-     ON CONFLICT (agent_instance_id) DO UPDATE SET phone_number = EXCLUDED.phone_number
+    `INSERT INTO wa_senders (agent_instance_id, phone_number, display_name) VALUES ($1, $2, $3)
+     ON CONFLICT (agent_instance_id) DO UPDATE SET phone_number = EXCLUDED.phone_number, display_name = EXCLUDED.display_name
      RETURNING *`,
-    [agentInstanceId, phoneNumber],
+    [agentInstanceId, phoneNumber, displayName ?? null],
   );
   const row = rows[0];
   if (!row) throw new Error('upsertForInstance: no row returned');

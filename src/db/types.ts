@@ -59,6 +59,8 @@ export interface WaSenderRow {
   id: string;
   agent_instance_id: string;
   phone_number: string;
+  /** Display name submitted at purchase (migration 065); NULL for a hand-assigned number. */
+  display_name: string | null;
   created_at: Date;
 }
 

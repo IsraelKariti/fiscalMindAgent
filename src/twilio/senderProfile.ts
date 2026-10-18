@@ -80,3 +80,22 @@ export function planSenderUpdate(
   if (!body.webhook && !body.profile) return null;
   return { body, webhookChanged };
 }
+
+/**
+ * The display name the buy step prefills (openspec `whatsapp-sender`): the
+ * accountant's admin-entered Hebrew name, else their account name, followed
+ * by "by <brand>" when the sender registers under the platform WABA — Meta's
+ * accepted form for a name whose link to the account owner is not public.
+ * Under the accountant's own WABA the name stands alone. No accountant name
+ * at all = the brand alone (the old fixed behaviour).
+ */
+export function defaultSenderDisplayName(input: {
+  hebrewName: string | null | undefined;
+  name: string | null | undefined;
+  brand: string;
+  ownWaba: boolean;
+}): string {
+  const accountant = input.hebrewName?.trim() || input.name?.trim() || '';
+  if (!accountant) return input.brand;
+  return input.ownWaba ? accountant : `${accountant} by ${input.brand}`;
+}

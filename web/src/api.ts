@@ -813,6 +813,8 @@ export interface AgentInstance {
   enabled: boolean;
   /** Only populated by the admin listing (GET /admin/accountants/:userId/agents). */
   waPhoneNumber?: string | null;
+  /** Admin listing only: the WhatsApp display name submitted when the platform bought the number; null for a hand-assigned one. */
+  waDisplayName?: string | null;
   /** Admin listing only: the agent's sender address, null until an admin assigns one. */
   emailAddress?: string | null;
   /** Admin listing only: derived default for the address input (null: no mailbox claimed / type doesn't email). */
@@ -1099,11 +1101,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ agentInstanceId, phoneNumber }),
     }),
-  adminProvisionWaSender: (agentInstanceId: string) =>
-    request<{ sender: { agentInstanceId: string; phoneNumber: string }; senderStatus: string }>(
+  adminProvisionWaSender: (agentInstanceId: string, displayName: string) =>
+    request<{ sender: { agentInstanceId: string; phoneNumber: string; displayName: string | null }; senderStatus: string }>(
       '/admin/wa-senders/provision',
-      { method: 'POST', body: JSON.stringify({ agentInstanceId }) },
+      { method: 'POST', body: JSON.stringify({ agentInstanceId, displayName }) },
     ),
+  /** The WhatsApp display name the buy step prefills ("<accountant name> by FiscalMind"). */
+  adminGetWaDisplayNameDefault: (agentInstanceId: string) =>
+    request<{ displayName: string }>(`/admin/wa-senders/${agentInstanceId}/display-name-default`),
   adminGetWaSenderStatus: (agentInstanceId: string) =>
     request<AdminWaSenderStatus>(`/admin/wa-senders/${agentInstanceId}/status`),
   adminDeleteWaSender: (agentInstanceId: string) =>

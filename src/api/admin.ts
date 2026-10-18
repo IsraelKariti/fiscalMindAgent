@@ -227,7 +227,7 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
   // Retired-type instances keep their rows but are hidden and not re-enableable.
   const instances = (await agentInstances.listAllForUser(userId.data)).filter((i) => knownAgentTypes().has(i.agent_type));
   const senders = await waSenders.listForUser(userId.data);
-  const numberByInstance = new Map(senders.map((s) => [s.agent_instance_id, s.phone_number]));
+  const senderByInstance = new Map(senders.map((s) => [s.agent_instance_id, s]));
   const instanceMailboxes = await agentMailboxes.listForInstancesOfUser(userId.data);
   const emailByInstance = new Map(instanceMailboxes.map((m) => [m.agent_instance_id, m.email_address]));
   const accountMailbox = await agentMailboxes.getByUserId(userId.data);
@@ -244,7 +244,9 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
         agentType: i.agent_type,
         name: i.name,
         enabled: i.enabled,
-        waPhoneNumber: numberByInstance.get(i.id) ?? null,
+        waPhoneNumber: senderByInstance.get(i.id)?.phone_number ?? null,
+        // The display name submitted at purchase (065); null for a hand-assigned number.
+        waDisplayName: senderByInstance.get(i.id)?.display_name ?? null,
         emailAddress: emailByInstance.get(i.id) ?? null,
         suggestedEmailLocalPart: suffix && accountMailbox ? `${accountMailbox.local_part}-${suffix}` : null,
         emailCapable: Boolean(suffix),

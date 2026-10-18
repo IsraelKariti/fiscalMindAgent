@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { buildSenderCreateBody, planSenderUpdate } from '../src/twilio/senderProfile.js';
+import { buildSenderCreateBody, defaultSenderDisplayName, planSenderUpdate } from '../src/twilio/senderProfile.js';
 
 const WEBHOOK = 'https://agent.fiscalmind.app/webhooks/twilio';
 const LOGO = 'https://agent.fiscalmind.app/petal-seal.png';
@@ -74,4 +74,29 @@ test('planSenderUpdate: picture-only update leaves a foreign webhook alone', () 
 
 test('planSenderUpdate: picture-only update is a no-op when the logo already matches, even on a foreign webhook', () => {
   assert.equal(planSenderUpdate({ callbackUrl: 'https://other.example.com/hook', logoUrl: LOGO }, { webhookUrl: undefined, logoUrl: LOGO }), null);
+});
+
+test('defaultSenderDisplayName: Hebrew name wins and gets the "by brand" suffix on the platform WABA', () => {
+  assert.equal(
+    defaultSenderDisplayName({ hebrewName: "אריה רותם ושות'", name: 'Arie Rotem', brand: 'FiscalMind', ownWaba: false }),
+    "אריה רותם ושות' by FiscalMind",
+  );
+});
+
+test('defaultSenderDisplayName: account name when there is no Hebrew name', () => {
+  assert.equal(
+    defaultSenderDisplayName({ hebrewName: '  ', name: 'Arie Rotem', brand: 'FiscalMind', ownWaba: false }),
+    'Arie Rotem by FiscalMind',
+  );
+});
+
+test('defaultSenderDisplayName: brand alone when the accountant has no name', () => {
+  assert.equal(defaultSenderDisplayName({ hebrewName: null, name: null, brand: 'FiscalMind', ownWaba: false }), 'FiscalMind');
+});
+
+test('defaultSenderDisplayName: no suffix under the accountant\'s own WABA', () => {
+  assert.equal(
+    defaultSenderDisplayName({ hebrewName: "אריה רותם ושות'", name: null, brand: 'FiscalMind', ownWaba: true }),
+    "אריה רותם ושות'",
+  );
 });

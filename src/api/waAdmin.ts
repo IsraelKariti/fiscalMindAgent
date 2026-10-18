@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 import * as agentInstances from '../db/queries/agentInstances.js';
+import * as users from '../db/queries/users.js';
 import * as waBusinessAccounts from '../db/queries/waBusinessAccounts.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import * as waTemplates from '../db/queries/waTemplates.js';
@@ -18,6 +19,8 @@ import {
 } from '../twilio/provision.js';
 import { isTwilioConfigured } from '../twilio/client.js';
 import { ownerLabel, parseOwnerLabel, type NumberOwner } from '../twilio/numberOwnership.js';
+import { defaultSenderDisplayName } from '../twilio/senderProfile.js';
+import { env } from '../config/env.js';
 import { senderPictureFor } from '../storage/agentPicture.js';
 import { normalizeE164 } from '../util/phone.js';
 import { logger } from '../util/logger.js';
@@ -147,7 +150,43 @@ export const adminUpsertWaSender: RequestHandler = async (req, res) => {
   }
 };
 
-const SenderProvisionSchema = z.object({ agentInstanceId: z.string().uuid() }).strict();
+/**
+ * The WhatsApp display name the admin chose in the buy step (openspec
+ * `whatsapp-sender`): Meta reviews it after registration and the platform
+ * never changes it, so it must be right here. Trimmed, 3–100 characters,
+ * one line; Meta's own rules (the office name as it appears online, "by
+ * <brand>" when the link is not public) are the admin's to follow.
+ */
+const DisplayNameSchema = z
+  .string()
+  .transform((s) => s.trim())
+  .pipe(z.string().min(3).max(100).regex(/^[^\r\n]*$/, 'one line'));
+
+const SenderProvisionSchema = z.object({ agentInstanceId: z.string().uuid(), displayName: DisplayNameSchema }).strict();
+
+/**
+ * GET /api/admin/wa-senders/:agentInstanceId/display-name-default — the name
+ * the buy step prefills: "<accountant name> by <brand>" under the platform
+ * WABA, the accountant name alone under their own connected WABA.
+ */
+export const adminGetWaDisplayNameDefault: RequestHandler = async (req, res) => {
+  const instanceId = z.string().uuid().safeParse(req.params.agentInstanceId);
+  const instance = instanceId.success ? await agentInstances.getById(instanceId.data) : null;
+  if (!instance) {
+    res.status(404).json({ error: 'Agent instance not found.' });
+    return;
+  }
+  const accountant = await users.getById(instance.user_id);
+  const ownWaba = await waBusinessAccounts.getByUserId(instance.user_id);
+  res.json({
+    displayName: defaultSenderDisplayName({
+      hebrewName: accountant?.hebrew_name,
+      name: accountant?.name,
+      brand: env.TWILIO_WA_SENDER_NAME,
+      ownWaba: ownWaba !== null,
+    }),
+  });
+};
 
 /**
  * POST /api/admin/wa-senders/provision — buy a Twilio number, register it as a
@@ -158,7 +197,7 @@ const SenderProvisionSchema = z.object({ agentInstanceId: z.string().uuid() }).s
 export const adminProvisionWaSender: RequestHandler = async (req, res) => {
   const parsed = SenderProvisionSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Expected { agentInstanceId }.', details: parsed.error.flatten() });
+    res.status(400).json({ error: 'Expected { agentInstanceId, displayName } (display name: 3–100 characters, one line).', details: parsed.error.flatten() });
     return;
   }
   const instance = await agentInstances.getById(parsed.data.agentInstanceId);
@@ -185,22 +224,24 @@ export const adminProvisionWaSender: RequestHandler = async (req, res) => {
       ownerLabel(instance.agent_type, instance.id),
       ownWaba?.waba_id,
       await senderPictureFor(instance),
+      parsed.data.displayName,
     );
   } catch (err) {
     logger.error('wa number provisioning failed', err);
     res.status(502).json({ error: err instanceof Error ? err.message : 'Buying the number from Twilio failed.' });
     return;
   }
-  const sender = await waSenders.upsertForInstance(instance.id, provisioned.phoneNumber);
+  const sender = await waSenders.upsertForInstance(instance.id, provisioned.phoneNumber, parsed.data.displayName);
   logger.info('wa sender provisioned', {
     adminUserId: req.realUserId,
     agentInstanceId: instance.id,
     phoneNumber: provisioned.phoneNumber,
+    displayName: parsed.data.displayName,
     senderStatus: provisioned.senderStatus,
     waba: ownWaba ? ownWaba.waba_id : 'platform',
   });
   res.status(201).json({
-    sender: { agentInstanceId: sender.agent_instance_id, phoneNumber: sender.phone_number },
+    sender: { agentInstanceId: sender.agent_instance_id, phoneNumber: sender.phone_number, displayName: sender.display_name },
     senderStatus: provisioned.senderStatus,
   });
 };

@@ -4972,3 +4972,14 @@ pre.doc-text {
   gap: 6px;
   flex-shrink: 0;
 }
+
+/* The display name submitted at purchase, under the number (admin agent page). */
+.wa-display-name-line {
+  margin: 4px 0 0;
+}
+
+/* Buy-number modal: the display name input fills the modal width. */
+.modal-confirm input#wa-display-name {
+  width: 100%;
+  margin: 6px 0 10px;
+}

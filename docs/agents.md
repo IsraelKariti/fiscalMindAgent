@@ -453,8 +453,13 @@ Industry pattern followed: one app with an agent registry
   (`POST /api/admin/wa-senders/provision`, `src/twilio/provision.ts`): it
   purchases a US number and registers it as a WhatsApp sender under
   `TWILIO_WABA_ID` — no Twilio-console step. The sender profile carries the
-  display name (`TWILIO_WA_SENDER_NAME`) and a **profile picture resolved in
-  three levels** (`src/storage/logos.ts`): the instance's own icon
+  **display name the admin chose in the buy modal** (`BuyWaNumberModal`,
+  prefilled by `GET /api/admin/wa-senders/:id/display-name-default` with
+  `defaultSenderDisplayName`: the accountant's Hebrew name, else their
+  account name, plus `by <TWILIO_WA_SENDER_NAME>` under the platform WABA;
+  stored in `wa_senders.display_name`, migration 065, shown under the number;
+  Meta reviews it and the platform never changes it — rename = release and
+  buy again) and a **profile picture resolved in three levels** (`src/storage/logos.ts`): the instance's own icon
   (`agent_instances.logo_blob_key`, migration 061, uploaded on the admin
   agent page), else the app logo an admin uploaded on the admin Settings page
   (`app_settings` key `app_logo_blob_key`), else the built-in

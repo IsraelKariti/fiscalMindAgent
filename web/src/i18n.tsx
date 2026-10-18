@@ -158,6 +158,12 @@ const he = {
   adminWaNumberBuying: 'קונה מספר…',
   adminWaNumberBuyConfirm: 'לקנות מספר WhatsApp חדש מ-Twilio? המספר יירשם ויוקצה לסוכן הזה אוטומטית.',
   adminWaNumberBuyFailed: 'קניית המספר נכשלה.',
+  adminWaDisplayNameLabel: 'שם התצוגה בוואטסאפ',
+  adminWaDisplayNameLoading: 'מכין שם ברירת מחדל…',
+  adminWaDisplayNameDefaultFailed: 'לא הצלחנו להכין שם ברירת מחדל — הקלידו שם.',
+  adminWaDisplayNameRules:
+    'השם שהלקוחות יראו ליד השיחה. Meta בודקת אותו אחרי הרישום ואי אפשר לשנות אותו מכאן — שינוי דורש שחרור המספר וקנייה מחדש. כללי Meta: שם המשרד כפי שהוא מופיע באתר שלו, בלי סימני פיסוק נוספים; "by FiscalMind" נשאר כשהקשר בין המשרד ל-FiscalMind לא מופיע באינטרנט.',
+  adminWaDisplayNameShown: 'שם התצוגה שנשלח ל-Meta:',
   adminWaNumberRelease: 'שחרור מספר',
   adminWaNumberReleaseTitle: 'החזרת המספר ל-Twilio לצמיתות — החיוב החודשי נפסק והמספר לא ניתן לשחזור.',
   adminWaNumberReleasing: 'משחרר מספר…',

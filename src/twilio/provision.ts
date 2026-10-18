@@ -56,14 +56,17 @@ export function numberSearchPlan(country: string): { country: string; types: Num
  * default; see numberSearchPlan for the type order) and registers it as a
  * WhatsApp sender under the given WABA — the accountant's own connected WABA
  * (wa_business_accounts) when they have one, else the platform WABA
- * (TWILIO_WABA_ID). Ownership verification is automatic for Twilio-hosted
- * numbers, so there is no OTP step. If sender registration fails, the
- * just-purchased number is released so it isn't billed.
+ * (TWILIO_WABA_ID), with `displayName` as the WhatsApp display name the admin
+ * chose in the buy step (Meta reviews it; it is never changed afterwards).
+ * Ownership verification is automatic for Twilio-hosted numbers, so there is
+ * no OTP step. If sender registration fails, the just-purchased number is
+ * released so it isn't billed.
  */
 export async function provisionWhatsAppNumber(
   friendlyName: string,
   wabaId: string | undefined,
   pictureUrl: string | undefined,
+  displayName: string,
 ): Promise<ProvisionedSender> {
   const targetWabaId = wabaId ?? env.TWILIO_WABA_ID;
   if (!targetWabaId) throw new Error('No WABA to register the sender under (connect one or set TWILIO_WABA_ID).');
@@ -92,7 +95,7 @@ export async function provisionWhatsAppNumber(
       phoneNumber: purchased.phoneNumber,
       wabaId: targetWabaId,
       webhookUrl: env.TWILIO_WEBHOOK_URL ?? '',
-      displayName: env.TWILIO_WA_SENDER_NAME,
+      displayName,
       logoUrl: pictureUrl,
     });
     const senders = client.messaging.v2.channelsSenders;

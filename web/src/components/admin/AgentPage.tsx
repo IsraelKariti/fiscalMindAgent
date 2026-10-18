@@ -12,6 +12,7 @@ import { getAgentUI } from '../../agents/registry';
 import { useT } from '../../i18n';
 import { AgentConversationsCard } from './AgentConversationsCard';
 import { ConfirmModal } from '../ConfirmModal';
+import { BuyWaNumberModal } from './BuyWaNumberModal';
 import { Dropdown } from '../Dropdown';
 import { PictureCard } from './PictureCard';
 import { Spinner } from '../Spinner';
@@ -537,6 +538,11 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
                     </button>
                   )}
                 </div>
+                {instance.waDisplayName && (
+                  <p className="muted wa-display-name-line">
+                    {t.adminWaDisplayNameShown} <span dir="auto">{instance.waDisplayName}</span>
+                  </p>
+                )}
                 {waStatus !== null && (waStatus.senderStatus === 'OFFLINE' || waStatus.senderStatus === 'UNREGISTERED') && (
                   <div className="error-banner">
                     {waStatus.senderStatus === 'UNREGISTERED' ? (
@@ -747,13 +753,11 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
       )}
 
       {confirmingBuy && instance && (
-        <ConfirmModal
-          title={t.adminWaNumberBuy}
-          note={t.adminWaNumberBuyConfirm}
-          confirmLabel={t.adminWaNumberBuy}
-          onConfirm={() => {
+        <BuyWaNumberModal
+          agentInstanceId={instance.id}
+          onConfirm={(displayName) => {
             setBuying(true);
-            void run(() => api.adminProvisionWaSender(instance.id), t.adminWaNumberBuyFailed).finally(() =>
+            void run(() => api.adminProvisionWaSender(instance.id, displayName), t.adminWaNumberBuyFailed).finally(() =>
               setBuying(false),
             );
           }}

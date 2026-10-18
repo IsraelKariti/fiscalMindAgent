@@ -24,4 +24,4 @@
 
 - [ ] 5.1 Live check: buy a number for a test agent with the default name, confirm on Twilio Console that the sender profile name matches, release it afterwards; verify the agent page shows the name and the status line.
 - [x] 5.2 Update `.env.example` (`TWILIO_WA_SENDER_NAME` is the brand part of the default) and the `docs/agents.md` paragraph on the sender profile; verify the wording matches the spec.
-- [ ] 5.3 Run `npm run typecheck` and `npm test`, commit per the Git workflow.
+- [x] 5.3 Run `npm run typecheck` and `npm test`, commit per the Git workflow.

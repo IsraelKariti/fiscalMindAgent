@@ -24,6 +24,11 @@ export function stepLinkOf(stepId: string, origin: string): string {
   return `${origin}/#/steps/${encodeURIComponent(stepId)}`;
 }
 
+/** A platform email to the accountant, sent or refused (openspec `conversation-trace`): its modal shows the email and its delivery status. */
+export function isAccountantEmailStep(step: Pick<StepLinkStep, 'action'>): boolean {
+  return step.action === 'email.accountant_sent' || step.action === 'email.accountant_failed';
+}
+
 /**
  * True when a step is about one received file, so the step detail modal asks
  * the server for its document (by step id): the step's target is a received

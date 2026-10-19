@@ -113,6 +113,8 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | `goal.completed` when every row is settled and the attestation is confirmed; a premature goal_complete throws | `DOC/plan.ts` · `completeGoalIfDone` |
 | `send_closing`: the fixed closing message after completion (open 24h window only, never a template; both completion paths) | `DOC/plan.ts` · `sendClosingMessage` (`DOC/closingMessage.ts` · `closingMessageDelivery`) |
 | Closing message text (thanks by first name, the accountant will be in touch if needed) | `DOC/closingMessage.ts` · `closingMessageText` |
+| `email.accountant_sent` / `email.accountant_failed`: the platform email to the accountant (goal complete, claimed documents, verification problem, overdue), recorded in full on the trace (kind, to, subject, body, provider id, or the error) | `DOC/notifyAccountant.ts` · `sendToAccountant` (`DOC/notifyAccountantCore.ts` · `sendToAccountantWith`) |
+| Delivery status of an accountant email, read live from Resend for the step modal | `api/llmAdmin.ts` · `adminGetStepEmailStatus` (`resend/deliveryStatus.ts` · `emailDeliveryStatus`) |
 | `send_reply`: roll the send time off weekends and chagim, resolve `asap` to now + 1 s, schedule the draft | `DOC/plan.ts` · `scheduleReply` (`SH/sendAtGuard.ts` · `rollBlockedSendAt`, `resolveSendAt`; `orchestration/scheduleDraftEmail.ts` · `scheduleDraftMessage`) |
 | `apply_attestation` (request) on this draft | `DOC/plan.ts` · `applyAttestationRequest` |
 | The document-fetch action (agreed / start login / cancel) | `DOC/plan.ts` · `taxFetchDecisionOf` → `DOC/taxFetch/flow.ts` · `applyTaxFetchAction` |

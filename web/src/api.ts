@@ -471,6 +471,15 @@ export interface AdminConversation {
   steps: AdminConversationStep[];
 }
 
+/**
+ * What the mail provider says about an accountant notification (openspec
+ * `conversation-trace`): `blocked` = the outbound fence kept it in,
+ * `unavailable` = an old row without a provider id, or the provider could not be asked.
+ */
+export type StepEmailStatus =
+  | { status: 'delivered' | 'pending' | 'failed'; event: string }
+  | { status: 'blocked' | 'unavailable' };
+
 /** One audit row shown as a code step in the admin conversation timeline. */
 export interface AdminConversationStep {
   id: string;
@@ -1089,6 +1098,8 @@ export const api = {
   adminGetStep: (stepId: string) => request<{ step: AdminConversationStep }>(`/admin/audit-events/${stepId}`),
   /** The received file a step checked (404 when the step is not about a file, or the file is gone). */
   adminGetStepFile: (stepId: string) => request<{ file: StepFile }>(`/admin/audit-events/${stepId}/file`),
+  /** Delivery status of an accountant-email step, read live from the mail provider (404 for any other step). */
+  adminGetStepEmailStatus: (stepId: string) => request<StepEmailStatus>(`/admin/audit-events/${stepId}/email-status`),
   /** Plain same-origin URLs (cookie session): admin pages never run inside monday, so no ?sessionToken=. */
   adminStepFileViewUrl: (stepId: string) => `${transport.basePath}/admin/audit-events/${stepId}/file/view`,
   adminStepFileDownloadUrl: (stepId: string) => `${transport.basePath}/admin/audit-events/${stepId}/file/download`,

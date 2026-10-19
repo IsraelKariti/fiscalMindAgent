@@ -19,6 +19,7 @@ import { useViewer } from '../agents/ApiContext';
 import { CallDetailModal } from './admin/AdminLlmCalls';
 import { ConfirmModal } from './ConfirmModal';
 import { FileViewModal } from './FileViewModal';
+import { isAccountantEmailStep } from './stepLink';
 import { StepDetailModal, gateReasonOf, gateResultOf } from './StepDetailModal';
 import { SendNowModal } from './SendNowModal';
 import { mergeTrace, type TraceEntry } from './timelineRows';
@@ -173,20 +174,39 @@ function StepRow({ step: s, files }: { step: AdminConversationStep; files: StepF
   const [open, setOpen] = useState(false);
   const result = gateResultOf(s);
   const reason = gateReasonOf(s);
-  const glyph = s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' || s.action === 'withhold_reply' ? '⚙️' : '🛡️';
+  // A platform email to the accountant (openspec `conversation-trace`) shows
+  // an envelope and its subject in the muted slot; a refused one is a warning row.
+  const accountantEmail = isAccountantEmailStep(s);
+  const glyph =
+    s.severity === 'critical'
+      ? '⛔'
+      : accountantEmail
+        ? '✉️'
+        : s.action.startsWith('apply_') || s.action === 'send_reply' || s.action === 'withhold_reply'
+          ? '⚙️'
+          : '🛡️';
+  const subject = accountantEmail && typeof s.detail['subject'] === 'string' ? (s.detail['subject'] as string) : null;
   // The split step that cut a file lists the files it produced — they are the
   // step's result, not something the client sent. A run that cut nothing
   // (rejected answer, one document) shows no chips.
   const children =
     s.action === 'validate_file_split' && s.detail.cut === true && s.targetId ? (files.childrenByParent.get(s.targetId) ?? []) : [];
   return (
-    <li className={`timeline-trace timeline-trace-step ${s.severity === 'critical' ? 'timeline-trace-critical' : ''}`} dir="ltr">
+    <li
+      className={`timeline-trace timeline-trace-step ${s.severity === 'critical' ? 'timeline-trace-critical' : s.severity === 'warning' ? 'timeline-trace-warning' : ''}`}
+      dir="ltr"
+    >
       <button type="button" className="timeline-trace-gate" aria-label={`${t.gateModalOpen}: ${s.action}`} onClick={() => setOpen(true)}>
         <span className="timeline-trace-icon" aria-hidden="true">{glyph}</span>
         <span className="muted" dir="rtl">{formatTimestamp(s.occurredAt)}</span>
         <span className="mono">{s.action}</span>
         {result !== null && <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`}>result: {String(result)}</span>}
         {reason && <span className="muted timeline-trace-reason">{reason}</span>}
+        {subject && (
+          <span className="muted timeline-trace-reason" dir="auto">
+            {subject}
+          </span>
+        )}
       </button>
       {children.length > 0 && (
         <div className="bubble-attachments timeline-trace-attachments">

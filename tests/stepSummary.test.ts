@@ -306,3 +306,49 @@ test('fallback_model: both models, their providers and the reason (openspec llm-
     ],
   );
 });
+
+// openspec `conversation-trace` (accountant-email-in-trace): an accountant
+// email renders as kind, recipient, subject and body; old rows have no body.
+test('email.accountant_sent: kind in Hebrew, to, subject, body; clientName and resendId handled', () => {
+  const rows = stepSummaryOf('email.accountant_sent', {
+    clientName: 'דני',
+    kind: 'goal_complete',
+    to: 'acc@example.com',
+    subject: 'כל המסמכים של דני התקבלו',
+    body: 'שלום,\n\nהכל התקבל.',
+    resendId: 're_123',
+  });
+  assert.deepEqual(rows, [
+    { key: 'kind', value: 'כל המסמכים התקבלו' },
+    { key: 'to', value: 'acc@example.com' },
+    { key: 'subject', value: 'כל המסמכים של דני התקבלו' },
+    { key: 'body', value: 'שלום,\n\nהכל התקבל.' },
+    { key: 'resendId', value: 're_123' },
+  ]);
+});
+
+test('email.accountant_sent: an old row without kind or body still shows to and subject', () => {
+  const rows = stepSummaryOf('email.accountant_sent', { clientName: 'דני', to: 'acc@example.com', subject: 'נושא' });
+  assert.deepEqual(rows, [
+    { key: 'to', value: 'acc@example.com' },
+    { key: 'subject', value: 'נושא' },
+  ]);
+});
+
+test('email.accountant_failed: the error follows the content', () => {
+  const rows = stepSummaryOf('email.accountant_failed', {
+    clientName: 'דני',
+    kind: 'overdue',
+    to: 'acc@example.com',
+    subject: 'נושא',
+    body: 'גוף',
+    error: 'Resend send failed: validation_error',
+  });
+  assert.deepEqual(rows, [
+    { key: 'kind', value: 'תאריך היעד עבר' },
+    { key: 'to', value: 'acc@example.com' },
+    { key: 'subject', value: 'נושא' },
+    { key: 'body', value: 'גוף' },
+    { key: 'error', value: 'Resend send failed: validation_error' },
+  ]);
+});

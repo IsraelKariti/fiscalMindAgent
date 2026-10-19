@@ -58,6 +58,7 @@ import {
 import {
   adminGetAuditEvent,
   adminGetStepFile,
+  adminGetStepEmailStatus,
   adminGetCallFile,
   adminServeStepFile,
   adminServeCallFile,
@@ -160,6 +161,7 @@ apiRouter.get('/admin/agents/:agentInstanceId/clients', wrap(requireAdmin), wrap
 apiRouter.get('/admin/clients/:clientId/conversation', wrap(requireAdmin), wrap(adminGetClientConversation));
 apiRouter.get('/admin/audit-events/:id', wrap(requireAdmin), wrap(adminGetAuditEvent));
 apiRouter.get('/admin/audit-events/:id/file', wrap(requireAdmin), wrap(adminGetStepFile));
+apiRouter.get('/admin/audit-events/:id/email-status', wrap(requireAdmin), wrap(adminGetStepEmailStatus));
 apiRouter.get('/admin/audit-events/:id/file/view', wrap(requireAdmin), wrap(adminServeStepFile('inline')));
 apiRouter.get('/admin/audit-events/:id/file/download', wrap(requireAdmin), wrap(adminServeStepFile('attachment')));
 apiRouter.get('/admin/llm-calls', wrap(requireAdmin), wrap(adminListLlmCalls));

@@ -12,6 +12,9 @@ export type AuditAction =
   | 'email.client_sent'
   | 'email.document_sent'
   | 'email.accountant_sent'
+  // A platform notification to the accountant the provider refused (openspec
+  // `conversation-trace`): same content as the sent row plus the error.
+  | 'email.accountant_failed'
   | 'wa.text_sent'
   | 'wa.template_sent'
   | 'wa.media_sent'

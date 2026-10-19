@@ -908,6 +908,15 @@ const he = {
   stepDocLoading: 'טוען את המסמך…',
   stepDocMissing: 'המסמך כבר לא זמין.',
   stepDocOpenFull: 'פתיחה בגודל מלא',
+  // The delivery badge of an accountant-email step (openspec `conversation-trace`).
+  stepEmailStatusLabel: 'מצב המסירה:',
+  stepEmailStatusLoading: 'בודק מול ספק הדואר…',
+  stepEmailStatusDelivered: 'נמסר',
+  stepEmailStatusPending: 'נשלח, טרם אושרה מסירה',
+  stepEmailStatusFailed: 'לא נמסר',
+  stepEmailStatusBlocked: 'נחסם על ידי גדר הסנדבוקס — לא נשלח',
+  stepEmailStatusUnavailable: 'מצב המסירה אינו זמין',
+  stepEmailStatusNotSent: 'לא נשלח',
   // Non-gate step actions (apply_*, document.*, review.*, …), title-cased in
   // English like codeGateLabels. Unknown actions fall back to humanizePurpose().
   stepActionLabels: {
@@ -939,6 +948,9 @@ const he = {
     'planner.rerun_after_verification': 'Planner Rerun After Verification',
     'goal.completed': 'Goal Completed',
     'email.client_sent': 'Email Sent To Client',
+    // A platform email to the accountant, sent or refused (openspec `conversation-trace`).
+    'email.accountant_sent': 'Email Sent To Accountant',
+    'email.accountant_failed': 'Email To Accountant Failed',
     'wa.text_sent': 'WhatsApp Text Sent',
     'wa.template_sent': 'WhatsApp Template Sent',
     'wa.media_sent': 'WhatsApp Media Sent',
@@ -953,6 +965,9 @@ const he = {
   // Hebrew labels of the fields in the "what the step did" section
   // (stepSummary.ts row keys). Unknown keys fall back to humanizePurpose().
   stepFieldLabels: {
+    // email.accountant_*: the notification as sent (openspec `conversation-trace`); kind/to/subject reuse the labels below.
+    body: 'תוכן ההודעה',
+    resendId: 'מזהה אצל ספק הדואר',
     // translate_request / restore_answer: what the provider adapter changed (openspec `conversation-trace`).
     purpose: 'שלב הקריאה',
     schema_changed: 'הסכמה שונתה',

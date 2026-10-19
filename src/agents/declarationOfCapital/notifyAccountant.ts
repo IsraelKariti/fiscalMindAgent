@@ -2,36 +2,21 @@ import * as users from '../../db/queries/users.js';
 import { recordAudit } from '../../audit/audit.js';
 import { sendEmail } from '../../resend/send.js';
 import { env } from '../../config/env.js';
-import { logger } from '../../util/logger.js';
+import { sendToAccountantWith, type AccountantEmailKind } from './notifyAccountantCore.js';
 import type { ClientRow } from '../../db/types.js';
 
 /**
  * Notifications from the platform to the accountant, sent from a no-reply
  * address on the verified sending domain (no mailbox needs to exist — Resend
- * authorizes the whole domain) to their login address. Deliberately NOT stored
- * in the emails table — that table is the client conversation (it feeds the
- * timeline, the LLM transcript and the threading headers). Callers fire and
- * forget; a notification failure must never fail planning or a route.
+ * authorizes the whole domain) to their login address. The record of each one
+ * is the client's trace, see notifyAccountantCore.ts. Callers fire and forget.
  */
-export async function sendToAccountant(client: ClientRow, subject: string, body: string): Promise<void> {
-  if (!client.user_id) {
-    logger.warn('accountant notification skipped: legacy client without owner', { clientId: client.id });
-    return;
-  }
-  const user = await users.getById(client.user_id);
-  if (!user) {
-    logger.warn('accountant notification skipped: missing user', { clientId: client.id, userId: client.user_id });
-    return;
-  }
-  await sendEmail({ from: `FiscalMind <no-reply@${env.AGENT_EMAIL_DOMAIN}>`, to: user.email, subject, body });
-  logger.info('accountant notified', { clientId: client.id, to: user.email, subject });
-  recordAudit({
-    actorType: 'agent',
-    action: 'email.accountant_sent',
-    agentInstanceId: client.agent_instance_id,
-    clientId: client.id,
-    targetType: 'email',
-    detail: { clientName: client.name, to: user.email, subject },
+export function sendToAccountant(client: ClientRow, kind: AccountantEmailKind, subject: string, body: string): Promise<void> {
+  return sendToAccountantWith(client, kind, subject, body, {
+    from: `FiscalMind <no-reply@${env.AGENT_EMAIL_DOMAIN}>`,
+    getUser: users.getById,
+    sendEmail,
+    recordAudit,
   });
 }
 
@@ -45,7 +30,7 @@ export async function sendGoalCompleteEmail(client: ClientRow): Promise<void> {
     '',
     `לצפייה בתיק הלקוח: ${env.APP_BASE_URL}`,
   ].join('\n');
-  await sendToAccountant(client, subject, body);
+  await sendToAccountant(client, 'goal_complete', subject, body);
 }
 
 /** "The client says they delivered these outside email — please confirm" (documents just moved to 'claimed'). */
@@ -63,7 +48,7 @@ export async function sendClaimedDocumentsEmail(client: ClientRow, claimedDocNam
     '',
     `לצפייה בתיק הלקוח: ${env.APP_BASE_URL}`,
   ].join('\n');
-  await sendToAccountant(client, subject, body);
+  await sendToAccountant(client, 'claimed_documents', subject, body);
 }
 
 /**
@@ -89,7 +74,7 @@ export async function sendVerificationProblemEmail(
     '',
     `לצפייה בתיק הלקוח: ${env.APP_BASE_URL}`,
   ].join('\n');
-  await sendToAccountant(client, subject, body);
+  await sendToAccountant(client, 'verification_problem', subject, body);
 }
 
 export async function sendOverdueEmail(client: ClientRow, missingDocNames: string[]): Promise<void> {
@@ -107,5 +92,5 @@ export async function sendOverdueEmail(client: ClientRow, missingDocNames: strin
     '',
     `לצפייה בתיק הלקוח: ${env.APP_BASE_URL}`,
   ].join('\n');
-  await sendToAccountant(client, subject, body);
+  await sendToAccountant(client, 'overdue', subject, body);
 }

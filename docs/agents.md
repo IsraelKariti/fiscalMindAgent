@@ -757,7 +757,19 @@ the admin route map); extensions are not audited.
   agent stops (guards in `setFutureEmail`/`sendEmailWorker`) and emails the
   accountant — `notifyAccountant.ts`, sent from a no-reply platform address
   to their login address, deliberately *not* stored in `emails` (that table is
-  the client conversation). Both completion paths notify: the LLM plan
+  the client conversation). Its record is the client's trace (openspec
+  `conversation-trace`): every accountant notification (goal complete,
+  claimed documents, verification problem, overdue) writes an
+  `email.accountant_sent` step with `kind`, `to`, `subject`, `body` and
+  `resendId` (a `blocked-` stand-in when the outbound fence kept it in), and
+  a refused send writes an `email.accountant_failed` warning step with the
+  same content plus `error` (`notifyAccountantCore.ts` ·
+  `sendToAccountantWith`). The trace shows these rows with an envelope glyph
+  and the subject; their step modal shows the email and a delivery badge read
+  live from Resend on open (`GET /api/admin/audit-events/:id/email-status`,
+  admin only; `resend/deliveryStatus.ts` folds `last_event` into
+  delivered / pending / failed; `blocked` and `unavailable` for fenced and
+  old rows). Both completion paths notify: the LLM plan
   (`plan.ts`) and the manual documents toggle (`router.ts`). Both paths also
   send the client one fixed closing message (`closingMessage.ts` ·
   `closingMessageText`, sent by `plan.ts` · `sendClosingMessage`, openspec

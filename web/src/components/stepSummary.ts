@@ -87,6 +87,25 @@ const listOrNone = (key: string, v: unknown): SummaryRow => {
 };
 const yesNo = (key: string, v: unknown): SummaryRow => ({ key, value: v === true ? 'כן' : 'לא' });
 
+/** The kind of accountant notification, in Hebrew (`detail.kind` of an accountant-email row). */
+const ACCOUNTANT_EMAIL_KIND_HE: Record<string, string> = {
+  goal_complete: 'כל המסמכים התקבלו',
+  claimed_documents: 'הלקוח מסר מסמכים שלא דרך השיחה — נדרש אישור',
+  verification_problem: 'מסמך לא עבר אימות אוטומטי',
+  overdue: 'תאריך היעד עבר',
+};
+
+const accountantEmailRows: Mapping = (d) => {
+  const rows: SummaryRow[] = [];
+  const kind = str(d['kind']);
+  if (kind) rows.push({ key: 'kind', value: ACCOUNTANT_EMAIL_KIND_HE[kind] ?? kind });
+  for (const key of ['to', 'subject', 'body', 'error'] as const) {
+    const v = str(d[key]);
+    if (v) rows.push({ key, value: v });
+  }
+  return { rows, consumed: ['kind', 'to', 'subject', 'body', 'error'] };
+};
+
 const MAPPINGS: Record<string, Mapping> = {
   // The provider adapter's translation of a request (openspec
   // `conversation-trace`): every list is shown even when empty, so the
@@ -262,6 +281,10 @@ const MAPPINGS: Record<string, Mapping> = {
     });
     return { rows: [...list('extracted_fields', items), ...list('parties', partyItems)], consumed: ['fields', 'parties'] };
   },
+  // A platform email to the accountant (openspec `conversation-trace`): the
+  // kind in plain words, then the email as sent. Old rows carry no body.
+  'email.accountant_sent': accountantEmailRows,
+  'email.accountant_failed': accountantEmailRows,
   'planner.rerun_after_verification': (d) => {
     const documents = Array.isArray(d['documents']) ? d['documents'] : [];
     const items = documents.map((r) => (isRecord(r) ? `${docLabel(r)} — ${str(r['outcome']) ?? '?'}` : docLabel(r)));

@@ -11,6 +11,9 @@ import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import * as users from '../db/queries/users.js';
 import type { ClientRow, EmailRow } from '../db/types.js';
 import { streamFile } from './fileStream.js';
+import { resend } from '../resend/client.js';
+import { emailDeliveryStatus, isBlockedSendId } from '../resend/deliveryStatus.js';
+import { logger } from '../util/logger.js';
 import { resolveCallFile, resolveStepFile } from './stepFile.js';
 
 /**
@@ -174,6 +177,40 @@ export const adminGetAuditEvent: RequestHandler = async (req, res) => {
     return;
   }
   res.json({ step: toAdminStep(row) });
+};
+
+/**
+ * GET /api/admin/audit-events/:id/email-status — the delivery status of one
+ * accountant notification (openspec `conversation-trace`), read live from the
+ * mail provider when the step modal opens. Keyed by the step id; answers only
+ * for an `email.accountant_sent` row. `blocked` = the outbound fence kept the
+ * send in (no provider call); `unavailable` = an old row without a provider id,
+ * or the provider could not be asked.
+ */
+export const adminGetStepEmailStatus: RequestHandler = async (req, res) => {
+  const id = z.string().uuid().safeParse(req.params.id);
+  const row = id.success ? await auditEvents.getById(id.data) : null;
+  if (!row || row.action !== 'email.accountant_sent') {
+    res.status(404).json({ error: 'Step is not an accountant email.' });
+    return;
+  }
+  const resendId = row.detail['resendId'];
+  if (typeof resendId !== 'string' || resendId === '') {
+    res.json({ status: 'unavailable' });
+    return;
+  }
+  if (isBlockedSendId(resendId)) {
+    res.json({ status: 'blocked' });
+    return;
+  }
+  try {
+    const { data, error } = await resend.emails.get(resendId);
+    if (error || !data) throw new Error(`${error?.name ?? 'unknown'} ${error?.message ?? ''}`);
+    res.json(emailDeliveryStatus(data.last_event));
+  } catch (err) {
+    logger.warn('accountant email status unavailable', { stepId: row.id, resendId, err: String(err) });
+    res.json({ status: 'unavailable' });
+  }
 };
 
 /** The received file a step is about (its audit row targets a document_file), or null. */

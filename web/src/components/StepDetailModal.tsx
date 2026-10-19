@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { api, type AdminConversationStep } from '../api';
+import { api, type AdminConversationStep, type StepEmailStatus } from '../api';
 import { formatTimestamp, humanizePurpose } from '../format';
 import { useT } from '../i18n';
 import { CopyButton } from './CopyButton';
 import { DocumentPane, isTwoPane, useDocumentOf } from './DocumentPane';
-import { isFileStep, stepDetailsText, stepLinkOf } from './stepLink';
+import { isAccountantEmailStep, isFileStep, stepDetailsText, stepLinkOf } from './stepLink';
 import { isIsoDateTime, stepSummaryOf } from './stepSummary';
 
 /** One code check of a gate, as the audit row records it (`detail.checks`). */
@@ -66,6 +66,61 @@ export function stepActionLabel(labels: { gate: Record<string, string>; step: Re
 }
 
 /**
+ * The delivery status of an accountant-email step (openspec `conversation-trace`),
+ * asked of the provider once when the modal opens. A failed row asks nothing:
+ * it was never sent. Any other step gets null and shows no badge.
+ */
+type EmailStatusView = StepEmailStatus | 'loading' | 'not_sent';
+
+function useEmailStatusOf(step: AdminConversationStep): EmailStatusView | null {
+  const wanted: EmailStatusView | null = isAccountantEmailStep(step) ? (step.action === 'email.accountant_failed' ? 'not_sent' : 'loading') : null;
+  const [status, setStatus] = useState<EmailStatusView | null>(wanted);
+  useEffect(() => {
+    if (wanted !== 'loading') return;
+    let cancelled = false;
+    api
+      .adminGetStepEmailStatus(step.id)
+      .then((s) => {
+        if (!cancelled) setStatus(s);
+      })
+      .catch(() => {
+        if (!cancelled) setStatus({ status: 'unavailable' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step.id, wanted]);
+  return status;
+}
+
+/** The badge of one delivery status: colour class and Hebrew label; the provider's event word is shown beside it. */
+function EmailStatusBadge({ status }: { status: EmailStatusView }) {
+  const { t } = useT();
+  if (status === 'loading') return <span className="badge badge-neutral">{t.stepEmailStatusLoading}</span>;
+  if (status === 'not_sent') return <span className="badge badge-danger">{t.stepEmailStatusNotSent}</span>;
+  const view =
+    status.status === 'delivered'
+      ? { cls: 'badge-success', label: t.stepEmailStatusDelivered }
+      : status.status === 'pending'
+        ? { cls: 'badge-neutral', label: t.stepEmailStatusPending }
+        : status.status === 'failed'
+          ? { cls: 'badge-danger', label: t.stepEmailStatusFailed }
+          : status.status === 'blocked'
+            ? { cls: 'badge-neutral', label: t.stepEmailStatusBlocked }
+            : { cls: 'badge-neutral', label: t.stepEmailStatusUnavailable };
+  return (
+    <span className="gate-modal-email-status-badge">
+      <span className={`badge ${view.cls}`}>{view.label}</span>
+      {'event' in status && (
+        <span className="mono muted" dir="ltr">
+          {status.event}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
  * Read-only drill-down of one audited code step: what the step did (its
  * detail as labelled rows), and, for a gate row, which checks ran, which
  * passed (✓), which failed (✗) with the failure note, and which the gate
@@ -94,6 +149,7 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
 
   // A file step asks for its document (by step id) on open; any other step asks for nothing.
   const doc = useDocumentOf(isFileStep(step) ? step.id : null, api.adminGetStepFile);
+  const emailStatus = useEmailStatusOf(step);
   const twoPane = isTwoPane(doc);
 
   useEffect(() => {
@@ -142,6 +198,11 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
             </p>
           )}
           {doc === 'missing' && <p className="muted gate-modal-doc-missing">{t.stepDocMissing}</p>}
+          {emailStatus !== null && (
+            <p className="gate-modal-email-status">
+              <span className="muted">{t.stepEmailStatusLabel}</span> <EmailStatusBadge status={emailStatus} />
+            </p>
+          )}
           <h3 className="gate-modal-section">{t.gateModalSummary}</h3>
           {summary.length === 0 ? (
             <p className="muted gate-summary-empty">{t.gateModalSummaryEmpty}</p>
@@ -165,7 +226,9 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
                         ))}
                       </ul>
                     ) : (
-                      <span dir="auto">{valueText(row.value)}</span>
+                      <span dir="auto" className={row.key === 'body' ? 'gate-summary-prewrap' : undefined}>
+                        {valueText(row.value)}
+                      </span>
                     )}
                   </dd>
                 </div>

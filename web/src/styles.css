@@ -4554,6 +4554,10 @@ button.meta-chip:hover {
 .timeline-trace-critical {
   border-inline-start-color: #c0392b;
 }
+/* A warning step (e.g. an accountant email the provider refused). */
+.timeline-trace-warning {
+  border-inline-start-color: #fb923c;
+}
 .timeline-trace-reason {
   overflow-wrap: anywhere;
 }
@@ -4774,6 +4778,23 @@ pre.doc-text {
 .gate-modal-reason {
   margin: 0;
   overflow-wrap: anywhere;
+}
+/* The delivery badge of an accountant-email step (openspec `conversation-trace`). */
+.gate-modal-email-status {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.gate-modal-email-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+/* The email body keeps its line breaks. */
+.gate-summary-prewrap {
+  white-space: pre-wrap;
 }
 .gate-modal-section {
   margin: 4px 0 0;

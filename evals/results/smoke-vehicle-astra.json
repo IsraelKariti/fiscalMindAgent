@@ -1,0 +1,1202 @@
+{
+  "ranAt": "2026-10-19T19:25:59.382Z",
+  "finishedAt": "2026-10-19T19:26:42.845Z",
+  "models": [
+    "gpt-6-astra"
+  ],
+  "stages": [
+    "generate_message"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 5,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gpt-6-astra": {
+      "model": "gpt-6-astra",
+      "inputCostPerToken": 0.00001,
+      "outputCostPerToken": 0.00005,
+      "thinkingCostPerToken": 0.00005,
+      "cachedCostPerToken": 0.000001
+    }
+  },
+  "results": [
+    {
+      "stage": "generate_message",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_30",
+      "notes": "Change chat-stated-cost: the price is written in words only. Code accepts digits only, so the planner states nothing and asks the client to write the amount in digits.",
+      "ranAt": "2026-10-19T19:25:59.488Z",
+      "latencyMs": 14593,
+      "attempts": 1,
+      "inputTokens": 34069,
+      "outputTokens": 205,
+      "thinkingTokens": 34,
+      "cachedTokens": 4750,
+      "costUsd": 0.30988999999999994,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה, ישראל. תוכל לכתוב את עלות הרכב בספרות כדי שאוכל לרשום אותה?",
+              "send_at": "asap"
+            },
+            "turn": 1
+          },
+          {
+            "name": "state_vehicle",
+            "args": {
+              "document_id": "doc-car-cost",
+              "instance_name": "",
+              "manufacturer": "",
+              "model": "",
+              "production_year": 0,
+              "license_plate": "",
+              "purchase_cost": 85000,
+              "currency": "ILS",
+              "evidence_message_id": "msg-6",
+              "evidence_quote": "שילמתי שמונים וחמש אלף"
+            },
+            "turn": 2
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Recorded the client's stated vehicle cost as ILS 85,000; no make, model, year or plate was stated in that message. The licence remains pending and was promised for this evening. A clarification message was scheduled, although the written amount is already sufficient; final confirmation is not yet due."
+            },
+            "turn": 3
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "vehicle statement on doc-car-cost: the עלות הרכישה (purchase_cost) is not written in the quote — copy the fact as the client wrote it, or ask the client to write it plainly",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "send_whatsapp_text",
+          "state_vehicle",
+          "conclude"
+        ],
+        "reasoning": "Recorded the client's stated vehicle cost as ILS 85,000; no make, model, year or plate was stated in that message. The licence remains pending and was promised for this evening. A clarification message was scheduled, although the written amount is already sufficient; final confirmation is not yet due.",
+        "send_at": "asap"
+      },
+      "pass": false
+    },
+    {
+      "stage": "generate_message",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_28",
+      "notes": "Change chat-stated-cost: the client vehicle declaration already exists and is pending; the client writes the price. The planner states it on that item (state_vehicle → stated_vehicles) and confirms the recorded amount.",
+      "ranAt": "2026-10-19T19:25:59.484Z",
+      "latencyMs": 15555,
+      "attempts": 1,
+      "inputTokens": 34267,
+      "outputTokens": 212,
+      "thinkingTokens": 95,
+      "cachedTokens": 6134,
+      "costUsd": 0.30281399999999997,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "state_vehicle",
+            "args": {
+              "document_id": "doc-car-cost",
+              "instance_name": "",
+              "manufacturer": "",
+              "model": "",
+              "production_year": 0,
+              "license_plate": "",
+              "purchase_cost": 85000,
+              "currency": "ILS",
+              "evidence_message_id": "msg-6",
+              "evidence_quote": "שילמתי 85,000 ש\"ח"
+            },
+            "turn": 1
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, רשמתי את עלות הרכישה: 85,000 ש״ח. זה מספיק במקום הקבלה. נמתין לצילום רישיון הרכב בערב כפי שציינת.",
+              "send_at": "asap"
+            },
+            "turn": 2
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Recorded the client's stated vehicle purchase cost of ILS 85,000 without inferring other vehicle facts. Acknowledged that this replaces the missing receipt; the vehicle licence remains pending and the client plans to send it this evening."
+            },
+            "turn": 3
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:40:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "85,000",
+            "85000",
+            "85 אלף"
+          ],
+          "actual": [
+            "85,000"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.דף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתימה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "stated_vehicles",
+          "expected": {
+            "doc-car-cost": {
+              "purchase_cost": 85000,
+              "currency": "ILS"
+            }
+          },
+          "actual": {
+            "doc-car-cost": {
+              "purchase_cost": 85000,
+              "currency": "ILS"
+            }
+          },
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "state_vehicle",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "Recorded the client's stated vehicle purchase cost of ILS 85,000 without inferring other vehicle facts. Acknowledged that this replaces the missing receipt; the vehicle licence remains pending and the client plans to send it this evening.",
+        "send_at": "asap",
+        "message": "תודה ישראל, רשמתי את עלות הרכישה: 85,000 ש״ח. זה מספיק במקום הקבלה. נמתין לצילום רישיון הרכב בערב כפי שציינת.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_27",
+      "notes": "Change chat-stated-cost: the client names a price but has not said whether the receipt exists. Paper first: nothing is stated or changed, and the reply asks once whether the receipt or purchase document is in his hands.",
+      "ranAt": "2026-10-19T19:25:59.479Z",
+      "latencyMs": 17276,
+      "attempts": 1,
+      "inputTokens": 28885,
+      "outputTokens": 119,
+      "thinkingTokens": 0,
+      "cachedTokens": 1268,
+      "costUsd": 0.28338800000000003,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, ציינת שהרכב עלה 85,000 ש״ח. האם מסמך הרכישה או הקבלה עדיין בידיך?",
+              "send_at": "asap"
+            },
+            "turn": 1
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "The client stated the purchase cost but has not said either vehicle document is unavailable. Ask whether the purchase document is held before replacing it with a client declaration; keep both requested document rows pending."
+            },
+            "turn": 2
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "קבלה",
+            "מסמך רכישה",
+            "מסמך הרכישה"
+          ],
+          "actual": [
+            "קבלה",
+            "מסמך הרכישה"
+          ],
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "The client stated the purchase cost but has not said either vehicle document is unavailable. Ask whether the purchase document is held before replacing it with a client declaration; keep both requested document rows pending.",
+        "send_at": "asap",
+        "message": "תודה ישראל, ציינת שהרכב עלה 85,000 ש״ח. האם מסמך הרכישה או הקבלה עדיין בידיך?",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_26",
+      "notes": "Change chat-stated-cost: the client says the receipt is lost and names the price in the same message. The planner adds the client vehicle declaration (openspec vehicle-declaration) with the cost 85000 stated from that quote (state_vehicle, not state_cost), retires the receipt item, and the reply confirms the recorded amount without asking for a signed page.",
+      "ranAt": "2026-10-19T19:25:59.398Z",
+      "latencyMs": 25113,
+      "attempts": 1,
+      "inputTokens": 44414,
+      "outputTokens": 421,
+      "thinkingTokens": 131,
+      "cachedTokens": 15947,
+      "costUsd": 0.32821700000000004,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-car-receipt",
+              "name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "description": "",
+              "already_provided": false,
+              "file_ids": [],
+              "paper_key": "vehicle_declaration",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "את הקבלה של הרכב אין לי, שילמתי עליו 85,000 ש\"ח",
+              "proven_by_file_id": ""
+            },
+            "turn": 1
+          },
+          {
+            "name": "state_vehicle",
+            "args": {
+              "document_id": "",
+              "instance_name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "manufacturer": "",
+              "model": "",
+              "production_year": 0,
+              "license_plate": "",
+              "purchase_cost": 85000,
+              "currency": "ILS",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "את הקבלה של הרכב אין לי, שילמתי עליו 85,000 ש\"ח"
+            },
+            "turn": 2
+          },
+          {
+            "name": "retire_document",
+            "args": {
+              "document_id": "doc-car-receipt",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "את הקבלה של הרכב אין לי, שילמתי עליו 85,000 ש\"ח",
+              "proven_by_file_id": ""
+            },
+            "turn": 3
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, רשמתי שעלות רכישת הרכב הייתה 85,000 ש״ח. ההצהרה שלך כאן מספיקה במקום הקבלה החסרה. נמתין לצילום רישיון הרכב בערב, כפי שציינת.",
+              "send_at": "asap"
+            },
+            "turn": 4
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Recorded the client's stated vehicle purchase cost of ILS 85,000 in a vehicle declaration and replaced the unavailable receipt requirement. The licence remains pending because the client promised to send it this evening. Sent an immediate acknowledgment without requesting the missing receipt or inventing vehicle facts."
+            },
+            "turn": 5
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "85,000",
+            "85000",
+            "85 אלף"
+          ],
+          "actual": [
+            "85,000"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.דף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתימה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {
+            "vehicle": 1
+          },
+          "actual": {
+            "vehicle": 1
+          },
+          "pass": true
+        },
+        {
+          "key": "retired_documents",
+          "expected": [
+            "doc-car-receipt"
+          ],
+          "actual": [
+            "doc-car-receipt"
+          ],
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_vehicles",
+          "expected": [
+            {
+              "purchase_cost": 85000,
+              "currency": "ILS"
+            }
+          ],
+          "actual": [
+            {
+              "purchase_cost": 85000,
+              "currency": "ILS"
+            }
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "add_instance",
+          "state_vehicle",
+          "retire_document",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "Recorded the client's stated vehicle purchase cost of ILS 85,000 in a vehicle declaration and replaced the unavailable receipt requirement. The licence remains pending because the client promised to send it this evening. Sent an immediate acknowledgment without requesting the missing receipt or inventing vehicle facts.",
+        "send_at": "asap",
+        "message": "תודה ישראל, רשמתי שעלות רכישת הרכב הייתה 85,000 ש״ח. ההצהרה שלך כאן מספיקה במקום הקבלה החסרה. נמתין לצילום רישיון הרכב בערב, כפי שציינת.",
+        "resolutions": [],
+        "added_instance_names": [
+          "הצהרת הלקוח על הרכב - מאזדה 3"
+        ],
+        "evidence_quotes": [
+          "את הקבלה של הרכב אין לי, שילמתי עליו 85,000 ש\"ח"
+        ],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 1,
+        "retired": 1
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_33",
+      "notes": "openspec vehicle-declaration: the client cannot find the licence and gave no facts yet. The planner retires the licence item, adds the client vehicle declaration (pending, nothing stated yet) and asks once, in everyday words, what the client knows about the car (make, model, year, plate) — never presses for the licence.",
+      "ranAt": "2026-10-19T19:26:15.044Z",
+      "latencyMs": 21911,
+      "attempts": 1,
+      "inputTokens": 39018,
+      "outputTokens": 369,
+      "thinkingTokens": 43,
+      "cachedTokens": 10853,
+      "costUsd": 0.313103,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-car-licence",
+              "name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "description": "פרטי הרכב במקום רישיון שלא נמצא.",
+              "already_provided": false,
+              "file_ids": [],
+              "paper_key": "vehicle_declaration",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "אין לי מושג איפה הרישיון, לא מוצא אותו.",
+              "proven_by_file_id": ""
+            },
+            "turn": 1
+          },
+          {
+            "name": "retire_document",
+            "args": {
+              "document_id": "doc-car-licence",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "אין לי מושג איפה הרישיון, לא מוצא אותו.",
+              "proven_by_file_id": ""
+            },
+            "turn": 2
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "אין בעיה, אפשר להסתפק בפרטים שתכתוב כאן במקום הרישיון. ציינת בשאלון מאזדה 3 משנת 2019 — האם זו שנת הייצור? ומה מספר הרישוי, אם ידוע לך? גם פרטים חלקיים מספיקים. את הקבלה תוכל לשלוח בערב כפי שכתבת, וניעזר בה לעלות הרכישה.",
+              "send_at": "asap"
+            },
+            "turn": 3
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "הלקוח אינו מוצא את הרישיון, ולכן הוחלף בהצהרת לקוח ונשלחה בקשה לפרטים הידועים לו בצ'אט. מסמך הרכישה נשאר ממתין, בהתאם להבטחתו לשלוח בערב; טרם ניתן לבקש אישור סופיות."
+            },
+            "turn": 4
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 2,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "דגם",
+            "שנת",
+            "שנה",
+            "רישוי",
+            "תוצר",
+            "יצרן"
+          ],
+          "actual": [
+            "שנת",
+            "רישוי"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.בתוקף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חובה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {
+            "vehicle": 1
+          },
+          "actual": {
+            "vehicle": 1
+          },
+          "pass": true
+        },
+        {
+          "key": "retired_documents",
+          "expected": [
+            "doc-car-licence"
+          ],
+          "actual": [
+            "doc-car-licence"
+          ],
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_vehicles",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "add_instance",
+          "retire_document",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "הלקוח אינו מוצא את הרישיון, ולכן הוחלף בהצהרת לקוח ונשלחה בקשה לפרטים הידועים לו בצ'אט. מסמך הרכישה נשאר ממתין, בהתאם להבטחתו לשלוח בערב; טרם ניתן לבקש אישור סופיות.",
+        "send_at": "asap",
+        "message": "אין בעיה, אפשר להסתפק בפרטים שתכתוב כאן במקום הרישיון. ציינת בשאלון מאזדה 3 משנת 2019 — האם זו שנת הייצור? ומה מספר הרישוי, אם ידוע לך? גם פרטים חלקיים מספיקים. את הקבלה תוכל לשלוח בערב כפי שכתבת, וניעזר בה לעלות הרכישה.",
+        "resolutions": [],
+        "added_instance_names": [
+          "הצהרת הלקוח על הרכב - מאזדה 3"
+        ],
+        "evidence_quotes": [
+          "אין לי מושג איפה הרישיון, לא מוצא אותו."
+        ],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 1,
+        "retired": 1
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_34",
+      "notes": "openspec vehicle-declaration: no receipt and no idea of the price. The receipt is not required: the planner retires the receipt item, adds the client vehicle declaration and closes it with a statement that carries no cost (the quote is the client's 'no idea'), and the reply does not press for a price.",
+      "ranAt": "2026-10-19T19:26:16.762Z",
+      "latencyMs": 24865,
+      "attempts": 1,
+      "inputTokens": 44579,
+      "outputTokens": 447,
+      "thinkingTokens": 116,
+      "cachedTokens": 16064,
+      "costUsd": 0.32936400000000005,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-car-receipt",
+              "name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "description": "עלות הרכישה אינה ידועה ללקוח; הרישיון יישלח בנפרד.",
+              "already_provided": false,
+              "file_ids": [],
+              "paper_key": "vehicle_declaration",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה, קניתי אותו לפני המון שנים",
+              "proven_by_file_id": ""
+            },
+            "turn": 1
+          },
+          {
+            "name": "state_vehicle",
+            "args": {
+              "document_id": "",
+              "instance_name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "manufacturer": "",
+              "model": "",
+              "production_year": 0,
+              "license_plate": "",
+              "purchase_cost": 0,
+              "currency": "",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה, קניתי אותו לפני המון שנים"
+            },
+            "turn": 2
+          },
+          {
+            "name": "retire_document",
+            "args": {
+              "document_id": "doc-car-receipt",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה, קניתי אותו לפני המון שנים",
+              "proven_by_file_id": ""
+            },
+            "turn": 3
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "אין בעיה, ישראל. רשמתי שאין לך קבלה ושעלות הרכישה אינה ידועה לך — אין צורך לנחש או לחפש קבלה. נמתין לצילום רישיון הרכב בערב, תודה.",
+              "send_at": "asap"
+            },
+            "turn": 4
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Replaced the unavailable purchase receipt with the client's vehicle declaration and recorded that the purchase cost is unknown without inferring vehicle facts from the questionnaire. The licence remains pending because the client promised it for this evening. Sent an immediate acknowledgment without asking again for the unavailable receipt or unknown cost."
+            },
+            "turn": 5
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חובה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "question_excludes.עלה",
+          "expected": "not asked",
+          "actual": "not asked",
+          "pass": true
+        },
+        {
+          "key": "question_excludes.שילמת",
+          "expected": "not asked",
+          "actual": "not asked",
+          "pass": true
+        },
+        {
+          "key": "question_excludes.מחיר",
+          "expected": "not asked",
+          "actual": "not asked",
+          "pass": true
+        },
+        {
+          "key": "question_excludes.עלות",
+          "expected": "not asked",
+          "actual": "not asked",
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {
+            "vehicle": 1
+          },
+          "actual": {
+            "vehicle": 1
+          },
+          "pass": true
+        },
+        {
+          "key": "retired_documents",
+          "expected": [
+            "doc-car-receipt"
+          ],
+          "actual": [
+            "doc-car-receipt"
+          ],
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_vehicles",
+          "expected": [
+            {}
+          ],
+          "actual": [
+            {}
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "add_instance",
+          "state_vehicle",
+          "retire_document",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "Replaced the unavailable purchase receipt with the client's vehicle declaration and recorded that the purchase cost is unknown without inferring vehicle facts from the questionnaire. The licence remains pending because the client promised it for this evening. Sent an immediate acknowledgment without asking again for the unavailable receipt or unknown cost.",
+        "send_at": "asap",
+        "message": "אין בעיה, ישראל. רשמתי שאין לך קבלה ושעלות הרכישה אינה ידועה לך — אין צורך לנחש או לחפש קבלה. נמתין לצילום רישיון הרכב בערב, תודה.",
+        "resolutions": [],
+        "added_instance_names": [
+          "הצהרת הלקוח על הרכב - מאזדה 3"
+        ],
+        "evidence_quotes": [
+          "קבלה על הרכב אין לי ואין לי שום מושג כמה הוא עלה, קניתי אותו לפני המון שנים"
+        ],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 1,
+        "retired": 1
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_32",
+      "notes": "openspec vehicle-declaration: the client cannot find the licence and names the car in the same message. The licence is not required: the planner adds the client vehicle declaration with the facts stated from those words (year and plate at least), retires the licence item, and the reply does not ask for the licence again or mention validity.",
+      "ranAt": "2026-10-19T19:26:14.096Z",
+      "latencyMs": 28746,
+      "attempts": 1,
+      "inputTokens": 44585,
+      "outputTokens": 473,
+      "thinkingTokens": 127,
+      "cachedTokens": 16063,
+      "costUsd": 0.33128300000000005,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-car-licence",
+              "name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "description": "פרטי הרכב במקום רישיון שאינו נמצא.",
+              "already_provided": false,
+              "file_ids": [],
+              "paper_key": "vehicle_declaration",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "לא מוצא את הרישיון בשום מקום. זו מאזדה 3 משנת 2019, מספר רישוי 12-345-67.",
+              "proven_by_file_id": ""
+            },
+            "turn": 1
+          },
+          {
+            "name": "state_vehicle",
+            "args": {
+              "document_id": "",
+              "instance_name": "הצהרת הלקוח על הרכב - מאזדה 3",
+              "manufacturer": "מאזדה",
+              "model": "3",
+              "production_year": 2019,
+              "license_plate": "1234567",
+              "purchase_cost": 0,
+              "currency": "",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "זו מאזדה 3 משנת 2019, מספר רישוי 12-345-67."
+            },
+            "turn": 2
+          },
+          {
+            "name": "retire_document",
+            "args": {
+              "document_id": "doc-car-licence",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "לא מוצא את הרישיון בשום מקום. זו מאזדה 3 משנת 2019, מספר רישוי 12-345-67.",
+              "proven_by_file_id": ""
+            },
+            "turn": 3
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, רשמתי לפי דבריך: מאזדה 3, שנת 2019, מספר רישוי 12-345-67. אין צורך להמשיך לחפש את הרישיון — הפרטים שמסרת יכולים לשמש כהצהרה במקומו. נמתין לקבלה בערב לצורך עלות הרכישה.",
+              "send_at": "asap"
+            },
+            "turn": 4
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Recorded the client's stated vehicle details as a declaration replacing the unavailable licence and retired only the licence requirement. The purchase receipt remains pending because the client promised it this evening; acknowledged without requesting duplicate details or pressing for it early."
+            },
+            "turn": 5
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:30:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_excludes.בתוקף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "question_excludes.רישיון",
+          "expected": "not asked",
+          "actual": "not asked",
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {
+            "vehicle": 1
+          },
+          "actual": {
+            "vehicle": 1
+          },
+          "pass": true
+        },
+        {
+          "key": "retired_documents",
+          "expected": [
+            "doc-car-licence"
+          ],
+          "actual": [
+            "doc-car-licence"
+          ],
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_vehicles",
+          "expected": [
+            {
+              "production_year": 2019,
+              "license_plate": "1234567"
+            }
+          ],
+          "actual": [
+            {
+              "manufacturer": "מאזדה",
+              "model": "3",
+              "production_year": 2019,
+              "license_plate": "1234567"
+            }
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "add_instance",
+          "state_vehicle",
+          "retire_document",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "Recorded the client's stated vehicle details as a declaration replacing the unavailable licence and retired only the licence requirement. The purchase receipt remains pending because the client promised it this evening; acknowledged without requesting duplicate details or pressing for it early.",
+        "send_at": "asap",
+        "message": "תודה ישראל, רשמתי לפי דבריך: מאזדה 3, שנת 2019, מספר רישוי 12-345-67. אין צורך להמשיך לחפש את הרישיון — הפרטים שמסרת יכולים לשמש כהצהרה במקומו. נמתין לקבלה בערב לצורך עלות הרכישה.",
+        "resolutions": [],
+        "added_instance_names": [
+          "הצהרת הלקוח על הרכב - מאזדה 3"
+        ],
+        "evidence_quotes": [
+          "לא מוצא את הרישיון בשום מקום. זו מאזדה 3 משנת 2019, מספר רישוי 12-345-67."
+        ],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 1,
+        "retired": 1
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "generate_message": {
+      "gpt-6-astra": {
+        "total": 7,
+        "passed": 6,
+        "passRate": 0.8571428571428571,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 21151,
+          "p50": 21911,
+          "p90": 25113,
+          "min": 14593,
+          "max": 28746
+        },
+        "inputTokens": 269817,
+        "outputTokens": 2246,
+        "thinkingTokens": 546,
+        "cachedTokens": 71079,
+        "costUsd": 2.198059,
+        "unpriced": 0
+      }
+    }
+  }
+}

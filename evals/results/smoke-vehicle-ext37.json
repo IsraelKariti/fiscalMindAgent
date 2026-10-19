@@ -1,0 +1,279 @@
+{
+  "ranAt": "2026-10-19T19:18:12.872Z",
+  "finishedAt": "2026-10-19T19:19:09.130Z",
+  "models": [
+    "gemini-3.7-flash"
+  ],
+  "stages": [
+    "extract_document"
+  ],
+  "concurrency": 2,
+  "maxSpendUsd": 2,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-3.7-flash": {
+      "model": "gemini-3.7-flash",
+      "inputCostPerToken": 7.5e-7,
+      "outputCostPerToken": 0.00000375,
+      "thinkingCostPerToken": 0.00000375,
+      "cachedCostPerToken": 7.5e-8
+    }
+  },
+  "results": [
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.7-flash",
+      "provider": "gemini",
+      "caseId": "ext_27",
+      "notes": "openspec vehicle-license-optional: the licence expired on 15.01.2026, before the verification (2026-02-01). The type runs no validity check, so the document is accepted; the model must still read the valid-until date as printed and must not call the document the wrong type because it is expired today",
+      "ranAt": "2026-10-19T19:18:58.913Z",
+      "latencyMs": 10066,
+      "attempts": 1,
+      "inputTokens": 2332,
+      "outputTokens": 142,
+      "thinkingTokens": 579,
+      "cachedTokens": 0,
+      "costUsd": 0.00445275,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "רישיון רכב",
+        "issuer": "משרד התחבורה והבטיחות בדרכים",
+        "parties": [
+          {
+            "name": "Israel Israeli (ישראל ישראלי)",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ],
+        "as_of_date": null,
+        "valid_until": "2026-01-15",
+        "legible": true,
+        "injection_suspected": false,
+        "license_plate": "98765432",
+        "manufacturer": "מאזדה",
+        "model": "3",
+        "production_year": 2019,
+        "purchase_cost": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": "2026-01-15",
+          "actual": "2026-01-15",
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "123456782"
+          ],
+          "actual": [
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.license_plate",
+          "expected": "98765432",
+          "actual": "98765432",
+          "pass": true
+        },
+        {
+          "key": "fields.production_year",
+          "expected": 2019,
+          "actual": 2019,
+          "pass": true
+        },
+        {
+          "key": "fields.purchase_cost",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": [],
+          "subjectMatched": "client",
+          "adopted": false
+        },
+        "actual_kind": "רישיון רכב",
+        "issuer": "משרד התחבורה והבטיחות בדרכים",
+        "parties": [
+          {
+            "name": "Israel Israeli (ישראל ישראלי)",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "stage": "extract_document",
+      "model": "gemini-3.7-flash",
+      "provider": "gemini",
+      "caseId": "ext_28",
+      "notes": "openspec vehicle-license-optional: the licence expired on 20.07.2025, before the valuation date 31.12.2025 — the licence is a helpful paper, not a required one, so the type runs no validity check and the document passes; the valid-until date is read for the record and the fields are read as from any licence",
+      "ranAt": "2026-10-19T19:18:58.928Z",
+      "latencyMs": 10187,
+      "attempts": 1,
+      "inputTokens": 2331,
+      "outputTokens": 138,
+      "thinkingTokens": 349,
+      "cachedTokens": 0,
+      "costUsd": 0.0035745,
+      "error": null,
+      "output": {
+        "is_expected_type": true,
+        "actual_kind": "רישיון רכב",
+        "issuer": "משרד התחבורה והבטיחות בדרכים",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ],
+        "as_of_date": null,
+        "valid_until": "2025-07-20",
+        "legible": true,
+        "injection_suspected": false,
+        "license_plate": "76543210",
+        "manufacturer": "מאזדה",
+        "model": "3",
+        "production_year": 2019,
+        "purchase_cost": null
+      },
+      "checks": [
+        {
+          "key": "is_expected_type",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "legible",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "injection_suspected",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "valid_until",
+          "expected": "2025-07-20",
+          "actual": "2025-07-20",
+          "pass": true
+        },
+        {
+          "key": "owner_ids",
+          "expected": [
+            "123456782"
+          ],
+          "actual": [
+            "123456782"
+          ],
+          "pass": true
+        },
+        {
+          "key": "fields.license_plate",
+          "expected": "76543210",
+          "actual": "76543210",
+          "pass": true
+        },
+        {
+          "key": "fields.production_year",
+          "expected": 2019,
+          "actual": 2019,
+          "pass": true
+        },
+        {
+          "key": "fields.purchase_cost",
+          "expected": null,
+          "actual": null,
+          "pass": true
+        },
+        {
+          "key": "verdict.passed",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "verdict": {
+          "passed": true,
+          "failedKeys": [],
+          "reasons": [],
+          "subjectMatched": "client",
+          "adopted": false
+        },
+        "actual_kind": "רישיון רכב",
+        "issuer": "משרד התחבורה והבטיחות בדרכים",
+        "parties": [
+          {
+            "name": "ישראל ישראלי",
+            "id_number": "123456782",
+            "role": "owner"
+          }
+        ]
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "extract_document": {
+      "gemini-3.7-flash": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 10127,
+          "p50": 10066,
+          "p90": 10066,
+          "min": 10066,
+          "max": 10187
+        },
+        "inputTokens": 4663,
+        "outputTokens": 280,
+        "thinkingTokens": 928,
+        "cachedTokens": 0,
+        "costUsd": 0.008027,
+        "unpriced": 0
+      }
+    }
+  }
+}

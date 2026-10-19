@@ -4001,7 +4001,7 @@
         "new_instance_stated_vehicles": [],
         "retired_documents": ["doc-car-licence"],
         "stated_costs": {},
-        "message_includes_any": ["דגם", "שנת", "מספר רישוי", "תוצר", "יצרן"],
+        "message_includes_any": ["דגם", "שנת", "שנה", "רישוי", "תוצר", "יצרן"],
         "message_excludes": ["בתוקף", "חובה"],
         "mentions_valuation_date": false,
         "max_question_marks": 2

@@ -24,6 +24,8 @@ function isUniqueViolationOn(err: unknown, constraint: string): boolean {
  * at worst show a stale row, never create a duplicate.
  */
 const LIVE = 'deleted_at IS NULL';
+/** The accountant's view: live and not an admin test client (openspec `admin-test-client`). */
+const ROSTER = `${LIVE} AND is_test = false`;
 
 /** The live client with this id — what workers and the planner want: a deleted client ends their work. */
 export async function getById(id: string): Promise<ClientRow | null> {
@@ -73,13 +75,15 @@ export async function insert(args: {
   agentFields?: Record<string, unknown>;
   /** Created paused (manual-kickoff agents): the agent stays quiet until an explicit accountant trigger. */
   paused?: boolean;
+  /** Admin test client (openspec `admin-test-client`): invisible to the accountant. */
+  isTest?: boolean;
 }): Promise<ClientRow> {
   const insertRow = async (waPhone: string | null): Promise<ClientRow> => {
     const { rows } = await pool.query<ClientRow>(
       `INSERT INTO clients (user_id, agent_instance_id, name, email_address, phone, goal_status, agent_fields, paused,
-                            wa_phone, wa_enabled, wa_opted_in_at, wa_opted_in_by)
+                            wa_phone, wa_enabled, wa_opted_in_at, wa_opted_in_by, is_test)
        VALUES ($1, $2, $3, $4, $5, 'pending', COALESCE($6::jsonb, '{}'::jsonb), $8,
-               $7::text, $7 IS NOT NULL, CASE WHEN $7 IS NOT NULL THEN now() END, CASE WHEN $7 IS NOT NULL THEN $1::uuid END)
+               $7::text, $7 IS NOT NULL, CASE WHEN $7 IS NOT NULL THEN now() END, CASE WHEN $7 IS NOT NULL THEN $1::uuid END, $9)
        RETURNING *`,
       // Stored lowercased — inbound routing and the import dedupe match on it.
       [
@@ -91,6 +95,7 @@ export async function insert(args: {
         args.agentFields ? JSON.stringify(args.agentFields) : null,
         waPhone,
         args.paused ?? false,
+        args.isTest ?? false,
       ],
     );
     const row = rows[0];
@@ -113,24 +118,30 @@ export async function insert(args: {
 
 /**
  * getById constrained to one agent instance — agent-scoped API routes use this.
- * Live only by default; `includeDeleted` is for the workspace READ routes under
- * an admin's view-as (openspec `soft-delete-clients`) — write routes never pass it.
+ * Live, non-test only by default; `includeDeleted` is for the workspace READ
+ * routes under an admin's view-as (openspec `soft-delete-clients`) — write
+ * routes never pass it; `includeTest` is the admin's view-as scope for every
+ * route, read or write (openspec `admin-test-client`, `clientScope` in
+ * src/api/viewAs.ts) — the accountant's own session never sees a test client.
  */
 export async function getByIdForInstance(
   id: string,
   agentInstanceId: string,
-  opts: { includeDeleted?: boolean } = {},
+  opts: { includeDeleted?: boolean; includeTest?: boolean } = {},
 ): Promise<ClientRow | null> {
   const { rows } = await pool.query<ClientRow>(
-    `SELECT * FROM clients WHERE id = $1 AND agent_instance_id = $2${opts.includeDeleted ? '' : ` AND ${LIVE}`}`,
+    `SELECT * FROM clients WHERE id = $1 AND agent_instance_id = $2${opts.includeDeleted ? '' : ` AND ${LIVE}`}${
+      opts.includeTest ? '' : ' AND is_test = false'
+    }`,
     [id, agentInstanceId],
   );
   return rows[0] ?? null;
 }
 
-export async function listForInstance(agentInstanceId: string): Promise<ClientRow[]> {
+/** The instance's live roster; `includeTest` adds the admin's test clients (view-as only). */
+export async function listForInstance(agentInstanceId: string, opts: { includeTest?: boolean } = {}): Promise<ClientRow[]> {
   const { rows } = await pool.query<ClientRow>(
-    `SELECT * FROM clients WHERE agent_instance_id = $1 AND ${LIVE} ORDER BY created_at DESC`,
+    `SELECT * FROM clients WHERE agent_instance_id = $1 AND ${opts.includeTest ? LIVE : ROSTER} ORDER BY created_at DESC`,
     [agentInstanceId],
   );
   return rows;
@@ -358,7 +369,7 @@ export async function listOverdueForAgentTypes(todayLocal: string, agentTypes: s
     `SELECT c.* FROM clients c
      JOIN agent_instances ai ON ai.id = c.agent_instance_id
      WHERE ai.agent_type = ANY($2::text[])
-       AND c.deleted_at IS NULL
+       AND c.deleted_at IS NULL AND c.is_test = false
        AND c.goal_status = 'pending' AND c.paused = false AND c.user_id IS NOT NULL
        AND (c.agent_fields->>'due_date') ~ '^\\d{4}-\\d{2}-\\d{2}$'
        AND (c.agent_fields->>'due_date') < $1

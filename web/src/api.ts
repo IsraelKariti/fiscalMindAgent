@@ -45,6 +45,8 @@ export interface Client {
   deletedAt: string | null;
   /** Display name of the user who deleted the client; set on the deleted list only. */
   deletedBy: string | null;
+  /** Admin test client (openspec `admin-test-client`): listed under view-as only, badged in the sidebar. */
+  isTest: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -891,6 +893,19 @@ export interface AgentTypeEmailInfo {
   taxYearCapable: boolean;
 }
 
+/** The body of the admin's test-client form (declaration of capital): the identity the monday kickoff would read. */
+export interface TestClientInput {
+  name: string;
+  phone: string;
+  taxYear: number;
+  idNumber?: string | null;
+  fileNumber?: string | null;
+  maritalStatus?: 'married' | 'not_married' | null;
+  spouseName?: string | null;
+  spouseIdNumber?: string | null;
+  formAnswers?: { question: string; answer: string }[];
+}
+
 /** The agent-workspace endpoints of one agent instance, rooted at `/agents/<id>`. */
 function makeWorkspaceApi(prefix: string) {
   return {
@@ -908,6 +923,9 @@ function makeWorkspaceApi(prefix: string) {
       /** Optional collection deadline ("YYYY-MM-DD"); the agent paces follow-ups toward it. */
       dueDate?: string | null;
     }) => request<{ client: Client }>(`${prefix}/clients`, { method: 'POST', body: JSON.stringify(args) }),
+    /** The admin's hand-filled test client (openspec `admin-test-client`) — an admin viewing as only (403 otherwise). */
+    createTestClient: (args: TestClientInput) =>
+      request<{ client: Client }>(`${prefix}/clients/test`, { method: 'POST', body: JSON.stringify(args) }),
     getClient: (id: string, opts?: RequestOpts) =>
       request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(
         `${prefix}/clients/${id}`,

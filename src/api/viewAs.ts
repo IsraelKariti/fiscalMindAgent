@@ -10,3 +10,14 @@ import type { Request } from 'express';
 export function isViewingAs(req: Request): boolean {
   return req.realUserId !== undefined && req.userId !== undefined && req.realUserId !== req.userId;
 }
+
+/**
+ * The client scope of a workspace/agent-router request: the admin's view-as
+ * session also reaches the admin's test clients (openspec `admin-test-client`),
+ * on every route, read or write; the accountant's own session never does
+ * (they answer "client not found"). Every by-id client load of those routers
+ * passes this (reads add `includeDeleted` on top).
+ */
+export function clientScope(req: Request): { includeTest: boolean } {
+  return { includeTest: isViewingAs(req) };
+}

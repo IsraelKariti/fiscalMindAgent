@@ -130,6 +130,8 @@ export interface ClientRow {
   deleted_at: Date | null;
   /** The user who deleted the client (the admin while viewing as); NULL when live or the user is gone. */
   deleted_by: string | null;
+  /** Admin test client (migration 067, openspec `admin-test-client`): hidden from every accountant-facing roster; only the admin's view-as lists it. */
+  is_test: boolean;
   created_at: Date;
   updated_at: Date;
 }

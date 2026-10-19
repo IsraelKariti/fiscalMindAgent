@@ -10,7 +10,7 @@ import { logger } from '../../util/logger.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { catalogSeedRows } from './catalog.js';
 import { crmIdNumber, spouseFromCards } from './crmIdentity.js';
-import { EMPTY_SPOUSE, readMaritalStatus, readSpouse, sameSpouse, spouseToStored, type SpouseOnFile } from './spouseIdentity.js';
+import { EMPTY_SPOUSE, readMaritalStatus, readSpouse, sameSpouse, spouseToStored, type MaritalStatus, type SpouseOnFile } from './spouseIdentity.js';
 import { maskId } from '../shared/gateChecks.js';
 import type { ItemColumnDetail } from '../shared/mondayData.js';
 import type { FormAnswer } from './formIntake.js';
@@ -46,7 +46,7 @@ const NON_ANSWER_TYPES = new Set(['board_relation', 'mirror', 'subtasks', 'file'
  * monday. Blank answers are not stored — they pre-resolve their rows at
  * intake (formIntake.ts) and carry no phrasing value for the interview.
  */
-function storableFormAnswers(formAnswers: FormAnswer[]): Array<{ question: string; answer: string }> {
+export function storableFormAnswers(formAnswers: FormAnswer[]): Array<{ question: string; answer: string }> {
   return formAnswers
     .map((a) => ({ question: sanitizeInline(a.question, 300), answer: sanitizeUntrusted(a.answer, 1500) }))
     .filter((a) => a.question !== '' && a.answer.trim() !== '');
@@ -63,6 +63,74 @@ export interface DeclarationIntake {
   /** The submitted questionnaire's question/answer pairs ([] when the form link is missing/empty). */
   formAnswers: FormAnswer[];
   taxYear: number;
+}
+
+/**
+ * What enrolls a declaration-of-capital client, whichever way it was read:
+ * the monday cards (resolveDeclarationClient) or the admin's test form
+ * (testClient.ts, openspec `admin-test-client`).
+ */
+export interface DeclarationIdentity {
+  name: string;
+  waPhone: string;
+  taxYear: number;
+  idNumber: string | null;
+  fileNumber: string | null;
+  spouse: SpouseOnFile;
+  maritalStatus: MaritalStatus | null;
+  /** Already sanitized pairs (storableFormAnswers); [] = none stored. */
+  formAnswers: Array<{ question: string; answer: string }>;
+  /** Source-specific agent_fields (the monday ids of a kickoff client). */
+  extraFields?: Record<string, unknown>;
+}
+
+/** The masked spouse facts an enrollment audit entry names (nothing when no spouse is known). */
+export function spouseAuditDetail(s: SpouseOnFile): Record<string, unknown> {
+  return s.name || s.idNumber ? { spouseName: s.name, spouseId: s.idNumber ? maskId(s.idNumber) : null, spouseSources: [s.nameSource, s.idSource] } : {};
+}
+
+/**
+ * Inserts the client (paused — its first message is drafted and held, openspec
+ * `first-message-approval`), stores the identity on agent_fields, seeds the
+ * catalog checklist for the declaration year and tells the workspace. The
+ * caller records the audit entry (its actor differs per source) and handles a
+ * phone collision (23505) its own way.
+ */
+export async function enrollDeclarationClient(
+  instance: AgentInstanceRow,
+  identity: DeclarationIdentity,
+  opts: { isTest?: boolean } = {},
+): Promise<ClientRow> {
+  const client = await clients.insert({
+    userId: instance.user_id,
+    agentInstanceId: instance.id,
+    name: identity.name,
+    emailAddress: syntheticWaEmail(identity.waPhone),
+    phone: identity.waPhone,
+    paused: true,
+    isTest: opts.isTest ?? false,
+    agentFields: {
+      ...(identity.extraFields ?? {}),
+      ...(identity.formAnswers.length > 0 ? { form_answers: identity.formAnswers } : {}),
+      tax_year: identity.taxYear,
+      ...(identity.fileNumber ? { file_number: identity.fileNumber } : {}),
+      ...(identity.idNumber ? { id_number: identity.idNumber } : {}),
+      ...(identity.spouse.name || identity.spouse.idNumber ? { spouse: spouseToStored(identity.spouse) } : {}),
+      ...(identity.maritalStatus ? { marital_status: identity.maritalStatus } : {}),
+    },
+  });
+  // The catalog checklist, rendered for THIS client's declaration year.
+  for (const doc of catalogSeedRows(identity.taxYear)) {
+    await clientDocuments.insert({
+      clientId: client.id,
+      name: doc.name,
+      description: doc.description,
+      typeKey: doc.typeKey,
+      status: 'unresolved',
+    });
+  }
+  publishInstanceClientsUpdated(instance.id);
+  return client;
 }
 
 /**
@@ -140,41 +208,25 @@ export async function resolveDeclarationClient(
   // The one spouse + marital status the cards state (openspec `spouse-identity`):
   // questionnaire cells first, CRM cells second, merged onto what is on file.
   const household = spouseFromCards(client ? readSpouse(client.agent_fields) : EMPTY_SPOUSE, formColumns, crm.columns);
-  const spouseAudit = (s: SpouseOnFile) =>
-    s.name || s.idNumber ? { spouseName: s.name, spouseId: s.idNumber ? maskId(s.idNumber) : null, spouseSources: [s.nameSource, s.idSource] } : {};
+  const spouseAudit = spouseAuditDetail;
   if (!client) {
     try {
-      client = await clients.insert({
-        userId: instance.user_id,
-        agentInstanceId: instance.id,
+      client = await enrollDeclarationClient(instance, {
         name: clientName,
-        emailAddress: syntheticWaEmail(waPhone),
-        phone: waPhone,
-        paused: true,
-        agentFields: {
+        waPhone,
+        taxYear,
+        idNumber: idNumber ?? null,
+        fileNumber: fileNumber ?? null,
+        spouse: household.spouse,
+        maritalStatus: household.maritalStatus,
+        formAnswers: storedAnswers,
+        extraFields: {
           monday_board_id: board.boardId,
           monday_item_id: itemId,
           monday_crm_item_id: crmItemId,
           ...(formItemId ? { monday_form_item_id: formItemId } : {}),
-          ...(storedAnswers.length > 0 ? { form_answers: storedAnswers } : {}),
-          tax_year: taxYear,
-          ...(fileNumber ? { file_number: fileNumber } : {}),
-          ...(idNumber ? { id_number: idNumber } : {}),
-          ...(household.spouse.name || household.spouse.idNumber ? { spouse: spouseToStored(household.spouse) } : {}),
-          ...(household.maritalStatus ? { marital_status: household.maritalStatus } : {}),
         },
       });
-      // The catalog checklist, rendered for THIS row's declaration year.
-      for (const doc of catalogSeedRows(taxYear)) {
-        await clientDocuments.insert({
-          clientId: client.id,
-          name: doc.name,
-          description: doc.description,
-          typeKey: doc.typeKey,
-          status: 'unresolved',
-        });
-      }
-      publishInstanceClientsUpdated(instance.id);
       recordAudit({
         actorType: 'system',
         action: 'client.auto_enrolled',

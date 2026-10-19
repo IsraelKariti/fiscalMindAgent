@@ -441,6 +441,36 @@ Industry pattern followed: one app with an agent registry
   the client leaves the list, the data is kept, and the same phone / email
   can be added again. DB-backed test: `npm run test:db`
   (`tests/clientLifecycle.test.ts`, needs the local database with 063).
+- **Admin test clients** (openspec `admin-test-client`, migration 067
+  `clients.is_test`): an admin viewing as the accountant adds a hand-filled
+  client from the Settings view's admin-only "בדיקה" tab
+  (`AgentTypeUI.adminTestPanel` → `TestClientForm`, shown only while
+  `impersonating`; a remembered `fm.settingsTab = 'test'` falls back to
+  general otherwise). `POST /agents/:id/clients/test` (the agent router, 403
+  unless `isViewingAs`) validates `TestClientSchema` and runs
+  `createTestClient` (`testClient.ts`): `enrollDeclarationClient`
+  (`kickoff.ts`, shared with the monday kickoff — paused, synthetic email,
+  identity on `agent_fields`, catalog seeded), `applyFormIntake` when
+  answers were typed, `draftFirstEmail` (held, the client is paused),
+  audit `client.test_created` with the admin as actor. Nothing on monday is
+  read or written. **Visibility**: the accountant never sees a test client.
+  Every accountant-facing roster query carries `is_test = false`:
+  `clients.listForInstance` (default; `{ includeTest: true }` for the
+  admin's list), `listOverdueForAgentTypes`,
+  `dashboard.listClientSummariesForInstance` / `listEmailActivityForInstance`
+  / `countFilesForInstance`, `agentInstances.listAllWithClientCounts` — add
+  the clause to any new roster query. By-id loads in the workspace router
+  and the agent router all pass `clientScope(req)` (`src/api/viewAs.ts`:
+  `{ includeTest: isViewingAs(req) }`), reads on top of `includeDeleted`, so
+  the accountant's session answers "client not found" on every route while
+  the admin's view-as reads AND writes the test client (unlike deleted
+  clients, which stay read-only). Phone/email lookups
+  (`getByWaPhoneForInstance`, `getByEmailAddressForInstance`) and the worker's
+  `getById` are unscoped on purpose: inbound WhatsApp from the test phone,
+  the planner and the send worker treat it as any live client, and the
+  import scan sees its phone as already enrolled. The sidebar badges it
+  "לקוח בדיקה" (`Client.isTest` from `toWorkspaceClient`). DB-backed test:
+  `tests/testClientVisibility.test.ts` (`npm run test:db`, needs 067).
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
   UNIQUE (migration 021): each agent instance that uses WhatsApp gets its own
   dedicated Twilio number, assigned by an admin (AdminDashboard agents section

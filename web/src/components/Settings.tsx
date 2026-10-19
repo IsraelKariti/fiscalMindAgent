@@ -17,11 +17,17 @@ interface Props {
   agentPanelTabKey?: MessageStringKey;
   /** Agent without an email channel (AgentTypeUI.channels): no mailbox to show. */
   hideMailbox?: boolean;
+  /**
+   * The admin-only test tab (openspec `admin-test-client`), rendered only
+   * while an admin views the workspace as the accountant (`impersonating`).
+   */
+  adminTestPanel?: ReactNode;
+  impersonating?: boolean;
 }
 
-type Tab = 'general' | 'agent' | 'dashboard';
+type Tab = 'general' | 'agent' | 'test' | 'dashboard';
 
-export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hideMailbox }: Props) {
+export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hideMailbox, adminTestPanel, impersonating }: Props) {
   const { t } = useT();
   const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
   const [emailSender, setEmailSender] = useState<EmailSenderStatus | null>(null);
@@ -29,11 +35,15 @@ export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hid
 
   // The agent panel gets its own tab only when the agent type asks for one.
   const tabbed = agentPanel != null && agentPanelTabKey != null;
+  // The admin-only test tab exists only under view-as; a remembered 'test'
+  // falls back to the general tab in the accountant's own session.
+  const testTab = Boolean(impersonating) && adminTestPanel != null;
   // Survives a refresh alongside fm.lastView, so the user lands back on the same tab.
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const stored = sessionStorage.getItem('fm.settingsTab');
     if (stored === 'dashboard') return 'dashboard';
     if (stored === 'agent' && tabbed) return 'agent';
+    if (stored === 'test' && testTab) return 'test';
     return 'general';
   });
   useEffect(() => {
@@ -82,6 +92,19 @@ export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hid
             {t[agentPanelTabKey!]}
           </button>
         )}
+        {testTab && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'test'}
+            className={`client-tab client-tab-admin ${activeTab === 'test' ? 'active' : ''}`}
+            title={t.adminOnlyTabTitle}
+            onClick={() => setActiveTab('test')}
+          >
+            {t.settingsTabTest}
+            <span className="admin-chip">{t.adminOnlyChip}</span>
+          </button>
+        )}
         <button
           type="button"
           role="tab"
@@ -98,6 +121,8 @@ export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hid
         dashboard
       ) : tabbed && activeTab === 'agent' ? (
         agentPanel
+      ) : testTab && activeTab === 'test' ? (
+        adminTestPanel
       ) : (
         <>
       <SettingsGroup title={t.settingsGroupChannels}>

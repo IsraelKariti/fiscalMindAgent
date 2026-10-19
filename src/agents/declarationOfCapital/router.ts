@@ -4,7 +4,7 @@ import * as clients from '../../db/queries/clients.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
 import { withClientLock } from '../../db/withClientLock.js';
 import { recordAudit } from '../../audit/audit.js';
-import { isViewingAs } from '../../api/viewAs.js';
+import { clientScope, isViewingAs } from '../../api/viewAs.js';
 import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
 import { resumeFutureEmail } from '../../orchestration/resumeFutureEmail.js';
@@ -20,6 +20,8 @@ import {
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { sendClosingMessage } from './plan.js';
 import { InstanceSettingsSchema, parseSettings } from './settings.js';
+import { createTestClient } from './testClient.js';
+import { TestClientSchema } from './testClientSchema.js';
 import { logger } from '../../util/logger.js';
 import type { DocumentStatus } from '../../db/types.js';
 
@@ -118,6 +120,29 @@ export function buildRouter(): Router {
   // Client-import sources (boards/sheets).
   registerClientSourceRoutes(router, { schema: InstanceSettingsSchema, parse: parseSettings });
 
+  // The admin's hand-filled test client (openspec `admin-test-client`): only
+  // while viewing as the accountant — the accountant's own session is refused.
+  router.post(
+    '/clients/test',
+    wrap(async (req, res) => {
+      if (!isViewingAs(req)) {
+        res.status(403).json({ error: 'Test clients can be created by an administrator only.' });
+        return;
+      }
+      const parsed = TestClientSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid test client fields.', details: parsed.error.flatten() });
+        return;
+      }
+      const result = await createTestClient(req.agentInstance!, req.realUserId!, parsed.data);
+      if (!result.ok) {
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+      res.status(201).json({ client: toWorkspaceClient(result.client) });
+    }),
+  );
+
   // Sets or clears the collection due date. Editing it always clears both
   // overdue markers (a new deadline may notify again when it passes); if the
   // agent had stopped because the old deadline passed, editing the date is the
@@ -131,7 +156,7 @@ export function buildRouter(): Router {
         return;
       }
       const id = uuidParam(req.params.id);
-      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
       if (!client) {
         res.status(404).json({ error: 'Client not found.' });
         return;
@@ -156,7 +181,7 @@ export function buildRouter(): Router {
     wrap(async (req, res) => {
       const id = uuidParam(req.params.id);
       // Read route: an admin viewing as also sees a deleted client's list (openspec `soft-delete-clients`).
-      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, { includeDeleted: isViewingAs(req) }) : null;
+      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, { includeDeleted: isViewingAs(req), ...clientScope(req) }) : null;
       if (!client) {
         res.status(404).json({ error: 'Client not found.' });
         return;
@@ -174,7 +199,7 @@ export function buildRouter(): Router {
         return;
       }
       const id = uuidParam(req.params.id);
-      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
       if (!client) {
         res.status(404).json({ error: 'Client not found.' });
         return;
@@ -199,7 +224,7 @@ export function buildRouter(): Router {
       }
       const id = uuidParam(req.params.id);
       const docId = uuidParam(req.params.docId);
-      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
       const current = client && docId ? await clientDocuments.getForClient(docId, client.id) : null;
       if (!current) {
         res.status(404).json({ error: 'Document not found.' });
@@ -248,7 +273,7 @@ export function buildRouter(): Router {
     wrap(async (req, res) => {
       const id = uuidParam(req.params.id);
       const docId = uuidParam(req.params.docId);
-      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+      const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
       const removed = client && docId ? await clientDocuments.removeForClient(docId, client.id) : false;
       if (!removed) {
         res.status(404).json({ error: 'Document not found.' });

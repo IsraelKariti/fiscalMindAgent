@@ -35,7 +35,7 @@ import { draftFirstEmail } from './draftFirstEmail.js';
 import { streamFile } from './fileStream.js';
 import { DueDateSchema } from './schemas.js';
 import { toWorkspaceClient, toWorkspaceEmail } from './workspaceSerialize.js';
-import { isViewingAs } from './viewAs.js';
+import { clientScope, isViewingAs } from './viewAs.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -126,7 +126,8 @@ workspaceRouter.get(
       res.json({ clients: (await clients.listDeletedForInstance(req.agentInstance!.id)).map(toWorkspaceClient) });
       return;
     }
-    res.json({ clients: (await clients.listForInstance(req.agentInstance!.id)).map(toWorkspaceClient) });
+    // The admin's view-as also lists the admin's test clients (openspec `admin-test-client`).
+    res.json({ clients: (await clients.listForInstance(req.agentInstance!.id, clientScope(req))).map(toWorkspaceClient) });
   }),
 );
 
@@ -136,7 +137,7 @@ workspaceRouter.get(
  * every change to a deleted client answers "not found".
  */
 async function readableClient(req: Parameters<RequestHandler>[0], id: string | null) {
-  return id ? clients.getByIdForInstance(id, req.agentInstance!.id, { includeDeleted: isViewingAs(req) }) : null;
+  return id ? clients.getByIdForInstance(id, req.agentInstance!.id, { includeDeleted: isViewingAs(req), ...clientScope(req) }) : null;
 }
 
 // SSE stream of "this instance's client roster changed" ticks (import scan, daily
@@ -374,7 +375,7 @@ workspaceRouter.put(
       return;
     }
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -431,7 +432,7 @@ workspaceRouter.delete(
   '/clients/:id',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -520,7 +521,7 @@ workspaceRouter.put(
       return;
     }
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -582,7 +583,7 @@ workspaceRouter.post(
   '/clients/:id/redraft',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -610,7 +611,7 @@ workspaceRouter.post(
   '/clients/:id/send-now',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;
@@ -639,7 +640,7 @@ workspaceRouter.post(
   '/clients/:id/retry-send',
   wrap(async (req, res) => {
     const id = uuidParam(req.params.id);
-    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id) : null;
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
     if (!client) {
       res.status(404).json({ error: 'Client not found.' });
       return;

@@ -75,6 +75,13 @@ export interface AgentTypeUI {
    */
   settingsPanelTabKey?: MessageStringKey;
   /**
+   * The admin-only "test" tab of the Settings view (openspec
+   * `admin-test-client`): a form that adds a hand-filled test client to the
+   * accountant's agent. Rendered only while an admin views the workspace as
+   * the accountant; `onCreated` opens the new client.
+   */
+  adminTestPanel?: (ctx: { onCreated: (client: Client) => void }) => ReactNode;
+  /**
    * Clients come only from the configured import sources (monday boards /
    * Google Sheets) — the shell hides the manual add-client button and shows an
    * import-oriented empty state instead. Used by manual-kickoff agents

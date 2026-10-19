@@ -270,12 +270,19 @@ export function Sidebar({
             return (
               <li key={client.id} className="client-row">
                 <button
-                  className={`client-item ${client.id === selectedClientId ? 'selected' : ''}`}
+                  className={`client-item ${client.id === selectedClientId ? 'selected' : ''}${client.isTest ? ' client-item-test' : ''}`}
                   onClick={() => onSelectClient(client.id)}
                 >
                   <span className={`status-dot ${dot.cls}`} title={dot.title} />
                   <span className="client-item-text">
-                    <span className="client-item-name">{displayClientName(client.name)}</span>
+                    <span className="client-item-name">
+                      {displayClientName(client.name)}
+                      {client.isTest && (
+                        <span className="admin-chip client-item-test-badge" title={t.testClientBadgeTitle}>
+                          {t.testClientBadge}
+                        </span>
+                      )}
+                    </span>
                     <span className="client-item-email muted" dir="ltr">{contactLabel(client)}</span>
                     {client.deletedAt && (
                       <span className="client-item-deleted muted">{t.deletedOn(formatTimestamp(client.deletedAt))}</span>

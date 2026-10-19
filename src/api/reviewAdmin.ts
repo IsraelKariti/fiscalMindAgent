@@ -201,7 +201,7 @@ export const adminSetAgentAdminPause: RequestHandler = async (req, res) => {
   });
   if (!parsed.data.paused) {
     void (async () => {
-      const instanceClients = await clients.listForInstance(instance.id);
+      const instanceClients = await clients.listForInstance(instance.id, { includeTest: true });
       await replanClientsAfterUnpause(instanceClients.map((c) => c.id));
     })().catch((err) => logger.error('instance unpause replan failed', err, { instanceId: instance.id }));
   }

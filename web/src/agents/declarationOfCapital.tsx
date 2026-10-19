@@ -2,6 +2,7 @@ import type { MessageChannel } from '../api';
 import { isOverdueStopped } from '../format';
 import { ClientHeader } from '../components/ClientHeader';
 import { ClientImportSettings } from '../components/ClientSourcesSettings';
+import { TestClientForm } from '../components/TestClientForm';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
 import { StatTiles } from '../components/StatTiles';
@@ -151,6 +152,8 @@ export const declarationOfCapitalUI: AgentTypeUI = {
     <ClientImportSettings keyKind="phone" withStatusColumn withDeclarationColumns withSheets={false} withImportScan={false} />
   ),
   settingsPanelTabKey: 'settingsTabConnections',
+  // Admin view-as only (openspec `admin-test-client`): a hand-filled test client.
+  adminTestPanel: ({ onCreated }) => <TestClientForm onCreated={onCreated} />,
   nameKey: 'agentDeclarationOfCapitalName',
   descriptionKey: 'agentDeclarationOfCapitalDesc',
   icon: (

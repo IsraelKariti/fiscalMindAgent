@@ -8,11 +8,11 @@ import type { ClientRow, EmailRow } from '../db/types.js';
  */
 export function toWorkspaceClient(
   client: ClientRow & { deleted_by_name?: string | null },
-): Omit<ClientRow, 'admin_paused' | 'deleted_by'> & { deletedAt: Date | null; deletedBy: string | null } {
+): Omit<ClientRow, 'admin_paused' | 'deleted_by' | 'is_test'> & { deletedAt: Date | null; deletedBy: string | null; isTest: boolean } {
   // deleted_by (a user id) stays server-side; the list of deleted clients
   // resolves it to the deleter's name (openspec `soft-delete-clients`).
-  const { admin_paused: _adminPaused, deleted_by: _deletedBy, deleted_by_name, ...rest } = client;
-  return { ...rest, deletedAt: client.deleted_at, deletedBy: deleted_by_name ?? null };
+  const { admin_paused: _adminPaused, deleted_by: _deletedBy, deleted_by_name, is_test, ...rest } = client;
+  return { ...rest, deletedAt: client.deleted_at, deletedBy: deleted_by_name ?? null, isTest: is_test };
 }
 
 export function toWorkspaceEmail(email: EmailRow): Omit<EmailRow, 'review_status' | 'held_at'> {

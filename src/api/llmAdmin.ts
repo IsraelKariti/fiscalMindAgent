@@ -60,7 +60,8 @@ export const adminListInstanceClients: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'Agent not found.' });
     return;
   }
-  const list = [...(await clients.listForInstance(instance.id)), ...(await clients.listDeletedForInstance(instance.id))];
+  // Admin surface: the admin's test clients are listed too.
+  const list = [...(await clients.listForInstance(instance.id, { includeTest: true })), ...(await clients.listDeletedForInstance(instance.id))];
   const ids = list.map((c) => c.id);
   const [lastAt, cost] = await Promise.all([emails.lastMessageAtByClient(ids), llmCalls.costByClient(ids)]);
   res.json({

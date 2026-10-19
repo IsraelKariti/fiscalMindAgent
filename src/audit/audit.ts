@@ -78,6 +78,8 @@ export type AuditAction =
   | 'send_closing'
   | 'client.auto_enrolled'
   | 'client.kickoff_triggered'
+  // An admin's hand-filled test client (openspec `admin-test-client`).
+  | 'client.test_created'
   // The one spouse on file (openspec `spouse-identity`): adopted from a
   // verified document's printed id / replaced by a questionnaire or CRM cell.
   | 'client.spouse_inferred'

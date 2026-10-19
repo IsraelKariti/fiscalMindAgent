@@ -258,6 +258,13 @@ export function Workspace({
               agentPanel={agentUI.settingsPanel?.()}
               agentPanelTabKey={agentUI.settingsPanelTabKey}
               hideMailbox={!agentUI.channels.includes('email')}
+              impersonating={Boolean(impersonatingEmail)}
+              adminTestPanel={agentUI.adminTestPanel?.({
+                onCreated: (client) => {
+                  navigate({ kind: 'client', agentId: agent.id, clientId: client.id });
+                  loadClients().catch(console.error);
+                },
+              })}
             />
           )}
           {route.kind === 'agent' && (

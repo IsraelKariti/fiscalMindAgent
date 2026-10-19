@@ -2292,6 +2292,85 @@ textarea {
   color: var(--pending);
 }
 
+/* Admin view-as only (openspec `admin-test-client`): the admin-only marker on
+   the Settings "test" tab and on a test client in the sidebar. */
+.admin-chip {
+  display: inline-block;
+  margin-inline-start: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  color: var(--pending);
+  background: var(--pending-bg);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+}
+
+.client-tab-admin {
+  color: var(--pending);
+}
+
+.client-tab-admin:hover,
+.client-tab-admin.active {
+  color: var(--pending);
+  border-bottom-color: var(--pending);
+}
+
+.client-item-test {
+  border-color: rgba(251, 191, 36, 0.45);
+  border-style: dashed;
+  background: var(--pending-bg);
+}
+
+.client-item-test-badge {
+  text-transform: none;
+}
+
+.test-client-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 760px;
+}
+
+.test-client-lead {
+  margin: 0;
+}
+
+.test-client-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.test-client-fields select {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: inherit;
+}
+
+.test-client-answers {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.test-client-answer {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
 /* Admin shell: platform overview + accountants table */
 .admin-shell {
   display: flex;

@@ -19,4 +19,4 @@
 ## 4. Docs and checks
 
 - [x] 4.1 Update `docs/agents.md` (Collection lifecycle paragraph) and `docs/pipeline.md` (step row for `email.accountant_sent` / `email.accountant_failed` → `notifyAccountant.ts` · `sendToAccountant`) to describe the recorded content and the live status read; verify the text matches the built behaviour.
-- [ ] 4.2 Run `npm test` and `npm run typecheck`; verify both pass, then commit per the repo Git workflow.
+- [x] 4.2 Run `npm test` and `npm run typecheck`; verify both pass, then commit per the repo Git workflow.

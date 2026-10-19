@@ -181,6 +181,11 @@ export type ResolutionEvidence =
   // file, the row it was approved for, and the fact (a private seller retires
   // the appendix; a builder seller adds it).
   | { source: 'approved_file'; file_id: string; document_id: string; fact: 'seller_private' | 'seller_builder' }
+  // A self-evident file the planner cited instead of a quote (openspec
+  // `unlisted-files`): a report of a known institution in the client's or
+  // spouse's name that created its own item — the file, the issuer as
+  // printed, the matched holders, whom they matched, and the cleaned employer.
+  | { source: 'self_evident_file'; file_id: string; issuer: string; holders: string[]; matched: 'client' | 'spouse'; employer?: string }
   // A cost the client stated in the conversation (openspec `chat-stated-cost`):
   // the inbound message, the verbatim quote that carries the amount, and the
   // amount with its currency code — the content of the cost declaration.

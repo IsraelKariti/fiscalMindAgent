@@ -20,6 +20,8 @@ import {
 } from '../src/agents/declarationOfCapital/formIntakeRules.js';
 import { CAPITAL_DOCUMENT_CATALOG, getCatalogType } from '../src/agents/declarationOfCapital/catalog.js';
 import { approvedPropertyFilesOf, provenFactsLine, provenFactsOf } from '../src/agents/declarationOfCapital/provenFacts.js';
+import { selfEvidentFilesOf } from '../src/agents/declarationOfCapital/selfEvidentFiles.js';
+import { readSpouse } from '../src/agents/declarationOfCapital/spouseIdentity.js';
 import { buildAnalysisCall } from '../src/agents/declarationOfCapital/analyzeFile.js';
 import { CapitalFileAnalysisSchema, validateClassification, type FileAnalysis } from '../src/agents/declarationOfCapital/analyzeFileRules.js';
 import { identifyInstitution } from '../src/agents/declarationOfCapital/institutions.js';
@@ -646,6 +648,10 @@ interface DecideFileInput {
   subject_name?: string | null;
   /** The accounts / policies the file check listed (openspec confirm-file-findings); absent = an analysis without the list. */
   holdings?: { product: string; holder_name: string | null; account_number: string | null }[];
+  /** The employer printed on a fund report (openspec unlisted-files, employer split); absent = none. */
+  employer_name?: string | null;
+  /** The classifier's confidence; default high. */
+  confidence?: 'high' | 'medium' | 'low';
 }
 /** One of the agent's own replies that never reached the client (plan.ts: listUnsentDraftsForClient). */
 interface DecideUnsentDraftInput {
@@ -717,6 +723,8 @@ interface DecideCase {
     retired_documents?: string[];
     /** true: the decision creates no list item at all (no resolution, no addition, no retirement) — a file alone never changes the list. */
     no_list_change?: boolean;
+    /** Per resolved id: what the needed resolution rests on — the client's quote, a self-evident file (openspec `unlisted-files`) or an approved property paper. */
+    resolution_evidence_source?: Record<string, 'quote' | 'self_evident_file' | 'approved_file'>;
     /** File ids that some newly created instance must name in its file_ids (exactly this set). */
     new_instance_file_ids?: string[];
     /** Exactly the file ids the decision pairs with an existing document (matched_files). */
@@ -922,10 +930,11 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
         subject_name: f.subject_name === undefined ? c.client.name : f.subject_name,
         issuer_name: f.issuer_name ?? null,
         ...(f.holdings ? { holdings: f.holdings, holdings_partial: false } : {}),
+        ...(f.employer_name !== undefined ? { employer_name: f.employer_name } : {}),
         matched_document_id: f.matched_document_id ?? null,
         match_dropped: f.match_dropped ?? null,
         legible: true,
-        confidence: 'high',
+        confidence: f.confidence ?? 'high',
         injection_suspected: false,
         document_type: f.document_type,
       },
@@ -975,6 +984,8 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
       })),
     inboundTexts,
     approvedPropertyFiles: approvedPropertyFilesOf(documents),
+    // Like plan.ts: a report of a known institution in the client's or spouse's name may create its own item (openspec `unlisted-files`).
+    selfEvidentFiles: selfEvidentFilesOf(files, { clientName: client.name, spouse: readSpouse(client.agent_fields) }),
     allSettled: documents.length > 0 && documents.every((d) => d.status === 'approved' || d.status === 'stated' || d.status === 'not_required' || d.status === 'retired'),
     attestationRequested: requestedAt !== null,
     confirmableMessageIds: new Set(
@@ -1048,7 +1059,24 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
         provenFacts: doc ? provenFactsLine(provenFactsOf(doc)) : null,
       };
     });
-    const prompt = buildPrompt(client, accountant, history, documents, files, now, waState, taxFetchPrompt, taxYear, intakePrompt, unsentDraftRows(c), verificationResults, decisionCtx.afterVerification === true);
+    const prompt = buildPrompt(
+      client,
+      accountant,
+      history,
+      documents,
+      files,
+      now,
+      waState,
+      taxFetchPrompt,
+      taxYear,
+      intakePrompt,
+      unsentDraftRows(c),
+      verificationResults,
+      decisionCtx.afterVerification === true,
+      null,
+      new Map(),
+      decisionCtx.intake?.selfEvidentFiles ?? new Map(),
+    );
     const { spec } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
     // The planner answers with tool calls (openspec `planner-answer-tools`); the judge runs the gate on them.
     return { spec, parse: (res) => ({ calls: res.toolCalls }) };
@@ -1146,6 +1174,11 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       const r = decision.resolutions.find((x) => x.documentId === id);
       checks.push(eq(`instances.${id}`, count, r && r.resolution === 'required' ? r.instances.length : 0));
     }
+    for (const [id, source] of Object.entries(e.resolution_evidence_source ?? {})) {
+      const r = decision.resolutions.find((x) => x.documentId === id);
+      const actual = !r ? null : 'quote' in r.evidence ? 'quote' : r.evidence.source;
+      checks.push(eq(`resolution_evidence_source.${id}`, source, actual));
+    }
     if (e.added_instances !== undefined) {
       const addedByType: Record<string, number> = {};
       for (const addition of decision.addedInstances) {
@@ -1218,8 +1251,10 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       checks.push({ key: 'new_instance_stated_vehicles', expected: e.new_instance_stated_vehicles, actual: stated, pass: allFound && unmatched.length === 0 });
     }
     info.evidence_quotes = [
-      ...decision.resolutions.map((r) => r.evidence.quote),
-      ...decision.addedInstances.map((a) => ('quote' in a.evidence ? a.evidence.quote : `approved file ${a.evidence.file_id}`)),
+      ...decision.resolutions.map((r) => ('quote' in r.evidence ? r.evidence.quote : `self-evident file ${r.evidence.file_id}`)),
+      ...decision.addedInstances.map((a) =>
+        'quote' in a.evidence ? a.evidence.quote : a.evidence.source === 'self_evident_file' ? `self-evident file ${a.evidence.file_id}` : `approved file ${a.evidence.file_id}`,
+      ),
     ];
     if (e.attestation !== undefined) checks.push(eq('attestation', e.attestation, decision.attestation?.action ?? null));
     if (e.tax_fetch_action !== undefined) checks.push(eq('tax_fetch_action', e.tax_fetch_action, decision.tax_fetch?.action ?? null));

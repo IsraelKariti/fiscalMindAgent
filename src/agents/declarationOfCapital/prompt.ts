@@ -20,6 +20,7 @@ import { vehicleEvidenceOf, vehicleFactsLine } from './vehicleDeclaration.js';
 import { MAX_EMPLOYER, cleanEmployer } from './splitChildNames.js';
 import { readMaritalStatus, readSpouse, type SpouseSource } from './spouseIdentity.js';
 import type { LostFilesByMessage } from './lostFiles.js';
+import { selfEvidentMarker, type SelfEvidentFile } from './selfEvidentFiles.js';
 
 /**
  * The fenced sections the platform itself writes. The input-safety rule names
@@ -468,7 +469,7 @@ function formatEmployer(a: NonNullable<DocumentFileRow['analysis']>): string | n
  * fields came from attacker-controlled bytes. All free-text fields are
  * sanitized before entering the prompt.
  */
-function formatFileAnalysis(file: DocumentFileRow, childCount = 0): string {
+function formatFileAnalysis(file: DocumentFileRow, childCount = 0, selfEvident: SelfEvidentFile | undefined = undefined): string {
   if (file.analysis_status === 'split') {
     return `content analysis: not applicable — this PDF held several documents and the platform split it into ${childCount} separate files, listed next to it with their own content analysis; NEVER match this file to a document and NEVER mark a document collected based on it — judge the split files instead`;
   }
@@ -509,6 +510,8 @@ function formatFileAnalysis(file: DocumentFileRow, childCount = 0): string {
         ? // Our own code's note (institutions.ts), not file text.
           `matches no required document (the platform cancelled a proposed match: ${a.match_dropped})`
         : 'matches no required document',
+    // Our own code's verdict (selfEvidentFiles.ts): the file may create its own item without a question.
+    selfEvident ? selfEvidentMarker(selfEvident) : null,
     `confidence: ${a.confidence}`,
     sanitizeInline(a.summary, 400),
   ].filter((p): p is string => p !== null);
@@ -594,6 +597,8 @@ export function buildThreadTranscript(
   files: DocumentFileRow[] = [],
   /** Files the client sent that could not be stored, by message (openspec `inbound-files`). */
   lostFiles: LostFilesByMessage = new Map(),
+  /** The self-evident files of the client, by file id (openspec `unlisted-files`): their lines carry the marker. */
+  selfEvidentFiles: ReadonlyMap<string, SelfEvidentFile> = new Map(),
 ): string {
   if (history.length === 0) {
     return `${fence(token, 'MESSAGE THREAD')}\n(no messages yet)\n${endFence(token, 'MESSAGE THREAD')}\n\nDecide the next action now.`;
@@ -620,7 +625,7 @@ export function buildThreadTranscript(
           f.parent_file_id && f.page_from !== null && f.page_to !== null
             ? ` [pages ${f.page_from}-${f.page_to} of file id: ${f.parent_file_id}]`
             : '';
-        return `  - [file id: ${f.id}] ${sanitizeInline(f.filename, 150)}${pages} (${f.content_type}, ${f.size_bytes} bytes)\n    ${formatFileAnalysis(f, childCounts.get(f.id) ?? 0)}`;
+        return `  - [file id: ${f.id}] ${sanitizeInline(f.filename, 150)}${pages} (${f.content_type}, ${f.size_bytes} bytes)\n    ${formatFileAnalysis(f, childCounts.get(f.id) ?? 0, selfEvidentFiles.get(f.id))}`;
       })
       .join('\n');
     const attachments = attached ? `\nAttachments received and stored:\n${attached}` : '';
@@ -694,6 +699,8 @@ export function buildPrompt(
   clientIdOnFile: boolean | null = null,
   /** Files the client sent that could not be stored, by message (openspec `inbound-files`). */
   lostFiles: LostFilesByMessage = new Map(),
+  /** The self-evident files of the client, by file id (openspec `unlisted-files`). */
+  selfEvidentFiles: ReadonlyMap<string, SelfEvidentFile> = new Map(),
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
@@ -706,7 +713,7 @@ export function buildPrompt(
     buildTaxFetchSection(token, taxFetch),
     buildUnsentDraftsSection(token, unsentDrafts),
     buildVerificationResultsSection(token, verificationResults, afterVerification),
-    buildThreadTranscript(token, history, files, lostFiles),
+    buildThreadTranscript(token, history, files, lostFiles, selfEvidentFiles),
   ].filter((s) => s !== '');
   return {
     systemInstruction: buildSystemPrompt(client, accountant, history, now, token, taxYear),

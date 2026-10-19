@@ -100,8 +100,10 @@ export interface ClientDocument {
   /** The client quote behind an agent-made 'not_required' — from a stored inbound message or the intake questionnaire; or the file behind a per-company split row. */
   resolution_evidence: {
     message_id?: string;
-    /** 'approved_file': an approved property paper whose proven seller kind retired this row; 'chat': a cost the client stated in the conversation. */
-    source?: 'form' | 'form_empty' | 'file' | 'approved_file' | 'chat' | 'chat_vehicle';
+    /** 'approved_file': an approved property paper whose proven seller kind retired this row; 'self_evident_file': a file in the client's name that created this row; 'chat': a cost the client stated in the conversation. */
+    source?: 'form' | 'form_empty' | 'file' | 'approved_file' | 'self_evident_file' | 'chat' | 'chat_vehicle';
+    /** 'self_evident_file' only: whom the printed holders matched. */
+    matched?: 'client' | 'spouse';
     question?: string;
     quote?: string;
     file_id?: string;

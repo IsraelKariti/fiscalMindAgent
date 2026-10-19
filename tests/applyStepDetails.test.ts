@@ -33,6 +33,31 @@ test('apply_resolutions rows carry the document name next to the id, and the quo
   ]);
 });
 
+test('apply_resolutions: a row settled on a self-evident file names the file instead of a quote (openspec unlisted-files)', () => {
+  const detail = resolutionsStepDetail(
+    [
+      {
+        documentId: 'd2',
+        resolution: 'required',
+        instances: [{ name: 'קרן השתלמות — הפניקס — אלעד', description: null, alreadyProvided: false, fileIds: ['file-phoenix'], paperKey: null, statedCost: null, statedVehicle: null }],
+        evidence: { source: 'self_evident_file', file_id: 'file-phoenix', issuer: 'הפניקס פנסיה וגמל בע"מ', holders: ['מלמוד שי'], matched: 'client', employer: 'אלעד' },
+      },
+    ],
+    docName,
+    1,
+  );
+  assert.deepEqual(detail.rows, [
+    {
+      id: 'd2',
+      name: 'קרן השתלמות — אלטשולר',
+      resolution: 'required',
+      quote: 'נוצר מקובץ על שם הלקוח (הפניקס פנסיה וגמל בע"מ, מעסיק אלעד)',
+      provenByFileId: 'file-phoenix',
+      instances: ['קרן השתלמות — הפניקס — אלעד'],
+    },
+  ]);
+});
+
 test('apply_additions entries name the anchor document and list the instance names', () => {
   const detail = additionsStepDetail(
     [

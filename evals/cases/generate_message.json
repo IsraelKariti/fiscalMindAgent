@@ -4155,6 +4155,257 @@
         "max_question_marks": 1
       },
       "notes": "openspec vehicle-declaration: no receipt and no idea of the price. The receipt is not required: the planner retires the receipt item, adds the client vehicle declaration and closes it with a statement that carries no cost (the quote is the client's 'no idea'), and the reply does not press for a price."
+    },
+    {
+      "id": "dec_35",
+      "now": "2026-10-19T13:18:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-10-16T17:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "חשבונות בנק בארץ או בחו\"ל",
+              "answer": "בארץ בבנק הפועלים."
+            },
+            {
+              "question": "קרנות פנסיה, ביטוח מנהלים, קופות גמל להשקעה, קרן השתלמות או פוליסות חסכון",
+              "answer": "יש לי כמה קופות גמל בכמה חברות שונות."
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-10-20T13:13:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-hapoalim",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק הפועלים ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-gemel",
+          "type_key": "pension_provident",
+          "status": "pending",
+          "name": "אישור יתרת קופות גמל ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study",
+          "type_key": "study_fund",
+          "status": "not_required"
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-10-16T17:02:00Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-10-19T07:57:00Z",
+          "body": "כן"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-10-19T13:14:00Z",
+          "body": "מעולה ישראל - אישור היתרות מבנק הפועלים התקבל ואומת, תודה! נשאר רק דבר אחד: באילו חברות נמצאות קופות הגמל שלך? תכתוב לי ואסדר את האישורים."
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-10-19T13:17:00Z",
+          "body": ""
+        }
+      ],
+      "files": [
+        {
+          "id": "file-phoenix",
+          "message_id": "msg-4",
+          "filename": "whatsapp-media-20261019-161704.pdf",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון לקרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "הפניקס פנסיה וגמל בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 ואישור מס להצהרת הון עבור קרן השתלמות הפניקס השתלמות על שם ישראל ישראלי, אצל המעסיק אלעד מערכות תוכנה.",
+          "subject_name": "ישראלי ישראל",
+          "holdings": [
+            {
+              "product": "הפניקס השתלמות",
+              "holder_name": "ישראלי ישראל",
+              "account_number": "0817"
+            }
+          ],
+          "employer_name": "אלעד מערכות תוכנה",
+          "matched_document_id": null
+        }
+      ],
+      "expects": {
+        "decision": "collect",
+        "resolved_documents": {
+          "doc-study": "required"
+        },
+        "instances": {
+          "doc-study": 1
+        },
+        "resolution_evidence_source": {
+          "doc-study": "self_evident_file"
+        },
+        "new_instance_file_ids": [
+          "file-phoenix"
+        ],
+        "matched_file_ids": []
+      },
+      "notes": "Change self-evident-file-adds-item (prod 2026-10-19, client 883423f3): the questionnaire said only provident funds, so the study fund row is not_required; the client then sends, with no text, a Phoenix study fund annual report in his own name (holder printed, employer printed, known institution, high confidence) — the file line carries the self-evident marker. The agent must NOT ask whether the fund belongs in the declaration: it settles the study fund row as needed citing the file (proven_by_file_id, no quote — the only inbound text is \"כן\"), one instance that the gate names with the company and employer, the file tied in the same cycle, and the answer is collect with no message."
+    },
+    {
+      "id": "dec_36",
+      "now": "2026-10-19T13:18:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-10-16T17:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            {
+              "question": "חשבונות בנק בארץ או בחו\"ל",
+              "answer": "בארץ בבנק הפועלים."
+            },
+            {
+              "question": "קרנות פנסיה, ביטוח מנהלים, קופות גמל להשקעה, קרן השתלמות או פוליסות חסכון",
+              "answer": "יש לי כמה קופות גמל בכמה חברות שונות."
+            }
+          ]
+        }
+      },
+      "wa": {
+        "windowOpen": true,
+        "windowClosesAt": "2026-10-20T13:13:00Z",
+        "templates": [
+          "capital_intro",
+          "capital_reminder"
+        ]
+      },
+      "documents": [
+        {
+          "id": "doc-bank-hapoalim",
+          "type_key": "bank_balance",
+          "status": "approved",
+          "name": "אישור יתרות בנק הפועלים ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-gemel",
+          "type_key": "pension_provident",
+          "status": "pending",
+          "name": "אישור יתרת קופות גמל ליום 31.12.2025",
+          "description": null
+        },
+        {
+          "id": "doc-study",
+          "type_key": "study_fund",
+          "status": "not_required",
+          "resolution_evidence": {
+            "source": "form",
+            "question": "קרנות פנסיה, ביטוח מנהלים, קופות גמל להשקעה, קרן השתלמות או פוליסות חסכון",
+            "quote": "יש לי כמה קופות גמל בכמה חברות שונות."
+          }
+        }
+      ],
+      "thread": [
+        {
+          "id": "msg-1",
+          "direction": "outbound",
+          "at": "2026-10-16T17:02:00Z",
+          "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.2025, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+          "wa_content_sid": "HXEVAL0001",
+          "wa_content_variables": [
+            "ישראל",
+            "כהן ושות' רואי חשבון",
+            "2025"
+          ]
+        },
+        {
+          "id": "msg-2",
+          "direction": "inbound",
+          "at": "2026-10-19T07:57:00Z",
+          "body": "כן"
+        },
+        {
+          "id": "msg-3",
+          "direction": "outbound",
+          "at": "2026-10-19T13:14:00Z",
+          "body": "מעולה ישראל - אישור היתרות מבנק הפועלים התקבל ואומת, תודה! נשאר רק דבר אחד: באילו חברות נמצאות קופות הגמל שלך? תכתוב לי ואסדר את האישורים."
+        },
+        {
+          "id": "msg-4",
+          "direction": "inbound",
+          "at": "2026-10-19T13:17:00Z",
+          "body": ""
+        }
+      ],
+      "files": [
+        {
+          "id": "file-phoenix",
+          "message_id": "msg-4",
+          "filename": "whatsapp-media-20261019-161704.pdf",
+          "document_kind": "דוח שנתי ואישור מס להצהרת הון לקרן השתלמות",
+          "document_type": "study_fund",
+          "issuer_name": "הפניקס פנסיה וגמל בע\"מ",
+          "summary": "דוח שנתי לשנת 2025 ואישור מס להצהרת הון עבור קרן השתלמות הפניקס השתלמות; שם העמית מושחר בקובץ.",
+          "subject_name": null,
+          "holdings": [
+            {
+              "product": "הפניקס השתלמות",
+              "holder_name": null,
+              "account_number": "0817"
+            }
+          ],
+          "employer_name": "אלעד מערכות תוכנה",
+          "matched_document_id": null
+        }
+      ],
+      "expects": {
+        "decision": "follow_up",
+        "message_kind": "freeform",
+        "no_list_change": true,
+        "matched_file_ids": [],
+        "message_includes": [
+          "הפניקס"
+        ],
+        "message_includes_any": [
+          "מוסתר",
+          "הוסתר",
+          "מושחר",
+          "לא מופיע",
+          "אינו מופיע",
+          "לא מצוין",
+          "חסר",
+          "בלי שם",
+          "ללא שם"
+        ],
+        "max_question_marks": 3,
+        "mentions_valuation_date": false
+      },
+      "notes": "Change self-evident-file-adds-item, the negative twin of dec_35: the same Phoenix study fund report but the holder's name is hidden in the file, so it is NOT self-evident (no marker). The old rule applies in full: no list change, no pairing, and the reply names the Phoenix file, says the name is hidden and asks whose fund it is."
     }
   ]
 }

@@ -642,6 +642,107 @@ describe('an approved property paper as evidence (proven_by_file_id, openspec re
   });
 });
 
+describe('a self-evident file as evidence (proven_by_file_id, openspec unlisted-files / self-evident-file-adds-item)', () => {
+  const PHOENIX = {
+    typeKey: 'study_fund',
+    institutionKey: 'phoenix',
+    issuer: 'הפניקס פנסיה וגמל בע"מ',
+    holders: ['מלמוד שי'],
+    matched: 'client' as const,
+    employer: 'אלעד מערכות תוכנה',
+  };
+  const POOL = new Map([['file-phoenix', PHOENIX]]);
+  const EVIDENCE = { source: 'self_evident_file', file_id: 'file-phoenix', issuer: PHOENIX.issuer, holders: ['מלמוד שי'], matched: 'client', employer: 'אלעד מערכות תוכנה' };
+  const withFiles = (selfEvidentFiles: IntakeDecisionState['selfEvidentFiles']) =>
+    baseIntake({
+      resolvable: [
+        { id: 'doc-study', status: 'not_required', typeKey: 'study_fund', multiInstance: true },
+        { id: 'doc-pension', status: 'unresolved', typeKey: 'pension_provident', multiInstance: true },
+      ],
+      typedRows: [
+        { id: 'doc-study-alt', status: 'approved', typeKey: 'study_fund', multiInstance: true },
+        { id: 'doc-bank', status: 'approved', typeKey: 'bank_balance', multiInstance: true },
+        { id: 'doc-appendix', status: 'pending', typeKey: 'real_estate', multiInstance: true, paperKey: 'payments_appendix' },
+      ],
+      selfEvidentFiles,
+    });
+  const instance = (name: string, file_ids: string[] = []) => ({ name, description: null, already_provided: false, file_ids, paper_key: '', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE });
+  /** A cited self-evident file is tied to its item, so the answer is a collecting one (no message). */
+  const collectRaw = (overrides: Partial<DecisionResponse>) => baseRaw({ decision: 'collect', whatsapp_text: null, send_at: null, ...overrides });
+  const resolve = (document_id: string, instances: ReturnType<typeof instance>[], proven_by_file_id: string, evidence: { message_id: string; quote: string } | null = null) =>
+    collectRaw({ resolved_documents: [{ document_id, resolution: 'required', instances, evidence, proven_by_file_id }] });
+
+  it('settles the not-needed study fund row as needed on the file, names the company and employer, and carries the file', () => {
+    const { decision } = gateDecision(callsOf(resolve('doc-study', [instance('אישור יתרת קרן השתלמות ליום 31.12.2025')], 'file-phoenix')), ctxWith(withFiles(POOL)));
+    assert.equal(decision.resolutions.length, 1);
+    const r = decision.resolutions[0]!;
+    assert.equal(r.resolution, 'required');
+    assert.deepEqual(r.evidence, EVIDENCE);
+    if (r.resolution !== 'required') throw new Error('unreachable');
+    assert.equal(r.instances[0]!.name, 'אישור יתרת קרן השתלמות ליום 31.12.2025 — הפניקס — אלעד מערכות תוכנה');
+    assert.deepEqual(r.instances[0]!.fileIds, ['file-phoenix']);
+  });
+
+  it('adds an item under a settled row of the file\'s type; a name that already carries the company keeps it, the file is not listed twice', () => {
+    const raw = collectRaw({
+      added_instances: [{ anchor_document_id: 'doc-study-alt', instances: [instance('קרן השתלמות הפניקס', ['file-phoenix'])], evidence: null, proven_by_file_id: 'file-phoenix' }],
+    });
+    const decision = normalizeDecision(raw, ctxWith(withFiles(POOL)));
+    assert.deepEqual(decision.addedInstances[0]!.evidence, EVIDENCE);
+    assert.equal(decision.addedInstances[0]!.instances[0]!.name, 'קרן השתלמות הפניקס — אלעד מערכות תוכנה');
+    assert.deepEqual(decision.addedInstances[0]!.instances[0]!.fileIds, ['file-phoenix']);
+  });
+
+  it('the file may be cited on the add_instance call instead of the resolve_document call', () => {
+    const calls = callsOf(resolve('doc-study', [instance('קרן השתלמות')], ''));
+    const add = calls.find((c) => c.name === 'add_instance')!;
+    add.args = { ...(add.args as Record<string, unknown>), proven_by_file_id: 'file-phoenix' };
+    const { decision } = gateDecision(calls, ctxWith(withFiles(POOL)));
+    assert.deepEqual(decision.resolutions[0]!.evidence, EVIDENCE);
+  });
+
+  it('a quote wins when both are given, and the name is then left alone', () => {
+    const decision = normalizeDecision(resolve('doc-study', [instance('קרן השתלמות')], 'file-phoenix', CASH_QUOTE), ctxWith(withFiles(POOL)));
+    const r = decision.resolutions[0]!;
+    assert.deepEqual(r.evidence, CASH_QUOTE);
+    if (r.resolution === 'required') assert.equal(r.instances[0]!.name, 'קרן השתלמות');
+  });
+
+  it('rejects by name: a file outside the pool, another type, two instances, a not_required, a retirement', () => {
+    const ctx = ctxWith(withFiles(POOL));
+    // A file outside the pool ties nothing, so the answer is a plain follow_up — and the citation is refused by name.
+    assert.throws(
+      () => normalizeDecision(baseRaw({ resolved_documents: [{ document_id: 'doc-study', resolution: 'required', instances: [instance('קרן')], evidence: null, proven_by_file_id: 'file-unknown' }] }), ctx),
+      /not a self-evident file of this client/,
+    );
+    assert.throws(() => normalizeDecision(resolve('doc-pension', [instance('פנסיה')], 'file-phoenix'), ctx), /may only settle or add to the study_fund row/);
+    assert.throws(() => normalizeDecision(resolve('doc-study', [instance('א'), instance('ב')], 'file-phoenix'), ctx), /proves exactly one item/);
+    assert.throws(
+      () => normalizeDecision(collectRaw({ resolved_documents: [{ document_id: 'doc-pension', resolution: 'not_required', instances: null, evidence: null, proven_by_file_id: 'file-phoenix' }] }), ctx),
+      /never settles a row as not needed/,
+    );
+    assert.throws(
+      () => normalizeDecision(baseRaw({ retired_documents: [{ document_id: 'doc-appendix', evidence: null, proven_by_file_id: 'file-phoenix' }] }), ctx),
+      /proves nothing that retires a document/,
+    );
+    // An addition under a row of another type than the file's.
+    assert.throws(
+      () => normalizeDecision(collectRaw({ added_instances: [{ anchor_document_id: 'doc-bank', instances: [instance('בנק')], evidence: null, proven_by_file_id: 'file-phoenix' }] }), ctx),
+      /may only settle or add to the study_fund row/,
+    );
+    // A cited self-evident file is a tie: a follow_up answer with a message is refused like any tying answer.
+    assert.throws(
+      () => normalizeDecision(baseRaw({ resolved_documents: [{ document_id: 'doc-study', resolution: 'required', instances: [instance('קרן')], evidence: null, proven_by_file_id: 'file-phoenix' }] }), ctx),
+      /must not tie files/,
+    );
+    // No pool at all: the plain evidence rule, with the self-evident hint.
+    assert.throws(
+      () => normalizeDecision(baseRaw({ resolved_documents: [{ document_id: 'doc-study', resolution: 'required', instances: [instance('קרן')], evidence: null, proven_by_file_id: 'file-phoenix' }] }), ctxWith(withFiles(undefined))),
+      /not a self-evident file of this client/,
+    );
+  });
+});
+
 describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
   const PRICE_MSG = 'אין לי את הקבלה, שילמתי 85,000 ש"ח על המאזדה. על הדירה שילמתי לפי הערכתי 1.2 מיליון';
   const costIntake = () =>

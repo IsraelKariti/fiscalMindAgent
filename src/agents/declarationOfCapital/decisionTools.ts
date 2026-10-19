@@ -106,12 +106,16 @@ const COLLECT_TOOLS: DecisionTool[] = [
 const INTAKE_TOOLS: DecisionTool[] = [
   {
     name: 'resolve_document',
-    description: "Settle an unresolved catalog row on the client's explicit words: required (then add_instance for each concrete item) or not_required.",
+    description:
+      "Settle an unresolved catalog row on the client's explicit words: required (then add_instance for each concrete item) or not_required. For required only, a self-evident file (its content analysis says so) may stand instead of the quote: then exactly one of the evidence pair or proven_by_file_id is non-empty.",
     params: z
       .object({
         document_id: z.string(),
         resolution: z.enum(['required', 'not_required']),
         ...EVIDENCE_PARAMS,
+        proven_by_file_id: z
+          .string()
+          .describe("Id of a SELF-EVIDENT file (marked so in its content analysis) that proves the one instance of this required row; '' otherwise."),
       })
       .strict(),
   },
@@ -128,7 +132,11 @@ const INTAKE_TOOLS: DecisionTool[] = [
         file_ids: z.array(z.string()).describe('Ids of already-received files that ARE this document; [] when none.'),
         paper_key: z.enum(PAPER_KEY_VALUES).describe("The paper this item stands for; '' for a type without papers."),
         ...EVIDENCE_PARAMS,
-        proven_by_file_id: z.string().describe("Id of an APPROVED purchase contract whose proven seller kind calls for this item; '' otherwise."),
+        proven_by_file_id: z
+          .string()
+          .describe(
+            "Instead of the evidence pair: the id of a SELF-EVIDENT file (marked so in its content analysis) that IS this item, or of an APPROVED purchase contract whose proven seller kind calls for this item; '' otherwise.",
+          ),
       })
       .strict(),
   },
@@ -427,11 +435,14 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
   const resolvedDocuments: NonNullable<DecisionResponse['resolved_documents']> = resolved.map((r) => {
     const id = str(r.document_id);
     const resolution = r.resolution === 'required' ? ('required' as const) : ('not_required' as const);
+    const own = instances.filter((i) => i.anchor === id);
     return {
       document_id: id,
       resolution,
-      instances: resolution === 'required' ? instances.filter((i) => i.anchor === id).map((i) => i.instance) : null,
+      instances: resolution === 'required' ? own.map((i) => i.instance) : null,
       evidence: evidenceOf(r),
+      // The self-evident file may be cited on the resolve_document call or on its one add_instance.
+      proven_by_file_id: str(r.proven_by_file_id) || own.find((i) => i.provenByFileId !== '')?.provenByFileId || '',
     };
   });
 

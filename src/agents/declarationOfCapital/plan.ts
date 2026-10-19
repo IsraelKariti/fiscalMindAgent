@@ -18,6 +18,8 @@ import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayStatus } from '../shared/monday
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { getCatalogType } from './catalog.js';
 import { approvedPropertyFilesOf, provenFactsLine, provenFactsOf } from './provenFacts.js';
+import { selfEvidentFilesOf } from './selfEvidentFiles.js';
+import { readSpouse } from './spouseIdentity.js';
 import { mergeVehicleEvidence, vehicleEvidenceOf } from './vehicleDeclaration.js';
 import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
 import { childDisplayName } from './splitChildNames.js';
@@ -222,7 +224,7 @@ async function loadPlanningContext(ctx: AgentContext): Promise<PlanRun> {
   const files = await documentFiles.listForClient(clientId);
   const waState = await loadWaChannelOrThrow(client, now, agentType);
   const taxFetchContexts = await loadTaxFetchContexts(client, documents, waState, lastInboundWhatsAppAt(history));
-  const { intake, attestationConfirmed } = await buildIntakeState(client, history, documents);
+  const { intake, attestationConfirmed } = await buildIntakeState(client, history, documents, files);
   return {
     ctx,
     client,
@@ -277,6 +279,7 @@ async function buildIntakeState(
   client: ClientRow,
   history: readonly EmailRow[],
   documents: readonly ClientDocumentRow[],
+  files: readonly DocumentFileRow[],
 ): Promise<{ intake: IntakeDecisionState; attestationConfirmed: boolean }> {
   // The model quotes from the sanitized transcript it reads (bidi/zero-width
   // chars stripped, fences defanged) — validate against that same view, or
@@ -314,6 +317,9 @@ async function buildIntakeState(
     // The approved property papers the planner may cite instead of a quote
     // (openspec `real-estate-goal-driven-clarification`).
     approvedPropertyFiles: approvedPropertyFilesOf(documents),
+    // Reports of a known institution in the client's or spouse's name that may
+    // create their own item without a quote (openspec `unlisted-files`).
+    selfEvidentFiles: selfEvidentFilesOf(files, { clientName: client.name, spouse: readSpouse(client.agent_fields) }),
     allSettled: allDocumentsSettled(documents),
     attestationRequested: requestSentAt !== null,
     confirmableMessageIds: new Set(
@@ -388,6 +394,7 @@ async function buildPlannerPrompt(run: PlanRun): Promise<{ systemInstruction: st
     run.afterVerification,
     (await clientIdNumber(client, 'israel_tax_authority')) !== null,
     lostFiles,
+    intake.selfEvidentFiles ?? new Map(),
   );
   return { systemInstruction, contents };
 }

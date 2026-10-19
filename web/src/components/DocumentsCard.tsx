@@ -309,6 +309,11 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         {(doc.status === 'pending' || doc.status === 'collected') && (failed || stalled) && reasons && (
           <div className="doc-verification-note">{t.verificationReasonsPrefix + reasons}</div>
         )}
+        {doc.resolution_evidence?.source === 'self_evident_file' && (
+          <div className="doc-verification-note muted">
+            {(doc.resolution_evidence.matched === 'spouse' ? t.selfEvidentFileSpouseNote : t.selfEvidentFileClientNote) + (doc.resolution_evidence.issuer ?? '')}
+          </div>
+        )}
         {doc.status === 'stated' && doc.resolution_evidence?.source === 'chat_vehicle' && (
           <div className="doc-verification-note muted">
             <div>{vehicleFactsText(doc.resolution_evidence.facts ?? {}, t.vehicleFactLabels, t.vehicleFactUnknown)}</div>

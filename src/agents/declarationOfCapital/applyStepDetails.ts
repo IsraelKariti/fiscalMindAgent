@@ -31,8 +31,8 @@ export function resolutionsStepDetail(resolutions: DocumentResolution[], docName
       id: r.documentId,
       name: named(docName, r.documentId),
       resolution: r.resolution,
-      // Every resolution rests on the client's own words (openspec `unlisted-files`).
-      quote: r.evidence.quote,
+      // The client's own words, or (required only) the self-evident file the planner cited (openspec `unlisted-files`).
+      ...evidenceDetail(r.evidence),
       ...(r.resolution === 'required' ? { instances: r.instances.map((i) => i.name) } : {}),
     })),
   };
@@ -47,6 +47,12 @@ export function resolutionsStepDetail(resolutions: DocumentResolution[], docName
 function evidenceDetail(evidence: EvidenceRef): { quote: string; provenByFileId?: string } {
   const quote = evidenceQuote(evidence);
   if (quote !== null) return { quote };
+  if ('source' in evidence && evidence.source === 'self_evident_file') {
+    // A file in the client's (or spouse's) name created the item (openspec `unlisted-files`).
+    const who = evidence.matched === 'client' ? 'על שם הלקוח' : 'על שם בן/בת הזוג';
+    const employer = evidence.employer ? `, מעסיק ${evidence.employer}` : '';
+    return { quote: `נוצר מקובץ ${who} (${evidence.issuer}${employer})`, provenByFileId: evidence.file_id };
+  }
   const file = evidence as ApprovedFileEvidence;
   const fact = file.fact === 'seller_private' ? 'המוכר אדם פרטי' : 'המוכר קבלן / חברה';
   return { quote: `הוכח בקובץ שאושר (${fact})`, provenByFileId: file.file_id };

@@ -8,6 +8,7 @@ import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault, paperStatedBy } from
 import type { VehicleFacts } from '../../db/types.js';
 import { VEHICLE_FACT_KEYS, VEHICLE_FACT_LABELS_HE, hasAnyVehicleFact, vehicleFactMissingFromQuote } from './vehicleDeclaration.js';
 import type { ApprovedPropertyFile } from './provenFacts.js';
+import { selfEvidentEvidenceOf, selfEvidentItemName, type SelfEvidentFile, type SelfEvidentFileEvidence } from './selfEvidentFiles.js';
 
 /**
  * The closed paper list an instance may name (openspec `document-papers`) —
@@ -147,6 +148,13 @@ export const DecisionResponseSchema = z.object({
           .nullable(),
         /** The client statement this rests on — a real inbound message_id + verbatim quote. Required for both resolutions. */
         evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
+        /**
+         * Instead of a quote, for 'required' only: the id of a self-evident
+         * file (a report of a known institution in the client's or spouse's
+         * name, openspec `unlisted-files`) that proves the one instance. '' =
+         * none (a plain string, see added_instances).
+         */
+        proven_by_file_id: z.string().optional(),
       }),
     )
     .nullable(),
@@ -309,8 +317,14 @@ export interface ApprovedFileEvidence {
   fact: 'seller_private' | 'seller_builder';
 }
 
-/** What an intake decision rests on: the client's own words, or (additions and retirements of a property's papers only) an approved file. */
-export type EvidenceRef = QuoteEvidence | ApprovedFileEvidence;
+/**
+ * What an intake decision rests on: the client's own words; (additions and
+ * retirements of a property's papers only) an approved file; or (a needed
+ * resolution or an addition of an institution-bound type) a self-evident file
+ * in the client's or spouse's name (openspec `unlisted-files`).
+ */
+export type EvidenceRef = QuoteEvidence | ApprovedFileEvidence | SelfEvidentFileEvidence;
+export type { SelfEvidentFileEvidence };
 
 /** The quote of a quote-backed evidence ref, or null for an approved-file ref. */
 export function evidenceQuote(evidence: EvidenceRef): string | null {
@@ -357,7 +371,7 @@ export interface StatedVehicleDecision extends StatedVehicle {
 /** One validated intake resolution (capital declaration). */
 export type DocumentResolution =
   | { documentId: string; resolution: 'not_required'; evidence: QuoteEvidence }
-  | { documentId: string; resolution: 'required'; instances: ResolvedInstance[]; evidence: QuoteEvidence };
+  | { documentId: string; resolution: 'required'; instances: ResolvedInstance[]; evidence: QuoteEvidence | SelfEvidentFileEvidence };
 
 /** One validated instance addition to an already-resolved type (capital declaration). */
 export interface InstanceAddition {
@@ -479,6 +493,12 @@ export interface IntakeDecisionState {
    * `real-estate-goal-driven-clarification`). Absent = none.
    */
   approvedPropertyFiles?: Map<string, ApprovedPropertyFile>;
+  /**
+   * The client's self-evident files by file id (openspec `unlisted-files`):
+   * reports of a known institution in the client's or spouse's name that may
+   * create their own item when cited by `proven_by_file_id`. Absent = none.
+   */
+  selfEvidentFiles?: Map<string, SelfEvidentFile>;
   /** Every checklist row is settled (approved / not_required) — precondition for attestation 'request'. */
   allSettled: boolean;
   /** The attestation summary was actually SENT (not merely drafted). */
@@ -681,13 +701,41 @@ const PAPERS_RETIRED_BY_PRIVATE_SELLER = new Set(['payments_appendix', 'builder_
  */
 function validateProvenByFile(
   fileId: string,
-  change: { kind: 'retire'; row: TypedRow } | { kind: 'add'; anchor: TypedRow; instances: ResolvedInstance[] },
+  change:
+    | { kind: 'retire'; row: TypedRow }
+    | { kind: 'add'; anchor: TypedRow; instances: ResolvedInstance[] }
+    | { kind: 'resolve'; row: ResolvableRow; instances: ResolvedInstance[] },
   intake: IntakeDecisionState,
   what: string,
-): ApprovedFileEvidence {
-  const row = change.kind === 'retire' ? change.row : change.anchor;
+): ApprovedFileEvidence | SelfEvidentFileEvidence {
+  const row = change.kind === 'add' ? change.anchor : change.row;
+  // A self-evident file (openspec `unlisted-files`): a report of a known
+  // institution in the client's or spouse's name creates its own item — one
+  // item, of the file's type; it never retires anything.
+  const proof = intake.selfEvidentFiles?.get(fileId);
+  if (proof) {
+    if (change.kind === 'retire') {
+      throw new Error(`${what}: the self-evident file ${fileId} adds its own item; it proves nothing that retires a document — quote the client instead`);
+    }
+    if (row.typeKey !== proof.typeKey) {
+      throw new Error(
+        `${what}: the self-evident file ${fileId} is a ${proof.typeKey} document — it may only settle or add to the ${proof.typeKey} row, not to this ${row.typeKey ?? 'ad-hoc'} row`,
+      );
+    }
+    if (change.instances.length !== 1) {
+      throw new Error(`${what}: the self-evident file ${fileId} proves exactly one item — ${change.instances.length} instances were given; name one instance for the file`);
+    }
+    return selfEvidentEvidenceOf(fileId, proof);
+  }
+  if (change.kind === 'resolve') {
+    throw new Error(
+      `${what}: proven_by_file_id "${fileId}" is not a self-evident file of this client (a report of a known institution in the client's or spouse's name, marked "self-evident" in its content analysis) — a file alone settles no row; ask the client and quote their words`,
+    );
+  }
   if (row.typeKey !== 'real_estate') {
-    throw new Error(`${what}: a file may stand as evidence only for a property's payments appendix — this row is not a property paper; quote the client instead`);
+    throw new Error(
+      `${what}: proven_by_file_id "${fileId}" is not a self-evident file of this client (marked "self-evident" in its content analysis), and a file may otherwise stand as evidence only for a property's payments appendix — this row is not a property paper; ask the client and quote their words`,
+    );
   }
   const approved = intake.approvedPropertyFiles?.get(fileId);
   if (!approved) {
@@ -707,6 +755,20 @@ function validateProvenByFile(
     throw new Error(`${what}: the approved file proves nothing that calls for these instances — a builder seller adds only the payments appendix`);
   }
   return { source: 'approved_file', file_id: fileId, document_id: approved.documentId, fact: 'seller_builder' };
+}
+
+/**
+ * The one instance a self-evident file creates (openspec `unlisted-files`):
+ * named with the table's company name and the printed employer the way the
+ * per-company split names items, and carrying the file so the cycle ties it
+ * whether or not the planner listed it. Instances on any other evidence are
+ * returned as they are.
+ */
+function instancesOnSelfEvidentFile(instances: ResolvedInstance[], evidence: EvidenceRef, intake: IntakeDecisionState): ResolvedInstance[] {
+  if (!('source' in evidence) || evidence.source !== 'self_evident_file') return instances;
+  const proof = intake.selfEvidentFiles?.get(evidence.file_id);
+  if (!proof) return instances;
+  return instances.map((i) => ({ ...i, name: selfEvidentItemName(i.name, proof), fileIds: [...new Set([evidence.file_id, ...i.fileIds])] }));
 }
 
 /**
@@ -730,18 +792,29 @@ function validateResolutions(raw: DecisionResponse, ctx: DecisionContext): Docum
     if (!row) {
       throw new Error(`resolved_documents: document ${entry.document_id} is not a resolvable (unresolved/not_required) row of this client`);
     }
+    const provenByFileId = entry.proven_by_file_id ?? '';
     if (entry.resolution === 'not_required') {
       if (row.status !== 'unresolved') {
         throw new Error(`resolved_documents: document ${entry.document_id} is already not_required`);
+      }
+      if (entry.evidence === null && provenByFileId !== '') {
+        throw new Error(`not_required resolution of ${entry.document_id}: a file never settles a row as not needed — quote the client's own words`);
       }
       const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `not_required resolution of ${entry.document_id}`);
       result.push({ documentId: entry.document_id, resolution: 'not_required', evidence });
       continue;
     }
-    const instances = normalizeInstances(entry.instances ?? [], row.multiInstance, row.typeKey, `required resolution of ${entry.document_id}`);
-    // A list item is created only on the client's quoted words — never on a file alone.
-    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, `required resolution of ${entry.document_id}`);
-    result.push({ documentId: entry.document_id, resolution: 'required', instances, evidence });
+    const what = `required resolution of ${entry.document_id}`;
+    const instances = normalizeInstances(entry.instances ?? [], row.multiInstance, row.typeKey, what);
+    // A list item is created only on the client's quoted words — or on a
+    // self-evident file in the client's name (openspec `unlisted-files`); a
+    // quote wins when both are given.
+    const evidence =
+      entry.evidence === null && provenByFileId !== ''
+        ? validateProvenByFile(provenByFileId, { kind: 'resolve', row, instances }, intake, what)
+        : validateEvidence(entry.evidence, intake.inboundTexts, what);
+    if ('source' in evidence && evidence.source === 'approved_file') throw new Error(`${what}: an approved property paper settles no row; quote the client instead`);
+    result.push({ documentId: entry.document_id, resolution: 'required', instances: instancesOnSelfEvidentFile(instances, evidence, intake), evidence });
   }
   return result;
 }
@@ -1124,12 +1197,12 @@ function validateAddedInstances(raw: DecisionResponse, ctx: DecisionContext): In
     }
     const what = `added_instances for ${entry.anchor_document_id}`;
     const instances = normalizeInstances(entry.instances, true, anchor.typeKey, what);
-    // A quote wins when both are given; the approved file is the only other source.
+    // A quote wins when both are given; the other sources are an approved property paper and a self-evident file.
     const evidence =
       entry.evidence === null && entry.proven_by_file_id
         ? validateProvenByFile(entry.proven_by_file_id, { kind: 'add', anchor, instances }, intake, what)
         : validateEvidence(entry.evidence, intake.inboundTexts, what);
-    result.push({ anchorDocumentId: entry.anchor_document_id, instances, evidence });
+    result.push({ anchorDocumentId: entry.anchor_document_id, instances: instancesOnSelfEvidentFile(instances, evidence, intake), evidence });
   }
   return result;
 }
@@ -1240,13 +1313,16 @@ export class DecisionRejectedError extends Error {
  * an answer must be a 'collect' decision (no message); a 'follow_up' answer
  * must have none of these (openspec `verification-reply`).
  */
-export function answerTiesFiles(raw: DecisionResponse): boolean {
+export function answerTiesFiles(raw: DecisionResponse, selfEvidentFiles?: ReadonlyMap<string, unknown>): boolean {
   if (raw.collected_document_ids.length > 0 || raw.matched_files.length > 0) return true;
   const instanceFileIds = [
     ...(raw.resolved_documents ?? []).flatMap((r) => r.instances ?? []),
     ...(raw.added_instances ?? []).flatMap((a) => a.instances),
   ].flatMap((i) => i.file_ids);
-  return instanceFileIds.length > 0;
+  if (instanceFileIds.length > 0) return true;
+  // A self-evident file cited as evidence is tied to the item it creates (openspec `unlisted-files`).
+  const cited = [...(raw.resolved_documents ?? []), ...(raw.added_instances ?? [])].map((e) => e.proven_by_file_id ?? '');
+  return cited.some((id) => id !== '' && selfEvidentFiles?.has(id) === true);
 }
 
 /** The message-shaping fields a collecting answer must leave empty, by name, for the rejection message. */
@@ -1259,7 +1335,7 @@ function filledMessageFields(raw: DecisionResponse): string[] {
 }
 
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, checks: GateCheck[] = []): NormalizedDecision {
-  const ties = answerTiesFiles(raw);
+  const ties = answerTiesFiles(raw, ctx.intake?.selfEvidentFiles);
   if (raw.decision === 'collect') {
     if (ctx.afterVerification) {
       throw new Error(

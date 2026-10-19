@@ -541,6 +541,9 @@ const he = {
   vehicleFactUnknown: 'לא ידוע',
   formEmptyNote: 'השדה נותר ריק בשאלון המקוון',
   provenByApprovedFileNote: 'הוסר על סמך מסמך שאושר: ',
+  // A row created from a self-evident file (openspec `unlisted-files`); the issuer follows.
+  selfEvidentFileClientNote: 'נוצר מקובץ על שם הלקוח: ',
+  selfEvidentFileSpouseNote: 'נוצר מקובץ על שם בן/בת הזוג: ',
   provenFactSellerPrivate: 'המוכר אדם פרטי (יד שנייה)',
   provenFactSellerBuilder: 'המוכר קבלן / חברה',
   removeDocument: 'הסרת המסמך',

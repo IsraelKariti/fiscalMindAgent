@@ -197,9 +197,13 @@ function nameTokens(name: string): string[] {
 
 /** Loose name comparison: true when the two names share at least one real token. */
 export function namesLooselyMatch(a: string, b: string): boolean {
-  const ta = nameTokens(a);
+  return sharedNameTokens(a, b) > 0;
+}
+
+/** How many real tokens the two names share — the closer of two loose matches (the client against the spouse of the same surname). */
+export function sharedNameTokens(a: string, b: string): number {
   const tb = new Set(nameTokens(b));
-  return ta.some((t) => tb.has(t));
+  return new Set(nameTokens(a).filter((t) => tb.has(t))).size;
 }
 
 const SPOUSE_LABEL_HE = 'בן/בת זוג';

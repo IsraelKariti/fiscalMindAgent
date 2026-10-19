@@ -69,7 +69,7 @@ export function callsOf(raw: DecisionResponse): ToolCall[] {
     }
   };
   for (const r of raw.resolved_documents ?? []) {
-    calls.push({ name: 'resolve_document', args: { document_id: r.document_id, resolution: r.resolution, ...ev(r.evidence) } });
+    calls.push({ name: 'resolve_document', args: { document_id: r.document_id, resolution: r.resolution, ...ev(r.evidence), proven_by_file_id: r.proven_by_file_id ?? '' } });
     for (const i of r.instances ?? []) instance(r.document_id, i, ev(null));
   }
   for (const a of raw.added_instances ?? []) {

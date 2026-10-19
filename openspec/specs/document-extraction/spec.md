@@ -217,17 +217,17 @@ The description of both types, as the file classifier, the planner and the clien
 - **WHEN** the client sends a monthly report that lists the payments charged for a loan but no remaining balance
 - **THEN** the extraction reports `is_expected_type: false` and no balance, and the document is not approved
 
-### Requirement: A vehicle licence is judged at the valuation date
-The vehicle type SHALL accept a licence that was valid on 31.12 of the tax year: a licence whose "valid until" date is on or after that date SHALL be accepted even when it has expired by the time the file is verified, and a licence whose "valid until" date is before that date SHALL be rejected. The verification date SHALL NOT affect the judgment. The type's description, its analysis hint and its extraction prompt SHALL state this rule in place of the rule that an expired licence is never acceptable, and the planner's vehicle instructions SHALL tell the client that the licence must have been valid on 31.12 of the tax year and ask for a renewed licence only when the one sent expired before that date. The "valid until" date SHALL still be read into `valid_until` as today, and a licence with no readable "valid until" date SHALL still skip the check.
+### Requirement: A vehicle licence is helpful, not required
+The vehicle licence SHALL be a helpful paper, not a required one, and the vehicle type SHALL run no validity check: a vehicle licence SHALL be accepted whatever its "valid until" date — valid today, expired after 31.12 of the tax year, or expired years before it — and the verification date SHALL play no part. The "valid until" date SHALL still be read into `valid_until` for the record. The type's description, its analysis hint, its extraction prompt, the planner's vehicle instructions and the questionnaire intake rule SHALL NOT state any validity condition on the licence and SHALL NOT call the licence or the purchase document mandatory; the licence item SHALL be named "העתק רישיון רכב — [the vehicle]" without "בתוקף". A client who sends an expired licence SHALL NOT be asked for a newer one. What the agent does when the client cannot send the licence or the purchase document is the `vehicle-declaration` capability.
+
+#### Scenario: Licence expired long before the valuation date
+- **WHEN** a client of the 2025 declaration sends a vehicle licence that reads "valid until" 22.04.2022
+- **THEN** the file passes verification, is tied to the licence item, the `verify_extraction` row carries no `not_expired` check, and the agent does not ask for a licence that was valid on 31.12.2025
 
 #### Scenario: Licence expired between the valuation date and the verification
 - **WHEN** a client of the 2025 declaration sends, in May 2026, a vehicle licence that reads "valid until" 20.03.2026
 - **THEN** the file passes verification and is tied to the licence item, and the agent does not ask for a renewed licence
 
-#### Scenario: Licence expired before the valuation date
-- **WHEN** a client of the 2025 declaration sends a vehicle licence that reads "valid until" 20.07.2025
-- **THEN** the file fails verification with a note that the licence expired before 31.12.2025, and the agent asks for the licence that was valid on that date
-
 #### Scenario: Agent wording about the licence
 - **WHEN** the agent asks the client for a vehicle licence
-- **THEN** it says the licence must have been valid on 31.12 of the tax year and does not say that an expired licence is never acceptable
+- **THEN** it presents the licence as helpful, does not call it mandatory, and does not state any validity condition on it

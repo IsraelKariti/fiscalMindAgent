@@ -25,16 +25,16 @@
 
 ## 5. Accountant view
 
-- [ ] 5.1 In `web/src/components/DocumentsCard.tsx` render a stated `vehicle_declaration` row's facts by name ("לא ידוע" for empty) and one clickable note per statement (reuse the message-scroll hook); keep the single-note rendering for `source: 'chat'`. Verify: `npm run typecheck` passes and a browser check on a local client with a two-statement row shows both notes opening their messages.
+- [x] 5.1 In `web/src/components/DocumentsCard.tsx` render a stated `vehicle_declaration` row's facts by name ("לא ידוע" for empty) and one clickable note per statement (reuse the message-scroll hook); keep the single-note rendering for `source: 'chat'`. Verify: `npm run typecheck` passes and a browser check on a local client with a two-statement row shows both notes opening their messages.
 
 ## 6. Evals and integration
 
 - [x] 6.1 Update `evals/cases/extract_document.json` (ext_27 notes, ext_28 `passed: true`, no `failed_keys`) and the comments in `evals/make-files.ts` / `evals/stages.ts`. Verify: `npm run evals -- --stage extract_document --rejudge` shows ext_27 and ext_28 passing.
 - [x] 6.2 Add the `stated_vehicles` expectation to `evals/stages.ts`, re-target dec_26–dec_31 in `evals/cases/generate_message.json` to the declaration item, and add cases (via the add-eval-case skill): licence lost + facts in one message; licence lost, no facts yet (one question, no validity words); no receipt and no idea of the price (item closed, no price question). Verify: the cases pass with the configured model; commit the run file per the evals regen memory.
-- [ ] 6.3 Local end-to-end check with a paused test client: client says the licence is lost → declaration item stated, licence retired, card shows the facts; then "no receipt, about 85 אלף" → cost added to the same item. Verify: both apply steps in the trace and the goal completes with the stated item.
+- [x] 6.3 Local end-to-end check with a paused test client: client says the licence is lost → declaration item stated, licence retired, card shows the facts; then "no receipt, about 85 אלף" → cost added to the same item. Verify: both apply steps in the trace and the goal completes with the stated item.
 
 ## 7. Docs and reference
 
 - [x] 7.1 Update `docs/agents.md` (vehicle paragraph, chat-stated-cost paragraph, pipeline step list in `docs/pipeline.md` for `apply_vehicle_declarations`) and the archived `openspec/specs/chat-stated-cost/spec.md` wording so it names only `cost_declaration` and points to `vehicle-declaration`. Verify: `grep -rn vehicle_cost_declaration docs openspec/specs` finds nothing.
 - [x] 7.2 Update the Notion Accounting → Vehicles page to the goal-first rule, following `STYLE.md`. Verify: the page says the declaration rests on the client's statement and the licence and receipt are preferred, not mandatory.
-- [ ] 7.3 Run `npm run typecheck` and `npm test`, commit per the Git workflow, and archive this change.
+- [x] 7.3 Run `npm run typecheck` and `npm test`, commit per the Git workflow, and archive this change.

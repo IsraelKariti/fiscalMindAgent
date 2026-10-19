@@ -51,7 +51,6 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
   - `co_owners`: when the document was accepted for the client or the spouse and at least one other owner party is neither of them; always `passed: true`; observed = those parties, each as the printed name and the masked id when printed (capped to a short list). Reported alongside; it never changes `result`. Skipped otherwise, note: the document was not accepted for the client or the spouse, or it lists no other owner.
   - `client_id_on_file`: when at least one owner party prints an id, no id is on file for the client (after the CRM-card fetch of the `declaration-kickoff` capability), and no owner party's id is the spouse's id on file; `passed: false`, observed = "none", note = the client has no id on the tax-portal credentials or the monday CRM card, so the printed ids could not be compared. This check is reported alongside and does not change `result`. Skipped otherwise, note: no owner party prints an id number, or an id is on file for the client (then `id_matches_client` is reported instead).
   - `as_of_date`: observed = the as-of date read (or "not stated"); expected = 31.12 of the declaration year.
-  - `not_expired`: when the document's type carries a validity date and a well-formed valid-until date was read; observed = the valid-until date read; expected = 31.12 of the declaration year (the valuation date). Passes when the valid-until date is on or after the valuation date, whatever the verification date; fails when it is before, with a note saying the document expired before 31.12 of the declaration year and asking for the licence that was valid on that date. Skipped otherwise, note: no valid-until date was read from the document.
   - `type_fields`: when the document's type declares extra extraction fields (the `document-extraction` capability); observed = every declared field as its Hebrew label and the value read, "לא נמצא" for a null (capped to a short list); the failure note names, by label, the required field that is missing, the "at least one" group that is empty, or the field whose value is malformed and why (wrong date form, implausible year, not a number, a number below the lower bound its field declares — stated with the value read, for example "השדה "יתרת פיקדונות וחסכונות" שלילי (-5)" — or pattern mismatch). A type with no extra fields does not have this check in its list.
   - `period_covers_valuation_date`: when the document's type states that a period must cover the valuation date and both period dates were read well formed; observed = the period as "from – to"; expected = 31.12 of the declaration year; fails when that date is outside the period. Skipped when the type states the period but a period date was not read well formed, note: the period dates were not read in full. A type that states no period does not have this check in its list.
 
@@ -143,19 +142,19 @@ The `verify_extraction` row's detail SHALL also carry the parties the extraction
 
 #### Scenario: Vehicle licence expired after the valuation date
 - **WHEN** a vehicle licence for the declaration year 2025 reads "valid until" 20.03.2026 and is verified on 15.05.2026
-- **THEN** the row has `not_expired` passed, observed `2026-03-20`, expected `2025-12-31`
+- **THEN** the row carries no `not_expired` check, not even as skipped, and the licence passes
 
 #### Scenario: Vehicle licence valid on the valuation date
 - **WHEN** a vehicle licence for the declaration year 2025 reads "valid until" 31.12.2025
-- **THEN** the row has `not_expired` passed
+- **THEN** the row carries no `not_expired` check and the licence passes
 
 #### Scenario: Vehicle licence expired before the valuation date
-- **WHEN** a vehicle licence for the declaration year 2025 reads "valid until" 20.07.2025 and is verified on 15.01.2026
-- **THEN** the row has `not_expired` failed, observed `2025-07-20`, expected `2025-12-31`, with a note that the licence expired before 31.12.2025
+- **WHEN** a vehicle licence for the declaration year 2025 reads "valid until" 22.04.2022 and is verified on 15.01.2026
+- **THEN** the row carries no `not_expired` check and the licence passes; the "valid until" date is kept in the extraction for the record
 
 #### Scenario: Vehicle license without a validity date
 - **WHEN** a vehicle document is verified and the extractor returns `valid_until: null`
-- **THEN** the row has `not_expired` skipped with a note that no valid-until date was read
+- **THEN** the row carries no `not_expired` check, not even as skipped
 
 #### Scenario: Type without extra fields
 - **WHEN** a prior declaration (a type with no extra fields) is verified
@@ -234,3 +233,18 @@ A failed check SHALL make the gate's `result` false and SHALL reject the whole a
 #### Scenario: Not a statable item
 - **WHEN** the answer states a cost on the pending item "אישור יתרות בנק לאומי"
 - **THEN** `stated_cost_item_allows` fails with a note that only a cost declaration may be stated, and the gate's `result` is false
+
+### Requirement: Checks reported for a stated vehicle declaration
+The `validate_message` gate SHALL report, for every vehicle statement in the answer (the `vehicle-declaration` capability), the checks `stated_vehicle_item_allows` — observed: the target item's paper and status, or "new instance" with its paper; expected: a pending or stated vehicle declaration item — and `stated_vehicle_facts_in_quote` — observed: the quote; expected: the facts stated, by name; passes when every stated number is written in the quote as digits (a cost also as "N אלף" / "N מיליון") and every stated text appears in the quote; its failure note names the first fact not found. A statement with no fact SHALL pass `stated_vehicle_facts_in_quote` with the expected value saying the client knows nothing more. The quote itself SHALL be checked by the existing evidence rule (`business_rules`). The first failing check SHALL reject the answer.
+
+#### Scenario: Facts found in the quote
+- **WHEN** the planner states make מאזדה, year 2019 and plate 1234567 citing "זו מאזדה 3 משנת 2019, מספר 1234567"
+- **THEN** the row has `stated_vehicle_item_allows` and `stated_vehicle_facts_in_quote` passed, the latter with observed the quote and expected "תוצר, שנת ייצור, מספר רישוי"
+
+#### Scenario: Plate not in the quote
+- **WHEN** the planner states plate 1234567 citing "זו מאזדה 3"
+- **THEN** `stated_vehicle_facts_in_quote` fails with a note naming the licence plate, and the answer is rejected
+
+#### Scenario: Wrong item
+- **WHEN** the planner states vehicle facts on the licence item of the vehicle
+- **THEN** `stated_vehicle_item_allows` fails with observed "paper vehicle_license, status pending", and the answer is rejected

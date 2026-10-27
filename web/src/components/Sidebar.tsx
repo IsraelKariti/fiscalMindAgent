@@ -30,7 +30,8 @@ interface Props {
   onSelectSettings: () => void;
   /** Absent for inbound-only agents, whose clients enroll themselves — the + button hides. */
   onAddClient?: () => void;
-  onDeleteClient: (client: Client) => void;
+  /** Absent for a staff viewer (read-only) — the per-row delete button hides. */
+  onDeleteClient?: (client: Client) => void;
   /**
    * Admin view-as only (openspec `soft-delete-clients`): the "deleted clients"
    * toggle. Absent for the accountant's own session — the toggle never renders.
@@ -289,7 +290,7 @@ export function Sidebar({
                     )}
                   </span>
                 </button>
-                {!client.deletedAt && (
+                {!client.deletedAt && onDeleteClient && (
                 <button
                   className="client-delete"
                   title={t.deleteClientAction(displayClientName(client.name))}

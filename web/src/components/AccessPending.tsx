@@ -32,6 +32,7 @@ export function AccessPending({ userEmail, onLogout }: Props) {
           {userEmail ? <strong> {userEmail}</strong> : t.accessPendingYourAccount}
           {t.accessPendingTail}
         </p>
+        <p className="muted">{t.accessPendingStaffHint}</p>
         <button className="btn btn-ghost" onClick={onLogout}>
           {t.accessPendingSwitchAccount}
         </button>

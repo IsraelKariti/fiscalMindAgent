@@ -14,6 +14,12 @@ import { useWorkspaceRoute } from './workspaceRoute';
 
 interface Props {
   userEmail: string | null;
+  /**
+   * Set for a staff viewer (openspec `accountant-employee-access`): the
+   * accountant whose workspace this employee reads. Everything is read-only —
+   * no add/delete/edit/action controls, Settings shows the dashboard only.
+   */
+  viewer?: { email: string; name: string | null; hebrewName: string | null } | null;
   /** Set while an admin is impersonating (standalone only). */
   impersonatingEmail?: string | null;
   onStopImpersonating?: () => void;
@@ -40,6 +46,7 @@ interface Props {
  */
 export function Workspace({
   userEmail,
+  viewer,
   impersonatingEmail,
   onStopImpersonating,
   onLogout,
@@ -172,8 +179,10 @@ export function Workspace({
     loadClients().catch(console.error);
   }, [loadClients]);
   useEffect(() => {
+    // Account-level: refused for a staff viewer (and never shown to them).
+    if (viewer) return;
     api.mailboxStatus().then(setMailbox).catch(console.error);
-  }, []);
+  }, [viewer]);
 
   const clientDeleted = (client: Client) => {
     setDeleting(null);
@@ -229,8 +238,8 @@ export function Workspace({
           settingsSelected={route.kind === 'settings'}
           onSelectClient={(clientId) => navigate({ kind: 'client', agentId: agent.id, clientId })}
           onSelectSettings={() => navigate({ kind: 'settings', agentId: agent.id })}
-          onAddClient={agentUI.importOnlyClients ? undefined : () => setAdding(true)}
-          onDeleteClient={setDeleting}
+          onAddClient={agentUI.importOnlyClients || viewer ? undefined : () => setAdding(true)}
+          onDeleteClient={viewer ? undefined : setDeleting}
           showDeleted={showDeleted}
           onToggleShowDeleted={canShowDeleted ? setShowDeleted : undefined}
           userEmail={userEmail}
@@ -239,16 +248,23 @@ export function Workspace({
           onLogout={onLogout}
         />
         <main className="main">
+          {viewer && (
+            <div className="viewer-notice" role="status">
+              {t.viewerNotice(viewer.hebrewName ?? viewer.name ?? viewer.email)}
+            </div>
+          )}
           {route.kind === 'client' && (
             <ClientView
               key={route.clientId}
               clientId={route.clientId}
               agentUI={agentUI}
               onClientUpdated={loadClients}
+              readOnly={Boolean(viewer)}
             />
           )}
           {route.kind === 'settings' && (
             <Settings
+              viewerOnly={Boolean(viewer)}
               mailbox={mailbox}
               dashboard={
                 <Overview

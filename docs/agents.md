@@ -737,6 +737,38 @@ that honest:
 Idle expiry is audited as `admin.impersonation_expired` (start/stop come from
 the admin route map); extensions are not audited.
 
+### Staff viewers (read-only employees)
+
+An accountant lists employee email addresses in Settings → "צוות"
+(`accountant_staff`, migration 068, openspec `accountant-employee-access`;
+routes `GET/POST /api/staff`, `DELETE /api/staff/:id` in `src/api/staff.ts`,
+keyed on `req.userId` so an impersonating admin manages the list too; one
+accountant per email, global unique; adds/removes audited as `staff.added` /
+`staff.removed`). An employee signs in with their own Google account; the
+middleware chain in `router.ts` is `requireAuth` → `resolveStaffViewer` →
+`viewerReadOnlyGate` → `requireWhitelisted`:
+
+- `resolveStaffViewer` (`auth.ts`): a signed-in user who is neither admin nor
+  whitelisted but whose email has a staff row gets `req.userId` = the
+  accountant and `req.viewerRole = 'viewer'`. The row is read per request,
+  so removal takes effect on the next one (the SPA then lands on the
+  access-pending screen). Nothing else in the workspace changes — every
+  query already keys on `req.userId`. `isViewingAs` (`viewAs.ts`) is false
+  for a viewer, so test and deleted clients stay hidden as for the accountant.
+- `viewerReadOnlyGate` applies the one rule in `viewerAccess.ts`: a viewer may
+  send only `GET /agents` and `GET /agents/*`; every write, the account routes
+  (connections, mailbox, the staff list) and `/admin/*` answer
+  `403 { code: 'read_only' }`. **A new GET under `/agents/:agentId` with side
+  effects must check `req.viewerRole` itself.**
+- `GET /api/me` reports `role: 'viewer'` + `viewingFor` (the accountant).
+  The SPA passes `viewer` into `Workspace`, which reuses the deleted-client
+  `readOnly` path of `ClientView` (no action control anywhere, file view and
+  download still work), hides add/delete client, shows a read-only notice,
+  and renders Settings with the dashboard tab only (`viewerOnly`).
+  `ViewerContext.readOnly` is set for components that read it directly.
+- The admin accountants list labels a signed-in employee "צוות של
+  <accountant>" (`users.listAll().staff_of_email`) instead of "no access".
+
 ## Adding an agent type (checklist)
 
 1. `src/agents/<type>/index.ts` — the `AgentTypeDefinition` (see

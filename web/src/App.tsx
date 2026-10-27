@@ -20,6 +20,9 @@ export function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [whitelisted, setWhitelisted] = useState(false);
   const [impersonating, setImpersonating] = useState<Me['impersonating'] | null>(null);
+  // A staff viewer (openspec `accountant-employee-access`): the accountant
+  // whose workspace this employee reads, read-only.
+  const [viewingFor, setViewingFor] = useState<Me['viewingFor'] | null>(null);
   const [envName, setEnvName] = useState<string | null>(null);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   // The server rejected a workspace request because the view-as session ended.
@@ -42,12 +45,13 @@ export function App() {
   useEffect(() => {
     api
       .me()
-      .then(({ authenticated, user: me, isAdmin: admin, whitelisted: allowed, impersonating: viewing, envName: env }) => {
+      .then(({ authenticated, user: me, isAdmin: admin, whitelisted: allowed, impersonating: viewing, viewingFor: staffOf, envName: env }) => {
         setAuthed(authenticated);
         setEnvName(env ?? null);
         setUser(me ?? null);
         setIsAdmin(admin ?? false);
         setWhitelisted(allowed ?? false);
+        setViewingFor(staffOf ?? null);
         // Before the workspace mounts and fires its first requests: they must
         // name the accountant, so an ended session is reported instead of served
         // under the admin's own identity. Many rejected requests → one dialog.
@@ -85,6 +89,7 @@ export function App() {
     setIsAdmin(false);
     setWhitelisted(false);
     setImpersonating(null);
+    setViewingFor(null);
   };
 
   // The logout buttons only open the confirmation modal; `logout` runs on confirm.
@@ -161,9 +166,10 @@ export function App() {
       {envBanner}
       {/* isAdmin here always means "an admin impersonating" — admins never see the
           workspace otherwise (adminMode above). Reveals the LLM trace toggle. */}
-      <ViewerProvider value={{ isAdmin }}>
+      <ViewerProvider value={{ isAdmin, readOnly: viewingFor != null }}>
         <Workspace
           userEmail={user?.email ?? null}
+          viewer={viewingFor ?? null}
           impersonatingEmail={impersonating?.email ?? null}
           onStopImpersonating={stopImpersonating}
           onLogout={requestLogout}

@@ -148,6 +148,7 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
         mailbox: u.mailbox_address,
         whitelisted: u.whitelisted,
         signedIn: u.signed_in,
+        staffOf: u.staff_of_email,
         agents: agentsByUser.get(u.id) ?? [],
         llmUsage: usageByUser.get(u.id) ?? [],
       })),

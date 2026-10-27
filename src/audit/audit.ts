@@ -95,6 +95,10 @@ export type AuditAction =
   | 'wa_business.disconnected'
   | 'review.message_pending'
   | 'review.message_held'
+  // The accountant's staff list (openspec `accountant-employee-access`):
+  // target = the accountant, detail.email = the employee's address.
+  | 'staff.added'
+  | 'staff.removed'
   | `admin.${string}`;
 
 export interface AuditEvent {

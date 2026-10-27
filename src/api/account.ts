@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import { mailboxStatus } from './mailbox.js';
 import { googleConnectionStatus, googleConnectionUrl, googleDisconnect, googlePickerConfig } from './googleOauth.js';
 import { mondayConnectionStatus, mondayConnectionUrl, mondayDisconnect } from './mondayOauth.js';
+import { addStaff, listStaff, removeStaff } from './staff.js';
 import { waBusinessConnect, waBusinessDisconnect, waBusinessStatus } from './waBusiness.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
@@ -25,6 +26,10 @@ accountRouter.delete('/monday-connection', wrap(mondayDisconnect));
 accountRouter.get('/wa-business', wrap(waBusinessStatus));
 accountRouter.post('/wa-business', wrap(waBusinessConnect));
 accountRouter.delete('/wa-business', wrap(waBusinessDisconnect));
+// The accountant's staff list (openspec `accountant-employee-access`).
+accountRouter.get('/staff', wrap(listStaff));
+accountRouter.post('/staff', wrap(addStaff));
+accountRouter.delete('/staff/:id', wrap(removeStaff));
 accountRouter.get('/google-connection', wrap(googleConnectionStatus));
 accountRouter.get('/google-connection/url', wrap(googleConnectionUrl));
 accountRouter.get('/google-connection/picker', wrap(googlePickerConfig));

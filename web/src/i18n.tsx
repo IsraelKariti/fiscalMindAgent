@@ -25,6 +25,38 @@ const he = {
   accessPendingYourAccount: ' החשבון שלכם',
   accessPendingTail: '. לאחר ההפעלה, התחברו שוב והדשבורד שלכם יהיה מוכן.',
   accessPendingSwitchAccount: 'התחברות עם חשבון אחר',
+  accessPendingStaffHint:
+    'עובדים במשרד רואה חשבון: בקשו מרואה החשבון להוסיף את כתובת האימייל שלכם בלשונית "צוות" בהגדרות.',
+
+  // Staff viewers (openspec `accountant-employee-access`)
+  viewerNotice: (accountant: string) => `אתם צופים בחשבון של ${accountant} במצב קריאה בלבד — אי אפשר לשנות דבר.`,
+  settingsTabStaff: 'צוות',
+  staffTitle: 'גישת צוות',
+  staffAddTitle: 'הוספת עובד/ת',
+  staffAddDesc:
+    'עובדים שכתובתם ברשימה מתחברים עם Google ורואים את הלקוחות, השיחות והמסמכים במצב קריאה בלבד. הם לא יכולים לשנות דבר, למחוק לקוחות או להוסיף עובדים אחרים.',
+  staffEmailPlaceholder: 'name@example.com',
+  staffAddButton: 'הוספה',
+  staffListTitle: 'עובדים עם גישה',
+  staffEmpty: 'עדיין לא הוספתם עובדים.',
+  staffAddedOn: (date: string) => `נוסף/ה ב-${date}`,
+  staffSignedIn: 'התחבר/ה',
+  staffNotSignedIn: 'טרם התחבר/ה',
+  staffNotSignedInTitle: 'הכתובת ברשימה, אבל עדיין לא בוצעה התחברות עם Google מכתובת זו.',
+  staffRemove: 'הסרה',
+  staffRemoveTitle: 'להסיר את הגישה?',
+  staffRemoveNote: (email: string) => `${email} לא יוכל/תוכל יותר להיכנס לחשבון. אפשר להוסיף את הכתובת שוב בכל עת.`,
+  staffLoadFailed: 'טעינת רשימת הצוות נכשלה.',
+  staffAddFailed: 'ההוספה נכשלה.',
+  staffRemoveFailed: 'ההסרה נכשלה.',
+  staffRefuseInvalid: 'הזינו כתובת אימייל תקינה.',
+  staffRefuseOwnEmail: 'זו הכתובת של החשבון שלכם עצמו.',
+  staffRefuseAdmin: 'הכתובת הזו שייכת למנהל מערכת.',
+  staffRefuseAccountant: 'הכתובת הזו היא חשבון של רואה חשבון.',
+  staffRefuseOtherStaff: 'הכתובת הזו כבר שייכת לצוות של חשבון אחר.',
+  staffRefuseDuplicate: 'הכתובת הזו כבר ברשימה.',
+  staffOfBadge: (email: string) => `צוות של ${email}`,
+  staffOfTitle: 'עובד/ת ברשימת הצוות של רואה החשבון — צופה בחשבון במצב קריאה בלבד.',
 
   // Agents
   agentsHomeTitle: 'הסוכנים שלי',

@@ -1,6 +1,15 @@
 import { Router, type RequestHandler } from 'express';
 import { logger } from '../util/logger.js';
-import { googleLoginCallback, logout, me, requireAuth, requireWhitelisted, startGoogleLogin } from './auth.js';
+import {
+  googleLoginCallback,
+  logout,
+  me,
+  requireAuth,
+  requireWhitelisted,
+  resolveStaffViewer,
+  startGoogleLogin,
+  viewerReadOnlyGate,
+} from './auth.js';
 import { accountRouter } from './account.js';
 import { googleDriveOauthCallback, startGoogleDriveOauth } from './googleOauth.js';
 import { mondayOauthCallback, startMondayOauth } from './mondayOauth.js';
@@ -110,6 +119,12 @@ apiRouter.get('/me', wrap(me));
 apiRouter.use('/monday', mondayRouter);
 
 apiRouter.use(requireAuth);
+// Staff viewers (openspec `accountant-employee-access`): an employee on an
+// accountant's staff list acts as the accountant, read-only. Order matters:
+// resolve the role, refuse what a viewer may not do, then the paid-access gate
+// (which lets a resolved viewer through).
+apiRouter.use(wrap(resolveStaffViewer));
+apiRouter.use(viewerReadOnlyGate);
 // Paid-access gate: everything below is whitelist-only (admins always pass).
 apiRouter.use(wrap(requireWhitelisted));
 
@@ -188,6 +203,9 @@ apiRouter.use(accountRouter);
 
 // The agent workspace (clients, documents, files, conversation), shared with
 // the monday mount in monday.ts. Agent-scoped under /agents/:agentId.
+// Every GET under this mount is served to read-only staff viewers
+// (viewerReadOnlyGate lets only GET /agents* through for them): a new GET
+// route that changes anything must check `req.viewerRole` itself.
 apiRouter.get('/agents', wrap(listAgents));
 apiRouter.use('/agents/:agentId', wrap(resolveAgentInstance), workspaceRouter);
 

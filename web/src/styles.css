@@ -5083,3 +5083,32 @@ pre.doc-text {
   width: 100%;
   margin: 6px 0 10px;
 }
+
+/* Staff viewers (openspec `accountant-employee-access`) */
+.viewer-notice {
+  padding: 9px 13px;
+  border-radius: 10px;
+  margin: 0 0 10px;
+  background: var(--pending-bg);
+  color: var(--pending);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.staff-add-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.staff-add-form input {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.staff-row-controls {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}

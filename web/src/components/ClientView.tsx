@@ -26,10 +26,13 @@ export function ClientView({
   clientId,
   agentUI,
   onClientUpdated,
+  readOnly: viewerReadOnly = false,
 }: {
   clientId: string;
   agentUI: AgentTypeUI;
   onClientUpdated: () => Promise<void>;
+  /** A staff viewer (openspec `accountant-employee-access`): no action control anywhere. */
+  readOnly?: boolean;
 }) {
   const { t } = useT();
   const api = useWorkspaceApi();
@@ -124,11 +127,12 @@ export function ClientView({
   // with drafting_since (or draft_failed_at when that attempt threw).
   // A deleted client (admin view-as only — the accountant's route 404s): the
   // record is shown as it stands, with no action control anywhere and no
-  // "drafting…" placeholder (nothing will ever be drafted for it).
-  const readOnly = client?.deletedAt != null;
+  // "drafting…" placeholder (nothing will ever be drafted for it). A staff
+  // viewer gets the same treatment on every client.
+  const readOnly = client?.deletedAt != null || viewerReadOnly;
   const drafting =
     client !== null &&
-    !readOnly &&
+    client.deletedAt == null &&
     client.goal_status === 'pending' &&
     !nextScheduled &&
     (!client.paused || client.drafting_since != null || client.draft_failed_at != null);

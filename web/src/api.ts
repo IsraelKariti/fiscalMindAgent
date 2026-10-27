@@ -320,6 +320,10 @@ async function request<T>(path: string, init?: RequestInit, opts?: RequestOpts):
   }
   if (!res.ok) {
     const body = data as { error?: string; code?: string };
+    // A staff viewer's write refused by the server (openspec
+    // `accountant-employee-access`): the UI hides every such control, so this
+    // only happens from stale UI — no banner, like the ended view-as session.
+    if (res.status === 403 && body.code === 'read_only') throw new ApiError(403, '', body.code);
     throw new ApiError(res.status, body.error ?? `Request failed (${res.status})`, body.code);
   }
   return data as T;
@@ -346,8 +350,12 @@ export interface Me {
   authenticated: boolean;
   user?: { id: string; email: string; name: string | null; pictureUrl: string | null };
   isAdmin?: boolean;
-  /** Whether this account may use the app (admins are always true). */
+  /** Whether this account may use the app (admins are always true; a staff viewer too). */
   whitelisted?: boolean;
+  /** 'viewer' = an employee on an accountant's staff list: read-only access to that accountant's workspace. */
+  role?: 'accountant' | 'viewer';
+  /** The accountant whose workspace a viewer sees (set only with role 'viewer'). */
+  viewingFor?: { id: string; email: string; name: string | null; hebrewName: string | null };
   impersonating?: { id: string; email: string; name: string | null };
   /** Non-null on non-production stacks (e.g. 'sandbox') — shows the env banner. */
   envName?: string | null;
@@ -385,6 +393,8 @@ export interface Accountant {
   whitelisted: boolean;
   /** False for invited accounts — admin-created at activation, no Google sign-in yet. */
   signedIn: boolean;
+  /** The accountant whose staff list carries this email (a read-only viewer); null otherwise. */
+  staffOf: string | null;
   /** Every agent instance incl. disabled ones (agent-specific stats live on the agent pages). */
   agents: AccountantAgentSummary[];
   llmUsage: AccountantModelUsage[];
@@ -1026,8 +1036,24 @@ export function agentApi(agentId: string): WorkspaceApi {
   return makeWorkspaceApi(`/agents/${agentId}`);
 }
 
+/** One employee on the accountant's staff list (openspec `accountant-employee-access`). */
+export interface StaffEntry {
+  id: string;
+  email: string;
+  /** Whether that person has signed in with Google at least once. */
+  signedIn: boolean;
+  createdAt: string;
+}
+
+/** Why an address could not be added to the staff list (POST /staff 409 codes). */
+export type StaffAddRefusal = 'own_email' | 'admin_email' | 'accountant_email' | 'other_accountants_staff' | 'duplicate';
+
 export const api = {
   me: () => request<Me>('/me'),
+  listStaff: () => request<{ staff: StaffEntry[] }>('/staff'),
+  addStaff: (email: string) =>
+    request<{ entry: StaffEntry }>('/staff', { method: 'POST', body: JSON.stringify({ email }) }),
+  removeStaff: (id: string) => request<{ ok: true }>(`/staff/${id}`, { method: 'DELETE' }),
   logout: () => request<{ ok: true }>('/logout', { method: 'POST' }),
   listAgents: () => request<{ agents: AgentInstance[] }>('/agents'),
   mailboxStatus: () => request<MailboxStatus>('/mailbox'),

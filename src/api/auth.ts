@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { Request, RequestHandler, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env.js';
+import * as accountantStaff from '../db/queries/accountantStaff.js';
 import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
 import * as whitelist from '../db/queries/whitelist.js';
@@ -9,6 +10,7 @@ import { recordAudit } from '../audit/audit.js';
 import { logger } from '../util/logger.js';
 import { evaluateImpersonationCookie, type ImpersonationCookieState } from './impersonationCookie.js';
 import { verifyMondayLinkToken } from './mondayAuth.js';
+import { READ_ONLY_ERROR, viewerMayRequest } from './viewerAccess.js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -16,8 +18,15 @@ declare global {
     interface Request {
       /** Effective user set by requireAuth — the impersonated user while an admin is impersonating. */
       userId?: string;
-      /** Real signed-in user; differs from userId only during impersonation. */
+      /** Real signed-in user; differs from userId only during impersonation or staff viewing. */
       realUserId?: string;
+      /**
+       * Set by resolveStaffViewer when the signed-in user is on an
+       * accountant's staff list (openspec `accountant-employee-access`):
+       * userId is then the accountant and the request may only read the
+       * workspace (viewerReadOnlyGate). Undefined for everyone else.
+       */
+      viewerRole?: 'viewer';
     }
   }
 }
@@ -363,12 +372,33 @@ export const me: RequestHandler = async (req, res) => {
   }
 
   const isAdmin = user.is_admin;
-  const whitelisted = isAdmin || (await whitelist.isWhitelisted(user.email));
+  let whitelisted = isAdmin || (await whitelist.isWhitelisted(user.email));
+  // A staff viewer (openspec `accountant-employee-access`): not activated
+  // themselves, but on an accountant's staff list — they get into that
+  // accountant's workspace read-only. `viewingFor` names the accountant.
+  let role: 'accountant' | 'viewer' = 'accountant';
+  let viewingFor: { id: string; email: string; name: string | null; hebrewName: string | null } | null = null;
+  if (!whitelisted && !impersonating) {
+    const staff = await accountantStaff.findByEmail(user.email);
+    const accountant = staff ? await users.getById(staff.accountant_user_id) : null;
+    if (accountant) {
+      whitelisted = true;
+      role = 'viewer';
+      viewingFor = {
+        id: accountant.id,
+        email: accountant.email,
+        name: accountant.name,
+        hebrewName: accountant.hebrew_name ?? null,
+      };
+    }
+  }
   res.json({
     authenticated: true,
     user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },
     isAdmin,
     whitelisted,
+    role,
+    ...(viewingFor ? { viewingFor } : {}),
     // Non-null on non-production stacks — the GUI shows an environment banner.
     envName: env.ENV_NAME ?? null,
     ...(impersonating ? { impersonating } : {}),
@@ -418,12 +448,57 @@ export const requireAuth: RequestHandler = (req, res, next) => {
 };
 
 /**
+ * Staff viewers (openspec `accountant-employee-access`): a signed-in user who
+ * is neither an admin nor an activated accountant, but whose email is on an
+ * accountant's staff list, acts as that accountant for reads — req.userId
+ * becomes the accountant, so the workspace queries need no change — and is
+ * marked req.viewerRole = 'viewer' for the read-only gate. Runs after
+ * requireAuth and before requireWhitelisted; never during a view-as session.
+ * The staff row is read per request, so removal takes effect on the next one.
+ */
+export const resolveStaffViewer: RequestHandler = async (req, res, next) => {
+  try {
+    if (req.realUserId !== req.userId) {
+      next();
+      return;
+    }
+    const user = await users.getById(req.realUserId!);
+    if (!user || user.is_admin || (await whitelist.isWhitelisted(user.email))) {
+      next();
+      return;
+    }
+    const staff = await accountantStaff.findByEmail(user.email);
+    if (staff) {
+      req.userId = staff.accountant_user_id;
+      req.viewerRole = 'viewer';
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** Refuses everything a staff viewer may not do (viewerAccess.ts); others pass untouched. */
+export const viewerReadOnlyGate: RequestHandler = (req, res, next) => {
+  if (req.viewerRole === 'viewer' && !viewerMayRequest(req.method, req.path)) {
+    res.status(403).json(READ_ONLY_ERROR);
+    return;
+  }
+  next();
+};
+
+/**
  * Paid-access gate, keyed on the REAL signed-in user: admins always pass (which
  * also covers impersonating a not-yet-whitelisted accountant); everyone else
- * needs their email in whitelisted_emails. Runs after requireAuth.
+ * needs their email in whitelisted_emails. Runs after requireAuth. A staff
+ * viewer (resolveStaffViewer) passes on the strength of the staff row.
  */
 export const requireWhitelisted: RequestHandler = async (req, res, next) => {
   try {
+    if (req.viewerRole === 'viewer') {
+      next();
+      return;
+    }
     const user = await users.getById(req.realUserId!);
     if (user && (user.is_admin || (await whitelist.isWhitelisted(user.email)))) {
       next();

@@ -352,3 +352,16 @@ export interface AppSettingRow {
   value: string;
   updated_at: Date;
 }
+
+/**
+ * One employee an accountant lets into their workspace read-only (migration
+ * 068, openspec `accountant-employee-access`). `email` is stored lower-cased
+ * and is unique across all accountants.
+ */
+export interface AccountantStaffRow {
+  id: string;
+  accountant_user_id: string;
+  email: string;
+  created_by: string | null;
+  created_at: Date;
+}

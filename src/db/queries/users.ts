@@ -26,6 +26,8 @@ export interface UserListRow {
   whitelisted: boolean;
   /** False for invited rows (admin-created, no Google identity claimed yet). */
   signed_in: boolean;
+  /** The accountant whose staff list carries this email (openspec `accountant-employee-access`); null otherwise. */
+  staff_of_email: string | null;
 }
 
 /**
@@ -37,7 +39,8 @@ export async function listAll(): Promise<UserListRow[]> {
     `SELECT u.id, u.email, u.name, w.hebrew_name, u.is_admin, u.created_at,
             m.email_address AS mailbox_address,
             (w.email IS NOT NULL) AS whitelisted,
-            (u.google_sub IS NOT NULL) AS signed_in
+            (u.google_sub IS NOT NULL) AS signed_in,
+            a.email AS staff_of_email
      FROM users u
      -- One mailbox per agent instance (migration 024): take the oldest so a
      -- user with several agents is still one row.
@@ -45,6 +48,10 @@ export async function listAll(): Promise<UserListRow[]> {
        SELECT email_address FROM agent_mailboxes WHERE user_id = u.id ORDER BY created_at LIMIT 1
      ) m ON TRUE
      LEFT JOIN whitelisted_emails w ON w.email = lower(u.email)
+     -- A staff viewer's accountant (migration 068), so the admin list can label
+     -- them instead of showing "waiting for activation".
+     LEFT JOIN accountant_staff s ON s.email = lower(u.email)
+     LEFT JOIN users a ON a.id = s.accountant_user_id
      ORDER BY u.created_at DESC`,
   );
   return rows;

@@ -5,6 +5,7 @@ import type { MessageStringKey } from '../agents/types';
 import { useT } from '../i18n';
 import { CopyButton } from './CopyButton';
 import { SettingsGroup, SettingsRow } from './SettingsUI';
+import { StaffSettings } from './StaffSettings';
 
 interface Props {
   /** Legacy account mailbox — shown as a fallback for instances that predate admin-assigned addresses. */
@@ -23,26 +24,43 @@ interface Props {
    */
   adminTestPanel?: ReactNode;
   impersonating?: boolean;
+  /**
+   * A staff viewer (openspec `accountant-employee-access`): only the dashboard
+   * tab exists — no general, agent, test or staff tab, and none of their data
+   * is fetched.
+   */
+  viewerOnly?: boolean;
 }
 
-type Tab = 'general' | 'agent' | 'test' | 'dashboard';
+type Tab = 'general' | 'agent' | 'staff' | 'test' | 'dashboard';
 
-export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hideMailbox, adminTestPanel, impersonating }: Props) {
+export function Settings({
+  mailbox,
+  dashboard,
+  agentPanel,
+  agentPanelTabKey,
+  hideMailbox,
+  adminTestPanel,
+  impersonating,
+  viewerOnly = false,
+}: Props) {
   const { t } = useT();
   const [waSender, setWaSender] = useState<WaSenderStatus | null>(null);
   const [emailSender, setEmailSender] = useState<EmailSenderStatus | null>(null);
   const wsApi = useWorkspaceApi();
 
   // The agent panel gets its own tab only when the agent type asks for one.
-  const tabbed = agentPanel != null && agentPanelTabKey != null;
+  const tabbed = !viewerOnly && agentPanel != null && agentPanelTabKey != null;
   // The admin-only test tab exists only under view-as; a remembered 'test'
   // falls back to the general tab in the accountant's own session.
-  const testTab = Boolean(impersonating) && adminTestPanel != null;
+  const testTab = !viewerOnly && Boolean(impersonating) && adminTestPanel != null;
   // Survives a refresh alongside fm.lastView, so the user lands back on the same tab.
   const [activeTab, setActiveTab] = useState<Tab>(() => {
+    if (viewerOnly) return 'dashboard';
     const stored = sessionStorage.getItem('fm.settingsTab');
     if (stored === 'dashboard') return 'dashboard';
     if (stored === 'agent' && tabbed) return 'agent';
+    if (stored === 'staff') return 'staff';
     if (stored === 'test' && testTab) return 'test';
     return 'general';
   });
@@ -51,12 +69,14 @@ export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hid
   }, [activeTab]);
 
   useEffect(() => {
+    if (viewerOnly) return;
     wsApi.waSenderStatus().then(setWaSender).catch(() => setWaSender({ assigned: false, phoneNumber: null }));
-  }, [wsApi]);
+  }, [wsApi, viewerOnly]);
 
   useEffect(() => {
+    if (viewerOnly) return;
     wsApi.emailSender().then(setEmailSender).catch(() => setEmailSender({ assigned: false, emailAddress: null }));
-  }, [wsApi]);
+  }, [wsApi, viewerOnly]);
 
   // Prefer the agent's own admin-assigned address; fall back to the legacy account mailbox.
   const address = (emailSender?.assigned ? emailSender.emailAddress : null) ?? (mailbox?.claimed ? mailbox.emailAddress : null);
@@ -72,15 +92,17 @@ export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hid
       </header>
 
       <div className="client-tabs" role="tablist" aria-label={t.settingsTitle}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'general'}
-          className={`client-tab ${activeTab === 'general' ? 'active' : ''}`}
-          onClick={() => setActiveTab('general')}
-        >
-          {t.settingsTabGeneral}
-        </button>
+        {!viewerOnly && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'general'}
+            className={`client-tab ${activeTab === 'general' ? 'active' : ''}`}
+            onClick={() => setActiveTab('general')}
+          >
+            {t.settingsTabGeneral}
+          </button>
+        )}
         {tabbed && (
           <button
             type="button"
@@ -90,6 +112,17 @@ export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hid
             onClick={() => setActiveTab('agent')}
           >
             {t[agentPanelTabKey!]}
+          </button>
+        )}
+        {!viewerOnly && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'staff'}
+            className={`client-tab ${activeTab === 'staff' ? 'active' : ''}`}
+            onClick={() => setActiveTab('staff')}
+          >
+            {t.settingsTabStaff}
           </button>
         )}
         {testTab && (
@@ -121,6 +154,8 @@ export function Settings({ mailbox, dashboard, agentPanel, agentPanelTabKey, hid
         dashboard
       ) : tabbed && activeTab === 'agent' ? (
         agentPanel
+      ) : !viewerOnly && activeTab === 'staff' ? (
+        <StaffSettings />
       ) : testTab && activeTab === 'test' ? (
         adminTestPanel
       ) : (

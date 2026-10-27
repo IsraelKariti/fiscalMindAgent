@@ -66,6 +66,8 @@ export interface AccountantRow {
   /** Admin-entered Hebrew name of the accountant/firm — the name agents sign with. */
   hebrewName: string | null;
   whitelisted: boolean;
+  /** The accountant whose staff list carries this email (a read-only viewer, openspec `accountant-employee-access`). */
+  staffOf: string | null;
   user: Accountant | null;
 }
 
@@ -77,6 +79,7 @@ export function buildAccountantRows(accountants: Accountant[], whitelist: Whitel
       name: entry.name,
       hebrewName: entry.hebrewName,
       whitelisted: true,
+      staffOf: null,
       user: null,
     });
   }
@@ -88,7 +91,14 @@ export function buildAccountantRows(accountants: Accountant[], whitelist: Whitel
       existing.name = existing.name ?? user.name;
       existing.hebrewName = existing.hebrewName ?? user.hebrewName;
     } else {
-      byEmail.set(key, { email: key, name: user.name, hebrewName: user.hebrewName, whitelisted: user.whitelisted, user });
+      byEmail.set(key, {
+        email: key,
+        name: user.name,
+        hebrewName: user.hebrewName,
+        whitelisted: user.whitelisted,
+        staffOf: user.staffOf ?? null,
+        user,
+      });
     }
   }
   return [...byEmail.values()];
@@ -118,6 +128,13 @@ export function taxYearOptions(configured: number | null): { value: string; labe
 export function StatusBadge({ row }: { row: AccountantRow }) {
   const { t } = useT();
   const status = rowStatus(row);
+  if (status === 'none' && row.staffOf) {
+    return (
+      <span className="badge badge-neutral" title={t.staffOfTitle}>
+        {t.staffOfBadge(row.staffOf)}
+      </span>
+    );
+  }
   if (status === 'none') {
     return (
       <span className="badge badge-pending" title={t.noAccessTitle}>

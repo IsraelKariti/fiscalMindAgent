@@ -1,5 +1,6 @@
 import { pool } from '../pool.js';
 import type { AccountantStaffRow } from '../types.js';
+import { signedInSql } from './users.js';
 
 export interface StaffListRow extends AccountantStaffRow {
   /** Whether a user with this email has signed in with Google at least once. */
@@ -9,7 +10,7 @@ export interface StaffListRow extends AccountantStaffRow {
 /** The accountant's staff list, oldest first, with whether each person has signed in yet. */
 export async function listForAccountant(accountantUserId: string): Promise<StaffListRow[]> {
   const { rows } = await pool.query<StaffListRow>(
-    `SELECT s.*, (u.google_sub IS NOT NULL) AS signed_in
+    `SELECT s.*, ${signedInSql('u')} AS signed_in
      FROM accountant_staff s
      LEFT JOIN users u ON lower(u.email) = s.email
      WHERE s.accountant_user_id = $1

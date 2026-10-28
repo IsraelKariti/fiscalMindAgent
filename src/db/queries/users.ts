@@ -24,7 +24,7 @@ export interface UserListRow {
   created_at: string;
   mailbox_address: string | null;
   whitelisted: boolean;
-  /** False for invited rows (admin-created, no Google identity claimed yet). */
+  /** False until a Google sign-in: invited rows and monday-provisioned rows haven't (signedInSql). */
   signed_in: boolean;
   /** The accountant whose staff list carries this email (openspec `accountant-employee-access`); null otherwise. */
   staff_of_email: string | null;
@@ -39,7 +39,7 @@ export async function listAll(): Promise<UserListRow[]> {
     `SELECT u.id, u.email, u.name, w.hebrew_name, u.is_admin, u.created_at,
             m.email_address AS mailbox_address,
             (w.email IS NOT NULL) AS whitelisted,
-            (u.google_sub IS NOT NULL) AS signed_in,
+            ${signedInSql('u')} AS signed_in,
             a.email AS staff_of_email
      FROM users u
      -- One mailbox per agent instance (migration 024): take the oldest so a
@@ -156,51 +156,83 @@ export async function createInvited(email: string, name: string | null): Promise
   return rows[0] ?? null;
 }
 
+/** Prefix of the placeholder google_sub written by monday auto-provisioning (monday.ts). */
+export const MONDAY_SUB_PREFIX = 'monday:';
+
 /**
- * First verified Google sign-in of an invited account: fills in the Google
- * identity on the admin-created row so everything configured pre-login (agents,
- * addresses, WhatsApp numbers) is already theirs. Google-login callback only —
- * unverified email claims (e.g. monday-reported emails) must never reach this.
+ * SQL for "this user has signed in with Google at least once" (openspec
+ * `google-sign-in`). An invited row (google_sub NULL) and a monday-provisioned
+ * row (placeholder `monday:` sub) both count as not signed in yet.
  */
-export async function claimInvitedByEmail(args: {
+export function signedInSql(alias: string): string {
+  return `(${alias}.google_sub IS NOT NULL AND ${alias}.google_sub NOT LIKE '${MONDAY_SUB_PREFIX}%')`;
+}
+
+/** Whether a user with this email (any casing) has signed in with Google. */
+export async function hasSignedIn(email: string): Promise<boolean> {
+  const { rows } = await pool.query(`SELECT 1 FROM users u WHERE lower(u.email) = lower($1) AND ${signedInSql('u')}`, [
+    email,
+  ]);
+  return rows.length > 0;
+}
+
+export interface GoogleProfile {
   googleSub: string;
   email: string;
   name: string | null;
   pictureUrl: string | null;
-}): Promise<UserRow | null> {
-  const { rows } = await pool.query<UserRow>(
-    `UPDATE users
-     SET google_sub = $1, email = $2, name = $3, picture_url = $4, updated_at = now()
-     WHERE google_sub IS NULL AND lower(email) = lower($2)
-     RETURNING *`,
-    [args.googleSub, args.email, args.name, args.pictureUrl],
-  );
-  return rows[0] ?? null;
 }
 
 /**
- * Called on every Google sign-in: creates the user on first login, and keeps
- * email/name/picture in sync with the Google profile afterwards. `google_sub`
- * is Google's stable per-account id — email can change, sub never does.
- * (Invited rows never conflict here — their google_sub is NULL.)
+ * Every verified Google sign-in (openspec `google-sign-in`): the email is the
+ * identity. The row with this email (any casing) is signed in and refreshed
+ * from the Google profile — whether it was created by an earlier sign-in, by
+ * an admin invite (google_sub NULL) or by monday (placeholder sub) — so
+ * everything attached to it (agents, mailbox, staff membership, monday link)
+ * stays the person's. Without such a row a new user is created. google_sub is
+ * stored as information only and never used to find a user; the INSERT's
+ * conflict clause only covers two first sign-ins racing on the same email.
  */
-export async function upsertFromGoogle(args: {
-  googleSub: string;
-  email: string;
-  name: string | null;
-  pictureUrl: string | null;
-}): Promise<UserRow> {
+export async function signInByEmail(args: GoogleProfile): Promise<UserRow> {
+  const params = [args.googleSub, args.email, args.name, args.pictureUrl];
+  const updated = await pool.query<UserRow>(
+    `UPDATE users
+     SET google_sub = $1, email = $2, name = $3, picture_url = $4, updated_at = now()
+     WHERE lower(email) = lower($2)
+     RETURNING *`,
+    params,
+  );
+  if (updated.rows[0]) return updated.rows[0];
   const { rows } = await pool.query<UserRow>(
     `INSERT INTO users (google_sub, email, name, picture_url)
      VALUES ($1, $2, $3, $4)
-     ON CONFLICT (google_sub) DO UPDATE
-       SET email = EXCLUDED.email, name = EXCLUDED.name, picture_url = EXCLUDED.picture_url, updated_at = now()
+     ON CONFLICT (email) DO UPDATE
+       SET google_sub = EXCLUDED.google_sub, name = EXCLUDED.name, picture_url = EXCLUDED.picture_url, updated_at = now()
      RETURNING *`,
-    [args.googleSub, args.email, args.name, args.pictureUrl],
+    params,
   );
   const row = rows[0];
-  if (!row) throw new Error('upsertFromGoogle: no row returned');
+  if (!row) throw new Error('signInByEmail: no row returned');
   // Accounts start with zero agent instances; every agent is admin-created
   // (agentInstances.enableInstance).
+  return row;
+}
+
+/**
+ * monday auto-provisioning (monday.ts): a plain insert carrying the placeholder
+ * `monday:` sub. The caller checks the email first and maps a unique violation
+ * (23505) on users.email to its "email in use" answer; the person's first
+ * Google sign-in later takes this row over (signInByEmail).
+ */
+export async function createFromMonday(args: { email: string; name: string | null; placeholderSub: string }): Promise<UserRow> {
+  if (!args.placeholderSub.startsWith(MONDAY_SUB_PREFIX)) throw new Error('createFromMonday: not a monday placeholder sub');
+  const { rows } = await pool.query<UserRow>(
+    `INSERT INTO users (google_sub, email, name)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [args.placeholderSub, args.email, args.name],
+  );
+  const row = rows[0];
+  if (!row) throw new Error('createFromMonday: no row returned');
   return row;
 }

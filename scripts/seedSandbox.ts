@@ -37,7 +37,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const accountant = await users.upsertFromGoogle({
+  const accountant = await users.signInByEmail({
     googleSub: DEMO_SUB,
     email: DEMO_EMAIL,
     name: 'רו״ח דמו (סנדבוקס)',

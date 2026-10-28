@@ -71,7 +71,7 @@ export const addStaff: RequestHandler = async (req, res) => {
   }
   recordStaffAudit(req, 'staff.added', accountantId, email);
   logger.info('staff added', { accountantId, email, actorUserId: req.realUserId });
-  const signedIn = (await users.getByEmail(email))?.google_sub != null;
+  const signedIn = await users.hasSignedIn(email);
   res.status(201).json({ entry: serialize({ ...row, signed_in: signedIn }) });
 };
 

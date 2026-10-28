@@ -296,16 +296,16 @@ export const googleLoginCallback: RequestHandler = async (req, res) => {
   const payload = ticket.getPayload();
   if (!payload?.sub || !payload.email) return fail('id_token missing sub/email');
 
-  // An invited row (admin-created at activation, google_sub NULL) is claimed
-  // by the first verified Google login with its email — everything the admin
-  // configured pre-login (agents, addresses, numbers) is already the user's.
-  const profile = {
+  // The email is the identity (openspec `google-sign-in`): the row with this
+  // email is signed in whether an earlier login, an admin invite or monday
+  // created it; otherwise a new user is created. The Google sub is stored as
+  // information only.
+  const user = await users.signInByEmail({
     googleSub: payload.sub,
     email: payload.email,
     name: payload.name ?? null,
     pictureUrl: payload.picture ?? null,
-  };
-  const user = (await users.claimInvitedByEmail(profile)) ?? (await users.upsertFromGoogle(profile));
+  });
   // One-time admin bootstrap, Google-verified logins only (monday-reported
   // emails are unverified): while the DB has zero admins, an ADMIN_EMAILS
   // sign-in seeds the admin set. Afterwards admin access is DB-managed only.

@@ -1,4 +1,5 @@
 import { pool } from '../pool.js';
+import { signedInSql } from './users.js';
 
 export interface WhitelistRow {
   email: string;
@@ -9,7 +10,7 @@ export interface WhitelistRow {
 }
 
 export interface WhitelistListRow extends WhitelistRow {
-  /** Whether the accountant has signed in with Google at least once (invited rows haven't). */
+  /** Whether the accountant has signed in with Google at least once (invited and monday-provisioned rows haven't). */
   signed_up: boolean;
 }
 
@@ -20,7 +21,7 @@ export async function isWhitelisted(email: string): Promise<boolean> {
 
 export async function listAll(): Promise<WhitelistListRow[]> {
   const { rows } = await pool.query<WhitelistListRow>(
-    `SELECT w.email, w.name, w.hebrew_name, w.created_at, (u.google_sub IS NOT NULL) AS signed_up
+    `SELECT w.email, w.name, w.hebrew_name, w.created_at, ${signedInSql('u')} AS signed_up
      FROM whitelisted_emails w
      LEFT JOIN users u ON lower(u.email) = w.email
      ORDER BY w.created_at DESC`,

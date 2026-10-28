@@ -377,9 +377,11 @@ Industry pattern followed: one app with an agent registry
   accountant immediately creates their `users` row as an *invited* account
   (`google_sub` NULL, `users.createInvited`), so the admin can add agents and
   assign their email addresses and WhatsApp numbers before the accountant's
-  first login; the first verified Google sign-in with that email claims the
-  row (`users.claimInvitedByEmail`, Google-login callback only — unverified
-  email claims like monday's must never claim an invited account). The
+  first login. Google sign-in matches users **by email** (openspec
+  `google-sign-in`, `users.signInByEmail`): the row with that email is signed
+  in whether an earlier login, an invite or monday (placeholder `monday:`
+  sub) created it, and `google_sub` is stored as information only — never used
+  to find a user (its unique constraint went in migration 069). The
   accountant sees exactly the agents the admin configured. `enabled=false`
   hides an instance; **never DELETE an instance row — clients cascade off it
   and the agent's data would be destroyed.**

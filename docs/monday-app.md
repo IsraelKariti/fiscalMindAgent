@@ -38,10 +38,13 @@ server and built from `web/src/monday/`:
   cookie-only by design. The frontend picks the mount via
   `configureApi` in `web/src/api.ts` (see `web/src/monday/objectMain.tsx`).
 - **Monday-only accounts stay inside monday** — accounts auto-provisioned
-  from monday carry a synthetic `monday:` google_sub and no Google login, so
-  they can only use the custom object. (The dashboard widget and its
-  single-use "Open in FiscalMind" handoff were removed 2026-09-11; linking a
-  Google account is the way into the standalone SPA.)
+  from monday (`users.createFromMonday`) carry a placeholder `monday:`
+  google_sub and no Google login, so they can only use the custom object.
+  The person's first Google sign-in with the same email takes that row over
+  (`users.signInByEmail`, openspec `google-sign-in`) and replaces the
+  placeholder with the real sub; until then the row counts as "not signed in
+  yet" everywhere. (The dashboard widget and its single-use "Open in
+  FiscalMind" handoff were removed 2026-09-11.)
 - **Clients come from the agent's client-import sources** (workspace Settings
   → Integrations, server-side monday token) and the kickoff webhook — the
   object itself imports nothing through monday's in-iframe auth (the

@@ -31,10 +31,11 @@ async function sessionStatus(userId: string) {
   const whitelisted = await whitelist.isWhitelisted(user.email);
   return {
     provisioned: true,
-    // Auto-provisioned users carry a synthetic `monday:<ids>` google_sub until
-    // they link a real Google sign-in. (NULL — an admin-invited account that
-    // never signed in — can't reach here via monday, but counts as unlinked.)
-    linked: user.google_sub !== null && !user.google_sub.startsWith('monday:'),
+    // Auto-provisioned users carry a placeholder `monday:<ids>` google_sub until
+    // a Google sign-in with their email takes the row over (users.signInByEmail).
+    // (NULL — an admin-invited account that never signed in — can't reach here
+    // via monday, but counts as unlinked.)
+    linked: user.google_sub !== null && !user.google_sub.startsWith(users.MONDAY_SUB_PREFIX),
     email: user.email,
     whitelisted: user.is_admin || whitelisted,
     appUrl: env.APP_BASE_URL,
@@ -82,11 +83,10 @@ mondayRouter.post(
 
     let user;
     try {
-      user = await users.upsertFromGoogle({
-        googleSub: `monday:${req.monday!.accountId}:${req.monday!.userId}`,
+      user = await users.createFromMonday({
+        placeholderSub: `${users.MONDAY_SUB_PREFIX}${req.monday!.accountId}:${req.monday!.userId}`,
         email,
         name: name ?? null,
-        pictureUrl: null,
       });
     } catch (err) {
       // 23505 = unique_violation on users.email: someone registered it since the check above.

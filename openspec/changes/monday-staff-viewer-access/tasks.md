@@ -17,4 +17,4 @@
 
 - [x] 4.1 Update the staff-viewer paragraph in `docs/agents.md` to say both surfaces (standalone and the monday object) share the access function and the middleware order, and note that the Staff tab "signed in" column counts Google sign-ins only. Verify the paragraph reads correctly in the file.
 - [x] 4.2 Run `npm test` and confirm `tests/viewerAccess.test.ts` and `tests/signInByEmail.test.ts` still pass.
-- [ ] 4.3 Commit per the repo Git workflow (`git pull --rebase origin master`, `npm run typecheck`, commit, push) and confirm the push lands on `master`.
+- [x] 4.3 Commit per the repo Git workflow (`git pull --rebase origin master`, `npm run typecheck`, commit, push) and confirm the push lands on `master`.

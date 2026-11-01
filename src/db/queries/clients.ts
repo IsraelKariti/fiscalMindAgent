@@ -400,9 +400,9 @@ export async function markOverdueStopped(id: string): Promise<ClientRow | null> 
 }
 
 /**
- * Sets or clears the client's collection due date. Either way both
- * overdue markers are dropped, so a changed date can notify again when the new
- * date passes and any "handed off" UI state is cleared.
+ * Sets or clears the client's collection due date. Either way the overdue
+ * markers and the decline marker are dropped, so a changed date can notify
+ * again when the new date passes and any "handed off" UI state is cleared.
  */
 export async function setDueDate(
   id: string,
@@ -412,8 +412,8 @@ export async function setDueDate(
   const { rows } = await pool.query<ClientRow>(
     `UPDATE clients
      SET agent_fields = CASE WHEN $3::text IS NULL
-           THEN agent_fields - 'due_date' - 'overdue_notified_at' - 'overdue_stopped_at'
-           ELSE (agent_fields - 'overdue_notified_at' - 'overdue_stopped_at') || jsonb_build_object('due_date', $3::text) END,
+           THEN agent_fields - 'due_date' - 'overdue_notified_at' - 'overdue_stopped_at' - 'declined_at'
+           ELSE (agent_fields - 'overdue_notified_at' - 'overdue_stopped_at' - 'declined_at') || jsonb_build_object('due_date', $3::text) END,
          updated_at = now()
      WHERE id = $1 AND agent_instance_id = $2
      RETURNING *`,
@@ -423,12 +423,37 @@ export async function setDueDate(
 }
 
 /**
- * Clears the "stopped because overdue" UI marker on resume. The
- * overdue_notified_at idempotency key stays, so the accountant is not emailed
- * again for the same due date.
+ * Clears the "handed off" UI markers on resume: the overdue stop and the
+ * client's decline (openspec `client-decline`). The overdue_notified_at
+ * idempotency key stays, so the accountant is not emailed again for the same
+ * due date; a decline after a resume is a new event and emails again.
  */
-export async function clearOverdueStopped(id: string): Promise<void> {
-  await pool.query(`UPDATE clients SET agent_fields = agent_fields - 'overdue_stopped_at' WHERE id = $1`, [id]);
+export async function clearHandedOff(id: string): Promise<void> {
+  await pool.query(`UPDATE clients SET agent_fields = agent_fields - 'overdue_stopped_at' - 'declined_at' WHERE id = $1`, [id]);
+}
+
+/** Whether the client is paused because it was handed to the accountant (overdue stop or decline). */
+export function isHandedOff(client: Pick<ClientRow, 'paused' | 'agent_fields'>): boolean {
+  return client.paused && (typeof client.agent_fields['overdue_stopped_at'] === 'string' || typeof client.agent_fields['declined_at'] === 'string');
+}
+
+/**
+ * Client decline (openspec `client-decline`): pauses the client and stamps
+ * `declined_at`. Conditional, so a second decline, a complete or a deleted
+ * client returns null and the caller does nothing more.
+ */
+export async function markDeclined(id: string): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(
+    `UPDATE clients
+     SET paused = true,
+         agent_fields = agent_fields || jsonb_build_object('declined_at', $2::text),
+         updated_at = now()
+     WHERE id = $1 AND deleted_at IS NULL AND goal_status = 'pending'
+       AND (agent_fields->>'declined_at') IS NULL
+     RETURNING *`,
+    [id, new Date().toISOString()],
+  );
+  return rows[0] ?? null;
 }
 
 /**

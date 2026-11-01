@@ -79,6 +79,12 @@ export type AuditAction =
   // The fixed closing message after the goal completes (openspec
   // `declaration-completion`): sent, or skipped with the reason.
   | 'send_closing'
+  // The fixed acknowledgement after the client declined the WhatsApp
+  // collection (openspec `client-decline`): sent, or skipped with the reason.
+  | 'send_decline_ack'
+  // The client declined the WhatsApp collection (button or words): paused,
+  // handed to the accountant. detail.source = 'button' | 'planner'.
+  | 'client.declined'
   | 'client.auto_enrolled'
   | 'client.kickoff_triggered'
   // An admin's hand-filled test client (openspec `admin-test-client`).

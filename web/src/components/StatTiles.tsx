@@ -12,11 +12,13 @@ interface Props {
   dueDate?: string | null;
   /** Doc collector: the agent stopped because the due date passed — flag the follow-up tile. */
   overdueStopped?: boolean;
+  /** The agent stopped because the client declined the WhatsApp collection (openspec `client-decline`) — flag the follow-up tile. */
+  declined?: boolean;
 }
 
 const STALE_REPLY_DAYS = 7;
 
-export function StatTiles({ documents, emails, nextScheduled, goalStatus, dueDate = null, overdueStopped = false }: Props) {
+export function StatTiles({ documents, emails, nextScheduled, goalStatus, dueDate = null, overdueStopped = false, declined = false }: Props) {
   const { t } = useT();
   const stats = useMemo(() => {
     // 'approved' (capital declaration: verified) counts as done; 'not_required'
@@ -126,6 +128,12 @@ export function StatTiles({ documents, emails, nextScheduled, goalStatus, dueDat
                 </span>
               )}
             </>
+          )}
+          {declined && goalStatus === 'pending' && (
+            <span className="stat-flag">
+              <span className="stat-flag-dot" />
+              {t.declinedFlag}
+            </span>
           )}
         </span>
       </div>

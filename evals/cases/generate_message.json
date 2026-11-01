@@ -7,7 +7,7 @@
     {
       "content_sid": "HXEVAL0001",
       "name": "capital_intro",
-      "body": "שלום {{1}}, כאן העוזר הדיגיטלי של משרד רואה החשבון {{2}}. קיבלנו את השאלון שמילאת להצהרת ההון ליום 31.12.{{3}}, ואשמח להמשיך איתך כאן בוואטסאפ. נוכל להתחיל?",
+      "body": "שלום {{1}}, כאן העוזר הדיגיטלי של משרד רואה החשבון {{2}}.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.{{3}} — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?",
       "variable_count": 3,
       "purpose": "intro"
     },
@@ -4406,6 +4406,58 @@
         "mentions_valuation_date": false
       },
       "notes": "Change self-evident-file-adds-item, the negative twin of dec_35: the same Phoenix study fund report but the holder's name is hidden in the file, so it is NOT self-evident (no marker). The old rule applies in full: no list change, no pairing, and the reply names the Phoenix file, says the name is hidden and asks whose fund it is."
+    },
+    {
+      "id": "dec_37",
+      "now": "2026-11-02T08:30:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-11-01T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            { "question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד" },
+            { "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין" }
+          ]
+        }
+      },
+      "wa": { "windowOpen": true, "windowClosesAt": "2026-11-03T08:25:00Z", "templates": ["capital_intro", "capital_update"] },
+      "documents": [
+        { "id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
+        { "type_key": "vehicle", "status": "not_required" }
+      ],
+      "thread": [
+        { "id": "msg-1", "direction": "outbound", "at": "2026-11-01T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?" },
+        { "id": "msg-2", "direction": "inbound", "at": "2026-11-02T08:25:00Z", "body": "לא תודה, אני מעדיף להביא את כל המסמכים למשרד בעצמי. אל תשלחו לי הודעות." }
+      ],
+      "expects": { "decision": "client_declined", "resolved_documents": [], "no_list_change": true },
+      "notes": "Change intro-template-decline: the client refuses the WhatsApp collection in his own words right after the intro -> client_declined, conclude only (no message, no list change). The code sends the fixed acknowledgement and hands the client to the accountant."
+    },
+    {
+      "id": "dec_38",
+      "now": "2026-11-02T08:30:00Z",
+      "client": {
+        "name": "ישראל ישראלי",
+        "wa_phone": "+972501234567",
+        "created_at": "2026-11-01T10:00:00Z",
+        "agent_fields": {
+          "form_answers": [
+            { "question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד" },
+            { "question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין" }
+          ]
+        }
+      },
+      "wa": { "windowOpen": true, "windowClosesAt": "2026-11-03T08:25:00Z", "templates": ["capital_intro", "capital_update"] },
+      "documents": [
+        { "id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null },
+        { "type_key": "vehicle", "status": "not_required" }
+      ],
+      "thread": [
+        { "id": "msg-1", "direction": "outbound", "at": "2026-11-01T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?" },
+        { "id": "msg-2", "direction": "inbound", "at": "2026-11-02T08:25:00Z", "body": "לא עכשיו, אני בחו\"ל. תחזור אליי בשבוע הבא" }
+      ],
+      "expects": { "decision": "follow_up", "message_kind": "freeform", "resolved_documents": [], "no_list_change": true, "mentions_valuation_date": false, "max_question_marks": 2 },
+      "notes": "Change intro-template-decline, the negative twin of dec_37: 'not now, come back next week' is a postponement, not a refusal -> follow_up as usual (a short acknowledgement now, or a reminder scheduled for next week), never client_declined."
     }
   ]
 }

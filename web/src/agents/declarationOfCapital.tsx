@@ -1,5 +1,5 @@
 import type { MessageChannel } from '../api';
-import { isOverdueStopped } from '../format';
+import { isDeclined, isOverdueStopped } from '../format';
 import { ClientHeader } from '../components/ClientHeader';
 import { ClientImportSettings } from '../components/ClientSourcesSettings';
 import { TestClientForm } from '../components/TestClientForm';
@@ -28,6 +28,7 @@ const clientTabs: ClientTab[] = [
           goalStatus={ctx.client.goal_status}
           paused={ctx.client.paused}
           overdueStopped={isOverdueStopped(ctx.client)}
+          declined={isDeclined(ctx.client)}
           drafting={ctx.drafting}
           draftFailed={ctx.draftFailed}
           draftStale={ctx.draftStale}
@@ -70,6 +71,7 @@ const clientTabs: ClientTab[] = [
           goalStatus={ctx.client.goal_status}
           dueDate={ctx.client.agent_fields?.due_date ?? null}
           overdueStopped={isOverdueStopped(ctx.client)}
+          declined={isDeclined(ctx.client)}
         />
         <DashboardCharts
           documents={ctx.documents}

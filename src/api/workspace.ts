@@ -537,11 +537,11 @@ workspaceRouter.put(
     if (parsed.data.paused) {
       await withClientLock(updated.id, () => pauseFutureEmail(updated.id));
     } else if (updated.goal_status === 'pending') {
-      // Resuming an overdue-stopped client hands it back to the agent: drop the
-      // "handed off" marker (the notified stamp stays — no repeat email for the
-      // same due date).
-      if (typeof updated.agent_fields['overdue_stopped_at'] === 'string') {
-        await clients.clearOverdueStopped(updated.id);
+      // Resuming an overdue-stopped or declined client hands it back to the
+      // agent: drop the "handed off" markers (the overdue notified stamp stays
+      // — no repeat email for the same due date).
+      if (typeof updated.agent_fields['overdue_stopped_at'] === 'string' || typeof updated.agent_fields['declined_at'] === 'string') {
+        await clients.clearHandedOff(updated.id);
         updated = (await clients.getById(updated.id)) ?? updated;
       }
       // Resuming a never-contacted manual-kickoff client IS its start trigger

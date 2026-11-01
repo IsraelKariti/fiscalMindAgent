@@ -50,13 +50,13 @@ describe('tool set per cycle (toolsForContext)', () => {
   const names = (c: DecisionContext) => toolJsonSchemas(c).map((t) => t.name);
 
   it('offers collect, mark_collected and tie_file in a regular cycle', () => {
-    assert.deepEqual(decisionEnum(ctx), ['goal_complete', 'follow_up', 'collect']);
+    assert.deepEqual(decisionEnum(ctx), ['goal_complete', 'follow_up', 'collect', 'client_declined']);
     assert.ok(names(ctx).includes('tie_file') && names(ctx).includes('mark_collected'));
   });
 
   it('offers only goal_complete and follow_up, and no collecting tool, in the follow-up cycle after verification', () => {
     const after = { ...ctx, afterVerification: true };
-    assert.deepEqual(decisionEnum(after), ['goal_complete', 'follow_up']);
+    assert.deepEqual(decisionEnum(after), ['goal_complete', 'follow_up', 'client_declined']);
     assert.ok(!names(after).includes('tie_file') && !names(after).includes('mark_collected'));
   });
 

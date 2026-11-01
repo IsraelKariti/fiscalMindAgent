@@ -72,8 +72,25 @@ activation is not email-gated and no mailbox is required — the instance's
   late answer) goes out as the seeded `capital_declaration_update` reopen
   template, which only asks the client to reply; the real content follows in
   the first free-form message. Operational prerequisite: one `intro` and one
-  `reopen` row for the agent type (seeded by migrations 051 and 064; admin:
-  waAdmin routes) or the agent cannot start or resume conversations.
+  `reopen` row for the agent type (seeded by migrations 071 and 064; admin:
+  waAdmin routes) or the agent cannot start or resume conversations. The
+  intro is `capital_declaration_intro_v2` (migration 071 seeds it and deletes
+  the former `capital_declaration_intro`): a quick-reply template whose two
+  buttons are "נתחיל כאן בוואטסאפ" (id `start`) and "לא, אטפל בזה בעצמי" (id
+  `decline`); a tap arrives as an inbound message whose Body is the button
+  text and whose `ButtonPayload` is the id (`InboundEvent.buttonPayload`).
+  **Client decline** (openspec `client-decline`): the decline button is
+  recognised in code (`clientDeclineRules.ts` · `isDeclineButton`, called
+  from `onInboundMessage` before the re-plan, so no planner call); a refusal
+  in words is the planner's `client_declined` decision (conclude only, the
+  gate rejects anything else). Both run `handleClientDecline`: the client is
+  paused with `agent_fields.declined_at` (`clients.markDeclined`, conditional
+  — a second decline is a no-op), the pending send is removed for good, one
+  fixed acknowledgement goes out (trace step `send_decline_ack`, open window
+  only, `{emailId}` or `{skipped}`), and the accountant gets the `declined`
+  email with the missing documents. The workspace shows "הלקוח סירב"
+  (`isDeclined`); resume or a new due date clears the marker
+  (`clients.clearHandedOff`) and a later decline is handled again.
 It is also a **manual-kickoff** type (`AgentTypeDefinition.manualKickoff`):
 the client-import scan enrolls its clients *paused* with no first draft, and
 the first message is drafted only on an explicit accountant trigger —

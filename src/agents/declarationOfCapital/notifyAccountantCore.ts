@@ -3,7 +3,7 @@ import type { recordAudit } from '../../audit/audit.js';
 import type { ClientRow, UserRow } from '../../db/types.js';
 
 /** Which platform notification an accountant email is (recorded as `detail.kind` on its trace row). */
-export type AccountantEmailKind = 'goal_complete' | 'claimed_documents' | 'verification_problem' | 'overdue';
+export type AccountantEmailKind = 'goal_complete' | 'claimed_documents' | 'verification_problem' | 'overdue' | 'declined';
 
 /** The collaborators of sendToAccountantWith — the real ones in notifyAccountant.ts, stubs in tests. */
 export interface NotifyAccountantDeps {

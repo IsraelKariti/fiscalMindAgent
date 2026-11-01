@@ -90,13 +90,13 @@ describe('toolsForContext', () => {
       'resolve_document', 'add_instance', 'state_cost', 'state_vehicle', 'retire_document', 'attestation',
     ]);
     assert.ok(names(CAPITAL_WITH_FETCH).includes('tax_fetch'));
-    assert.deepEqual(decisionValues(CAPITAL), ['goal_complete', 'follow_up', 'collect']);
+    assert.deepEqual(decisionValues(CAPITAL), ['goal_complete', 'follow_up', 'collect', 'client_declined']);
   });
 
   it('after verification: no collecting tools and no collect value', () => {
     const n = names(AFTER_VERIFICATION);
     assert.ok(!n.includes('mark_collected') && !n.includes('tie_file'));
-    assert.deepEqual(decisionValues(AFTER_VERIFICATION), ['goal_complete', 'follow_up']);
+    assert.deepEqual(decisionValues(AFTER_VERIFICATION), ['goal_complete', 'follow_up', 'client_declined']);
   });
 
   it('no intake: no checklist tools; the message tools are always offered', () => {
@@ -286,6 +286,26 @@ describe('gateDecision (validate_message on tool calls)', () => {
         return true;
       },
     );
+  });
+
+  // openspec `client-decline`: a typed refusal is the whole answer — conclude only.
+  it('client_declined passes alone and is rejected with any other call', () => {
+    const { decision, checks } = gateDecision([conclude('client_declined', 'the client refused')], CAPITAL);
+    assert.equal(decision.decision, 'client_declined');
+    assert.equal(decision.reasoning, 'the client refused');
+    assert.deepEqual(checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', true]]);
+    assert.equal(gateDecision([conclude('client_declined')], AFTER_VERIFICATION).decision.decision, 'client_declined');
+    for (const extra of [sendText('בסדר', 'asap'), { name: 'mark_collected', args: { document_id: 'doc-bank' } }]) {
+      assert.throws(
+        () => gateDecision([conclude('client_declined'), extra], CAPITAL),
+        (err: unknown) => {
+          assert.ok(err instanceof DecisionRejectedError);
+          assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', false]]);
+          assert.match(err.checks[1]!.note ?? '', /"client_declined" is the whole answer/);
+          return true;
+        },
+      );
+    }
   });
 });
 

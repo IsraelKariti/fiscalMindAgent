@@ -52,6 +52,14 @@ export function isOverdueStopped(client: {
   return client.goal_status === 'pending' && typeof client.agent_fields?.overdue_stopped_at === 'string';
 }
 
+/**
+ * The client declined the WhatsApp collection (openspec `client-decline`):
+ * the agent stopped and handed the client off to the accountant.
+ */
+export function isDeclined(client: { goal_status: 'pending' | 'complete'; agent_fields: { declined_at?: string } }): boolean {
+  return client.goal_status === 'pending' && typeof client.agent_fields?.declined_at === 'string';
+}
+
 /** "YYYY-MM-DD" → localized date, without a time-of-day. */
 export function formatDateOnly(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString(LOCALE, { dateStyle: 'medium' });

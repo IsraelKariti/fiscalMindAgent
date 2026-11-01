@@ -1112,6 +1112,12 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       checks.push({ key: 'ties', expected: '>0', actual: decision.collected_document_ids.length + decision.matched_files.length, pass: true });
     }
 
+    if (decision.decision === 'client_declined') {
+      // The gate already refuses anything beside conclude on a decline (openspec `client-decline`); the check makes the rule visible in the report.
+      const messageFields = [raw.whatsapp_text, raw.whatsapp_template, raw.send_at].filter((v) => v != null && v !== '');
+      checks.push({ key: 'no_message', expected: 'no message fields, send_at null', actual: messageFields.length === 0 ? 'none' : `${messageFields.length} filled`, pass: messageFields.length === 0 });
+    }
+
     if (decision.decision === 'follow_up') {
       const message = decision.message;
       const kind = message.kind;

@@ -50,6 +50,12 @@ export interface InboundEvent {
   /** False on duplicate provider redeliveries (the reaction then only matters if files were backfilled). */
   isNewMessage: boolean;
   newFileCount: number;
+  /**
+   * The id of the quick-reply button the client tapped (WhatsApp: Twilio's
+   * `ButtonPayload`), null for a typed message or an email. The message body
+   * then holds the button's text.
+   */
+  buttonPayload: string | null;
 }
 
 /**

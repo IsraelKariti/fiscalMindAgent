@@ -154,6 +154,7 @@ async function handleClientEmail(data: ResendInboundData, resendId: string, clie
       messageRowId: emailRow?.id ?? null,
       isNewMessage: inserted !== null,
       newFileCount: newFiles,
+      buttonPayload: null,
     });
   }
 }

@@ -23,6 +23,8 @@ export interface TwilioInboundParams {
   To: string;
   Body?: string;
   NumMedia?: string;
+  /** Quick-reply button tap: the button's id (its text arrives as Body). */
+  ButtonPayload?: string;
   [key: string]: string | undefined;
 }
 
@@ -112,6 +114,7 @@ async function handleClientMessage(params: TwilioInboundParams, client: ClientRo
       messageRowId: messageRow?.id ?? null,
       isNewMessage: inserted !== null,
       newFileCount: newFiles,
+      buttonPayload: params.ButtonPayload?.trim() || null,
     });
   }
 }

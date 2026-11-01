@@ -52,6 +52,7 @@ import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
 import type { ClientDocumentRow, ClientRow, DocumentFileRow, EmailRow } from '../../db/types.js';
 import { splitTemplatesByPurpose } from './templatePurpose.js';
+import { handleClientDecline } from './clientDecline.js';
 
 /** Covers a realistic burst of client messages; older drafts add nothing the documents list doesn't already show. */
 const MAX_UNSENT_DRAFTS = 5;
@@ -172,6 +173,13 @@ interface CollectionOutcome {
 export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const run = await loadPlanningContext(ctx);
   const decision = await askPlanner(run);
+  // The client refused the collection in words (openspec `client-decline`):
+  // nothing to apply, nothing to schedule — the decline routine answers,
+  // pauses and emails. The caller (setFutureEmail) holds the client lock.
+  if (decision.decision === 'client_declined') {
+    await handleClientDecline(ctx, 'planner');
+    return;
+  }
   const changes: ChecklistChanges = { applied: 0, createdWithFiles: [], claimedAtCreation: [], createdStated: [], createdStatedVehicles: [] };
   await applyResolutions(run, decision, changes);
   await applyAdditions(run, decision, changes);

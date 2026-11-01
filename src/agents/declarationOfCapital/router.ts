@@ -161,13 +161,14 @@ export function buildRouter(): Router {
         res.status(404).json({ error: 'Client not found.' });
         return;
       }
-      const wasOverdueStopped = client.paused && typeof client.agent_fields['overdue_stopped_at'] === 'string';
+      // A new date hands an overdue-stopped or declined client back to the agent.
+      const wasHandedOff = clients.isHandedOff(client);
       let updated = await clients.setDueDate(client.id, req.agentInstance!.id, parsed.data.dueDate);
       if (!updated) {
         res.status(404).json({ error: 'Client not found.' });
         return;
       }
-      if (wasOverdueStopped) {
+      if (wasHandedOff) {
         updated = (await clients.setPaused(client.id, false)) ?? updated;
         await withClientLock(client.id, () => resumeFutureEmail(client.id));
       }

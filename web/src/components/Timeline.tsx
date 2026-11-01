@@ -298,6 +298,7 @@ export function Timeline({
   goalStatus,
   paused,
   overdueStopped = false,
+  declined = false,
   drafting = false,
   draftFailed,
   draftStale,
@@ -330,6 +331,8 @@ export function Timeline({
   paused: boolean;
   /** Doc collector: the pause is because the collection due date passed — swap the paused copy for the handed-off copy. */
   overdueStopped?: boolean;
+  /** The pause is because the client declined the WhatsApp collection (openspec `client-decline`) — its own handed-off copy. */
+  declined?: boolean;
   /**
    * The agent is writing the next message (goal open, nothing scheduled). Set
    * while paused too when a never-contacted client's first message is being
@@ -847,7 +850,9 @@ export function Timeline({
                 )}
                 <span className={`scheduled-note ${sendFailed ? 'scheduled-note-failed' : ''}`}>
                   {paused ? (
-                    overdueStopped ? (
+                    declined ? (
+                      t.declinedScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
+                    ) : overdueStopped ? (
                       t.overdueScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
                     ) : (
                       t.pausedScheduledNote(formatTimestamp(nextScheduled.scheduledFor))
@@ -979,7 +984,7 @@ export function Timeline({
             <li className="timeline-item outbound scheduled">
               <div className="bubble bubble-scheduled bubble-paused">
                 <span className="paused-icon">{icon.pause}</span>
-                <span>{overdueStopped ? t.overdueNotice : t.pausedNotice}</span>
+                <span>{declined ? t.declinedNotice : overdueStopped ? t.overdueNotice : t.pausedNotice}</span>
                 <button
                   type="button"
                   className="btn btn-ghost btn-small resume-btn"

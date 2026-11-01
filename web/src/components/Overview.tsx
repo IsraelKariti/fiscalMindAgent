@@ -126,9 +126,11 @@ export function Overview({ onSelectClient }: Props) {
                   <span className="overview-row-top">
                     <span className="overview-row-name">
                       <span
-                        className={`status-dot ${client.overdue_stopped ? 'overdue' : client.goal_status}`}
+                        className={`status-dot ${client.overdue_stopped || client.declined ? 'overdue' : client.goal_status}`}
                         title={
-                          client.overdue_stopped
+                          client.declined
+                            ? t.goalDeclinedTitle
+                            : client.overdue_stopped
                             ? t.goalOverdueTitle
                             : client.goal_status === 'complete'
                               ? t.goalCompleteTitle

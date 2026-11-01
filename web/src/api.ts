@@ -14,6 +14,8 @@ export interface ClientAgentFields {
   overdue_notified_at?: string;
   /** Set while the agent is stopped because the due date passed — the "handed off" UI state. */
   overdue_stopped_at?: string;
+  /** Set while the agent is stopped because the client declined the WhatsApp collection (openspec `client-decline`). */
+  declined_at?: string;
   /** Capital declaration: the client's marital status from the questionnaire (openspec `spouse-identity`). */
   marital_status?: 'married' | 'not_married';
   /** Capital declaration: the one spouse on file (name / id / sources), shape owned by spouseIdentity.ts. */
@@ -208,6 +210,8 @@ export interface DashboardClientSummary {
   goal_status: GoalStatus;
   /** The agent stopped chasing because the collection due date passed. */
   overdue_stopped: boolean;
+  /** The agent stopped because the client declined the WhatsApp collection. */
+  declined: boolean;
   created_at: string;
   docs_total: number;
   docs_collected: number;

@@ -94,3 +94,25 @@ export async function sendOverdueEmail(client: ClientRow, missingDocNames: strin
   ].join('\n');
   await sendToAccountant(client, 'overdue', subject, body);
 }
+
+/**
+ * The client declined the WhatsApp collection (openspec `client-decline`):
+ * they will hand the documents to the office themselves. Sent once per decline.
+ */
+export async function sendDeclinedEmail(client: ClientRow, missingDocNames: string[]): Promise<void> {
+  const missing = missingDocNames.map((name) => `• ${name}`).join('\n');
+  const subject = `הלקוח ${client.name} סירב לאיסוף בוואטסאפ — יעביר את המסמכים למשרד בעצמו`;
+  const body = [
+    'שלום,',
+    '',
+    `הלקוח ${client.name} הודיע שאינו מעוניין לאסוף את המסמכים להצהרת ההון בוואטסאפ, ושיעביר אותם למשרד בעצמו.`,
+    'המסמכים שעדיין חסרים:',
+    missing || '• (לא הוגדרו מסמכים)',
+    '',
+    'הסוכן הפסיק לשלוח הודעות והלקוח הועבר לטיפולך.',
+    'אם הלקוח יתחרט, אפשר לחדש את הפעילות מתוך תיק הלקוח והסוכן ימשיך לעקוב.',
+    '',
+    `לצפייה בתיק הלקוח: ${env.APP_BASE_URL}`,
+  ].join('\n');
+  await sendToAccountant(client, 'declined', subject, body);
+}

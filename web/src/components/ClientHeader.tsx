@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { type Client } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
-import { displayClientName, formatDateOnly, isOverdueStopped, LOCALE } from '../format';
+import { displayClientName, formatDateOnly, isDeclined, isOverdueStopped, LOCALE } from '../format';
 import { useT } from '../i18n';
 
 interface Props {
@@ -107,6 +107,8 @@ export function ClientHeader({ client, onSaved, withDueDate = false, readOnly = 
   const [error, setError] = useState<string | null>(null);
 
   const overdueStopped = withDueDate && isOverdueStopped(client);
+  // The client declined the WhatsApp collection (openspec `client-decline`): handed off, own wording.
+  const declined = isDeclined(client);
   const dueDate = withDueDate ? (client.agent_fields?.due_date ?? null) : null;
 
   const set = (field: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -144,10 +146,12 @@ export function ClientHeader({ client, onSaved, withDueDate = false, readOnly = 
           <h2>{displayClientName(client.name)}</h2>
           <span
             className={`badge ${
-              overdueStopped ? 'badge-danger' : client.goal_status === 'complete' ? 'badge-success' : 'badge-pending'
+              declined || overdueStopped ? 'badge-danger' : client.goal_status === 'complete' ? 'badge-success' : 'badge-pending'
             }`}
           >
-            {overdueStopped
+            {declined
+              ? t.declinedBadge
+              : overdueStopped
               ? t.overdueBadge
               : client.goal_status === 'complete'
                 ? t.allDocsReceived

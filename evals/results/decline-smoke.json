@@ -1,0 +1,224 @@
+{
+  "ranAt": "2026-11-01T13:45:46.086Z",
+  "finishedAt": "2026-11-01T13:46:07.080Z",
+  "models": [
+    "gpt-6-astra"
+  ],
+  "stages": [
+    "injection_detection_llm",
+    "questionnaire_schema_mapping",
+    "file_splitting",
+    "file_classification",
+    "extract_document",
+    "generate_message"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gpt-6-astra": {
+      "model": "gpt-6-astra",
+      "inputCostPerToken": 0.00001,
+      "outputCostPerToken": 0.00005,
+      "thinkingCostPerToken": 0.00005,
+      "cachedCostPerToken": 0.000001
+    }
+  },
+  "results": [
+    {
+      "stage": "generate_message",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_37",
+      "notes": "Change intro-template-decline: the client refuses the WhatsApp collection in his own words right after the intro -> client_declined, conclude only (no message, no list change). The code sends the fixed acknowledgement and hands the client to the accountant.",
+      "ranAt": "2026-11-01T13:45:49.915Z",
+      "latencyMs": 7397,
+      "attempts": 1,
+      "inputTokens": 25516,
+      "outputTokens": 76,
+      "thinkingTokens": 0,
+      "cachedTokens": 0,
+      "costUsd": 0.25896,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "client_declined",
+              "reasoning": "הלקוח סירב במפורש לאיסוף בוואטסאפ, מעדיף להביא את המסמכים למשרד בעצמו וביקש שלא לשלוח הודעות. אין לשלוח הודעה או לשנות את הרשימה."
+            },
+            "turn": 1
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "client_declined",
+          "actual": "client_declined",
+          "pass": true
+        },
+        {
+          "key": "no_message",
+          "expected": "no message fields, send_at null",
+          "actual": "none",
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "conclude"
+        ],
+        "reasoning": "הלקוח סירב במפורש לאיסוף בוואטסאפ, מעדיף להביא את המסמכים למשרד בעצמו וביקש שלא לשלוח הודעות. אין לשלוח הודעה או לשנות את הרשימה.",
+        "send_at": null,
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "generate_message",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_38",
+      "notes": "Change intro-template-decline, the negative twin of dec_37: 'not now, come back next week' is a postponement, not a refusal -> follow_up as usual (a short acknowledgement now, or a reminder scheduled for next week), never client_declined.",
+      "ranAt": "2026-11-01T13:45:50.220Z",
+      "latencyMs": 16851,
+      "attempts": 1,
+      "inputTokens": 30972,
+      "outputTokens": 141,
+      "thinkingTokens": 232,
+      "cachedTokens": 0,
+      "costUsd": 0.32837000000000005,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "ישראל, אין בעיה, נעצור כרגע ונחזור אליך בשבוע הבא. אין צורך לטפל במסמכים בזמן הנסיעה.",
+              "send_at": "2026-11-02 10:40"
+            },
+            "turn": 1
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "The client requested a temporary pause until next week, not a refusal. Scheduled a brief acknowledgment within the open WhatsApp window without requesting documents or answers now. Collection should remain paused; next week's outreach will require an approved template if the window has closed."
+            },
+            "turn": 2
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-11-02T08:30:00Z",
+          "actual": "2026-11-02 10:40",
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "The client requested a temporary pause until next week, not a refusal. Scheduled a brief acknowledgment within the open WhatsApp window without requesting documents or answers now. Collection should remain paused; next week's outreach will require an approved template if the window has closed.",
+        "send_at": "2026-11-02 10:40",
+        "message": "ישראל, אין בעיה, נעצור כרגע ונחזור אליך בשבוע הבא. אין צורך לטפל במסמכים בזמן הנסיעה.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "generate_message": {
+      "gpt-6-astra": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 12124,
+          "p50": 7397,
+          "p90": 7397,
+          "min": 7397,
+          "max": 16851
+        },
+        "inputTokens": 56488,
+        "outputTokens": 217,
+        "thinkingTokens": 232,
+        "cachedTokens": 0,
+        "costUsd": 0.58733,
+        "unpriced": 0
+      }
+    }
+  }
+}

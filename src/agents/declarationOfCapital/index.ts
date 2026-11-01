@@ -7,6 +7,8 @@ import { buildRouter } from './router.js';
 import { catalogSeedRows } from './catalog.js';
 import { maybeHandleOtpInbound } from './taxFetch/inboundOtp.js';
 import { startCollectionWindow } from './collectionWindow.js';
+import { handleClientDecline, inboundMessageBody, isDeclineButton } from './clientDecline.js';
+import { withClientLock } from '../../db/withClientLock.js';
 import type { AgentTypeDefinition } from '../types.js';
 
 /**
@@ -49,6 +51,13 @@ export const declarationOfCapitalAgent: AgentTypeDefinition = {
     // The three injection layers on the message text, before any planning: a
     // hit withholds the text from the planner and answers with a fixed reply.
     await screenInboundMessage(ctx, evt);
+    // The intro template's decline button (openspec `client-decline`): handled
+    // in code, no planner call — the client is paused and handed to the
+    // accountant, and the deferred re-plan (if one is queued) finds it paused.
+    if (isDeclineButton(evt, await inboundMessageBody(evt))) {
+      await withClientLock(ctx.client.id, () => handleClientDecline(ctx, 'button'));
+      return;
+    }
     // The planner does not run here: WhatsApp delivers the text and each file
     // of one client turn as separate webhooks, so the re-plan is deferred and
     // runs once, after the quiet window and after every file of the turn is

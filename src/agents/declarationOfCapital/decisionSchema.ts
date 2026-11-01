@@ -30,7 +30,10 @@ const PAPER_KEY_VALUES = ['', ...CAPITAL_DOCUMENT_PAPER_VALUES] as [string, ...s
 //                   or an instance's file_ids) or claims a document; NO message: the code
 //                   verifies the collected documents first and asks for the reply in a
 //                   second cycle, which may not choose 'collect' (its schema drops it).
-export const DECISION_VALUES = ['goal_complete', 'follow_up', 'collect'] as const;
+//   client_declined — the client refused the WhatsApp collection in words (openspec
+//                   `client-decline`); the answer carries nothing else: the code sends
+//                   the fixed acknowledgement and hands the client to the accountant.
+export const DECISION_VALUES = ['goal_complete', 'follow_up', 'collect', 'client_declined'] as const;
 
 /**
  * A purchase cost the client stated in the conversation, on an instance the
@@ -61,7 +64,7 @@ const StatedVehicleOnInstanceSchema = z.object({
   quote: z.string(),
 });
 /** The values the follow-up cycle after verification may choose: it cannot collect again. */
-export const AFTER_VERIFICATION_DECISION_VALUES = ['goal_complete', 'follow_up'] as const;
+export const AFTER_VERIFICATION_DECISION_VALUES = ['goal_complete', 'follow_up', 'client_declined'] as const;
 
 export const DecisionResponseSchema = z.object({
   decision: z.enum(DECISION_VALUES),
@@ -390,6 +393,20 @@ export interface DocumentRetirement {
 export type AttestationDecision = { action: 'request' } | { action: 'confirmed'; evidence: QuoteEvidence };
 
 export type NormalizedDecision =
+  | {
+      /** The client refused the collection in words (openspec `client-decline`): the answer carries nothing else (every list empty, by the gate). */
+      decision: 'client_declined';
+      reasoning: string;
+      collected_document_ids: string[];
+      matched_files: MatchedFile[];
+      tax_fetch: null;
+      resolutions: DocumentResolution[];
+      addedInstances: InstanceAddition[];
+      retired: DocumentRetirement[];
+      statedCosts: StatedCostDecision[];
+      statedVehicles: StatedVehicleDecision[];
+      attestation: null;
+    }
   | {
       decision: 'goal_complete';
       reasoning: string;
@@ -1336,6 +1353,40 @@ function filledMessageFields(raw: DecisionResponse): string[] {
 
 export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, checks: GateCheck[] = []): NormalizedDecision {
   const ties = answerTiesFiles(raw, ctx.intake?.selfEvidentFiles);
+  if (raw.decision === 'client_declined') {
+    // The decline is the whole answer (openspec `client-decline`): the code
+    // sends the fixed acknowledgement, so no message, no tie, no checklist
+    // change and no fetch step may ride along.
+    const extras = [
+      ...filledMessageFields(raw),
+      ...(ties ? ['a file tie (mark_collected / tie_file / file_ids)'] : []),
+      ...(raw.tax_fetch_action ? ['tax_fetch'] : []),
+      ...(raw.attestation ? ['attestation'] : []),
+      ...((raw.resolved_documents ?? []).length > 0 ? ['resolve_document'] : []),
+      ...((raw.added_instances ?? []).length > 0 ? ['add_instance'] : []),
+      ...((raw.retired_documents ?? []).length > 0 ? ['retire_document'] : []),
+      ...((raw.stated_costs ?? []).length > 0 ? ['state_cost'] : []),
+      ...((raw.stated_vehicles ?? []).length > 0 ? ['state_vehicle'] : []),
+    ];
+    if (extras.length > 0) {
+      throw new Error(
+        `decision "client_declined" is the whole answer — call conclude only; remove ${extras.join(', ')} (the acknowledgement is sent by the system, never by you)`,
+      );
+    }
+    return {
+      decision: 'client_declined',
+      reasoning: raw.reasoning,
+      collected_document_ids: [],
+      matched_files: [],
+      tax_fetch: null,
+      resolutions: [],
+      addedInstances: [],
+      retired: [],
+      statedCosts: [],
+      statedVehicles: [],
+      attestation: null,
+    };
+  }
   if (raw.decision === 'collect') {
     if (ctx.afterVerification) {
       throw new Error(

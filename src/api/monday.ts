@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { env } from '../config/env.js';
 import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
-import * as whitelist from '../db/queries/whitelist.js';
-import { requireWhitelisted } from './auth.js';
+import { requireWhitelisted, resolveAccess, resolveStaffViewer, viewerReadOnlyGate } from './auth.js';
 import { accountRouter } from './account.js';
 import { listAgents, resolveAgentInstance } from './agents.js';
 import { createMondayLinkToken, requireMondayIdentity, requireMondayUser } from './mondayAuth.js';
@@ -24,11 +23,15 @@ const SessionSchema = z
   })
   .strict();
 
-/** Everything the custom object needs to decide what to render for this user. */
+/**
+ * Everything the custom object needs to decide what to render for this user.
+ * Access (`whitelisted` / `role` / `viewingFor`) comes from the same function
+ * the standalone GET /api/me uses, so a staff viewer (openspec
+ * `accountant-staff-access`) gets in from monday exactly as from Google.
+ */
 async function sessionStatus(userId: string) {
   const user = await users.getById(userId);
   if (!user) return null;
-  const whitelisted = await whitelist.isWhitelisted(user.email);
   return {
     provisioned: true,
     // Auto-provisioned users carry a placeholder `monday:<ids>` google_sub until
@@ -37,7 +40,7 @@ async function sessionStatus(userId: string) {
     // via monday, but counts as unlinked.)
     linked: user.google_sub !== null && !user.google_sub.startsWith(users.MONDAY_SUB_PREFIX),
     email: user.email,
-    whitelisted: user.is_admin || whitelisted,
+    ...(await resolveAccess(user)),
     appUrl: env.APP_BASE_URL,
   };
 }
@@ -136,12 +139,11 @@ mondayRouter.get(
       res.json({ authenticated: false });
       return;
     }
-    const isAdmin = user.is_admin;
     res.json({
       authenticated: true,
       user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },
-      isAdmin,
-      whitelisted: isAdmin || (await whitelist.isWhitelisted(user.email)),
+      isAdmin: user.is_admin,
+      ...(await resolveAccess(user)),
     });
   }),
 );
@@ -149,10 +151,21 @@ mondayRouter.get(
 // The full agent workspace API (clients, documents, files, conversation) plus
 // account routes under monday auth — same routers the cookie-authenticated
 // /api/* mounts use; requireMondayUser supplies the req.userId they read.
-// Mirrors router.ts: agent-scoped under /app/agents/:agentId.
+// Mirrors router.ts: agent-scoped under /app/agents/:agentId, and the same
+// middleware order — resolve a staff viewer (req.userId becomes the
+// accountant), refuse what a viewer may not do, then the paid-access gate.
+// Express strips the /app mount, so req.path in the gate is /agents/..., the
+// form viewerMayRequest expects.
 const appRouter = Router();
 appRouter.use(accountRouter);
 appRouter.get('/agents', wrap(listAgents));
 appRouter.use('/agents/:agentId', wrap(resolveAgentInstance), workspaceRouter);
-mondayRouter.use('/app', wrap(requireMondayUser), wrap(requireWhitelisted), appRouter);
+mondayRouter.use(
+  '/app',
+  wrap(requireMondayUser),
+  wrap(resolveStaffViewer),
+  viewerReadOnlyGate,
+  wrap(requireWhitelisted),
+  appRouter,
+);
 

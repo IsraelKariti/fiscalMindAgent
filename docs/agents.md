@@ -746,9 +746,15 @@ An accountant lists employee email addresses in Settings → "צוות"
 routes `GET/POST /api/staff`, `DELETE /api/staff/:id` in `src/api/staff.ts`,
 keyed on `req.userId` so an impersonating admin manages the list too; one
 accountant per email, global unique; adds/removes audited as `staff.added` /
-`staff.removed`). An employee signs in with their own Google account; the
-middleware chain in `router.ts` is `requireAuth` → `resolveStaffViewer` →
-`viewerReadOnlyGate` → `requireWhitelisted`:
+`staff.removed`). An employee signs in with their own Google account, or
+opens the monday custom object with a monday email on the list (openspec
+`monday-staff-viewer-access`, 2026-11-01); both surfaces answer "may this
+person in, and as whom?" with the one `resolveAccess` function in `auth.ts`
+(admin → `whitelisted_emails` → staff row), used by `GET /api/me`,
+`POST /api/monday/session` and `GET /api/monday/me`. The middleware chain in
+`router.ts` is `requireAuth` → `resolveStaffViewer` → `viewerReadOnlyGate` →
+`requireWhitelisted`, and the monday `/app` mount in `monday.ts` runs the same
+three after `requireMondayUser`:
 
 - `resolveStaffViewer` (`auth.ts`): a signed-in user who is neither admin nor
   whitelisted but whose email has a staff row gets `req.userId` = the
@@ -762,14 +768,18 @@ middleware chain in `router.ts` is `requireAuth` → `resolveStaffViewer` →
   (connections, mailbox, the staff list) and `/admin/*` answer
   `403 { code: 'read_only' }`. **A new GET under `/agents/:agentId` with side
   effects must check `req.viewerRole` itself.**
-- `GET /api/me` reports `role: 'viewer'` + `viewingFor` (the accountant).
-  The SPA passes `viewer` into `Workspace`, which reuses the deleted-client
+- `GET /api/me` (and the monday pair above) report `role: 'viewer'` +
+  `viewingFor` (the accountant). The SPA (`App.tsx`) and the monday shell
+  (`MondayObject.tsx`) pass `viewer` into `Workspace`, which reuses the deleted-client
   `readOnly` path of `ClientView` (no action control anywhere, file view and
   download still work), hides add/delete client, shows a read-only notice,
   and renders Settings with the dashboard tab only (`viewerOnly`).
   `ViewerContext.readOnly` is set for components that read it directly.
 - The admin accountants list labels a signed-in employee "צוות של
   <accountant>" (`users.listAll().staff_of_email`) instead of "no access".
+- The Staff tab's "signed in" column (`signedInSql`) counts Google sign-ins
+  only: an employee who has only ever opened the monday object shows as not
+  signed in yet.
 
 ## Adding an agent type (checklist)
 

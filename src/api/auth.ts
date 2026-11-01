@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { Request, RequestHandler, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env.js';
+import type { UserRow } from '../db/types.js';
 import * as accountantStaff from '../db/queries/accountantStaff.js';
 import * as mondayAccounts from '../db/queries/mondayAccounts.js';
 import * as users from '../db/queries/users.js';
@@ -344,6 +345,43 @@ export const logout: RequestHandler = (_req, res) => {
   res.json({ ok: true });
 };
 
+export interface UserAccess {
+  /** May this user into a workspace at all (admin, activated accountant, or staff viewer). */
+  whitelisted: boolean;
+  /** 'viewer' = an employee on an accountant's staff list, read-only (openspec `accountant-staff-access`). */
+  role: 'accountant' | 'viewer';
+  /** The accountant whose workspace a viewer sees; absent for everyone else. */
+  viewingFor?: { id: string; email: string; name: string | null; hebrewName: string | null };
+}
+
+/**
+ * The one answer to "may this person in, and as whom?", shared by every
+ * sign-in surface (GET /api/me for the standalone app, POST /api/monday/session
+ * and GET /api/monday/me for the monday object) so they can never disagree:
+ * admin → activated (whitelisted_emails) → on an accountant's staff list.
+ * Pass `allowViewer: false` to skip the staff step (an admin impersonating
+ * someone is never a viewer).
+ */
+export async function resolveAccess(user: UserRow, opts: { allowViewer?: boolean } = {}): Promise<UserAccess> {
+  if (user.is_admin || (await whitelist.isWhitelisted(user.email))) {
+    return { whitelisted: true, role: 'accountant' };
+  }
+  if (opts.allowViewer === false) return { whitelisted: false, role: 'accountant' };
+  const staff = await accountantStaff.findByEmail(user.email);
+  const accountant = staff ? await users.getById(staff.accountant_user_id) : null;
+  if (!accountant) return { whitelisted: false, role: 'accountant' };
+  return {
+    whitelisted: true,
+    role: 'viewer',
+    viewingFor: {
+      id: accountant.id,
+      email: accountant.email,
+      name: accountant.name,
+      hebrewName: accountant.hebrew_name ?? null,
+    },
+  };
+}
+
 /** GET /api/me — session + profile for the SPA. `user` is always the real signed-in user. */
 export const me: RequestHandler = async (req, res) => {
   const identity = resolveIdentity(req);
@@ -371,34 +409,13 @@ export const me: RequestHandler = async (req, res) => {
     }
   }
 
-  const isAdmin = user.is_admin;
-  let whitelisted = isAdmin || (await whitelist.isWhitelisted(user.email));
-  // A staff viewer (openspec `accountant-employee-access`): not activated
-  // themselves, but on an accountant's staff list — they get into that
-  // accountant's workspace read-only. `viewingFor` names the accountant.
-  let role: 'accountant' | 'viewer' = 'accountant';
-  let viewingFor: { id: string; email: string; name: string | null; hebrewName: string | null } | null = null;
-  if (!whitelisted && !impersonating) {
-    const staff = await accountantStaff.findByEmail(user.email);
-    const accountant = staff ? await users.getById(staff.accountant_user_id) : null;
-    if (accountant) {
-      whitelisted = true;
-      role = 'viewer';
-      viewingFor = {
-        id: accountant.id,
-        email: accountant.email,
-        name: accountant.name,
-        hebrewName: accountant.hebrew_name ?? null,
-      };
-    }
-  }
+  // An admin impersonating someone is never a staff viewer of anyone.
+  const access = await resolveAccess(user, { allowViewer: !impersonating });
   res.json({
     authenticated: true,
     user: { id: user.id, email: user.email, name: user.name, pictureUrl: user.picture_url },
-    isAdmin,
-    whitelisted,
-    role,
-    ...(viewingFor ? { viewingFor } : {}),
+    isAdmin: user.is_admin,
+    ...access,
     // Non-null on non-production stacks — the GUI shows an environment banner.
     envName: env.ENV_NAME ?? null,
     ...(impersonating ? { impersonating } : {}),

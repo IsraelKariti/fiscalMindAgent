@@ -7,7 +7,12 @@ export interface MondaySessionStatus {
   /** False while the account is auto-provisioned (no Google sign-in linked yet). */
   linked: boolean;
   email: string;
+  /** True for an admin, an activated accountant, or a staff viewer (same rule as GET /api/me). */
   whitelisted: boolean;
+  /** 'viewer' = an employee on an accountant's staff list, read-only. */
+  role?: 'accountant' | 'viewer';
+  /** The accountant whose workspace a viewer sees (set only with role 'viewer'). */
+  viewingFor?: Me['viewingFor'];
   /** Base URL of the standalone app, for "open in FiscalMind" links. */
   appUrl: string;
 }

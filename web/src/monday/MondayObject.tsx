@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ViewerProvider } from '../agents/ApiContext';
 import type { Me } from '../api';
 import { Workspace } from '../components/Workspace';
 import { useT } from '../i18n';
@@ -51,12 +52,20 @@ export function MondayObject() {
 
   if (!me) return <div className="ma-shell screen-center muted">{t.loading}</div>;
 
+  // A staff viewer (openspec `accountant-staff-access`) sees the accountant's
+  // workspace read-only, exactly as in the standalone shell (App.tsx): the
+  // notice names the accountant and every write control is hidden. Admins
+  // never use the object, so isAdmin stays false.
+  const viewingFor = me.viewingFor ?? null;
   return (
-    <Workspace
-      userEmail={me.user?.email ?? null}
-      // Unpinned: the object shows the same shell as the standalone app
-      // (agents-home grid + sidebar switcher when the account has several
-      // agents; auto-enter when it has one).
-    />
+    <ViewerProvider value={{ isAdmin: false, readOnly: viewingFor != null }}>
+      <Workspace
+        userEmail={me.user?.email ?? null}
+        viewer={viewingFor}
+        // Unpinned: the object shows the same shell as the standalone app
+        // (agents-home grid + sidebar switcher when the account has several
+        // agents; auto-enter when it has one).
+      />
+    </ViewerProvider>
   );
 }

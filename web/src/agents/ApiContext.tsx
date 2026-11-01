@@ -31,9 +31,10 @@ export function useClientsRefresh(): () => void {
  * — and the monday embed — never set it. It only reveals admin-only UI (the
  * LLM trace in the conversation); the data behind it is served by admin-gated
  * endpoints, so a forged flag shows an empty, failing toggle and nothing else.
- * `readOnly` is true for a staff viewer (openspec `accountant-employee-access`):
- * an employee reading the accountant's workspace; every action control hides,
- * and the server refuses writes regardless.
+ * `readOnly` is true for a staff viewer (openspec `accountant-staff-access`):
+ * an employee in the accountant's workspace who may only drive conversations
+ * (pause / resume / send now / retry); every other action control hides, and
+ * the server refuses the other writes regardless.
  */
 export interface Viewer {
   isAdmin: boolean;

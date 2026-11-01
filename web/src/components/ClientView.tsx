@@ -26,13 +26,16 @@ export function ClientView({
   clientId,
   agentUI,
   onClientUpdated,
-  readOnly: viewerReadOnly = false,
+  viewer = false,
 }: {
   clientId: string;
   agentUI: AgentTypeUI;
   onClientUpdated: () => Promise<void>;
-  /** A staff viewer (openspec `accountant-employee-access`): no action control anywhere. */
-  readOnly?: boolean;
+  /**
+   * A staff viewer (openspec `accountant-staff-access`): the conversation-flow
+   * controls stay, every other action control hides.
+   */
+  viewer?: boolean;
 }) {
   const { t } = useT();
   const api = useWorkspaceApi();
@@ -128,8 +131,10 @@ export function ClientView({
   // A deleted client (admin view-as only — the accountant's route 404s): the
   // record is shown as it stands, with no action control anywhere and no
   // "drafting…" placeholder (nothing will ever be drafted for it). A staff
-  // viewer gets the same treatment on every client.
-  const readOnly = client?.deletedAt != null || viewerReadOnly;
+  // viewer is NOT read-only here: the conversation tab keeps its pause / resume /
+  // send now / retry controls (openspec `staff-conversation-controls`); the tabs
+  // hide the other action controls on `viewer`.
+  const readOnly = client?.deletedAt != null;
   const drafting =
     client !== null &&
     client.deletedAt == null &&
@@ -186,6 +191,7 @@ export function ClientView({
     focusedMessageId,
     clearFocusedMessage,
     readOnly,
+    viewer,
   };
 
   return (

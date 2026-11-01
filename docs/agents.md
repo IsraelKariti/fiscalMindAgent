@@ -739,7 +739,7 @@ that honest:
 Idle expiry is audited as `admin.impersonation_expired` (start/stop come from
 the admin route map); extensions are not audited.
 
-### Staff viewers (read-only employees)
+### Staff viewers (employees who may drive conversations)
 
 An accountant lists employee email addresses in Settings → "צוות"
 (`accountant_staff`, migration 068, openspec `accountant-employee-access`;
@@ -764,17 +764,30 @@ three after `requireMondayUser`:
   query already keys on `req.userId`. `isViewingAs` (`viewAs.ts`) is false
   for a viewer, so test and deleted clients stay hidden as for the accountant.
 - `viewerReadOnlyGate` applies the one rule in `viewerAccess.ts`: a viewer may
-  send only `GET /agents` and `GET /agents/*`; every write, the account routes
-  (connections, mailbox, the staff list) and `/admin/*` answer
-  `403 { code: 'read_only' }`. **A new GET under `/agents/:agentId` with side
-  effects must check `req.viewerRole` itself.**
+  send `GET /agents` and `GET /agents/*`, plus the conversation-flow actions on
+  a client (openspec `staff-conversation-controls`, 2026-11-01): `PUT
+  /agents/:agentId/clients/:id/pause` (pause and resume — the resume that
+  releases a held first message included) and `POST .../send-now`,
+  `.../retry-send`, `.../redraft` (retry draft and regenerate share the
+  route). Every other write, the account routes (connections, mailbox, the
+  staff list) and `/admin/*` answer `403 { code: 'read_only' }`. **A new GET
+  under `/agents/:agentId` with side effects must check `req.viewerRole`
+  itself; a new conversation-flow route is added to the regex in
+  `viewerAccess.ts` and to `tests/viewerAccess.test.ts`.** The handlers run
+  under `req.userId` = the accountant, so audit rows name the accountant.
 - `GET /api/me` (and the monday pair above) report `role: 'viewer'` +
   `viewingFor` (the accountant). The SPA (`App.tsx`) and the monday shell
-  (`MondayObject.tsx`) pass `viewer` into `Workspace`, which reuses the deleted-client
-  `readOnly` path of `ClientView` (no action control anywhere, file view and
-  download still work), hides add/delete client, shows a read-only notice,
-  and renders Settings with the dashboard tab only (`viewerOnly`).
-  `ViewerContext.readOnly` is set for components that read it directly.
+  (`MondayObject.tsx`) pass `viewer` into `Workspace`, which passes
+  `viewer` into `ClientView`. `ClientTabContext` carries two flags: `readOnly`
+  (deleted client under admin view-as — no action control anywhere) and
+  `viewer` (staff). The conversation tab's `Timeline` gets `readOnly` alone,
+  so a viewer sees pause / resume / send now / retry / regenerate; the
+  details and documents cards get `readOnly || viewer`, so rename, due date,
+  WhatsApp and document actions hide. `Workspace` hides add/delete client,
+  shows the viewer notice ("may start, pause and resume conversations,
+  cannot change anything else"), and renders Settings with the dashboard
+  tab only (`viewerOnly`). `ViewerContext.readOnly` is set for components
+  that read it directly.
 - The admin accountants list labels a signed-in employee "צוות של
   <accountant>" (`users.listAll().staff_of_email`) instead of "no access".
 - The Staff tab's "signed in" column (`signedInSql`) counts Google sign-ins

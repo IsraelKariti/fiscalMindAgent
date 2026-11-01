@@ -259,7 +259,7 @@ export function Workspace({
               clientId={route.clientId}
               agentUI={agentUI}
               onClientUpdated={loadClients}
-              readOnly={Boolean(viewer)}
+              viewer={Boolean(viewer)}
             />
           )}
           {route.kind === 'settings' && (

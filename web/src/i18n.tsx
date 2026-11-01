@@ -29,7 +29,7 @@ const he = {
     'עובדים במשרד רואה חשבון: בקשו מרואה החשבון להוסיף את כתובת האימייל שלכם בלשונית "צוות" בהגדרות.',
 
   // Staff viewers (openspec `accountant-employee-access`)
-  viewerNotice: (accountant: string) => `אתם צופים בחשבון של ${accountant} במצב קריאה בלבד — אי אפשר לשנות דבר.`,
+  viewerNotice: (accountant: string) => `אתם צופים בחשבון של ${accountant}. אפשר להתחיל, להשהות ולחדש שיחות — אי אפשר לשנות דבר אחר.`,
   settingsTabStaff: 'צוות',
   staffTitle: 'גישת צוות',
   staffAddTitle: 'הוספת עובד/ת',

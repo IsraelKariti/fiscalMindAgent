@@ -41,6 +41,12 @@ export interface ClientTabContext {
    * (no reply, pause, resume, rename, WhatsApp, document or delete actions).
    */
   readOnly: boolean;
+  /**
+   * A staff viewer (openspec `staff-conversation-controls`): the conversation
+   * tab keeps pause / resume / send now / retry / regenerate; rename, due date,
+   * WhatsApp and document actions hide (the server refuses them anyway).
+   */
+  viewer: boolean;
 }
 
 /** Message keys whose value is a plain string (tab labels can't take arguments). */

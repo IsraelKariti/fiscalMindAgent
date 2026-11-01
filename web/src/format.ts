@@ -101,6 +101,24 @@ export function clientDotClass(state: ClientDotState): string {
   return state.replace('_', '-');
 }
 
+/** The color the accountant sees for a dot state (openspec `client-search`, status control): the two greens fold together. */
+export type DotColor = 'green' | 'yellow' | 'red';
+/** The status control's choice: a color, or everyone. */
+export type DotFilter = 'all' | DotColor;
+
+export function dotColorOf(state: ClientDotState): DotColor {
+  if (state === 'refused') return 'red';
+  if (state === 'in_progress') return 'yellow';
+  return 'green';
+}
+
+/** How many clients of the loaded list each control button stands for. */
+export function countByDotColor(states: ClientDotState[]): Record<DotFilter, number> {
+  const counts: Record<DotFilter, number> = { all: states.length, green: 0, yellow: 0, red: 0 };
+  for (const s of states) counts[dotColorOf(s)] += 1;
+  return counts;
+}
+
 /** "YYYY-MM-DD" → localized date, without a time-of-day. */
 export function formatDateOnly(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString(LOCALE, { dateStyle: 'medium' });

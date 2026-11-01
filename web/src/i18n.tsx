@@ -330,6 +330,15 @@ const he = {
   fileNumberChip: (n: string) => `תיק ${n}`,
   fileNumberChipTitle: 'מספר התיק במשרד (מהלוח ב-monday)',
   sidebarNoMatches: 'לא נמצאו לקוחות תואמים',
+  // The status control under the search box (openspec `client-search`).
+  statusFilterLabel: 'סינון לפי מצב',
+  statusFilterAll: 'הכל',
+  statusFilterTitles: {
+    all: 'כל הלקוחות',
+    green: 'הסוכן סיים — כל המסמכים התקבלו או תאריך היעד עבר',
+    yellow: 'איסוף בתהליך',
+    red: 'הלקוח סירב',
+  } as Record<'all' | 'green' | 'yellow' | 'red', string>,
   // Admin view-as only (openspec `soft-delete-clients`)
   sidebarDeletedToggle: 'לקוחות שנמחקו',
   sidebarDeletedToggleTitle: 'הצגת הלקוחות שנמחקו מהרשימה (לצפייה בלבד; זמין למנהל בלבד)',

@@ -404,6 +404,58 @@ code {
   border-radius: 8px;
 }
 
+/* The status control under the search box (openspec `client-search`): one
+   bar of four buttons, exactly one pressed — "all", green, yellow, red. */
+.status-filter {
+  display: flex;
+  gap: 2px;
+  margin: 0 0 8px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.1));
+}
+
+.status-filter-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.status-filter-btn.is-active {
+  background: var(--surface-raised);
+  color: inherit;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.status-filter-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The control's dots never pulse: they are legend, not state. */
+.status-filter-dot {
+  width: 8px;
+  height: 8px;
+  animation: none;
+}
+
+.status-filter-count {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Admin view-as only: the "deleted clients" toggle under the clients heading. */
 .sidebar-deleted-toggle {
   display: inline-flex;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
-import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, displayClientName, formatTimestamp, isDeclined, isOverdueStopped } from '../format';
+import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, isDeclined, isOverdueStopped, type DotFilter } from '../format';
 import { dotTitle, useT } from '../i18n';
 
 export interface AgentOption {
@@ -140,6 +140,8 @@ export function Sidebar({
 }: Props) {
   const { t } = useT();
   const [clientQuery, setClientQuery] = useState('');
+  // The status control (openspec `client-search`): one pressed button, 'all' on load, not kept across reloads.
+  const [statusFilter, setStatusFilter] = useState<DotFilter>('all');
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -167,15 +169,27 @@ export function Sidebar({
   }, [menuOpen, switcherOpen]);
   // Matches what the accountant sees in the list: name, email, and the
   // contact label (phone for WhatsApp-only clients with a synthetic mailbox).
-  const visibleClients = useMemo(() => {
-    // Name, contact or office file number (openspec `client-search`).
-    return clients.filter((client) => clientMatchesQuery(client, clientQuery));
-  }, [clients, clientQuery]);
   // Same rule as the overview list (openspec `client-status-indicator`).
+  const dotStateOf = (client: Client) =>
+    clientDotState({ goal_status: client.goal_status, overdueStopped: isOverdueStopped(client), declined: isDeclined(client) });
   const dotFor = (client: Client) => {
-    const state = clientDotState({ goal_status: client.goal_status, overdueStopped: isOverdueStopped(client), declined: isDeclined(client) });
+    const state = dotStateOf(client);
     return { cls: clientDotClass(state), title: dotTitle(t, state) };
   };
+  // Counts describe the loaded list (live or deleted), never the search result.
+  const statusCounts = useMemo(() => countByDotColor(clients.map(dotStateOf)), [clients]);
+  const visibleClients = useMemo(() => {
+    // Status control and search narrow together; name, contact or office file number (openspec `client-search`).
+    return clients.filter(
+      (client) => (statusFilter === 'all' || dotColorOf(dotStateOf(client)) === statusFilter) && clientMatchesQuery(client, clientQuery),
+    );
+  }, [clients, clientQuery, statusFilter]);
+  const STATUS_BUTTONS: { key: DotFilter; dot: string | null }[] = [
+    { key: 'all', dot: null },
+    { key: 'green', dot: 'done' },
+    { key: 'yellow', dot: 'in-progress' },
+    { key: 'red', dot: 'refused' },
+  ];
   return (
     <nav className="sidebar">
       <div className="brand sidebar-brand">
@@ -256,6 +270,24 @@ export function Sidebar({
             value={clientQuery}
             onChange={(e) => setClientQuery(e.target.value)}
           />
+        )}
+        {clients.length > 0 && (
+          <div className="status-filter" role="radiogroup" aria-label={t.statusFilterLabel}>
+            {STATUS_BUTTONS.map(({ key, dot }) => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={statusFilter === key}
+                className={`status-filter-btn ${statusFilter === key ? 'is-active' : ''}`}
+                title={t.statusFilterTitles[key]}
+                onClick={() => setStatusFilter(key)}
+              >
+                {dot ? <span className={`status-dot status-filter-dot ${dot}`} /> : <span>{t.statusFilterAll}</span>}
+                <span className="status-filter-count">{statusCounts[key]}</span>
+              </button>
+            ))}
+          </div>
         )}
         <ul className="client-list">
           {visibleClients.map((client) => {

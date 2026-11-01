@@ -325,7 +325,10 @@ const he = {
   dotRefused: 'הלקוח סירב — התיק בטיפולך',
   deleteClientAction: (name: string) => `מחיקת ${name}`,
   sidebarNoClients: 'אין עדיין לקוחות',
-  sidebarSearchPlaceholder: 'חיפוש לפי שם או אימייל',
+  sidebarSearchPlaceholder: 'חיפוש לפי שם, אימייל או מס׳ תיק',
+  // The office file number on a client row (openspec `client-search`).
+  fileNumberChip: (n: string) => `תיק ${n}`,
+  fileNumberChipTitle: 'מספר התיק במשרד (מהלוח ב-monday)',
   sidebarNoMatches: 'לא נמצאו לקוחות תואמים',
   // Admin view-as only (openspec `soft-delete-clients`)
   sidebarDeletedToggle: 'לקוחות שנמחקו',

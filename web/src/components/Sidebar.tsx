@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
-import { clientDotClass, clientDotState, contactLabel, displayClientName, formatTimestamp, isDeclined, isOverdueStopped } from '../format';
+import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, displayClientName, formatTimestamp, isDeclined, isOverdueStopped } from '../format';
 import { dotTitle, useT } from '../i18n';
 
 export interface AgentOption {
@@ -168,14 +168,8 @@ export function Sidebar({
   // Matches what the accountant sees in the list: name, email, and the
   // contact label (phone for WhatsApp-only clients with a synthetic mailbox).
   const visibleClients = useMemo(() => {
-    const q = clientQuery.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter(
-      (client) =>
-        client.name.toLowerCase().includes(q) ||
-        client.email_address.toLowerCase().includes(q) ||
-        contactLabel(client).toLowerCase().includes(q),
-    );
+    // Name, contact or office file number (openspec `client-search`).
+    return clients.filter((client) => clientMatchesQuery(client, clientQuery));
   }, [clients, clientQuery]);
   // Same rule as the overview list (openspec `client-status-indicator`).
   const dotFor = (client: Client) => {
@@ -282,7 +276,14 @@ export function Sidebar({
                         </span>
                       )}
                     </span>
-                    <span className="client-item-email muted" dir="ltr">{contactLabel(client)}</span>
+                    <span className="client-item-email muted" dir="ltr">
+                      {contactLabel(client)}
+                      {client.agent_fields?.file_number && (
+                        <span className="client-item-file" title={t.fileNumberChipTitle}>
+                          {t.fileNumberChip(client.agent_fields.file_number)}
+                        </span>
+                      )}
+                    </span>
                     {client.deletedAt && (
                       <span className="client-item-deleted muted">{t.deletedOn(formatTimestamp(client.deletedAt))}</span>
                     )}

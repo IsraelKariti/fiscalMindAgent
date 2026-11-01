@@ -41,6 +41,27 @@ export function contactLabel(client: { email_address: string; wa_phone: string |
   return client.email_address;
 }
 
+/** A file number as compared in the search (openspec `client-search`): no spaces or dashes, lowercase. */
+export function normalizeFileNumber(value: string | null | undefined): string {
+  return (value ?? '').replace(/[\s\-–—]/g, '').toLowerCase();
+}
+
+/**
+ * The sidebar search rule: the query (trimmed, lowercase) is a substring of the
+ * name, the email, the contact line, or the file number with spaces and
+ * dashes ignored on both sides. An empty query matches every client.
+ */
+export function clientMatchesQuery(
+  client: { name: string; email_address: string; wa_phone: string | null; agent_fields?: { file_number?: string } },
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (client.name.toLowerCase().includes(q) || client.email_address.toLowerCase().includes(q) || contactLabel(client).toLowerCase().includes(q)) return true;
+  const digits = normalizeFileNumber(q);
+  return digits !== '' && normalizeFileNumber(client.agent_fields?.file_number).includes(digits);
+}
+
 /**
  * The doc-collector agent stopped chasing because the collection due date
  * passed and handed the client off to the accountant.

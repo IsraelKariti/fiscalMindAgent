@@ -4,6 +4,8 @@ export type GoalStatus = 'pending' | 'complete';
 export interface ClientAgentFields {
   /** The optional collection deadline ("YYYY-MM-DD"). */
   due_date?: string | null;
+  /** Capital declaration: the office file number ("מס תיק") read from the monday board at kickoff. */
+  file_number?: string;
   /** Capital declaration: the scheduled draft that is the attestation summary (trusted once sent). */
   attestation_request_email_id?: string;
   /** Capital declaration: the client confirmed the closing summary. */

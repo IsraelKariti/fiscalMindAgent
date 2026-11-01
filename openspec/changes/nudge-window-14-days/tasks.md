@@ -18,7 +18,7 @@
 ## 4. Docs and pipeline
 
 - [x] 4.1 Update `docs/agents.md` "Collection lifecycle (completion & due date)" with the window (column, default, admin route, first-contact stamp, no backfill) and `docs/pipeline.md` with the new junction (`sendEmailWorker` first contact → `DOC/collectionWindow.ts` · `startCollectionWindow`); verify both files mention `collection_window_days`.
-- [ ] 4.2 Document `.env.example` only if a new env var was introduced (none expected); verify `npm run typecheck` and `npm test` pass, then commit and push per the Git workflow.
+- [x] 4.2 Document `.env.example` only if a new env var was introduced (none expected); verify `npm run typecheck` and `npm test` pass, then commit and push per the Git workflow.
 
 ## 5. End-to-end check
 

@@ -13,4 +13,4 @@
 - [ ] 3.1 As a staff viewer in the standalone app: pause a client, resume it, send a scheduled message now, and resume a client whose first message is held; each succeeds and the conversation updates as for the accountant. Then try an edit through the API (e.g. `PATCH /api/agents/<id>/clients/<id>`) under the viewer session and confirm the "Access is read-only." refusal.
 - [ ] 3.2 Repeat pause and resume from the monday custom object under a staff viewer; both succeed.
 - [x] 3.3 Update the "Staff viewers" section of `docs/agents.md` with the new allow-list and the split UI flag. Verify the section reads correctly.
-- [ ] 3.4 Commit per the repo Git workflow (`git pull --rebase origin master`, `npm run typecheck`, commit, push).
+- [x] 3.4 Commit per the repo Git workflow (`git pull --rebase origin master`, `npm run typecheck`, commit, push).

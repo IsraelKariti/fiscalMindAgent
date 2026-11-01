@@ -172,6 +172,14 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
     setTaxYearInput(instance?.taxYear ?? agentInfo?.defaultTaxYear ?? null);
   }, [instance?.taxYear, agentInfo?.defaultTaxYear]);
 
+  // The collection-window input tracks the stored days (default 14).
+  const [windowInput, setWindowInput] = useState<string>('14');
+  useEffect(() => {
+    setWindowInput(String(instance?.collectionWindowDays ?? 14));
+  }, [instance?.collectionWindowDays]);
+  const windowDays = /^\d+$/.test(windowInput) ? Number(windowInput) : null;
+  const windowValid = windowDays !== null && windowDays >= 1 && windowDays <= 365;
+
   // The unassigned-numbers pool: shown as a count on the pool option and
   // offered in the picker modal.
   const [orphans, setOrphans] = useState<OrphanedWaNumber[] | null>(null);
@@ -428,6 +436,45 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
                   }
                   onClick={() =>
                     run(() => api.adminSetAgentTaxYear(instance.id, taxYearInput!), t.adminAgentTaxYearSaveFailed)
+                  }
+                >
+                  {t.adminAgentEmailSave}
+                </button>
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {instance && instance.collectionWindowCapable && (
+        <section className="card">
+          <div className="settings-section">
+            <h3>{t.adminAgentWindowTitle}</h3>
+            <p className="muted">{t.adminAgentWindowDesc}</p>
+
+            <div className="wa-number-display" dir="ltr">
+              {t.adminAgentWindowDays(instance.collectionWindowDays ?? 14)}
+            </div>
+
+            <div className="wa-action-row">
+              <span className="doc-text">
+                <span className="doc-name">{t.adminAgentWindowChange}</span>
+                <span className="doc-desc muted">{t.adminAgentWindowChangeDesc}</span>
+              </span>
+              <span className="wa-manual-entry" dir="ltr">
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={windowInput}
+                  onChange={(e) => setWindowInput(e.target.value)}
+                  aria-label={t.adminAgentWindowTitle}
+                />
+                <button
+                  className="btn btn-ghost btn-small"
+                  disabled={busy || !windowValid || windowDays === (instance.collectionWindowDays ?? 14)}
+                  onClick={() =>
+                    run(() => api.adminSetAgentCollectionWindow(instance.id, windowDays!), t.adminAgentWindowSaveFailed)
                   }
                 >
                   {t.adminAgentEmailSave}

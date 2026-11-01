@@ -851,6 +851,10 @@ export interface AgentInstance {
   taxYearCapable?: boolean;
   /** Admin listing only: the configured tax year, null until an admin sets one (code falls back to the last concluded year). */
   taxYear?: number | null;
+  /** Admin listing only: true when the agent type starts a collection window at first contact. */
+  collectionWindowCapable?: boolean;
+  /** Admin listing only: days the agent chases a client after its first delivered message (default 14). */
+  collectionWindowDays?: number;
   /** Admin listing only: pilot supervision — outbound messages need admin approval (declaration_of_capital). */
   reviewMode?: boolean;
   /** Admin listing only: the hidden admin emergency brake (declaration_of_capital). */
@@ -1094,6 +1098,11 @@ export const api = {
     request<{ taxYear: number }>('/admin/agent-tax-year', {
       method: 'POST',
       body: JSON.stringify({ agentInstanceId, taxYear }),
+    }),
+  adminSetAgentCollectionWindow: (agentInstanceId: string, days: number) =>
+    request<{ days: number }>('/admin/agent-collection-window', {
+      method: 'POST',
+      body: JSON.stringify({ agentInstanceId, days }),
     }),
   adminListReviewMessages: () => request<{ messages: ReviewMessage[] }>('/admin/review/messages'),
   adminReviewCount: () => request<{ pendingCount: number }>('/admin/review/count'),

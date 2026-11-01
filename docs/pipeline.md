@@ -119,6 +119,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | `apply_attestation` (request) on this draft | `DOC/plan.ts` · `applyAttestationRequest` |
 | The document-fetch action (agreed / start login / cancel) | `DOC/plan.ts` · `taxFetchDecisionOf` → `DOC/taxFetch/flow.ts` · `applyTaxFetchAction` |
 | The scheduled send actually goes out | `queue/sendEmailWorker.ts` · `onScheduledSend` → `sendWhatsAppDraft` |
+| First delivered message starts the collection window: the client's due date = local delivery date + `collection_window_days`, unless a date is already set | `queue/sendEmailWorker.ts` · `onFirstContact` → `DOC/collectionWindow.ts` · `startCollectionWindow` (`dueDateFromWindow`, `clients.setDueDateIfAbsent`) |
 
 ## E. The document check (one document)
 

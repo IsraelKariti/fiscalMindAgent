@@ -263,6 +263,14 @@ const he = {
   adminAgentTaxYearChange: 'שינוי שנת המס',
   adminAgentTaxYearChangeDesc: 'השינוי חל מרגע השמירה על ההודעות והמשיכות הבאות; משיכות שכבר החלו ימשיכו עם השנה הקודמת.',
   adminAgentTaxYearSaveFailed: 'שמירת שנת המס נכשלה.',
+  // Collection window (openspec collection-window): how long the agent chases a client.
+  adminAgentWindowTitle: 'משך האיסוף',
+  adminAgentWindowDesc:
+    'כמה ימים הסוכן ממשיך לפנות ללקוח אחרי ההודעה הראשונה. ביום שבו ההודעה הראשונה נמסרת נקבע ללקוח תאריך יעד לאיסוף (היום + מספר הימים), אלא אם רואה החשבון קבע תאריך בעצמו. אחרי תאריך היעד הסוכן מפסיק לשלוח תזכורות, הלקוח מועבר לטיפול רואה החשבון ונשלח לו מייל עם המסמכים החסרים.',
+  adminAgentWindowDays: (days: number) => `${days} ימים`,
+  adminAgentWindowChange: 'שינוי משך האיסוף',
+  adminAgentWindowChangeDesc: 'בין 1 ל-365 ימים. השינוי חל על לקוחות שההודעה הראשונה אליהם תימסר מעכשיו; לקוחות שכבר יש להם תאריך יעד שומרים אותו.',
+  adminAgentWindowSaveFailed: 'שמירת משך האיסוף נכשלה.',
   // Sender pictures: the app logo (settings) and the per-agent icon (agent page).
   appLogoTitle: 'לוגו המערכת',
   appLogoDesc:

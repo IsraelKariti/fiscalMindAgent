@@ -850,6 +850,22 @@ three after `requireMondayUser`:
   UI state — cleared on resume or due-date edit). Resuming, or editing the due
   date (`PUT /clients/:id/due-date`, the agent router), puts the agent
   back to work; manually paused clients are never overdue-stopped.
+- **Collection window** (openspec `collection-window`, migration 070):
+  `agent_instances.collection_window_days` (integer 1..365, default 14,
+  admin-set on the agent page via `POST /api/admin/agent-collection-window`,
+  shown as `collectionWindowDays` in the admin agents payload). When the
+  agent's first message to a client is delivered — `sendEmailWorker` reads
+  `emails.hasDeliveredOutbound` before the send and, when it was false and
+  the send succeeded, calls the agent type's `onFirstContact` hook before
+  the replan — `collectionWindow.ts` · `startCollectionWindow` stamps
+  `agent_fields.due_date` = the delivery's local date (accountant timezone)
+  + the window (`dueDateFromWindow`), through `clients.setDueDateIfAbsent`
+  (conditional on no `due_date`). A hand-set date wins, the stamp happens
+  only at first contact (a cleared date stays cleared), and from there the
+  ordinary due-date path above does the rest: deadline in the prompt, the
+  overdue scan stops the chase the night after the date. Clients contacted
+  before migration 070 with no date are not backfilled; test clients and
+  admin-paused clients are stamped but, as before, never overdue-stopped.
 
 ## Tax-authority 106 fetch (browser automation)
 

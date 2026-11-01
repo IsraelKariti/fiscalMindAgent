@@ -110,6 +110,13 @@ export interface AgentTypeDefinition {
   /** Reaction to a stored inbound message, after attachment/media ingestion. */
   onInboundMessage(ctx: AgentContext, evt: InboundEvent): Promise<void>;
   /**
+   * First contact: the agent's first message to the client was just delivered
+   * (status 'sent', no delivered outbound before it). Runs inside the send
+   * job's client lock, before the replan; a failure is logged, never fails
+   * the send. Undefined = nothing to do at first contact.
+   */
+  onFirstContact?(ctx: AgentContext, sentAt: Date): Promise<void>;
+  /**
    * Content analysis for a stored inbound file (owns setAnalysis + billing).
    * Undefined = the agent doesn't analyze files; rows are marked unsupported.
    */

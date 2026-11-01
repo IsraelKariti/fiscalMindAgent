@@ -253,6 +253,9 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
         emailCapable: Boolean(suffix),
         taxYearCapable: Boolean(def.collectsTaxYear),
         taxYear: i.tax_year,
+        // Collection window (070): days the agent chases a client after first contact.
+        collectionWindowCapable: Boolean(def.onFirstContact),
+        collectionWindowDays: i.collection_window_days,
         // Pilot supervision (048) — admin-only, never exposed to the workspace.
         reviewMode: i.review_mode,
         adminPaused: i.admin_paused,
@@ -487,6 +490,41 @@ export const adminSetAgentTaxYear: RequestHandler = async (req, res) => {
     previous: instance.tax_year,
   });
   res.json({ taxYear: updated?.tax_year ?? parsed.data.taxYear });
+};
+
+const AgentCollectionWindowSchema = z
+  .object({ agentInstanceId: z.string().uuid(), days: z.number().int().min(1).max(365) })
+  .strict();
+
+/**
+ * POST /api/admin/agent-collection-window — set how many days the agent
+ * chases a client after its first delivered message (openspec
+ * `collection-window`). Applies to clients whose first message is delivered
+ * from now on; clients that already carry a due date keep it.
+ */
+export const adminSetAgentCollectionWindow: RequestHandler = async (req, res) => {
+  const parsed = AgentCollectionWindowSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Expected { agentInstanceId, days } with days between 1 and 365.' });
+    return;
+  }
+  const instance = await agentInstances.getById(parsed.data.agentInstanceId);
+  if (!instance) {
+    res.status(404).json({ error: 'Agent not found.' });
+    return;
+  }
+  if (!getAgentTypeIfKnown(instance.agent_type)?.onFirstContact) {
+    res.status(400).json({ error: 'This agent type has no collection window.' });
+    return;
+  }
+  const updated = await agentInstances.setCollectionWindowDays(instance.id, parsed.data.days);
+  logger.info('agent collection window set', {
+    adminUserId: req.realUserId,
+    instanceId: instance.id,
+    days: parsed.data.days,
+    previous: instance.collection_window_days,
+  });
+  res.json({ days: updated?.collection_window_days ?? parsed.data.days });
 };
 
 /** POST /api/admin/impersonate — start viewing the given accountant's dashboard. */

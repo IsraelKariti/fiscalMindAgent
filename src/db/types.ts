@@ -21,6 +21,8 @@ export interface AgentInstanceRow {
   admin_paused: boolean;
   /** Blob key of the instance's own WhatsApp picture (061, src/storage/logos.ts); NULL = app logo / built-in default. */
   logo_blob_key: string | null;
+  /** Days the agent chases a client after first contact (070, openspec `collection-window`): stamps the client's due date at first delivery. Admin-set, default 14. */
+  collection_window_days: number;
   created_at: Date;
   updated_at: Date;
 }

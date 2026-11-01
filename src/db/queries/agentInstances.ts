@@ -110,6 +110,15 @@ export async function setTaxYear(id: string, taxYear: number): Promise<AgentInst
   return rows[0] ?? null;
 }
 
+/** Admin-set collection window in days (070): how long the agent chases a client after first contact. */
+export async function setCollectionWindowDays(id: string, days: number): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'UPDATE agent_instances SET collection_window_days = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, days],
+  );
+  return rows[0] ?? null;
+}
+
 /** Admin-owned own picture (061): the blob key of the uploaded icon, NULL to fall back to the app logo. */
 export async function setLogoBlobKey(id: string, key: string | null): Promise<AgentInstanceRow | null> {
   const { rows } = await pool.query<AgentInstanceRow>(

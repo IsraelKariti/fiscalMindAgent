@@ -6,6 +6,7 @@ import { screenInboundMessage } from './screenInbound.js';
 import { buildRouter } from './router.js';
 import { catalogSeedRows } from './catalog.js';
 import { maybeHandleOtpInbound } from './taxFetch/inboundOtp.js';
+import { startCollectionWindow } from './collectionWindow.js';
 import type { AgentTypeDefinition } from '../types.js';
 
 /**
@@ -36,6 +37,11 @@ export const declarationOfCapitalAgent: AgentTypeDefinition = {
   // started.
   collectsTaxYear: false,
   planNextAction: planFollowUp,
+  // Collection window: the first delivered message starts the clock on the
+  // client's due date (unless the accountant set one by hand).
+  async onFirstContact(ctx, sentAt) {
+    await startCollectionWindow(ctx.client, ctx.instance, sentAt);
+  },
   async onInboundMessage(ctx, evt) {
     // A WhatsApp reply carrying the tax-authority OTP is time-critical: route it
     // straight to the worker without an LLM round-trip or a re-plan.

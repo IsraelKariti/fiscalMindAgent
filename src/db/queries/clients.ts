@@ -432,6 +432,21 @@ export async function clearOverdueStopped(id: string): Promise<void> {
 }
 
 /**
+ * Collection window (openspec `collection-window`): stamps the automatic
+ * due date at first contact, only when the client carries no due date (a
+ * hand-set one wins, a cleared one stays cleared). True when written.
+ */
+export async function setDueDateIfAbsent(id: string, dueDate: string): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `UPDATE clients
+     SET agent_fields = agent_fields || jsonb_build_object('due_date', $2::text), updated_at = now()
+     WHERE id = $1 AND deleted_at IS NULL AND (agent_fields->>'due_date') IS NULL`,
+    [id, dueDate],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/**
  * Stamps which scheduled draft is the attestation summary (declaration of
  * capital). Overwritten when a newer request is scheduled; the confirmation
  * validator only trusts it once that email row is actually 'sent'.

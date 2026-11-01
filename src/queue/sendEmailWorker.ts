@@ -19,8 +19,9 @@ import { agentWorkBlocked } from '../agents/killSwitch.js';
 import { adminCommsPaused, isSupervisedInstance } from '../orchestration/adminPause.js';
 import { sendReviewReminderEmail } from '../orchestration/reviewAlert.js';
 import { recordAudit } from '../audit/audit.js';
+import { getAgentTypeIfKnown } from '../agents/registry.js';
 import { logger } from '../util/logger.js';
-import type { ClientRow, EmailRow } from '../db/types.js';
+import type { AgentInstanceRow, ClientRow, EmailRow } from '../db/types.js';
 
 export async function onScheduledSend(job: Job<{ clientId: string; emailId: string }>): Promise<void> {
   const { clientId, emailId } = job.data;
@@ -88,6 +89,9 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       return; // no replan — the plan stays parked on this draft
     }
 
+    // First contact is decided before the send: a delivered outbound existing
+    // afterwards but not before means this message was the first one.
+    const contactedBefore = await emails.hasDeliveredOutbound(clientId);
     let sent: SendOutcome;
     try {
       sent = draft.channel === 'whatsapp' ? await sendWhatsAppDraft(client, draft) : await sendEmailDraft(client, draft);
@@ -100,6 +104,7 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       publishClientUpdated(clientId);
       throw err;
     }
+    if (sent === 'sent' && !contactedBefore) await onFirstContact(client, instance);
     // Either way the pending action is settled — plan the next one. On the
     // not-sent path the abandoned draft simply stays in 'draft' status (the
     // established pattern) and the fresh decision sees the current state.
@@ -111,6 +116,23 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
 }
 
 type SendOutcome = 'sent' | 'not_sent' | 'skip_planning';
+
+/**
+ * First-contact junction: the agent type's hook runs once, right after the
+ * first delivered message, before the replan so the next plan already sees
+ * what it wrote (the collection window's due date). Never fails the send.
+ */
+async function onFirstContact(client: ClientRow, instance: AgentInstanceRow | null): Promise<void> {
+  const hook = instance ? getAgentTypeIfKnown(instance.agent_type)?.onFirstContact : undefined;
+  if (!hook) return;
+  try {
+    const fresh = (await clients.getById(client.id)) ?? client;
+    const accountant = client.user_id ? await users.getById(client.user_id) : null;
+    await hook({ instance, client: fresh, accountant }, new Date());
+  } catch (err) {
+    logger.error('first-contact hook failed', err, { clientId: client.id });
+  }
+}
 
 async function sendEmailDraft(client: ClientRow, draft: EmailRow): Promise<SendOutcome> {
   // Each agent sends from its own admin-assigned address with a role display

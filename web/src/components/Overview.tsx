@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ImpersonationEndedError, type DashboardSummary, type RequestOpts } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
-import { displayClientName, LOCALE } from '../format';
-import { useT } from '../i18n';
+import { clientDotClass, clientDotState, displayClientName, LOCALE } from '../format';
+import { dotTitle, useT } from '../i18n';
 import { ChartCard, ChartEmpty, SERIES } from './charts/common';
 import { DonutChart, type DonutDatum } from './charts/DonutChart';
 import { LineChart } from './charts/LineChart';
@@ -68,6 +68,10 @@ export function Overview({ onSelectClient }: Props) {
     return { labels: starts.map(weekLabel), sent, received };
   }, [data]);
 
+  // Same rule as the sidebar (openspec `client-status-indicator`).
+  const dotState = (client: { goal_status: 'pending' | 'complete'; overdue_stopped: boolean; declined: boolean }) =>
+    clientDotState({ goal_status: client.goal_status, overdueStopped: client.overdue_stopped, declined: client.declined });
+
   const statusDonut = useMemo<DonutDatum[]>(() => {
     const clients = data?.clients ?? [];
     const complete = clients.filter((c) => c.goal_status === 'complete').length;
@@ -126,16 +130,8 @@ export function Overview({ onSelectClient }: Props) {
                   <span className="overview-row-top">
                     <span className="overview-row-name">
                       <span
-                        className={`status-dot ${client.overdue_stopped || client.declined ? 'overdue' : client.goal_status}`}
-                        title={
-                          client.declined
-                            ? t.goalDeclinedTitle
-                            : client.overdue_stopped
-                            ? t.goalOverdueTitle
-                            : client.goal_status === 'complete'
-                              ? t.goalCompleteTitle
-                              : t.goalPendingTitle
-                        }
+                        className={`status-dot ${clientDotClass(dotState(client))}`}
+                        title={dotTitle(t, dotState(client))}
                       />
                       {displayClientName(client.name)}
                     </span>

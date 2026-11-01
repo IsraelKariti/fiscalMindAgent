@@ -527,24 +527,21 @@ code {
   flex-shrink: 0;
 }
 
-.status-dot.pending {
+/* Client dot states (openspec `client-status-indicator`): yellow = the agent
+   is still collecting, green = the agent is finished (all documents received,
+   or the collection window ended), red = the client refused. */
+.status-dot.in-progress {
   background: var(--pending);
   animation: pulse-dot 2.2s ease-out infinite;
 }
 
-.status-dot.complete {
+.status-dot.done,
+.status-dot.window-ended {
   background: var(--success);
   box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
 }
 
-/* Inbound-only agents: the sender is muted, the agent stays silent. */
-.status-dot.wa-muted {
-  background: var(--error);
-  box-shadow: 0 0 8px rgba(251, 113, 133, 0.6);
-}
-
-/* Doc collector: the collection due date passed and the agent stopped chasing. */
-.status-dot.overdue {
+.status-dot.refused {
   background: var(--error);
   box-shadow: 0 0 8px rgba(251, 113, 133, 0.6);
 }

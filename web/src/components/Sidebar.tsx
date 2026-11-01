@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
-import { contactLabel, displayClientName, formatTimestamp, isOverdueStopped } from '../format';
-import { useT } from '../i18n';
+import { clientDotClass, clientDotState, contactLabel, displayClientName, formatTimestamp, isDeclined, isOverdueStopped } from '../format';
+import { dotTitle, useT } from '../i18n';
 
 export interface AgentOption {
   id: string;
@@ -177,13 +177,11 @@ export function Sidebar({
         contactLabel(client).toLowerCase().includes(q),
     );
   }, [clients, clientQuery]);
-  const dotFor = (client: Client) =>
-    isOverdueStopped(client)
-        ? { cls: 'overdue', title: t.goalOverdueTitle }
-        : {
-            cls: client.goal_status,
-            title: client.goal_status === 'complete' ? t.goalCompleteTitle : t.goalPendingTitle,
-          };
+  // Same rule as the overview list (openspec `client-status-indicator`).
+  const dotFor = (client: Client) => {
+    const state = clientDotState({ goal_status: client.goal_status, overdueStopped: isOverdueStopped(client), declined: isDeclined(client) });
+    return { cls: clientDotClass(state), title: dotTitle(t, state) };
+  };
   return (
     <nav className="sidebar">
       <div className="brand sidebar-brand">

@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
+import type { ClientDotState } from './format';
 
 /** The app is Hebrew-only; this is the entire message catalog. */
 const he = {
@@ -317,10 +318,11 @@ const he = {
   navDashboard: 'דשבורד',
   clientsHeading: 'לקוחות',
   addClient: 'הוספת לקוח',
-  goalCompleteTitle: 'היעד הושלם',
-  goalPendingTitle: 'איסוף בתהליך',
-  goalOverdueTitle: 'תאריך היעד עבר — הלקוח בטיפולך',
-  goalDeclinedTitle: 'הלקוח סירב — התיק בטיפולך',
+  // The client dot's hover text, one per state (openspec `client-status-indicator`).
+  dotDone: 'כל המסמכים התקבלו',
+  dotInProgress: 'איסוף בתהליך',
+  dotWindowEnded: 'תאריך היעד עבר — התיק בטיפולך',
+  dotRefused: 'הלקוח סירב — התיק בטיפולך',
   deleteClientAction: (name: string) => `מחיקת ${name}`,
   sidebarNoClients: 'אין עדיין לקוחות',
   sidebarSearchPlaceholder: 'חיפוש לפי שם או אימייל',
@@ -1256,6 +1258,20 @@ const he = {
 };
 
 export type Messages = typeof he;
+
+/** The client dot's hover text for its state (openspec `client-status-indicator`). */
+export function dotTitle(t: Messages, state: ClientDotState): string {
+  switch (state) {
+    case 'refused':
+      return t.dotRefused;
+    case 'done':
+      return t.dotDone;
+    case 'window_ended':
+      return t.dotWindowEnded;
+    default:
+      return t.dotInProgress;
+  }
+}
 
 interface I18n {
   t: Messages;

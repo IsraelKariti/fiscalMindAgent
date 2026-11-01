@@ -60,6 +60,26 @@ export function isDeclined(client: { goal_status: 'pending' | 'complete'; agent_
   return client.goal_status === 'pending' && typeof client.agent_fields?.declined_at === 'string';
 }
 
+/** The client dot's state (openspec `client-status-indicator`); the CSS class is the state with `_` → `-`. */
+export type ClientDotState = 'refused' | 'done' | 'window_ended' | 'in_progress';
+
+/**
+ * One rule for the dot in the sidebar and the overview list: red when the
+ * client refused, green when the agent is finished (goal complete, or the
+ * collection window ended), yellow otherwise. Precedence refused > done >
+ * window ended > in progress; a missing flag counts as false.
+ */
+export function clientDotState(client: { goal_status: 'pending' | 'complete'; overdueStopped?: boolean; declined?: boolean }): ClientDotState {
+  if (client.declined === true && client.goal_status === 'pending') return 'refused';
+  if (client.goal_status === 'complete') return 'done';
+  if (client.overdueStopped === true) return 'window_ended';
+  return 'in_progress';
+}
+
+export function clientDotClass(state: ClientDotState): string {
+  return state.replace('_', '-');
+}
+
 /** "YYYY-MM-DD" → localized date, without a time-of-day. */
 export function formatDateOnly(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString(LOCALE, { dateStyle: 'medium' });

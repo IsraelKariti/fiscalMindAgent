@@ -11,7 +11,7 @@
 ## 3. monday shell shows the viewer mode
 
 - [x] 3.1 In `web/src/monday/api.ts`, add the optional `role` and `viewingFor` fields to `MondaySessionStatus` (the `Me` type already has them). In `web/src/monday/MondayObject.tsx`, wrap `Workspace` in `ViewerProvider` with `readOnly: me.viewingFor != null` and pass `viewer={me.viewingFor ?? null}`, mirroring `web/src/App.tsx`. Verify with `npm run typecheck` and `npm run build:gui`.
-- [ ] 3.2 Browser check in monday (owner): open the FiscalMind custom object as a staff member. Expect the accountant's workspace, the read-only notice naming the accountant, no add-client / delete / pause / document-action controls, and the Settings page showing only the dashboard tab. Then open it as a non-listed monday user and expect the "not activated" screen as before.
+- [x] 3.2 (owner confirmed 2026-11-01) Browser check in monday (owner): open the FiscalMind custom object as a staff member. Expect the accountant's workspace, the read-only notice naming the accountant, no add-client / delete / pause / document-action controls, and the Settings page showing only the dashboard tab. Then open it as a non-listed monday user and expect the "not activated" screen as before.
 
 ## 4. Docs and tests
 

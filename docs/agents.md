@@ -72,11 +72,12 @@ activation is not email-gated and no mailbox is required — the instance's
   late answer) goes out as the seeded `capital_declaration_update` reopen
   template, which only asks the client to reply; the real content follows in
   the first free-form message. Operational prerequisite: one `intro` and one
-  `reopen` row for the agent type (seeded by migrations 071 and 064; admin:
+  `reopen` row for the agent type (seeded by migrations 072 and 064; admin:
   waAdmin routes) or the agent cannot start or resume conversations. The
-  intro is `capital_declaration_intro_v2` (migration 071 seeds it and deletes
-  the former `capital_declaration_intro`): a quick-reply template whose two
-  buttons are "נתחיל כאן בוואטסאפ" (id `start`) and "לא, אטפל בזה בעצמי" (id
+  intro is `capital_declaration_intro_v3` (migration 072 seeds it and deletes
+  the former `capital_declaration_intro_v2`, as 071 deleted the original
+  `capital_declaration_intro`): a quick-reply template whose two buttons are
+  "נאסוף כאן בווצאפ" (id `start`) and "העברה ישירות למשרד" (id
   `decline`); a tap arrives as an inbound message whose Body is the button
   text and whose `ButtonPayload` is the id (`InboundEvent.buttonPayload`).
   **Client decline** (openspec `client-decline`): the decline button is

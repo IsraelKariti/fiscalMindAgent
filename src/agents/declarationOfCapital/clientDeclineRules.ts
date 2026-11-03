@@ -13,8 +13,8 @@ import type { ClientDocumentRow, ClientRow, UserRow } from '../../db/types.js';
 
 /** The quick-reply button id of the intro template's decline button (Twilio `ButtonPayload`). */
 export const DECLINE_BUTTON_ID = 'decline';
-/** The decline button's text, exactly as approved on `capital_declaration_intro_v2` (a tap arrives with this Body). */
-export const DECLINE_BUTTON_TEXT = 'לא, אטפל בזה בעצמי';
+/** The decline button's text, exactly as approved on `capital_declaration_intro_v3` (a tap arrives with this Body). */
+export const DECLINE_BUTTON_TEXT = 'העברה ישירות למשרד';
 
 export type DeclineSource = 'button' | 'planner';
 

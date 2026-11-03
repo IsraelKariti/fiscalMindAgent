@@ -6,10 +6,10 @@ What happens when a declaration-of-capital client declines the WhatsApp document
 ## Requirements
 
 ### Requirement: A decline is recognised from the button or from words
-The system SHALL treat an inbound WhatsApp message as a decline when the client tapped the intro template's decline button (the quick-reply payload `decline`, or a message whose whole text equals the decline button's text), without any planner run. When the client instead writes a refusal in their own words (for example "לא תודה", "אני מעדיף להביא את המסמכים למשרד"), the planner SHALL recognise it and answer with the `client_declined` decision and nothing else: no reminder, no explanation, no attempt to persuade. A message that merely asks a question, hesitates, or says "not now" SHALL NOT count as a decline.
+The system SHALL treat an inbound WhatsApp message as a decline when the client tapped the intro template's decline button (the quick-reply payload `decline`, or a message whose whole text equals the decline button's text, "העברה ישירות למשרד"), without any planner run. When the client instead writes a refusal in their own words (for example "לא תודה", "אני מעדיף להביא את המסמכים למשרד"), the planner SHALL recognise it and answer with the `client_declined` decision and nothing else: no reminder, no explanation, no attempt to persuade. A message that merely asks a question, hesitates, or says "not now" SHALL NOT count as a decline.
 
 #### Scenario: Button tap
-- **WHEN** the client taps "לא, אטפל בזה בעצמי" on the intro message
+- **WHEN** the client taps "העברה ישירות למשרד" on the intro message
 - **THEN** the decline is handled at once, and no planner call is recorded for that turn
 
 #### Scenario: Typed refusal

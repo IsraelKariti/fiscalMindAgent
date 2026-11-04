@@ -18,4 +18,4 @@
 
 ## 5. Owner browser check
 
-- [ ] 5.1 In Chrome (Claude's browser tools were not connected on 2026-11-04): confirm each dot state shows its color in the sidebar and the overview list, the blue dot pulses, the filter bar shows five buttons with correct counts, pressing orange lists only window-ended clients, and the buttons do not wrap at the narrowest sidebar width
+- [x] 5.1 In Chrome (Claude's browser tools were not connected on 2026-11-04): confirm each dot state shows its color in the sidebar and the overview list, the blue dot pulses, the filter bar shows five buttons with correct counts, pressing orange lists only window-ended clients, and the buttons do not wrap at the narrowest sidebar width

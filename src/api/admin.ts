@@ -256,6 +256,10 @@ export const adminListAccountantAgents: RequestHandler = async (req, res) => {
         // Collection window (070): days the agent chases a client after first contact.
         collectionWindowCapable: Boolean(def.onFirstContact),
         collectionWindowDays: i.collection_window_days,
+        // First-message approval (073): manual-kickoff types only — on = new
+        // clients enroll paused with a held first message, off = they start.
+        firstMessageApprovalCapable: Boolean(def.manualKickoff),
+        firstMessageApproval: i.first_message_approval,
         // Pilot supervision (048) — admin-only, never exposed to the workspace.
         reviewMode: i.review_mode,
         adminPaused: i.admin_paused,
@@ -525,6 +529,40 @@ export const adminSetAgentCollectionWindow: RequestHandler = async (req, res) =>
     previous: instance.collection_window_days,
   });
   res.json({ days: updated?.collection_window_days ?? parsed.data.days });
+};
+
+const AgentFirstMessageApprovalSchema = z.object({ agentInstanceId: z.string().uuid(), on: z.boolean() }).strict();
+
+/**
+ * POST /api/admin/agent-first-message-approval — whether a manual-kickoff
+ * instance enrolls its clients paused with a held first message (on, the
+ * default) or running with the first message queued (off); openspec
+ * `first-message-approval`. Applies to clients enrolled from now on; clients
+ * already holding a draft keep holding it.
+ */
+export const adminSetAgentFirstMessageApproval: RequestHandler = async (req, res) => {
+  const parsed = AgentFirstMessageApprovalSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Expected { agentInstanceId, on }.' });
+    return;
+  }
+  const instance = await agentInstances.getById(parsed.data.agentInstanceId);
+  if (!instance) {
+    res.status(404).json({ error: 'Agent not found.' });
+    return;
+  }
+  if (getAgentTypeIfKnown(instance.agent_type)?.manualKickoff !== true) {
+    res.status(400).json({ error: 'This agent type has no first-message approval setting.' });
+    return;
+  }
+  const updated = await agentInstances.setFirstMessageApproval(instance.id, parsed.data.on);
+  logger.info('agent first-message approval set', {
+    adminUserId: req.realUserId,
+    instanceId: instance.id,
+    on: parsed.data.on,
+    previous: instance.first_message_approval,
+  });
+  res.json({ on: updated?.first_message_approval ?? parsed.data.on });
 };
 
 /** POST /api/admin/impersonate — start viewing the given accountant's dashboard. */

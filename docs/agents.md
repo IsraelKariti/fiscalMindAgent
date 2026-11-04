@@ -119,6 +119,20 @@ rule applies to every preserved draft, not only the first). A draft held for
 admin review (048) stays held on resume — the admin's approval sends it. Only
 when nothing is preserved does a resume redraft. A reply arriving while held re-drafts the
 held message (still paused, nothing sent). Nothing changes on the monday board.
+Since 2026-11-04 the hold is a **per-instance admin setting**
+(`agent_instances.first_message_approval`, migration 073, change
+`configurable-kickoff`; toggled on the admin agent page's supervision card,
+`POST /api/admin/agent-first-message-approval`). Enrollment pauses the client
+only when `enrollsPaused` (`orchestration/holdRule.ts`: manual kickoff AND
+approval on) says so — `enrollDeclarationClient` and the import scan both ask
+it. With approval **off** the client enrolls *running*, so the same
+`draftFirstEmail` call takes the normal path (draft stored, send queued for
+its planned time) and no Resume is needed; the kickoff route's `isStartable`
+therefore no longer looks at `paused` (`kickoffStartable`: goal open, no
+messages, no draft in flight or stored). The switch applies to clients
+enrolled afterwards only; a client already holding a draft keeps it. An
+accountant who pauses an auto-started client before its first send lands in
+the held state (paused + never contacted) and Resume sends the preserved draft.
 Since 2026-08-24 the declaration flow is **questionnaire-driven** (the office's
 monday WorkForm is the only source of which documents a declaration needs):
 - **Board shape**: the declarations board maps four extra columns

@@ -46,6 +46,7 @@ import {
   adminSetAgentEmail,
   adminSetAgentTaxYear,
   adminSetAgentCollectionWindow,
+  adminSetAgentFirstMessageApproval,
   adminSetKillSwitch,
   adminSetLlmBudget,
   adminSetModel,
@@ -159,6 +160,7 @@ apiRouter.delete('/admin/whitelist/:email', wrap(requireAdmin), wrap(adminRemove
 apiRouter.post('/admin/agent-emails', wrap(requireAdmin), wrap(adminSetAgentEmail));
 apiRouter.post('/admin/agent-tax-year', wrap(requireAdmin), wrap(adminSetAgentTaxYear));
 apiRouter.post('/admin/agent-collection-window', wrap(requireAdmin), wrap(adminSetAgentCollectionWindow));
+apiRouter.post('/admin/agent-first-message-approval', wrap(requireAdmin), wrap(adminSetAgentFirstMessageApproval));
 // Sender pictures (061): the app logo and per-agent icons, raw image bodies.
 apiRouter.get('/admin/app-logo', wrap(requireAdmin), wrap(adminGetAppLogo));
 apiRouter.put('/admin/app-logo', wrap(requireAdmin), logoBodyParser, wrap(adminUploadAppLogo));

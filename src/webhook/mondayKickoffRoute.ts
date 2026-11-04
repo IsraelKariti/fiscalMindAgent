@@ -17,6 +17,7 @@ import * as emails from '../db/queries/emails.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import * as mondayOauthTokens from '../db/queries/mondayOauthTokens.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
+import { kickoffStartable } from '../orchestration/holdRule.js';
 import { logger } from '../util/logger.js';
 import type { AgentInstanceRow } from '../db/types.js';
 
@@ -119,9 +120,10 @@ async function startClientForItem(instance: AgentInstanceRow, boardId: string, i
   }
   await recordKickoff(instance, target, boardId, itemId);
   await preResolveFromForm(client, target.intake, log);
-  // Same fire-and-forget first-draft path as manual client creation — the
-  // client is still paused, so setFutureEmail drafts in hold mode: the draft
-  // is stored with its planned time and no send is queued.
+  // Same fire-and-forget first-draft path as manual client creation. With
+  // first-message approval on the client is paused, so setFutureEmail drafts
+  // in hold mode (draft stored with its planned time, no send queued); with
+  // approval off the client is running and the send is queued as usual.
   draftFirstEmail(client.id);
   // Report the start back to the board row's status column (fire-and-forget).
   void syncMondayStatus(client.id, MONDAY_STATUS_AGENT_WORKING);
@@ -197,22 +199,25 @@ async function rememberBoardRow(client: KickoffTarget['client'], boardId: string
 }
 
 /**
- * Only a never-contacted, waiting client is started: an open goal, still
- * paused (imports create manual-kickoff clients paused), with no messages,
- * no held first draft and no draft being written. Repeat clicks, started
- * conversations and deliberately re-paused clients all land here and are
+ * Only a never-contacted client is started: an open goal, no messages, no
+ * held or scheduled first draft and no draft being written (`kickoffStartable`
+ * in holdRule.ts). Paused or not makes no difference — an instance with
+ * first-message approval off enrolls its clients running. Repeat clicks,
+ * started conversations and clients holding a draft all land here and are
  * left alone.
  */
 async function isStartable(client: KickoffTarget['client']): Promise<boolean> {
-  if (client.goal_status !== 'pending' || !client.paused || client.drafting_since !== null) return false;
-  if ((await emails.listForClient(client.id)).length > 0) return false;
-  return (await scheduledJobs.getForClient(client.id)) === null;
+  const messages = (await emails.listForClient(client.id)).length;
+  const hasScheduledJob = (await scheduledJobs.getForClient(client.id)) !== null;
+  return kickoffStartable({ goalStatus: client.goal_status, draftingSince: client.drafting_since, messages, hasScheduledJob });
 }
 
 /**
- * The kickoff is audited and the workspace is told. The client stays paused:
- * its first message is drafted and held, and the accountant's resume sends it
- * (openspec `first-message-approval`).
+ * The kickoff is audited and the workspace is told. With first-message
+ * approval on, the client stays paused: its first message is drafted and
+ * held, and the accountant's resume sends it (openspec
+ * `first-message-approval`). With approval off, the client is running and the
+ * draft is queued for its planned time.
  */
 async function recordKickoff(instance: AgentInstanceRow, target: KickoffTarget, boardId: string, itemId: string): Promise<void> {
   const { client } = target;

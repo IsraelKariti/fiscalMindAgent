@@ -808,6 +808,17 @@ const he = {
     `לבטל את השהיית ${client}? הסוכן יתכנן מחדש את ההודעה הבאה (והיא תמתין לאישור אם מצב האישור פעיל).`,
   adminSupervisionTitle: 'פיקוח פיילוט',
   adminSupervisionDesc: 'כלי פיקוח לניסוי החי — בלתי נראים לרואה החשבון.',
+  adminFirstMessageApprovalLabel: 'אישור ההודעה הראשונה',
+  adminFirstMessageApprovalDesc:
+    'כשמופעל, לקוח חדש נוצר מושהה וההודעה הראשונה שלו ממתינה לחידוש על ידי רואה החשבון. כשכבוי, לקוח חדש מתחיל מיד וההודעה הראשונה נשלחת במועד שתוכנן.',
+  adminFirstMessageApprovalOffBadge: 'התחלה אוטומטית',
+  adminFirstMessageApprovalEnable: 'הפעלה',
+  adminFirstMessageApprovalDisable: 'כיבוי',
+  adminFirstMessageApprovalEnableConfirm:
+    'להפעיל את אישור ההודעה הראשונה? לקוחות חדשים ייווצרו מושהים וההודעה הראשונה שלהם תמתין לחידוש על ידי רואה החשבון. לקוחות שכבר רצים ממשיכים כרגיל.',
+  adminFirstMessageApprovalDisableConfirm:
+    'לכבות את אישור ההודעה הראשונה? לקוחות חדשים יתחילו מיד וההודעה הראשונה שלהם תישלח במועד שתוכנן, בלי חידוש ידני. לקוחות שכבר ממתינים לחידוש נשארים כפי שהם. אם אישור ידני של הודעות פעיל, ההודעה עדיין תמתין לאישורך במסך האישור.',
+  adminFirstMessageApprovalSaveFailed: 'שמירת אישור ההודעה הראשונה נכשלה.',
   adminReviewModeLabel: 'אישור ידני של הודעות',
   adminReviewModeDesc: 'כשמופעל, כל הודעה יוצאת ממתינה לאישורך במסך "אישור הודעות" לפני שליחה.',
   adminReviewModeOnBadge: 'אישור ידני פעיל',

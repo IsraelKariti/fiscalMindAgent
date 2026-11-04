@@ -861,6 +861,10 @@ export interface AgentInstance {
   collectionWindowCapable?: boolean;
   /** Admin listing only: days the agent chases a client after its first delivered message (default 14). */
   collectionWindowDays?: number;
+  /** Admin listing only: true for manual-kickoff agent types (the first-message approval setting applies). */
+  firstMessageApprovalCapable?: boolean;
+  /** Admin listing only: on = new clients enroll paused with a held first message; off = they start right away. */
+  firstMessageApproval?: boolean;
   /** Admin listing only: pilot supervision — outbound messages need admin approval (declaration_of_capital). */
   reviewMode?: boolean;
   /** Admin listing only: the hidden admin emergency brake (declaration_of_capital). */
@@ -1116,6 +1120,11 @@ export const api = {
     request<{ ok: true; sentImmediately: boolean }>(`/admin/review/messages/${emailId}/approve`, { method: 'POST' }),
   adminRegenerateReviewMessage: (emailId: string) =>
     request<{ ok: true }>(`/admin/review/messages/${emailId}/regenerate`, { method: 'POST' }),
+  adminSetAgentFirstMessageApproval: (agentInstanceId: string, on: boolean) =>
+    request<{ on: boolean }>('/admin/agent-first-message-approval', {
+      method: 'POST',
+      body: JSON.stringify({ agentInstanceId, on }),
+    }),
   adminSetAgentReviewMode: (agentInstanceId: string, reviewMode: boolean) =>
     request<{ reviewMode: boolean }>('/admin/agent-review-mode', {
       method: 'POST',

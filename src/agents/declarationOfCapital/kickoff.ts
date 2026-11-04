@@ -12,6 +12,8 @@ import { catalogSeedRows } from './catalog.js';
 import { crmIdNumber, spouseFromCards } from './crmIdentity.js';
 import { EMPTY_SPOUSE, readMaritalStatus, readSpouse, sameSpouse, spouseToStored, type MaritalStatus, type SpouseOnFile } from './spouseIdentity.js';
 import { maskId } from '../shared/gateChecks.js';
+import { getAgentTypeIfKnown } from '../registry.js';
+import { enrollsPaused } from '../../orchestration/holdRule.js';
 import type { ItemColumnDetail } from '../shared/mondayData.js';
 import type { FormAnswer } from './formIntake.js';
 import type { BoardSource } from '../shared/clientSources.js';
@@ -90,11 +92,13 @@ export function spouseAuditDetail(s: SpouseOnFile): Record<string, unknown> {
 }
 
 /**
- * Inserts the client (paused — its first message is drafted and held, openspec
- * `first-message-approval`), stores the identity on agent_fields, seeds the
- * catalog checklist for the declaration year and tells the workspace. The
- * caller records the audit entry (its actor differs per source) and handles a
- * phone collision (23505) its own way.
+ * Inserts the client (paused while the instance's first-message approval is on,
+ * so its first message is drafted and held — openspec `first-message-approval`;
+ * running when it is off, so the first message is queued for its planned
+ * time), stores the identity on agent_fields, seeds the catalog checklist for
+ * the declaration year and tells the workspace. The caller records the audit
+ * entry (its actor differs per source) and handles a phone collision (23505)
+ * its own way.
  */
 export async function enrollDeclarationClient(
   instance: AgentInstanceRow,
@@ -107,7 +111,10 @@ export async function enrollDeclarationClient(
     name: identity.name,
     emailAddress: syntheticWaEmail(identity.waPhone),
     phone: identity.waPhone,
-    paused: true,
+    paused: enrollsPaused({
+      manualKickoff: getAgentTypeIfKnown(instance.agent_type)?.manualKickoff === true,
+      firstMessageApproval: instance.first_message_approval,
+    }),
     isTest: opts.isTest ?? false,
     agentFields: {
       ...(identity.extraFields ?? {}),

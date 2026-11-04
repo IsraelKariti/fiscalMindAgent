@@ -119,6 +119,15 @@ export async function setCollectionWindowDays(id: string, days: number): Promise
   return rows[0] ?? null;
 }
 
+/** Admin-set first-message approval (073): whether newly enrolled clients start paused with a held first message (true) or running with it queued (false). */
+export async function setFirstMessageApproval(id: string, on: boolean): Promise<AgentInstanceRow | null> {
+  const { rows } = await pool.query<AgentInstanceRow>(
+    'UPDATE agent_instances SET first_message_approval = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, on],
+  );
+  return rows[0] ?? null;
+}
+
 /** Admin-owned own picture (061): the blob key of the uploaded icon, NULL to fall back to the app logo. */
 export async function setLogoBlobKey(id: string, key: string | null): Promise<AgentInstanceRow | null> {
   const { rows } = await pool.query<AgentInstanceRow>(

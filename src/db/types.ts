@@ -23,6 +23,8 @@ export interface AgentInstanceRow {
   logo_blob_key: string | null;
   /** Days the agent chases a client after first contact (070, openspec `collection-window`): stamps the client's due date at first delivery. Admin-set, default 14. */
   collection_window_days: number;
+  /** Manual-kickoff instances only (073, openspec `first-message-approval`): true = clients enroll paused and the first message is held for the accountant's Resume; false = clients enroll running and the first message is queued for its planned time. Admin-set, default true. */
+  first_message_approval: boolean;
   created_at: Date;
   updated_at: Date;
 }

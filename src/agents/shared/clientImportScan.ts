@@ -12,6 +12,7 @@ import { getAgentTypeIfKnown } from '../registry.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { syntheticWaEmail } from '../../util/syntheticEmail.js';
 import { logger } from '../../util/logger.js';
+import { enrollsPaused } from '../../orchestration/holdRule.js';
 import type { AgentInstanceRow } from '../../db/types.js';
 import { DECLARATION_OF_CAPITAL } from '../declarationOfCapital/agentType.js';
 import { parseSettings } from '../declarationOfCapital/settings.js';
@@ -243,10 +244,12 @@ export async function scanClientImportInstance(
     fresh.length = MAX_ENROLL;
   }
 
-  // Manual-kickoff agents (declaration of capital) enroll paused with no
-  // first draft: outreach starts only on the accountant's explicit trigger
-  // (monday kickoff webhook or the workspace resume toggle).
+  // Manual-kickoff agents (declaration of capital) enroll with no first draft:
+  // outreach starts only on the accountant's explicit trigger (monday kickoff
+  // webhook or the workspace resume toggle). Paused only while the instance's
+  // first-message approval is on (change `configurable-kickoff`).
   const manualKickoff = definition?.manualKickoff === true;
+  const paused = enrollsPaused({ manualKickoff, firstMessageApproval: instance.first_message_approval });
   // Catalog-seeded types (declaration of capital) enroll ONLY via the monday
   // kickoff webhook: their checklist is rendered for the board row's own
   // declaration year (per client), which this sweep cannot see. New rows are
@@ -286,7 +289,7 @@ export async function scanClientImportInstance(
         agentFields: candidate.mondayItem
           ? { monday_board_id: candidate.mondayItem.boardId, monday_item_id: candidate.mondayItem.itemId }
           : undefined,
-        paused: manualKickoff,
+        paused,
       });
       for (const doc of documents) {
         await clientDocuments.insert({ clientId: client.id, name: doc.name, description: null });

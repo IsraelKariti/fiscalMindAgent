@@ -202,6 +202,9 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
   // admin pause. Both invisible to the accountant.
   const [confirmingReviewMode, setConfirmingReviewMode] = useState(false);
   const [confirmingAdminPause, setConfirmingAdminPause] = useState(false);
+  // First-message approval (manual-kickoff types only): on = new clients enroll
+  // paused with a held first message; off = they start right away.
+  const [confirmingFirstMessageApproval, setConfirmingFirstMessageApproval] = useState(false);
 
   const [manualNumber, setManualNumber] = useState('');
   const [poolPicking, setPoolPicking] = useState(false);
@@ -507,6 +510,27 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
             <h3>{t.adminSupervisionTitle}</h3>
             <p className="muted">{t.adminSupervisionDesc}</p>
 
+            {instance.firstMessageApprovalCapable && (
+              <div className="wa-action-row">
+                <span className="doc-text">
+                  <span className="doc-name">
+                    {t.adminFirstMessageApprovalLabel}
+                    {instance.firstMessageApproval === false && (
+                      <span className="badge badge-pending">{t.adminFirstMessageApprovalOffBadge}</span>
+                    )}
+                  </span>
+                  <span className="doc-desc muted">{t.adminFirstMessageApprovalDesc}</span>
+                </span>
+                <button
+                  className="btn btn-ghost btn-small"
+                  disabled={busy}
+                  onClick={() => setConfirmingFirstMessageApproval(true)}
+                >
+                  {instance.firstMessageApproval === false ? t.adminFirstMessageApprovalEnable : t.adminFirstMessageApprovalDisable}
+                </button>
+              </div>
+            )}
+
             <div className="wa-action-row">
               <span className="doc-text">
                 <span className="doc-name">
@@ -762,6 +786,29 @@ export function AgentPage({ row, agentType, onBackToList, onBackToAccountant }: 
             void saveAgentEmail();
           }}
           onClose={() => setConfirmingEmailChange(false)}
+        />
+      )}
+
+      {confirmingFirstMessageApproval && instance && (
+        <ConfirmModal
+          title={t.adminFirstMessageApprovalLabel}
+          note={
+            instance.firstMessageApproval === false
+              ? t.adminFirstMessageApprovalEnableConfirm
+              : t.adminFirstMessageApprovalDisableConfirm
+          }
+          confirmLabel={
+            instance.firstMessageApproval === false ? t.adminFirstMessageApprovalEnable : t.adminFirstMessageApprovalDisable
+          }
+          danger={instance.firstMessageApproval !== false}
+          onConfirm={() => {
+            setConfirmingFirstMessageApproval(false);
+            void run(
+              () => api.adminSetAgentFirstMessageApproval(instance.id, instance.firstMessageApproval === false),
+              t.adminFirstMessageApprovalSaveFailed,
+            );
+          }}
+          onClose={() => setConfirmingFirstMessageApproval(false)}
         />
       )}
 

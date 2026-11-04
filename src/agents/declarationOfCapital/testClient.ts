@@ -85,8 +85,9 @@ export async function createTestClient(
   logger.info('admin test client created', { instanceId: instance.id, clientId: client.id, adminUserId, waPhone });
 
   await preResolveTestForm(client, formAnswers, input.taxYear);
-  // Same fire-and-forget first-draft path as the monday kickoff — the client
-  // is paused, so the draft is stored with its planned time and held.
+  // Same fire-and-forget first-draft path as the monday kickoff: with the
+  // instance's first-message approval on the client is paused, so the draft is
+  // stored with its planned time and held; with it off the send is queued.
   draftFirstEmail(client.id);
   return { ok: true, client };
 }

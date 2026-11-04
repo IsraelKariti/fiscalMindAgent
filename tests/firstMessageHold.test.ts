@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { holdsFirstMessage } from '../src/orchestration/holdRule.js';
+import { enrollsPaused, holdsFirstMessage, kickoffStartable } from '../src/orchestration/holdRule.js';
 import { resumeAction } from '../src/orchestration/resumeDecision.js';
 
 // openspec `first-message-approval`: the kickoff drafts the first message of a
@@ -22,6 +22,47 @@ describe('holdsFirstMessage', () => {
 
   it('does not hold a client of a non-manual-kickoff agent type', () => {
     assert.equal(holdsFirstMessage({ paused: true, manualKickoff: false, contactedMessages: 0 }), false);
+  });
+});
+
+// change `configurable-kickoff`: the instance's first-message approval decides
+// whether enrollment pauses the client; the kickoff starts any never-started
+// client, paused or not.
+describe('enrollsPaused', () => {
+  it('pauses a manual-kickoff client while approval is on (the default)', () => {
+    assert.equal(enrollsPaused({ manualKickoff: true, firstMessageApproval: true }), true);
+  });
+
+  it('enrolls the client running when approval is off', () => {
+    assert.equal(enrollsPaused({ manualKickoff: true, firstMessageApproval: false }), false);
+  });
+
+  it('never pauses a client of a non-manual-kickoff type', () => {
+    assert.equal(enrollsPaused({ manualKickoff: false, firstMessageApproval: true }), false);
+  });
+});
+
+describe('kickoffStartable', () => {
+  const fresh = { goalStatus: 'pending', draftingSince: null, messages: 0, hasScheduledJob: false };
+
+  it('starts a never-contacted client with nothing drafted, whatever its paused flag', () => {
+    assert.equal(kickoffStartable(fresh), true);
+  });
+
+  it('ignores a client whose draft is being written', () => {
+    assert.equal(kickoffStartable({ ...fresh, draftingSince: new Date('2026-11-04T08:00:00Z') }), false);
+  });
+
+  it('ignores a client holding or scheduling a draft', () => {
+    assert.equal(kickoffStartable({ ...fresh, hasScheduledJob: true }), false);
+  });
+
+  it('ignores a started conversation', () => {
+    assert.equal(kickoffStartable({ ...fresh, messages: 1 }), false);
+  });
+
+  it('ignores a client whose goal is complete', () => {
+    assert.equal(kickoffStartable({ ...fresh, goalStatus: 'complete' }), false);
   });
 });
 

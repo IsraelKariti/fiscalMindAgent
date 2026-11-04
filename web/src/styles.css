@@ -17,6 +17,10 @@
   --success-bg: rgba(52, 211, 153, 0.14);
   --pending: #fbbf24;
   --pending-bg: rgba(251, 191, 36, 0.14);
+  --info: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.14);
+  --warning: #fb923c;
+  --warning-bg: rgba(251, 146, 60, 0.14);
   --error: #fb7185;
   --error-bg: rgba(251, 113, 133, 0.14);
   --glow: 0 0 24px rgba(139, 92, 246, 0.35);
@@ -150,10 +154,10 @@ code {
 @keyframes pulse-dot {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55);
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.55);
   }
   60% {
-    box-shadow: 0 0 0 7px rgba(251, 191, 36, 0);
+    box-shadow: 0 0 0 7px rgba(96, 165, 250, 0);
   }
 }
 
@@ -405,7 +409,7 @@ code {
 }
 
 /* The status control under the search box (openspec `client-search`): one
-   bar of four buttons, exactly one pressed — "all", green, yellow, red. */
+   bar of five buttons, exactly one pressed — "all", blue, green, orange, red. */
 .status-filter {
   display: flex;
   gap: 2px;
@@ -589,18 +593,22 @@ code {
   flex-shrink: 0;
 }
 
-/* Client dot states (openspec `client-status-indicator`): yellow = the agent
-   is still collecting, green = the agent is finished (all documents received,
-   or the collection window ended), red = the client refused. */
+/* Client dot states (openspec `client-status-indicator`): blue = the agent is
+   still collecting inside the window, green = all documents received, orange =
+   the window ended with documents missing, red = the client refused. */
 .status-dot.in-progress {
-  background: var(--pending);
+  background: var(--info);
   animation: pulse-dot 2.2s ease-out infinite;
 }
 
-.status-dot.done,
-.status-dot.window-ended {
+.status-dot.done {
   background: var(--success);
   box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+}
+
+.status-dot.window-ended {
+  background: var(--warning);
+  box-shadow: 0 0 8px rgba(251, 146, 60, 0.6);
 }
 
 .status-dot.refused {

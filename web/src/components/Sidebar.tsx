@@ -186,8 +186,9 @@ export function Sidebar({
   }, [clients, clientQuery, statusFilter]);
   const STATUS_BUTTONS: { key: DotFilter; dot: string | null }[] = [
     { key: 'all', dot: null },
+    { key: 'blue', dot: 'in-progress' },
     { key: 'green', dot: 'done' },
-    { key: 'yellow', dot: 'in-progress' },
+    { key: 'orange', dot: 'window-ended' },
     { key: 'red', dot: 'refused' },
   ];
   return (

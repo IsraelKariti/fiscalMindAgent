@@ -335,10 +335,11 @@ const he = {
   statusFilterAll: 'הכל',
   statusFilterTitles: {
     all: 'כל הלקוחות',
-    green: 'הסוכן סיים — כל המסמכים התקבלו או תאריך היעד עבר',
-    yellow: 'איסוף בתהליך',
+    blue: 'איסוף בתהליך',
+    green: 'כל המסמכים התקבלו',
+    orange: 'תאריך היעד עבר — חסרים מסמכים',
     red: 'הלקוח סירב',
-  } as Record<'all' | 'green' | 'yellow' | 'red', string>,
+  } as Record<'all' | 'blue' | 'green' | 'orange' | 'red', string>,
   // Admin view-as only (openspec `soft-delete-clients`)
   sidebarDeletedToggle: 'לקוחות שנמחקו',
   sidebarDeletedToggleTitle: 'הצגת הלקוחות שנמחקו מהרשימה (לצפייה בלבד; זמין למנהל בלבד)',

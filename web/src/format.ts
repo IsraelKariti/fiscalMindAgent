@@ -86,9 +86,10 @@ export type ClientDotState = 'refused' | 'done' | 'window_ended' | 'in_progress'
 
 /**
  * One rule for the dot in the sidebar and the overview list: red when the
- * client refused, green when the agent is finished (goal complete, or the
- * collection window ended), yellow otherwise. Precedence refused > done >
- * window ended > in progress; a missing flag counts as false.
+ * client refused, green when every document was collected, orange when the
+ * collection window ended with documents missing, blue otherwise (still
+ * collecting). Precedence refused > done > window ended > in progress; a
+ * missing flag counts as false.
  */
 export function clientDotState(client: { goal_status: 'pending' | 'complete'; overdueStopped?: boolean; declined?: boolean }): ClientDotState {
   if (client.declined === true && client.goal_status === 'pending') return 'refused';
@@ -101,20 +102,21 @@ export function clientDotClass(state: ClientDotState): string {
   return state.replace('_', '-');
 }
 
-/** The color the accountant sees for a dot state (openspec `client-search`, status control): the two greens fold together. */
-export type DotColor = 'green' | 'yellow' | 'red';
+/** The color the accountant sees for a dot state (openspec `client-search`, status control): one color per state. */
+export type DotColor = 'blue' | 'green' | 'orange' | 'red';
 /** The status control's choice: a color, or everyone. */
 export type DotFilter = 'all' | DotColor;
 
 export function dotColorOf(state: ClientDotState): DotColor {
   if (state === 'refused') return 'red';
-  if (state === 'in_progress') return 'yellow';
-  return 'green';
+  if (state === 'window_ended') return 'orange';
+  if (state === 'done') return 'green';
+  return 'blue';
 }
 
 /** How many clients of the loaded list each control button stands for. */
 export function countByDotColor(states: ClientDotState[]): Record<DotFilter, number> {
-  const counts: Record<DotFilter, number> = { all: states.length, green: 0, yellow: 0, red: 0 };
+  const counts: Record<DotFilter, number> = { all: states.length, blue: 0, green: 0, orange: 0, red: 0 };
   for (const s of states) counts[dotColorOf(s)] += 1;
   return counts;
 }

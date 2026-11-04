@@ -25,4 +25,4 @@
 
 - [x] 5.1 Update `docs/agents.md` (manual-kickoff paragraph: the pause and hold depend on the instance setting) and `docs/pipeline.md` (kickoff / first-draft rows); verify the text names the setting and the new helpers
 - [ ] 5.2 Live check with approval off: create a test client from the admin "בדיקה" tab and verify the client appears unpaused, the timeline shows the first draft as scheduled with no Resume button, and (if the planned time is reached) the message is sent without any click; then turn approval back on and verify a new test client is held as before
-- [ ] 5.3 Run `npm run typecheck` and `npm test`, commit per the repo git workflow, and note in the commit message that production needs migration 073
+- [x] 5.3 Run `npm run typecheck` and `npm test`, commit per the repo git workflow, and note in the commit message that production needs migration 073

@@ -84,6 +84,9 @@ function harness(opts: { claim?: boolean; windowOpen?: boolean; sender?: boolean
       calls.push(`markDeclined:${id}`);
       return opts.claim === false ? null : ({ ...client, paused: true, agent_fields: { declined_at: '2026-11-01T10:00:00Z' } } as ClientRow);
     },
+    syncDocumentsStatus: async (id) => {
+      calls.push(`syncDocumentsStatus:${id}`);
+    },
     removeFutureEmail: async (id) => {
       calls.push(`removeFutureEmail:${id}`);
     },
@@ -119,7 +122,7 @@ test('a decline pauses the client, drops the pending send, sends the ack once, e
   const h = harness();
   const out = await handleClientDeclineWith(h.ctx, 'button', h.deps);
   assert.deepEqual(out, { handled: true, ackSent: true });
-  assert.deepEqual(h.calls, ['markDeclined:c1', 'removeFutureEmail:c1', 'clearDraftingState:c1', 'publish:c1']);
+  assert.deepEqual(h.calls, ['markDeclined:c1', 'syncDocumentsStatus:c1', 'removeFutureEmail:c1', 'clearDraftingState:c1', 'publish:c1']);
   assert.equal(h.texts.length, 1);
   assert.ok(h.texts[0]!.includes('אריה רותם'));
   assert.deepEqual(h.emailsSent, [['אישור יתרה בנק']]);

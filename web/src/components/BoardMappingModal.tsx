@@ -14,6 +14,8 @@ export interface BoardMapping {
   documentsColumnId?: string;
   /** Status column the agent writes its progress labels to. */
   statusColumnId?: string;
+  /** Status column mirroring the client dot's color (openspec `monday-documents-status`). */
+  documentsStatusColumnId?: string;
   /** Connect-boards column linking to the client's CRM item (declaration of capital). */
   crmLinkColumnId?: string;
   /** Connect-boards column linking to the submitted questionnaire item (declaration of capital). */
@@ -99,6 +101,8 @@ export function BoardMappingModal({
     keyColumn: keyTyped?.id ?? (keyOptions.some((o) => o.value === auto.keyColumn) ? auto.keyColumn : ''),
     // A board with exactly one status column can only mean that one — preselect it.
     statusColumn: statusOptions.length === 1 ? statusOptions[0]!.value : '',
+    // The documents status column is conventionally titled "מסמכים" on the office's boards.
+    documentsStatusColumn: statusOptions.find((o) => /מסמכים/.test(o.label))?.value ?? '',
     crmLinkColumn: crmLinkAuto,
     formLinkColumn: formLinkAuto,
     fileNumberColumn: withDeclarationColumns ? scalarByTitle(/תיק|file/i) : '',
@@ -124,6 +128,7 @@ export function BoardMappingModal({
           withPortalCredentials={withPortalCredentials}
           withDocumentsColumn={withDocumentsColumn}
           statusOptions={withStatusColumn ? statusOptions : undefined}
+          documentsStatusOptions={withStatusColumn ? statusOptions : undefined}
           declarationLinkOptions={withDeclarationColumns ? linkOptions : undefined}
           onConfirm={(mapping: ColumnMapping) =>
             onConfirm({
@@ -138,6 +143,7 @@ export function BoardMappingModal({
               taxUserCodeColumnId: mapping.taxUserCodeColumn,
               documentsColumnId: mapping.documentsColumn,
               statusColumnId: mapping.statusColumn,
+              documentsStatusColumnId: mapping.documentsStatusColumn,
               crmLinkColumnId: mapping.crmLinkColumn,
               formLinkColumnId: mapping.formLinkColumn,
               fileNumberColumnId: mapping.fileNumberColumn,

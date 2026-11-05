@@ -15,6 +15,7 @@ import { registerClientSourceRoutes } from '../shared/clientSourcesRoutes.js';
 import {
   MONDAY_STATUS_AGENT_WORKING,
   MONDAY_STATUS_DOCS_COLLECTED,
+  syncMondayDocumentsStatus,
   syncMondayStatus,
 } from '../shared/mondayStatusSync.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
@@ -90,6 +91,7 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
     await clients.updateGoalStatus(clientId, 'complete');
     // Report the finished collection back to the board row's status column.
     void syncMondayStatus(clientId, MONDAY_STATUS_DOCS_COLLECTED);
+    void syncMondayDocumentsStatus(clientId);
     await withClientLock(clientId, () => removeFutureEmail(clientId));
     // The fixed closing message (openspec `declaration-completion`): sent only
     // inside an open 24h window; silently skipped otherwise (never a template).
@@ -99,6 +101,7 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
     await clients.updateGoalStatus(clientId, 'pending');
     // The goal reopened — the board must not keep claiming the documents are in.
     void syncMondayStatus(clientId, MONDAY_STATUS_AGENT_WORKING);
+    void syncMondayDocumentsStatus(clientId);
     await withClientLock(clientId, async () => {
       await removeFutureEmail(clientId);
       await setFutureEmail(clientId);
@@ -171,6 +174,8 @@ export function buildRouter(): Router {
       if (wasHandedOff) {
         updated = (await clients.setPaused(client.id, false)) ?? updated;
         await withClientLock(client.id, () => resumeFutureEmail(client.id));
+        // The dot turns blue again — mirror it to the documents status column.
+        void syncMondayDocumentsStatus(client.id);
       }
       publishClientUpdated(client.id);
       res.json({ client: toWorkspaceClient(updated) });

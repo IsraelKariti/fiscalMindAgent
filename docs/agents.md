@@ -391,6 +391,25 @@ accountants connected before the scope change must reconnect monday. Sync is
 best-effort: failures are logged, never block the conversation, and the
 status-change events the writes fire back at the kickoff webhook are ignored
 by its startable-state guards.
+Since 2026-11-05 a board source can also map a **documents status column**
+(`documentsStatusColumnId`, openspec `monday-documents-status`) that mirrors
+the workspace client dot: `syncMondayDocumentsStatus(clientId)` re-reads the
+client and writes the label of its dot state (`mondayDocumentsStatus.ts`,
+same precedence as `clientDotState` in `web/src/format.ts`, pinned by
+`tests/mondayDocumentsStatus.test.ts`) — refused `סירוב סוכן`, complete
+`הושלם בהצלחה`, window ended `הסתיים חלקית`, otherwise `בטיפול סוכן`. It is
+called after every stored change that can move the dot: kickoff (webhook /
+first resume), goal complete and reopen, the decline routine, the overdue
+scan, and the two resume paths (pause toggle, new due date). The existing
+status column is written exactly as before; the new column is in addition.
+The modal preselects a status column titled "מסמכים" and only runs on add,
+so an already-mapped board must be removed and re-added to pick it.
+**Rollback caution:** `BoardSourceSchema` is `.strict()` and `parseSettings`
+falls back to empty settings on a parse failure, so a revert that drops
+`documentsStatusColumnId` from the schema makes every instance that stored
+it lose *all* its board mappings — keep the field tolerated or clear it from
+`agent_instances.settings` first.
+
 `annual_report_assistant` was retired 2026-07-31 — migration 041 disabled its
 instances; the rows survive, hidden, because instance rows are never deleted
 (migration 055 did the same for the types removed 2026-09-11).

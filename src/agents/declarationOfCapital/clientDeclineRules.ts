@@ -71,6 +71,8 @@ export function missingDocumentNames(documents: Pick<ClientDocumentRow, 'name' |
 /** The collaborators of handleClientDeclineWith — the real ones in handleClientDecline, stubs in tests. */
 export interface ClientDeclineDeps {
   markDeclined: (clientId: string) => Promise<ClientRow | null>;
+  /** Mirrors the (now red) dot to the board's documents status column; fire-and-forget. */
+  syncDocumentsStatus: (clientId: string) => Promise<void>;
   removeFutureEmail: (clientId: string) => Promise<void>;
   clearDraftingState: (clientId: string) => Promise<void>;
   channelState: (client: ClientRow, now: Date) => Promise<{ allowed: boolean; windowOpen: boolean }>;
@@ -106,6 +108,7 @@ export async function handleClientDeclineWith(ctx: AgentContext, source: Decline
     logger.info('client decline ignored: already declined, complete or deleted', { clientId: client.id, source });
     return { handled: false, ackSent: false };
   }
+  void deps.syncDocumentsStatus(client.id);
   await deps.removeFutureEmail(client.id);
   await deps.clearDraftingState(client.id);
   const audit = { agentInstanceId: client.agent_instance_id, clientId: client.id };

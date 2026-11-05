@@ -17,6 +17,7 @@ export interface ColumnMapping {
   taxUserCodeColumn?: string;
   documentsColumn?: string;
   statusColumn?: string;
+  documentsStatusColumn?: string;
   crmLinkColumn?: string;
   formLinkColumn?: string;
   fileNumberColumn?: string;
@@ -32,6 +33,7 @@ export interface MappingDraft {
   taxUserCodeColumn: string;
   documentsColumn: string;
   statusColumn: string;
+  documentsStatusColumn: string;
   crmLinkColumn: string;
   formLinkColumn: string;
   fileNumberColumn: string;
@@ -74,6 +76,7 @@ export function autoMapColumns(
     documentsColumn: show.documents ? find(LABEL_PATTERNS.documents) : '',
     // Status columns have their own typed option list; the caller preselects.
     statusColumn: '',
+    documentsStatusColumn: '',
     // Declaration-flow columns have their own typed option lists; the caller preselects.
     crmLinkColumn: '',
     formLinkColumn: '',
@@ -100,6 +103,7 @@ export function SourceMappingForm({
   withPortalCredentials = false,
   withDocumentsColumn = false,
   statusOptions,
+  documentsStatusOptions,
   declarationLinkOptions,
 }: {
   /** Label of the required key column (email for client-import agents, phone for CS). */
@@ -121,6 +125,8 @@ export function SourceMappingForm({
   withDocumentsColumn?: boolean;
   /** When set, also map the status column the agent reports its progress to (boards only, status-typed columns). */
   statusOptions?: MappingOption[];
+  /** When set, also map the documents status column that mirrors the client dot (same status-typed options). */
+  documentsStatusOptions?: MappingOption[];
   /**
    * Declaration-of-capital boards: connect-boards options for the CRM /
    * questionnaire link columns (plus file-number + year fields from the
@@ -137,6 +143,7 @@ export function SourceMappingForm({
   const [taxUserCodeColumn, setTaxUserCodeColumn] = useState(initial.taxUserCodeColumn);
   const [documentsColumn, setDocumentsColumn] = useState(initial.documentsColumn);
   const [statusColumn, setStatusColumn] = useState(initial.statusColumn);
+  const [documentsStatusColumn, setDocumentsStatusColumn] = useState(initial.documentsStatusColumn);
   const [crmLinkColumn, setCrmLinkColumn] = useState(initial.crmLinkColumn);
   const [formLinkColumn, setFormLinkColumn] = useState(initial.formLinkColumn);
   const [fileNumberColumn, setFileNumberColumn] = useState(initial.fileNumberColumn);
@@ -155,6 +162,7 @@ export function SourceMappingForm({
       taxUserCodeColumn: taxUserCodeColumn || undefined,
       documentsColumn: documentsColumn || undefined,
       statusColumn: statusColumn || undefined,
+      documentsStatusColumn: documentsStatusColumn || undefined,
       crmLinkColumn: crmLinkColumn || undefined,
       formLinkColumn: formLinkColumn || undefined,
       fileNumberColumn: fileNumberColumn || undefined,
@@ -244,6 +252,16 @@ export function SourceMappingForm({
             value={statusColumn}
             onChange={setStatusColumn}
             options={[{ value: '', label: t.csSheetNameColumnNone }, ...statusOptions]}
+          />
+        </label>
+      )}
+      {documentsStatusOptions && documentsStatusOptions.length > 0 && (
+        <label className="field">
+          <span>{t.sourcesDocumentsStatusColumn}</span>
+          <Dropdown
+            value={documentsStatusColumn}
+            onChange={setDocumentsStatusColumn}
+            options={[{ value: '', label: t.csSheetNameColumnNone }, ...documentsStatusOptions]}
           />
         </label>
       )}

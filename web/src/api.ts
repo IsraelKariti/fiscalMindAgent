@@ -787,6 +787,8 @@ export interface ClientSourcesConfig {
     documentsColumnId?: string;
     /** Status column the agent writes its progress labels to. */
     statusColumnId?: string;
+    /** Status column mirroring the client dot's color (documents status). */
+    documentsStatusColumnId?: string;
     /** Declaration of capital: connect-boards link to the client's CRM item. */
     crmLinkColumnId?: string;
     /** Declaration of capital: connect-boards link to the submitted questionnaire item. */

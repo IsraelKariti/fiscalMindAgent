@@ -2,6 +2,7 @@ import * as agentInstances from '../../db/queries/agentInstances.js';
 import * as clients from '../../db/queries/clients.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { changeItemStatusLabel } from './mondayData.js';
+import { documentsStatusInputOf, documentsStatusLabelOf } from './mondayDocumentsStatus.js';
 import { parseSettings } from '../declarationOfCapital/settings.js';
 import { logger } from '../../util/logger.js';
 
@@ -48,5 +49,40 @@ export async function syncMondayStatus(clientId: string, label: string): Promise
     // Likely causes: token predates the boards:write scope (reconnect monday),
     // or the row/column was deleted on the board.
     logger.warn('monday status sync failed', { clientId, reason: String(err) });
+  }
+}
+
+/**
+ * Documents status column (openspec `monday-documents-status`): the second
+ * write-back column mirrors the client dot. The label is derived from the
+ * client's stored state *after* the event (mondayDocumentsStatus.ts), so every
+ * call site — kickoff, completion, reopen, decline, overdue stop, resume —
+ * simply calls this once the stored change has landed. Best-effort like
+ * syncMondayStatus; a client without a board row, a board without the mapping,
+ * a test client (never stamped with a row) or a monday failure is a logged no-op.
+ */
+export async function syncMondayDocumentsStatus(clientId: string): Promise<void> {
+  try {
+    const client = await clients.getById(clientId);
+    if (!client?.agent_instance_id) return;
+    const boardId = client.agent_fields['monday_board_id'];
+    const itemId = client.agent_fields['monday_item_id'];
+    if (typeof boardId !== 'string' || typeof itemId !== 'string') return;
+
+    const instance = await agentInstances.getById(client.agent_instance_id);
+    if (!instance) return;
+    const board = parseSettings(instance.settings).boards.find((b) => b.boardId === boardId);
+    if (!board?.documentsStatusColumnId) return;
+
+    const token = await mondayOauthTokens.getByUserId(instance.user_id);
+    if (!token) {
+      logger.warn('monday documents status sync: accountant has no monday connection', { clientId, boardId });
+      return;
+    }
+    const label = documentsStatusLabelOf(documentsStatusInputOf(client));
+    await changeItemStatusLabel(token.access_token, { boardId, itemId, columnId: board.documentsStatusColumnId, label });
+    logger.info('monday documents status sync: label written', { clientId, boardId, itemId, label });
+  } catch (err) {
+    logger.warn('monday documents status sync failed', { clientId, reason: String(err) });
   }
 }

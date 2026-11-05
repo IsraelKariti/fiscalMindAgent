@@ -25,7 +25,7 @@ import { reviewWaitState } from '../orchestration/reviewWait.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { isHeldFirstMessageClient } from '../orchestration/heldFirstMessage.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
-import { MONDAY_STATUS_AGENT_WORKING, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
+import { MONDAY_STATUS_AGENT_WORKING, syncMondayDocumentsStatus, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { capitalClientTaxYear, defaultTaxYear } from '../agents/shared/taxYear.js';
 import { applyFormIntake, type FormAnswer } from '../agents/declarationOfCapital/formIntake.js';
@@ -543,6 +543,8 @@ workspaceRouter.put(
       if (typeof updated.agent_fields['overdue_stopped_at'] === 'string' || typeof updated.agent_fields['declined_at'] === 'string') {
         await clients.clearHandedOff(updated.id);
         updated = (await clients.getById(updated.id)) ?? updated;
+        // The dot turns blue again — mirror it to the documents status column.
+        void syncMondayDocumentsStatus(updated.id);
       }
       // Resuming a never-contacted manual-kickoff client IS its start trigger
       // (the workspace twin of the monday kickoff webhook) — report it to the
@@ -567,6 +569,7 @@ workspaceRouter.put(
           }
         }
         void syncMondayStatus(client.id, MONDAY_STATUS_AGENT_WORKING);
+        void syncMondayDocumentsStatus(client.id);
       }
       await withClientLock(client.id, () => resumeFutureEmail(client.id));
     }

@@ -563,6 +563,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                           {chosen.taxUserCodeColumnId ? ` · ${t.sourcesTaxCodeColumn}: ${columnTitle(chosen.taxUserCodeColumnId)}` : ''}
                           {chosen.documentsColumnId ? ` · ${t.sourcesDocumentsColumn}: ${columnTitle(chosen.documentsColumnId)}` : ''}
                           {chosen.statusColumnId ? ` · ${t.sourcesStatusColumn}: ${columnTitle(chosen.statusColumnId)}` : ''}
+                          {chosen.documentsStatusColumnId ? ` · ${t.sourcesDocumentsStatusColumn}: ${columnTitle(chosen.documentsStatusColumnId)}` : ''}
                         </span>
                         {panelApi.scanNow && promptShown && (
                           <div className="settings-source-prompt">

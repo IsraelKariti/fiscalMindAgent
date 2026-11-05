@@ -4,6 +4,7 @@ import { withClientLock } from '../../db/withClientLock.js';
 import { adminCommsPaused } from '../../orchestration/adminPause.js';
 import { pauseFutureEmail } from '../../orchestration/pauseFutureEmail.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
+import { syncMondayDocumentsStatus } from '../shared/mondayStatusSync.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { sendOverdueEmail } from './notifyAccountant.js';
 import { isKillSwitchOn } from '../killSwitch.js';
@@ -37,6 +38,8 @@ export async function runOverdueScan(): Promise<void> {
     await withClientLock(candidate.id, async () => {
       const claimed = await clients.markOverdueStopped(candidate.id);
       if (!claimed) return; // another run got it, or the state changed since listing
+      // The dot turns orange — mirror it to the board's documents status column (fire-and-forget).
+      void syncMondayDocumentsStatus(candidate.id);
       // Same order as the manual pause: flag first, then pull the pending job
       // (the preserved draft can be restored as-is on resume).
       await pauseFutureEmail(candidate.id);

@@ -29,6 +29,8 @@ export const BoardSourceSchema = z
     documentsColumnId: z.string().min(1).optional(),
     /** Status column the agent writes its progress labels to (mondayStatusSync) — optional. */
     statusColumnId: z.string().min(1).optional(),
+    /** Status column mirroring the client dot (mondayDocumentsStatus) — optional. Rollback note: parseSettings drops ALL boards on an unknown key, keep this tolerated. */
+    documentsStatusColumnId: z.string().min(1).optional(),
     /** Connect-boards column linking to the client's CRM item (phone/name/ID live there) — declaration of capital. */
     crmLinkColumnId: z.string().min(1).optional(),
     /** Connect-boards column linking to the client's submitted intake-questionnaire item — declaration of capital. */

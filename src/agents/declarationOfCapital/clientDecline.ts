@@ -4,6 +4,7 @@ import * as emails from '../../db/queries/emails.js';
 import * as waSenders from '../../db/queries/waSenders.js';
 import { sendWhatsAppTextAndRecord } from '../../twilio/sendAndRecord.js';
 import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
+import { syncMondayDocumentsStatus } from '../shared/mondayStatusSync.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { recordAudit } from '../../audit/audit.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
@@ -34,6 +35,7 @@ export async function inboundMessageBody(evt: Pick<InboundEvent, 'messageRowId'>
 export function handleClientDecline(ctx: AgentContext, source: DeclineSource): Promise<ClientDeclineOutcome> {
   return handleClientDeclineWith(ctx, source, {
     markDeclined: clients.markDeclined,
+    syncDocumentsStatus: syncMondayDocumentsStatus,
     removeFutureEmail,
     clearDraftingState: clients.clearDraftingState,
     channelState: (client, now) => getWaChannelState(client, now, DECLARATION_OF_CAPITAL),

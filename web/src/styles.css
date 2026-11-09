@@ -4662,6 +4662,24 @@ button.meta-chip:hover {
   border-color: rgba(251, 113, 133, 0.7);
   background: rgba(251, 113, 133, 0.14);
 }
+/* The call's call-time cost, a quiet pill to the right of the chip (costs
+   toggle on). A label, not a button: no gradient, no hover. */
+.timeline-trace-cost {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d0d4dc);
+  background: var(--panel-muted, rgba(127, 127, 127, 0.08));
+  color: var(--text-muted, #6b7280);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.timeline-trace-cost-unpriced {
+  opacity: 0.7;
+}
+
 /* The file a per-file call read, after the stage name — clipped like an
    attachment chip's name so a long filename cannot stretch the row. */
 .timeline-trace-chip-file {

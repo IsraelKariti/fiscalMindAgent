@@ -50,15 +50,23 @@ function hasSyntheticName(file: DocumentFile): boolean {
   return /^whatsapp-media-[\d-]+\./.test(file.filename);
 }
 
-// Two independent toggles (LLM calls / code steps), each remembered per browser.
-const TRACE_KEYS = { calls: 'fm.conversationTrace.calls', steps: 'fm.conversationTrace.steps' } as const;
+// Three independent toggles (LLM calls / code steps / costs), each remembered
+// per browser. The costs toggle (openspec `admin-llm-call-costs`) starts ON;
+// the other two start off.
+const TRACE_KEYS = {
+  calls: 'fm.conversationTrace.calls',
+  steps: 'fm.conversationTrace.steps',
+  costs: 'fm.conversationTrace.costs',
+} as const;
 type TraceKind = keyof typeof TRACE_KEYS;
+const TRACE_DEFAULTS: Record<TraceKind, boolean> = { calls: false, steps: false, costs: true };
 
 function readTraceToggle(kind: TraceKind): boolean {
   try {
-    return localStorage.getItem(TRACE_KEYS[kind]) === '1';
+    const stored = localStorage.getItem(TRACE_KEYS[kind]);
+    return stored === null ? TRACE_DEFAULTS[kind] : stored === '1';
   } catch {
-    return false;
+    return TRACE_DEFAULTS[kind];
   }
 }
 
@@ -66,9 +74,11 @@ function readTraceToggle(kind: TraceKind): boolean {
  * An LLM call: its stage name in a clickable chip, plus the file it read when
  * it read one (splitting, classification, extraction — openspec
  * `conversation-trace`); the click opens the call's drill-down (metadata,
- * system prompt, history, query, answer). The numbers live in the chip's tooltip.
+ * system prompt, history, query, answer). The numbers live in the chip's tooltip;
+ * with the costs toggle on, the call-time cost also sits in a pill to the right
+ * of the chip (openspec `admin-llm-call-costs`).
  */
-function CallChip({ call, files }: { call: LlmCallSummary; files: StepFilesProps }) {
+function CallChip({ call, files, showCost }: { call: LlmCallSummary; files: StepFilesProps; showCost: boolean }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   // The human label; the technical stage key lives inside the modal.
@@ -104,6 +114,16 @@ function CallChip({ call, files }: { call: LlmCallSummary; files: StepFilesProps
           </>
         )}
       </button>
+      {showCost &&
+        (call.cost === null ? (
+          <span className="timeline-trace-cost timeline-trace-cost-unpriced" dir="ltr" title={t.conversationTraceCostUnpriced}>
+            —
+          </span>
+        ) : (
+          <span className="timeline-trace-cost mono" dir="ltr" title={t.conversationTraceCostTitle}>
+            {formatUsd(call.cost)}
+          </span>
+        ))}
       {open && <CallDetailModal callId={call.id} onClose={() => setOpen(false)} />}
     </li>
   );
@@ -129,8 +149,18 @@ interface DraftRowProps {
   channelLabel: (channel: MessageChannel) => string;
 }
 
-function TraceRow({ entry, files, draft }: { entry: TraceEntry; files: StepFilesProps; draft: DraftRowProps }) {
-  if (entry.kind === 'call') return <CallChip call={entry.call} files={files} />;
+function TraceRow({
+  entry,
+  files,
+  draft,
+  showCost,
+}: {
+  entry: TraceEntry;
+  files: StepFilesProps;
+  draft: DraftRowProps;
+  showCost: boolean;
+}) {
+  if (entry.kind === 'call') return <CallChip call={entry.call} files={files} showCost={showCost} />;
   if (entry.kind === 'draft') return <DiscardedDraftRow message={entry.message} {...draft} />;
   return <StepRow step={entry.step} files={files} />;
 }
@@ -409,6 +439,7 @@ export function Timeline({
   const traceAvailable = isAdmin && clientId !== undefined;
   const [showCalls, setShowCalls] = useState<boolean>(() => readTraceToggle('calls'));
   const [showSteps, setShowSteps] = useState<boolean>(() => readTraceToggle('steps'));
+  const [showCosts, setShowCosts] = useState<boolean>(() => readTraceToggle('costs'));
   const [trace, setTrace] = useState<AdminConversation | null>(null);
   const [traceError, setTraceError] = useState<string | null>(null);
   const traceOn = traceAvailable && (showCalls || showSteps);
@@ -496,7 +527,7 @@ export function Timeline({
     if (sentNowId && pendingReview && pendingReview.id !== sentNowId) setSentNowId(null);
   }, [sentNowId, pendingReview]);
   const toggleTrace = (kind: TraceKind, on: boolean) => {
-    (kind === 'calls' ? setShowCalls : setShowSteps)(on);
+    (kind === 'calls' ? setShowCalls : kind === 'steps' ? setShowSteps : setShowCosts)(on);
     try {
       localStorage.setItem(TRACE_KEYS[kind], on ? '1' : '0');
     } catch {
@@ -735,6 +766,13 @@ export function Timeline({
                 <input id="conversation-trace-steps" type="checkbox" checked={showSteps} onChange={(e) => toggleTrace('steps', e.target.checked)} />
                 {t.conversationTraceSteps}
               </label>
+              {/* Only meaningful while call rows are shown; the stored choice survives while hidden. */}
+              {showCalls && (
+                <label className="muted timeline-trace-toggle" title={t.conversationTraceCostsTitle}>
+                  <input id="conversation-trace-costs" type="checkbox" checked={showCosts} onChange={(e) => toggleTrace('costs', e.target.checked)} />
+                  {t.conversationTraceCosts}
+                </label>
+              )}
             </>
           )}
           {visibleEmails.length > 0 && (
@@ -781,6 +819,7 @@ export function Timeline({
                   entry={row}
                   files={{ byId: filesById, childrenByParent, attachmentLabel, onOpenFile: setViewingFile }}
                   draft={{ showChannelBadge: showChannelBadges, channelLabel }}
+                  showCost={showCosts}
                 />
               );
             }

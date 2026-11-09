@@ -956,6 +956,10 @@ const he = {
   adminConversationShowSteps: 'הצג קריאות LLM ושלבי קוד בציר הזמן',
   conversationTraceCalls: 'קריאות LLM',
   conversationTraceSteps: 'שלבי קוד',
+  conversationTraceCosts: 'עלויות',
+  conversationTraceCostsTitle: 'למנהל בלבד: מציג ליד כל קריאת מודל את עלותה בדולרים, כפי שנרשמה בזמן הקריאה.',
+  conversationTraceCostTitle: 'עלות הקריאה בדולרים, לפי המחיר בזמן הקריאה',
+  conversationTraceCostUnpriced: 'אין מחיר לקריאה זו: למודל לא היה תעריף בזמן הקריאה',
   conversationTraceTitle: 'למנהל בלבד: שוזר בשיחה את קריאות המודל ואת שלבי הקוד המבוקרים (שערים, apply_*, send_reply). רואה החשבון אינו רואה זאת.',
   conversationTraceFailed: 'טעינת קריאות ה-LLM ושלבי הקוד נכשלה.',
   // Step drill-down (the detail modal opened from any trace row).

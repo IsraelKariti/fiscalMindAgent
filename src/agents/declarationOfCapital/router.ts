@@ -12,12 +12,7 @@ import { publishClientUpdated } from '../../events/clientEvents.js';
 import { DueDateSchema } from '../../api/schemas.js';
 import { toWorkspaceClient } from '../../api/workspaceSerialize.js';
 import { registerClientSourceRoutes } from '../shared/clientSourcesRoutes.js';
-import {
-  MONDAY_STATUS_AGENT_WORKING,
-  MONDAY_STATUS_DOCS_COLLECTED,
-  syncMondayDocumentsStatus,
-  syncMondayStatus,
-} from '../shared/mondayStatusSync.js';
+import { syncMondayDocumentsStatus } from '../shared/mondayStatusSync.js';
 import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { sendClosingMessage } from './plan.js';
 import { InstanceSettingsSchema, parseSettings } from './settings.js';
@@ -89,8 +84,7 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
 
   if (allCollected && client.goal_status === 'pending') {
     await clients.updateGoalStatus(clientId, 'complete');
-    // Report the finished collection back to the board row's status column.
-    void syncMondayStatus(clientId, MONDAY_STATUS_DOCS_COLLECTED);
+    // Report the finished collection back to the board row's documents status column.
     void syncMondayDocumentsStatus(clientId);
     await withClientLock(clientId, () => removeFutureEmail(clientId));
     // The fixed closing message (openspec `declaration-completion`): sent only
@@ -100,7 +94,6 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
   } else if (!allCollected && client.goal_status === 'complete') {
     await clients.updateGoalStatus(clientId, 'pending');
     // The goal reopened — the board must not keep claiming the documents are in.
-    void syncMondayStatus(clientId, MONDAY_STATUS_AGENT_WORKING);
     void syncMondayDocumentsStatus(clientId);
     await withClientLock(clientId, async () => {
       await removeFutureEmail(clientId);

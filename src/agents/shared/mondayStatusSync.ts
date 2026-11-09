@@ -7,59 +7,22 @@ import { parseSettings } from '../declarationOfCapital/settings.js';
 import { logger } from '../../util/logger.js';
 
 /**
- * Board status sync: the agent reports its progress back to the client's
- * monday row by writing a label into the board's mapped status column
- * (BoardSourceSchema.statusColumnId). The row's address is remembered on the
- * client (agent_fields.monday_board_id / monday_item_id — stamped by the
- * import scan and the kickoff webhook), so the write-back survives later
- * edits to the row's phone/email cells.
+ * Board status sync: the agent mirrors the client dot back to the client's
+ * monday row by writing a label into the board's mapped documents status
+ * column (BoardSourceSchema.documentsStatusColumnId, openspec
+ * `monday-documents-status`). The row's address is remembered on the client
+ * (agent_fields.monday_board_id / monday_item_id — stamped by the import scan
+ * and the kickoff webhook), so the write-back survives later edits to the
+ * row's phone/email cells.
  *
- * Best-effort by design: a monday outage, a missing mapping, or a pre-
- * boards:write token must never block the conversation itself — failures are
- * logged and dropped.
- */
-
-/** The conversation started (kickoff webhook / workspace resume of a never-contacted client). */
-export const MONDAY_STATUS_AGENT_WORKING = 'בטיפול סוכן';
-/** The goal completed — every required document is in. */
-export const MONDAY_STATUS_DOCS_COLLECTED = 'מסמכים נאספו';
-
-/** Writes `label` to the client's board row; a no-op unless the client carries a monday address and its board maps a status column. */
-export async function syncMondayStatus(clientId: string, label: string): Promise<void> {
-  try {
-    const client = await clients.getById(clientId);
-    if (!client?.agent_instance_id) return;
-    const boardId = client.agent_fields['monday_board_id'];
-    const itemId = client.agent_fields['monday_item_id'];
-    if (typeof boardId !== 'string' || typeof itemId !== 'string') return;
-
-    const instance = await agentInstances.getById(client.agent_instance_id);
-    if (!instance) return;
-    const board = parseSettings(instance.settings).boards.find((b) => b.boardId === boardId);
-    if (!board?.statusColumnId) return;
-
-    const token = await mondayOauthTokens.getByUserId(instance.user_id);
-    if (!token) {
-      logger.warn('monday status sync: accountant has no monday connection', { clientId, boardId });
-      return;
-    }
-    await changeItemStatusLabel(token.access_token, { boardId, itemId, columnId: board.statusColumnId, label });
-    logger.info('monday status sync: label written', { clientId, boardId, itemId });
-  } catch (err) {
-    // Likely causes: token predates the boards:write scope (reconnect monday),
-    // or the row/column was deleted on the board.
-    logger.warn('monday status sync failed', { clientId, reason: String(err) });
-  }
-}
-
-/**
- * Documents status column (openspec `monday-documents-status`): the second
- * write-back column mirrors the client dot. The label is derived from the
- * client's stored state *after* the event (mondayDocumentsStatus.ts), so every
- * call site — kickoff, completion, reopen, decline, overdue stop, resume —
- * simply calls this once the stored change has landed. Best-effort like
- * syncMondayStatus; a client without a board row, a board without the mapping,
- * a test client (never stamped with a row) or a monday failure is a logged no-op.
+ * The label is derived from the client's stored state *after* the event
+ * (mondayDocumentsStatus.ts), so every call site — kickoff, completion,
+ * reopen, decline, overdue stop, resume — simply calls this once the stored
+ * change has landed.
+ *
+ * Best-effort by design: a monday outage, a missing mapping, a test client
+ * (never stamped with a row) or a pre-boards:write token must never block the
+ * conversation itself — failures are logged and dropped.
  */
 export async function syncMondayDocumentsStatus(clientId: string): Promise<void> {
   try {

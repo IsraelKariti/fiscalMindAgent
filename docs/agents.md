@@ -374,15 +374,10 @@ monday WorkForm is the only source of which documents a declaration needs):
   Some funds print a member / account number on both, others (Menora) none
   at all — so the savings account number is an optional field, never a
   reason to reject the document.
-Since 2026-08-23 the agent also reports its progress **back to the board**
-(`src/agents/shared/mondayStatusSync.ts`): when a board source maps a
-`statusColumnId` (settings UI: declaration-of-capital board mapping only, but
-the backend is agent-generic), the agent writes fixed Hebrew
-labels into that status column — "agent working" on conversation start
-(kickoff webhook or first resume) and "documents collected" on goal
-completion, reverting to "agent working" if the goal reopens. The write-back
+Since 2026-08-23 the agent also reports **back to the board**
+(`src/agents/shared/mondayStatusSync.ts`). The write-back
 address is remembered per client in `agent_fields.monday_board_id/monday_item_id`
-(stamped at import — `fetchAllBoardRows` now returns item ids — and re-stamped
+(stamped at import — `fetchAllBoardRows` returns item ids — and re-stamped
 by every kickoff click; the import sweep backfills pre-existing clients).
 Labels are written with `create_labels_if_missing`, so boards need no
 pre-created labels. Requires the **boards:write** OAuth scope (added to
@@ -390,8 +385,11 @@ pre-created labels. Requires the **boards:write** OAuth scope (added to
 accountants connected before the scope change must reconnect monday. Sync is
 best-effort: failures are logged, never block the conversation, and the
 status-change events the writes fire back at the kickoff webhook are ignored
-by its startable-state guards.
-Since 2026-11-05 a board source can also map a **documents status column**
+by its startable-state guards. The original progress-label column
+(`statusColumnId`, "agent working" / "documents collected") was retired on
+2026-11-09: nothing writes it any more and the mapping form no longer offers
+it; the key stays tolerated in `BoardSourceSchema` so stored settings parse.
+Since 2026-11-05 a board source maps a **documents status column**
 (`documentsStatusColumnId`, openspec `monday-documents-status`) that mirrors
 the workspace client dot: `syncMondayDocumentsStatus(clientId)` re-reads the
 client and writes the label of its dot state (`mondayDocumentsStatus.ts`,

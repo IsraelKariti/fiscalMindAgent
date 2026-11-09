@@ -26,7 +26,7 @@ import { reviewWaitState } from '../orchestration/reviewWait.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { isHeldFirstMessageClient } from '../orchestration/heldFirstMessage.js';
 import { getAgentType, listAgentTypes } from '../agents/registry.js';
-import { MONDAY_STATUS_AGENT_WORKING, syncMondayDocumentsStatus, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
+import { syncMondayDocumentsStatus } from '../agents/shared/mondayStatusSync.js';
 import { resolveSenderMailbox } from '../agents/instanceEmail.js';
 import { capitalClientTaxYear, defaultTaxYear } from '../agents/shared/taxYear.js';
 import { applyFormIntake, type FormAnswer } from '../agents/declarationOfCapital/formIntake.js';
@@ -578,7 +578,6 @@ workspaceRouter.put(
             }
           }
         }
-        void syncMondayStatus(client.id, MONDAY_STATUS_AGENT_WORKING);
         void syncMondayDocumentsStatus(client.id);
       }
       await withClientLock(client.id, () => resumeFutureEmail(client.id));

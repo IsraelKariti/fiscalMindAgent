@@ -27,7 +27,7 @@ export const BoardSourceSchema = z
     taxUserCodeColumnId: z.string().min(1).optional(),
     /** Column listing the client's required documents (types without catalog seeding) — optional. */
     documentsColumnId: z.string().min(1).optional(),
-    /** Status column the agent writes its progress labels to (mondayStatusSync) — optional. */
+    /** Retired 2026-11-09 (progress-label column: no longer written or shown). Still tolerated — the schema is strict and parseSettings drops ALL boards on an unknown key. */
     statusColumnId: z.string().min(1).optional(),
     /** Status column mirroring the client dot (mondayDocumentsStatus) — optional. Rollback note: parseSettings drops ALL boards on an unknown key, keep this tolerated. */
     documentsStatusColumnId: z.string().min(1).optional(),

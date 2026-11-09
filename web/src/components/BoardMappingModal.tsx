@@ -12,8 +12,6 @@ export interface BoardMapping {
   idNumberColumnId?: string;
   taxUserCodeColumnId?: string;
   documentsColumnId?: string;
-  /** Status column the agent writes its progress labels to. */
-  statusColumnId?: string;
   /** Status column mirroring the client dot's color (openspec `monday-documents-status`). */
   documentsStatusColumnId?: string;
   /** Connect-boards column linking to the client's CRM item (declaration of capital). */

@@ -14,7 +14,7 @@ import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccoun
 import { applicableFilePairs, fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { lastInboundMessageAt, resolveSendAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
-import { MONDAY_STATUS_DOCS_COLLECTED, syncMondayDocumentsStatus, syncMondayStatus } from '../shared/mondayStatusSync.js';
+import { syncMondayDocumentsStatus } from '../shared/mondayStatusSync.js';
 import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { getCatalogType } from './catalog.js';
 import { approvedPropertyFilesOf, provenFactsLine, provenFactsOf } from './provenFacts.js';
@@ -1083,8 +1083,7 @@ async function completeGoalIfDone(run: PlanRun, decision: NormalizedDecision): P
     const fetch = taxFetchDecisionOf(run, decision);
     await applyTaxFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, { emailId: null, delayMs: 0 });
     await clients.updateGoalStatus(clientId, 'complete');
-    // Report the finished collection back to the board row's status column.
-    void syncMondayStatus(clientId, MONDAY_STATUS_DOCS_COLLECTED);
+    // Report the finished collection back to the board row's documents status column.
     void syncMondayDocumentsStatus(clientId);
     publishClientUpdated(clientId);
     logger.info('goal complete', { clientId, reasoning: decision.reasoning });

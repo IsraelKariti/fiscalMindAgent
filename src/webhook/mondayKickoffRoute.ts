@@ -4,7 +4,7 @@ import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { parseSettings } from '../agents/declarationOfCapital/settings.js';
 import { scanClientImportInstance } from '../agents/shared/clientImportScan.js';
 import { verifyKickoffToken } from '../agents/shared/kickoffWebhook.js';
-import { MONDAY_STATUS_AGENT_WORKING, syncMondayDocumentsStatus, syncMondayStatus } from '../agents/shared/mondayStatusSync.js';
+import { syncMondayDocumentsStatus } from '../agents/shared/mondayStatusSync.js';
 import { resolveDeclarationClient, type DeclarationIntake } from '../agents/declarationOfCapital/kickoff.js';
 import { applyFormIntake } from '../agents/declarationOfCapital/formIntake.js';
 import { fetchBoardItemCells } from '../agents/shared/mondayData.js';
@@ -125,8 +125,7 @@ async function startClientForItem(instance: AgentInstanceRow, boardId: string, i
   // in hold mode (draft stored with its planned time, no send queued); with
   // approval off the client is running and the send is queued as usual.
   draftFirstEmail(client.id);
-  // Report the start back to the board row's status column (fire-and-forget).
-  void syncMondayStatus(client.id, MONDAY_STATUS_AGENT_WORKING);
+  // Report the start back to the board row's documents status column (fire-and-forget).
   void syncMondayDocumentsStatus(client.id);
   logger.info('monday kickoff: conversation started', { ...log, clientId: client.id });
   return true;

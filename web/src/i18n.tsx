@@ -134,7 +134,6 @@ const he = {
   sourcesIdNumberColumn: 'עמודת ת"ז',
   sourcesTaxCodeColumn: 'עמודת קוד משתמש (רשות המסים)',
   sourcesDocumentsColumn: 'עמודת מסמכים נדרשים',
-  sourcesStatusColumn: 'עמודת סטטוס (עדכון התקדמות)',
   sourcesDocumentsStatusColumn: 'עמודת מסמכים (סטטוס לפי צבע)',
   sourcesCrmLinkColumn: 'עמודת קישור ללקוח ב-CRM (Connect boards)',
   sourcesFormLinkColumn: 'עמודת קישור לשאלון (Connect boards)',

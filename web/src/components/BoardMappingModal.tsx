@@ -74,7 +74,7 @@ export function BoardMappingModal({
     portalCredentials: withPortalCredentials,
     documents: withDocumentsColumn,
   });
-  // Only genuine status columns may receive the agent's progress labels
+  // Only genuine status columns may carry the documents status
   // ('color' is the API's legacy type name for the status column).
   const statusOptions: MappingOption[] = withStatusColumn
     ? board.columns.filter((c) => c.type === 'status' || c.type === 'color').map((c) => ({ value: c.id, label: c.title }))
@@ -99,8 +99,6 @@ export function BoardMappingModal({
   const initial = {
     ...auto,
     keyColumn: keyTyped?.id ?? (keyOptions.some((o) => o.value === auto.keyColumn) ? auto.keyColumn : ''),
-    // A board with exactly one status column can only mean that one — preselect it.
-    statusColumn: statusOptions.length === 1 ? statusOptions[0]!.value : '',
     // The documents status column is conventionally titled "מסמכים" on the office's boards.
     documentsStatusColumn: statusOptions.find((o) => /מסמכים/.test(o.label))?.value ?? '',
     crmLinkColumn: crmLinkAuto,
@@ -127,7 +125,6 @@ export function BoardMappingModal({
           withPhoneColumn={keyKind === 'email'}
           withPortalCredentials={withPortalCredentials}
           withDocumentsColumn={withDocumentsColumn}
-          statusOptions={withStatusColumn ? statusOptions : undefined}
           documentsStatusOptions={withStatusColumn ? statusOptions : undefined}
           declarationLinkOptions={withDeclarationColumns ? linkOptions : undefined}
           onConfirm={(mapping: ColumnMapping) =>
@@ -142,7 +139,6 @@ export function BoardMappingModal({
               idNumberColumnId: mapping.idNumberColumn,
               taxUserCodeColumnId: mapping.taxUserCodeColumn,
               documentsColumnId: mapping.documentsColumn,
-              statusColumnId: mapping.statusColumn,
               documentsStatusColumnId: mapping.documentsStatusColumn,
               crmLinkColumnId: mapping.crmLinkColumn,
               formLinkColumnId: mapping.formLinkColumn,

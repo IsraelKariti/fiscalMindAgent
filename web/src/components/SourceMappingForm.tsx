@@ -16,7 +16,6 @@ export interface ColumnMapping {
   idNumberColumn?: string;
   taxUserCodeColumn?: string;
   documentsColumn?: string;
-  statusColumn?: string;
   documentsStatusColumn?: string;
   crmLinkColumn?: string;
   formLinkColumn?: string;
@@ -32,7 +31,6 @@ export interface MappingDraft {
   idNumberColumn: string;
   taxUserCodeColumn: string;
   documentsColumn: string;
-  statusColumn: string;
   documentsStatusColumn: string;
   crmLinkColumn: string;
   formLinkColumn: string;
@@ -74,8 +72,7 @@ export function autoMapColumns(
     phoneColumn: show.phone ? find(LABEL_PATTERNS.phone) : '',
     taxUserCodeColumn: show.portalCredentials ? find(LABEL_PATTERNS.taxUserCode) : '',
     documentsColumn: show.documents ? find(LABEL_PATTERNS.documents) : '',
-    // Status columns have their own typed option list; the caller preselects.
-    statusColumn: '',
+    // The documents status column has its own typed option list; the caller preselects.
     documentsStatusColumn: '',
     // Declaration-flow columns have their own typed option lists; the caller preselects.
     crmLinkColumn: '',
@@ -102,7 +99,6 @@ export function SourceMappingForm({
   withPhoneColumn = false,
   withPortalCredentials = false,
   withDocumentsColumn = false,
-  statusOptions,
   documentsStatusOptions,
   declarationLinkOptions,
 }: {
@@ -123,9 +119,7 @@ export function SourceMappingForm({
   withPortalCredentials?: boolean;
   /** Also map an optional per-client required-documents column — doc collector. */
   withDocumentsColumn?: boolean;
-  /** When set, also map the status column the agent reports its progress to (boards only, status-typed columns). */
-  statusOptions?: MappingOption[];
-  /** When set, also map the documents status column that mirrors the client dot (same status-typed options). */
+  /** When set, also map the documents status column that mirrors the client dot (boards only, status-typed columns). */
   documentsStatusOptions?: MappingOption[];
   /**
    * Declaration-of-capital boards: connect-boards options for the CRM /
@@ -142,7 +136,6 @@ export function SourceMappingForm({
   const [idNumberColumn, setIdNumberColumn] = useState(initial.idNumberColumn);
   const [taxUserCodeColumn, setTaxUserCodeColumn] = useState(initial.taxUserCodeColumn);
   const [documentsColumn, setDocumentsColumn] = useState(initial.documentsColumn);
-  const [statusColumn, setStatusColumn] = useState(initial.statusColumn);
   const [documentsStatusColumn, setDocumentsStatusColumn] = useState(initial.documentsStatusColumn);
   const [crmLinkColumn, setCrmLinkColumn] = useState(initial.crmLinkColumn);
   const [formLinkColumn, setFormLinkColumn] = useState(initial.formLinkColumn);
@@ -161,7 +154,6 @@ export function SourceMappingForm({
       idNumberColumn: idNumberColumn || undefined,
       taxUserCodeColumn: taxUserCodeColumn || undefined,
       documentsColumn: documentsColumn || undefined,
-      statusColumn: statusColumn || undefined,
       documentsStatusColumn: documentsStatusColumn || undefined,
       crmLinkColumn: crmLinkColumn || undefined,
       formLinkColumn: formLinkColumn || undefined,
@@ -243,16 +235,6 @@ export function SourceMappingForm({
         <label className="field">
           <span>{t.sourcesDocumentsColumn}</span>
           <Dropdown value={documentsColumn} onChange={setDocumentsColumn} options={optionalColumnOptions} />
-        </label>
-      )}
-      {statusOptions && statusOptions.length > 0 && (
-        <label className="field">
-          <span>{t.sourcesStatusColumn}</span>
-          <Dropdown
-            value={statusColumn}
-            onChange={setStatusColumn}
-            options={[{ value: '', label: t.csSheetNameColumnNone }, ...statusOptions]}
-          />
         </label>
       )}
       {documentsStatusOptions && documentsStatusOptions.length > 0 && (

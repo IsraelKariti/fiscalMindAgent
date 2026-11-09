@@ -579,7 +579,36 @@ code {
 }
 
 .client-item-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-weight: 600;
+}
+
+.client-item-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Admin roster cost pill (openspec `admin-roster-cost`): the client's lifetime
+   LLM spend beside the name, view-as only. Same look as the trace cost pill;
+   never shrinks, so a long name truncates instead. */
+.client-item-cost {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d0d4dc);
+  background: var(--panel-muted, rgba(127, 127, 127, 0.08));
+  color: var(--text-muted, #6b7280);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .client-item-email {

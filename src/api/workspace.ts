@@ -5,6 +5,7 @@ import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as dashboard from '../db/queries/dashboard.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
+import * as llmCalls from '../db/queries/llmCalls.js';
 import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import { normalizeE164 } from '../util/phone.js';
@@ -34,7 +35,7 @@ import { recordAudit } from '../audit/audit.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { streamFile } from './fileStream.js';
 import { DueDateSchema } from './schemas.js';
-import { toWorkspaceClient, toWorkspaceEmail } from './workspaceSerialize.js';
+import { attachRosterCost, toWorkspaceClient, toWorkspaceEmail } from './workspaceSerialize.js';
 import { clientScope, isViewingAs } from './viewAs.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
@@ -123,13 +124,22 @@ workspaceRouter.get(
         res.status(403).json({ error: 'Deleted clients are visible to an administrator only.' });
         return;
       }
-      res.json({ clients: (await clients.listDeletedForInstance(req.agentInstance!.id)).map(toWorkspaceClient) });
+      res.json({ clients: await withRosterCost(req, (await clients.listDeletedForInstance(req.agentInstance!.id)).map(toWorkspaceClient)) });
       return;
     }
     // The admin's view-as also lists the admin's test clients (openspec `admin-test-client`).
-    res.json({ clients: (await clients.listForInstance(req.agentInstance!.id, clientScope(req))).map(toWorkspaceClient) });
+    res.json({ clients: await withRosterCost(req, (await clients.listForInstance(req.agentInstance!.id, clientScope(req))).map(toWorkspaceClient)) });
   }),
 );
+
+/**
+ * Admin roster cost (openspec `admin-roster-cost`): only an admin's view-as
+ * session gets each listed client's lifetime LLM spend; the accountant, a staff
+ * viewer and the monday embed get the rows exactly as before.
+ */
+async function withRosterCost<T extends { id: string }>(req: Parameters<RequestHandler>[0], rows: T[]) {
+  return attachRosterCost(rows, isViewingAs(req) ? await llmCalls.costByClient(rows.map((r) => r.id)) : null);
+}
 
 /**
  * The client a READ route shows: live, or — for an admin viewing as — also a

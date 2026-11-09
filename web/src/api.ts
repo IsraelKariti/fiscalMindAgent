@@ -51,6 +51,8 @@ export interface Client {
   deletedBy: string | null;
   /** Admin test client (openspec `admin-test-client`): listed under view-as only, badged in the sidebar. */
   isTest: boolean;
+  /** Lifetime LLM spend in USD (openspec `admin-roster-cost`): present only on an admin's view-as list, never for the accountant. */
+  cost?: number;
   created_at: string;
   updated_at: string;
 }

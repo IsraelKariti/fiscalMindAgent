@@ -330,6 +330,7 @@ const he = {
   // The office file number on a client row (openspec `client-search`).
   fileNumberChip: (n: string) => `תיק ${n}`,
   fileNumberChipTitle: 'מספר התיק במשרד (מהלוח ב-monday)',
+  rosterCostTitle: 'עלות LLM מצטברת של הלקוח (נראה למנהל בלבד)',
   sidebarNoMatches: 'לא נמצאו לקוחות תואמים',
   // The status control under the search box (openspec `client-search`).
   statusFilterLabel: 'סינון לפי מצב',

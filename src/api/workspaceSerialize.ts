@@ -19,3 +19,14 @@ export function toWorkspaceEmail(email: EmailRow): Omit<EmailRow, 'review_status
   const { review_status: _reviewStatus, held_at: _heldAt, ...rest } = email;
   return rest;
 }
+
+/**
+ * Admin roster cost (openspec `admin-roster-cost`): under an admin's view-as
+ * the client list carries each client's lifetime LLM spend; every other
+ * viewer's rows are returned untouched, with no `cost` key at all. `costs` is
+ * null when the request is not a view-as session.
+ */
+export function attachRosterCost<T extends { id: string }>(rows: T[], costs: Map<string, number> | null): (T | (T & { cost: number }))[] {
+  if (!costs) return rows;
+  return rows.map((row) => ({ ...row, cost: costs.get(row.id) ?? 0 }));
+}

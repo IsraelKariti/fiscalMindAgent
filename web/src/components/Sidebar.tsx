@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
-import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, isDeclined, isOverdueStopped, type DotFilter } from '../format';
+import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, formatUsd, isDeclined, isOverdueStopped, type DotFilter } from '../format';
 import { dotTitle, useT } from '../i18n';
+
+/**
+ * Admin roster cost (openspec `admin-roster-cost`): the shared formatter prints
+ * 0 as "$0.0000", which reads as noise in a roster — a client with no spend
+ * shows a plain "$0".
+ */
+function formatRosterCost(cost: number): string {
+  return cost > 0 ? formatUsd(cost) : '$0';
+}
 
 export interface AgentOption {
   id: string;
@@ -302,10 +311,15 @@ export function Sidebar({
                   <span className={`status-dot ${dot.cls}`} title={dot.title} />
                   <span className="client-item-text">
                     <span className="client-item-name">
-                      {displayClientName(client.name)}
+                      <span className="client-item-name-text">{displayClientName(client.name)}</span>
                       {client.isTest && (
                         <span className="admin-chip client-item-test-badge" title={t.testClientBadgeTitle}>
                           {t.testClientBadge}
+                        </span>
+                      )}
+                      {client.cost !== undefined && (
+                        <span className="client-item-cost" dir="ltr" title={t.rosterCostTitle}>
+                          {formatRosterCost(client.cost)}
                         </span>
                       )}
                     </span>

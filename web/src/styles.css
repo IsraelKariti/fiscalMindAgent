@@ -572,6 +572,9 @@ code {
 .client-item-text {
   display: flex;
   flex-direction: column;
+  /* Fill the button: the contact line below is a size container, so it no
+     longer widens this block on its own. */
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -584,6 +587,37 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Container so the inner line can measure the visible width (100cqw). */
+  container-type: inline-size;
+}
+
+/* The phone + file-number line is often wider than the sidebar. At rest it is
+   cut with an ellipsis; while the row is hovered the inner span slides to the
+   hidden end so the whole line can be read, then slides back. The translate is
+   clamped at 0 so a line that already fits never moves. */
+.client-item-email-inner {
+  /* Stays inline at rest so the parent's ellipsis still applies (Chrome clips
+     an inline-block child without dots); becomes a block only while sliding. */
+  display: inline;
+  transform: translateX(0);
+}
+
+.client-item:hover .client-item-email {
+  text-overflow: clip;
+}
+
+.client-item:hover .client-item-email-inner {
+  display: inline-block;
+  vertical-align: top;
+  transform: translateX(min(0px, calc(100cqw - 100%)));
+  transition: transform 1.8s linear 0.35s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-item-email-inner,
+  .client-item:hover .client-item-email-inner {
+    transition: none;
+  }
 }
 
 .status-dot {

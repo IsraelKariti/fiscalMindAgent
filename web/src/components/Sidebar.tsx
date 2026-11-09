@@ -310,12 +310,16 @@ export function Sidebar({
                       )}
                     </span>
                     <span className="client-item-email muted" dir="ltr">
-                      {contactLabel(client)}
-                      {client.agent_fields?.file_number && (
-                        <span className="client-item-file" title={t.fileNumberChipTitle}>
-                          {t.fileNumberChip(client.agent_fields.file_number)}
-                        </span>
-                      )}
+                      {/* Inner wrapper slides on hover when the line is wider than the
+                          sidebar, so the whole phone + file number can be read. */}
+                      <span className="client-item-email-inner">
+                        {contactLabel(client)}
+                        {client.agent_fields?.file_number && (
+                          <span className="client-item-file" title={t.fileNumberChipTitle}>
+                            {t.fileNumberChip(client.agent_fields.file_number)}
+                          </span>
+                        )}
+                      </span>
                     </span>
                     {client.deletedAt && (
                       <span className="client-item-deleted muted">{t.deletedOn(formatTimestamp(client.deletedAt))}</span>

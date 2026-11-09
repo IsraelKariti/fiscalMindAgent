@@ -11,4 +11,4 @@
 ## 3. Verification
 
 - [x] 3.1 Run `npm run typecheck` and `npm test`; both pass.
-- [ ] 3.2 Browser check as admin under impersonation: with LLM calls on and costs on, every call row shows a pill; costs off removes every pill while the cost remains in the chip tooltip; LLM calls off hides the costs toggle. Then as an accountant (or staff) viewer: no toggles, no rows, no pills.
+- [x] 3.2 Browser check as admin under impersonation: with LLM calls on and costs on, every call row shows a pill; costs off removes every pill while the cost remains in the chip tooltip; LLM calls off hides the costs toggle. Then as an accountant (or staff) viewer: no toggles, no rows, no pills.

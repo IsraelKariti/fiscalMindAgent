@@ -1799,6 +1799,70 @@ textarea {
   transform: translateY(-1px);
 }
 
+/* The icon + name + size line. Alone in the chip it looks exactly as the chip did before previews. */
+.attachment-chip-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* A chip with a thumbnail (openspec conversation-attachments): a small card,
+   picture on top, the name line below. The preview box has a fixed size and
+   is reserved before the picture loads, so the timeline never jumps. */
+.attachment-chip-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 172px;
+  padding: 5px;
+}
+
+.attachment-chip-card .attachment-chip-line {
+  padding: 0 4px 2px;
+}
+
+.attachment-chip-preview {
+  display: block;
+  width: 160px;
+  height: 110px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(4, 6, 14, 0.5);
+}
+
+.attachment-chip-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Pages and photos are usually light; keep them on a neutral dark field. */
+  background: rgba(4, 6, 14, 0.5);
+}
+
+/* While the picture loads: a quiet shimmer in the reserved box. */
+.attachment-chip-preview-loading {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.04) 100%);
+  background-size: 200% 100%;
+  animation: attachment-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes attachment-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attachment-chip-preview-loading {
+    animation: none;
+  }
+}
+
 .attachment-chip-icon {
   display: inline-flex;
   flex-shrink: 0;

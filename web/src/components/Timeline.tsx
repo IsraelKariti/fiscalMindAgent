@@ -15,7 +15,9 @@ import {
 } from '../api';
 import { formatFileSize, formatTimestamp, formatUsd, humanizePurpose, LOCALE } from '../format';
 import { useT } from '../i18n';
-import { useViewer } from '../agents/ApiContext';
+import { useViewer, useWorkspaceApi } from '../agents/ApiContext';
+import { previewKind } from './attachmentPreview';
+import { pdfThumbnail } from './pdfThumbnail';
 import { CallDetailModal } from './admin/AdminLlmCalls';
 import { ConfirmModal } from './ConfirmModal';
 import { FileViewModal } from './FileViewModal';
@@ -250,13 +252,79 @@ function StepRow({ step: s, files }: { step: AdminConversationStep; files: StepF
   );
 }
 
+/**
+ * The picture inside an attachment chip (openspec `conversation-attachments`):
+ * the image itself, or the first page of a PDF drawn in the browser. Nothing is
+ * fetched until the chip is near the visible part of the timeline, and a
+ * thumbnail that cannot be produced reports `onUnavailable` so the chip falls
+ * back to its icon-only look. The box is reserved at a fixed size from the
+ * first paint, so a finished thumbnail never moves the timeline.
+ */
+function AttachmentThumbnail({ file, label, onUnavailable }: { file: DocumentFile; label: string; onUnavailable: () => void }) {
+  const api = useWorkspaceApi();
+  const kind = previewKind(file);
+  const ref = useRef<HTMLSpanElement>(null);
+  const [near, setNear] = useState(false);
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || near) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setNear(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setNear(true);
+      },
+      // One viewport of margin, so the picture is usually ready before it scrolls in.
+      { rootMargin: '100% 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+
+  useEffect(() => {
+    if (!near || !kind) return;
+    let cancelled = false;
+    void api
+      .fileViewUrl(file.client_id, file.id)
+      .then((url) => (kind === 'pdf' ? pdfThumbnail(file.id, url) : url))
+      .then((result) => {
+        if (cancelled) return;
+        if (result) setSrc(result);
+        else onUnavailable();
+      })
+      .catch(() => {
+        if (!cancelled) onUnavailable();
+      });
+    return () => {
+      cancelled = true;
+    };
+    // onUnavailable is a stable setter from the chip.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [near, kind, api, file.client_id, file.id]);
+
+  return (
+    <span ref={ref} className={`attachment-chip-preview ${src ? '' : 'attachment-chip-preview-loading'}`}>
+      {src && <img src={src} alt={label} draggable={false} onError={onUnavailable} />}
+    </span>
+  );
+}
+
 /** One received file as a clickable chip: in a message bubble, or under the split step that produced it. */
 function AttachmentChip({ file, label, onOpen }: { file: DocumentFile; label: string; onOpen: (file: DocumentFile) => void }) {
   const { t } = useT();
+  // False once a thumbnail could not be produced: the chip then keeps the
+  // icon-only look of a file that never had one.
+  const [previewable, setPreviewable] = useState(() => previewKind(file) !== null);
+  const unavailable = useCallback(() => setPreviewable(false), []);
+  const danger = file.analysis?.injection_suspected || file.analysis_status === 'blocked';
   return (
     <button
       type="button"
-      className={`attachment-chip ${file.analysis?.injection_suspected || file.analysis_status === 'blocked' ? 'attachment-chip-danger' : ''}`}
+      className={`attachment-chip ${previewable ? 'attachment-chip-card' : ''} ${danger ? 'attachment-chip-danger' : ''}`}
       title={
         file.analysis_status === 'blocked'
           ? t.analysisBlockedTitle
@@ -271,9 +339,12 @@ function AttachmentChip({ file, label, onOpen }: { file: DocumentFile; label: st
         onOpen(file);
       }}
     >
-      <span className="attachment-chip-icon">{file.content_type.startsWith('image/') ? icon.image : icon.file}</span>
-      <span className="attachment-chip-name">{label}</span>
-      <span className="attachment-chip-size">{formatFileSize(file.size_bytes)}</span>
+      {previewable && <AttachmentThumbnail file={file} label={label} onUnavailable={unavailable} />}
+      <span className="attachment-chip-line">
+        <span className="attachment-chip-icon">{file.content_type.startsWith('image/') ? icon.image : icon.file}</span>
+        <span className="attachment-chip-name">{label}</span>
+        <span className="attachment-chip-size">{formatFileSize(file.size_bytes)}</span>
+      </span>
     </button>
   );
 }

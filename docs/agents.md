@@ -1359,6 +1359,17 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   on; a child chip reads "<original's name> · pages X–Y". Known limit: ranges
   are consecutive pages, so a scan with pages in mixed order will not split
   correctly.
+- **Attachment chips carry a preview** (2026-11-11, openspec
+  `conversation-attachments`). Every chip in `Timeline` (message bubbles and
+  the children under a `validate_file_split` row) is a small card: the image
+  itself, or the first page of a PDF, above the name/size line. PDFs are drawn
+  in the browser by `pdfjs-dist` (`web/src/components/pdfThumbnail.ts`,
+  imported on demand so it is its own chunk; worker emitted as a Vite asset),
+  from the same `/files/:id/view` stream the viewer uses — no server route, no
+  stored thumbnails. `previewKind` (`attachmentPreview.ts`) mirrors the
+  server's `INLINE_VIEW_TYPES`; anything else, or a PDF that fails to render,
+  keeps the icon-only chip. Loading is IntersectionObserver-gated and PDF
+  renders are cached per file id for the page's lifetime.
 - **A matched child is named after its list document** (2026-09-19, openspec
   `file-splitting`, no migration). When the classifier matches a child and
   `validate_classification` keeps the match (and the child is not

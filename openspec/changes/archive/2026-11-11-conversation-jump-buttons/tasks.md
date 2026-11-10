@@ -9,5 +9,5 @@
 
 ## 3. Checks
 
-- [ ] 3.1 Verify the follow behaviour: with the view at the bottom (after the jump), let a new message arrive and confirm the view stays pinned; with the view scrolled up, confirm it does not move. Verify the admin conversation viewer modal shows the same buttons inside the modal.
+- [x] 3.1 Verify the follow behaviour: with the view at the bottom (after the jump), let a new message arrive and confirm the view stays pinned; with the view scrolled up, confirm it does not move. Verify the admin conversation viewer modal shows the same buttons inside the modal.
 - [x] 3.2 Run `npm run typecheck` and `npm test`, then commit per the Git workflow (pull --rebase, commit, push).

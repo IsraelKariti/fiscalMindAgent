@@ -47,6 +47,11 @@ export interface ClientTabContext {
    * WhatsApp and document actions hide (the server refuses them anyway).
    */
   viewer: boolean;
+  /**
+   * An admin viewing the workspace as the accountant (openspec
+   * `admin-questionnaire-tab`): the only session that sees `adminOnly` tabs.
+   */
+  admin: boolean;
 }
 
 /** Message keys whose value is a plain string (tab labels can't take arguments). */
@@ -56,6 +61,12 @@ export interface ClientTab {
   id: string;
   labelKey: MessageStringKey;
   render: (ctx: ClientTabContext) => ReactNode;
+  /**
+   * Shown only while an admin views the workspace as the accountant (openspec
+   * `admin-questionnaire-tab`), with the admin-only marker; the accountant's
+   * own session and a staff viewer never get the tab button.
+   */
+  adminOnly?: boolean;
 }
 
 /**

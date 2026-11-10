@@ -5,6 +5,7 @@ import { ClientImportSettings } from '../components/ClientSourcesSettings';
 import { TestClientForm } from '../components/TestClientForm';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
+import { QuestionnaireCard } from '../components/QuestionnaireCard';
 import { StatTiles } from '../components/StatTiles';
 import { Timeline } from '../components/Timeline';
 import { DashboardCharts } from '../components/charts/DashboardCharts';
@@ -129,6 +130,18 @@ const clientTabs: ClientTab[] = [
             await ctx.onClientUpdated();
           }}
         />
+      </div>
+    ),
+  },
+  {
+    // Admin view-as only (openspec `admin-questionnaire-tab`): the form the
+    // client filled before the conversation, as stored at enrollment.
+    id: 'questionnaire',
+    labelKey: 'tabQuestionnaire',
+    adminOnly: true,
+    render: (ctx) => (
+      <div className="tab-pane panel-stack" role="tabpanel">
+        <QuestionnaireCard client={ctx.client} />
       </div>
     ),
   },

@@ -2501,6 +2501,46 @@ textarea {
   align-items: center;
 }
 
+/* Admin view-as only (openspec `admin-questionnaire-tab`): the questionnaire
+   the client submitted, one card per answered question. */
+.questionnaire-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.questionnaire-card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+
+.questionnaire-question {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.questionnaire-answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.questionnaire-empty p {
+  margin: 0 0 6px;
+}
+
+.questionnaire-empty-note {
+  font-size: 0.85rem;
+}
+
 /* Admin shell: platform overview + accountants table */
 .admin-shell {
   display: flex;

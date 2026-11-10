@@ -27,6 +27,7 @@ export function ClientView({
   agentUI,
   onClientUpdated,
   viewer = false,
+  admin = false,
 }: {
   clientId: string;
   agentUI: AgentTypeUI;
@@ -36,6 +37,13 @@ export function ClientView({
    * controls stay, every other action control hides.
    */
   viewer?: boolean;
+  /**
+   * An admin viewing as the accountant (openspec `admin-questionnaire-tab`):
+   * the agent's `adminOnly` tabs are rendered, marked admin-only. Any other
+   * session (the accountant, a staff viewer) never gets their buttons, and a
+   * remembered admin-only tab falls back to the first tab.
+   */
+  admin?: boolean;
 }) {
   const { t } = useT();
   const api = useWorkspaceApi();
@@ -45,7 +53,8 @@ export function ClientView({
   const [emails, setEmails] = useState<Email[]>([]);
   const [files, setFiles] = useState<DocumentFile[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const tabs = agentUI.clientTabs;
+  const showAdminTabs = admin && !viewer;
+  const tabs = agentUI.clientTabs.filter((tab) => !tab.adminOnly || showAdminTabs);
   const [activeTab, setActiveTab] = useState<string>(() => {
     const stored = lastViewedTab.get(clientId);
     return stored && tabs.some((tab) => tab.id === stored) ? stored : (tabs[0]?.id ?? '');
@@ -192,6 +201,7 @@ export function ClientView({
     clearFocusedMessage,
     readOnly,
     viewer,
+    admin: showAdminTabs,
   };
 
   return (
@@ -209,10 +219,12 @@ export function ClientView({
               type="button"
               role="tab"
               aria-selected={activeTab === tab.id}
-              className={`client-tab ${activeTab === tab.id ? 'active' : ''}`}
+              className={`client-tab ${tab.adminOnly ? 'client-tab-admin' : ''} ${activeTab === tab.id ? 'active' : ''}`}
+              title={tab.adminOnly ? t.adminOnlyTabTitle : undefined}
               onClick={() => selectTab(tab.id)}
             >
               {t[tab.labelKey]}
+              {tab.adminOnly && <span className="admin-chip">{t.adminOnlyChip}</span>}
             </button>
           ))}
         </div>

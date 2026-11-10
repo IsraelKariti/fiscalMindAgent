@@ -260,6 +260,7 @@ export function Workspace({
               agentUI={agentUI}
               onClientUpdated={loadClients}
               viewer={Boolean(viewer)}
+              admin={Boolean(impersonatingEmail)}
             />
           )}
           {route.kind === 'settings' && (

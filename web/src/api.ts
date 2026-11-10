@@ -22,6 +22,13 @@ export interface ClientAgentFields {
   marital_status?: 'married' | 'not_married';
   /** Capital declaration: the one spouse on file (name / id / sources), shape owned by spouseIdentity.ts. */
   spouse?: unknown;
+  /**
+   * Capital declaration: the questionnaire the client submitted, written once
+   * at enrollment (monday kickoff or the admin test form), in the form's order.
+   * Blank answers are never stored. Shown on the admin-only questionnaire tab
+   * (openspec `admin-questionnaire-tab`).
+   */
+  form_answers?: Array<{ question: string; answer: string }>;
 }
 
 export interface Client {

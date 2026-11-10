@@ -403,6 +403,12 @@ const he = {
   tabDashboard: 'דשבורד',
   tabDocuments: 'מסמכים',
   tabDetails: 'פרטים',
+  // Admin view-as only (openspec `admin-questionnaire-tab`)
+  tabQuestionnaire: 'שאלון',
+  questionnaireTitle: 'השאלון שהלקוח מילא',
+  questionnaireCount: (n: number) => (n === 1 ? 'שאלה אחת' : `${n} שאלות`),
+  questionnaireEmpty: 'לא שמור שאלון ללקוח הזה.',
+  questionnaireEmptyNote: 'נשמרות רק שאלות שהלקוח ענה עליהן; תשובות ריקות אינן נשמרות.',
   clientSectionsAria: 'מקטעי לקוח',
   clientLoadFailed: 'טעינת הלקוח נכשלה.',
 

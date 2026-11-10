@@ -522,6 +522,18 @@ Industry pattern followed: one app with an agent registry
   import scan sees its phone as already enrolled. The sidebar badges it
   "לקוח בדיקה" (`Client.isTest` from `toWorkspaceClient`). DB-backed test:
   `tests/testClientVisibility.test.ts` (`npm run test:db`, needs 067).
+- **Admin questionnaire tab** (openspec `admin-questionnaire-tab`): a
+  declaration-of-capital client has a fifth tab, "שאלון", shown only while
+  an admin views as the accountant — the questionnaire the client submitted,
+  as stored at enrollment in `agent_fields.form_answers` (monday kickoff or
+  the test form; blank answers never stored). Pure web: `ClientTab.adminOnly`
+  + `ClientView`'s `admin` prop (Workspace passes `Boolean(impersonatingEmail)`)
+  filter the tab out for the accountant and for staff viewers, a remembered
+  admin-only tab falls back to Conversation, the button carries the
+  `client-tab-admin` / `admin-chip` marker of the Settings test tab.
+  `QuestionnaireCard` renders `questionnairePairs(agent_fields)` (well-formed
+  non-blank pairs only, `tests/questionnairePairs.test.ts`) as text-only
+  cards, or an empty state. No server route, no monday read.
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
   UNIQUE (migration 021): each agent instance that uses WhatsApp gets its own
   dedicated Twilio number, assigned by an admin (AdminDashboard agents section

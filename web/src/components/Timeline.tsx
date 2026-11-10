@@ -1128,7 +1128,10 @@ export function Timeline({
           title={t.timelineJumpToFirst}
           onClick={() => jumpTo('top')}
         >
-          ↑
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M7 17l5-5 5 5" />
+            <path d="M7 11l5-5 5 5" />
+          </svg>
         </button>
       )}
       {!atBottom && (
@@ -1140,7 +1143,10 @@ export function Timeline({
           title={t.timelineJumpToLatest}
           onClick={() => jumpTo('bottom')}
         >
-          ↓
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M7 7l5 5 5-5" />
+            <path d="M7 13l5 5 5-5" />
+          </svg>
         </button>
       )}
       {confirmingApprove === 'now' && pendingReview && (

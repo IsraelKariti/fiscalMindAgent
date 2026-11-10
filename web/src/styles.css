@@ -3576,19 +3576,32 @@ button.meta-chip:hover {
   position: absolute;
   inset-inline-start: 16px;
   z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-raised);
-  color: var(--text);
-  font-size: 18px;
-  line-height: 1;
+  border: 1px solid rgba(148, 163, 216, 0.28);
+  background: rgba(26, 33, 64, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text-muted);
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s ease;
+  transition:
+    opacity 0.25s ease,
+    color var(--speed) ease;
+}
+
+.timeline-jump svg {
+  display: block;
+}
+
+.timeline-jump:hover {
+  color: var(--text);
 }
 
 .timeline-jump-top {

@@ -83,8 +83,12 @@ export async function listSince(since: Date, limit: number): Promise<AuditEventL
   return rows;
 }
 
-/** One client's trail, oldest first — the admin conversation viewer interleaves it with messages and LLM calls. */
-export async function listForClient(clientId: string, limit: number): Promise<AuditEventListRow[]> {
+/**
+ * One client's trail, oldest first — the admin conversation viewer interleaves
+ * it with messages and LLM calls. No limit = the whole trail; with one, the
+ * newest rows.
+ */
+export async function listForClient(clientId: string, limit?: number): Promise<AuditEventListRow[]> {
   const { rows } = await pool.query<AuditEventListRow>(
     `SELECT e.id, e.occurred_at, e.actor_type, e.actor_user_id, u.email AS actor_email,
             e.agent_instance_id, ai.agent_type, ai.name AS instance_name,
@@ -96,8 +100,8 @@ export async function listForClient(clientId: string, limit: number): Promise<Au
      LEFT JOIN clients c          ON c.id = e.client_id
      WHERE e.client_id = $1
      ORDER BY e.occurred_at DESC
-     LIMIT $2`,
-    [clientId, limit],
+     ${limit === undefined ? '' : 'LIMIT $2'}`,
+    limit === undefined ? [clientId] : [clientId, limit],
   );
   return rows.reverse();
 }

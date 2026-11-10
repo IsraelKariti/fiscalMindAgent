@@ -89,8 +89,10 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
     client.agent_instance_id ? agentInstances.getById(client.agent_instance_id) : null,
     client.user_id ? users.getById(client.user_id) : null,
     emails.listFullThreadForClient(client.id),
-    llmCalls.list({ clientId: client.id, limit: 200 }),
-    auditEvents.listForClient(client.id, 500),
+    // The whole trail, not a page: a capped list drops the oldest calls and
+    // steps, so the first messages of a long thread showed no trace at all.
+    llmCalls.list({ clientId: client.id }),
+    auditEvents.listForClient(client.id),
     scheduledJobs.getForClient(client.id),
   ]);
   // A replan discards the pending draft (removeFutureEmail drops its job but

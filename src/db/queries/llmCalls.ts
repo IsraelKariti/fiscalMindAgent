@@ -130,7 +130,8 @@ export interface LlmCallFilters {
   model?: string;
   /** Return calls created strictly before this instant (keyset pagination). */
   before?: Date;
-  limit: number;
+  /** Page size; omitted = every matching call (the conversation viewer needs the whole trail). */
+  limit?: number;
 }
 
 /** Newest-first page of calls without payloads — the admin browser's list. */
@@ -146,7 +147,7 @@ export async function list(filters: LlmCallFilters): Promise<LlmCallListRow[]> {
   if (filters.purpose) add('lc.purpose =', filters.purpose);
   if (filters.model) add('lc.model =', filters.model);
   if (filters.before) add('lc.created_at <', filters.before);
-  params.push(filters.limit);
+  const limit = filters.limit === undefined ? '' : `LIMIT $${params.push(filters.limit)}`;
   const { rows } = await pool.query<LlmCallListRow>(
     `SELECT lc.id, lc.created_at, lc.user_id, lc.agent_instance_id, lc.client_id,
             lc.document_file_id, df.filename AS document_filename,
@@ -164,7 +165,7 @@ export async function list(filters: LlmCallFilters): Promise<LlmCallListRow[]> {
      LEFT JOIN document_files df ON df.id = lc.document_file_id
      ${where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''}
      ORDER BY lc.created_at DESC
-     LIMIT $${params.length}`,
+     ${limit}`,
     params,
   );
   return rows;

@@ -3563,10 +3563,52 @@ button.meta-chip:hover {
 }
 
 .panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 0;
   overflow: hidden;
+}
+
+/* Jump-to-end buttons floating over the conversation scroll box. Hidden while
+   the chat is still; shown while scrolling, hovered or keyboard-focused. */
+.timeline-jump {
+  position: absolute;
+  inset-inline-start: 16px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.timeline-jump-top {
+  top: 69px;
+}
+
+.timeline-jump-bottom {
+  bottom: 16px;
+}
+
+.timeline-jump[data-visible='true'],
+.timeline-jump:hover,
+.timeline-jump:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.timeline-jump:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .panel-header {
@@ -3628,6 +3670,11 @@ button.meta-chip:hover {
   .panel-body {
     flex: none;
     overflow: visible;
+  }
+
+  /* The page scrolls here, not the panel: no jump buttons. */
+  .timeline-jump {
+    display: none;
   }
 
   .panel-stack > .panel-compact {

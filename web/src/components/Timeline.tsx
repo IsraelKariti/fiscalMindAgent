@@ -606,10 +606,45 @@ export function Timeline({
     return t.attachmentFile;
   };
 
+  // Jump buttons (openspec `conversation-timeline`): each shows only while its
+  // end is out of view, and only while the reader is scrolling (plus a short
+  // grace period) so a still chat carries no overlay. Both ends are sampled on
+  // every scroll event and on every resize, because content growth can make a
+  // short chat scrollable without any scroll event.
+  const [atTop, setAtTop] = useState(true);
+  const [atBottom, setAtBottom] = useState(true);
+  const [scrolling, setScrolling] = useState(false);
+  const scrollIdleTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(scrollIdleTimer.current), []);
+
+  const sampleEnds = () => {
+    const el = bodyRef.current;
+    if (!el) return;
+    setAtTop(el.scrollTop <= 4);
+    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+  };
+
   const trackScroll = () => {
     const el = bodyRef.current;
     if (!el) return;
+    const wasFollowing = nearBottomRef.current;
     nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    sampleEnds();
+    // The follow pin (new content while already at the bottom) scrolls on its
+    // own; that is not the reader scrolling, so it must not show the buttons.
+    if (wasFollowing && nearBottomRef.current) return;
+    setScrolling(true);
+    clearTimeout(scrollIdleTimer.current);
+    scrollIdleTimer.current = setTimeout(() => setScrolling(false), 3000);
+  };
+
+  const jumpTo = (end: 'top' | 'bottom') => {
+    const el = bodyRef.current;
+    if (!el) return;
+    // Re-arm following before the smooth scroll: its last scroll event lands
+    // within the follow margin, so `trackScroll` keeps the pin on afterwards.
+    if (end === 'bottom') nearBottomRef.current = true;
+    el.scrollTo({ top: end === 'bottom' ? el.scrollHeight : 0, behavior: 'smooth' });
   };
 
   // Open at the latest message and stay there while the content grows — messages
@@ -624,6 +659,8 @@ export function Timeline({
     if (!el || !list) return;
     const follow = () => {
       if (nearBottomRef.current) el.scrollTop = el.scrollHeight;
+      setAtTop(el.scrollTop <= 4);
+      setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
     };
     follow();
     const ro = new ResizeObserver(follow);
@@ -1080,6 +1117,32 @@ export function Timeline({
           <p className="muted timeline-footer">{t.goalCompleteFooter}</p>
         )}
       </div>
+      {/* Hidden (idle) buttons stay mounted so they fade instead of popping and
+          stay reachable by keyboard; CSS turns pointer events off while hidden. */}
+      {!atTop && (
+        <button
+          type="button"
+          className="timeline-jump timeline-jump-top"
+          data-visible={scrolling}
+          aria-label={t.timelineJumpToFirst}
+          title={t.timelineJumpToFirst}
+          onClick={() => jumpTo('top')}
+        >
+          ↑
+        </button>
+      )}
+      {!atBottom && (
+        <button
+          type="button"
+          className="timeline-jump timeline-jump-bottom"
+          data-visible={scrolling}
+          aria-label={t.timelineJumpToLatest}
+          title={t.timelineJumpToLatest}
+          onClick={() => jumpTo('bottom')}
+        >
+          ↓
+        </button>
+      )}
       {confirmingApprove === 'now' && pendingReview && (
         <ConfirmModal
           warning

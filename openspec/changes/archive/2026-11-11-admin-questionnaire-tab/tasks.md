@@ -21,4 +21,4 @@
 - [ ] 4.1 Browser check under admin view-as on the local stack: open the test client "בדיקה" (it was created with questionnaire answers) and confirm the fifth tab "שאלון" with the admin chip shows one card per answer in order; open a client without answers and confirm the empty state; confirm an answer containing `<b>` shows literally (use the test form to create one if needed).
 - [ ] 4.2 Browser check as the accountant (own session) and as a staff viewer: confirm no "שאלון" tab, and that a client last viewed on the questionnaire tab under view-as opens on Conversation.
 - [x] 4.3 Add a short note to `docs/agents.md` (frontend section, near the admin-test-client bullet) describing the admin-only questionnaire tab and the `adminOnly` tab flag; verify the note names openspec `admin-questionnaire-tab`.
-- [ ] 4.4 Run `npm run typecheck` and `npm test`, then commit per the repo Git workflow (pull --rebase, commit, push).
+- [x] 4.4 Run `npm run typecheck` and `npm test`, then commit per the repo Git workflow (pull --rebase, commit, push).

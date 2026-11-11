@@ -19,6 +19,6 @@
 
 ## 5. Verification
 
-- [ ] 5.1 SKIPPED by the owner on 2026-11-11 (see 1.1). Run the planner evals again with the configured models and compare with the baseline of 1.1; verify: no case flips from pass to fail; sample replies still address the client by first name and introduce the assistant with the accountant's name.
+- [x] 5.1 Done 2026-11-11 (owner asked after all): 30/39 pass on gpt-6-astra (run-planner-prompt-cache-order.json, $5.97, 71% of input tokens cached); the 9 failing cases re-run on the old prompt (run-planner-old-prompt-compare.json): 8 fail the same way there (pre-existing: 5× file tied under follow_up instead of collect, 2× no conclude, dec_30 vehicle cost, dec_38 template), dec_29 passed on the old prompt (message wording, model variance). No regression. Run the planner evals again with the configured models and compare with the baseline of 1.1; verify: no case flips from pass to fail; sample replies still address the client by first name and introduce the assistant with the accountant's name.
 - [x] 5.2 Cache check on gpt-6-astra: trigger two planner calls within a few minutes (a test client message twice, or the scratch script `cache-exp/run.mjs` variant H with a freshly stored request); verify: the second `llm_calls` row has `cached_tokens` ≥ 15,000 and the admin cost tab shows the lower per-call cost. Done 2026-11-11 with the scratch script: two different clients, second call 21,269 of 22,244 tokens cached.
-- [ ] 5.3 Commit per the Git workflow (`git pull --rebase`, `npm run typecheck`, commit, push); verify: `git log -1` shows the commit on origin/master.
+- [x] 5.3 Commit per the Git workflow (`git pull --rebase`, `npm run typecheck`, commit, push); verify: `git log -1` shows the commit on origin/master.

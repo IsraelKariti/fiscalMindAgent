@@ -1,0 +1,986 @@
+{
+  "ranAt": "2026-11-11T01:59:56.564Z",
+  "finishedAt": "2026-11-11T02:00:38.436Z",
+  "models": [
+    "gpt-6-astra"
+  ],
+  "stages": [
+    "planner"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gpt-6-astra": {
+      "model": "gpt-6-astra",
+      "inputCostPerToken": 0.00001,
+      "outputCostPerToken": 0.00005,
+      "thinkingCostPerToken": 0.00005,
+      "cachedCostPerToken": 0.000001
+    }
+  },
+  "results": [
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_13",
+      "notes": "Change confirm-unlisted-files: after the agent asked about the waiting Harel file, the client confirms in words. Only now the item is created (added_instances on the study fund type, with the client's quote as evidence — the gate rejects the answer otherwise) and the new instance names the waiting file in file_ids, so code attaches and verifies it in the same cycle. Change no-draft-when-collecting: an answer that ties a file is a collect decision with no message; the reply comes from the follow-up cycle after verification. 2026-09-19: gemini-3.1-pro-preview (the production model) passes; gemini-2.5-flash fails it by settling the open pension question with a 'Harel study fund' item instead of adding to the study fund type - code then refuses to attach the file (type differs), so the damage is a misfiled item, not a wrong approval.",
+      "ranAt": "2026-11-11T01:59:56.972Z",
+      "latencyMs": 14774,
+      "attempts": 1,
+      "inputTokens": 37644,
+      "outputTokens": 369,
+      "thinkingTokens": 73,
+      "cachedTokens": 7080,
+      "costUsd": 0.33482,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-study-altshuler",
+              "name": "אישור קרן השתלמות בהראל ליום 31.12.2025",
+              "description": "",
+              "already_provided": false,
+              "file_ids": [
+                "file-harel"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "msg-6",
+              "evidence_quote": "כן, יש לי גם קרן השתלמות בהראל, שכחתי להזכיר אותה",
+              "proven_by_file_id": ""
+            },
+            "turn": 1
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, הוספתי לרשימה גם את קרן ההשתלמות בהראל ושייכתי אליה את הקובץ ששלחת. באישור מופיע סך ההפקדות; נדרש גם אישור המציג את היתרה הצבורה ליום 31.12.2025 — אפשר לשלוח את העמוד האחרון בדוח השנתי המקוצר.\n\nהאם יש קרנות השתלמות נוספות מעבר לאלטשולר שחם ולהראל?\nוגם, בהמשך לשאלה הקודמת: אילו כלי רכב היו בבעלותך ביום 31.12.2025, והאם יש בידיך רישיון ומסמך רכישה או קבלה עבורם?",
+              "send_at": "asap"
+            },
+            "turn": 2
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Added the explicitly confirmed Harel study fund as a separate instance under the existing study-fund row and attached its file without treating it as Altshuler's document. Requested an accumulated-balance statement because the file lists deposits, checked for further study funds, and resumed the unanswered vehicle inquiry."
+            },
+            "turn": 3
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "a follow_up answer must not tie files: collected_document_ids, matched_files or an instance's file_ids is filled — answer \"collect\" (with every message field and send_at null) instead",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "collect",
+          "actual": "follow_up",
+          "pass": false
+        }
+      ],
+      "info": {
+        "calls": [
+          "add_instance",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "Added the explicitly confirmed Harel study fund as a separate instance under the existing study-fund row and attached its file without treating it as Altshuler's document. Requested an accumulated-balance statement because the file lists deposits, checked for further study funds, and resumed the unanswered vehicle inquiry.",
+        "send_at": "asap"
+      },
+      "pass": false
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_18",
+      "notes": "Change confirm-file-findings: the agent stated what it found in three waiting insurer files and asked for confirmation; the client answers with a short 'yes, all correct'. That short answer is the client's own words: all three items are created in this cycle with that quote as evidence (the gate rejects the answer otherwise), each naming its waiting file in file_ids, under the life-insurance type that already holds a settled row (so added_instances, not a new resolution).",
+      "ranAt": "2026-11-11T01:59:57.060Z",
+      "latencyMs": 17993,
+      "attempts": 1,
+      "inputTokens": 51459,
+      "outputTokens": 547,
+      "thinkingTokens": 0,
+      "cachedTokens": 19758,
+      "costUsd": 0.364118,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-life-menora",
+              "name": "אישור להצהרת הון — ביטוח מנהלים של ישראל בהראל ליום 31.12.2025",
+              "description": "",
+              "already_provided": false,
+              "file_ids": [
+                "file-harel"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "msg-6",
+              "evidence_quote": "כן, הכול נכון, שלושתן נכנסות להצהרה",
+              "proven_by_file_id": ""
+            },
+            "turn": 1
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-life-menora",
+              "name": "אישור להצהרת הון — ביטוח מנהלים של ישראל בכלל ליום 31.12.2025",
+              "description": "פוליסה המסתיימת ב־7745",
+              "already_provided": false,
+              "file_ids": [
+                "file-clal"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "msg-6",
+              "evidence_quote": "כן, הכול נכון, שלושתן נכנסות להצהרה",
+              "proven_by_file_id": ""
+            },
+            "turn": 2
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-life-menora",
+              "name": "אישור להצהרת הון — ביטוח מנהלים של רונית במגדל ליום 31.12.2025",
+              "description": "פוליסה המסתיימת ב־7719",
+              "already_provided": false,
+              "file_ids": [
+                "file-migdal"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "msg-6",
+              "evidence_quote": "כן, הכול נכון, שלושתן נכנסות להצהרה",
+              "proven_by_file_id": ""
+            },
+            "turn": 3
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, צירפתי להצהרה את שלושת האישורים מהראל, כלל ומגדל, בנוסף לאישור ממנורה שכבר התקבל.\nנחזור לכלי הרכב: כמה כלי רכב היו בבעלותך או בבעלות רונית ביום 31.12.2025, ומה הם? לכל רכב, אם יש בידיכם, אנא שלחו העתק רישיון רכב ומסמך רכישה או קבלה. אם אין, אפשר למסור כאן את הפרטים הידועים לכם.",
+              "send_at": "asap"
+            },
+            "turn": 4
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Added all three confirmed insurance policies with their received files, including Ronit's policy based on the client's explicit confirmation. Kept the approved Menora policy and sent one immediate follow-up returning to the unanswered vehicle question for both spouses."
+            },
+            "turn": 5
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "a follow_up answer must not tie files: collected_document_ids, matched_files or an instance's file_ids is filled — answer \"collect\" (with every message field and send_at null) instead",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "collect",
+          "actual": "follow_up",
+          "pass": false
+        }
+      ],
+      "info": {
+        "calls": [
+          "add_instance",
+          "add_instance",
+          "add_instance",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "Added all three confirmed insurance policies with their received files, including Ronit's policy based on the client's explicit confirmation. Kept the approved Menora policy and sent one immediate follow-up returning to the unanswered vehicle question for both spouses.",
+        "send_at": "asap"
+      },
+      "pass": false
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_03",
+      "notes": "explicit answers resolve exactly the three rows asked: two bank instances (one per account), two not_required rows with verbatim quotes from msg-4; nothing else is guessed",
+      "ranAt": "2026-11-11T01:59:56.625Z",
+      "latencyMs": 20778,
+      "attempts": 1,
+      "inputTokens": 54401,
+      "outputTokens": 601,
+      "thinkingTokens": 0,
+      "cachedTokens": 23727,
+      "costUsd": 0.36051700000000003,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "resolve_document",
+            "args": {
+              "document_id": "doc-bank_balance",
+              "resolution": "required",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "יש לי חשבון אחד בבנק הפועלים ועוד חשבון בדיסקונט.",
+              "proven_by_file_id": ""
+            },
+            "turn": 1
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-bank_balance",
+              "name": "אישור יתרות ליום 31.12.2025 — חשבון בבנק הפועלים",
+              "description": "",
+              "already_provided": false,
+              "file_ids": [],
+              "paper_key": "",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "יש לי חשבון אחד בבנק הפועלים ועוד חשבון בדיסקונט.",
+              "proven_by_file_id": ""
+            },
+            "turn": 2
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-bank_balance",
+              "name": "אישור יתרות ליום 31.12.2025 — חשבון בבנק דיסקונט",
+              "description": "",
+              "already_provided": false,
+              "file_ids": [],
+              "paper_key": "",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "יש לי חשבון אחד בבנק הפועלים ועוד חשבון בדיסקונט.",
+              "proven_by_file_id": ""
+            },
+            "turn": 3
+          },
+          {
+            "name": "resolve_document",
+            "args": {
+              "document_id": "doc-securities_portfolio",
+              "resolution": "not_required",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "אין לי תיק ניירות ערך ואין לי קריפטו.",
+              "proven_by_file_id": ""
+            },
+            "turn": 4
+          },
+          {
+            "name": "resolve_document",
+            "args": {
+              "document_id": "doc-crypto",
+              "resolution": "not_required",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "אין לי תיק ניירות ערך ואין לי קריפטו.",
+              "proven_by_file_id": ""
+            },
+            "turn": 5
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, רשמתי חשבון אחד בפועלים ואחד בדיסקונט, וללא תיק ניירות ערך או קריפטו.\nנא לשלוח אישור יתרות ליום 31.12.2025 לכל אחד משני החשבונות. אפשר גם ריכוז יתרות או תעודת זהות בנקאית המציגים את היתרות לתאריך הזה.\n\nנמשיך לחסכונות: באילו חברות יש לך קופות גמל או קרנות פנסיה, וכמה בכל חברה? האם יש גם קרנות השתלמות, ביטוח מנהלים או פוליסות חיסכון? נא לציין חברה וסוג לכל אחד, ואם אין — לכתוב ״אין״. אם יש בן/בת זוג, יש לכלול גם את הקופות שלהם. אין צורך באישורים עבור ״חיסכון לכל ילד״.",
+              "send_at": "asap"
+            },
+            "turn": 6
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "conclude must be called exactly once per answer (got 0)",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "pass": false
+        }
+      ],
+      "info": {
+        "calls": [
+          "resolve_document",
+          "add_instance",
+          "add_instance",
+          "resolve_document",
+          "resolve_document",
+          "send_whatsapp_text"
+        ]
+      },
+      "pass": false
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_17",
+      "notes": "Change confirm-file-findings (live finding 2026-09-19: one PDF was split into 11 files and the agent asked open questions): eleven files of one turn match no agreed item, every holder is readable. The reply must be ONE grouped statement of what was found, ending with one confirmation request (at most 3 question marks in the whole message: the confirmation, a possible missing-fact question, and the interview question that was already open in the thread) - not a question per file, and none of the forbidden open questions. No list change, nothing paired.",
+      "ranAt": "2026-11-11T01:59:57.017Z",
+      "latencyMs": 25793,
+      "attempts": 1,
+      "inputTokens": 66517,
+      "outputTokens": 573,
+      "thinkingTokens": 153,
+      "cachedTokens": 31792,
+      "costUsd": 0.415342,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "resolve_document",
+            "args": {
+              "document_id": "doc-pension_provident",
+              "resolution": "required",
+              "evidence_message_id": "",
+              "evidence_quote": "",
+              "proven_by_file_id": "file-phoenix-pension"
+            },
+            "turn": 1
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-pension_provident",
+              "name": "אישור קרן פנסיה בהפניקס — ישראל ישראלי, חשבון …0021",
+              "description": "יתרה ליום 31.12.2025",
+              "already_provided": false,
+              "file_ids": [
+                "file-phoenix-pension"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "",
+              "evidence_quote": "",
+              "proven_by_file_id": "file-phoenix-pension"
+            },
+            "turn": 2
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-pension_provident",
+              "name": "אישור קופת גמל להשקעה באלטשולר שחם — ישראל ישראלי, חשבון …0034",
+              "description": "יתרה ליום 31.12.2025",
+              "already_provided": false,
+              "file_ids": [
+                "file-altshuler-gemel"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "",
+              "evidence_quote": "",
+              "proven_by_file_id": "file-altshuler-gemel"
+            },
+            "turn": 3
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-study-altshuler",
+              "name": "אישור קרן השתלמות במור — ישראל ישראלי, חשבון …0045",
+              "description": "יתרה ליום 31.12.2025",
+              "already_provided": false,
+              "file_ids": [
+                "file-mor-study"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "",
+              "evidence_quote": "",
+              "proven_by_file_id": "file-mor-study"
+            },
+            "turn": 4
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-study-altshuler",
+              "name": "אישור קרן השתלמות במיטב — ישראל ישראלי, חשבון …0051",
+              "description": "יתרה ליום 31.12.2025",
+              "already_provided": false,
+              "file_ids": [
+                "file-meitav-study-1"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "",
+              "evidence_quote": "",
+              "proven_by_file_id": "file-meitav-study-1"
+            },
+            "turn": 5
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-study-altshuler",
+              "name": "אישור קרן השתלמות בילין לפידות — ישראל ישראלי, חשבון …0012",
+              "description": "יתרה ליום 31.12.2025",
+              "already_provided": false,
+              "file_ids": [
+                "file-yelin-study"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "",
+              "evidence_quote": "",
+              "proven_by_file_id": "file-yelin-study"
+            },
+            "turn": 6
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "conclude must be called exactly once per answer (got 0)",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "pass": false
+        }
+      ],
+      "info": {
+        "calls": [
+          "resolve_document",
+          "add_instance",
+          "add_instance",
+          "add_instance",
+          "add_instance",
+          "add_instance"
+        ]
+      },
+      "pass": false
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_19",
+      "notes": "Change no-draft-when-collecting: the client sends the Altshuler Shaham study fund certificate for its own pending row and the content analysis already matches it. The answer must mark the row collected, pair the file in matched_files, change nothing else on the list, and be a collect decision: no message text, no send_at — the reply is written by the follow-up cycle after verification.",
+      "ranAt": "2026-11-11T02:00:11.753Z",
+      "latencyMs": 13468,
+      "attempts": 1,
+      "inputTokens": 42618,
+      "outputTokens": 350,
+      "thinkingTokens": 22,
+      "cachedTokens": 12282,
+      "costUsd": 0.33424200000000004,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "mark_collected",
+            "args": {
+              "document_id": "doc-study-altshuler"
+            },
+            "turn": 1
+          },
+          {
+            "name": "tie_file",
+            "args": {
+              "file_id": "file-altshuler",
+              "document_id": "doc-study-altshuler",
+              "evidence_message_id": "",
+              "evidence_quote": ""
+            },
+            "turn": 2
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, האישור מקרן ההשתלמות באלטשולר שחם ליום 31.12.2025 התקבל ומתאים.\nנמשיך בכמה שאלות כדי לברר אילו מסמכים נוספים נדרשים. נכון ליום 31.12.2025:\n1. האם היו לך תיקי ניירות ערך או חשבונות השקעות? אם כן, כמה ובאילו בנקים או בתי השקעות?\n2. אילו קופות גמל וקרנות פנסיה היו לך, ובאילו חברות? אם יש בן/בת זוג, יש לכלול גם את הקופות שלהם. אין צורך באישורים על ״חיסכון לכל ילד״.\n3. האם היו לך ביטוח מנהלים או פוליסות חיסכון? אם כן, כמה ובאילו חברות?",
+              "send_at": "asap"
+            },
+            "turn": 3
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Linked the verified Altshuler study-fund file to its required item and sent one immediate WhatsApp acknowledging receipt and asking about investment accounts, pensions/provident funds and savings policies. Fifteen catalog questions remain unresolved, so collection is not complete and final attestation is premature."
+            },
+            "turn": 4
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "a follow_up answer must not tie files: collected_document_ids, matched_files or an instance's file_ids is filled — answer \"collect\" (with every message field and send_at null) instead",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "collect",
+          "actual": "follow_up",
+          "pass": false
+        }
+      ],
+      "info": {
+        "calls": [
+          "mark_collected",
+          "tie_file",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "Linked the verified Altshuler study-fund file to its required item and sent one immediate WhatsApp acknowledging receipt and asking about investment accounts, pensions/provident funds and savings policies. Fifteen catalog questions remain unresolved, so collection is not complete and final attestation is premature.",
+        "send_at": "asap"
+      },
+      "pass": false
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_29",
+      "notes": "Change chat-stated-cost: a property cost declaration stated in the chat as \"1.2 מיליון\". The planner states 1200000 on the pending cost-declaration item; the tabu stays awaited.",
+      "ranAt": "2026-11-11T02:00:15.057Z",
+      "latencyMs": 11473,
+      "attempts": 1,
+      "inputTokens": 37378,
+      "outputTokens": 229,
+      "thinkingTokens": 43,
+      "cachedTokens": 7065,
+      "costUsd": 0.323795,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "state_cost",
+            "args": {
+              "document_id": "doc-house-cost",
+              "instance_name": "",
+              "amount": 1200000,
+              "currency": "ILS",
+              "evidence_message_id": "msg-4",
+              "evidence_quote": "לפי הערכתי שילמתי על הדירה 1.2 מיליון שקל."
+            },
+            "turn": 1
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, רשמתי את עלות רכישת הדירה לפי הערכתך: 1,200,000 ש״ח. אין צורך בהצהרת עלות נפרדת. נשאר רק נסח הטאבו — אפשר לשלוח אותו כאן כשתוציא אותו השבוע.",
+              "send_at": "asap"
+            },
+            "turn": 2
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Recorded the client's stated estimated purchase cost of ILS 1,200,000. The tabu extract remains pending and the client plans to obtain it this week; sent an immediate acknowledgment and asked them to send it here when available. Final confirmation is not yet due."
+            },
+            "turn": 3
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 1",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-02-10T08:40:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "1,200,000",
+            "1.2 מיליון",
+            "1200000"
+          ],
+          "actual": [
+            "1,200,000"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.דף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.חתימה",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "stated_costs",
+          "expected": {
+            "doc-house-cost": 1200000
+          },
+          "actual": {
+            "doc-house-cost": 1200000
+          },
+          "pass": true
+        },
+        {
+          "key": "new_instance_stated_amounts",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "state_cost",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "Recorded the client's stated estimated purchase cost of ILS 1,200,000. The tabu extract remains pending and the client plans to obtain it this week; sent an immediate acknowledgment and asked them to send it here when available. Final confirmation is not yet due.",
+        "send_at": "asap",
+        "message": "תודה ישראל, רשמתי את עלות רכישת הדירה לפי הערכתך: 1,200,000 ש״ח. אין צורך בהצהרת עלות נפרדת. נשאר רק נסח הטאבו — אפשר לשלוח אותו כאן כשתוציא אותו השבוע.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_30",
+      "notes": "Change chat-stated-cost: the price is written in words only. Code accepts digits only, so the planner states nothing and asks the client to write the amount in digits.",
+      "ranAt": "2026-11-11T02:00:17.406Z",
+      "latencyMs": 10423,
+      "attempts": 1,
+      "inputTokens": 35582,
+      "outputTokens": 201,
+      "thinkingTokens": 31,
+      "cachedTokens": 6443,
+      "costUsd": 0.309433,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה, ישראל. תוכל לכתוב את הסכום בספרות כדי שאוכל לרשום אותו?",
+              "send_at": "asap"
+            },
+            "turn": 1
+          },
+          {
+            "name": "state_vehicle",
+            "args": {
+              "document_id": "doc-car-cost",
+              "instance_name": "",
+              "manufacturer": "",
+              "model": "",
+              "production_year": 0,
+              "license_plate": "",
+              "purchase_cost": 85000,
+              "currency": "ILS",
+              "evidence_message_id": "msg-6",
+              "evidence_quote": "שילמתי שמונים וחמש אלף"
+            },
+            "turn": 2
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "Recorded the client's stated vehicle purchase cost as ILS 85,000; no other vehicle facts were stated in that message. The vehicle licence remains pending, promised for this evening. A clarification message was sent asking for the amount in digits, although the written amount was already interpretable."
+            },
+            "turn": 3
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "vehicle statement on doc-car-cost: the עלות הרכישה (purchase_cost) is not written in the quote — copy the fact as the client wrote it, or ask the client to write it plainly",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "send_whatsapp_text",
+          "state_vehicle",
+          "conclude"
+        ],
+        "reasoning": "Recorded the client's stated vehicle purchase cost as ILS 85,000; no other vehicle facts were stated in that message. The vehicle licence remains pending, promised for this evening. A clarification message was sent asking for the amount in digits, although the written amount was already interpretable.",
+        "send_at": "asap"
+      },
+      "pass": false
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_35",
+      "notes": "Change self-evident-file-adds-item (prod 2026-10-19, client 883423f3): the questionnaire said only provident funds, so the study fund row is not_required; the client then sends, with no text, a Phoenix study fund annual report in his own name (holder printed, employer printed, known institution, high confidence) — the file line carries the self-evident marker. The agent must NOT ask whether the fund belongs in the declaration: it settles the study fund row as needed citing the file (proven_by_file_id, no quote — the only inbound text is \"כן\"), one instance that the gate names with the company and employer, the file tied in the same cycle, and the answer is collect with no message.",
+      "ranAt": "2026-11-11T02:00:22.815Z",
+      "latencyMs": 14533,
+      "attempts": 1,
+      "inputTokens": 43221,
+      "outputTokens": 444,
+      "thinkingTokens": 29,
+      "cachedTokens": 12606,
+      "costUsd": 0.34240600000000004,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "resolve_document",
+            "args": {
+              "document_id": "doc-study",
+              "resolution": "required",
+              "evidence_message_id": "",
+              "evidence_quote": "",
+              "proven_by_file_id": "file-phoenix"
+            },
+            "turn": 1
+          },
+          {
+            "name": "add_instance",
+            "args": {
+              "anchor_document_id": "doc-study",
+              "name": "קרן השתלמות הפניקס השתלמות — חשבון המסתיים ב־0817",
+              "description": "דוח שנתי ואישור מס להצהרת הון לשנת 2025 על שם ישראל ישראלי.",
+              "already_provided": false,
+              "file_ids": [
+                "file-phoenix"
+              ],
+              "paper_key": "",
+              "evidence_message_id": "",
+              "evidence_quote": "",
+              "proven_by_file_id": "file-phoenix"
+            },
+            "turn": 2
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, קיבלתי את הדוח של הפניקס. הוא מתייחס לקרן השתלמות, וצירפתי אותו לסעיף המתאים — הוא אינו אישור לקופת גמל.\n\nלגבי קופות הגמל שציינת בשאלון: באילו חברות הן נמצאות וכמה קופות יש בכל חברה? לכל קופה נדרש אישור להצהרת הון ליום 31.12.2025, או העמוד האחרון של הדוח השנתי המקוצר. האם יש לך גם קרנות פנסיה או קרנות השתלמות נוספות?\n\nותיקון קטן להודעה הקודמת: קופות הגמל אינן הדבר היחיד שנותר; יש עוד כמה סעיפים בשאלון שנברר יחד בהמשך.",
+              "send_at": "asap"
+            },
+            "turn": 3
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "The self-evident Phoenix file proves a study fund despite the prior not_required status, so that row was resolved required and a concrete account instance added with the file. It does not satisfy the pending provident-fund requirement. Asked for provident-fund companies and counts and other pension/study funds, and corrected the prior claim that only one item remained; unresolved intake prevents completion."
+            },
+            "turn": 4
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "a follow_up answer must not tie files: collected_document_ids, matched_files or an instance's file_ids is filled — answer \"collect\" (with every message field and send_at null) instead",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "collect",
+          "actual": "follow_up",
+          "pass": false
+        }
+      ],
+      "info": {
+        "calls": [
+          "resolve_document",
+          "add_instance",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "The self-evident Phoenix file proves a study fund despite the prior not_required status, so that row was resolved required and a concrete account instance added with the file. It does not satisfy the pending provident-fund requirement. Asked for provident-fund companies and counts and other pension/study funds, and corrected the prior claim that only one item remained; unresolved intake prevents completion.",
+        "send_at": "asap"
+      },
+      "pass": false
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_38",
+      "notes": "Change intro-template-decline, the negative twin of dec_37: 'not now, come back next week' is a postponement, not a refusal -> follow_up as usual (a short acknowledgement now, or a reminder scheduled for next week), never client_declined.",
+      "ranAt": "2026-11-11T02:00:25.223Z",
+      "latencyMs": 13208,
+      "attempts": 1,
+      "inputTokens": 31134,
+      "outputTokens": 155,
+      "thinkingTokens": 158,
+      "cachedTokens": 1493,
+      "costUsd": 0.313553,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "send_whatsapp_template",
+            "args": {
+              "template_id": "HXEVAL0003",
+              "variables": [
+                "ישראל",
+                "כהן ושות' רואי חשבון"
+              ],
+              "send_at": "2026-11-09 10:30"
+            },
+            "turn": 1
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "הלקוח ביקש לחזור אליו בשבוע הבא, ולא סירב לתהליך. נקבעה הודעת חידוש ליום שני 9.11.2026 בשעה 10:30, באמצעות תבנית מאושרת משום שבמועד השליחה חלון 24 השעות יהיה סגור. אין שינוי בדרישות המסמכים."
+            },
+            "turn": 2
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "template",
+          "pass": false
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-11-02T08:30:00Z",
+          "actual": "2026-11-09 10:30",
+          "pass": true
+        },
+        {
+          "key": "resolved_documents",
+          "expected": [],
+          "actual": [],
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "send_whatsapp_template",
+          "conclude"
+        ],
+        "reasoning": "הלקוח ביקש לחזור אליו בשבוע הבא, ולא סירב לתהליך. נקבעה הודעת חידוש ליום שני 9.11.2026 בשעה 10:30, באמצעות תבנית מאושרת משום שבמועד השליחה חלון 24 השעות יהיה סגור. אין שינוי בדרישות המסמכים.",
+        "send_at": "2026-11-09 10:30",
+        "message": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nנשמח להמשיך מהנקודה שבה עצרנו באיסוף המסמכים להצהרת ההון.\nכשנוח לך — השב לי כאן שאתה מוכן, ונמשיך.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": false
+    }
+  ],
+  "summary": {
+    "planner": {
+      "gpt-6-astra": {
+        "total": 9,
+        "passed": 1,
+        "passRate": 0.1111111111111111,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 15827,
+          "p50": 14533,
+          "p90": 20778,
+          "min": 10423,
+          "max": 25793
+        },
+        "inputTokens": 399954,
+        "outputTokens": 3469,
+        "thinkingTokens": 509,
+        "cachedTokens": 122246,
+        "costUsd": 3.098226,
+        "unpriced": 0
+      }
+    }
+  }
+}

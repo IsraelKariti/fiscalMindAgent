@@ -21,7 +21,7 @@ export function closingMessageDelivery(
 
 /**
  * The accountant's display name as the client hears it — the same chain the
- * planner prompt uses for `{{accountant_name}}`: admin-entered Hebrew name,
+ * planner prompt's RUN CONTEXT section uses: admin-entered Hebrew name,
  * then the Google-synced name, then the login email, then a generic role.
  */
 export function accountantDisplayName(accountant: Pick<UserRow, 'name' | 'email' | 'hebrew_name'> | null | undefined): string {

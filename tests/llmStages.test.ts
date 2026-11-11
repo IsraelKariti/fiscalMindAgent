@@ -41,12 +41,15 @@ test('the planner stage lists its tools, conclude first', () => {
   assert.deepEqual(planner.continuation, { untilTool: 'conclude', maxTurns: 6 });
 });
 
-test('the planner prompt carries the untrusted-data doctrine with the fence token, names the platform sections as trusted, and asks for no injection verdict', () => {
+test('the planner prompt carries the untrusted-data doctrine (token named by position, never embedded), names the platform sections as trusted, and asks for no injection verdict', () => {
   const planner = describeLlmStagesStatic().find((s) => s.purpose === 'planner');
   assert.ok(planner);
   const prompt = planner.prompts[0]!.systemPrompt;
-  assert.ok(prompt.includes('[{{token}}]'));
+  // openspec planner-prompt-caching: the system prompt is identical across calls, so no token and no per-call placeholder.
+  assert.ok(!prompt.includes('{{token}}'));
+  assert.match(prompt, /בשורה הראשונה של הקלט/);
   assert.ok(!prompt.includes('suspected_injection'));
-  assert.match(prompt, /המקטעים [^\n]*DOCUMENT FETCH[^\n]*נכתבו על ידי המערכת/);
-  assert.ok(planner.placeholders.includes('token'));
+  assert.match(prompt, /המקטעים [^\n]*RUN CONTEXT[^\n]*DOCUMENT FETCH[^\n]*נכתבו על ידי המערכת/);
+  assert.deepEqual(planner.placeholders, ['tax_year']);
+  assert.ok(planner.query[0]!.parts[0]!.body.startsWith('--- RUN CONTEXT [{{token}}] ---'));
 });

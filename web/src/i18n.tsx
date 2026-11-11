@@ -1328,7 +1328,7 @@ const he = {
   addAccountantFailed: 'הוספת רואה החשבון נכשלה.',
   adding: 'מוסיף…',
 
-  // Hebrew name of the accountant/firm (fills {{accountant_name}} in agent prompts)
+  // Hebrew name of the accountant/firm (shown to the agent in the planner's RUN CONTEXT section)
   hebrewNameLabel: 'שם בעברית',
   hebrewNameFieldLabel: 'שם רואה החשבון או המשרד (בעברית)',
   hebrewNameHint:

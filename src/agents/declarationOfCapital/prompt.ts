@@ -27,6 +27,8 @@ import { selfEvidentMarker, type SelfEvidentFile } from './selfEvidentFiles.js';
  * them as trusted: their guidance is binding, unlike client-sourced content.
  */
 export const PLATFORM_SECTIONS = {
+  /** Per-request facts (accountant, client, clock, calendar): first in the input so the system prompt stays static (openspec `planner-prompt-caching`). */
+  runContext: 'RUN CONTEXT',
   identity: 'CLIENT IDENTITY',
   whatsapp: 'WHATSAPP CHANNEL',
   documentFetch: 'DOCUMENT FETCH',
@@ -81,21 +83,13 @@ function formatLocalDateTime(d: Date, timeZone: string): string {
 
 /**
  * Placeholders substituted into the system-prompt template at call time.
+ * Only values that are the same for every client and every call belong here:
+ * the rendered system prompt must be byte-identical across calls so the
+ * provider's prompt cache can serve it (openspec `planner-prompt-caching`).
+ * Per-request facts go to the RUN CONTEXT section of the input instead.
  * Keep this list in sync with the placeholder docs shown in the dashboard's prompt editor.
  */
-export const PROMPT_PLACEHOLDERS = [
-  'client_name',
-  'client_email',
-  'client_phone',
-  'engagement_start_date',
-  'current_datetime_utc',
-  'current_datetime_local',
-  'time_since_last_message',
-  'accountant_timezone',
-  'accountant_name',
-  'upcoming_dates',
-  'tax_year',
-] as const;
+export const PROMPT_PLACEHOLDERS = ['tax_year'] as const;
 
 export type PromptPlaceholder = (typeof PROMPT_PLACEHOLDERS)[number];
 
@@ -119,37 +113,54 @@ export function renderPromptTemplate(template: string, vars: Record<PromptPlaceh
   return renderTemplate(template, vars);
 }
 
+/**
+ * The planner's system prompt: the template, the scheduling contract and the
+ * untrusted-data doctrine. Byte-identical for every client and every call of
+ * a declaration year — nothing per client or per call goes in here (openspec
+ * `planner-prompt-caching`; gpt-6 caches the instructions only on an exact
+ * match). The per-request facts live in buildRunContextSection.
+ */
 export function buildSystemPrompt(
-  client: ClientRow,
-  accountant: UserRow | null,
-  history: EmailRow[],
-  now: Date,
-  /** Per-call fence token; when set, the untrusted-data doctrine is appended AFTER the template so no template edit can drop it. */
-  fenceToken?: string,
   /** The client's declaration year (capitalClientTaxYear); defaults to the last concluded year. */
   taxYear?: number,
 ): string {
+  const rendered = renderPromptTemplate(PROMPT_TEMPLATE, {
+    tax_year: String(taxYear ?? new Date().getFullYear() - 1),
+  });
+  // The doctrine is appended AFTER the template so no template edit can drop it.
+  return `${rendered}\n\n${KEEPALIVE_CONTRACT}\n\n${buildUntrustedDataDoctrine(Object.values(PLATFORM_SECTIONS))}`;
+}
+
+/** The accountant's display name as the planner prompt shows it (same chain as closingMessage.ts). */
+function accountantDisplayName(accountant: UserRow | null): string {
+  return accountant?.hebrew_name?.trim() || accountant?.name?.trim() || accountant?.email || 'המטפל בתיק';
+}
+
+/**
+ * RUN CONTEXT — the per-request facts the system prompt used to carry as
+ * placeholders: who the accountant and the client are, when the engagement
+ * started, the clock, and the calendar `send_at` dates are copied from.
+ * Always the FIRST section of the input: its opening fence is the first line
+ * of the input, which is how the doctrine names the fence token.
+ */
+export function buildRunContextSection(token: string, client: ClientRow, accountant: UserRow | null, history: EmailRow[], now: Date): string {
+  const name = PLATFORM_SECTIONS.runContext;
   const last = history[history.length - 1];
   const sinceLast = last
     ? humanizeDuration(now.getTime() - (last.sent_at ?? last.created_at).getTime())
     : 'N/A (no messages sent yet)';
-
-  const rendered = renderPromptTemplate(PROMPT_TEMPLATE, {
-    client_name: sanitizeInline(client.name, 200),
-    client_email: sanitizeInline(client.email_address, 200),
-    client_phone: sanitizeInline(client.wa_phone ?? client.phone ?? '', 50),
-    engagement_start_date: formatDate(client.created_at),
-    current_datetime_utc: now.toISOString(),
-    current_datetime_local: formatLocalDateTime(now, env.ACCOUNTANT_TIMEZONE),
-    time_since_last_message: sinceLast,
-    accountant_timezone: env.ACCOUNTANT_TIMEZONE,
-    accountant_name:
-      accountant?.hebrew_name?.trim() || accountant?.name?.trim() || accountant?.email || 'המטפל בתיק',
-    upcoming_dates: formatUpcomingDates(now, env.ACCOUNTANT_TIMEZONE),
-    tax_year: String(taxYear ?? now.getFullYear() - 1),
-  });
-  const withContract = `${rendered}\n\n${KEEPALIVE_CONTRACT}`;
-  return fenceToken ? `${withContract}\n\n${buildUntrustedDataDoctrine(fenceToken, Object.values(PLATFORM_SECTIONS))}` : withContract;
+  const lines = [
+    `רואה החשבון: ${accountantDisplayName(accountant)}`,
+    `הלקוח: ${sanitizeInline(client.name, 200)} (WhatsApp: ${sanitizeInline(client.wa_phone ?? client.phone ?? '', 50)})`,
+    `התהליך התחיל בתאריך: ${formatDate(client.created_at)}`,
+    `תאריך ושעה נוכחיים (UTC): ${now.toISOString()}`,
+    `תאריך ושעה מקומיים אצל רואה החשבון (${env.ACCOUNTANT_TIMEZONE}): ${formatLocalDateTime(now, env.ACCOUNTANT_TIMEZONE)}`,
+    `זמן שעבר מההודעה האחרונה: ${sinceLast}`,
+    '',
+    'לוח התאריכים לשבועות הקרובים - את התאריך של `send_at` קבע אך ורק על ידי העתקת שורה מהלוח הזה. לעולם אל תחשב תאריך בעצמך (למשל "עוד יומיים" או "יום ראשון הקרוב") - אתר את היום המבוקש בלוח והעתק את התאריך שלו:',
+    formatUpcomingDates(now, env.ACCOUNTANT_TIMEZONE),
+  ];
+  return `${fence(token, name)}\n${lines.join('\n')}\n${endFence(token, name)}`;
 }
 
 /** Lives in `contents` (like the documents section) so the system prompt stays static and cacheable. */
@@ -704,6 +715,7 @@ export function buildPrompt(
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
+    buildRunContextSection(token, client, accountant, history, now),
     buildDocumentsSection(token, documents, taxYear),
     buildClientIdentitySection(token, client, clientIdOnFile),
     buildFormAnswersSection(token, client),
@@ -716,7 +728,7 @@ export function buildPrompt(
     buildThreadTranscript(token, history, files, lostFiles, selfEvidentFiles),
   ].filter((s) => s !== '');
   return {
-    systemInstruction: buildSystemPrompt(client, accountant, history, now, token, taxYear),
+    systemInstruction: buildSystemPrompt(taxYear),
     contents: sections.join('\n\n'),
   };
 }

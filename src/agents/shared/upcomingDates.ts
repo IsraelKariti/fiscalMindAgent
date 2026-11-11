@@ -23,7 +23,7 @@ function localDateAsUtcMs(now: Date, timeZone: string): number {
 }
 
 /**
- * A dated calendar for the scheduling prompts ({{upcoming_dates}}): one line
+ * A dated calendar for the scheduling prompts (the planner's RUN CONTEXT section): one line
  * per day, ISO date + Hebrew weekday, with today and weekend days marked.
  * LLMs reliably copy absolute dates but miscompute relative ones ("next
  * Sunday" came out as Monday in a live draft) — this list turns every

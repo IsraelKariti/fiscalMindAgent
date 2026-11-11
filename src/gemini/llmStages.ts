@@ -144,7 +144,7 @@ const STAGES: StageStatic[] = [
     prompts: [
       {
         variant: 'template + untrusted-data doctrine',
-        systemPrompt: `${PROMPT_TEMPLATE}\n\n${buildUntrustedDataDoctrine('{{token}}', Object.values(PLATFORM_SECTIONS))}`,
+        systemPrompt: `${PROMPT_TEMPLATE}\n\n${buildUntrustedDataDoctrine(Object.values(PLATFORM_SECTIONS))}`,
       },
     ],
     query: [
@@ -153,7 +153,7 @@ const STAGES: StageStatic[] = [
         parts: [
           {
             kind: 'text',
-            body: '--- REQUIRED DOCUMENTS [{{token}}] --- … --- SUBMITTED QUESTIONNAIRE [{{token}}] --- … --- INTAKE STATUS [{{token}}] --- … --- UNSENT DRAFTS [{{token}}] --- (only when the agent has undelivered drafts) … --- VERIFICATION RESULTS [{{token}}] --- (only in the follow-up cycle after a verification batch: each file of this turn with APPROVED / REJECTED + reasons / HANDED TO THE OFFICE / NOT VERIFIED YET) … --- MESSAGE THREAD [{{token}}] --- …\n\nDecide the next action now.',
+            body: '--- RUN CONTEXT [{{token}}] --- (accountant, client + WhatsApp number, engagement start, clock, the send_at calendar — first so the system prompt stays identical across calls and cacheable) … --- REQUIRED DOCUMENTS [{{token}}] --- … --- SUBMITTED QUESTIONNAIRE [{{token}}] --- … --- INTAKE STATUS [{{token}}] --- … --- UNSENT DRAFTS [{{token}}] --- (only when the agent has undelivered drafts) … --- VERIFICATION RESULTS [{{token}}] --- (only in the follow-up cycle after a verification batch: each file of this turn with APPROVED / REJECTED + reasons / HANDED TO THE OFFICE / NOT VERIFIED YET) … --- MESSAGE THREAD [{{token}}] --- …\n\nDecide the next action now.',
           },
         ],
       },

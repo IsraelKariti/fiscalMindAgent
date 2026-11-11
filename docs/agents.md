@@ -638,7 +638,7 @@ chag, or an erev chag rolls forward day by day to the first allowed day at
 the same wall-clock time. Chag days come from `@hebcal/core` (Israel
 calendar, yom tov only — chol hamoed/Chanukah/Purim stay open) via
 `src/agents/shared/jewishHolidays.ts`, which also feeds the חג/ערב חג marks
-in the `{{upcoming_dates}}` prompt calendar. New scheduling planners must
+in the RUN CONTEXT calendar of the planner's input. New scheduling planners must
 apply the same guard.
 
 **Immediate replies** (openspec `reply-send-asap`): a follow_up may answer

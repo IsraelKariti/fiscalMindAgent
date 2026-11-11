@@ -1153,7 +1153,7 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   `LlmCallLogContext` (fire-and-forget; logging never fails the call). **Every
   new LLM call site should pass a `LlmCallLogContext` to `generateWithRetry`**
   alongside the existing `llmUsage.add` obligation (today wired: the
-  the agent's six sites — `generate_message`, `questionnaire_schema_mapping`, `injection_detection_llm`, `file_splitting`, `file_classification`, `extract_document`).
+  the agent's six sites — `planner`, `questionnaire_schema_mapping`, `injection_detection_llm`, `file_splitting`, `file_classification`, `extract_document`).
   Like `audit_events`, `llm_calls` has no FKs — call history outlives clients.
 - **Audit trail + anomaly detection** (migrations 031-032): `audit_events` is
   the per-action forensic record — one row per outbound email/WhatsApp,
@@ -1326,7 +1326,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   / document_file, `detail.source` = `inbound_message_screen` /
   `inbound_file_screen`). Stage purposes carry the sibling's names too since
   migration 056: `injection_detection_llm`, `questionnaire_schema_mapping`,
-  `generate_message`, `file_classification`, `extract_document`.
+  `planner`, `file_classification`, `extract_document`.
 - **Multi-document PDFs are split before classification** (2026-09-19,
   migration 058, openspec `file-splitting`). Inbound-file order in
   `analyzeInboundFile.ts`: analyzable check → what the model reads
@@ -1747,7 +1747,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   regenerate, a reply before the send, a resume redraft — keeps the row and
   only drops its job), and flags its send step (`send_whatsapp_text` /
   `send_whatsapp_template`, `send_reply` on older trails) and the
-  `generate_message` call that wrote it. With the LLM calls toggle off none
+  `planner` call that wrote it. With the LLM calls toggle off none
   of these show; with it on (openspec `conversation-trace`, "Discarded drafts
   are shown with the LLM calls") each discarded draft is a greyed
   `DiscardedDraftRow` bubble at its `createdAt` with a "טיוטה שנזנחה" badge

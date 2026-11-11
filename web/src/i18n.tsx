@@ -919,7 +919,7 @@ const he = {
   // The stage key, title-cased (the sibling agent's names, kept in English on
   // purpose). Unknown keys fall back to humanizePurpose() at the call sites.
   llmPurposeLabels: {
-    generate_message: 'Generate Message',
+    planner: 'Planner',
     questionnaire_schema_mapping: 'Questionnaire Schema Mapping',
     injection_detection_llm: 'Injection Detection LLM',
     extract_document: 'Extract Document',

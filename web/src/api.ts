@@ -440,7 +440,7 @@ export interface LlmDailyUsage {
 
 /** The four LLM call sites an arm can pin a model to (llm_calls.purpose values). */
 export const LLM_CALL_PURPOSES = [
-  'generate_message',
+  'planner',
   'questionnaire_schema_mapping',
   'injection_detection_llm',
   'file_splitting',
@@ -558,7 +558,7 @@ export interface LlmCallSummary {
   thinkingPricePerToken: number | null;
   cachedPricePerToken: number | null;
   cost: number | null;
-  /** generate_message whose draft a replan discarded — set only by the conversation endpoint. */
+  /** planner whose draft a replan discarded — set only by the conversation endpoint. */
   discarded?: boolean;
 }
 

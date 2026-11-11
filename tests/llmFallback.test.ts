@@ -41,7 +41,7 @@ describe('isProviderFailure', () => {
 
   it('refuses the budget stop and ordinary errors', () => {
     assert.equal(isProviderFailure(new LlmBudgetExceededError('platform', 12, 10)), false);
-    assert.equal(isProviderFailure(new Error('generate_message: model returned no text')), false);
+    assert.equal(isProviderFailure(new Error('planner: model returned no text')), false);
     assert.equal(isProviderFailure('boom'), false);
   });
 });

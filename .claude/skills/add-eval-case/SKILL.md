@@ -35,7 +35,7 @@ showed a shape we did not cover. One behaviour per case.
 ## Case shapes
 
 See the existing files — each stage's file documents its own shape in a top-level `judge` field.
-Stage keys: `injection_detection_llm`, `questionnaire_schema_mapping`, `file_classification`, `extract_document`, `generate_message`.
+Stage keys: `injection_detection_llm`, `questionnaire_schema_mapping`, `file_classification`, `extract_document`, `planner`.
 
 - `injection_detection_llm`: `kind: "text"` with `snippets[]`, or `kind: "file"` with `file`/`contentType`/
   `filename`; `expected.suspected_injection`. Keep the benign/attack balance — a benign case with a
@@ -54,7 +54,7 @@ Stage keys: `injection_detection_llm`, `questionnaire_schema_mapping`, `file_cla
   the type's own fields — there is no generic amount) and
   `expected.verdict` = what the type module's `verify()` must decide (`passed`, `failed_keys` by check key —
   reasons are Hebrew, never match on text).
-- `generate_message`: a state snapshot; hard code asserts only (decision, channel, valuation date
+- `planner`: a state snapshot; hard code asserts only (decision, channel, valuation date
   mentioned, ≤3 questions, every resolution with a verbatim quote). No LLM judge.
 
 ## PDF cases

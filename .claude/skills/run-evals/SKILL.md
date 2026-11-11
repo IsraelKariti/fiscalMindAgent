@@ -43,7 +43,7 @@ npm run evals:rejudge -- --in evals/results/run-<ts>.json
 
 Flags: `--stages a,b`, `--models x,y`, `--cases id,id`, `--concurrency N`, `--out file.json`
 (`--out` keeps `latest.json` untouched: use it for smoke runs). Stages: `injection_detection_llm`,
-`questionnaire_schema_mapping`, `file_classification`, `extract_document`, `generate_message`. Default models are the
+`questionnaire_schema_mapping`, `file_classification`, `extract_document`, `planner`. Default models are the
 platform's `LLM_MODEL_OPTIONS` filtered by available keys (`evals/run.ts`). Test PDFs live in
 `evals/files/`; regenerate the synthetic ones with `npm run evals:files` (needs Chrome).
 

@@ -256,7 +256,7 @@ The file name adds no new audience: it is served only through the admin-only con
 - **THEN** the child's `Extract Document` chip reads the display name, then the original's name and page range, like the child's attachment chip
 
 #### Scenario: Call without a file
-- **WHEN** the admin views a `Generate Message` chip
+- **WHEN** the admin views a `Planner` chip
 - **THEN** the chip shows only the stage name, with no separator after it
 
 #### Scenario: Old call
@@ -299,7 +299,7 @@ A call that recorded no file (for example message drafting, the questionnaire or
 - **THEN** the document pane shows "preview unavailable", the "download" button saves the file, and there is no "open full size" button
 
 #### Scenario: Call without a file
-- **WHEN** the admin opens a `Generate Message` call, or a `File Classification` call recorded before file ids were kept
+- **WHEN** the admin opens a `Planner` call, or a `File Classification` call recorded before file ids were kept
 - **THEN** the modal is the single-column modal, with no document pane and no document request
 
 #### Scenario: File since removed
@@ -332,7 +332,7 @@ The server SHALL return the document only when the call recorded a received file
 - **THEN** the server refuses exactly as it refuses the single-call request, and sends no file data
 
 #### Scenario: Call without a file
-- **WHEN** an admin requests the document of a `generate_message` call
+- **WHEN** an admin requests the document of a `planner` call
 - **THEN** the server answers "not found"
 
 #### Scenario: Unsafe type asked inline
@@ -393,7 +393,7 @@ The button SHALL confirm the copy inside the button, SHALL NOT use a browser-nat
 ### Requirement: Discarded drafts are shown with the LLM calls
 A draft the agent threw away in a re-plan (a "regenerate" by the admin, a reply that arrived before the send, a resume that redrafted) SHALL stay part of the admin trace. While the **LLM calls** toggle of the workspace timeline is on, the timeline SHALL show every discarded draft of the client as a muted outbound bubble, in time order by the moment the draft was written, carrying the draft's text and a "discarded draft" badge. The bubble SHALL offer no action: no approve, no send now, no regenerate, no pause.
 
-While the **LLM calls** toggle is on, the `generate_message` call that wrote a discarded draft SHALL show like any other call row. The `send_reply` step of a discarded draft SHALL show only while both toggles (LLM calls and code steps) are on.
+While the **LLM calls** toggle is on, the `planner` call that wrote a discarded draft SHALL show like any other call row. The `send_reply` step of a discarded draft SHALL show only while both toggles (LLM calls and code steps) are on.
 
 With the **LLM calls** toggle off, the timeline SHALL look exactly as before: no discarded draft, no call that only produced one, no step of one. Discarded drafts SHALL never count in the timeline's message count and SHALL never be shown to an accountant, who has no trace toggle.
 
@@ -407,7 +407,7 @@ With the **LLM calls** toggle off, the timeline SHALL look exactly as before: no
 
 #### Scenario: Several regenerations
 - **WHEN** the admin regenerated the same message three times
-- **THEN** the three old drafts show as three discarded-draft bubbles in the order they were written, each with its own `generate_message` call row before it
+- **THEN** the three old drafts show as three discarded-draft bubbles in the order they were written, each with its own `planner` call row before it
 
 #### Scenario: Toggle off
 - **WHEN** the LLM calls toggle is off
@@ -419,7 +419,7 @@ With the **LLM calls** toggle off, the timeline SHALL look exactly as before: no
 
 #### Scenario: Both toggles on
 - **WHEN** both toggles are on
-- **THEN** the discarded draft shows with its `generate_message` call before it and its `send_reply` step after it
+- **THEN** the discarded draft shows with its `planner` call before it and its `send_reply` step after it
 
 #### Scenario: No action on a discarded draft
 - **WHEN** a discarded-draft bubble is shown
@@ -556,8 +556,8 @@ Opening an accountant-email step SHALL open the existing step detail modal. Its 
 In the workspace conversation tab under impersonation, while the **LLM calls** toggle and the **costs** toggle are both on, every LLM call row SHALL show, to the right of the call chip and outside it, a small pill with the call's recorded cost in USD, formatted as the call detail modal and the admin call browser format a cost (for example `$0.0042`, `<$0.0001`, `$1.25`). The pill SHALL show the cost the call recorded at call time, never a value recomputed from today's prices. A call with no recorded cost (its model had no price when the call ran) SHALL show a pill reading `—` whose hover text says the call is unpriced. A failed call SHALL show its pill like any other call. Clicking the pill SHALL do nothing beyond what clicking the row does today; the chip SHALL keep opening the call detail modal.
 
 #### Scenario: Priced call
-- **WHEN** an admin views a conversation with the LLM calls and costs toggles on and a `generate_message` call recorded a cost of 0.0042 USD
-- **THEN** that call's row shows the chip "Generate Message" and, to its right, a pill reading `$0.0042`
+- **WHEN** an admin views a conversation with the LLM calls and costs toggles on and a `planner` call recorded a cost of 0.0042 USD
+- **THEN** that call's row shows the chip "Planner" and, to its right, a pill reading `$0.0042`
 
 #### Scenario: Unpriced call
 - **WHEN** a call ran on a model the pricing registry did not know, so its cost is empty
@@ -568,7 +568,7 @@ In the workspace conversation tab under impersonation, while the **LLM calls** t
 - **THEN** its row shows the error chip as today and the cost pill with the recorded cost
 
 #### Scenario: Discarded draft's call
-- **WHEN** a `generate_message` call wrote a draft that a re-plan later discarded, and the LLM calls toggle is on
+- **WHEN** a `planner` call wrote a draft that a re-plan later discarded, and the LLM calls toggle is on
 - **THEN** its row shows the cost pill like any other call row
 
 ### Requirement: A costs toggle shows and hides the pills
@@ -666,7 +666,7 @@ The conversation endpoint SHALL recognise the step that scheduled a draft by the
 
 #### Scenario: Discarded draft after this change
 - **WHEN** a `send_whatsapp_text` step scheduled a draft and a later re-plan discarded it
-- **THEN** the draft shows as a discarded-draft row, its `send_whatsapp_text` step and its `generate_message` call are hidden when the LLM calls toggle is off, as the `send_reply` case is today
+- **THEN** the draft shows as a discarded-draft row, its `send_whatsapp_text` step and its `planner` call are hidden when the LLM calls toggle is off, as the `send_reply` case is today
 
 ### Requirement: Old step names in other specs refer to the tool-call steps
 Wherever another capability's spec names an `apply_*` step as the place a planner outcome is recorded (`apply_collections` for split, pair and refusal records in `unlisted-files` and `document-papers`; `apply_stated_costs` for the stated-cost audit row in `code-gates`), that fact SHALL be recorded on the tool-call step of the call it belongs to (`tie_file`, `mark_collected`, `state_cost`, `add_instance`) with the same content, and the requirement is satisfied by that step.

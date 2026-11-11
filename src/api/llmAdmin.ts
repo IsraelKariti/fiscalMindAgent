@@ -97,7 +97,7 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
   ]);
   // A replan discards the pending draft (removeFutureEmail drops its job but
   // keeps the row), so any unsent outbound row other than the live job's
-  // draft is a discarded one. Its send step and the generate_message
+  // draft is a discarded one. Its send step and the planner
   // call that drafted it are flagged so the timeline can drop them too — a
   // planning step whose only output was thrown away is noise. (A call whose
   // cycle also applied state changes is kept, see below.)
@@ -113,7 +113,7 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
   // can land AFTER the pipeline's own send_reply step for that answer — match
   // by the call's START (row time minus duration), which always precedes it.
   const generateCalls = calls
-    .filter((c) => c.purpose === 'generate_message')
+    .filter((c) => c.purpose === 'planner')
     .map((c) => ({ id: c.id, startedAt: c.created_at.getTime() - (c.duration_ms ?? 0) }))
     .sort((a, b) => a.startedAt - b.startedAt);
   for (const s of steps) {
@@ -122,7 +122,7 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
     const emailId = typeof s.detail['emailId'] === 'string' ? (s.detail['emailId'] as string) : null;
     if (!emailId || !discardedDraftIds.has(emailId)) continue;
     discardedStepIds.add(s.id);
-    // The call that drafted it: the last generate_message started before the step.
+    // The call that drafted it: the last planner started before the step.
     const call = generateCalls.filter((c) => c.startedAt <= s.occurred_at.getTime()).pop();
     if (!call) continue;
     // The same call also decides the apply_* state changes, and those survive

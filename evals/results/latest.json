@@ -5,7 +5,7 @@
     "gpt-6-astra"
   ],
   "stages": [
-    "generate_message"
+    "planner"
   ],
   "concurrency": 4,
   "maxSpendUsd": 2,
@@ -21,7 +21,7 @@
   },
   "results": [
     {
-      "stage": "generate_message",
+      "stage": "planner",
       "model": "gpt-6-astra",
       "provider": "openai",
       "caseId": "dec_30",
@@ -98,7 +98,7 @@
     }
   ],
   "summary": {
-    "generate_message": {
+    "planner": {
       "gpt-6-astra": {
         "total": 1,
         "passed": 0,

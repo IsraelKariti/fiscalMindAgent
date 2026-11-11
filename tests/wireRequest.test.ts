@@ -21,7 +21,7 @@ const stage = (purpose: string): Stage => {
 const injection = stage('injection_detection_llm').schema!;
 const classification = stage('file_classification').schema!;
 const extraction = stage('extract_document').schema!;
-const plannerTools = stage('generate_message').tools!;
+const plannerTools = stage('planner').tools!;
 
 const schemaRequest = (schema: Record<string, unknown>, temperature = 0) => ({
   model: 'm',
@@ -233,7 +233,7 @@ describe('the trace steps per provider', () => {
   });
 
   it('Anthropic tool stage: translate only (the adapter changes nothing in the calls)', () => {
-    const steps = traceStepsOf('anthropic', toolRequest(plannerTools), db, 'generate_message', { functionCalls: [{ name: 'conclude', args: {} }] });
+    const steps = traceStepsOf('anthropic', toolRequest(plannerTools), db, 'planner', { functionCalls: [{ name: 'conclude', args: {} }] });
     assert.deepEqual(steps.map((s) => s.action), ['translate_request']);
     assert.equal(steps[0]!.detail.tools_strict, true);
     assert.equal(steps[0]!.detail.schema_changed, false);
@@ -241,7 +241,7 @@ describe('the trace steps per provider', () => {
 
   it('OpenAI: translate only, with temperature left out and the tools strict', () => {
     assert.deepEqual(traceStepsOf('openai', schemaRequest(injection), db, 'injection_detection_llm', plainAnswer).map((s) => s.action), ['translate_request']);
-    const tools = traceStepsOf('openai', toolRequest(plannerTools), db, 'generate_message', plainAnswer);
+    const tools = traceStepsOf('openai', toolRequest(plannerTools), db, 'planner', plainAnswer);
     assert.equal(tools.length, 1);
     assert.equal(tools[0]!.detail.tools_strict, true);
     assert.deepEqual(tools[0]!.detail.omitted, ['temperature']);

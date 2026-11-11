@@ -608,7 +608,7 @@ const verifyDocument: StageAdapter<VerifyDocumentCase, VerifyDocumentCtx> = {
 };
 
 // ---------------------------------------------------------------------------
-// generate_message (declaration of capital, WhatsApp-only)
+// planner (declaration of capital, WhatsApp-only)
 
 interface DecideDocumentInput {
   id?: string;
@@ -826,7 +826,7 @@ function documentRows(c: DecideCase, taxYear: number): ClientDocumentRow[] {
   return all.map((d) => {
     const t = d.type_key ? getCatalogType(d.type_key) : undefined;
     const id = d.id ?? `doc-${d.type_key ?? 'adhoc'}`;
-    if (seenIds.has(id)) throw new Error(`generate_message case ${c.id}: duplicate document id ${id} — give explicit ids to sibling rows`);
+    if (seenIds.has(id)) throw new Error(`planner case ${c.id}: duplicate document id ${id} — give explicit ids to sibling rows`);
     seenIds.add(id);
     return {
       id,
@@ -894,7 +894,7 @@ function unsentDraftRows(c: DecideCase): EmailRow[] {
 function templateRows(c: DecideCase, ctx: DecideCtx): WaTemplateRow[] {
   return c.wa.templates.map((name) => {
     const t = ctx.templates.find((x) => x.name === name);
-    if (!t) throw new Error(`generate_message case ${c.id}: unknown template "${name}"`);
+    if (!t) throw new Error(`planner case ${c.id}: unknown template "${name}"`);
     return { id: `tpl-${t.name}`, content_sid: t.content_sid, name: t.name, body: t.body, variable_count: t.variable_count, agent_type: 'declaration_of_capital', purpose: t.purpose ?? 'reopen', created_at: new Date('2025-01-01T00:00:00Z') };
   });
 }
@@ -908,7 +908,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
   const documents = documentRows(c, taxYear);
   const files: DocumentFileRow[] = (c.files ?? []).map((f) => {
     const message = c.thread.find((m) => m.id === f.message_id);
-    if (!message) throw new Error(`generate_message case ${c.id}: file ${f.id} names an unknown message ${f.message_id}`);
+    if (!message) throw new Error(`planner case ${c.id}: file ${f.id} names an unknown message ${f.message_id}`);
     const at = new Date(message.at);
     return {
       id: f.id,
@@ -1038,8 +1038,8 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
 }
 
 const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
-  purpose: 'generate_message',
-  load: () => readCases('generate_message'),
+  purpose: 'planner',
+  load: () => readCases('planner'),
   build(c, ctx) {
     const { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
@@ -1281,7 +1281,7 @@ export const STAGES: Record<string, StageAdapter<never, never>> = {
   file_splitting: splitFileStage as StageAdapter<never, never>,
   file_classification: analyzeFile as StageAdapter<never, never>,
   extract_document: verifyDocument as StageAdapter<never, never>,
-  generate_message: conversationDecide as StageAdapter<never, never>,
+  planner: conversationDecide as StageAdapter<never, never>,
 };
 
 export const STAGE_NAMES = Object.keys(STAGES);

@@ -27,7 +27,7 @@ export interface TraceToggles {
  * Merges the thread with the trace rows the toggles ask for.
  *
  * The endpoint flags a draft a re-plan discarded, the `send_reply` step that
- * scheduled it and the `generate_message` call that wrote it (unless that
+ * scheduled it and the `planner` call that wrote it (unless that
  * call's cycle also applied state). With the LLM calls toggle off, none of
  * them show — a planning step whose only output was thrown away is noise.
  * With it on, the discarded drafts show as rows of their own, their calls

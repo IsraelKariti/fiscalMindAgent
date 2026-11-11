@@ -61,5 +61,5 @@ The send_reply step of the conversation trace and the planner log SHALL record t
 The planner eval stage SHALL treat the immediate-send marker as a valid future send time, and a case MAY pin whether the answer must or must not carry the marker.
 
 #### Scenario: Case pins an immediate send
-- **WHEN** a generate_message case expects an immediate send and the model answers with a wall-clock time
+- **WHEN** a planner case expects an immediate send and the model answers with a wall-clock time
 - **THEN** the case fails on the send-timing check

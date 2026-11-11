@@ -398,7 +398,7 @@ function allDocumentsSettled(documents: readonly ClientDocumentRow[]): boolean {
 }
 
 /**
- * The generate_message call: builds the prompt from the snapshot, asks the
+ * The planner call: builds the prompt from the snapshot, asks the
  * model (decide: validate_message with at most one corrective retry), and
  * bills the tokens to the owning accountant right away, so they count even
  * if acting on the decision fails afterwards. Legacy CLI clients have no owner.
@@ -411,7 +411,7 @@ async function askPlanner(run: PlanRun): Promise<NormalizedDecision> {
       userId: client.user_id,
       agentInstanceId: client.agent_instance_id,
       clientId,
-      purpose: 'generate_message',
+      purpose: 'planner',
     },
   });
   if (client.user_id) {

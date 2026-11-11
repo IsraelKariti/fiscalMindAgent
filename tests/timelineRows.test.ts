@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { AdminConversation, AdminConversationMessage, AdminConversationStep, Email, LlmCallSummary } from '../web/src/api.js';
 import { mergeTrace } from '../web/src/components/timelineRows.js';
 
-// One re-plan cycle: a generate_message call wrote a draft, send_reply scheduled
+// One re-plan cycle: a planner call wrote a draft, send_reply scheduled
 // it, then a regenerate threw it away — the endpoint flags all three. A later
 // cycle produced the live draft (not flagged) and its own call and step.
 const T0 = Date.parse('2026-10-13T10:00:00Z');
@@ -12,7 +12,7 @@ const at = (sec: number) => new Date(T0 + sec * 1000).toISOString();
 function call(id: string, endSec: number, durationMs: number, discarded: boolean): LlmCallSummary {
   return {
     id,
-    purpose: 'generate_message',
+    purpose: 'planner',
     createdAt: at(endSec),
     durationMs,
     discarded,

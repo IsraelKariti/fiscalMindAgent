@@ -32,7 +32,7 @@ test('each stage carries a real prompt, a query layout, a gate and a non-empty s
 });
 
 test('the planner stage lists its tools, conclude first', () => {
-  const planner = describeLlmStagesStatic().find((s) => s.purpose === 'generate_message');
+  const planner = describeLlmStagesStatic().find((s) => s.purpose === 'planner');
   assert.ok(planner?.tools);
   assert.equal(planner.tools[0]!.name, 'conclude');
   assert.ok(planner.tools.some((t) => t.name === 'send_whatsapp_text'));
@@ -42,7 +42,7 @@ test('the planner stage lists its tools, conclude first', () => {
 });
 
 test('the planner prompt carries the untrusted-data doctrine with the fence token, names the platform sections as trusted, and asks for no injection verdict', () => {
-  const planner = describeLlmStagesStatic().find((s) => s.purpose === 'generate_message');
+  const planner = describeLlmStagesStatic().find((s) => s.purpose === 'planner');
   assert.ok(planner);
   const prompt = planner.prompts[0]!.systemPrompt;
   assert.ok(prompt.includes('[{{token}}]'));

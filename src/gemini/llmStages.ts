@@ -64,7 +64,7 @@ export interface LlmStageDescription {
 }
 
 const TEMPERATURES: Record<LlmCallPurpose, number> = {
-  generate_message: 0.3,
+  planner: 0.3,
   questionnaire_schema_mapping: 0,
   injection_detection_llm: 0,
   file_splitting: FILE_SPLIT_TEMPERATURE,
@@ -137,7 +137,7 @@ const STAGES: StageStatic[] = [
     schema: jsonSchema(buildFormIntakeSchema(CAPITAL_DOCUMENT_CATALOG.map((t) => t.key) as [string, ...string[]])),
   },
   {
-    purpose: 'generate_message',
+    purpose: 'planner',
     title: 'Conversation planner',
     file: 'src/agents/declarationOfCapital/decide.ts · decide (prompt: prompt.ts + prompt.md; tools: decisionTools.ts — the model answers with one or more tool calls ending in conclude: one turn on Gemini/Anthropic, on OpenAI each call is answered "recorded" and the model asked again until conclude (toolTransport.ts · runOpenAiToolTurns); assembleDecision rebuilds the decision) — an answer that ties a file is a "collect" decision with no message (step withhold_reply, label "Reply deferred"); the code verifies the collected documents (extract_document), then runs once more and that second call writes the reply',
     gate: 'validate_message',
@@ -183,7 +183,7 @@ const STAGES: StageStatic[] = [
   {
     purpose: 'extract_document',
     title: 'Extraction for verification',
-    file: 'src/agents/declarationOfCapital/verifyDocument.ts · verifyCollectedDocument, run per batch by verifyBatch — inline in the collecting planner cycle, or after a fetch delivery; one follow-up generate_message per batch (prompt + schema: documentTypes/<type>.ts, filled by extractionCall.ts)',
+    file: 'src/agents/declarationOfCapital/verifyDocument.ts · verifyCollectedDocument, run per batch by verifyBatch — inline in the collecting planner cycle, or after a fetch delivery; one follow-up planner per batch (prompt + schema: documentTypes/<type>.ts, filled by extractionCall.ts)',
     gate: 'verify_extraction',
     // One variant per document type, each with its own answer schema; the generic one (ad-hoc rows) last.
     prompts: [...DOCUMENT_TYPES, GENERIC_DOCUMENT_TYPE].map((t) => ({ variant: t.key, systemPrompt: t.prompt, schema: t.jsonSchema })),

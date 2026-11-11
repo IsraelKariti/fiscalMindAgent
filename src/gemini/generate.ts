@@ -76,7 +76,7 @@ export interface LlmCallLogContext {
    * stage chip. Omit for calls that read no single file.
    */
   documentFileId?: string | null;
-  /** e.g. 'generate_message' | 'questionnaire_schema_mapping' | 'extract_document' | 'file_classification'. */
+  /** e.g. 'planner' | 'questionnaire_schema_mapping' | 'extract_document' | 'file_classification'. */
   purpose: string;
   /**
    * Where the row goes. Default: the llm_calls table. `{ file }` appends the

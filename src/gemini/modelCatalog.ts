@@ -77,7 +77,7 @@ export function backupConflict(primary: string, backup: string): boolean {
  * can pin a default model and a backup model to each (modelSettings.ts).
  */
 export const LLM_CALL_PURPOSES = [
-  'generate_message',
+  'planner',
   'questionnaire_schema_mapping',
   'injection_detection_llm',
   'file_splitting',

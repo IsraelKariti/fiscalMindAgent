@@ -31,9 +31,11 @@
 - [x] 5.1 Add `web/src/components/stepGlyph.ts` (critical, email, tool 🛠️, legacy and code-only ⚙️, else 🛡️) and use it in `Timeline.tsx` and `AgentConversationsCard.tsx`; add the twelve labels to `stepActionLabels` in `i18n.tsx`; verify `npm run build:gui` and a unit test of `stepGlyph`
 - [x] 5.2 Add one renderer per tool step to `stepSummary.ts` (params and outcome as labelled rows, names over ids, unknown keys generic) and keep the old renderers; verify `tests/stepSummary.test.ts` extended per tool step and `tests/stepLink.test.ts` on a `tie_file` row
   One shared mapping for the twelve tool steps (flat detail: `tool` dropped, booleans yes/no, the rest generic); `tests/stepLink.test.ts` unchanged (it tests the text format on an old row, which still applies).
-- [ ] 5.3 Browser check under impersonation on a local client: a collect cycle shows `validate_message` (shield), `tie_file`, `mark_collected`, `conclude` (tool icon) with their outcomes in the modal; a follow-up cycle shows `send_whatsapp_text`; an old client's trail still shows its `apply_collections` and `send_reply` rows
+- [x] 5.3 Browser check under impersonation on a local client: a collect cycle shows `validate_message` (shield), `tie_file`, `mark_collected`, `conclude` (tool icon) with their outcomes in the modal; a follow-up cycle shows `send_whatsapp_text`; an old client's trail still shows its `apply_collections` and `send_reply` rows
+  Left to the owner; the change was archived on the owner's request on 2026-11-11.
 
 ## 6. Docs and close
 
 - [x] 6.1 Update `docs/pipeline.md` (apply-phase table: one row per tool step, `conclude`, retired names) and `docs/agents.md` (apply phase, trace section); verify a read-through and `grep` for the old names finds only the "legacy rows" mentions
-- [ ] 6.2 Run `npm test` and `npm run typecheck`; commit per the git workflow; then `/opsx:archive planner-tool-calls-in-chat` with "Sync now"
+- [x] 6.2 Run `npm test` and `npm run typecheck`; commit per the git workflow; then `/opsx:archive planner-tool-calls-in-chat` with "Sync now"
+  Committed as 03cf7b8 and pushed 2026-11-11; archived with Sync now.

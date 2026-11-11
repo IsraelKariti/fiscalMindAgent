@@ -1,6 +1,6 @@
 ## 1. Baseline
 
-- [ ] 1.1 SKIPPED by the owner on 2026-11-11 (cost ~$15 per run on gpt-6-astra). Run the planner evals with the configured models before touching the prompt (`/run-evals`, stage planner) and keep the report as the baseline; verify: `evals/results/latest.json` exists with a planner section dated today.
+- [x] 1.1 Skipped as a full run (owner, cost); covered by the old-prompt re-run of the failing cases recorded in 5.1. Run the planner evals with the configured models before touching the prompt (`/run-evals`, stage planner) and keep the report as the baseline; verify: `evals/results/latest.json` exists with a planner section dated today.
 
 ## 2. Static system prompt
 

@@ -358,7 +358,18 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
               : doc.resolution_evidence.source === 'approved_file'
                 ? t.provenByApprovedFileNote +
                   (doc.resolution_evidence.fact === 'seller_builder' ? t.provenFactSellerBuilder : t.provenFactSellerPrivate)
-                : `${t.clientQuotePrefix}"${doc.resolution_evidence.quote}"`}
+                : 'message_id' in doc.resolution_evidence && doc.resolution_evidence.message_id && onFocusMessage
+                  ? (
+                    <button
+                      type="button"
+                      className="doc-evidence-link"
+                      title={t.statedChatNoteTitle}
+                      onClick={() => onFocusMessage((doc.resolution_evidence as { message_id: string }).message_id)}
+                    >
+                      {`${t.clientQuotePrefix}"${doc.resolution_evidence.quote}"`}
+                    </button>
+                  )
+                  : `${t.clientQuotePrefix}"${doc.resolution_evidence.quote}"`}
           </div>
         )}
       </li>

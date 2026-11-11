@@ -4728,6 +4728,28 @@ button.meta-chip:hover {
   margin-inline-start: 8px;
 }
 
+/* Admin cost tab (openspec `admin-cost-tab`): the by-type table with its donut beside it. */
+.cost-by-type {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+}
+
+.cost-failed-mark {
+  margin-inline-start: 8px;
+}
+
+.cost-empty {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .cost-by-type {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* The legend line-key sits inline in a table cell here, not in a flex row. */
 .usage-breakdown .chart-legend-key {
   display: inline-block;

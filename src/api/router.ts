@@ -74,6 +74,7 @@ import {
   adminServeStepFile,
   adminServeCallFile,
   adminGetClientConversation,
+  adminGetClientLlmCalls,
   adminGetLlmCall,
   adminListLlmStages,
   adminListInstanceClients,
@@ -178,6 +179,7 @@ apiRouter.post('/admin/clients/:clientId/admin-pause', wrap(requireAdmin), wrap(
 // Per-call LLM observability (049): admin-only conversation and call browsers.
 apiRouter.get('/admin/agents/:agentInstanceId/clients', wrap(requireAdmin), wrap(adminListInstanceClients));
 apiRouter.get('/admin/clients/:clientId/conversation', wrap(requireAdmin), wrap(adminGetClientConversation));
+apiRouter.get('/admin/clients/:clientId/llm-calls', wrap(requireAdmin), wrap(adminGetClientLlmCalls));
 apiRouter.get('/admin/audit-events/:id', wrap(requireAdmin), wrap(adminGetAuditEvent));
 apiRouter.get('/admin/audit-events/:id/file', wrap(requireAdmin), wrap(adminGetStepFile));
 apiRouter.get('/admin/audit-events/:id/email-status', wrap(requireAdmin), wrap(adminGetStepEmailStatus));

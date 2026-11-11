@@ -5,6 +5,7 @@ import { ClientImportSettings } from '../components/ClientSourcesSettings';
 import { TestClientForm } from '../components/TestClientForm';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
+import { CostCard } from '../components/CostCard';
 import { QuestionnaireCard } from '../components/QuestionnaireCard';
 import { StatTiles } from '../components/StatTiles';
 import { Timeline } from '../components/Timeline';
@@ -142,6 +143,18 @@ const clientTabs: ClientTab[] = [
     render: (ctx) => (
       <div className="tab-pane panel-stack" role="tabpanel">
         <QuestionnaireCard client={ctx.client} />
+      </div>
+    ),
+  },
+  {
+    // Admin view-as only (openspec `admin-cost-tab`): where the client's LLM
+    // spend went — totals, per call type, per model, per day, costliest calls.
+    id: 'cost',
+    labelKey: 'tabCost',
+    adminOnly: true,
+    render: (ctx) => (
+      <div className="tab-pane tab-pane-dashboard" role="tabpanel">
+        <CostCard clientId={ctx.client.id} emails={ctx.emails} />
       </div>
     ),
   },

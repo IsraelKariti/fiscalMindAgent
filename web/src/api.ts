@@ -1153,6 +1153,9 @@ export const api = {
     request<{ clients: AdminClient[] }>(`/admin/agents/${agentInstanceId}/clients`),
   adminGetClientConversation: (clientId: string, opts?: RequestOpts) =>
     request<AdminConversation>(`/admin/clients/${clientId}/conversation`, undefined, opts),
+  /** Every LLM call of one client, payloads excluded — the admin cost tab (openspec `admin-cost-tab`). */
+  adminGetClientLlmCalls: (clientId: string, opts?: RequestOpts) =>
+    request<{ calls: LlmCallSummary[] }>(`/admin/clients/${clientId}/llm-calls`, undefined, opts),
   /** One code step by id — the step link (#/steps/:id). */
   adminGetStep: (stepId: string) => request<{ step: AdminConversationStep }>(`/admin/audit-events/${stepId}`),
   /** The received file a step checked (404 when the step is not about a file, or the file is gone). */

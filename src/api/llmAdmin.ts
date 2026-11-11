@@ -152,6 +152,23 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
   });
 };
 
+/**
+ * GET /api/admin/clients/:clientId/llm-calls — every LLM call of one client
+ * (payloads excluded, newest first) for the admin cost tab (openspec
+ * `admin-cost-tab`). Lighter than the conversation endpoint, which also loads
+ * the thread and every code step. A deleted or test client is readable too.
+ */
+export const adminGetClientLlmCalls: RequestHandler = async (req, res) => {
+  const clientId = z.string().uuid().safeParse(req.params.clientId);
+  const client = clientId.success ? await clients.getAnyById(clientId.data) : null;
+  if (!client) {
+    res.status(404).json({ error: 'Client not found.' });
+    return;
+  }
+  const calls = await llmCalls.list({ clientId: client.id });
+  res.json({ calls: calls.map(toAdminCall) });
+};
+
 /** One audit row as a trace step — the shape both the conversation and the single-step endpoint emit. */
 function toAdminStep(e: auditEvents.AuditEventListRow) {
   return {

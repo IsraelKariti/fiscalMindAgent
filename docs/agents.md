@@ -534,6 +534,16 @@ Industry pattern followed: one app with an agent registry
   `QuestionnaireCard` renders `questionnairePairs(agent_fields)` (well-formed
   non-blank pairs only, `tests/questionnairePairs.test.ts`) as text-only
   cards, or an empty state. No server route, no monday read.
+- **Admin cost tab** (openspec `admin-cost-tab`): a sixth admin-only tab,
+  "עלות", after the questionnaire tab — where the client's LLM spend went.
+  `GET /api/admin/clients/:clientId/llm-calls` (requireAdmin, deleted and
+  test clients readable) returns every call of the client without payloads;
+  `web/src/components/costSummary.ts` (`summarizeCost`,
+  `tests/costSummary.test.ts`) sums the recorded per-call cost (unpriced =
+  0, counted) into totals, per purpose, per model, per local day and the
+  five costliest calls; `CostCard` renders tiles, tables, a donut, a day
+  line chart and call-modal buttons. Nothing is repriced; the tab reloads
+  when opened.
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
   UNIQUE (migration 021): each agent instance that uses WhatsApp gets its own
   dedicated Twilio number, assigned by an admin (AdminDashboard agents section

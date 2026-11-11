@@ -27,6 +27,7 @@ export function LineChart({
   area = false,
   height = 200,
   format,
+  extraTip,
 }: {
   title: string;
   labels: string[];
@@ -35,6 +36,8 @@ export function LineChart({
   height?: number;
   /** Value renderer for ticks, tooltip, end labels and legend totals (default: toLocaleString). */
   format?: (value: number) => string;
+  /** Extra tooltip rows for a point (the cost tab adds the day's call count). */
+  extraTip?: (index: number) => { value: string; label: string }[];
 }) {
   const { t } = useT();
   const { ref, width, tip, showTip, hideTip } = useChartBox<HTMLDivElement>();
@@ -67,7 +70,7 @@ export function LineChart({
     showTip(
       { clientX: el.getBoundingClientRect().left + x(i), clientY },
       labels[i],
-      series.map((s) => ({ color: s.color, value: fmt(at(s, i)), label: s.name })),
+      [...series.map((s) => ({ color: s.color, value: fmt(at(s, i)), label: s.name })), ...(extraTip?.(i) ?? [])],
     );
   };
 

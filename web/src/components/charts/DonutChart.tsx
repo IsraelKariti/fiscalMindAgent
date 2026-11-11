@@ -31,11 +31,15 @@ export function DonutChart({
   title,
   data,
   centerLabel,
+  format,
 }: {
   title: string;
   data: DonutDatum[];
   centerLabel: string;
+  /** Value renderer for the centre, legend and tooltip (default: the plain number — counts). */
+  format?: (value: number) => string;
 }) {
+  const fmt = format ?? ((v: number) => String(v));
   const { t } = useT();
   const { ref, tip, showTip, hideTip } = useChartBox<HTMLDivElement>();
   const slices = data.filter((d) => d.value > 0);
@@ -55,7 +59,7 @@ export function DonutChart({
   });
 
   const tipRows = (d: DonutDatum) => [
-    { color: d.color, value: String(d.value), label: `${Math.round((d.value / total) * 100)}% of ${total}` },
+    { color: d.color, value: fmt(d.value), label: `${Math.round((d.value / total) * 100)}% of ${fmt(total)}` },
   ];
 
   const only = arcs.length === 1 ? arcs[0] : undefined;
@@ -95,7 +99,7 @@ export function DonutChart({
             ))
           )}
           <text x={SIZE / 2} y={SIZE / 2 + 2} textAnchor="middle" className="donut-center-value">
-            {total}
+            {fmt(total)}
           </text>
           <text x={SIZE / 2} y={SIZE / 2 + 18} textAnchor="middle" className="donut-center-label">
             {centerLabel}
@@ -108,14 +112,14 @@ export function DonutChart({
           <li key={i} className="chart-legend-item">
             <span className="chart-legend-swatch" style={{ background: d.color }} />
             <span className="chart-legend-label">{d.label}</span>
-            <span className="chart-legend-value">{d.value}</span>
+            <span className="chart-legend-value">{fmt(d.value)}</span>
           </li>
         ))}
       </ul>
       <SrTable
         caption={title}
         head={[t.srCategory, t.srCount, t.srPercent]}
-        rows={slices.map((d) => [d.label, d.value, `${Math.round((d.value / total) * 100)}%`])}
+        rows={slices.map((d) => [d.label, fmt(d.value), `${Math.round((d.value / total) * 100)}%`])}
       />
     </div>
   );

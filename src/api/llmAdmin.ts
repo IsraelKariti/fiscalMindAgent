@@ -97,7 +97,7 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
   ]);
   // A replan discards the pending draft (removeFutureEmail drops its job but
   // keeps the row), so any unsent outbound row other than the live job's
-  // draft is a discarded one. Its `send_reply` step and the generate_message
+  // draft is a discarded one. Its send step and the generate_message
   // call that drafted it are flagged so the timeline can drop them too — a
   // planning step whose only output was thrown away is noise. (A call whose
   // cycle also applied state changes is kept, see below.)
@@ -117,7 +117,8 @@ export const adminGetClientConversation: RequestHandler = async (req, res) => {
     .map((c) => ({ id: c.id, startedAt: c.created_at.getTime() - (c.duration_ms ?? 0) }))
     .sort((a, b) => a.startedAt - b.startedAt);
   for (const s of steps) {
-    if (s.action !== 'send_reply') continue;
+    // The step that scheduled the draft: send_whatsapp_text / send_whatsapp_template since the per-tool steps, send_reply on older trails.
+    if (s.action !== 'send_reply' && s.action !== 'send_whatsapp_text' && s.action !== 'send_whatsapp_template') continue;
     const emailId = typeof s.detail['emailId'] === 'string' ? (s.detail['emailId'] as string) : null;
     if (!emailId || !discardedDraftIds.has(emailId)) continue;
     discardedStepIds.add(s.id);

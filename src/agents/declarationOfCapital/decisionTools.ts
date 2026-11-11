@@ -271,12 +271,15 @@ export function toolJsonSchemas(ctx: DecisionContext): DecisionToolJson[] {
 export interface ToolCall {
   name: string;
   args: unknown;
+  /** The model turn that made the call (1-based), set only by a continued answer; absent = the single turn. */
+  turn?: number;
 }
 
 /** A call whose arguments passed its tool's schema. */
 export interface ParsedToolCall {
   name: DecisionToolName;
   args: Record<string, unknown>;
+  turn?: number;
 }
 
 /**
@@ -299,7 +302,7 @@ export function parseToolCalls(calls: ToolCall[], tools: DecisionTool[]): Parsed
       const where = issue && issue.path.length > 0 ? ` at ${issue.path.join('.')}` : '';
       throw new Error(`tool "${call.name}"${where}: ${issue?.message ?? 'invalid arguments'}`);
     }
-    parsed.push({ name: tool.name, args: result.data as Record<string, unknown> });
+    parsed.push({ name: tool.name, args: result.data as Record<string, unknown>, ...(call.turn !== undefined ? { turn: call.turn } : {}) });
   }
   const concludes = parsed.filter((c) => c.name === 'conclude').length;
   if (concludes !== 1) throw new Error(`conclude must be called exactly once per answer (got ${concludes})`);
@@ -505,7 +508,10 @@ export function describeCalls(calls: ToolCall[]): string {
  * ran. The stated-cost checks the validators report on their own are listed
  * between the two.
  */
-export function gateDecision(calls: ToolCall[], ctx: DecisionContext): { decision: NormalizedDecision; checks: GateCheck[] } {
+export function gateDecision(
+  calls: ToolCall[],
+  ctx: DecisionContext,
+): { decision: NormalizedDecision; calls: ParsedToolCall[]; checks: GateCheck[] } {
   const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 500);
   const observed = describeCalls(calls);
   let parsed: ParsedToolCall[];
@@ -522,7 +528,7 @@ export function gateDecision(calls: ToolCall[], ctx: DecisionContext): { decisio
   try {
     const raw = assembleDecision(parsed);
     const decision = normalizeDecision(raw, ctx, extra);
-    return { decision, checks: [toolCheck, ...extra, check('business_rules', true, null, { observed: proposed })] };
+    return { decision, calls: parsed, checks: [toolCheck, ...extra, check('business_rules', true, null, { observed: proposed })] };
   } catch (err) {
     const message = messageOf(err);
     throw new DecisionRejectedError(message, [toolCheck, ...extra, check('business_rules', false, message, { observed: proposed })]);

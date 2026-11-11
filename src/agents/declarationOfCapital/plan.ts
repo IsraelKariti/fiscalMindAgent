@@ -27,18 +27,22 @@ import { assignFilesToNewRows, filterPairsByCompany, type NewRowFiles } from './
 import { planCompanySplit } from './companySplit.js';
 import { lostFilesByMessage } from './lostFiles.js';
 import {
-  additionsStepDetail,
-  collectionsStepDetail,
-  resolutionsStepDetail,
-  retirementsStepDetail,
-  statedCostsStepDetail,
-  vehicleDeclarationsStepDetail,
-  type AppliedStatedCost,
-  type AppliedStatedVehicle,
+  addInstanceDetail,
+  attestationDetail,
+  attributeCollectionOutcome,
+  concludeDetail,
+  resolveDocumentDetail,
+  retireDocumentDetail,
+  sendMessageDetail,
+  stateCostDetail,
+  stateVehicleDetail,
+  taxFetchDetail,
   type CompanySplitDetail,
-} from './applyStepDetails.js';
+} from './toolStepDetails.js';
+import { vehicleFactsLine } from './vehicleDeclaration.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
+import type { ParsedToolCall } from './decisionTools.js';
 import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState, type NormalizedDecision, type StatedCost, type StatedVehicle } from './decisionSchema.js';
 import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys, type TaxFetchContext } from './taxFetch/flow.js';
 import { getProviderSpec } from './taxFetch/providers.js';
@@ -133,17 +137,25 @@ interface PlanRun {
   taxFetchContexts: TaxFetchContext[];
   intake: IntakeDecisionState;
   attestationConfirmed: boolean;
+  /** The gate-accepted calls of the planner's answer, in call order: each is executed and recorded as its own step (openspec `conversation-trace`). */
+  calls: ParsedToolCall[];
 }
 
 /** The answer that carries a message to send. */
 type FollowUpDecision = Extract<NormalizedDecision, { decision: 'follow_up' }>;
+
+/** A row this cycle created, with the `add_instance` call it came from (anchor + instance name) so its step can be written once the files are assigned. */
+interface CreatedRow extends NewRowFiles {
+  anchorId: string;
+  instanceName: string;
+}
 
 /** What the apply steps changed on the checklist in this cycle. */
 interface ChecklistChanges {
   /** How many decision items changed state (one per resolution, addition or retirement that landed). */
   applied: number;
   /** Rows created in this cycle on the client's quoted words, with the waiting files the model named for them (openspec `unlisted-files`). */
-  createdWithFiles: NewRowFiles[];
+  createdWithFiles: CreatedRow[];
   /** Rows born 'claimed' (the client says the office already holds the document): the accountant is told once. */
   claimedAtCreation: string[];
   /** Rows created in this cycle whose instance carried a cost the client stated in the chat (openspec `chat-stated-cost`): closed by apply_stated_costs. */
@@ -152,7 +164,7 @@ interface ChecklistChanges {
   createdStatedVehicles: { row: ClientDocumentRow; statement: StatedVehicle }[];
 }
 
-/** What the collect step decided and did: the input of the verification targets and of the apply_collections row. */
+/** What the collect step decided and did: the input of the verification targets and of the tie_file / mark_collected steps. */
 interface CollectionOutcome {
   newlyCollected: string[];
   newlyClaimed: string[];
@@ -167,8 +179,10 @@ interface CollectionOutcome {
 /**
  * Asks the LLM, given the full thread and required-documents list, which
  * documents were just provided and whether a follow-up is needed, and acts on
- * it. One named function per step; the trail reads validate_message →
- * apply_* → (withhold_reply → verify → rerun) → send_reply.
+ * it. One named function per step; the trail reads validate_message → one
+ * step per accepted tool call (resolve_document, add_instance, …, tie_file,
+ * mark_collected) → conclude → (verify → rerun) or send_whatsapp_* / tax_fetch
+ * (openspec `conversation-trace`).
  */
 export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const run = await loadPlanningContext(ctx);
@@ -177,6 +191,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   // nothing to apply, nothing to schedule — the decline routine answers,
   // pauses and emails. The caller (setFutureEmail) holds the client lock.
   if (decision.decision === 'client_declined') {
+    recordConclude(run, { kind: 'client_declined' });
     await handleClientDecline(ctx, 'planner');
     return;
   }
@@ -192,10 +207,11 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   if (decision.decision === 'collect') return verifyThenReplan(run, collection);
   if (await completeGoalIfDone(run, decision)) return;
   if (decision.decision !== 'follow_up') return; // unreachable: 'collect' returned above, goal_complete ended the cycle or threw
+  recordConclude(run, { kind: 'follow_up' });
   await scheduleReply(run, decision);
 }
 
-/** One `apply_*` / `withhold_reply` / `send_reply` step row of this cycle. Never written for a no-op. */
+/** One code-only step row of this cycle (send_closing, …). Never written for a no-op. */
 function recordPlannerStep(run: PlanRun, action: AuditAction, detail: Record<string, unknown>): void {
   recordAudit({
     actorType: 'system',
@@ -204,6 +220,36 @@ function recordPlannerStep(run: PlanRun, action: AuditAction, detail: Record<str
     clientId: run.clientId,
     detail: { clientName: run.client.name, ...detail },
   });
+}
+
+/**
+ * One tool-call step (openspec `conversation-trace`): the row is named after
+ * the tool, carries the call's parameters with names next to ids and the
+ * outcome of the execution (`reason` = the short outcome line of the trace
+ * row). Written once per accepted call, right after the call ran.
+ */
+function recordToolStep(run: PlanRun, call: ParsedToolCall, detail: Record<string, unknown>, target?: { type: string; id: string }): void {
+  recordAudit({
+    actorType: 'system',
+    action: call.name,
+    agentInstanceId: run.client.agent_instance_id,
+    clientId: run.clientId,
+    targetType: target?.type ?? null,
+    targetId: target?.id ?? null,
+    detail: { clientName: run.client.name, ...detail },
+  });
+}
+
+/** The one call of a tool in this answer, when it was made. */
+function callOf(run: PlanRun, name: ParsedToolCall['name']): ParsedToolCall | undefined {
+  return run.calls.find((c) => c.name === name);
+}
+
+/** The `conclude` step: the decision, the reasoning and what the cycle did with it. */
+function recordConclude(run: PlanRun, outcome: Parameters<typeof concludeDetail>[1]): void {
+  const call = callOf(run, 'conclude');
+  if (!call) return;
+  recordToolStep(run, call, concludeDetail(call, outcome));
 }
 
 /** The name of a checklist row at call time (`documents` is reloaded by the apply steps). Unknown ids give undefined. */
@@ -249,6 +295,7 @@ async function loadPlanningContext(ctx: AgentContext): Promise<PlanRun> {
     taxFetchContexts,
     intake,
     attestationConfirmed,
+    calls: [],
   };
 }
 
@@ -359,7 +406,7 @@ function allDocumentsSettled(documents: readonly ClientDocumentRow[]): boolean {
 async function askPlanner(run: PlanRun): Promise<NormalizedDecision> {
   const { client, clientId } = run;
   const { systemInstruction, contents } = await buildPlannerPrompt(run);
-  const { decision, usage, model } = await decide(systemInstruction, contents, buildDecisionContext(run), {
+  const { decision, calls, usage, model } = await decide(systemInstruction, contents, buildDecisionContext(run), {
     log: {
       userId: client.user_id,
       agentInstanceId: client.agent_instance_id,
@@ -370,6 +417,7 @@ async function askPlanner(run: PlanRun): Promise<NormalizedDecision> {
   if (client.user_id) {
     await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
   }
+  run.calls = calls;
   return decision;
 }
 
@@ -486,18 +534,29 @@ function buildDecisionContext(run: PlanRun): DecisionContext {
 }
 
 /**
- * apply_resolutions — intake resolutions (capital declaration): already
+ * resolve_document steps — intake resolutions (capital declaration): already
  * validated against the resolvable rows and the evidence quotes
  * (decisionSchema); the DB guards re-check the statuses. The planner gives no
  * injection verdict — that is the dedicated screens' job, before it runs.
  */
 async function applyResolutions(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
-  const before = changes.applied;
   for (const resolution of decision.resolutions) {
+    // The call this resolution came from (one resolve_document per document, by the gate).
+    const call = run.calls.find((c) => c.name === 'resolve_document' && c.args.document_id === resolution.documentId);
+    const step = (applied: boolean, createdNames: string[]) => {
+      if (!call) return;
+      recordToolStep(run, call, resolveDocumentDetail(call, (id) => docName(run, id), { applied, evidence: resolution.evidence, createdNames }), {
+        type: 'client_document',
+        id: resolution.documentId,
+      });
+    };
     if (resolution.resolution === 'not_required') {
       const row = await clientDocuments.resolveNotRequired(resolution.documentId, clientId, resolution.evidence);
-      if (!row) continue;
+      if (!row) {
+        step(false, []);
+        continue;
+      }
       changes.applied += 1;
       recordAudit({
         actorType: 'agent',
@@ -514,11 +573,17 @@ async function applyResolutions(run: PlanRun, decision: NormalizedDecision, chan
           evidence: resolution.evidence,
         },
       });
+      step(true, []);
     } else {
       const rows = await clientDocuments.resolveRequired(resolution.documentId, clientId, resolution.instances, resolution.evidence);
-      if (!rows) continue;
+      if (!rows) {
+        step(false, []);
+        continue;
+      }
       changes.applied += 1;
-      rows.forEach((row, i) => changes.createdWithFiles.push({ row, fileIds: resolution.instances[i]?.fileIds ?? [] }));
+      rows.forEach((row, i) =>
+        changes.createdWithFiles.push({ row, fileIds: resolution.instances[i]?.fileIds ?? [], anchorId: resolution.documentId, instanceName: resolution.instances[i]?.name ?? row.name }),
+      );
       rows.forEach((row, i) => {
         const cost = resolution.instances[i]?.statedCost;
         if (cost) changes.createdStated.push({ row, cost });
@@ -541,25 +606,26 @@ async function applyResolutions(run: PlanRun, decision: NormalizedDecision, chan
           evidence: resolution.evidence,
         },
       });
+      step(true, rows.map((r) => r.name));
     }
-  }
-  if (changes.applied > before) {
-    recordPlannerStep(run, 'apply_resolutions', resolutionsStepDetail(decision.resolutions, (id) => docName(run, id), changes.applied - before));
   }
 }
 
 /**
- * apply_additions — instance additions after resolution (capital
- * declaration): the requirements-ladder escalation and late discoveries.
+ * Instance additions after resolution (capital declaration): the
+ * requirements-ladder escalation and late discoveries. The `add_instance`
+ * step of each call is written by collectFiles, once code has decided which
+ * of the files the call named the new row may take.
  */
 async function applyAdditions(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
-  const before = changes.applied;
   for (const addition of decision.addedInstances) {
     const rows = await clientDocuments.addInstances(addition.anchorDocumentId, clientId, addition.instances, addition.evidence);
     if (!rows || rows.length === 0) continue;
     changes.applied += 1;
-    rows.forEach((row, i) => changes.createdWithFiles.push({ row, fileIds: addition.instances[i]?.fileIds ?? [] }));
+    rows.forEach((row, i) =>
+      changes.createdWithFiles.push({ row, fileIds: addition.instances[i]?.fileIds ?? [], anchorId: addition.anchorDocumentId, instanceName: addition.instances[i]?.name ?? row.name }),
+    );
     rows.forEach((row, i) => {
       const cost = addition.instances[i]?.statedCost;
       if (cost) changes.createdStated.push({ row, cost });
@@ -582,9 +648,6 @@ async function applyAdditions(run: PlanRun, decision: NormalizedDecision, change
       },
     });
   }
-  if (changes.applied > before) {
-    recordPlannerStep(run, 'apply_additions', additionsStepDetail(decision.addedInstances, (id) => docName(run, id), changes.applied - before));
-  }
 }
 
 /**
@@ -594,10 +657,20 @@ async function applyAdditions(run: PlanRun, decision: NormalizedDecision, change
  */
 async function applyRetirements(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
-  const before = changes.applied;
   for (const retirement of decision.retired) {
+    const call = run.calls.find((c) => c.name === 'retire_document' && c.args.document_id === retirement.documentId);
+    const step = (applied: boolean) => {
+      if (!call) return;
+      recordToolStep(run, call, retireDocumentDetail(call, (id) => docName(run, id), { applied, evidence: retirement.evidence }), {
+        type: 'client_document',
+        id: retirement.documentId,
+      });
+    };
     const row = await clientDocuments.retire(retirement.documentId, clientId, retirement.evidence);
-    if (!row) continue;
+    if (!row) {
+      step(false);
+      continue;
+    }
     changes.applied += 1;
     recordAudit({
       actorType: 'agent',
@@ -613,9 +686,7 @@ async function applyRetirements(run: PlanRun, decision: NormalizedDecision, chan
         evidence: retirement.evidence,
       },
     });
-  }
-  if (changes.applied > before) {
-    recordPlannerStep(run, 'apply_retirements', retirementsStepDetail(decision.retired, (id) => docName(run, id), changes.applied - before));
+    step(true);
   }
 }
 
@@ -629,13 +700,23 @@ async function applyRetirements(run: PlanRun, decision: NormalizedDecision, chan
  */
 async function applyStatedCosts(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
-  const before = changes.applied;
-  const targets: AppliedStatedCost[] = [
-    ...decision.statedCosts,
-    ...changes.createdStated.map((c) => ({ documentId: c.row.id, ...c.cost })),
+  // Each target with the state_cost call it came from: by document id for an
+  // existing item, by the instance name for a row this cycle created.
+  const targets: { documentId: string; cost: StatedCost; call: ParsedToolCall | undefined }[] = [
+    ...decision.statedCosts.map((c) => ({
+      documentId: c.documentId,
+      cost: c,
+      call: run.calls.find((x) => x.name === 'state_cost' && x.args.document_id === c.documentId),
+    })),
+    ...changes.createdStated.map((c) => ({
+      documentId: c.row.id,
+      cost: c.cost,
+      call: run.calls.find((x) => x.name === 'state_cost' && x.args.instance_name === instanceNameOf(changes, c.row.id)),
+    })),
   ];
-  const applied: AppliedStatedCost[] = [];
-  for (const target of targets) {
+  // Rows created this cycle are not in run.documents yet: name them from the created rows.
+  const createdNames = new Map(changes.createdStated.map((c) => [c.row.id, c.row.name]));
+  for (const { documentId, cost: target, call } of targets) {
     const evidence = {
       source: 'chat' as const,
       message_id: target.evidence.message_id,
@@ -643,10 +724,19 @@ async function applyStatedCosts(run: PlanRun, decision: NormalizedDecision, chan
       amount: target.amount,
       currency: target.currency,
     };
-    const row = await clientDocuments.markStated(target.documentId, clientId, evidence);
-    if (!row) continue;
+    const row = await clientDocuments.markStated(documentId, clientId, evidence);
+    const step = (ok: boolean) => {
+      if (!call) return;
+      recordToolStep(run, call, stateCostDetail(call, (id) => docName(run, id) ?? createdNames.get(id), { documentId, applied: ok }), {
+        type: 'client_document',
+        id: documentId,
+      });
+    };
+    if (!row) {
+      step(false);
+      continue;
+    }
     changes.applied += 1;
-    applied.push(target);
     recordAudit({
       actorType: 'agent',
       action: 'document.stated',
@@ -664,12 +754,13 @@ async function applyStatedCosts(run: PlanRun, decision: NormalizedDecision, chan
         evidence: target.evidence,
       },
     });
+    step(true);
   }
-  if (applied.length > 0) {
-    // Rows created this cycle are not in run.documents yet: name them from the created rows.
-    const createdNames = new Map(changes.createdStated.map((c) => [c.row.id, c.row.name]));
-    recordPlannerStep(run, 'apply_stated_costs', statedCostsStepDetail(applied, (id) => docName(run, id) ?? createdNames.get(id), changes.applied - before));
-  }
+}
+
+/** The instance name the add_instance call gave a row this cycle created; undefined for any other row. */
+function instanceNameOf(changes: ChecklistChanges, rowId: string): string | undefined {
+  return changes.createdWithFiles.find((c) => c.row.id === rowId)?.instanceName;
 }
 
 /**
@@ -682,12 +773,21 @@ async function applyStatedCosts(run: PlanRun, decision: NormalizedDecision, chan
  */
 async function applyVehicleDeclarations(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
-  const before = changes.applied;
-  const targets: { documentId: string; statement: StatedVehicle; previous: ClientDocumentRow | null }[] = [
-    ...decision.statedVehicles.map((v) => ({ documentId: v.documentId, statement: { facts: v.facts, evidence: v.evidence }, previous: run.documents.find((d) => d.id === v.documentId) ?? null })),
-    ...changes.createdStatedVehicles.map((c) => ({ documentId: c.row.id, statement: c.statement, previous: null })),
+  const targets: { documentId: string; statement: StatedVehicle; previous: ClientDocumentRow | null; call: ParsedToolCall | undefined }[] = [
+    ...decision.statedVehicles.map((v) => ({
+      documentId: v.documentId,
+      statement: { facts: v.facts, evidence: v.evidence },
+      previous: run.documents.find((d) => d.id === v.documentId) ?? null,
+      call: run.calls.find((x) => x.name === 'state_vehicle' && x.args.document_id === v.documentId),
+    })),
+    ...changes.createdStatedVehicles.map((c) => ({
+      documentId: c.row.id,
+      statement: c.statement,
+      previous: null,
+      call: run.calls.find((x) => x.name === 'state_vehicle' && x.args.instance_name === instanceNameOf(changes, c.row.id)),
+    })),
   ];
-  const applied: AppliedStatedVehicle[] = [];
+  const createdNames = new Map(changes.createdStatedVehicles.map((c) => [c.row.id, c.row.name]));
   for (const target of targets) {
     const evidence = mergeVehicleEvidence(
       target.previous ? vehicleEvidenceOf(target.previous.resolution_evidence, target.previous.paper_key) : null,
@@ -695,9 +795,25 @@ async function applyVehicleDeclarations(run: PlanRun, decision: NormalizedDecisi
       target.statement.facts,
     );
     const row = await clientDocuments.markStatedVehicle(target.documentId, clientId, evidence);
-    if (!row) continue;
+    const step = (ok: boolean) => {
+      if (!target.call) return;
+      recordToolStep(
+        run,
+        target.call,
+        stateVehicleDetail(target.call, (id) => docName(run, id) ?? createdNames.get(id), {
+          documentId: target.documentId,
+          applied: ok,
+          factsLine: vehicleFactsLine(target.statement.facts),
+          statementCount: evidence.statements.length,
+        }),
+        { type: 'client_document', id: target.documentId },
+      );
+    };
+    if (!row) {
+      step(false);
+      continue;
+    }
     changes.applied += 1;
-    applied.push({ documentId: target.documentId, ...target.statement, statementCount: evidence.statements.length });
     recordAudit({
       actorType: 'agent',
       action: 'document.stated',
@@ -715,14 +831,7 @@ async function applyVehicleDeclarations(run: PlanRun, decision: NormalizedDecisi
         evidence: target.statement.evidence,
       },
     });
-  }
-  if (applied.length > 0) {
-    const createdNames = new Map(changes.createdStatedVehicles.map((c) => [c.row.id, c.row.name]));
-    recordPlannerStep(
-      run,
-      'apply_vehicle_declarations',
-      vehicleDeclarationsStepDetail(applied, (id) => docName(run, id) ?? createdNames.get(id), changes.applied - before),
-    );
+    step(true);
   }
 }
 
@@ -767,11 +876,12 @@ async function applyAttestationConfirmed(run: PlanRun, decision: NormalizedDecis
     clientId,
     detail: { clientName: client.name, evidence: decision.attestation.evidence },
   });
-  recordPlannerStep(run, 'apply_attestation', { action: 'confirmed', evidence: decision.attestation.evidence });
+  const call = callOf(run, 'attestation');
+  if (call) recordToolStep(run, call, attestationDetail(call, { applied: true }));
 }
 
 /**
- * apply_collections — evidence-gated status updates: the planner proposes,
+ * tie_file / mark_collected steps — evidence-gated status updates: the planner proposes,
  * the file evidence decides. 'collected' requires a real file — either the
  * isolated analyzer matched it to the document (tier A), or the planner
  * explicitly paired it with a verified legible non-quarantined file (tier B).
@@ -785,6 +895,7 @@ async function applyAttestationConfirmed(run: PlanRun, decision: NormalizedDecis
 async function collectFiles(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<CollectionOutcome> {
   const { clientId, fileById } = run;
   const pendingIds = new Set(run.documents.filter((d) => d.status === 'pending').map((d) => d.id));
+  const pendingBefore: ReadonlySet<string> = new Set(pendingIds);
   const documentIds = new Set(run.documents.map((d) => d.id));
   // A split parent (058) is never paired: its children are, each on its own.
   // The company check (institutions.ts) then refuses a pair between two
@@ -815,8 +926,51 @@ async function collectFiles(run: PlanRun, decision: NormalizedDecision, changes:
   await markClaimed(run, newlyClaimed);
   await linkFilesToDocuments(run, proposedPairs);
   const outcome: CollectionOutcome = { newlyCollected, newlyClaimed, proposedCollected, proposedPairs, refusedTies, splitDetail, splitTouched };
-  recordApplyCollectionsStep(run, outcome);
+  recordAddInstanceSteps(run, changes, newRowFiles);
+  recordCollectionSteps(run, outcome, { pendingIds: pendingBefore, documentIds });
   return outcome;
+}
+
+/**
+ * The `add_instance` step of every call of this answer, written once code
+ * decided which of the files the call named the new row may take
+ * (assignFilesToNewRows): the row it created, its status, the accepted and
+ * the refused files. A call whose row was not created still gets its step.
+ */
+function recordAddInstanceSteps(run: PlanRun, changes: ChecklistChanges, newRowFiles: ReturnType<typeof assignFilesToNewRows>): void {
+  const used = new Set<string>();
+  for (const call of run.calls) {
+    if (call.name !== 'add_instance') continue;
+    const created = changes.createdWithFiles.find(
+      (c) => !used.has(c.row.id) && c.anchorId === call.args.anchor_document_id && c.instanceName === call.args.name,
+    );
+    if (created) used.add(created.row.id);
+    recordToolStep(
+      run,
+      call,
+      addInstanceDetail(call, (id) => docName(run, id), (id) => fileName(run, id), {
+        row: created ? { id: created.row.id, name: created.row.name, status: created.row.status } : null,
+        // The call's own quote / cited file: the validated evidence lives on the row's audit event.
+        evidence: null,
+        acceptedFileIds: created ? newRowFiles.pairs.filter((p) => p.document_id === created.row.id).map((p) => p.file_id) : [],
+        refused: created ? newRowFiles.refused.filter((r) => r.document_id === created.row.id) : [],
+      }),
+      created ? { type: 'client_document', id: created.row.id } : undefined,
+    );
+  }
+}
+
+/** The `tie_file` and `mark_collected` steps of this answer, in call order, each with the outcome the collect step gave it. */
+function recordCollectionSteps(run: PlanRun, o: CollectionOutcome, before: { pendingIds: ReadonlySet<string>; documentIds: ReadonlySet<string> }): void {
+  const steps = attributeCollectionOutcome(run.calls, o, {
+    afterVerification: run.afterVerification,
+    pendingIds: before.pendingIds,
+    documentIds: before.documentIds,
+    fileById: run.fileById,
+    docName: (id) => docName(run, id),
+    fileName: (id) => fileName(run, id),
+  });
+  for (const step of steps) recordToolStep(run, step.call, step.detail, step.target);
 }
 
 /**
@@ -990,27 +1144,6 @@ async function linkFilesToDocuments(run: PlanRun, proposedPairs: readonly { file
   }
 }
 
-/** The apply_collections step row: what was proposed, collected, claimed, paired, refused and split. Never for a no-op. */
-function recordApplyCollectionsStep(run: PlanRun, o: CollectionOutcome): void {
-  if (o.newlyCollected.length + o.newlyClaimed.length + o.proposedPairs.length + o.refusedTies.length === 0) return;
-  recordPlannerStep(
-    run,
-    'apply_collections',
-    collectionsStepDetail(
-      {
-        proposed: o.proposedCollected,
-        collected: o.newlyCollected,
-        claimed: o.newlyClaimed,
-        pairs: o.proposedPairs,
-        refused: o.refusedTies,
-        split: o.splitDetail.renamed.length > 0 || o.splitDetail.created.length > 0 ? o.splitDetail : undefined,
-      },
-      (id) => docName(run, id),
-      (id) => fileName(run, id),
-    ),
-  );
-}
-
 /**
  * Which file each just-collected document is verified against: the
  * analyzer's own match (tier A), else the planner's pairing (tier B).
@@ -1046,11 +1179,10 @@ function pickVerificationTargets(run: PlanRun, o: CollectionOutcome): { document
 async function verifyThenReplan(run: PlanRun, o: CollectionOutcome): Promise<void> {
   const { ctx, client, clientId } = run;
   const verificationTargets = pickVerificationTargets(run, o);
-  recordPlannerStep(run, 'withhold_reply', {
-    reason: 'awaiting_verification',
-    documentIds: o.newlyCollected,
-    names: o.newlyCollected.map((id) => docName(run, id) ?? id),
-    verified: verificationTargets.length,
+  recordConclude(run, {
+    kind: 'collect',
+    collectedNames: o.newlyCollected.map((id) => docName(run, id) ?? id),
+    verified: verificationTargets.map((v) => ({ documentName: docName(run, v.documentId) ?? v.documentId, fileName: fileName(run, v.fileId) ?? v.fileId })),
   });
   logger.info('reply deferred until the collected documents are verified', {
     clientId,
@@ -1082,6 +1214,8 @@ async function completeGoalIfDone(run: PlanRun, decision: NormalizedDecision): P
     // pending matching document left), but cancel/agreed actions still need to land.
     const fetch = taxFetchDecisionOf(run, decision);
     await applyTaxFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, { emailId: null, delayMs: 0 });
+    recordTaxFetchStep(run, fetch, null);
+    recordConclude(run, { kind: 'goal_complete', completed: true, derived: decision.decision !== 'goal_complete' });
     await clients.updateGoalStatus(clientId, 'complete');
     // Report the finished collection back to the board row's documents status column.
     void syncMondayDocumentsStatus(clientId);
@@ -1105,9 +1239,21 @@ async function completeGoalIfDone(run: PlanRun, decision: NormalizedDecision): P
   }
   if (decision.decision === 'goal_complete') {
     const why = allSettled ? 'the attestation is not confirmed' : 'documents are still unsettled';
+    recordConclude(run, { kind: 'goal_complete', completed: false, why });
     throw new Error(`setFutureEmail: LLM returned goal_complete but ${why} for client ${clientId}`);
   }
   return false;
+}
+
+/** The `tax_fetch` step: the action the call asked for and whether a fetch context took it. */
+function recordTaxFetchStep(run: PlanRun, fetch: ReturnType<typeof taxFetchDecisionOf>, emailId: string | null): void {
+  const call = callOf(run, 'tax_fetch');
+  if (!call) return;
+  recordToolStep(
+    run,
+    call,
+    taxFetchDetail(call, { applied: fetch.action !== null && fetch.targetCtx !== null, provider: fetch.targetCtx?.provider ?? null, documentKeys: fetch.keys, emailId }),
+  );
 }
 
 /**
@@ -1205,20 +1351,30 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
     // Held first message (openspec `first-message-approval`): stored, not queued.
     hold: run.ctx.hints?.hold === true,
   });
-  recordPlannerStep(run, 'send_reply', {
-    emailId,
-    channel: message.channel,
-    kind: message.kind,
-    send_at: sendAtLabel,
-    requested: resolved.requested,
-    chars: body.length,
-  });
+  const sendCall = callOf(run, message.kind === 'template' ? 'send_whatsapp_template' : 'send_whatsapp_text');
+  if (sendCall) {
+    recordToolStep(
+      run,
+      sendCall,
+      sendMessageDetail(sendCall, {
+        emailId,
+        sendAt: sendAtLabel,
+        requestedSendAt: decision.send_at,
+        requested: resolved.requested,
+        rolled: sendAtGuard.rolled,
+        chars: body.length,
+        templateName: message.kind === 'template' ? (run.waState.templates.find((t) => t.content_sid === message.contentSid)?.name ?? null) : null,
+      }),
+      { type: 'email', id: emailId },
+    );
+  }
   await applyAttestationRequest(run, decision, emailId, sendAtLabel, resolved.requested);
   const fetch = taxFetchDecisionOf(run, decision);
   await applyTaxFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, {
     emailId,
     delayMs: Math.max(0, delayMs),
   });
+  recordTaxFetchStep(run, fetch, emailId);
   logger.info('follow-up scheduled', {
     clientId,
     channel: message.channel,
@@ -1252,5 +1408,6 @@ async function applyAttestationRequest(
     clientId,
     detail: { clientName: client.name, emailId, send_at: sendAt, requested },
   });
-  recordPlannerStep(run, 'apply_attestation', { action: 'request', emailId });
+  const call = callOf(run, 'attestation');
+  if (call) recordToolStep(run, call, attestationDetail(call, { applied: true, emailId }), { type: 'email', id: emailId });
 }

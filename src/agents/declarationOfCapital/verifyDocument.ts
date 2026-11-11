@@ -167,7 +167,7 @@ type StoredFile = NonNullable<Awaited<ReturnType<typeof documentFiles.getForClie
  *
  * One named function per step of the "Document Check Flow" chart (Notion page
  * "4. Document extraction"). Step 1 — the planner ties the file to a document
- * (apply_collections in plan.ts) — happens before this runs. Step 12 — the
+ * (the tie_file / mark_collected steps in plan.ts) — happens before this runs. Step 12 — the
  * planner tells the client the result — happens after, in the batch's
  * follow-up cycle.
  */

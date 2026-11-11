@@ -11,6 +11,7 @@ import {
   gateDecision,
   toolJsonSchemas,
   type DecisionToolJson,
+  type ParsedToolCall,
   type ToolCall,
 } from './decisionTools.js';
 
@@ -38,6 +39,8 @@ export type { GeminiUsage };
 
 export interface DecideResult {
   decision: NormalizedDecision;
+  /** The gate-accepted calls, in the order the model made them: each is executed and recorded as its own step (openspec `conversation-trace`). */
+  calls: ParsedToolCall[];
   usage: GeminiUsage;
   /** The model that actually served this call, for per-model usage accounting. */
   model: string;
@@ -106,7 +109,7 @@ export async function decide(
     // rules, attestation gate). One audit row per attempt with the verdict; a
     // rejection is fed back for one corrective pass.
     try {
-      const { decision, checks } = gateDecision(calls, ctx);
+      const { decision, calls: accepted, checks } = gateDecision(calls, ctx);
       recordAudit({
         actorType: 'system',
         action: 'validate_message',
@@ -124,7 +127,7 @@ export async function decide(
           checks,
         },
       });
-      return { decision, usage, model };
+      return { decision, calls: accepted, usage, model };
     } catch (err) {
       lastError = err;
       const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);

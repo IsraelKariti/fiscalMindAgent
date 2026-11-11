@@ -11,6 +11,7 @@ import {
 import { displayClientName, formatTimestamp, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { StepDetailModal, gateReasonOf, gateResultOf } from '../StepDetailModal';
+import { stepGlyph } from '../stepGlyph';
 
 type TimelineEntry =
   | { kind: 'message'; at: number; message: AdminConversationMessage }
@@ -234,7 +235,7 @@ function AdminStepRow({ step: s }: { step: AdminConversationStep }) {
       style={{ textAlign: 'left', marginBottom: 6 }}
     >
       <button type="button" className="timeline-trace-gate" aria-label={`${t.gateModalOpen}: ${s.action}`} onClick={() => setOpen(true)}>
-        {s.severity === 'critical' ? '⛔' : s.action.startsWith('apply_') || s.action === 'send_reply' || s.action === 'withhold_reply' ? '⚙️' : '🛡️'}{' '}
+        {stepGlyph(s)}{' '}
         {formatTimestamp(s.occurredAt)} · <span className="mono">{s.action}</span>
         {result !== null && (
           <span className={`badge ${result ? 'badge-success' : 'badge-danger'}`} style={{ marginInlineStart: 6 }}>

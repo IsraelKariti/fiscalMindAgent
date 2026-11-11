@@ -640,7 +640,7 @@ cases keep an explicit time. The code, not the model, then picks the time:
 now + 1 s and `scheduleReply` continues exactly as for a model-chosen time,
 so every send-time gate (review mode, held first message, the 24h-window
 check in the worker) applies unchanged. The guard above passes `asap`
-through untouched. The `send_reply` step records the picked time in
+through untouched. The `send_whatsapp_text` / `send_whatsapp_template` step (`send_reply` on older trails) records the picked time in
 `send_at` and `requested: 'asap' | 'time'`.
 
 **One planner run per client turn** (openspec `inbound-turn`): WhatsApp
@@ -1461,7 +1461,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `stated_cost_amount_in_quote` in the `validate_message` row. The prompt
   keeps the paper first: the statement is accepted only after the client said
   the receipt / contract is missing. `applyStatedCosts` (step
-  `apply_stated_costs`, audit `document.stated`) sets the new status `stated`
+  `state_cost`, audit `document.stated`) sets the new status `stated`
   with `resolution_evidence = {source:'chat', message_id, quote, amount,
   currency}`; `stated` is settled like `approved` (`allDocumentsSettled`, the
   card's progress count, INTAKE STATUS) and the documents section shows
@@ -1483,7 +1483,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   (`vehicleDeclaration.ts` · `vehicleFactMissingFromQuote`: year and plate as
   digits, the cost through `amountAppearsIn`, make/model as text); `state_cost`
   now refuses a vehicle item. `applyVehicleDeclarations` (step
-  `apply_vehicle_declarations`, audit `document.stated`) merges the statement
+  `state_vehicle`, audit `document.stated`) merges the statement
   into the row's evidence — `{source:'chat_vehicle', statements:[{message_id,
   quote}], facts}` (`mergeVehicleEvidence`: a newer fact replaces an older
   one, every quote is kept) — through `clientDocuments.markStatedVehicle`
@@ -1515,7 +1515,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `approvedPropertyFilesOf` (keyed by the record's `file_id`); everything else
   is rejected by name. The evidence then is
   `{source:'approved_file', file_id, document_id, fact}` (`ResolutionEvidence`,
-  the audit detail, the `apply_*` step rows as `quote` + `provenByFileId`, the
+  the audit detail, the tool-call step rows as `quote` + `provenByFileId`, the
   Documents card note). Rows approved before the fields existed show the
   owners only. Evals: `ext_19`–`ext_22`, `dec_22`–`dec_23`.
 - **Files that belong to no agreed item** (2026-09-19, openspec
@@ -1552,7 +1552,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      (stored inbound message id + verbatim quote); a file-only message has no
      text to quote, the questionnaire / file names / analysis text are never
      evidence. The quote is stored in `resolution_evidence` of every created row
-     and shown in the `apply_resolutions` / `apply_additions` step. The prompt
+     and shown in the `resolve_document` / `add_instance` step. The prompt
      tells the planner to mention a relevant unmatched file and ask, and not to
      ask again after a "no".
   4. *Same-cycle attach* — each new instance carries `file_ids`; after the rows
@@ -1582,7 +1582,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      touched takes this cycle's pair as its verification file, not a strong
      match from the pre-link `files` snapshot). Created rows are audited as
      `document.instances_added` with `reason: 'company_split'`; the
-     `apply_collections` detail carries `split.renamed` / `split.created`,
+     `tie_file` step of the file that caused it carries `renamedFrom` / `renamedTo` / `created`,
      shown in the step modal as "old → new" and "row ← file". Consequence,
      accepted by the owner: after the split every row names a company, so a
      later file of a fourth company matches none of them and the agent asks
@@ -1606,7 +1606,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      file whose employer the row already names. Created rows carry
      `employer` (`CompanySplitCreated`), their evidence
      `{source:'file', file_id, issuer, employer}` and the audit `reason:
-     'employer_split'`; the `apply_collections` detail's `split.created[]`
+     'employer_split'`; the `tie_file` step's `created[]`
      carries `employer` and the step modal shows "row ← file (employer)".
      `plan.ts` writes through `splitByCompany` every touched row, also one
      with no rename (its unchanged name is the live-status check). Owner
@@ -1618,7 +1618,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   unidentified company needs `matched_files[].evidence` (the client's quoted
   words); a row that names no company takes the file when the analysed
   `document_type` equals the row's type (else `type_differs`). A refused tie
-  never turns the row `claimed`; refusals are listed in `apply_collections`
+  never turns the row `claimed`; a refusal is the outcome of its `tie_file` step
   (`refused`). Known limit: `gemini-2.5-flash` sometimes files a confirmed
   extra fund under the wrong open type (eval `dec_13`); code then refuses the
   attach (`type_differs`).
@@ -1677,8 +1677,9 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   null (the gate rejects a `collect` with a message and a `follow_up` with
   ties, then asks for one correction; change `no-draft-when-collecting`,
   2026-09-23 — before it the collecting cycle wrote a full message that was
-  thrown away). `plan.ts` branches on the value: it records step
-  `withhold_reply` (label "Reply deferred", kept for older trails), applies the
+  thrown away). `plan.ts` branches on the value: it records the `conclude`
+  step (decision `collect`, the pairs being verified, "reply withheld" —
+  `withhold_reply` on older trails), applies the
   message-independent state changes, verifies every just-collected document
   inline (one after the other, under the caller's client lock and inside the
   same `setFutureEmail` drafting attempt, so a restart cannot lose the reply;
@@ -1730,8 +1731,8 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
 - **Admin observability**: `#/llm-stages` (`GET /api/admin/llm-stages`,
   `gemini/llmStages.ts` — every stage from the call sites' own constants, a
   unit test fails on an undocumented purpose) and the admin conversation
-  viewer now interleaves messages, LLM calls and code steps (gates, `apply_*`,
-  `send_reply`) into one timeline (`GET /api/admin/clients/:id/conversation`
+  viewer now interleaves messages, LLM calls and code steps (gates, the
+  planner's tool-call steps, `send_closing`) into one timeline (`GET /api/admin/clients/:id/conversation`
   returns `calls` + `steps`). The same trace is available inside the
   accountant workspace's conversation tab, but only to an admin who is
   impersonating: `ViewerProvider` (`web/src/agents/ApiContext.tsx`) carries
@@ -1744,7 +1745,8 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `tests/timelineRows.test.ts`). The endpoint flags every unsent outbound
   row other than the live job's draft as `discarded` (a re-plan — admin
   regenerate, a reply before the send, a resume redraft — keeps the row and
-  only drops its job), and flags its `send_reply` step and the
+  only drops its job), and flags its send step (`send_whatsapp_text` /
+  `send_whatsapp_template`, `send_reply` on older trails) and the
   `generate_message` call that wrote it. With the LLM calls toggle off none
   of these show; with it on (openspec `conversation-trace`, "Discarded drafts
   are shown with the LLM calls") each discarded draft is a greyed
@@ -1753,12 +1755,26 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   code steps toggle is on as well. Discarded drafts never enter
   `visibleEmails`, so the message count and the "no messages" notice ignore
   them; the channel filter applies to them like to messages.
-- **Apply phase**: `plan.ts` records one `apply_resolutions` /
-  `apply_additions` / `apply_retirements` / `apply_stated_costs` /
-  `apply_vehicle_declarations` / `apply_collections` /
-  `apply_attestation` / `send_reply` row per decision field that changed
-  state (never for a no-op). The detail names every document the step
-  touched next to its id (`applyStepDetails.ts`: `name`, `anchorName`,
-  `collectedNames`, pair `fileName` / `documentName`), so the row stays
-  readable after the document is deleted and the modal never shows bare
-  ids; rows written before 2026-09-13 carry ids only.
+- **Apply phase** (openspec `conversation-trace`, 2026-11-11): after the
+  gate accepts the answer, `plan.ts` executes the tool calls in a fixed
+  order and records ONE step per accepted call, named after the tool
+  (`resolve_document`, `add_instance`, `retire_document`, `state_cost`,
+  `state_vehicle`, `attestation`, `tie_file`, `mark_collected`, `conclude`,
+  `send_whatsapp_text` / `send_whatsapp_template`, `tax_fetch`;
+  `recordToolStep`, builders in `toolStepDetails.ts`). Each detail is flat:
+  the call's parameters with every id next to its name, `turn` for a
+  continued answer, `applied` / `outcome`, and `reason` = the short outcome
+  line the trace row shows ("tied → ביטוח מנהלים ניב — כלל", "claimed: no
+  file proves it…", "scheduled 2026-11-08 10:14 (asap)"). A call that changed
+  nothing still gets its step with the reason. Outcomes code adds on top of
+  a call stay on that call's step: the per-company split on the `tie_file`
+  of the file that caused it (`renamedFrom` / `renamedTo` / `created`), the
+  files assigned to a new row on its `add_instance` (written in
+  `collectFiles` after `assignFilesToNewRows`), the verification batch on
+  `conclude` (decision `collect`), goal completion on `conclude`. The old
+  group rows `apply_*`, `send_reply`, `withhold_reply` are no longer written
+  (their labels and renderers stay for old trails). `tie_file` /
+  `mark_collected` outcomes come from the pure
+  `attributeCollectionOutcome` (tests/toolStepDetails.test.ts). The web marks
+  a tool step with 🛠️ (`stepGlyph.ts`), checks with 🛡️, code-only and
+  legacy rows with ⚙️.

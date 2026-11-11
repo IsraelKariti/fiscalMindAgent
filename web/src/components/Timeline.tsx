@@ -19,6 +19,7 @@ import { useViewer, useWorkspaceApi } from '../agents/ApiContext';
 import { previewKind } from './attachmentPreview';
 import { pdfThumbnail } from './pdfThumbnail';
 import { CallDetailModal } from './admin/AdminLlmCalls';
+import { stepGlyph } from './stepGlyph';
 import { ConfirmModal } from './ConfirmModal';
 import { FileViewModal } from './FileViewModal';
 import { isAccountantEmailStep } from './stepLink';
@@ -209,14 +210,8 @@ function StepRow({ step: s, files }: { step: AdminConversationStep; files: StepF
   // A platform email to the accountant (openspec `conversation-trace`) shows
   // an envelope and its subject in the muted slot; a refused one is a warning row.
   const accountantEmail = isAccountantEmailStep(s);
-  const glyph =
-    s.severity === 'critical'
-      ? '⛔'
-      : accountantEmail
-        ? '✉️'
-        : s.action.startsWith('apply_') || s.action === 'send_reply' || s.action === 'withhold_reply'
-          ? '⚙️'
-          : '🛡️';
+  // Tool-call steps, code-only steps and checks each have their own mark (stepGlyph.ts).
+  const glyph = stepGlyph(s, accountantEmail);
   const subject = accountantEmail && typeof s.detail['subject'] === 'string' ? (s.detail['subject'] as string) : null;
   // The split step that cut a file lists the files it produced — they are the
   // step's result, not something the client sent. A run that cut nothing

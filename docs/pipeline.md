@@ -95,23 +95,24 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Which received files prove their own item (a report of a known institution, high confidence, every holder the client or the spouse by first and last name) — the pool `proven_by_file_id` may cite for a needed resolution or an addition of the file's type; their file lines carry the "self-evident" marker | `DOC/selfEvidentFiles.ts` · `selfEvidentFilesOf` (`selfEvidentFileOf`, `selfEvidentMarker`; names via `sharedNameTokens` in `DOC/spouseIdentity.ts`), built in `DOC/plan.ts` · `buildIntakeState` |
 | A file cited instead of a client quote (`proven_by_file_id`): a self-evident file settles or adds exactly one item of its type (the item then named with the company and employer — `selfEvidentItemName` — and carrying the file), or an approved property paper for the appendix change its seller kind implies | `DOC/decisionSchema.ts` · `validateProvenByFile` → `instancesOnSelfEvidentFile` (pools: `selfEvidentFilesOf`; `DOC/provenFacts.ts` · `approvedPropertyFilesOf`) |
 | A cost the client stated in the chat (`stated_costs` / an instance's `stated_cost`): the item is a pending cost declaration, the quote is verbatim, the amount is written in the quote (checks `stated_cost_item_allows`, `stated_cost_amount_in_quote`) | `DOC/decisionSchema.ts` · `validateStatedCosts` (`statedCostTargetFault`, `amountAppearsIn`) |
-| `apply_resolutions` | `DOC/plan.ts` · `applyResolutions` |
-| `apply_additions` | `DOC/plan.ts` · `applyAdditions` |
-| `apply_retirements` | `DOC/plan.ts` · `applyRetirements` |
-| `apply_stated_costs` — a cost declaration closed by the client's chat message: the row becomes `stated` with the statement as its evidence | `DOC/plan.ts` · `applyStatedCosts` (`clientDocuments.markStated`) |
-| `apply_vehicle_declarations` — the client's statement about a vehicle (make, model, year, plate, cost — any subset) merged into the vehicle declaration row, which becomes `stated`; a later statement adds facts | `DOC/plan.ts` · `applyVehicleDeclarations` (`clientDocuments.markStatedVehicle`, `vehicleDeclaration.ts` · `mergeVehicleEvidence`) |
+| The apply phase: every accepted tool call is executed and recorded as its own step named after the tool, with its parameters (ids + names) and outcome — `reason` is the outcome line the trace row shows (openspec `conversation-trace`) | `DOC/plan.ts` · `recordToolStep`; detail builders `DOC/toolStepDetails.ts` |
+| `resolve_document` — one step per call: resolved not_required / required (the rows created), or no change | `DOC/plan.ts` · `applyResolutions` (`DOC/toolStepDetails.ts` · `resolveDocumentDetail`) |
+| `add_instance` — the row it created, its status, the files it named that code accepted / refused (written after the files are assigned) | `DOC/plan.ts` · `applyAdditions` (rows) → `recordAddInstanceSteps` (`addInstanceDetail`) |
+| `retire_document` — one step per call | `DOC/plan.ts` · `applyRetirements` (`retireDocumentDetail`) |
+| `state_cost` — a cost declaration closed by the client's chat message: the row becomes `stated` with the statement as its evidence | `DOC/plan.ts` · `applyStatedCosts` (`clientDocuments.markStated`; `stateCostDetail`) |
+| `state_vehicle` — the client's statement about a vehicle (make, model, year, plate, cost — any subset) merged into the vehicle declaration row, which becomes `stated`; a later statement adds facts | `DOC/plan.ts` · `applyVehicleDeclarations` (`clientDocuments.markStatedVehicle`, `vehicleDeclaration.ts` · `mergeVehicleEvidence`; `stateVehicleDetail`) |
 | A changed checklist voids the attestation; reload; tell the accountant about rows born claimed | `DOC/plan.ts` · `settleChecklistChanges` |
-| `apply_attestation` (confirmed) | `DOC/plan.ts` · `applyAttestationConfirmed` |
+| `attestation` (confirmed) | `DOC/plan.ts` · `applyAttestationConfirmed` (`attestationDetail`) |
 | Which proposed file ties are allowed (split parents, company agreement) | `SH/fileEvidence.ts` · `applicableFilePairs`; `DOC/fileTies.ts` · `filterPairsByCompany` (`companyRefusal`, `paperRefusal`) |
 | Split an item per company / employer | `DOC/plan.ts` · `splitItemsByCompany` → `DOC/companySplit.ts` · `planCompanySplit` (pure) |
 | Files the model named for rows it just created | `DOC/fileTies.ts` · `assignFilesToNewRows` |
 | Collect, claim, or leave pending? | `DOC/plan.ts` · `decideCollectOrClaim` |
 | Mark collected / claimed | `DOC/plan.ts` · `markCollected`, `markClaimed` |
 | Link each file under its document | `DOC/plan.ts` · `linkFilesToDocuments` |
-| `apply_collections` step row | `DOC/plan.ts` · `recordApplyCollectionsStep` (all of the above: `collectFiles`) |
+| `tie_file` / `mark_collected` steps — the group outcome of `collectFiles` attributed to each call: tied, re-pointed to the row the split created (rename + siblings), refused (reason), ignored (unknown / quarantined / split parent); collected, claimed, pending (reason), unchanged, skipped after verification | `DOC/plan.ts` · `recordCollectionSteps` → `DOC/toolStepDetails.ts` · `attributeCollectionOutcome` (pure) |
 | Which file each collected document is checked against | `DOC/plan.ts` · `pickVerificationTargets` |
-| `withhold_reply` → verify the batch → `planner.rerun_after_verification` → one follow-up cycle | `DOC/plan.ts` · `verifyThenReplan` → E, then `planFollowUp` again with `afterVerification` |
-| `goal.completed` when every row is settled and the attestation is confirmed; a premature goal_complete throws | `DOC/plan.ts` · `completeGoalIfDone` |
+| `conclude` (decision `collect`: reply withheld, the pairs being verified) → verify the batch → `planner.rerun_after_verification` → one follow-up cycle | `DOC/plan.ts` · `verifyThenReplan` (`recordConclude`, `concludeDetail`) → E, then `planFollowUp` again with `afterVerification` |
+| `goal.completed` when every row is settled and the attestation is confirmed (the `conclude` step says "goal completed", derived or not); a premature goal_complete records `conclude` as premature and throws | `DOC/plan.ts` · `completeGoalIfDone` (`recordConclude`) |
 | `send_closing`: the fixed closing message after completion (open 24h window only, never a template; both completion paths) | `DOC/plan.ts` · `sendClosingMessage` (`DOC/closingMessage.ts` · `closingMessageDelivery`) |
 | Closing message text (thanks by first name, the accountant will be in touch if needed) | `DOC/closingMessage.ts` · `closingMessageText` |
 | Is this inbound the intro template's decline button (payload `decline`, or exactly its text)? — handled in code, no planner call | `DOC/index.ts` · `onInboundMessage` → `DOC/clientDeclineRules.ts` · `isDeclineButton` (`DOC/clientDecline.ts` · `inboundMessageBody`) |
@@ -120,9 +121,10 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Resume / new due date hands a declined or overdue-stopped client back to the agent | `api/workspace.ts` (paused route), `DOC/router.ts` (due-date route) · `queries/clients.ts` · `clearHandedOff`, `isHandedOff` |
 | `email.accountant_sent` / `email.accountant_failed`: the platform email to the accountant (goal complete, claimed documents, verification problem, overdue), recorded in full on the trace (kind, to, subject, body, provider id, or the error) | `DOC/notifyAccountant.ts` · `sendToAccountant` (`DOC/notifyAccountantCore.ts` · `sendToAccountantWith`) |
 | Delivery status of an accountant email, read live from Resend for the step modal | `api/llmAdmin.ts` · `adminGetStepEmailStatus` (`resend/deliveryStatus.ts` · `emailDeliveryStatus`) |
-| `send_reply`: roll the send time off weekends and chagim, resolve `asap` to now + 1 s, schedule the draft | `DOC/plan.ts` · `scheduleReply` (`SH/sendAtGuard.ts` · `rollBlockedSendAt`, `resolveSendAt`; `orchestration/scheduleDraftEmail.ts` · `scheduleDraftMessage`) |
-| `apply_attestation` (request) on this draft | `DOC/plan.ts` · `applyAttestationRequest` |
-| The document-fetch action (agreed / start login / cancel) | `DOC/plan.ts` · `taxFetchDecisionOf` → `DOC/taxFetch/flow.ts` · `applyTaxFetchAction` |
+| `conclude` (decision `follow_up`), then `send_whatsapp_text` / `send_whatsapp_template`: roll the send time off weekends and chagim, resolve `asap` to now + 1 s, schedule the draft; the step records the requested and the scheduled time, the roll, the draft id, the template name and variables | `DOC/plan.ts` · `scheduleReply` (`SH/sendAtGuard.ts` · `rollBlockedSendAt`, `resolveSendAt`; `orchestration/scheduleDraftEmail.ts` · `scheduleDraftMessage`; `sendMessageDetail`) |
+| `attestation` (request) on this draft | `DOC/plan.ts` · `applyAttestationRequest` (`attestationDetail`) |
+| `tax_fetch`: the document-fetch action (agreed / start login / cancel) and whether a fetch context took it | `DOC/plan.ts` · `taxFetchDecisionOf` → `DOC/taxFetch/flow.ts` · `applyTaxFetchAction`; `DOC/plan.ts` · `recordTaxFetchStep` (`taxFetchDetail`) |
+| Legacy trace rows `apply_*`, `send_reply`, `withhold_reply` (written before the per-tool steps): still rendered, no writer | `web/src/components/stepSummary.ts`, `stepGlyph.ts` |
 | The scheduled send actually goes out | `queue/sendEmailWorker.ts` · `onScheduledSend` → `sendWhatsAppDraft` |
 | First delivered message starts the collection window: the client's due date = local delivery date + `collection_window_days`, unless a date is already set | `queue/sendEmailWorker.ts` · `onFirstContact` → `DOC/collectionWindow.ts` · `startCollectionWindow` (`dueDateFromWindow`, `clients.setDueDateIfAbsent`) |
 

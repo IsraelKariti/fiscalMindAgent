@@ -352,3 +352,42 @@ test('email.accountant_failed: the error follows the content', () => {
     { key: 'error', value: 'Resend send failed: validation_error' },
   ]);
 });
+
+test('tool-call steps (openspec conversation-trace): the tool key is dropped, booleans read yes/no, the rest renders as recorded', () => {
+  assert.deepEqual(
+    stepSummaryOf('tie_file', {
+      clientName: 'דני',
+      tool: 'tie_file',
+      turn: 2,
+      fileId: 'f1',
+      fileName: 'harel.pdf',
+      documentId: 'd3',
+      name: 'ביטוח מנהלים ניב',
+      outcome: 'tied',
+      renamedFrom: 'ביטוח מנהלים ניב',
+      renamedTo: 'ביטוח מנהלים ניב — הראל',
+      created: ['ביטוח מנהלים ניב — כלל ← clal.pdf'],
+      reason: 'tied · renamed → ביטוח מנהלים ניב — הראל',
+    }),
+    [
+      { key: 'turn', value: '2' },
+      { key: 'fileId', value: 'f1' },
+      { key: 'fileName', value: 'harel.pdf' },
+      { key: 'documentId', value: 'd3' },
+      { key: 'name', value: 'ביטוח מנהלים ניב' },
+      { key: 'outcome', value: 'tied' },
+      { key: 'renamedFrom', value: 'ביטוח מנהלים ניב' },
+      { key: 'renamedTo', value: 'ביטוח מנהלים ניב — הראל' },
+      { key: 'created', items: ['ביטוח מנהלים ניב — כלל ← clal.pdf'] },
+    ],
+  );
+  assert.deepEqual(stepSummaryOf('send_whatsapp_text', { clientName: 'דני', tool: 'send_whatsapp_text', emailId: 'e1', rolled: true, chars: 12, reason: 'scheduled' }), [
+    { key: 'rolled', value: 'כן' },
+    { key: 'emailId', value: 'e1' },
+    { key: 'chars', value: '12' },
+  ]);
+  assert.deepEqual(stepSummaryOf('resolve_document', { clientName: 'דני', tool: 'resolve_document', applied: false, documentId: 'd1', reason: 'no change' }), [
+    { key: 'applied', value: 'לא' },
+    { key: 'documentId', value: 'd1' },
+  ]);
+});

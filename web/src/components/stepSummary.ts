@@ -292,6 +292,19 @@ const MAPPINGS: Record<string, Mapping> = {
   },
 };
 
+/**
+ * A tool-call step (openspec `conversation-trace`): the detail is flat, so
+ * the generic renderer lists the parameters and the outcome as recorded; here
+ * the `tool` key (the row's own name) is dropped and the booleans read yes/no.
+ */
+const toolStepRows: Mapping = (d) => ({
+  rows: (['applied', 'rolled', 'alreadyProvided'] as const).filter((k) => typeof d[k] === 'boolean').map((k) => yesNo(k, d[k])),
+  consumed: ['tool', 'applied', 'rolled', 'alreadyProvided'],
+});
+for (const tool of ['resolve_document', 'add_instance', 'retire_document', 'state_cost', 'state_vehicle', 'attestation', 'tie_file', 'mark_collected', 'send_whatsapp_text', 'send_whatsapp_template', 'tax_fetch', 'conclude']) {
+  MAPPINGS[tool] = toolStepRows;
+}
+
 /** The labelled rows of one step's detail, mapped keys first, then everything else in recorded order. */
 export function stepSummaryOf(action: string, detail: Detail): SummaryRow[] {
   const mapping = MAPPINGS[action];

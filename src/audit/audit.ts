@@ -63,8 +63,24 @@ export type AuditAction =
   // The primary model did not answer and the stage's backup model on another
   // provider took the call (openspec `llm-model-settings`); gemini/llmCall.ts.
   | 'fallback_model'
-  // Apply phase of the planner (plan.ts): one row per decision field that
-  // changed state, never for a no-op.
+  // Apply phase of the planner (plan.ts, openspec `conversation-trace`): one
+  // row per accepted tool call of the planner's answer, named after the tool,
+  // with the call's parameters and the outcome of its execution.
+  | 'resolve_document'
+  | 'add_instance'
+  | 'retire_document'
+  | 'state_cost'
+  | 'state_vehicle'
+  | 'attestation'
+  | 'tie_file'
+  | 'mark_collected'
+  | 'send_whatsapp_text'
+  | 'send_whatsapp_template'
+  | 'tax_fetch'
+  | 'conclude'
+  // LEGACY — the apply phase before the per-tool steps (one row per decision
+  // field, `withhold_reply` for a collecting answer). No code writes these any
+  // more; the names stay so old trails keep rendering.
   | 'apply_resolutions'
   | 'apply_additions'
   | 'apply_retirements'
@@ -73,8 +89,6 @@ export type AuditAction =
   | 'apply_collections'
   | 'apply_attestation'
   | 'send_reply'
-  // The collecting cycle's draft is never stored: the reply waits for the
-  // verification verdicts (openspec `verification-reply`).
   | 'withhold_reply'
   // The fixed closing message after the goal completes (openspec
   // `declaration-completion`): sent, or skipped with the reason.

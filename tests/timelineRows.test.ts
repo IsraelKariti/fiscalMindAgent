@@ -96,3 +96,15 @@ test('a draft the endpoint did not flag is never a draft row', () => {
     [],
   );
 });
+
+// Since the per-tool steps (openspec `conversation-trace`) the step that
+// scheduled a draft is send_whatsapp_text / send_whatsapp_template; the
+// endpoint flags it exactly like a send_reply step, and the rows follow the flag.
+test('a discarded send_whatsapp_text step is hidden with the LLM calls off and shown with them on', () => {
+  const sendStep = { id: 's-wa', action: 'send_whatsapp_text', occurredAt: at(12), discarded: true } as unknown as AdminConversationStep;
+  const withTool = { ...trace, steps: [sendStep, ...trace.steps] } as AdminConversation;
+  const rows = (show: { calls: boolean; steps: boolean }) =>
+    mergeTrace([inbound], withTool, show).map((r) => (r.kind === 'step' ? `step:${r.step.id}` : r.kind === 'call' ? `call:${r.call.id}` : `${r.kind}`));
+  assert.equal(rows({ calls: false, steps: true }).includes('step:s-wa'), false);
+  assert.equal(rows({ calls: true, steps: true }).includes('step:s-wa'), true);
+});

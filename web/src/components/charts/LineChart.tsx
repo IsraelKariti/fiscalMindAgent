@@ -1,4 +1,4 @@
-import { type KeyboardEvent, type PointerEvent, useState } from 'react';
+import { type KeyboardEvent, type MouseEvent, type PointerEvent, useState } from 'react';
 import { useT } from '../../i18n';
 import { ChartTooltip, SrTable, SURFACE, useChartBox } from './common';
 
@@ -28,6 +28,8 @@ export function LineChart({
   height = 200,
   format,
   extraTip,
+  onSelect,
+  selectedIdx = null,
 }: {
   title: string;
   labels: string[];
@@ -38,6 +40,10 @@ export function LineChart({
   format?: (value: number) => string;
   /** Extra tooltip rows for a point (the cost tab adds the day's call count). */
   extraTip?: (index: number) => { value: string; label: string }[];
+  /** Click (or Enter on the focused chart) picks a bucket (the cost graph tab lists its calls). */
+  onSelect?: (index: number) => void;
+  /** The picked bucket, drawn as a faint band behind the lines. */
+  selectedIdx?: number | null;
 }) {
   const { t } = useT();
   const { ref, width, tip, showTip, hideTip } = useChartBox<HTMLDivElement>();
@@ -85,19 +91,35 @@ export function LineChart({
     setHover(i, el.getBoundingClientRect().top + PAD.top + plotH / 2);
   };
 
+  const indexAt = (e: { clientX: number; currentTarget: SVGSVGElement }) => {
+    const px = e.clientX - e.currentTarget.getBoundingClientRect().left;
+    return n <= 1 ? 0 : Math.min(n - 1, Math.max(0, Math.round(((px - padLeft) / plotW) * (n - 1))));
+  };
+
   const handlePointer = (e: PointerEvent<SVGSVGElement>) => {
     if (plotW <= 0) return;
-    const px = e.clientX - e.currentTarget.getBoundingClientRect().left;
-    const i = n <= 1 ? 0 : Math.min(n - 1, Math.max(0, Math.round(((px - padLeft) / plotW) * (n - 1))));
-    setHover(i, e.clientY);
+    setHover(indexAt(e), e.clientY);
+  };
+
+  const handleClick = (e: MouseEvent<SVGSVGElement>) => {
+    if (plotW <= 0 || !onSelect) return;
+    onSelect(indexAt(e));
   };
 
   const handleKey = (e: KeyboardEvent<SVGSVGElement>) => {
+    if (e.key === 'Enter' && onSelect) {
+      e.preventDefault();
+      onSelect(hoverIdx ?? n - 1);
+      return;
+    }
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();
     const cur = hoverIdx ?? n - 1;
     hoverAtMidPlot(Math.min(n - 1, Math.max(0, cur + (e.key === 'ArrowRight' ? 1 : -1))));
   };
+
+  // Half the distance between two points: the selected band spans one bucket.
+  const halfGap = n <= 1 ? plotW / 2 : plotW / (n - 1) / 2;
 
   if (n === 0 || series.length === 0) return null;
 
@@ -127,12 +149,23 @@ export function LineChart({
             role="img"
             aria-label={title}
             tabIndex={0}
+            className={onSelect ? 'chart-selectable' : undefined}
             onPointerMove={handlePointer}
             onPointerLeave={clearHover}
+            onClick={handleClick}
             onFocus={() => hoverAtMidPlot(hoverIdx ?? n - 1)}
             onBlur={clearHover}
             onKeyDown={handleKey}
           >
+            {selectedIdx !== null && selectedIdx !== undefined && selectedIdx >= 0 && selectedIdx < n && (
+              <rect
+                x={Math.max(padLeft, x(selectedIdx) - halfGap)}
+                y={PAD.top}
+                width={Math.min(width - PAD.right, x(selectedIdx) + halfGap) - Math.max(padLeft, x(selectedIdx) - halfGap)}
+                height={plotH}
+                className="chart-selected"
+              />
+            )}
             {ticks.map((t) => (
               <g key={t}>
                 <line

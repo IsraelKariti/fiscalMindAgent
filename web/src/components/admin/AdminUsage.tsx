@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, type Accountant, type LlmDailyUsage } from '../../api';
 import { getAgentUIIfKnown } from '../../agents/registry';
 import { formatCompact, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
-import { ChartCard, ChartEmpty, NEUTRAL, SERIES } from '../charts/common';
+import { ChartCard, ChartEmpty, NEUTRAL, Seg, SERIES } from '../charts/common';
 import { MODEL_LABELS } from './shared';
 import { LineChart, type LineSeries } from '../charts/LineChart';
 
@@ -18,41 +18,6 @@ type GroupBy = 'accountant' | 'agent';
 type Metric = 'cost' | 'tokens';
 
 const tokensOf = (r: LlmDailyUsage) => r.inputTokens + r.outputTokens + r.thinkingTokens;
-
-function Seg<V extends string | number>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: V;
-  options: { value: V; label: string }[];
-  onChange: (v: V) => void;
-}) {
-  const index = options.findIndex((o) => o.value === value);
-  return (
-    <div
-      className="seg-control"
-      role="group"
-      aria-label={label}
-      style={{ '--seg-i': index, '--seg-n': options.length } as CSSProperties}
-    >
-      <span className="seg-thumb" aria-hidden="true" />
-      {options.map((o) => (
-        <button
-          key={String(o.value)}
-          type="button"
-          className={`seg-option ${value === o.value ? 'seg-active' : ''}`}
-          aria-pressed={value === o.value}
-          onClick={() => onChange(o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /**
  * LLM spend analytics: one daily multi-line chart whose lines are either

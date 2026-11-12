@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 
 /* Chart series palette: darker steps of the app's theme hues, validated for
    colorblind separation (worst adjacent ΔE 15.2) and ≥3:1 contrast against
@@ -112,6 +112,42 @@ export function ChartCard({
       </header>
       {children}
     </section>
+  );
+}
+
+/** Segmented control (usage page toolbar, cost graph tab): one thumb slides under the active option. */
+export function Seg<V extends string | number>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: V;
+  options: { value: V; label: string }[];
+  onChange: (v: V) => void;
+}) {
+  const index = options.findIndex((o) => o.value === value);
+  return (
+    <div
+      className="seg-control"
+      role="group"
+      aria-label={label}
+      style={{ '--seg-i': index, '--seg-n': options.length } as CSSProperties}
+    >
+      <span className="seg-thumb" aria-hidden="true" />
+      {options.map((o) => (
+        <button
+          key={String(o.value)}
+          type="button"
+          className={`seg-option ${value === o.value ? 'seg-active' : ''}`}
+          aria-pressed={value === o.value}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }
 

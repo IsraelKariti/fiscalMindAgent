@@ -544,6 +544,18 @@ Industry pattern followed: one app with an agent registry
   five costliest calls; `CostCard` renders tiles, tables, a donut, a day
   line chart and call-modal buttons. Nothing is repriced; the tab reloads
   when opened.
+- **Admin cost graph tab** (openspec `admin-cost-graph-tab`): a seventh
+  admin-only tab, "גרף עלות", after the cost tab — the same calls (same
+  route) as one explorable chart. `web/src/components/costGraph.ts`
+  (`costGraphOptions`, `presetRange`, `bucketCalls`, `bucketLabel`;
+  `tests/costGraph.test.ts`) filters by type / model / inclusive local-day
+  range and buckets by day, Monday week or month as cost, calls or tokens;
+  with no type chosen the six costliest types get a line each and the rest
+  merge into "other". `CostGraphCard` renders the toolbar (`Seg` now lives in
+  `charts/common.tsx`), the range summary, the `LineChart` (new `onSelect` /
+  `selectedIdx` props) and the clicked bucket's call list; type, model,
+  preset, grouping and measure persist in `localStorage` (`fm.costGraph`),
+  custom dates do not.
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
   UNIQUE (migration 021): each agent instance that uses WhatsApp gets its own
   dedicated Twilio number, assigned by an admin (AdminDashboard agents section

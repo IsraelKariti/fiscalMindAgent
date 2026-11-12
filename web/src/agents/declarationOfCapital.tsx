@@ -6,6 +6,7 @@ import { TestClientForm } from '../components/TestClientForm';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
 import { CostCard } from '../components/CostCard';
+import { CostGraphCard } from '../components/CostGraphCard';
 import { QuestionnaireCard } from '../components/QuestionnaireCard';
 import { StatTiles } from '../components/StatTiles';
 import { Timeline } from '../components/Timeline';
@@ -155,6 +156,19 @@ const clientTabs: ClientTab[] = [
     render: (ctx) => (
       <div className="tab-pane tab-pane-dashboard" role="tabpanel">
         <CostCard clientId={ctx.client.id} emails={ctx.emails} />
+      </div>
+    ),
+  },
+  {
+    // Admin view-as only (openspec `admin-cost-graph-tab`): the client's LLM
+    // spend over time, filtered by type / model / range, grouped by day /
+    // week / month, read as cost / calls / tokens; a clicked bucket lists its calls.
+    id: 'cost-graph',
+    labelKey: 'tabCostGraph',
+    adminOnly: true,
+    render: (ctx) => (
+      <div className="tab-pane tab-pane-dashboard" role="tabpanel">
+        <CostGraphCard clientId={ctx.client.id} />
       </div>
     ),
   },

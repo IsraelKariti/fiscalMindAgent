@@ -3476,6 +3476,15 @@ button.meta-chip:hover {
   stroke-width: 1;
 }
 
+/* A bucket picked by click (cost graph tab): faint band behind the lines. */
+.chart-selected {
+  fill: rgba(148, 163, 216, 0.14);
+}
+
+.chart-selectable {
+  cursor: pointer;
+}
+
 .chart-tick-label {
   fill: var(--text-muted);
   font-size: 13px;
@@ -4748,6 +4757,30 @@ button.meta-chip:hover {
   .cost-by-type {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Admin cost graph tab (openspec `admin-cost-graph-tab`): toolbar rows, summary line, clicked-bucket card. */
+.cost-graph {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cost-graph .usage-filter input[type='date'] {
+  padding: 5px 8px;
+  font-size: 14px;
+}
+
+.cost-graph-summary {
+  margin: -4px 2px 0;
+  font-size: 13.5px;
+}
+
+.cost-graph-bucket-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 /* The legend line-key sits inline in a table cell here, not in a flex row. */

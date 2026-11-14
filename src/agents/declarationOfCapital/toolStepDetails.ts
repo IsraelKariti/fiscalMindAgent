@@ -1,5 +1,6 @@
 import { evidenceQuote, type ApprovedFileEvidence, type EvidenceRef } from './decisionSchema.js';
 import type { ParsedToolCall } from './decisionTools.js';
+import type { RetirementReplacement } from '../../db/types.js';
 import type { RefusedTie } from './fileTies.js';
 import { applicableFilePairs, isQuarantined } from '../shared/fileEvidence.js';
 import type { DocumentFileRow } from '../../db/types.js';
@@ -110,15 +111,22 @@ export function addInstanceDetail(
   };
 }
 
-export function retireDocumentDetail(call: ParsedToolCall, docName: NameLookup, outcome: { applied: boolean; evidence: EvidenceRef | null }) {
+/** `replacedBy`: what replaced the row — other documents or the client's declaration (openspec `retired-by-declaration-tab`). */
+export function retireDocumentDetail(
+  call: ParsedToolCall,
+  docName: NameLookup,
+  outcome: { applied: boolean; evidence: EvidenceRef | null; replacedBy: RetirementReplacement },
+) {
   const id = str(call.args.document_id);
+  const replacement = outcome.replacedBy === 'client_declaration' ? "the client's declaration" : 'other documents';
   return {
     ...toolHeader(call),
     documentId: id,
     name: named(docName, id),
     ...(outcome.evidence ? evidenceDetail(outcome.evidence) : callEvidence(call.args)),
+    replacedBy: outcome.replacedBy,
     applied: outcome.applied,
-    reason: outcome.applied ? 'retired' : 'no change: the row could not be retired',
+    reason: outcome.applied ? `retired · replaced by ${replacement}` : 'no change: the row could not be retired',
   };
 }
 

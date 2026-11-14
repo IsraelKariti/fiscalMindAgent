@@ -1,5 +1,5 @@
 import { pool } from '../pool.js';
-import type { ClientDocumentRow, DocumentStatus, ResolutionEvidence } from '../types.js';
+import type { ClientDocumentRow, DocumentStatus, ResolutionEvidence, RetirementReplacement } from '../types.js';
 
 export async function getForClient(id: string, clientId: string): Promise<ClientDocumentRow | null> {
   const { rows } = await pool.query<ClientDocumentRow>(
@@ -302,17 +302,20 @@ export async function splitByCompany(
  * including collected/approved, per the office's unit rule ("if either of the
  * two is missing the other becomes redundant even if fulfilled") — but never
  * from 'unresolved'/'not_required' (those are resolution's business). The
- * client statement it rests on is stored as resolution_evidence.
+ * client statement it rests on is stored as resolution_evidence; what replaced
+ * the row (other documents / the client's declaration, openspec
+ * `retired-by-declaration-tab`) as replaced_by.
  */
 export async function retire(
   id: string,
   clientId: string,
   evidence: ResolutionEvidence,
+  replacedBy: RetirementReplacement,
 ): Promise<ClientDocumentRow | null> {
   const { rows } = await pool.query<ClientDocumentRow>(
-    `UPDATE client_documents SET status = 'retired', resolution_evidence = $3, updated_at = now()
+    `UPDATE client_documents SET status = 'retired', resolution_evidence = $3, replaced_by = $4, updated_at = now()
      WHERE id = $1 AND client_id = $2 AND status IN ('pending', 'claimed', 'collected', 'approved') RETURNING *`,
-    [id, clientId, JSON.stringify(evidence)],
+    [id, clientId, JSON.stringify(evidence), replacedBy],
   );
   return rows[0] ?? null;
 }

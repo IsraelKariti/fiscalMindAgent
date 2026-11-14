@@ -21,6 +21,7 @@ import { approvedPropertyFilesOf, provenFactsLine, provenFactsOf } from './prove
 import { selfEvidentFilesOf } from './selfEvidentFiles.js';
 import { readSpouse } from './spouseIdentity.js';
 import { mergeVehicleEvidence, vehicleEvidenceOf } from './vehicleDeclaration.js';
+import { replacementOfRetirement } from './retirementReplacement.js';
 import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
 import { childDisplayName } from './splitChildNames.js';
 import { assignFilesToNewRows, filterPairsByCompany, type NewRowFiles } from './fileTies.js';
@@ -146,6 +147,8 @@ type FollowUpDecision = Extract<NormalizedDecision, { decision: 'follow_up' }>;
 
 /** A row this cycle created, with the `add_instance` call it came from (anchor + instance name) so its step can be written once the files are assigned. */
 interface CreatedRow extends NewRowFiles {
+  /** The full row as inserted (apply_retirements reads its paper). */
+  row: ClientDocumentRow;
   anchorId: string;
   instanceName: string;
 }
@@ -657,16 +660,24 @@ async function applyAdditions(run: PlanRun, decision: NormalizedDecision, change
  */
 async function applyRetirements(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
+  // What replaced each row (openspec `retired-by-declaration-tab`): the rows
+  // this answer created (apply_additions ran first) and the existing rows it
+  // stated a cost or vehicle facts on. The rule reads them by type and paper.
+  const createdRows = changes.createdWithFiles.map((c) => c.row);
+  const statedIds = new Set([...decision.statedCosts, ...decision.statedVehicles].map((s) => s.documentId));
+  const statedRows = run.documents.filter((d) => statedIds.has(d.id));
   for (const retirement of decision.retired) {
     const call = run.calls.find((c) => c.name === 'retire_document' && c.args.document_id === retirement.documentId);
+    const target = run.documents.find((d) => d.id === retirement.documentId);
+    const replacedBy = replacementOfRetirement({ type_key: target?.type_key ?? null }, createdRows, statedRows);
     const step = (applied: boolean) => {
       if (!call) return;
-      recordToolStep(run, call, retireDocumentDetail(call, (id) => docName(run, id), { applied, evidence: retirement.evidence }), {
+      recordToolStep(run, call, retireDocumentDetail(call, (id) => docName(run, id), { applied, evidence: retirement.evidence, replacedBy }), {
         type: 'client_document',
         id: retirement.documentId,
       });
     };
-    const row = await clientDocuments.retire(retirement.documentId, clientId, retirement.evidence);
+    const row = await clientDocuments.retire(retirement.documentId, clientId, retirement.evidence, replacedBy);
     if (!row) {
       step(false);
       continue;
@@ -683,6 +694,7 @@ async function applyRetirements(run: PlanRun, decision: NormalizedDecision, chan
         clientName: client.name,
         name: row.name,
         typeKey: row.type_key,
+        replacedBy,
         evidence: retirement.evidence,
       },
     });

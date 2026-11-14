@@ -174,16 +174,23 @@ function FileItem({
   );
 }
 
-/** Group order + labels of the capital-declaration flow. */
-const CAPITAL_GROUPS: { status: DocumentStatus; labelKey: keyof Messages; collapsed?: boolean }[] = [
-  { status: 'unresolved', labelKey: 'groupUnresolved' },
-  { status: 'pending', labelKey: 'groupPending' },
-  { status: 'claimed', labelKey: 'groupClaimed' },
-  { status: 'collected', labelKey: 'groupCollected' },
-  { status: 'approved', labelKey: 'groupApproved' },
-  { status: 'stated', labelKey: 'groupStated' },
-  { status: 'not_required', labelKey: 'groupNotRequired', collapsed: true },
-  { status: 'retired', labelKey: 'groupRetired', collapsed: true },
+/** A retired row replaced by the client's own declaration rather than by other documents (openspec `retired-by-declaration-tab`); null = retired before this was recorded → documents. */
+const replacedByDeclaration = (doc: ClientDocument): boolean => doc.replaced_by === 'client_declaration';
+
+/**
+ * Group order + labels of the capital-declaration flow: one tab per status,
+ * except retired rows, which split by what replaced them (`match`).
+ */
+const CAPITAL_GROUPS: { key: string; status: DocumentStatus; labelKey: keyof Messages; match?: (doc: ClientDocument) => boolean; collapsed?: boolean }[] = [
+  { key: 'unresolved', status: 'unresolved', labelKey: 'groupUnresolved' },
+  { key: 'pending', status: 'pending', labelKey: 'groupPending' },
+  { key: 'claimed', status: 'claimed', labelKey: 'groupClaimed' },
+  { key: 'collected', status: 'collected', labelKey: 'groupCollected' },
+  { key: 'approved', status: 'approved', labelKey: 'groupApproved' },
+  { key: 'stated', status: 'stated', labelKey: 'groupStated' },
+  { key: 'not_required', status: 'not_required', labelKey: 'groupNotRequired', collapsed: true },
+  { key: 'retired', status: 'retired', labelKey: 'groupRetired', match: (doc) => !replacedByDeclaration(doc), collapsed: true },
+  { key: 'retired_declaration', status: 'retired', labelKey: 'groupRetiredDeclaration', match: replacedByDeclaration, collapsed: true },
 ];
 
 export function DocumentsCard({ clientId, documents, files, onChanged, titleKey, emptyTextKey, capital, onFocusMessage, readOnly = false }: Props) {
@@ -285,7 +292,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
       approved: { className: 'badge-success', label: t.approvedStatus },
       stated: { className: 'badge-success', label: t.statedStatus },
       not_required: { className: 'badge-neutral', label: t.notRequiredStatus },
-      retired: { className: 'badge-note', label: t.retiredStatus },
+      retired: { className: 'badge-note', label: replacedByDeclaration(doc) ? t.retiredDeclarationStatus : t.retiredStatus },
     };
     const badge = badges[doc.status];
 
@@ -449,10 +456,10 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
         ) : capital ? (
           (() => {
             // One tab per non-empty status group, then the unmatched files.
-            const tabs: { key: string; label: string; count: number; body: JSX.Element }[] = CAPITAL_GROUPS.flatMap(({ status, labelKey }) => {
-              const group = documents.filter((d) => d.status === status);
+            const tabs: { key: string; label: string; count: number; body: JSX.Element }[] = CAPITAL_GROUPS.flatMap(({ key, status, labelKey, match }) => {
+              const group = documents.filter((d) => d.status === status && (!match || match(d)));
               if (group.length === 0) return [];
-              return [{ key: status, label: t[labelKey] as string, count: group.length, body: <ul className="doc-list">{group.map(capitalRow)}</ul> }];
+              return [{ key, label: t[labelKey] as string, count: group.length, body: <ul className="doc-list">{group.map(capitalRow)}</ul> }];
             });
             if (unmatched.length > 0) {
               tabs.push({

@@ -202,9 +202,12 @@ monday WorkForm is the only source of which documents a declaration needs):
   client quote; valid even from collected/approved per the office's unit rule —
   contract + payments appendix stand or fall together). Retired rows are out
   of the goal everywhere `not_required` is (plan/router settle checks,
-  dashboard SQL, web UI where they render as a collapsed group with the quote)
-  and are hidden from the planner's REQUIRED DOCUMENTS section entirely; the
-  accountant can reopen them to pending. Every instance (resolution or
+  dashboard SQL, web UI where they render as two collapsed groups with the
+  quote — "replaced by other documents" / "replaced by the client's
+  declaration", by **`replaced_by`**, migration 075, which `applyRetirements`
+  derives from the same answer via `retirementReplacement.ts`; NULL on older
+  rows = the documents group) and are hidden from the planner's REQUIRED
+  DOCUMENTS section entirely; the accountant can reopen them to pending. Every instance (resolution or
   addition) also carries **`already_provided`**: when the client says the
   office already holds a document — from a prior office-made declaration or
   any earlier delivery — the row is born `claimed` (trust the client; the

@@ -223,9 +223,19 @@ export interface ClientDocumentRow {
   verification: Record<string, unknown> | null;
   /** Evidence behind an agent-made 'not_required' resolution; NULL otherwise. */
   resolution_evidence: ResolutionEvidence | null;
+  /**
+   * What replaced a retired row (migration 075, openspec `retired-by-declaration-tab`):
+   * other documents, or the client's own declaration (a statable paper of the
+   * row's type added or stated in the same planner answer). NULL = retired
+   * before the column existed, or not retired. Read only on 'retired' rows.
+   */
+  replaced_by: RetirementReplacement | null;
   created_at: Date;
   updated_at: Date;
 }
+
+/** What replaced a retired checklist row (migration 075). */
+export type RetirementReplacement = 'documents' | 'client_declaration';
 
 /** 'blocked' (054): the injection screen flagged the file before classification — quarantined, never analyzed. */
 /** 'not_needed': the platform fetched the file itself and linked it — content analysis does not apply (057). */

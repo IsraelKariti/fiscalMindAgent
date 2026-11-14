@@ -110,6 +110,8 @@ export interface ClientDocument {
   /** Capital-declaration catalog type key; null for ad-hoc (accountant-added) rows. */
   type_key: string | null;
   verification: DocumentVerification | null;
+  /** Retired rows only: what replaced the row — other documents, or the client's own declaration. Null on rows retired before this was recorded (shown with the documents). */
+  replaced_by?: 'documents' | 'client_declaration' | null;
   /** The client quote behind an agent-made 'not_required' — from a stored inbound message or the intake questionnaire; or the file behind a per-company split row. */
   resolution_evidence: {
     message_id?: string;

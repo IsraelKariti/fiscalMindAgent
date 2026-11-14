@@ -2084,7 +2084,8 @@ textarea {
 .doc-row.not_required,
 .doc-group-not_required,
 .doc-row.retired,
-.doc-group-retired {
+.doc-group-retired,
+.doc-group-retired_declaration {
   --status-color: var(--text-muted);
 }
 

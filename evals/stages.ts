@@ -838,6 +838,7 @@ function documentRows(c: DecideCase, taxYear: number): ClientDocumentRow[] {
       paper_key: d.paper_key ?? null,
       verification: d.verification ?? null,
       resolution_evidence: null,
+      replaced_by: null,
       created_at: at,
       updated_at: at,
     };

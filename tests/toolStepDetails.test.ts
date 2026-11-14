@@ -88,14 +88,18 @@ test('add_instance: the created row, its status, the accepted and the refused fi
 });
 
 test('retire_document, state_cost, state_vehicle and attestation carry their parameters and outcome', () => {
-  assert.deepEqual(retireDocumentDetail(call('retire_document', { document_id: 'd1', evidence_quote: 'אין לי' }), docName, { applied: true, evidence: { message_id: 'm1', quote: 'אין לי' } }), {
+  assert.deepEqual(retireDocumentDetail(call('retire_document', { document_id: 'd1', evidence_quote: 'אין לי' }), docName, { applied: true, evidence: { message_id: 'm1', quote: 'אין לי' }, replacedBy: 'documents' }), {
     tool: 'retire_document',
     documentId: 'd1',
     name: docs.get('d1'),
     quote: 'אין לי',
+    replacedBy: 'documents',
     applied: true,
-    reason: 'retired',
+    reason: 'retired · replaced by other documents',
   });
+  const byDeclaration = retireDocumentDetail(call('retire_document', { document_id: 'd1', evidence_quote: 'אין לי' }), docName, { applied: true, evidence: { message_id: 'm1', quote: 'אין לי' }, replacedBy: 'client_declaration' });
+  assert.equal(byDeclaration.replacedBy, 'client_declaration');
+  assert.equal(byDeclaration.reason, "retired · replaced by the client's declaration");
   const cost = stateCostDetail(call('state_cost', { document_id: '', instance_name: 'מאזדה', amount: 85000, currency: 'ILS', evidence_message_id: 'm2', evidence_quote: 'שילמתי 85,000' }), (id) => (id === 'n2' ? 'הצהרת עלות — מאזדה 3' : undefined), {
     documentId: 'n2',
     applied: true,

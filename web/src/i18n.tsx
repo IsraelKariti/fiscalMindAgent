@@ -646,6 +646,7 @@ const he = {
   inVerificationStatus: 'באימות',
   verificationFailedStatus: 'האימות נכשל',
   retiredStatus: 'הוחלף במסמכים אחרים',
+  retiredDeclarationStatus: 'הוחלף בהצהרת הלקוח',
   unresolvedStatus: 'בבירור מול הלקוח',
   awaitingClientStatus: 'ממתין ללקוח',
   notRequiredStatus: 'לא נדרש',
@@ -657,6 +658,7 @@ const he = {
   groupStated: 'הוצהרו בצ\'אט',
   groupNotRequired: 'לא נדרשים',
   groupRetired: 'הוחלפו במסמכים אחרים',
+  groupRetiredDeclaration: 'הוחלפו בהצהרת הלקוח',
   groupUnmatchedFiles: 'קבצים ללא התאמה למסמך נדרש',
   // Row actions are verb phrases — a bare status word on a control reads as the row's status.
   rowActions: 'פעולות',

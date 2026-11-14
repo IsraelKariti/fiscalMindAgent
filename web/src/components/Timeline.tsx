@@ -486,17 +486,28 @@ export function Timeline({
   const listRef = useRef<HTMLOListElement>(null);
   // The bubble a focus request highlighted; cleared after a moment.
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  // The message a focus request is still holding in view: the follow pin below
+  // keeps re-centering it while the panel settles (trace rows, images), instead
+  // of jumping to the latest message. Cleared when the highlight fades.
+  const focusHoldRef = useRef<string | null>(null);
   useEffect(() => {
     if (!focusedMessageId) return;
     const el = listRef.current?.querySelector<HTMLElement>(`#message-${CSS.escape(focusedMessageId)}`);
     if (el) {
+      // Unpin before scrolling: the follow effect runs right after this one on
+      // mount and would otherwise yank the panel to the bottom.
+      nearBottomRef.current = false;
+      focusHoldRef.current = focusedMessageId;
       el.scrollIntoView({ block: 'center' });
       setHighlightedId(focusedMessageId);
+      window.setTimeout(() => {
+        if (focusHoldRef.current === focusedMessageId) focusHoldRef.current = null;
+        setHighlightedId((id) => (id === focusedMessageId ? null : id));
+      }, 2000);
     }
+    // The caller clears the request (which re-runs this effect with null); the
+    // highlight timer above must outlive that re-run, so it is not a cleanup.
     onFocusedMessageShown?.();
-    if (!el) return;
-    const timer = window.setTimeout(() => setHighlightedId((id) => (id === focusedMessageId ? null : id)), 2000);
-    return () => window.clearTimeout(timer);
   }, [focusedMessageId, onFocusedMessageShown]);
   // Admin-only LLM trace. The toggle exists only for an admin viewer with a
   // clientId; the accountant never sees it and the endpoint behind it
@@ -724,7 +735,9 @@ export function Timeline({
     const list = listRef.current;
     if (!el || !list) return;
     const follow = () => {
-      if (nearBottomRef.current) el.scrollTop = el.scrollHeight;
+      const held = focusHoldRef.current ? list.querySelector<HTMLElement>(`#message-${CSS.escape(focusHoldRef.current)}`) : null;
+      if (held) held.scrollIntoView({ block: 'center' });
+      else if (nearBottomRef.current) el.scrollTop = el.scrollHeight;
       setAtTop(el.scrollTop <= 4);
       setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
     };

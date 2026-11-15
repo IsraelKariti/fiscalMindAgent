@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { isAssignedTo } from '../web/src/format.js';
+import { hasQuestionFor, isAssignedTo } from '../web/src/format.js';
 
 // openspec `client-search` (my-clients-filter): a client is "mine" when its advisor email is my email.
 
@@ -24,4 +24,14 @@ test('missing advisor, advisor without email, or no signed-in email is never min
   assert.equal(isAssignedTo(advisor(null), 'dana@office.co.il'), false);
   assert.equal(isAssignedTo(advisor('dana@office.co.il'), null), false);
   assert.equal(isAssignedTo(advisor(''), ''), false);
+});
+
+// openspec `team-questions`: a client's open question is "for me" when it is addressed to my email.
+test('hasQuestionFor: the open question addressed to my email, ignoring case; none open or another address is not mine', () => {
+  const open = (toEmail: string) => ({ openTeamQuestion: { toEmail } });
+  assert.equal(hasQuestionFor(open('Dana@Office.co.il'), ' dana@office.co.il '), true);
+  assert.equal(hasQuestionFor(open('dana@office.co.il'), 'yossi@office.co.il'), false);
+  assert.equal(hasQuestionFor({ openTeamQuestion: null }, 'dana@office.co.il'), false);
+  assert.equal(hasQuestionFor({}, 'dana@office.co.il'), false);
+  assert.equal(hasQuestionFor(open('dana@office.co.il'), null), false);
 });

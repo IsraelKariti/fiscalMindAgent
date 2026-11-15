@@ -7,6 +7,7 @@ import {
   type Email,
   type NextScheduled,
   type RequestOpts,
+  type TeamQuestion,
 } from '../api';
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { AgentTypeUI, ClientTabContext } from '../agents/types';
@@ -52,6 +53,7 @@ export function ClientView({
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
   const [files, setFiles] = useState<DocumentFile[]>([]);
+  const [teamQuestions, setTeamQuestions] = useState<TeamQuestion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const showAdminTabs = admin && !viewer;
   const tabs = agentUI.clientTabs.filter((tab) => !tab.adminOnly || showAdminTabs);
@@ -90,6 +92,7 @@ export function ClientView({
       setClient(detail.client);
       setNextScheduled(detail.nextScheduled);
       setDocuments(detail.documents);
+      setTeamQuestions(detail.teamQuestions ?? []);
       setEmails(thread.emails);
       setFiles(received.files);
       setError(null);
@@ -190,6 +193,7 @@ export function ClientView({
     nextScheduled,
     documents,
     files,
+    teamQuestions,
     load,
     onClientUpdated,
     setClient,
@@ -213,20 +217,24 @@ export function ClientView({
       )}
       {tabs.length > 1 && (
         <div className="client-tabs" role="tablist" aria-label={t.clientSectionsAria}>
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              className={`client-tab ${tab.adminOnly ? 'client-tab-admin' : ''} ${activeTab === tab.id ? 'active' : ''}`}
-              title={tab.adminOnly ? t.adminOnlyTabTitle : undefined}
-              onClick={() => selectTab(tab.id)}
-            >
-              {t[tab.labelKey]}
-              {tab.adminOnly && <span className="admin-chip">{t.adminOnlyChip}</span>}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const badge = tab.badge?.(ctx) ?? 0;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                className={`client-tab ${tab.adminOnly ? 'client-tab-admin' : ''} ${activeTab === tab.id ? 'active' : ''}`}
+                title={tab.adminOnly ? t.adminOnlyTabTitle : undefined}
+                onClick={() => selectTab(tab.id)}
+              >
+                {t[tab.labelKey]}
+                {tab.adminOnly && <span className="admin-chip">{t.adminOnlyChip}</span>}
+                {badge > 0 && <span className="tab-badge">{badge}</span>}
+              </button>
+            );
+          })}
         </div>
       )}
       {tabs.find((tab) => tab.id === activeTab)?.render(ctx)}

@@ -28,6 +28,16 @@ describe('viewerMayRequest', () => {
     assert.equal(viewerMayRequest('POST', '/agents/a1/clients/c1/redraft'), true);
   });
 
+  // openspec `team-questions`: closing the agent's question is the one new viewer write.
+  it('allows closing a team question and refuses every other team-questions write', () => {
+    assert.equal(viewerMayRequest('POST', '/agents/a1/clients/c1/team-questions/q1/close'), true);
+    assert.equal(viewerMayRequest('PUT', '/agents/a1/clients/c1/team-questions/q1/close'), false);
+    assert.equal(viewerMayRequest('POST', '/agents/a1/clients/c1/team-questions'), false);
+    assert.equal(viewerMayRequest('POST', '/agents/a1/clients/c1/team-questions/q1'), false);
+    assert.equal(viewerMayRequest('DELETE', '/agents/a1/clients/c1/team-questions/q1'), false);
+    assert.equal(viewerMayRequest('POST', '/agents/a1/clients/c1/team-questions/q1/close/x'), false);
+  });
+
   it('refuses the conversation-flow routes under the wrong verb or path', () => {
     assert.equal(viewerMayRequest('POST', '/agents/a1/clients/c1/pause'), false);
     assert.equal(viewerMayRequest('DELETE', '/agents/a1/clients/c1/pause'), false);

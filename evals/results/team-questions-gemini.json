@@ -1,0 +1,268 @@
+{
+  "ranAt": "2026-11-15T17:07:42.832Z",
+  "finishedAt": "2026-11-15T17:07:58.116Z",
+  "models": [
+    "gemini-3.1-pro-preview"
+  ],
+  "stages": [
+    "planner"
+  ],
+  "concurrency": 2,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-3.1-pro-preview": {
+      "model": "gemini-3.1-pro-preview",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000012,
+      "thinkingCostPerToken": 0.000012,
+      "cachedCostPerToken": 2e-7
+    }
+  },
+  "results": [
+    {
+      "stage": "planner",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "dec_42",
+      "notes": "Change agent-asks-team-member: an OPEN team question blocks only its own topic — a bank certificate that arrives meanwhile is tied as usual (collect, no message), and the open question is not asked again.",
+      "ranAt": "2026-11-15T17:07:42.897Z",
+      "latencyMs": 9664,
+      "attempts": 1,
+      "inputTokens": 33007,
+      "outputTokens": 135,
+      "thinkingTokens": 695,
+      "cachedTokens": 0,
+      "costUsd": 0.075974,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "mark_collected",
+            "args": {
+              "document_id": "doc-bank-leumi"
+            }
+          },
+          {
+            "name": "tie_file",
+            "args": {
+              "evidence_quote": "",
+              "file_id": "file-leumi",
+              "document_id": "doc-bank-leumi",
+              "evidence_message_id": ""
+            }
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "reasoning": "The client provided the requested bank balance document for Bank Leumi. The file matches the required document. I am marking it as collected and tying the file for verification. No message is sent in this turn.",
+              "decision": "collect"
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "collect",
+          "actual": "collect",
+          "pass": true
+        },
+        {
+          "key": "no_message",
+          "expected": "no message fields, send_at null",
+          "actual": "none",
+          "pass": true
+        },
+        {
+          "key": "ties",
+          "expected": ">0",
+          "actual": 2,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "matched_file_ids",
+          "expected": [
+            "file-leumi"
+          ],
+          "actual": [
+            "file-leumi"
+          ],
+          "pass": true
+        },
+        {
+          "key": "team_question",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "mark_collected",
+          "tie_file",
+          "conclude"
+        ],
+        "reasoning": "The client provided the requested bank balance document for Bank Leumi. The file matches the required document. I am marking it as collected and tying the file for verification. No message is sent in this turn.",
+        "send_at": null,
+        "resolutions": [],
+        "evidence_quotes": [],
+        "team_question": null,
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [
+          "doc-bank-leumi"
+        ],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "planner",
+      "model": "gemini-3.1-pro-preview",
+      "provider": "gemini",
+      "caseId": "dec_13",
+      "notes": "Change confirm-unlisted-files: after the agent asked about the waiting Harel file, the client confirms in words. Only now the item is created (added_instances on the study fund type, with the client's quote as evidence — the gate rejects the answer otherwise) and the new instance names the waiting file in file_ids, so code attaches and verifies it in the same cycle. Change no-draft-when-collecting: an answer that ties a file is a collect decision with no message; the reply comes from the follow-up cycle after verification. 2026-09-19: gemini-3.1-pro-preview (the production model) passes; gemini-2.5-flash fails it by settling the open pension question with a 'Harel study fund' item instead of adding to the study fund type - code then refuses to attach the file (type differs), so the damage is a misfiled item, not a wrong approval.",
+      "ranAt": "2026-11-15T17:07:42.844Z",
+      "latencyMs": 15266,
+      "attempts": 1,
+      "inputTokens": 32620,
+      "outputTokens": 162,
+      "thinkingTokens": 1290,
+      "cachedTokens": 0,
+      "costUsd": 0.08266399999999999,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "add_instance",
+            "args": {
+              "description": "",
+              "already_provided": false,
+              "name": "קרן השתלמות בהראל",
+              "paper_key": "",
+              "evidence_quote": "כן, יש לי גם קרן השתלמות בהראל, שכחתי להזכיר אותה",
+              "anchor_document_id": "doc-study-altshuler",
+              "evidence_message_id": "msg-6",
+              "file_ids": [
+                "file-harel"
+              ],
+              "proven_by_file_id": ""
+            }
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "reasoning": "The client confirmed the Harel study fund file. Adding the instance and tying the file for verification.",
+              "decision": "collect"
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "collect",
+          "actual": "collect",
+          "pass": true
+        },
+        {
+          "key": "no_message",
+          "expected": "no message fields, send_at null",
+          "actual": "none",
+          "pass": true
+        },
+        {
+          "key": "ties",
+          "expected": ">0",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {
+            "study_fund": 1
+          },
+          "actual": {
+            "study_fund": 1
+          },
+          "pass": true
+        },
+        {
+          "key": "new_instance_file_ids",
+          "expected": [
+            "file-harel"
+          ],
+          "actual": [
+            "file-harel"
+          ],
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "add_instance",
+          "conclude"
+        ],
+        "reasoning": "The client confirmed the Harel study fund file. Adding the instance and tying the file for verification.",
+        "send_at": null,
+        "resolutions": [],
+        "added_instance_names": [
+          "קרן השתלמות בהראל"
+        ],
+        "evidence_quotes": [
+          "כן, יש לי גם קרן השתלמות בהראל, שכחתי להזכיר אותה"
+        ],
+        "team_question": null,
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 1,
+        "retired": 0
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "planner": {
+      "gemini-3.1-pro-preview": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 12465,
+          "p50": 9664,
+          "p90": 9664,
+          "min": 9664,
+          "max": 15266
+        },
+        "inputTokens": 65627,
+        "outputTokens": 297,
+        "thinkingTokens": 1985,
+        "cachedTokens": 0,
+        "costUsd": 0.158638,
+        "unpriced": 0
+      }
+    }
+  }
+}

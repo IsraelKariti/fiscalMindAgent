@@ -463,6 +463,27 @@ Industry pattern followed: one app with an agent registry
   on legacy CLI-era rows, for which no agent acts). Per-agent scalar fields
   go in `clients.agent_fields` JSONB; relational per-agent data gets its own
   tables keyed by `client_id` (pattern: `client_documents`).
+- **Team questions** (2026-11-15, migration 068, openspec `team-questions`).
+  When the client raises something the planner cannot settle from its
+  instructions and the file (office practice, an unusual document, a tax
+  judgement), it calls `ask_team` in a `follow_up` answer whose message tells
+  the client the office is being consulted. The question lands in
+  `team_questions`, addressed to the client's stored tax advisor when matched
+  (`agent_fields.tax_advisor`, accountant or staff) and to the accountant
+  otherwise; the addressee gets one email (kind `team_question`, recorded on
+  the trace like the other platform emails). One open question per client
+  (partial unique index + the gate). The workspace's **questions tab** lists
+  the questions as cards; the accountant, a staff viewer or an admin viewing
+  as closes one either with an answer (the next planner cycle relays it in
+  plain words) or as "I answered the client myself" with an optional note
+  (the cycle continues the collection without repeating it). Both closings
+  wake the agent once (`setFutureEmail` under the client lock; quiet for a
+  paused / completed / declined client). The prompt's TEAM QUESTIONS section
+  shows every question with its state; an open question blocks only its own
+  topic — files, clarifications and reminders go on. The sidebar badges a
+  client with an open question and shows a "questions for me" chip that
+  narrows the list to the signed-in person's open questions. No reminders to
+  a silent team member (follow-up change if needed).
 - **Client identity and soft delete** (2026-10-12, migration 063, openspec
   `soft-delete-clients`, spec `client-lifecycle`). A client is its id for
   life; within one instance no two *live* clients share an email address
@@ -740,6 +761,12 @@ tenancy / admin impersonation / monday token auth.
   admin approval) and `heldAt` (the worker already held it at its time)
   for every viewer — the timeline badge and the send-now refusal read
   them (`src/orchestration/reviewWait.ts`, openspec `review-wait-visibility`).
+  The client read also returns `teamQuestions` (newest first) and every
+  roster row carries `openTeamQuestion` (addressee + time, or null);
+  `POST .../clients/:id/team-questions/:questionId/close` with
+  `{ how: 'answered' | 'handled_outside', text? }` closes one (400 blank
+  answer, 404 wrong client, 409 already closed) and is on the staff viewer's
+  allow-list (openspec `team-questions`).
 - Same three shapes under `/api/monday/app/...` (monday sessionToken auth).
 - Account-level (not agent-scoped): `GET /api/mailbox` (`src/api/account.ts`)
   — read-only status of the legacy account mailbox; there is no

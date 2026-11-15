@@ -348,6 +348,25 @@ export function sendMessageDetail(
   };
 }
 
+/** The `ask_team` step (openspec `team-questions`): the question, the reason, the addressee and the stored question's id. */
+export function askTeamDetail(
+  call: ParsedToolCall,
+  outcome: { questionId: string | null; toName: string; toEmail: string; toMatch: 'accountant' | 'staff'; applied: boolean; reason?: string },
+) {
+  return {
+    ...toolHeader(call),
+    question: str(call.args.question),
+    why: str(call.args.why),
+    ...(str(call.args.evidence_message_id) !== '' ? { messageId: str(call.args.evidence_message_id) } : {}),
+    ...(outcome.questionId ? { questionId: outcome.questionId } : {}),
+    to: outcome.toName,
+    toEmail: outcome.toEmail,
+    toMatch: outcome.toMatch,
+    applied: outcome.applied,
+    reason: outcome.applied ? `asked ${outcome.toName} (${outcome.toMatch})` : (outcome.reason ?? 'not asked'),
+  };
+}
+
 export function taxFetchDetail(call: ParsedToolCall, outcome: { applied: boolean; provider: string | null; documentKeys: readonly string[] | null; emailId: string | null }) {
   const action = str(call.args.action);
   return {

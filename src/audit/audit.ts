@@ -78,6 +78,11 @@ export type AuditAction =
   | 'send_whatsapp_template'
   | 'tax_fetch'
   | 'conclude'
+  // The planner asked the client's team member a question (openspec
+  // `team-questions`): the tool step, and the closing by a person in the
+  // workspace (detail.how = 'answered' | 'handled_outside').
+  | 'ask_team'
+  | 'team_question.closed'
   // LEGACY — the apply phase before the per-tool steps (one row per decision
   // field, `withhold_reply` for a collecting answer). No code writes these any
   // more; the names stay so old trails keep rendering.

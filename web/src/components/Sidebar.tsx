@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
-import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, formatUsd, isAssignedTo, isDeclined, isOverdueStopped, type DotFilter } from '../format';
+import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, formatUsd, hasQuestionFor, isAssignedTo, isDeclined, isOverdueStopped, type DotFilter } from '../format';
 import { dotTitle, useT } from '../i18n';
 
 /**
@@ -198,9 +198,18 @@ export function Sidebar({
   const meEmail = impersonatingEmail ?? userEmail;
   const assignedCount = useMemo(() => clients.filter((client) => isAssignedTo(client, meEmail)).length, [clients, meEmail]);
   const myOnlyActive = myOnly && assignedCount > 0;
+  // "Questions for me" (openspec `team-questions`): the agent's open questions
+  // addressed to the signed-in person; the chip narrows the list to them and
+  // composes with "my clients only". Hidden at zero, so it can never empty the list.
+  const [forMeOnly, setForMeOnly] = useState(false);
+  const forMeCount = useMemo(() => clients.filter((client) => hasQuestionFor(client, meEmail)).length, [clients, meEmail]);
+  const forMeActive = forMeOnly && forMeCount > 0;
   const baseClients = useMemo(
-    () => (myOnlyActive ? clients.filter((client) => isAssignedTo(client, meEmail)) : clients),
-    [clients, myOnlyActive, meEmail],
+    () =>
+      clients.filter(
+        (client) => (!myOnlyActive || isAssignedTo(client, meEmail)) && (!forMeActive || hasQuestionFor(client, meEmail)),
+      ),
+    [clients, myOnlyActive, forMeActive, meEmail],
   );
   // Counts describe the loaded list (live or deleted, narrowed to "my clients" when ticked), never the search result.
   const statusCounts = useMemo(() => countByDotColor(baseClients.map(dotStateOf)), [baseClients]);
@@ -294,6 +303,20 @@ export function Sidebar({
             {t.sidebarMyClientsToggle}
           </label>
         )}
+        {forMeCount > 0 && (
+          <button
+            type="button"
+            className={`sidebar-for-me-chip ${forMeActive ? 'is-active' : ''}`}
+            aria-pressed={forMeActive}
+            title={t.sidebarQuestionsForMeTitle}
+            onClick={() => setForMeOnly((on) => !on)}
+          >
+            <span className="client-item-question-badge" aria-hidden="true">
+              {t.clientOpenQuestionBadge}
+            </span>
+            {t.sidebarQuestionsForMe(forMeCount)}
+          </button>
+        )}
         {clients.length > 0 && (
           <input
             type="search"
@@ -335,6 +358,11 @@ export function Sidebar({
                   <span className="client-item-text">
                     <span className="client-item-name">
                       <span className="client-item-name-text">{displayClientName(client.name)}</span>
+                      {client.openTeamQuestion && (
+                        <span className="client-item-question-badge" title={t.clientOpenQuestionBadgeTitle(client.openTeamQuestion.toName)}>
+                          {t.clientOpenQuestionBadge}
+                        </span>
+                      )}
                       {client.isTest && (
                         <span className="admin-chip client-item-test-badge" title={t.testClientBadgeTitle}>
                           {t.testClientBadge}

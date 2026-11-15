@@ -5,6 +5,7 @@ import { ClientImportSettings } from '../components/ClientSourcesSettings';
 import { TestClientForm } from '../components/TestClientForm';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
+import { TeamQuestionsTab } from '../components/TeamQuestionsTab';
 import { CostCard } from '../components/CostCard';
 import { CostGraphCard } from '../components/CostGraphCard';
 import { QuestionnaireCard } from '../components/QuestionnaireCard';
@@ -107,6 +108,30 @@ const clientTabs: ClientTab[] = [
         </div>
       );
     },
+  },
+  {
+    // The agent's questions to the team (openspec `team-questions`): every
+    // viewer may close one, so neither readOnly nor viewer hides the controls
+    // (a deleted client's read-only view does).
+    id: 'questions',
+    labelKey: 'tabQuestions',
+    badge: (ctx) => ctx.teamQuestions.filter((q) => q.closedAt === null).length,
+    render: (ctx) => (
+      <div className="tab-pane panel-stack" role="tabpanel">
+        <TeamQuestionsTab
+          clientId={ctx.client.id}
+          questions={ctx.teamQuestions}
+          emails={ctx.emails}
+          readOnly={ctx.readOnly}
+          onFocusMessage={ctx.focusMessage}
+          onClosed={async () => {
+            // The server already woke the agent; refresh so the card and the badge update now.
+            await ctx.load();
+            await ctx.onClientUpdated();
+          }}
+        />
+      </div>
+    ),
   },
   {
     id: 'details',

@@ -144,6 +144,7 @@ describe('restoreOmittedNulls', () => {
       retired_documents: null,
       attestation: null,
       attestation_evidence: null,
+      team_question: null,
     };
     assert.deepEqual(restoreOmittedNulls(decisionJsonSchema, answer), answer);
   });

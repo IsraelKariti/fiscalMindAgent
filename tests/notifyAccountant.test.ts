@@ -76,6 +76,18 @@ test('a refused send records a warning row with the content and the error, then 
   });
 });
 
+// openspec `team-questions`: a question for a staff member goes to that address, not the owner's.
+test('an explicit recipient (a team member) is used instead of the owner and recorded with kind team_question', async () => {
+  const h = harness(async () => ({ resendId: 're_tq' }));
+  h.deps.getUser = async () => {
+    throw new Error('the owner must not be looked up when a recipient is given');
+  };
+  await sendToAccountantWith(client, 'team_question', 'שאלה', 'גוף', h.deps, { email: 'dana@office.co.il' });
+  assert.equal(h.sent[0]!.to, 'dana@office.co.il');
+  assert.equal(h.audits[0]!.action, 'email.accountant_sent');
+  assert.deepEqual(h.audits[0]!.detail, { clientName: 'דני לוי', kind: 'team_question', to: 'dana@office.co.il', subject: 'שאלה', body: 'גוף', resendId: 're_tq' });
+});
+
 test('a client without an owner or with a missing user sends and records nothing', async () => {
   const h = harness(async () => ({ resendId: 're_1' }));
   await sendToAccountantWith({ ...client, user_id: null }, 'goal_complete', 'נושא', 'גוף', h.deps);

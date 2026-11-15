@@ -6,6 +6,7 @@ import type {
   Email,
   MessageChannel,
   NextScheduled,
+  TeamQuestion,
   WorkspaceApi,
 } from '../api';
 import type { Messages } from '../i18n';
@@ -20,6 +21,8 @@ export interface ClientTabContext {
   documents: ClientDocument[];
   /** Files received over the channels (channel-level, agent-agnostic). */
   files: DocumentFile[];
+  /** The agent's questions to the team, newest first (openspec `team-questions`). */
+  teamQuestions: TeamQuestion[];
   /** Refetch everything ClientView loads. */
   load: () => Promise<void>;
   /** Notify the shell (sidebar list, dashboard) that the client changed. */
@@ -61,6 +64,8 @@ export interface ClientTab {
   id: string;
   labelKey: MessageStringKey;
   render: (ctx: ClientTabContext) => ReactNode;
+  /** A count shown as a chip on the tab button (openspec `team-questions`); null or 0 = no chip. */
+  badge?: (ctx: ClientTabContext) => number | null;
   /**
    * Shown only while an admin views the workspace as the accountant (openspec
    * `admin-questionnaire-tab`), with the admin-only marker; the accountant's

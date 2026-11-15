@@ -268,6 +268,12 @@ export const DecisionResponseSchema = z.object({
    */
   attestation: z.enum(['request', 'confirmed']).nullable(),
   attestation_evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
+  /**
+   * A question for the client's team member (openspec `team-questions`, the
+   * `ask_team` tool): valid only on a follow_up whose message tells the client
+   * the office is being consulted, and never while a question is open.
+   */
+  team_question: z.object({ question: z.string(), why: z.string(), evidence_message_id: z.string() }).nullable().optional(),
 });
 
 export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
@@ -392,6 +398,14 @@ export interface DocumentRetirement {
 /** A validated attestation step (capital declaration). */
 export type AttestationDecision = { action: 'request' } | { action: 'confirmed'; evidence: QuoteEvidence };
 
+/** A validated question for the client's team member (openspec `team-questions`). */
+export interface TeamQuestionDecision {
+  question: string;
+  reason: string;
+  /** The inbound message that raised it; null when none was cited. */
+  evidenceMessageId: string | null;
+}
+
 export type NormalizedDecision =
   | {
       /** The client refused the collection in words (openspec `client-decline`): the answer carries nothing else (every list empty, by the gate). */
@@ -456,6 +470,8 @@ export type NormalizedDecision =
       /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
       statedVehicles: StatedVehicleDecision[];
       attestation: AttestationDecision | null;
+      /** A question for the team (openspec `team-questions`); the message of this answer is the holding note to the client. */
+      teamQuestion: TeamQuestionDecision | null;
     };
 
 /** One provider's fetch situation the validator needs: its state, availability, and pending document types. */
@@ -547,6 +563,8 @@ export interface DecisionContext {
    * the request schema drops the 'collect' value and the gate rejects it.
    */
   afterVerification?: boolean;
+  /** The client's question still waiting for the team (openspec `team-questions`): a second `ask_team` is rejected while it is open. */
+  openTeamQuestion?: { id: string; question: string; askedAt: Date } | null;
 }
 
 /**
@@ -1367,6 +1385,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       ...((raw.retired_documents ?? []).length > 0 ? ['retire_document'] : []),
       ...((raw.stated_costs ?? []).length > 0 ? ['state_cost'] : []),
       ...((raw.stated_vehicles ?? []).length > 0 ? ['state_vehicle'] : []),
+      ...(raw.team_question ? ['ask_team'] : []),
     ];
     if (extras.length > 0) {
       throw new Error(
@@ -1387,6 +1406,8 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       attestation: null,
     };
   }
+  // A question for the team rides only on a follow_up (openspec `team-questions`).
+  if (raw.decision !== 'follow_up') refuseTeamQuestion(raw);
   if (raw.decision === 'collect') {
     if (ctx.afterVerification) {
       throw new Error(
@@ -1471,5 +1492,38 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
     statedCosts,
     statedVehicles,
     attestation,
+    teamQuestion: validateTeamQuestion(raw, ctx),
   };
+}
+
+/**
+ * The `ask_team` rules (openspec `team-questions`): only on a follow_up (the
+ * answer's message is the holding note to the client), a non-blank question,
+ * never while a question is still open, and a cited message must be a real
+ * inbound of this thread. Called on the follow_up branch only; the other
+ * branches refuse the call outright.
+ */
+function validateTeamQuestion(raw: DecisionResponse, ctx: DecisionContext): TeamQuestionDecision | null {
+  const ask = raw.team_question;
+  if (!ask) return null;
+  const question = ask.question.trim();
+  if (question === '') throw new Error('ask_team: the question is empty — write the question for the team member, or drop the call');
+  if (ctx.openTeamQuestion) {
+    throw new Error(
+      `ask_team: a question for the team is already open since ${ctx.openTeamQuestion.askedAt.toISOString().slice(0, 16).replace('T', ' ')} ("${ctx.openTeamQuestion.question.slice(0, 120)}") — do not ask again; tell the client the office is still checking if they ask, and continue with the rest`,
+    );
+  }
+  const cited = ask.evidence_message_id.trim();
+  if (cited !== '' && ctx.intake && !ctx.intake.inboundTexts.has(cited)) {
+    throw new Error(`ask_team: evidence_message_id "${cited}" is not an inbound message of this thread — cite a real message id or ''`);
+  }
+  return { question, reason: ask.why.trim(), evidenceMessageId: cited === '' ? null : cited };
+}
+
+/** The refusal text for an `ask_team` call on a decision that cannot carry it. */
+function refuseTeamQuestion(raw: DecisionResponse): void {
+  if (!raw.team_question) return;
+  throw new Error(
+    `ask_team is valid only with a follow_up decision whose message tells the client you will check with the office — decision "${raw.decision}" cannot carry it`,
+  );
 }

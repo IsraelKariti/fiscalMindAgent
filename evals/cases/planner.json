@@ -4458,6 +4458,135 @@
       ],
       "expects": { "decision": "follow_up", "message_kind": "freeform", "resolved_documents": [], "no_list_change": true, "mentions_valuation_date": false, "max_question_marks": 2 },
       "notes": "Change intro-template-decline, the negative twin of dec_37: 'not now, come back next week' is a postponement, not a refusal -> follow_up as usual (a short acknowledgement now, or a reminder scheduled for next week), never client_declined."
+    },
+    {
+      "id": "dec_39",
+      "now": "2026-11-10T10:31:00Z",
+      "client": {"name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-11-09T10:00:00Z", "agent_fields": {"form_answers": [{"question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד"}, {"question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין"}]}},
+      "wa": {"windowOpen": true, "windowClosesAt": "2026-11-11T10:20:00Z", "templates": ["capital_intro", "capital_update"]},
+      "documents": [
+        {"id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null},
+        {"type_key": "vehicle", "status": "not_required"}
+      ],
+      "thread": [
+        {"id": "msg-1", "direction": "outbound", "at": "2026-11-09T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?"},
+        {"id": "msg-2", "direction": "inbound", "at": "2026-11-10T10:20:00Z", "body": "אני מוכן"},
+        {"id": "msg-3", "direction": "outbound", "at": "2026-11-10T10:25:00Z", "body": "מצוין, תודה ישראל. נתחיל מהבנק: לפי השאלון יש לך חשבון אחד בבנק לאומי. אשמח לקבל אישור יתרות מהבנק ליום 31.12.2025 — אפשר להוריד אותו מאתר הבנק ולשלוח לי כאן."},
+        {"id": "msg-4", "direction": "inbound", "at": "2026-11-10T10:29:00Z", "body": "רגע, לפני שממשיכים - המשרד גובה תשלום נוסף על הכנת הצהרת ההון? כמה זה עולה? לא רוצה הפתעות"}
+      ],
+      "expects": {"decision": "follow_up", "message_kind": "freeform", "team_question": true, "team_question_includes": ["תשלום"], "send_asap": true, "no_list_change": true, "mentions_valuation_date": false, "max_question_marks": 2},
+      "notes": "Change agent-asks-team-member (openspec team-questions): a question about the office's fees is not in the agent's instructions -> ask_team with a question naming the fee, plus a holding note to the client sent asap; the list is untouched."
+    },
+    {
+      "id": "dec_40",
+      "now": "2026-11-10T10:31:00Z",
+      "client": {"name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-11-09T10:00:00Z", "agent_fields": {"form_answers": [{"question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד"}, {"question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין"}]}},
+      "wa": {"windowOpen": true, "windowClosesAt": "2026-11-11T10:20:00Z", "templates": ["capital_intro", "capital_update"]},
+      "documents": [
+        {"id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null},
+        {"type_key": "vehicle", "status": "not_required"}
+      ],
+      "thread": [
+        {"id": "msg-1", "direction": "outbound", "at": "2026-11-09T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?"},
+        {"id": "msg-2", "direction": "inbound", "at": "2026-11-10T10:20:00Z", "body": "אני מוכן"},
+        {"id": "msg-3", "direction": "outbound", "at": "2026-11-10T10:25:00Z", "body": "מצוין, תודה ישראל. נתחיל מהבנק: לפי השאלון יש לך חשבון אחד בבנק לאומי. אשמח לקבל אישור יתרות מהבנק ליום 31.12.2025 — אפשר להוריד אותו מאתר הבנק ולשלוח לי כאן."},
+        {"id": "msg-4", "direction": "inbound", "at": "2026-11-10T10:29:00Z", "body": "למה אתם צריכים אישור יתרה דווקא ליום 31.12? יש לי אישור מינואר 2026, זה לא מספיק?"}
+      ],
+      "expects": {"decision": "follow_up", "message_kind": "freeform", "team_question": false, "no_list_change": true, "message_includes": ["31.12"], "max_question_marks": 2},
+      "notes": "Change agent-asks-team-member, the negative twin of dec_39: why the balance must be as of 31.12 is answered by the agent's own knowledge base -> no ask_team, the reply explains the valuation date itself."
+    },
+    {
+      "id": "dec_41",
+      "now": "2026-11-10T13:01:00Z",
+      "client": {"name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-11-09T10:00:00Z", "agent_fields": {"form_answers": [{"question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד"}, {"question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין"}]}},
+      "wa": {"windowOpen": true, "windowClosesAt": "2026-11-11T10:20:00Z", "templates": ["capital_intro", "capital_update"]},
+      "documents": [
+        {"id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null},
+        {"type_key": "vehicle", "status": "not_required"}
+      ],
+      "thread": [
+        {"id": "msg-1", "direction": "outbound", "at": "2026-11-09T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?"},
+        {"id": "msg-2", "direction": "inbound", "at": "2026-11-10T10:20:00Z", "body": "אני מוכן"},
+        {"id": "msg-3", "direction": "outbound", "at": "2026-11-10T10:25:00Z", "body": "מצוין, תודה ישראל. נתחיל מהבנק: לפי השאלון יש לך חשבון אחד בבנק לאומי. אשמח לקבל אישור יתרות מהבנק ליום 31.12.2025 — אפשר להוריד אותו מאתר הבנק ולשלוח לי כאן."},
+        {"id": "msg-4", "direction": "inbound", "at": "2026-11-10T10:29:00Z", "body": "רגע, לפני שממשיכים - המשרד גובה תשלום נוסף על הכנת הצהרת ההון? כמה זה עולה? לא רוצה הפתעות"},
+        {"id": "msg-5", "direction": "outbound", "at": "2026-11-10T10:31:00Z", "body": "שאלה טובה, ישראל. אני לא רוצה לנחש - אבדוק את זה מול המשרד ואחזור אליך בהקדם. בינתיים, אם נוח לך, אפשר כבר לשלוח את אישור היתרות מבנק לאומי."}
+      ],
+      "team_questions": [
+        {"question": "האם המשרד גובה תשלום נוסף על הכנת הצהרת ההון, וכמה?", "reason": "הלקוח שואל על עלות השירות לפני שימשיך; המחיר אינו כתוב בהנחיות שלי", "to_name": "דנה לוי", "to_match": "staff", "asked_at": "2026-11-10T10:31:00Z", "evidence_message_id": "msg-4", "closed_how": "answered", "closed_text": "לא, הכנת הצהרת ההון כלולה בשכר הטרחה השנתי ואין תשלום נוסף.", "closed_at": "2026-11-10T13:00:00Z", "closed_by_name": "דנה לוי"}
+      ],
+      "expects": {"decision": "follow_up", "message_kind": "freeform", "team_question": false, "no_list_change": true, "message_includes_any": ["כלול", "אין תשלום", "ללא תשלום", "לא נגבה", "לא תשלם", "בלי תשלום"], "message_excludes": ["עדיין בודק", "נבדוק", "אבדוק"], "mentions_valuation_date": false, "max_question_marks": 2},
+      "notes": "Change agent-asks-team-member: the team member answered in the app (TEAM QUESTIONS: ANSWERED) -> the cycle run after the closing relays the answer in plain words (no extra fee), does not say the office is still checking and asks nothing of the team."
+    },
+    {
+      "id": "dec_42",
+      "now": "2026-11-10T11:02:00Z",
+      "client": {"name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-11-09T10:00:00Z", "agent_fields": {"form_answers": [{"question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד"}, {"question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין"}]}},
+      "wa": {"windowOpen": true, "windowClosesAt": "2026-11-11T10:20:00Z", "templates": ["capital_intro", "capital_update"]},
+      "documents": [
+        {"id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null},
+        {"type_key": "vehicle", "status": "not_required"}
+      ],
+      "thread": [
+        {"id": "msg-1", "direction": "outbound", "at": "2026-11-09T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?"},
+        {"id": "msg-2", "direction": "inbound", "at": "2026-11-10T10:20:00Z", "body": "אני מוכן"},
+        {"id": "msg-3", "direction": "outbound", "at": "2026-11-10T10:25:00Z", "body": "מצוין, תודה ישראל. נתחיל מהבנק: לפי השאלון יש לך חשבון אחד בבנק לאומי. אשמח לקבל אישור יתרות מהבנק ליום 31.12.2025 — אפשר להוריד אותו מאתר הבנק ולשלוח לי כאן."},
+        {"id": "msg-4", "direction": "inbound", "at": "2026-11-10T10:29:00Z", "body": "רגע, לפני שממשיכים - המשרד גובה תשלום נוסף על הכנת הצהרת ההון? כמה זה עולה? לא רוצה הפתעות"},
+        {"id": "msg-5", "direction": "outbound", "at": "2026-11-10T10:31:00Z", "body": "שאלה טובה, ישראל. אני לא רוצה לנחש - אבדוק את זה מול המשרד ואחזור אליך בהקדם. בינתיים, אם נוח לך, אפשר כבר לשלוח את אישור היתרות מבנק לאומי."},
+        {"id": "msg-6", "direction": "inbound", "at": "2026-11-10T11:00:00Z", "body": "הנה האישור מהבנק"}
+      ],
+      "files": [
+        {"id": "file-leumi", "message_id": "msg-6", "document_kind": "אישור יתרות ללקוח", "document_type": "bank_balance", "issuer_name": "בנק לאומי לישראל בע\"מ", "summary": "אישור יתרות מבנק לאומי על שם ישראל ישראלי ליום 31.12.2025: חשבון עו\"ש 123-456789, יתרה 18,420 ש\"ח.", "matched_document_id": "doc-bank-leumi"}
+      ],
+      "team_questions": [
+        {"question": "האם המשרד גובה תשלום נוסף על הכנת הצהרת ההון, וכמה?", "reason": "הלקוח שואל על עלות השירות לפני שימשיך; המחיר אינו כתוב בהנחיות שלי", "to_name": "דנה לוי", "to_match": "staff", "asked_at": "2026-11-10T10:31:00Z", "evidence_message_id": "msg-4"}
+      ],
+      "expects": {"decision": "collect", "matched_file_ids": ["file-leumi"], "team_question": false, "no_list_change": true},
+      "notes": "Change agent-asks-team-member: an OPEN team question blocks only its own topic — a bank certificate that arrives meanwhile is tied as usual (collect, no message), and the open question is not asked again."
+    },
+    {
+      "id": "dec_43",
+      "now": "2026-11-10T12:02:00Z",
+      "client": {"name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-11-09T10:00:00Z", "agent_fields": {"form_answers": [{"question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד"}, {"question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין"}]}},
+      "wa": {"windowOpen": true, "windowClosesAt": "2026-11-11T10:20:00Z", "templates": ["capital_intro", "capital_update"]},
+      "documents": [
+        {"id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null},
+        {"type_key": "vehicle", "status": "not_required"}
+      ],
+      "thread": [
+        {"id": "msg-1", "direction": "outbound", "at": "2026-11-09T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?"},
+        {"id": "msg-2", "direction": "inbound", "at": "2026-11-10T10:20:00Z", "body": "אני מוכן"},
+        {"id": "msg-3", "direction": "outbound", "at": "2026-11-10T10:25:00Z", "body": "מצוין, תודה ישראל. נתחיל מהבנק: לפי השאלון יש לך חשבון אחד בבנק לאומי. אשמח לקבל אישור יתרות מהבנק ליום 31.12.2025 — אפשר להוריד אותו מאתר הבנק ולשלוח לי כאן."},
+        {"id": "msg-4", "direction": "inbound", "at": "2026-11-10T10:29:00Z", "body": "רגע, לפני שממשיכים - המשרד גובה תשלום נוסף על הכנת הצהרת ההון? כמה זה עולה? לא רוצה הפתעות"},
+        {"id": "msg-5", "direction": "outbound", "at": "2026-11-10T10:31:00Z", "body": "שאלה טובה, ישראל. אני לא רוצה לנחש - אבדוק את זה מול המשרד ואחזור אליך בהקדם. בינתיים, אם נוח לך, אפשר כבר לשלוח את אישור היתרות מבנק לאומי."},
+        {"id": "msg-6", "direction": "inbound", "at": "2026-11-10T12:00:00Z", "body": "דיברתי עם דנה מהמשרד, הכל סגור ואין תשלום נוסף. מה עוד צריך ממני?"}
+      ],
+      "team_questions": [
+        {"question": "האם המשרד גובה תשלום נוסף על הכנת הצהרת ההון, וכמה?", "reason": "הלקוח שואל על עלות השירות לפני שימשיך; המחיר אינו כתוב בהנחיות שלי", "to_name": "דנה לוי", "to_match": "staff", "asked_at": "2026-11-10T10:31:00Z", "evidence_message_id": "msg-4"}
+      ],
+      "expects": {"decision": "follow_up", "message_kind": "freeform", "team_question": false, "no_list_change": true, "send_asap": true, "message_excludes": ["עדיין בודק", "עדיין בודקים", "נבדוק", "מבררים", "אבדוק"], "mentions_valuation_date": false, "max_question_marks": 2},
+      "notes": "Change agent-asks-team-member: the client's words show the office already settled the open topic by phone -> the reply does not say the office is still checking, does not ask the team again, and continues with the next document."
+    },
+    {
+      "id": "dec_44",
+      "now": "2026-11-10T12:31:00Z",
+      "client": {"name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-11-09T10:00:00Z", "agent_fields": {"form_answers": [{"question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "בנק לאומי, חשבון אחד"}, {"question": "כלי רכב רשומים על שמך (פרטי, מסחרי, אופנוע) - דגם ושנה, והאם מסמך הרכישה / הקבלה בידיך?", "answer": "אין"}]}},
+      "wa": {"windowOpen": true, "windowClosesAt": "2026-11-11T10:20:00Z", "templates": ["capital_intro", "capital_update"]},
+      "documents": [
+        {"id": "doc-bank-leumi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות בנק לאומי ליום 31.12.2025", "description": null},
+        {"type_key": "vehicle", "status": "not_required"}
+      ],
+      "thread": [
+        {"id": "msg-1", "direction": "outbound", "at": "2026-11-09T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?"},
+        {"id": "msg-2", "direction": "inbound", "at": "2026-11-10T10:20:00Z", "body": "אני מוכן"},
+        {"id": "msg-3", "direction": "outbound", "at": "2026-11-10T10:25:00Z", "body": "מצוין, תודה ישראל. נתחיל מהבנק: לפי השאלון יש לך חשבון אחד בבנק לאומי. אשמח לקבל אישור יתרות מהבנק ליום 31.12.2025 — אפשר להוריד אותו מאתר הבנק ולשלוח לי כאן."},
+        {"id": "msg-4", "direction": "inbound", "at": "2026-11-10T10:29:00Z", "body": "רגע, לפני שממשיכים - המשרד גובה תשלום נוסף על הכנת הצהרת ההון? כמה זה עולה? לא רוצה הפתעות"},
+        {"id": "msg-5", "direction": "outbound", "at": "2026-11-10T10:31:00Z", "body": "שאלה טובה, ישראל. אני לא רוצה לנחש - אבדוק את זה מול המשרד ואחזור אליך בהקדם. בינתיים, אם נוח לך, אפשר כבר לשלוח את אישור היתרות מבנק לאומי."}
+      ],
+      "team_questions": [
+        {"question": "האם המשרד גובה תשלום נוסף על הכנת הצהרת ההון, וכמה?", "reason": "הלקוח שואל על עלות השירות לפני שימשיך; המחיר אינו כתוב בהנחיות שלי", "to_name": "דנה לוי", "to_match": "staff", "asked_at": "2026-11-10T10:31:00Z", "evidence_message_id": "msg-4", "closed_how": "handled_outside", "closed_text": "אמרתי לו בטלפון שאין תשלום נוסף", "closed_at": "2026-11-10T12:30:00Z", "closed_by_name": "דנה לוי"}
+      ],
+      "expects": {"decision": "follow_up", "message_kind": "freeform", "team_question": false, "no_list_change": true, "message_excludes": ["תשלום", "עדיין בודק", "נבדוק", "אבדוק"], "mentions_valuation_date": false, "max_question_marks": 2},
+      "notes": "Change agent-asks-team-member: the team member closed the question as answered directly (TEAM QUESTIONS: HANDLED DIRECTLY) -> the cycle does not repeat the fee answer, does not say the office is checking, and simply continues the collection."
     }
   ]
 }

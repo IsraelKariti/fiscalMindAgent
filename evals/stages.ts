@@ -64,6 +64,7 @@ import type {
   DocumentFileRow,
   DocumentStatus,
   EmailRow,
+  TeamQuestionRow,
   UserRow,
   WaTemplatePurpose,
   WaTemplateRow,
@@ -709,6 +710,22 @@ interface DecideCase {
     requestedAt: string | null;
     confirmed?: boolean;
   };
+  /**
+   * Questions the agent asked the team (openspec `team-questions`), shown in the TEAM QUESTIONS block newest
+   * first. An entry without `closed_how` is open — the gate then refuses a second `ask_team`.
+   */
+  team_questions?: {
+    question: string;
+    reason?: string;
+    to_name: string;
+    to_match?: 'accountant' | 'staff';
+    asked_at: string;
+    evidence_message_id?: string;
+    closed_how?: 'answered' | 'handled_outside';
+    closed_text?: string;
+    closed_at?: string;
+    closed_by_name?: string;
+  }[];
   expects: {
     /** 'collect' = the answer ties a file (or claims a document) and carries no message (openspec `verification-reply`). */
     decision: 'goal_complete' | 'follow_up' | 'collect';
@@ -756,8 +773,36 @@ interface DecideCase {
     max_question_marks?: number;
     /** When set: the answer must (true) / must not (false) carry send_at "asap" (openspec reply-send-asap). */
     send_asap?: boolean;
+    /** When set: the answer must (true) / must not (false) ask the team (`ask_team`, openspec `team-questions`). */
+    team_question?: boolean;
+    /** Substrings that must ALL appear in the question asked to the team. */
+    team_question_includes?: string[];
   };
   notes?: string;
+}
+
+/** The case's team questions as rows, newest first (openspec `team-questions`). */
+function teamQuestionRows(c: DecideCase): TeamQuestionRow[] {
+  return (c.team_questions ?? [])
+    .map((q, i) => ({
+      id: `tq-${i + 1}`,
+      client_id: 'client-eval',
+      agent_instance_id: 'instance-eval',
+      question: q.question,
+      reason: q.reason ?? '',
+      evidence_message_id: q.evidence_message_id ?? null,
+      asked_at: new Date(q.asked_at),
+      to_email: 'team@eval.example',
+      to_name: q.to_name,
+      to_match: q.to_match ?? 'staff',
+      closed_how: q.closed_how ?? null,
+      closed_text: q.closed_text ?? null,
+      closed_at: q.closed_at ? new Date(q.closed_at) : null,
+      closed_by: null,
+      closed_by_name: q.closed_by_name ?? null,
+      created_at: new Date(q.asked_at),
+    }))
+    .sort((a, b) => b.asked_at.getTime() - a.asked_at.getTime());
 }
 interface DecideCtx {
   taxYear: number;
@@ -1035,14 +1080,17 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
     })),
     intake,
   };
-  return { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx };
+  const teamQuestions = teamQuestionRows(c);
+  const openQuestion = teamQuestions.find((q) => q.closed_at === null);
+  decisionCtx.openTeamQuestion = openQuestion ? { id: openQuestion.id, question: openQuestion.question, askedAt: openQuestion.asked_at } : null;
+  return { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx, teamQuestions };
 }
 
 const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
   purpose: 'planner',
   load: () => readCases('planner'),
   build(c, ctx) {
-    const { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx } = decideInputs(c, ctx);
+    const { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx, teamQuestions } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
     const verificationResults: VerificationResultPromptInput[] = (c.verification_results ?? []).map((r, i) => {
       const doc = documents.find((d) => d.id === r.document_id);
@@ -1077,6 +1125,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       null,
       new Map(),
       decisionCtx.intake?.selfEvidentFiles ?? new Map(),
+      teamQuestions,
     );
     const { spec } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
     // The planner answers with tool calls (openspec `planner-answer-tools`); the judge runs the gate on them.
@@ -1265,6 +1314,14 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
     ];
     if (e.attestation !== undefined) checks.push(eq('attestation', e.attestation, decision.attestation?.action ?? null));
     if (e.tax_fetch_action !== undefined) checks.push(eq('tax_fetch_action', e.tax_fetch_action, decision.tax_fetch?.action ?? null));
+    // openspec `team-questions`: did the answer ask the team, and what.
+    const asked = decision.decision === 'follow_up' ? decision.teamQuestion : null;
+    if (e.team_question !== undefined) checks.push(eq('team_question', e.team_question, asked !== null));
+    for (const word of e.team_question_includes ?? []) {
+      const has = asked?.question.includes(word) === true;
+      checks.push({ key: `team_question_includes.${word}`, expected: true, actual: has, pass: has });
+    }
+    info.team_question = asked;
     info.tax_fetch = decision.tax_fetch ?? null;
     info.attestation = decision.attestation;
     info.collected_document_ids = decision.collected_document_ids;

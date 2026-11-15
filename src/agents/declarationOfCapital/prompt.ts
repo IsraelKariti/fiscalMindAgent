@@ -1,4 +1,4 @@
-import type { ClientDocumentRow, ClientRow, DocumentFileRow, EmailRow, UserRow, WaTemplateRow } from '../../db/types.js';
+import type { ClientDocumentRow, ClientRow, DocumentFileRow, EmailRow, TeamQuestionRow, UserRow, WaTemplateRow } from '../../db/types.js';
 import { env } from '../../config/env.js';
 import { humanizeDuration } from '../../util/time.js';
 import { isQuarantined } from '../shared/fileEvidence.js';
@@ -35,6 +35,8 @@ export const PLATFORM_SECTIONS = {
   deadline: 'COLLECTION DEADLINE',
   intake: 'INTAKE STATUS',
   verification: 'VERIFICATION RESULTS',
+  /** The questions the agent asked the client's team member and how each was closed (openspec `team-questions`). */
+  teamQuestions: 'TEAM QUESTIONS',
 } as const;
 
 /** Everything the prompt tells the LLM about the WhatsApp channel's current availability. */
@@ -602,6 +604,43 @@ export function buildUnsentDraftsSection(token: string, drafts: EmailRow[]): str
   return `${fence(token, name)}\n${lines.join('\n\n')}\n${endFence(token, name)}`;
 }
 
+/** How many of the client's team questions the prompt lists (newest first); older ones add nothing the thread does not show. */
+const MAX_TEAM_QUESTIONS = 5;
+const TEAM_QUESTION_TEXT_MAX = 1_500;
+
+/**
+ * The questions the agent asked the client's team member (openspec
+ * `team-questions`): each with its state — open (waiting), answered (the
+ * answer to relay), or handled directly (the team member spoke to the client;
+ * the collection just continues). Empty list → no block, so the prompt of a
+ * client without questions is unchanged.
+ */
+export function buildTeamQuestionsSection(token: string, questions: readonly TeamQuestionRow[]): string {
+  if (questions.length === 0) return '';
+  const name = PLATFORM_SECTIONS.teamQuestions;
+  const intro = [
+    'Questions you asked the office team about this client, newest first. An OPEN question is still waiting: do not ask it again and do not answer that topic yourself; everything else continues as usual.',
+    'An ANSWERED question carries office knowledge: relay the answer to the client in plain, friendly words (the thread shows whether you already did).',
+    'A HANDLED DIRECTLY question was settled by the team member with the client outside this chat: do not repeat it, just continue the collection.',
+  ].join('\n');
+  const lines = questions.slice(0, MAX_TEAM_QUESTIONS).map((q, i) => {
+    const asked = q.asked_at.toISOString();
+    const who = `${sanitizeInline(q.to_name, 120)} (${q.to_match === 'staff' ? 'team member' : 'the accountant'})`;
+    const head = `[question ${i + 1}] asked ${asked} | to: ${who}`;
+    const body = [`Q: ${sanitizeUntrusted(q.question, TEAM_QUESTION_TEXT_MAX)}`];
+    if (q.reason.trim() !== '') body.push(`Why asked: ${sanitizeUntrusted(q.reason, TEAM_QUESTION_TEXT_MAX)}`);
+    if (q.closed_at === null) return `${head} | OPEN — waiting for the team\n${body.join('\n')}`;
+    const closed = q.closed_at.toISOString();
+    const closer = sanitizeInline(q.closed_by_name ?? q.to_name, 120);
+    if (q.closed_how === 'answered') {
+      return `${head} | ANSWERED by ${closer} at ${closed}\n${body.join('\n')}\nA: ${sanitizeUntrusted(q.closed_text ?? '', TEAM_QUESTION_TEXT_MAX)}`;
+    }
+    const note = (q.closed_text ?? '').trim();
+    return `${head} | HANDLED DIRECTLY by ${closer} at ${closed} (spoke to the client outside this chat)\n${body.join('\n')}${note !== '' ? `\nNote: ${sanitizeUntrusted(note, TEAM_QUESTION_TEXT_MAX)}` : ''}`;
+  });
+  return `${fence(token, name)}\n${intro}\n\n${lines.join('\n\n')}\n${endFence(token, name)}`;
+}
+
 export function buildThreadTranscript(
   token: string,
   history: EmailRow[],
@@ -712,6 +751,8 @@ export function buildPrompt(
   lostFiles: LostFilesByMessage = new Map(),
   /** The self-evident files of the client, by file id (openspec `unlisted-files`). */
   selfEvidentFiles: ReadonlyMap<string, SelfEvidentFile> = new Map(),
+  /** The questions the agent asked the client's team, newest first (openspec `team-questions`). */
+  teamQuestions: readonly TeamQuestionRow[] = [],
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
@@ -724,6 +765,7 @@ export function buildPrompt(
     buildWhatsAppSection(token, waState),
     buildTaxFetchSection(token, taxFetch),
     buildUnsentDraftsSection(token, unsentDrafts),
+    buildTeamQuestionsSection(token, teamQuestions),
     buildVerificationResultsSection(token, verificationResults, afterVerification),
     buildThreadTranscript(token, history, files, lostFiles, selfEvidentFiles),
   ].filter((s) => s !== '');

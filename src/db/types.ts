@@ -379,3 +379,33 @@ export interface AccountantStaffRow {
   created_by: string | null;
   created_at: Date;
 }
+
+/** How a team question was closed (openspec `team-questions`): an answer for the agent to relay, or the team member already spoke to the client. */
+export type TeamQuestionClosedHow = 'answered' | 'handled_outside';
+
+/**
+ * A question the agent asked the client's team member (migration 068,
+ * openspec `team-questions`). `closed_*` are null while the question is open;
+ * `closed_text` is the answer (required) or the note of a question handled
+ * outside the app (optional).
+ */
+export interface TeamQuestionRow {
+  id: string;
+  client_id: string;
+  agent_instance_id: string;
+  question: string;
+  reason: string;
+  /** The inbound message (emails.id) the question rests on; null when none. */
+  evidence_message_id: string | null;
+  asked_at: Date;
+  to_email: string;
+  to_name: string;
+  /** Who the addressee is to the accountant: the accountant themself, or a staff entry. */
+  to_match: 'accountant' | 'staff';
+  closed_how: TeamQuestionClosedHow | null;
+  closed_text: string | null;
+  closed_at: Date | null;
+  closed_by: string | null;
+  closed_by_name: string | null;
+  created_at: Date;
+}

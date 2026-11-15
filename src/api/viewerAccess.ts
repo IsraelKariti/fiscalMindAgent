@@ -8,12 +8,13 @@
  * downloads). A viewer may also DRIVE a client's conversation: the
  * conversation-flow routes under /agents/<id>/clients/<id>/ — pause (PUT,
  * covers pause and resume), send-now, retry-send and redraft (POST, covers
- * retry draft and regenerate). Every other request — any other write, the
- * account-level routes (connections, mailbox, the staff list itself) and the
- * admin panel — is refused. Route paths are as seen by the /api router (no
- * "/api" prefix).
+ * retry draft and regenerate) — and close a question the agent asked the team
+ * (POST team-questions/<id>/close, openspec `team-questions`). Every other
+ * request — any other write, the account-level routes (connections, mailbox,
+ * the staff list itself) and the admin panel — is refused. Route paths are as
+ * seen by the /api router (no "/api" prefix).
  */
-const CONVERSATION_FLOW_ROUTE = /^\/agents\/[^/]+\/clients\/[^/]+\/(pause|send-now|retry-send|redraft)$/;
+const CONVERSATION_FLOW_ROUTE = /^\/agents\/[^/]+\/clients\/[^/]+\/(pause|send-now|retry-send|redraft|team-questions\/[^/]+\/close)$/;
 
 export function viewerMayRequest(method: string, path: string): boolean {
   const verb = method.toUpperCase();
@@ -21,7 +22,7 @@ export function viewerMayRequest(method: string, path: string): boolean {
   if (verb === 'PUT' || verb === 'POST') {
     const match = CONVERSATION_FLOW_ROUTE.exec(path);
     if (!match) return false;
-    // pause is a PUT route, the other three are POST — the same verbs the accountant uses.
+    // pause is a PUT route, the others are POST — the same verbs the accountant uses.
     return match[1] === 'pause' ? verb === 'PUT' : verb === 'POST';
   }
   return false;

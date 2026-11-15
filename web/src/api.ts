@@ -62,8 +62,29 @@ export interface Client {
   isTest: boolean;
   /** Lifetime LLM spend in USD (openspec `admin-roster-cost`): present only on an admin's view-as list, never for the accountant. */
   cost?: number;
+  /** The agent's question still waiting for the team (openspec `team-questions`); on roster rows only. null = none open. */
+  openTeamQuestion?: { toEmail: string; toName: string; askedAt: string } | null;
   created_at: string;
   updated_at: string;
+}
+
+/** A question the agent asked the client's team member (openspec `team-questions`). */
+export interface TeamQuestion {
+  id: string;
+  question: string;
+  reason: string;
+  /** The inbound message the question rests on; null when none. */
+  evidenceMessageId: string | null;
+  askedAt: string;
+  toEmail: string;
+  toName: string;
+  toMatch: 'accountant' | 'staff';
+  /** null while open; 'answered' = an answer for the agent to relay; 'handled_outside' = the team member spoke to the client. */
+  closedHow: 'answered' | 'handled_outside' | null;
+  /** The answer, or the optional note of a question handled outside. */
+  closedText: string | null;
+  closedAt: string | null;
+  closedByName: string | null;
 }
 
 /**
@@ -977,7 +998,7 @@ function makeWorkspaceApi(prefix: string) {
     createTestClient: (args: TestClientInput) =>
       request<{ client: Client }>(`${prefix}/clients/test`, { method: 'POST', body: JSON.stringify(args) }),
     getClient: (id: string, opts?: RequestOpts) =>
-      request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[] }>(
+      request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[]; teamQuestions?: TeamQuestion[] }>(
         `${prefix}/clients/${id}`,
         undefined,
         opts,
@@ -1018,6 +1039,12 @@ function makeWorkspaceApi(prefix: string) {
         body: JSON.stringify({ dueDate }),
       }),
     retryDraft: (clientId: string) => request<{ ok: true }>(`${prefix}/clients/${clientId}/redraft`, { method: 'POST' }),
+    /** Closes a question the agent asked the team (openspec `team-questions`): an answer to relay, or "I answered the client myself" with an optional note. */
+    closeTeamQuestion: (clientId: string, questionId: string, how: 'answered' | 'handled_outside', text: string) =>
+      request<{ question: TeamQuestion }>(`${prefix}/clients/${clientId}/team-questions/${questionId}/close`, {
+        method: 'POST',
+        body: JSON.stringify({ how, text }),
+      }),
     /** Re-fires a scheduled send whose attempt failed, keeping the same draft. */
     retrySend: (clientId: string) => request<{ ok: true }>(`${prefix}/clients/${clientId}/retry-send`, { method: 'POST' }),
     listFiles: (clientId: string, opts?: RequestOpts) =>

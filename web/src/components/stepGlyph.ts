@@ -21,6 +21,7 @@ export const PLANNER_TOOL_STEPS: ReadonlySet<string> = new Set([
   'send_whatsapp_template',
   'tax_fetch',
   'conclude',
+  'ask_team',
 ]);
 
 /** Code-only steps that change state (not a check, not a tool call). */

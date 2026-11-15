@@ -82,6 +82,18 @@ const ALWAYS_TOOLS: DecisionTool[] = [
       })
       .strict(),
   },
+  {
+    name: 'ask_team',
+    description:
+      "Ask the client's team member at the office one question you cannot settle yourself (office practice, an unusual document, a tax judgement). Only with a follow_up whose message tells the client you will check with the office (send_at \"asap\"); never while a question is still open (see TEAM QUESTIONS).",
+    params: z
+      .object({
+        question: z.string().describe('The question for the team member, in Hebrew, self-contained.'),
+        why: z.string().describe("Why you cannot answer it yourself, in one or two sentences; '' when obvious."),
+        evidence_message_id: z.string().describe("Id of the client's inbound message that raised it; '' when none."),
+      })
+      .strict(),
+  },
 ];
 
 const COLLECT_TOOLS: DecisionTool[] = [
@@ -221,6 +233,7 @@ export const DECISION_TOOL_NAMES = [
   'retire_document',
   'attestation',
   'tax_fetch',
+  'ask_team',
 ] as const;
 export type DecisionToolName = (typeof DECISION_TOOL_NAMES)[number];
 
@@ -354,6 +367,11 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
   if (fetches.length > 1) throw new Error('tax_fetch must be called at most once per answer');
   const fetch = fetches[0];
 
+  // One question to the team at most (openspec `team-questions`); the gate checks the rest.
+  const asks = of('ask_team');
+  if (asks.length > 1) throw new Error('ask_team must be called at most once per answer — one question per cycle');
+  const ask = asks[0];
+
   // Instances: under a row this answer resolves `required` they are that resolution's instances;
   // otherwise one added_instances entry per anchor (the validator rejects two entries on one anchor).
   const resolved = of('resolve_document');
@@ -485,6 +503,7 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
     stated_vehicles: statedVehicles,
     attestation: attestation ? (str(attestation.action) as DecisionResponse['attestation']) : null,
     attestation_evidence: attestation ? evidenceOf(attestation) : null,
+    team_question: ask ? { question: str(ask.question), why: str(ask.why), evidence_message_id: str(ask.evidence_message_id) } : null,
   };
 }
 
@@ -549,6 +568,6 @@ export function correctionSuffix(calls: ToolCall[], err: unknown): string {
     'Your rejected tool calls:',
     JSON.stringify(calls.map((c) => ({ name: c.name, args: c.args }))),
     `Validation error: ${message}`,
-    'Answer again with corrected tool calls, all in this one answer. Call conclude exactly once. Remember the three decision values: "collect" when the answer ties a file to a document (mark_collected, tie_file, or an add_instance with file_ids) — then make NO send_whatsapp_text / send_whatsapp_template call, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one WhatsApp message (send_whatsapp_text inside the 24h window, or send_whatsapp_template) with its send_at — a future "YYYY-MM-DD HH:MM" time, or "asap" for a reply to a client who is waiting right now — "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed; "client_declined" only when the client refused the WhatsApp collection in words — then call conclude and nothing else (the system sends the acknowledgement).',
+    'Answer again with corrected tool calls, all in this one answer. Call conclude exactly once. Remember the three decision values: "collect" when the answer ties a file to a document (mark_collected, tie_file, or an add_instance with file_ids) — then make NO send_whatsapp_text / send_whatsapp_template call, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one WhatsApp message (send_whatsapp_text inside the 24h window, or send_whatsapp_template) with its send_at — a future "YYYY-MM-DD HH:MM" time, or "asap" for a reply to a client who is waiting right now — "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed; "client_declined" only when the client refused the WhatsApp collection in words — then call conclude and nothing else (the system sends the acknowledgement). ask_team (a question for the office) goes only with a follow_up whose message tells the client you will check, at most once, and never while the TEAM QUESTIONS section shows an open question.',
   ].join('\n');
 }

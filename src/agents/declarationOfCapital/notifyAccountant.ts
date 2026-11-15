@@ -3,7 +3,8 @@ import { recordAudit } from '../../audit/audit.js';
 import { sendEmail } from '../../resend/send.js';
 import { env } from '../../config/env.js';
 import { sendToAccountantWith, type AccountantEmailKind } from './notifyAccountantCore.js';
-import type { ClientRow } from '../../db/types.js';
+import { teamQuestionEmail } from './teamQuestions.js';
+import type { ClientRow, TeamQuestionRow } from '../../db/types.js';
 
 /**
  * Notifications from the platform to the accountant, sent from a no-reply
@@ -11,13 +12,30 @@ import type { ClientRow } from '../../db/types.js';
  * authorizes the whole domain) to their login address. The record of each one
  * is the client's trace, see notifyAccountantCore.ts. Callers fire and forget.
  */
-export function sendToAccountant(client: ClientRow, kind: AccountantEmailKind, subject: string, body: string): Promise<void> {
-  return sendToAccountantWith(client, kind, subject, body, {
-    from: `FiscalMind <no-reply@${env.AGENT_EMAIL_DOMAIN}>`,
-    getUser: users.getById,
-    sendEmail,
-    recordAudit,
-  });
+export function sendToAccountant(client: ClientRow, kind: AccountantEmailKind, subject: string, body: string, to?: { email: string }): Promise<void> {
+  return sendToAccountantWith(
+    client,
+    kind,
+    subject,
+    body,
+    {
+      from: `FiscalMind <no-reply@${env.AGENT_EMAIL_DOMAIN}>`,
+      getUser: users.getById,
+      sendEmail,
+      recordAudit,
+    },
+    to,
+  );
+}
+
+/**
+ * The agent asked the client's team member a question (openspec
+ * `team-questions`): one email to the addressee stored on the question row
+ * (a staff member or the accountant), recorded on the trace like the others.
+ */
+export async function sendTeamQuestionEmail(client: ClientRow, question: TeamQuestionRow): Promise<void> {
+  const { subject, body } = teamQuestionEmail(client, question);
+  await sendToAccountant(client, 'team_question', subject, body, { email: question.to_email });
 }
 
 export async function sendGoalCompleteEmail(client: ClientRow): Promise<void> {

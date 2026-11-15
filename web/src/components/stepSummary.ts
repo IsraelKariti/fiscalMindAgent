@@ -301,9 +301,17 @@ const toolStepRows: Mapping = (d) => ({
   rows: (['applied', 'rolled', 'alreadyProvided'] as const).filter((k) => typeof d[k] === 'boolean').map((k) => yesNo(k, d[k])),
   consumed: ['tool', 'applied', 'rolled', 'alreadyProvided'],
 });
-for (const tool of ['resolve_document', 'add_instance', 'retire_document', 'state_cost', 'state_vehicle', 'attestation', 'tie_file', 'mark_collected', 'send_whatsapp_text', 'send_whatsapp_template', 'tax_fetch', 'conclude']) {
+for (const tool of ['resolve_document', 'add_instance', 'retire_document', 'state_cost', 'state_vehicle', 'attestation', 'tie_file', 'mark_collected', 'send_whatsapp_text', 'send_whatsapp_template', 'tax_fetch', 'conclude', 'ask_team']) {
   MAPPINGS[tool] = toolStepRows;
 }
+
+// A person closed the agent's question to the team (openspec `team-questions`):
+// how, in plain words, then the rest of the detail as recorded.
+const TEAM_QUESTION_HOW_HE: Record<string, string> = { answered: 'נענתה — הסוכן ימסור ללקוח', handled_outside: 'טופלה ישירות מול הלקוח' };
+MAPPINGS['team_question.closed'] = (d) => ({
+  rows: [{ key: 'how', value: TEAM_QUESTION_HOW_HE[str(d['how']) ?? ''] ?? str(d['how']) ?? '?' }],
+  consumed: ['how'],
+});
 
 /** The labelled rows of one step's detail, mapped keys first, then everything else in recorded order. */
 export function stepSummaryOf(action: string, detail: Detail): SummaryRow[] {

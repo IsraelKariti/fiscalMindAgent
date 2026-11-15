@@ -2,8 +2,8 @@ import { logger } from '../../util/logger.js';
 import type { recordAudit } from '../../audit/audit.js';
 import type { ClientRow, UserRow } from '../../db/types.js';
 
-/** Which platform notification an accountant email is (recorded as `detail.kind` on its trace row). */
-export type AccountantEmailKind = 'goal_complete' | 'claimed_documents' | 'verification_problem' | 'overdue' | 'declined';
+/** Which platform notification an accountant email is (recorded as `detail.kind` on its trace row). `team_question` may go to a staff member's address (openspec `team-questions`). */
+export type AccountantEmailKind = 'goal_complete' | 'claimed_documents' | 'verification_problem' | 'overdue' | 'declined' | 'team_question';
 
 /** The collaborators of sendToAccountantWith — the real ones in notifyAccountant.ts, stubs in tests. */
 export interface NotifyAccountantDeps {
@@ -23,6 +23,9 @@ export interface NotifyAccountantDeps {
  * an `email.accountant_failed` warning row with the same content and the
  * error. The error is rethrown so the caller's own catch still logs it; a
  * notification failure must never fail planning or a route.
+ *
+ * `to` names an explicit recipient (a team member, openspec `team-questions`)
+ * instead of the client's owner.
  */
 export async function sendToAccountantWith(
   client: Pick<ClientRow, 'id' | 'name' | 'user_id' | 'agent_instance_id'>,
@@ -30,21 +33,26 @@ export async function sendToAccountantWith(
   subject: string,
   body: string,
   deps: NotifyAccountantDeps,
+  to?: { email: string },
 ): Promise<void> {
-  if (!client.user_id) {
-    logger.warn('accountant notification skipped: legacy client without owner', { clientId: client.id });
-    return;
+  let recipient = to?.email ?? null;
+  if (recipient === null) {
+    if (!client.user_id) {
+      logger.warn('accountant notification skipped: legacy client without owner', { clientId: client.id });
+      return;
+    }
+    const user = await deps.getUser(client.user_id);
+    if (!user) {
+      logger.warn('accountant notification skipped: missing user', { clientId: client.id, userId: client.user_id });
+      return;
+    }
+    recipient = user.email;
   }
-  const user = await deps.getUser(client.user_id);
-  if (!user) {
-    logger.warn('accountant notification skipped: missing user', { clientId: client.id, userId: client.user_id });
-    return;
-  }
-  const content = { clientName: client.name, kind, to: user.email, subject, body };
+  const content = { clientName: client.name, kind, to: recipient, subject, body };
   const audit = { actorType: 'agent' as const, agentInstanceId: client.agent_instance_id, clientId: client.id, targetType: 'email' };
   let resendId: string;
   try {
-    ({ resendId } = await deps.sendEmail({ from: deps.from, to: user.email, subject, body }));
+    ({ resendId } = await deps.sendEmail({ from: deps.from, to: recipient, subject, body }));
   } catch (err) {
     deps.recordAudit({
       ...audit,
@@ -54,6 +62,6 @@ export async function sendToAccountantWith(
     });
     throw err;
   }
-  logger.info('accountant notified', { clientId: client.id, to: user.email, subject });
+  logger.info('accountant notified', { clientId: client.id, to: recipient, subject });
   deps.recordAudit({ ...audit, action: 'email.accountant_sent', detail: { ...content, resendId } });
 }

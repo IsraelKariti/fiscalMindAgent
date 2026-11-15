@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import {
   addInstanceDetail,
+  askTeamDetail,
   attestationDetail,
   attributeCollectionOutcome,
   concludeDetail,
@@ -19,7 +20,34 @@ import type { DocumentFileRow } from '../src/db/types.js';
 // Every planner tool is an audited step name (openspec `conversation-trace`): a compile-time check.
 const TOOL_ACTIONS: AuditAction[] = [...DECISION_TOOL_NAMES];
 test('every planner tool name is an audit action', () => {
-  assert.equal(TOOL_ACTIONS.length, 12);
+  assert.equal(TOOL_ACTIONS.length, 13);
+});
+
+// openspec `team-questions`: the ask_team step carries the question, the reason, the addressee and the stored id.
+test('askTeamDetail: an asked question names the addressee and the question id; a skipped one says why', () => {
+  const asked = askTeamDetail(
+    { name: 'ask_team', args: { question: 'האם המשרד מחזיק בהצהרה הקודמת?', why: 'נוהג משרד', evidence_message_id: 'm1' } },
+    { questionId: 'q1', toName: 'דנה', toEmail: 'dana@office.co.il', toMatch: 'staff', applied: true },
+  );
+  assert.deepEqual(asked, {
+    tool: 'ask_team',
+    question: 'האם המשרד מחזיק בהצהרה הקודמת?',
+    why: 'נוהג משרד',
+    messageId: 'm1',
+    questionId: 'q1',
+    to: 'דנה',
+    toEmail: 'dana@office.co.il',
+    toMatch: 'staff',
+    applied: true,
+    reason: 'asked דנה (staff)',
+  });
+  const skipped = askTeamDetail(
+    { name: 'ask_team', args: { question: 'q', why: '', evidence_message_id: '' } },
+    { questionId: null, toName: '', toEmail: '', toMatch: 'accountant', applied: false, reason: 'no addressee' },
+  );
+  assert.equal(skipped.applied, false);
+  assert.equal(skipped.reason, 'no addressee');
+  assert.ok(!('messageId' in skipped) && !('questionId' in skipped));
 });
 
 const docs = new Map([

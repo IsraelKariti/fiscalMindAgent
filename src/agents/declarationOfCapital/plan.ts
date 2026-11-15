@@ -7,10 +7,12 @@ import * as auditEvents from '../../db/queries/auditEvents.js';
 import * as waSenders from '../../db/queries/waSenders.js';
 import * as waTemplates from '../../db/queries/waTemplates.js';
 import * as users from '../../db/queries/users.js';
+import * as teamQuestions from '../../db/queries/teamQuestions.js';
 import { sendWhatsAppTextAndRecord } from '../../twilio/sendAndRecord.js';
 import { closingMessageDelivery } from './closingMessage.js';
 import { buildPrompt, type VerificationResultPromptInput, type WaChannelState } from './prompt.js';
-import { sendClaimedDocumentsEmail, sendGoalCompleteEmail } from './notifyAccountant.js';
+import { sendClaimedDocumentsEmail, sendGoalCompleteEmail, sendTeamQuestionEmail } from './notifyAccountant.js';
+import { teamQuestionAddressee } from './teamQuestions.js';
 import { applicableFilePairs, fileMatchesDocument, isQuarantined, isVerifiedLegibleFile } from '../shared/fileEvidence.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { lastInboundMessageAt, resolveSendAt, rollBlockedSendAt } from '../shared/sendAtGuard.js';
@@ -29,6 +31,7 @@ import { planCompanySplit } from './companySplit.js';
 import { lostFilesByMessage } from './lostFiles.js';
 import {
   addInstanceDetail,
+  askTeamDetail,
   attestationDetail,
   attributeCollectionOutcome,
   concludeDetail,
@@ -55,7 +58,7 @@ import { windowCloseTime } from '../../orchestration/whatsappWindow.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext } from '../types.js';
-import type { ClientDocumentRow, ClientRow, DocumentFileRow, EmailRow } from '../../db/types.js';
+import type { ClientDocumentRow, ClientRow, DocumentFileRow, EmailRow, TeamQuestionRow } from '../../db/types.js';
 import { splitTemplatesByPurpose } from './templatePurpose.js';
 import { handleClientDecline } from './clientDecline.js';
 
@@ -138,6 +141,8 @@ interface PlanRun {
   taxFetchContexts: TaxFetchContext[];
   intake: IntakeDecisionState;
   attestationConfirmed: boolean;
+  /** The questions the agent asked the client's team, newest first (openspec `team-questions`): the prompt section and the one-open-question gate. */
+  teamQuestions: TeamQuestionRow[];
   /** The gate-accepted calls of the planner's answer, in call order: each is executed and recorded as its own step (openspec `conversation-trace`). */
   calls: ParsedToolCall[];
 }
@@ -211,7 +216,48 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   if (await completeGoalIfDone(run, decision)) return;
   if (decision.decision !== 'follow_up') return; // unreachable: 'collect' returned above, goal_complete ended the cycle or threw
   recordConclude(run, { kind: 'follow_up' });
+  await applyAskTeam(run, decision);
   await scheduleReply(run, decision);
+}
+
+/**
+ * `ask_team` (openspec `team-questions`): store the question for the client's
+ * team member, record the step, and email the addressee — before the holding
+ * message to the client is scheduled, so a crash in between leaves a question
+ * the team can see rather than a promise nobody received. The email is fire
+ * and forget: a failed send leaves the question open and answerable in the
+ * app. A client whose owner has no email at all (legacy rows) cannot ask: the
+ * step records why and the cycle goes on with the message.
+ */
+async function applyAskTeam(run: PlanRun, decision: FollowUpDecision): Promise<void> {
+  const ask = decision.teamQuestion;
+  const call = callOf(run, 'ask_team');
+  if (!ask || !call) return;
+  const { client, clientId } = run;
+  const to = teamQuestionAddressee(client, run.ctx.accountant);
+  if (!to || !client.agent_instance_id) {
+    recordToolStep(run, call, askTeamDetail(call, { questionId: null, toName: '', toEmail: '', toMatch: 'accountant', applied: false, reason: 'no addressee: the client has no owner with an email' }));
+    logger.warn('ask_team skipped: no addressee', { clientId });
+    return;
+  }
+  const row = await teamQuestions.insert({
+    clientId,
+    agentInstanceId: client.agent_instance_id,
+    question: ask.question,
+    reason: ask.reason,
+    evidenceMessageId: ask.evidenceMessageId,
+    toEmail: to.email,
+    toName: to.name,
+    toMatch: to.match,
+  });
+  run.teamQuestions = [row, ...run.teamQuestions];
+  recordToolStep(run, call, askTeamDetail(call, { questionId: row.id, toName: to.name, toEmail: to.email, toMatch: to.match, applied: true }), {
+    type: 'team_question',
+    id: row.id,
+  });
+  logger.info('team question asked', { clientId, questionId: row.id, to: to.email, match: to.match });
+  publishClientUpdated(clientId);
+  void sendTeamQuestionEmail(client, row).catch((err) => logger.error('team question email failed', err, { clientId, questionId: row.id }));
 }
 
 /** One code-only step row of this cycle (send_closing, …). Never written for a no-op. */
@@ -282,6 +328,7 @@ async function loadPlanningContext(ctx: AgentContext): Promise<PlanRun> {
   const waState = await loadWaChannelOrThrow(client, now, agentType);
   const taxFetchContexts = await loadTaxFetchContexts(client, documents, waState, lastInboundWhatsAppAt(history));
   const { intake, attestationConfirmed } = await buildIntakeState(client, history, documents, files);
+  const questions = await teamQuestions.listForClient(clientId);
   return {
     ctx,
     client,
@@ -298,6 +345,7 @@ async function loadPlanningContext(ctx: AgentContext): Promise<PlanRun> {
     taxFetchContexts,
     intake,
     attestationConfirmed,
+    teamQuestions: questions,
     calls: [],
   };
 }
@@ -454,6 +502,7 @@ async function buildPlannerPrompt(run: PlanRun): Promise<{ systemInstruction: st
     (await clientIdNumber(client, 'israel_tax_authority')) !== null,
     lostFiles,
     intake.selfEvidentFiles ?? new Map(),
+    run.teamQuestions,
   );
   return { systemInstruction, contents };
 }
@@ -533,7 +582,14 @@ function buildDecisionContext(run: PlanRun): DecisionContext {
       documentKeys: pendingKeys(c),
     })),
     intake: run.intake,
+    openTeamQuestion: openTeamQuestionOf(run.teamQuestions),
   };
+}
+
+/** The client's question still waiting for the team, as the gate reads it (openspec `team-questions`). */
+function openTeamQuestionOf(questions: readonly TeamQuestionRow[]): DecisionContext['openTeamQuestion'] {
+  const open = questions.find((q) => q.closed_at === null);
+  return open ? { id: open.id, question: open.question, askedAt: open.asked_at } : null;
 }
 
 /**

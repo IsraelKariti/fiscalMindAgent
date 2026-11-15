@@ -1,4 +1,48 @@
-import type { ClientRow, EmailRow } from '../db/types.js';
+import type { ClientRow, EmailRow, TeamQuestionRow } from '../db/types.js';
+
+/** A team question as the workspace reads it (openspec `team-questions`): the closer's user id stays server-side. */
+export interface WorkspaceTeamQuestion {
+  id: string;
+  question: string;
+  reason: string;
+  evidenceMessageId: string | null;
+  askedAt: Date;
+  toEmail: string;
+  toName: string;
+  toMatch: 'accountant' | 'staff';
+  closedHow: 'answered' | 'handled_outside' | null;
+  closedText: string | null;
+  closedAt: Date | null;
+  closedByName: string | null;
+}
+
+export function toTeamQuestion(row: TeamQuestionRow): WorkspaceTeamQuestion {
+  return {
+    id: row.id,
+    question: row.question,
+    reason: row.reason,
+    evidenceMessageId: row.evidence_message_id,
+    askedAt: row.asked_at,
+    toEmail: row.to_email,
+    toName: row.to_name,
+    toMatch: row.to_match,
+    closedHow: row.closed_how,
+    closedText: row.closed_text,
+    closedAt: row.closed_at,
+    closedByName: row.closed_by_name,
+  };
+}
+
+/** The roster's note of a client's open question (openspec `team-questions`): enough for the sidebar badge and the "for me" chip. */
+export function attachOpenTeamQuestion<T extends { id: string }>(
+  rows: T[],
+  open: Map<string, TeamQuestionRow>,
+): (T & { openTeamQuestion: { toEmail: string; toName: string; askedAt: Date } | null })[] {
+  return rows.map((row) => {
+    const q = open.get(row.id);
+    return { ...row, openTeamQuestion: q ? { toEmail: q.to_email, toName: q.to_name, askedAt: q.asked_at } : null };
+  });
+}
 
 /**
  * Strips the admin-only pilot-supervision fields (048) from rows before they

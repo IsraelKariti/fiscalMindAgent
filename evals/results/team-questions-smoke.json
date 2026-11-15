@@ -1,0 +1,746 @@
+{
+  "ranAt": "2026-11-15T17:03:52.551Z",
+  "finishedAt": "2026-11-15T17:04:23.225Z",
+  "models": [
+    "gpt-6-astra"
+  ],
+  "stages": [
+    "planner"
+  ],
+  "concurrency": 3,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gpt-6-astra": {
+      "model": "gpt-6-astra",
+      "inputCostPerToken": 0.00001,
+      "outputCostPerToken": 0.00005,
+      "thinkingCostPerToken": 0.00005,
+      "cachedCostPerToken": 0.000001
+    }
+  },
+  "results": [
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_40",
+      "notes": "Change agent-asks-team-member, the negative twin of dec_39: why the balance must be as of 31.12 is answered by the agent's own knowledge base -> no ask_team, the reply explains the valuation date itself.",
+      "ranAt": "2026-11-15T17:03:52.660Z",
+      "latencyMs": 12640,
+      "attempts": 1,
+      "inputTokens": 33367,
+      "outputTokens": 188,
+      "thinkingTokens": 0,
+      "cachedTokens": 22303,
+      "costUsd": 0.142343,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "ישראל, הצהרת ההון היא צילום מצב ליום 31.12.2025, ולכן צריך אישור שמציג את היתרות לאותו יום, ולא לינואר. אם האישור הופק בינואר אבל מציג יתרות ל־31.12.2025, הוא מתאים. תוכל לבדוק לאיזה תאריך מתייחס האישור שבידך?",
+              "send_at": "asap"
+            },
+            "turn": 1
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "הוסבר שהאישור צריך לשקף יתרות ליום ההצהרה 31.12.2025, ושמועד הפקתו בינואר אינו פוסל אותו. התבקש בירור של תאריך היתרות באישור הקיים, ללא צורך בפנייה למשרד."
+            },
+            "turn": 2
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "mentions_valuation_date",
+          "expected": "31.12.2025",
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-11-10T10:31:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes.31.12",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "team_question",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "הוסבר שהאישור צריך לשקף יתרות ליום ההצהרה 31.12.2025, ושמועד הפקתו בינואר אינו פוסל אותו. התבקש בירור של תאריך היתרות באישור הקיים, ללא צורך בפנייה למשרד.",
+        "send_at": "asap",
+        "message": "ישראל, הצהרת ההון היא צילום מצב ליום 31.12.2025, ולכן צריך אישור שמציג את היתרות לאותו יום, ולא לינואר. אם האישור הופק בינואר אבל מציג יתרות ל־31.12.2025, הוא מתאים. תוכל לבדוק לאיזה תאריך מתייחס האישור שבידך?",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "team_question": null,
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_41",
+      "notes": "Change agent-asks-team-member: the team member answered in the app (TEAM QUESTIONS: ANSWERED) -> the cycle run after the closing relays the answer in plain words (no extra fee), does not say the office is still checking and asks nothing of the team.",
+      "ranAt": "2026-11-15T17:03:52.664Z",
+      "latencyMs": 14393,
+      "attempts": 1,
+      "inputTokens": 34146,
+      "outputTokens": 191,
+      "thinkingTokens": 124,
+      "cachedTokens": 1634,
+      "costUsd": 0.34250400000000003,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "ישראל, בדקתי מול המשרד: הכנת הצהרת ההון כלולה בשכר הטרחה השנתי, ואין עליה תשלום נוסף. כשתוכל, תשלח כאן את אישור היתרות מבנק לאומי ליום 31.12.2025 שביקשתי קודם?",
+              "send_at": "2026-11-10 15:05"
+            },
+            "turn": 1
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "המשרד השיב שהכנת הצהרת ההון כלולה בשכר הטרחה השנתי ללא תוספת. נקבעה הודעה בחלון הפתוח להעברת התשובה ולבקשת אישור היתרות שעדיין חסר; אין בסיס לעדכון סטטוס המסמכים."
+            },
+            "turn": 2
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-11-10T13:01:00Z",
+          "actual": "2026-11-10 15:05",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "כלול",
+            "אין תשלום",
+            "ללא תשלום",
+            "לא נגבה",
+            "לא תשלם",
+            "בלי תשלום"
+          ],
+          "actual": [
+            "כלול"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.עדיין בודק",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.נבדוק",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.אבדוק",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "team_question",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "המשרד השיב שהכנת הצהרת ההון כלולה בשכר הטרחה השנתי ללא תוספת. נקבעה הודעה בחלון הפתוח להעברת התשובה ולבקשת אישור היתרות שעדיין חסר; אין בסיס לעדכון סטטוס המסמכים.",
+        "send_at": "2026-11-10 15:05",
+        "message": "ישראל, בדקתי מול המשרד: הכנת הצהרת ההון כלולה בשכר הטרחה השנתי, ואין עליה תשלום נוסף. כשתוכל, תשלח כאן את אישור היתרות מבנק לאומי ליום 31.12.2025 שביקשתי קודם?",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "team_question": null,
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_39",
+      "notes": "Change agent-asks-team-member (openspec team-questions): a question about the office's fees is not in the agent's instructions -> ask_team with a question naming the fee, plus a holding note to the client sent asap; the list is untouched.",
+      "ranAt": "2026-11-15T17:03:52.566Z",
+      "latencyMs": 18711,
+      "attempts": 1,
+      "inputTokens": 39961,
+      "outputTokens": 297,
+      "thinkingTokens": 0,
+      "cachedTokens": 30247,
+      "costUsd": 0.142237,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "ask_team",
+            "args": {
+              "question": "ישראל ישראלי מבקש לדעת לפני המשך איסוף המסמכים להצהרת ההון ליום 31.12.2025 האם הכנת ההצהרה כרוכה בתשלום נוסף, ומה המחיר עבורו. האם יש תוספת תשלום ומה הסכום והתנאים שיש למסור לו?",
+              "why": "תמחור השירות וההסכם עם הלקוח אינם מופיעים בתיק שסופק.",
+              "evidence_message_id": "msg-4"
+            },
+            "turn": 1
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "בהחלט, ישראל — חשוב לברר את העלות לפני שממשיכים. אין לי כאן את פרטי התמחור שסוכמו איתך, אז אבדוק עם המשרד אם הכנת הצהרת ההון כרוכה בתשלום נוסף ומה המחיר עבורך. נמתין להבהרה לפני שנמשיך באיסוף המסמכים.",
+              "send_at": "asap"
+            },
+            "turn": 2
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "הלקוח מבקש לברר תמחור לפני המשך האיסוף. מאחר שאין מידע על עלות השירות, הועברה שאלה למשרד ונשלחה הודעה מיידית ללקוח שהעלות תיבדק ושהאיסוף ימתין להבהרה."
+            },
+            "turn": 3
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-11-10T10:31:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "send_asap",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "team_question",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "team_question_includes.תשלום",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "ask_team",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "הלקוח מבקש לברר תמחור לפני המשך האיסוף. מאחר שאין מידע על עלות השירות, הועברה שאלה למשרד ונשלחה הודעה מיידית ללקוח שהעלות תיבדק ושהאיסוף ימתין להבהרה.",
+        "send_at": "asap",
+        "message": "בהחלט, ישראל — חשוב לברר את העלות לפני שממשיכים. אין לי כאן את פרטי התמחור שסוכמו איתך, אז אבדוק עם המשרד אם הכנת הצהרת ההון כרוכה בתשלום נוסף ומה המחיר עבורך. נמתין להבהרה לפני שנמשיך באיסוף המסמכים.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "team_question": {
+          "question": "ישראל ישראלי מבקש לדעת לפני המשך איסוף המסמכים להצהרת ההון ליום 31.12.2025 האם הכנת ההצהרה כרוכה בתשלום נוסף, ומה המחיר עבורו. האם יש תוספת תשלום ומה הסכום והתנאים שיש למסור לו?",
+          "reason": "תמחור השירות וההסכם עם הלקוח אינם מופיעים בתיק שסופק.",
+          "evidenceMessageId": "msg-4"
+        },
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_42",
+      "notes": "Change agent-asks-team-member: an OPEN team question blocks only its own topic — a bank certificate that arrives meanwhile is tied as usual (collect, no message), and the open question is not asked again.",
+      "ranAt": "2026-11-15T17:04:05.309Z",
+      "latencyMs": 16670,
+      "attempts": 1,
+      "inputTokens": 48288,
+      "outputTokens": 295,
+      "thinkingTokens": 39,
+      "cachedTokens": 37437,
+      "costUsd": 0.162647,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "mark_collected",
+            "args": {
+              "document_id": "doc-bank-leumi"
+            },
+            "turn": 1
+          },
+          {
+            "name": "tie_file",
+            "args": {
+              "file_id": "file-leumi",
+              "document_id": "doc-bank-leumi",
+              "evidence_message_id": "",
+              "evidence_quote": ""
+            },
+            "turn": 2
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "תודה ישראל, קיבלתי את אישור היתרות מבנק לאומי ליום 31.12.2025 והוא מתאים לבקשה.\nלגבי עלות הכנת ההצהרה — אני עדיין ממתין לתשובת המשרד.\nאם נוח לך להמשיך בינתיים: האם היו לך ביום 31.12.2025 תיקי ניירות ערך או חשבונות השקעות בבנק או בבית השקעות? אם כן, באילו גופים וכמה חשבונות בכל אחד?",
+              "send_at": "asap"
+            },
+            "turn": 3
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "שויך אישור היתרות המאומת של לאומי למסמך הנדרש. נשלחה הודעת קבלה ושאלת בירור על חשבונות השקעות, עם אפשרות להמשיך בינתיים ותזכורת שתשובת המשרד בנושא המחיר עדיין ממתינה, ללא פתיחת שאלה נוספת לצוות."
+            },
+            "turn": 4
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "a follow_up answer must not tie files: collected_document_ids, matched_files or an instance's file_ids is filled — answer \"collect\" (with every message field and send_at null) instead",
+          "pass": false
+        },
+        {
+          "key": "decision",
+          "expected": "collect",
+          "actual": "follow_up",
+          "pass": false
+        }
+      ],
+      "info": {
+        "calls": [
+          "mark_collected",
+          "tie_file",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "שויך אישור היתרות המאומת של לאומי למסמך הנדרש. נשלחה הודעת קבלה ושאלת בירור על חשבונות השקעות, עם אפשרות להמשיך בינתיים ותזכורת שתשובת המשרד בנושא המחיר עדיין ממתינה, ללא פתיחת שאלה נוספת לצוות.",
+        "send_at": "asap"
+      },
+      "pass": false
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_43",
+      "notes": "Change agent-asks-team-member: the client's words show the office already settled the open topic by phone -> the reply does not say the office is still checking, does not ask the team again, and continues with the next document.",
+      "ranAt": "2026-11-15T17:04:07.060Z",
+      "latencyMs": 15524,
+      "attempts": 1,
+      "inputTokens": 34278,
+      "outputTokens": 234,
+      "thinkingTokens": 114,
+      "cachedTokens": 23937,
+      "costUsd": 0.144747,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "מעולה, ישראל, נמשיך בבירור קצר של מה שרלוונטי לך ליום 31.12.2025.\nהאם היו לך תיקי ניירות ערך או חשבונות השקעות, ואם כן — כמה ובאילו בנקים או בתי השקעות?\nאילו קרנות פנסיה, קופות גמל וקרנות השתלמות היו לך — כמה ובאילו גופים?\nאם יש בן או בת זוג, כלול גם את שלהם; מה שלא קיים, מספיק לכתוב שאין.",
+              "send_at": "asap"
+            },
+            "turn": 1
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "הלקוח ביקש להמשיך לאחר שדיווח ששוחח עם דנה. נשלחה הודעת בירור על השקעות וחיסכון פנסיוני לצורך הסדרת סעיפים פתוחים, בלי לקבוע דבר בנושא המחיר או לפתוח שאלת צוות כפולה בזמן שהשאלה הקיימת עדיין פתוחה."
+            },
+            "turn": 2
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 2,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-11-10T12:02:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "send_asap",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.עדיין בודק",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.עדיין בודקים",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.נבדוק",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.מבררים",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.אבדוק",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "team_question",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "הלקוח ביקש להמשיך לאחר שדיווח ששוחח עם דנה. נשלחה הודעת בירור על השקעות וחיסכון פנסיוני לצורך הסדרת סעיפים פתוחים, בלי לקבוע דבר בנושא המחיר או לפתוח שאלת צוות כפולה בזמן שהשאלה הקיימת עדיין פתוחה.",
+        "send_at": "asap",
+        "message": "מעולה, ישראל, נמשיך בבירור קצר של מה שרלוונטי לך ליום 31.12.2025.\nהאם היו לך תיקי ניירות ערך או חשבונות השקעות, ואם כן — כמה ובאילו בנקים או בתי השקעות?\nאילו קרנות פנסיה, קופות גמל וקרנות השתלמות היו לך — כמה ובאילו גופים?\nאם יש בן או בת זוג, כלול גם את שלהם; מה שלא קיים, מספיק לכתוב שאין.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "team_question": null,
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "planner",
+      "model": "gpt-6-astra",
+      "provider": "openai",
+      "caseId": "dec_44",
+      "notes": "Change agent-asks-team-member: the team member closed the question as answered directly (TEAM QUESTIONS: HANDLED DIRECTLY) -> the cycle does not repeat the fee answer, does not say the office is checking, and simply continues the collection.",
+      "ranAt": "2026-11-15T17:04:11.278Z",
+      "latencyMs": 11944,
+      "attempts": 1,
+      "inputTokens": 34141,
+      "outputTokens": 197,
+      "thinkingTokens": 133,
+      "cachedTokens": 23937,
+      "costUsd": 0.142477,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "היי ישראל, כשתתפנה, תוכל לשלוח כאן את אישור היתרות מלאומי ליום 31.12.2025 שביקשתי? אם יש קושי בהפקת האישור, כתוב לי ואשמח לעזור.",
+              "send_at": "2026-11-11 11:00"
+            },
+            "turn": 1
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "המשרד טיפל בשאלת המחיר ישירות עם הלקוח, ולכן אין לחזור עליה או לשאול שוב. אישור היתרות מלאומי עדיין חסר; נקבעה תזכורת קצרה למחר בשעה 11:00, בתוך חלון הוואטסאפ הפתוח, כדי להמשיך באיסוף בלי לשלוח תזכורת נוספת מיד."
+            },
+            "turn": 2
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-11-10T12:31:00Z",
+          "actual": "2026-11-11 11:00",
+          "pass": true
+        },
+        {
+          "key": "message_excludes.תשלום",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.עדיין בודק",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.נבדוק",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.אבדוק",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "team_question",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "המשרד טיפל בשאלת המחיר ישירות עם הלקוח, ולכן אין לחזור עליה או לשאול שוב. אישור היתרות מלאומי עדיין חסר; נקבעה תזכורת קצרה למחר בשעה 11:00, בתוך חלון הוואטסאפ הפתוח, כדי להמשיך באיסוף בלי לשלוח תזכורת נוספת מיד.",
+        "send_at": "2026-11-11 11:00",
+        "message": "היי ישראל, כשתתפנה, תוכל לשלוח כאן את אישור היתרות מלאומי ליום 31.12.2025 שביקשתי? אם יש קושי בהפקת האישור, כתוב לי ואשמח לעזור.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "team_question": null,
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "planner": {
+      "gpt-6-astra": {
+        "total": 6,
+        "passed": 5,
+        "passRate": 0.8333333333333334,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 14980,
+          "p50": 14393,
+          "p90": 16670,
+          "min": 11944,
+          "max": 18711
+        },
+        "inputTokens": 224181,
+        "outputTokens": 1402,
+        "thinkingTokens": 410,
+        "cachedTokens": 139495,
+        "costUsd": 1.076955,
+        "unpriced": 0
+      }
+    }
+  }
+}

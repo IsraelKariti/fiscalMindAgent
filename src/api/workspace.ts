@@ -10,6 +10,8 @@ import * as agentMailboxes from '../db/queries/agentMailboxes.js';
 import * as waSenders from '../db/queries/waSenders.js';
 import { normalizeE164 } from '../util/phone.js';
 import * as scheduledJobs from '../db/queries/scheduledJobs.js';
+import * as teamQuestions from '../db/queries/teamQuestions.js';
+import * as users from '../db/queries/users.js';
 import { withClientLock } from '../db/withClientLock.js';
 import {
   onClientUpdated,
@@ -35,8 +37,9 @@ import { recordAudit } from '../audit/audit.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { streamFile } from './fileStream.js';
 import { DueDateSchema } from './schemas.js';
-import { attachRosterCost, toWorkspaceClient, toWorkspaceEmail } from './workspaceSerialize.js';
+import { attachOpenTeamQuestion, attachRosterCost, toTeamQuestion, toWorkspaceClient, toWorkspaceEmail } from './workspaceSerialize.js';
 import { clientScope, isViewingAs } from './viewAs.js';
+import { accountantName } from '../agents/declarationOfCapital/teamQuestions.js';
 
 /** Express 4 does not catch rejected async handlers; route errors through next() so they 500 instead of hanging. */
 function wrap(handler: RequestHandler): RequestHandler {
@@ -62,6 +65,14 @@ const WhatsAppToggleSchema = z
   .strict();
 
 const PauseToggleSchema = z.object({ paused: z.boolean() }).strict();
+
+/** Closing a team question (openspec `team-questions`): an answer (text required), or "handled outside" with an optional note. */
+const CloseTeamQuestionSchema = z
+  .object({
+    how: z.enum(['answered', 'handled_outside']),
+    text: z.string().max(5000).optional(),
+  })
+  .strict();
 
 const DocumentCreateSchema = z
   .object({
@@ -124,13 +135,20 @@ workspaceRouter.get(
         res.status(403).json({ error: 'Deleted clients are visible to an administrator only.' });
         return;
       }
-      res.json({ clients: await withRosterCost(req, (await clients.listDeletedForInstance(req.agentInstance!.id)).map(toWorkspaceClient)) });
+      res.json({ clients: await withRosterCost(req, await withOpenTeamQuestion((await clients.listDeletedForInstance(req.agentInstance!.id)).map(toWorkspaceClient))) });
       return;
     }
     // The admin's view-as also lists the admin's test clients (openspec `admin-test-client`).
-    res.json({ clients: await withRosterCost(req, (await clients.listForInstance(req.agentInstance!.id, clientScope(req))).map(toWorkspaceClient)) });
+    res.json({
+      clients: await withRosterCost(req, await withOpenTeamQuestion((await clients.listForInstance(req.agentInstance!.id, clientScope(req))).map(toWorkspaceClient))),
+    });
   }),
 );
+
+/** Every roster row carries its open team question, when one waits (openspec `team-questions`): the sidebar badge and the "for me" chip. */
+async function withOpenTeamQuestion<T extends { id: string }>(rows: T[]) {
+  return attachOpenTeamQuestion(rows, await teamQuestions.listOpenByClientIds(rows.map((r) => r.id)));
+}
 
 /**
  * Admin roster cost (openspec `admin-roster-cost`): only an admin's view-as
@@ -306,7 +324,13 @@ workspaceRouter.get(
       };
     }
 
-    res.json({ client: toWorkspaceClient(client), nextScheduled, documents: await clientDocuments.listForClient(client.id) });
+    res.json({
+      client: toWorkspaceClient(client),
+      nextScheduled,
+      documents: await clientDocuments.listForClient(client.id),
+      // The agent's questions to the team, newest first (openspec `team-questions`): the questions tab.
+      teamQuestions: (await teamQuestions.listForClient(client.id)).map(toTeamQuestion),
+    });
   }),
 );
 
@@ -615,6 +639,65 @@ workspaceRouter.post(
       await setFutureEmail(client.id);
     }).catch((err) => logger.error('manual redraft failed', err, { clientId: client.id }));
     res.status(202).json({ ok: true });
+  }),
+);
+
+// Closing a question the agent asked the team (openspec `team-questions`): an
+// answer for the agent to relay, or "I answered the client myself" with an
+// optional note. Open to the accountant, a staff viewer (viewerAccess.ts) and
+// an admin viewing as. The first closing stands; a second one is refused. The
+// agent is then run once (fire and forget, like a redraft) — setFutureEmail
+// returns quietly for a paused, completed or declined client, so the answer is
+// stored and nothing is scheduled.
+workspaceRouter.post(
+  '/clients/:id/team-questions/:questionId/close',
+  wrap(async (req, res) => {
+    const parsed = CloseTeamQuestionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Expected { how: "answered" | "handled_outside", text? }.' });
+      return;
+    }
+    const text = (parsed.data.text ?? '').trim();
+    if (parsed.data.how === 'answered' && text === '') {
+      res.status(400).json({ error: 'The answer is empty.', code: 'empty_answer' });
+      return;
+    }
+    const id = uuidParam(req.params.id);
+    const questionId = uuidParam(req.params.questionId);
+    const client = id ? await clients.getByIdForInstance(id, req.agentInstance!.id, clientScope(req)) : null;
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+    const question = questionId ? await teamQuestions.getById(questionId) : null;
+    if (!question || question.client_id !== client.id) {
+      res.status(404).json({ error: 'Question not found.' });
+      return;
+    }
+    // The acting person: the real signed-in user (the admin while viewing as, the staff member for a viewer).
+    const actorId = req.realUserId ?? req.userId ?? null;
+    const actor = actorId ? await users.getById(actorId) : null;
+    const actorName = accountantName(actor);
+    const closed = await teamQuestions.close(question.id, client.id, parsed.data.how, text === '' ? null : text, actorId, actorName);
+    if (!closed) {
+      res.status(409).json({ error: 'This question was already closed.', code: 'already_closed' });
+      return;
+    }
+    recordAudit({
+      actorType: isViewingAs(req) ? 'admin' : 'accountant',
+      actorUserId: actorId,
+      agentInstanceId: client.agent_instance_id,
+      clientId: client.id,
+      action: 'team_question.closed',
+      targetType: 'team_question',
+      targetId: closed.id,
+      detail: { clientName: client.name, questionId: closed.id, how: closed.closed_how, textLength: text.length, by: actorName, question: closed.question },
+    });
+    publishClientUpdated(client.id);
+    withClientLock(client.id, () => setFutureEmail(client.id)).catch((err) =>
+      logger.error('planner run after a team question closed failed', err, { clientId: client.id, questionId: closed.id }),
+    );
+    res.json({ question: toTeamQuestion(closed) });
   }),
 );
 

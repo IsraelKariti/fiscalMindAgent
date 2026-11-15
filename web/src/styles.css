@@ -5480,3 +5480,185 @@ pre.doc-text {
   gap: 8px;
   align-items: center;
 }
+
+/* Team questions (openspec `team-questions`): the questions tab, the tab-label
+   count, the sidebar badge and the "questions for me" chip. */
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-inline-start: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: var(--accent, #2563eb);
+  vertical-align: middle;
+}
+
+.client-item-question-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-inline-start: 6px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent, #2563eb);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.sidebar-for-me-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 10px 6px;
+  padding: 3px 10px 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.sidebar-for-me-chip .client-item-question-badge {
+  margin-inline-start: 0;
+}
+
+.sidebar-for-me-chip:hover {
+  background: var(--surface-raised);
+}
+
+.sidebar-for-me-chip.is-active {
+  background: var(--surface-raised);
+  border-color: var(--accent, #2563eb);
+  font-weight: 700;
+}
+
+.sidebar-for-me-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.team-questions-empty {
+  margin: 0;
+  padding: 18px 20px 22px;
+  line-height: 1.6;
+}
+
+.team-question-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0 10px;
+}
+
+.team-question-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.team-question-card:last-child {
+  border-bottom: 0;
+}
+
+.team-question-card.is-open {
+  border-inline-start: 3px solid var(--accent, #2563eb);
+}
+
+.team-question-text {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.team-question-reason,
+.team-question-quote,
+.team-question-meta {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.team-question-label {
+  font-weight: 700;
+}
+
+.team-question-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.team-question-open-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--pending);
+  background: var(--pending-bg);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+}
+
+.team-question-closed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.team-question-answer,
+.team-question-handled {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.team-question-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.team-question-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: inherit;
+}
+
+.team-question-buttons {
+  justify-content: flex-start;
+}
+
+.team-question-handled-hint {
+  font-size: 0.85rem;
+}
+
+.team-question-error {
+  margin: 0;
+}

@@ -86,7 +86,7 @@ describe('toolsForContext', () => {
 
   it('capital declaration without a fetch offer: every tool except tax_fetch', () => {
     assert.deepEqual(names(CAPITAL), [
-      'conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'mark_collected', 'tie_file',
+      'conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'ask_team', 'mark_collected', 'tie_file',
       'resolve_document', 'add_instance', 'state_cost', 'state_vehicle', 'retire_document', 'attestation',
     ]);
     assert.ok(names(CAPITAL_WITH_FETCH).includes('tax_fetch'));
@@ -101,10 +101,10 @@ describe('toolsForContext', () => {
 
   it('no intake: no checklist tools; the message tools are always offered', () => {
     const n = names(NO_INTAKE);
-    assert.deepEqual(n, ['conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'mark_collected', 'tie_file']);
+    assert.deepEqual(n, ['conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'ask_team', 'mark_collected', 'tie_file']);
     for (const ctx of [CAPITAL, AFTER_VERIFICATION, NO_INTAKE]) {
       const offered: string[] = names(ctx);
-      for (const always of ['conclude', 'send_whatsapp_text', 'send_whatsapp_template']) assert.ok(offered.includes(always));
+      for (const always of ['conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'ask_team']) assert.ok(offered.includes(always));
     }
   });
 });
@@ -286,6 +286,54 @@ describe('gateDecision (validate_message on tool calls)', () => {
         return true;
       },
     );
+  });
+
+  // openspec `team-questions`: ask_team rides on a follow_up with its holding message, once, never while a question is open.
+  describe('ask_team', () => {
+    const ask = (question = 'האם המשרד מחזיק בהצהרת ההון הקודמת?', why = 'נוהג משרד', evidence_message_id = 'msg-1'): ToolCall => ({
+      name: 'ask_team',
+      args: { question, why, evidence_message_id },
+    });
+    const rejected = (calls: ToolCall[], ctx: DecisionContext, note: RegExp) =>
+      assert.throws(
+        () => gateDecision(calls, ctx),
+        (err: unknown) => {
+          assert.ok(err instanceof DecisionRejectedError);
+          assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', false]]);
+          assert.match(err.checks[1]!.note ?? '', note);
+          return true;
+        },
+      );
+
+    it('accepted on a follow_up with a message: the normalized decision carries the question', () => {
+      const { decision } = gateDecision([conclude('follow_up'), sendText('אבדוק מול המשרד ואחזור אליך', 'asap'), ask()], CAPITAL);
+      assert.equal(decision.decision, 'follow_up');
+      assert.ok(decision.decision === 'follow_up');
+      assert.deepEqual(decision.teamQuestion, { question: 'האם המשרד מחזיק בהצהרת ההון הקודמת?', reason: 'נוהג משרד', evidenceMessageId: 'msg-1' });
+      const none = gateDecision([conclude('follow_up'), sendText()], CAPITAL).decision;
+      assert.ok(none.decision === 'follow_up' && none.teamQuestion === null);
+      const noCite = gateDecision([conclude('follow_up'), sendText(), ask('ש', '', '')], CAPITAL).decision;
+      assert.ok(noCite.decision === 'follow_up' && noCite.teamQuestion?.evidenceMessageId === null);
+    });
+
+    it('rejected on a collect or goal_complete decision', () => {
+      rejected([conclude('collect'), { name: 'mark_collected', args: { document_id: 'doc-bank' } }, ask()], CAPITAL, /ask_team is valid only with a follow_up/);
+      rejected([conclude('goal_complete'), ask()], CAPITAL, /ask_team is valid only with a follow_up/);
+      rejected([conclude('client_declined'), ask()], CAPITAL, /"client_declined" is the whole answer.*ask_team/);
+    });
+
+    it('rejected while a question is still open, naming it', () => {
+      const open = { ...CAPITAL, openTeamQuestion: { id: 'q1', question: 'שאלה קודמת', askedAt: new Date('2026-11-15T09:00:00.000Z') } };
+      rejected([conclude('follow_up'), sendText(), ask()], open, /already open since 2026-11-15 09:00 \("שאלה קודמת"\)/);
+      // Without the call the open question changes nothing.
+      assert.equal(gateDecision([conclude('follow_up'), sendText()], open).decision.decision, 'follow_up');
+    });
+
+    it('rejected with an empty question, a cited message that is not in the thread, or a second call', () => {
+      rejected([conclude('follow_up'), sendText(), ask('   ')], CAPITAL, /the question is empty/);
+      rejected([conclude('follow_up'), sendText(), ask('ש', '', 'msg-404')], CAPITAL, /"msg-404" is not an inbound message/);
+      rejected([conclude('follow_up'), sendText(), ask(), ask('שנייה')], CAPITAL, /ask_team must be called at most once/);
+    });
   });
 
   // openspec `client-decline`: a typed refusal is the whole answer — conclude only.

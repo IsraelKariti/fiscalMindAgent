@@ -105,7 +105,7 @@ Apart from the conversation-flow actions (pause, resume, send now, retry send, r
 - **THEN** there is no add-client control
 
 ### Requirement: A viewer may drive a client's conversation
-A signed-in staff viewer SHALL be able to take the conversation-flow actions on any client of the accountant's workspace that the accountant could take, on every sign-in surface: pause the agent's outreach, resume it (including the resume that releases the held first message and so starts the conversation), send the waiting message now, retry a failed send, and retry or regenerate a draft. Each such request under a viewer's session SHALL be handled exactly as under the accountant's session, with the same confirmations, warnings and results. The workspace SHALL show the viewer those controls wherever the accountant sees them.
+A signed-in staff viewer SHALL be able to take the conversation-flow actions on any client of the accountant's workspace that the accountant could take, on every sign-in surface: pause the agent's outreach, resume it (including the resume that releases the held first message and so starts the conversation), send the waiting message now, retry a failed send, retry or regenerate a draft, and close a question the agent asked the team, by an answer or as answered directly (openspec `team-questions`). Each such request under a viewer's session SHALL be handled exactly as under the accountant's session, with the same confirmations, warnings and results. The workspace SHALL show the viewer those controls wherever the accountant sees them.
 
 #### Scenario: Starting a conversation
 - **WHEN** a viewer opens a client whose first message is held and chooses resume
@@ -130,6 +130,10 @@ A signed-in staff viewer SHALL be able to take the conversation-flow actions on 
 #### Scenario: Regenerating a draft
 - **WHEN** a viewer chooses regenerate on a scheduled draft
 - **THEN** the draft is regenerated as it would be for the accountant
+
+#### Scenario: Answering the agent's question
+- **WHEN** a viewer types an answer on the client's questions tab and sends it
+- **THEN** the answer is stored with the viewer as the answerer and the agent is woken, exactly as for the accountant
 
 #### Scenario: From the monday object
 - **WHEN** any of the above requests arrives from the monday custom object under a viewer's session

@@ -5,7 +5,7 @@ import { parseSettings } from '../agents/declarationOfCapital/settings.js';
 import { scanClientImportInstance } from '../agents/shared/clientImportScan.js';
 import { verifyKickoffToken } from '../agents/shared/kickoffWebhook.js';
 import { syncMondayDocumentsStatus } from '../agents/shared/mondayStatusSync.js';
-import { resolveDeclarationClient, type DeclarationIntake } from '../agents/declarationOfCapital/kickoff.js';
+import { resolveDeclarationClient, taxAdvisorAuditDetail, type DeclarationIntake } from '../agents/declarationOfCapital/kickoff.js';
 import { applyFormIntake } from '../agents/declarationOfCapital/formIntake.js';
 import { fetchBoardItemCells } from '../agents/shared/mondayData.js';
 import { normalizeE164 } from '../util/phone.js';
@@ -232,6 +232,7 @@ async function recordKickoff(instance: AgentInstanceRow, target: KickoffTarget, 
       ...target.key,
       boardId,
       itemId,
+      ...taxAdvisorAuditDetail(target.intake?.taxAdvisor),
       source: 'monday_webhook',
     },
   });

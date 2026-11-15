@@ -21,6 +21,7 @@ export interface ColumnMapping {
   formLinkColumn?: string;
   fileNumberColumn?: string;
   yearColumn?: string;
+  taxAdvisorColumn?: string;
 }
 
 /** Every field as a plain string ('' = unset) — the form's initial state. */
@@ -36,6 +37,7 @@ export interface MappingDraft {
   formLinkColumn: string;
   fileNumberColumn: string;
   yearColumn: string;
+  taxAdvisorColumn: string;
 }
 
 const LABEL_PATTERNS = {
@@ -79,6 +81,7 @@ export function autoMapColumns(
     formLinkColumn: '',
     fileNumberColumn: '',
     yearColumn: '',
+    taxAdvisorColumn: '',
   };
 }
 
@@ -101,6 +104,7 @@ export function SourceMappingForm({
   withDocumentsColumn = false,
   documentsStatusOptions,
   declarationLinkOptions,
+  taxAdvisorOptions,
 }: {
   /** Label of the required key column (email for client-import agents, phone for CS). */
   keyLabel: string;
@@ -128,6 +132,8 @@ export function SourceMappingForm({
    * key (phone) column becomes optional — the phone lives on the linked CRM item.
    */
   declarationLinkOptions?: MappingOption[];
+  /** Declaration boards: people-typed columns that may name the client's tax advisor (openspec `client-tax-advisor`). */
+  taxAdvisorOptions?: MappingOption[];
 }) {
   const { t } = useT();
   const [keyColumn, setKeyColumn] = useState(initial.keyColumn);
@@ -141,6 +147,7 @@ export function SourceMappingForm({
   const [formLinkColumn, setFormLinkColumn] = useState(initial.formLinkColumn);
   const [fileNumberColumn, setFileNumberColumn] = useState(initial.fileNumberColumn);
   const [yearColumn, setYearColumn] = useState(initial.yearColumn);
+  const [taxAdvisorColumn, setTaxAdvisorColumn] = useState(initial.taxAdvisorColumn);
 
   const declaration = declarationLinkOptions !== undefined;
   const confirmable = declaration ? Boolean(crmLinkColumn) : Boolean(keyColumn);
@@ -159,6 +166,7 @@ export function SourceMappingForm({
       formLinkColumn: formLinkColumn || undefined,
       fileNumberColumn: fileNumberColumn || undefined,
       yearColumn: yearColumn || undefined,
+      taxAdvisorColumn: taxAdvisorColumn || undefined,
     });
   };
 
@@ -209,6 +217,15 @@ export function SourceMappingForm({
           <label className="field">
             <span>{t.sourcesYearColumn}</span>
             <Dropdown value={yearColumn} onChange={setYearColumn} options={optionalColumnOptions} />
+          </label>
+          {/* Only people-typed columns can name the advisor; a board without one offers just "none". */}
+          <label className="field">
+            <span>{t.sourcesTaxAdvisorColumn}</span>
+            <Dropdown
+              value={taxAdvisorColumn}
+              onChange={setTaxAdvisorColumn}
+              options={[{ value: '', label: t.csSheetNameColumnNone }, ...(taxAdvisorOptions ?? [])]}
+            />
           </label>
         </>
       )}

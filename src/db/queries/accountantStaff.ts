@@ -28,6 +28,15 @@ export async function findByEmail(email: string): Promise<AccountantStaffRow | n
   return rows[0] ?? null;
 }
 
+/** The staff row for an email (any casing) on THIS accountant's list only — another accountant's row never matches. */
+export async function findForAccountantByEmail(accountantUserId: string, email: string): Promise<AccountantStaffRow | null> {
+  const { rows } = await pool.query<AccountantStaffRow>(
+    'SELECT * FROM accountant_staff WHERE accountant_user_id = $1 AND email = $2',
+    [accountantUserId, email.toLowerCase()],
+  );
+  return rows[0] ?? null;
+}
+
 /** Returns null when the email is already on some accountant's list. */
 export async function add(accountantUserId: string, email: string, createdBy: string): Promise<AccountantStaffRow | null> {
   const { rows } = await pool.query<AccountantStaffRow>(

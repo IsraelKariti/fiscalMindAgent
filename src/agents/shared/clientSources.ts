@@ -39,6 +39,8 @@ export const BoardSourceSchema = z
     fileNumberColumnId: z.string().min(1).optional(),
     /** Column holding the row's declaration year (שנת הצהרת הון) — declaration of capital. */
     yearColumnId: z.string().min(1).optional(),
+    /** People column naming the client's tax advisor (openspec `client-tax-advisor`) — declaration of capital, optional. */
+    taxAdvisorColumnId: z.string().min(1).optional(),
     /** Display cache for the settings UI; the live fetch re-reads the real name. */
     boardName: z.string().optional(),
     /** Set by the settings UI on add; the UI shows "import now" until a scan clears it. */

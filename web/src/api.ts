@@ -6,6 +6,8 @@ export interface ClientAgentFields {
   due_date?: string | null;
   /** Capital declaration: the office file number ("מס תיק") read from the monday board at kickoff. */
   file_number?: string;
+  /** Capital declaration: the team member named in the board's "יועץ מס" column (openspec `client-tax-advisor`). */
+  tax_advisor?: { name: string; email: string | null; monday_user_id: string; match: 'accountant' | 'staff' | 'none'; staff_id?: string };
   /** Capital declaration: the scheduled draft that is the attestation summary (trusted once sent). */
   attestation_request_email_id?: string;
   /** Capital declaration: the client confirmed the closing summary. */
@@ -806,6 +808,8 @@ export interface ClientSourcesConfig {
     fileNumberColumnId?: string;
     /** Declaration of capital: the declaration-year column. */
     yearColumnId?: string;
+    /** Declaration of capital: the people column naming the client's tax advisor. */
+    taxAdvisorColumnId?: string;
     boardName?: string;
     /** Set when the source is added; the server clears it after a clean import scan. */
     pendingImport?: boolean;

@@ -22,6 +22,8 @@ export interface BoardMapping {
   fileNumberColumnId?: string;
   /** Column holding the row's declaration year (declaration of capital). */
   yearColumnId?: string;
+  /** People column naming the client's tax advisor (declaration of capital, openspec `client-tax-advisor`). */
+  taxAdvisorColumnId?: string;
 }
 
 /**
@@ -90,6 +92,11 @@ export function BoardMappingModal({
   const formLinkAuto = withDeclarationColumns ? linkByTitle(/שאלון|form/i, crmLinkAuto) : '';
   const scalarByTitle = (re: RegExp) =>
     board.columns.find((c) => c.type !== 'name' && c.type !== 'board_relation' && re.test(c.title))?.id ?? '';
+  // Tax advisor (openspec `client-tax-advisor`): a people column, conventionally titled "יועץ מס".
+  const peopleOptions: MappingOption[] = withDeclarationColumns
+    ? board.columns.filter((c) => c.type === 'people').map((c) => ({ value: c.id, label: c.title }))
+    : [];
+  const taxAdvisorAuto = peopleOptions.find((o) => /יועץ/.test(o.label))?.value ?? '';
 
   // A real email/phone-typed column beats a title match; either way the pick
   // must be a valid key candidate.
@@ -103,6 +110,7 @@ export function BoardMappingModal({
     formLinkColumn: formLinkAuto,
     fileNumberColumn: withDeclarationColumns ? scalarByTitle(/תיק|file/i) : '',
     yearColumn: withDeclarationColumns ? scalarByTitle(/שנת|שנה|year/i) : '',
+    taxAdvisorColumn: taxAdvisorAuto,
   };
 
   // Portaled to <body>: ancestor cards have backdrop-filter/animated transforms,
@@ -125,6 +133,7 @@ export function BoardMappingModal({
           withDocumentsColumn={withDocumentsColumn}
           documentsStatusOptions={withStatusColumn ? statusOptions : undefined}
           declarationLinkOptions={withDeclarationColumns ? linkOptions : undefined}
+          taxAdvisorOptions={withDeclarationColumns ? peopleOptions : undefined}
           onConfirm={(mapping: ColumnMapping) =>
             onConfirm({
               // Phone-keyed (WhatsApp-only) mappings store the key as the phone
@@ -142,6 +151,7 @@ export function BoardMappingModal({
               formLinkColumnId: mapping.formLinkColumn,
               fileNumberColumnId: mapping.fileNumberColumn,
               yearColumnId: mapping.yearColumn,
+              taxAdvisorColumnId: mapping.taxAdvisorColumn,
             })
           }
           onClose={onClose}

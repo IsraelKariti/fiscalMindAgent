@@ -95,6 +95,8 @@ export interface ItemColumnDetail {
   text: string;
   /** Linked item ids of a board_relation (connect-boards) column; empty for every other type. */
   linkedItemIds: string[];
+  /** User ids of a people column (persons only, teams dropped); empty for every other type. */
+  personIds: string[];
 }
 
 export interface ItemDetails {
@@ -120,6 +122,7 @@ export async function fetchItemDetails(accessToken: string, itemId: string): Pro
       column: { title: string } | null;
       phone?: string | null;
       linked_item_ids?: string[] | null;
+      persons_and_teams?: { id: string; kind: string }[] | null;
     }[];
   }
   const data = await mondayGraphQL<{ items: (RawDetailedItem | null)[] | null }>(
@@ -127,7 +130,8 @@ export async function fetchItemDetails(accessToken: string, itemId: string): Pro
     `query ($ids: [ID!]) { items (ids: $ids) { id name column_values {
        id text type column { title }
        ... on PhoneValue { phone }
-       ... on BoardRelationValue { linked_item_ids } } } }`,
+       ... on BoardRelationValue { linked_item_ids }
+       ... on PeopleValue { persons_and_teams { id kind } } } } }`,
     { ids: [itemId] },
   );
   const item = data.items?.[0];
@@ -141,8 +145,33 @@ export async function fetchItemDetails(accessToken: string, itemId: string): Pro
       type: cv.type,
       text: (cv.phone ?? cv.text ?? '').trim(),
       linkedItemIds: cv.linked_item_ids ?? [],
+      personIds: (cv.persons_and_teams ?? []).filter((p) => p.kind === 'person').map((p) => String(p.id)),
     })),
   };
+}
+
+export interface MondayUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+/**
+ * Account users by id (name + email) — resolves a people cell to the person
+ * behind it. Requires the users:read scope: a token granted before that scope
+ * was requested makes monday answer with a GraphQL error, which surfaces as
+ * MondayApiError (the caller degrades to the cell's display text).
+ */
+export async function fetchUsers(accessToken: string, ids: string[]): Promise<MondayUser[]> {
+  if (ids.length === 0) return [];
+  const data = await mondayGraphQL<{ users: ({ id: string; name: string | null; email: string | null } | null)[] | null }>(
+    accessToken,
+    `query ($ids: [ID!]) { users (ids: $ids) { id name email } }`,
+    { ids },
+  );
+  return (data.users ?? []).flatMap((u) =>
+    u ? [{ id: String(u.id), name: (u.name ?? '').trim(), email: (u.email ?? '').trim() }] : [],
+  );
 }
 
 /**

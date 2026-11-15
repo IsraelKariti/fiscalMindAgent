@@ -159,6 +159,18 @@ monday WorkForm is the only source of which documents a declaration needs):
   engagement identity — **file number + declaration year** — plus the linked
   item ids into `agent_fields` (`file_number`, `tax_year`,
   `monday_crm_item_id`, `monday_form_item_id`).
+- **Tax advisor** (openspec `client-tax-advisor`, `kickoff.ts`
+  `resolveTaxAdvisor` → `taxAdvisor.ts` `matchTaxAdvisor`): the board may map
+  a people column (`taxAdvisorColumnId`, conventionally "יועץ מס"). Every
+  kickoff reads its first person (`PeopleValue.persons_and_teams` →
+  `fetchUsers`, needs the **users:read** OAuth scope — accountants connected
+  before 2026-11-15 must reconnect monday, until then the advisor is stored by
+  display name as unmatched with a warning), matches the email to the
+  accountant's own email or a row of `accountant_staff` for that accountant,
+  and stores `agent_fields.tax_advisor` (`name`, `email`, `monday_user_id`,
+  `match` accountant|staff|none, `staff_id`). An empty cell clears it; a board
+  without the mapping leaves it. The details tab shows it as a read-only chip
+  (`ClientHeader`), "not on the staff list" when unmatched.
 - **Per-client tax year, no instance fallback**: the year comes exclusively
   from the board row (`yearColumnId`) — `capitalClientTaxYear`
   (shared/taxYear.ts) reads `agent_fields.tax_year` everywhere (checklist

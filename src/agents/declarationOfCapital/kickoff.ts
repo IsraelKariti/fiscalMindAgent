@@ -1,6 +1,9 @@
 import * as clients from '../../db/queries/clients.js';
 import * as clientDocuments from '../../db/queries/clientDocuments.js';
-import { fetchItemDetails, type ItemDetails } from '../shared/mondayData.js';
+import { fetchItemDetails, fetchUsers, type ItemDetails } from '../shared/mondayData.js';
+import * as users from '../../db/queries/users.js';
+import * as accountantStaff from '../../db/queries/accountantStaff.js';
+import { matchTaxAdvisor, type StoredTaxAdvisor } from './taxAdvisor.js';
 import { parseTaxYearCell } from '../shared/taxYear.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { syntheticWaEmail } from '../../util/syntheticEmail.js';
@@ -65,6 +68,58 @@ export interface DeclarationIntake {
   /** The submitted questionnaire's question/answer pairs ([] when the form link is missing/empty). */
   formAnswers: FormAnswer[];
   taxYear: number;
+  /** The advisor read from the row (openspec `client-tax-advisor`): null = cell empty, undefined = column not mapped. */
+  taxAdvisor?: StoredTaxAdvisor | null;
+}
+
+/** The advisor facts a kickoff audit entry names (nothing when none was read). */
+export function taxAdvisorAuditDetail(advisor: StoredTaxAdvisor | null | undefined): Record<string, unknown> {
+  return advisor ? { taxAdvisor: { name: advisor.name, match: advisor.match } } : {};
+}
+
+/**
+ * The tax advisor named on the row (openspec `client-tax-advisor`): the first
+ * person of the mapped people column, resolved to name + email through the
+ * account's users and matched to the accountant or to a row of the
+ * accountant's staff list. undefined = no column mapped (leave what is
+ * stored); null = cell empty (clear). Never throws: a users lookup that fails
+ * (token without users:read, monday down) stores the cell's display name as
+ * unmatched and warns.
+ */
+export async function resolveTaxAdvisor(
+  instance: AgentInstanceRow,
+  board: BoardSource,
+  row: ItemDetails,
+  accessToken: string,
+  log: Record<string, unknown>,
+): Promise<StoredTaxAdvisor | null | undefined> {
+  if (!board.taxAdvisorColumnId) return undefined;
+  const cell = row.columns.find((c) => c.id === board.taxAdvisorColumnId);
+  if (!cell || cell.personIds.length === 0) return null;
+  if (cell.personIds.length > 1) {
+    logger.info('declaration kickoff: advisor cell names several people, taking the first', { ...log, count: cell.personIds.length });
+  }
+  const mondayUserId = cell.personIds[0]!;
+  // The cell text is "name, name" for several people — the first is ours.
+  const cellName = cell.text.split(',')[0]?.trim() || '';
+  let person = { name: cellName, email: null as string | null, mondayUserId };
+  try {
+    const found = (await fetchUsers(accessToken, [mondayUserId]))[0];
+    if (found) person = { name: found.name || cellName, email: found.email || null, mondayUserId };
+    else logger.warn('declaration kickoff: advisor user not found in the monday account', { ...log, mondayUserId });
+  } catch (err) {
+    logger.warn('declaration kickoff: advisor email unavailable (reconnect monday for users:read)', {
+      ...log,
+      mondayUserId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  if (!person.email) return matchTaxAdvisor(person, null, null);
+  const accountant = await users.getById(instance.user_id);
+  const staffRow = await accountantStaff.findForAccountantByEmail(instance.user_id, person.email);
+  const advisor = matchTaxAdvisor(person, accountant?.email ?? null, staffRow ? { id: staffRow.id, email: staffRow.email } : null);
+  if (advisor.match === 'none') logger.info('declaration kickoff: advisor is on no staff list', { ...log, mondayUserId });
+  return advisor;
 }
 
 /**
@@ -211,6 +266,7 @@ export async function resolveDeclarationClient(
   }
 
   const storedAnswers = storableFormAnswers(formAnswers);
+  const taxAdvisor = await resolveTaxAdvisor(instance, board, row, accessToken, log);
   let client = await clients.getByWaPhoneForInstance(instance.id, waPhone);
   // The one spouse + marital status the cards state (openspec `spouse-identity`):
   // questionnaire cells first, CRM cells second, merged onto what is on file.
@@ -232,6 +288,7 @@ export async function resolveDeclarationClient(
           monday_item_id: itemId,
           monday_crm_item_id: crmItemId,
           ...(formItemId ? { monday_form_item_id: formItemId } : {}),
+          ...(taxAdvisor ? { tax_advisor: taxAdvisor } : {}),
         },
       });
       recordAudit({
@@ -246,6 +303,7 @@ export async function resolveDeclarationClient(
           ...(fileNumber ? { fileNumber } : {}),
           ...spouseAudit(household.spouse),
           ...(household.maritalStatus ? { maritalStatus: household.maritalStatus } : {}),
+          ...taxAdvisorAuditDetail(taxAdvisor),
           source: 'monday_kickoff',
         },
       });
@@ -275,6 +333,8 @@ export async function resolveDeclarationClient(
         ...(storedAnswers.length > 0 ? { formAnswers: storedAnswers } : {}),
         ...(spouseChanged ? { spouse: spouseToStored(household.spouse) } : {}),
         ...(maritalChanged && household.maritalStatus ? { maritalStatus: household.maritalStatus } : {}),
+        // Re-read every kickoff: a new person replaces the stored one, an empty cell clears it.
+        ...(taxAdvisor !== undefined ? { taxAdvisor: taxAdvisor ? { ...taxAdvisor } : null } : {}),
       })
       .catch((err) => logger.error('declaration kickoff: engagement backfill failed', err, { ...log, clientId: client!.id }));
     if (spouseChanged || maritalChanged) {
@@ -301,5 +361,5 @@ export async function resolveDeclarationClient(
     // instance — a WhatsApp-only client without one can never be messaged.
     logger.warn('declaration kickoff: client has no WhatsApp number (collision?)', { ...log, clientId: client.id });
   }
-  return { client, formAnswers, taxYear };
+  return { client, formAnswers, taxYear, taxAdvisor };
 }

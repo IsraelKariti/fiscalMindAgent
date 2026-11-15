@@ -8,7 +8,7 @@ const VALID_ID = '123456782';
 const BAD_ID = '123456789';
 
 function col(title: string, text: string, type = 'text'): ItemColumnDetail {
-  return { id: title.toLowerCase().replace(/\W+/g, '_'), title, type, text, linkedItemIds: [] };
+  return { id: title.toLowerCase().replace(/\W+/g, '_'), title, type, text, linkedItemIds: [], personIds: [] };
 }
 
 test('an English "id" column is the client id', () => {

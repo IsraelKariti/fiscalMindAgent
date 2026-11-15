@@ -81,6 +81,12 @@ const icons = {
       <path d="M14 2v6h6M9 13h6M9 17h6" />
     </svg>
   ),
+  person: (
+    <svg {...iconProps} aria-hidden="true">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
   chevron: (
     <svg {...iconProps} className="chevron" aria-hidden="true">
       <path d="m6 9 6 6 6-6" />
@@ -88,9 +94,22 @@ const icons = {
   ),
 };
 
-function MetaChip({ icon, label, value, warn = false }: { icon: React.ReactNode; label: string; value: string; warn?: boolean }) {
+function MetaChip({
+  icon,
+  label,
+  value,
+  warn = false,
+  title,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  warn?: boolean;
+  /** Tooltip override; defaults to "label: value". */
+  title?: string;
+}) {
   return (
-    <span className={`meta-chip ${warn ? 'meta-chip-warn' : ''}`} title={`${label}: ${value}`}>
+    <span className={`meta-chip ${warn ? 'meta-chip-warn' : ''}`} title={title ?? `${label}: ${value}`}>
       {icon}
       <span className="meta-chip-text">{value}</span>
     </span>
@@ -110,8 +129,10 @@ export function ClientHeader({ client, onSaved, withDueDate = false, readOnly = 
   // The client declined the WhatsApp collection (openspec `client-decline`): handed off, own wording.
   const declined = isDeclined(client);
   const dueDate = withDueDate ? (client.agent_fields?.due_date ?? null) : null;
+  // The team member named on the monday board (openspec `client-tax-advisor`): read-only, never in the edit grid.
+  const advisor = client.agent_fields?.tax_advisor ?? null;
 
-  const set = (field: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const set =(field: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setDraft({ ...draft, [field]: e.target.value });
 
   const save = async () => {
@@ -193,6 +214,14 @@ export function ClientHeader({ client, onSaved, withDueDate = false, readOnly = 
             {client.company && <MetaChip icon={icons.company} label={t.companyLabel} value={client.company} />}
             {client.occupation && (
               <MetaChip icon={icons.occupation} label={t.occupationLabel} value={client.occupation} />
+            )}
+            {advisor && (
+              <MetaChip
+                icon={icons.person}
+                label={t.taxAdvisorLabel}
+                value={advisor.match === 'none' ? t.taxAdvisorUnlisted(advisor.name) : advisor.name}
+                title={`${t.taxAdvisorLabel}: ${advisor.name}${advisor.email ? ` · ${advisor.email}` : ''}`}
+              />
             )}
             <MetaChip
               icon={icons.calendar}

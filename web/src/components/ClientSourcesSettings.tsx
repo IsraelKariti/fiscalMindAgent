@@ -556,6 +556,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
                           {chosen.formLinkColumnId ? ` · ${t.sourcesFormLinkColumn}: ${columnTitle(chosen.formLinkColumnId)}` : ''}
                           {chosen.fileNumberColumnId ? ` · ${t.sourcesFileNumberColumn}: ${columnTitle(chosen.fileNumberColumnId)}` : ''}
                           {chosen.yearColumnId ? ` · ${t.sourcesYearColumn}: ${columnTitle(chosen.yearColumnId)}` : ''}
+                          {chosen.taxAdvisorColumnId ? ` · ${t.sourcesTaxAdvisorColumn}: ${columnTitle(chosen.taxAdvisorColumnId)}` : ''}
                           {` · ${t.csNameColumn}: ${chosen.nameColumnId ? columnTitle(chosen.nameColumnId) : t.csNameColumnDefault}`}
                           {keyKind === 'email' && chosen.phoneColumnId ? ` · ${t.csPhoneColumn}: ${columnTitle(chosen.phoneColumnId)}` : ''}
                           {chosen.crmLinkColumnId && chosen.phoneColumnId ? ` · ${t.csPhoneColumn}: ${columnTitle(chosen.phoneColumnId)}` : ''}

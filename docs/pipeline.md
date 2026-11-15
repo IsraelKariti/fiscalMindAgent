@@ -58,6 +58,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Kickoff webhook from monday | `webhook/mondayKickoffRoute.ts` · route handler → `startClientForItem` |
 | The board must be a configured client source | `webhook/mondayKickoffRoute.ts` · `kickoffBoard` |
 | Which client the row is about (CRM link flow, or email/phone cell; enroll on the spot) | `webhook/mondayKickoffRoute.ts` · `resolveKickoffClient` → `DOC/kickoff.ts` · `resolveDeclarationClient` |
+| The tax advisor named on the row (first person of the people column → monday user → accountant / staff row / unmatched; empty cell clears) | `DOC/kickoff.ts` · `resolveTaxAdvisor` → `DOC/taxAdvisor.ts` · `matchTaxAdvisor` |
 | Remember the board row on the client | `webhook/mondayKickoffRoute.ts` · `rememberBoardRow` |
 | Only a never-contacted client with no held/scheduled draft starts (paused or not) | `webhook/mondayKickoffRoute.ts` · `isStartable` → `orchestration/holdRule.ts` · `kickoffStartable` |
 | Audit `client.kickoff_triggered`; the client stays paused only while the instance's first-message approval is on | `webhook/mondayKickoffRoute.ts` · `recordKickoff` |

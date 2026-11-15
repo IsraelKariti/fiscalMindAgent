@@ -539,8 +539,13 @@ export async function setDeclarationEngagement(
     /** The one spouse on file (openspec `spouse-identity`), already merged by spouseIdentity.mergeSpouse. */
     spouse?: Record<string, unknown>;
     maritalStatus?: 'married' | 'not_married';
+    /** The tax advisor read from the board (openspec `client-tax-advisor`); null clears the key (cell emptied), undefined leaves it. */
+    taxAdvisor?: Record<string, unknown> | null;
   },
 ): Promise<void> {
+  if (fields.taxAdvisor === null) {
+    await pool.query(`UPDATE clients SET agent_fields = agent_fields - 'tax_advisor' WHERE id = $1`, [id]);
+  }
   const patch: Record<string, unknown> = {};
   if (fields.taxYear !== undefined) patch['tax_year'] = fields.taxYear;
   if (fields.fileNumber !== undefined) patch['file_number'] = fields.fileNumber;
@@ -550,6 +555,7 @@ export async function setDeclarationEngagement(
   if (fields.formAnswers !== undefined) patch['form_answers'] = fields.formAnswers;
   if (fields.spouse !== undefined) patch['spouse'] = fields.spouse;
   if (fields.maritalStatus !== undefined) patch['marital_status'] = fields.maritalStatus;
+  if (fields.taxAdvisor) patch['tax_advisor'] = fields.taxAdvisor;
   if (Object.keys(patch).length === 0) return;
   await pool.query(`UPDATE clients SET agent_fields = agent_fields || $2::jsonb WHERE id = $1`, [
     id,

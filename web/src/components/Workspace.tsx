@@ -242,6 +242,7 @@ export function Workspace({
           onDeleteClient={viewer ? undefined : setDeleting}
           showDeleted={showDeleted}
           onToggleShowDeleted={canShowDeleted ? setShowDeleted : undefined}
+          viewer={Boolean(viewer)}
           userEmail={userEmail}
           impersonatingEmail={impersonatingEmail ?? null}
           onStopImpersonating={onStopImpersonating}

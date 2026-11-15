@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
-import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, formatUsd, isDeclined, isOverdueStopped, type DotFilter } from '../format';
+import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, formatUsd, isAssignedTo, isDeclined, isOverdueStopped, type DotFilter } from '../format';
 import { dotTitle, useT } from '../i18n';
 
 /**
@@ -47,6 +47,8 @@ interface Props {
    */
   showDeleted?: boolean;
   onToggleShowDeleted?: (on: boolean) => void;
+  /** A staff viewer's session (openspec `client-search`): the "my clients only" checkbox opens ticked. */
+  viewer?: boolean;
   userEmail: string | null;
   impersonatingEmail: string | null;
   onStopImpersonating?: () => void;
@@ -142,6 +144,7 @@ export function Sidebar({
   onDeleteClient,
   showDeleted = false,
   onToggleShowDeleted,
+  viewer = false,
   userEmail,
   impersonatingEmail,
   onStopImpersonating,
@@ -151,6 +154,9 @@ export function Sidebar({
   const [clientQuery, setClientQuery] = useState('');
   // The status control (openspec `client-search`): one pressed button, 'all' on load, not kept across reloads.
   const [statusFilter, setStatusFilter] = useState<DotFilter>('all');
+  // "My clients only" (openspec `client-search`): ticked by default for a staff
+  // viewer, unticked for the accountant; not kept across reloads.
+  const [myOnly, setMyOnly] = useState(viewer);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -185,14 +191,22 @@ export function Sidebar({
     const state = dotStateOf(client);
     return { cls: clientDotClass(state), title: dotTitle(t, state) };
   };
-  // Counts describe the loaded list (live or deleted), never the search result.
-  const statusCounts = useMemo(() => countByDotColor(clients.map(dotStateOf)), [clients]);
+  // The checkbox only exists when someone in the loaded list is assigned to the
+  // signed-in person, so the narrowed list can never be empty by default.
+  const assignedCount = useMemo(() => clients.filter((client) => isAssignedTo(client, userEmail)).length, [clients, userEmail]);
+  const myOnlyActive = myOnly && assignedCount > 0;
+  const baseClients = useMemo(
+    () => (myOnlyActive ? clients.filter((client) => isAssignedTo(client, userEmail)) : clients),
+    [clients, myOnlyActive, userEmail],
+  );
+  // Counts describe the loaded list (live or deleted, narrowed to "my clients" when ticked), never the search result.
+  const statusCounts = useMemo(() => countByDotColor(baseClients.map(dotStateOf)), [baseClients]);
   const visibleClients = useMemo(() => {
     // Status control and search narrow together; name, contact or office file number (openspec `client-search`).
-    return clients.filter(
+    return baseClients.filter(
       (client) => (statusFilter === 'all' || dotColorOf(dotStateOf(client)) === statusFilter) && clientMatchesQuery(client, clientQuery),
     );
-  }, [clients, clientQuery, statusFilter]);
+  }, [baseClients, clientQuery, statusFilter]);
   const STATUS_BUTTONS: { key: DotFilter; dot: string | null }[] = [
     { key: 'all', dot: null },
     { key: 'blue', dot: 'in-progress' },
@@ -269,6 +283,12 @@ export function Sidebar({
           <label className="muted sidebar-deleted-toggle" title={t.sidebarDeletedToggleTitle}>
             <input type="checkbox" checked={showDeleted} onChange={(e) => onToggleShowDeleted(e.target.checked)} />
             {t.sidebarDeletedToggle}
+          </label>
+        )}
+        {assignedCount > 0 && (
+          <label className="muted sidebar-deleted-toggle" title={t.sidebarMyClientsToggleTitle}>
+            <input type="checkbox" checked={myOnly} onChange={(e) => setMyOnly(e.target.checked)} />
+            {t.sidebarMyClientsToggle}
           </label>
         )}
         {clients.length > 0 && (

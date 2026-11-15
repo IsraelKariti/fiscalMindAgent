@@ -327,6 +327,8 @@ const he = {
   deleteClientAction: (name: string) => `מחיקת ${name}`,
   sidebarNoClients: 'אין עדיין לקוחות',
   sidebarSearchPlaceholder: 'חיפוש לפי שם, אימייל או מס׳ תיק',
+  sidebarMyClientsToggle: 'הלקוחות שלי בלבד',
+  sidebarMyClientsToggleTitle: 'הצגת הלקוחות שיועץ/ת המס שלהם הוא/היא המשתמש/ת המחובר/ת בלבד',
   // The office file number on a client row (openspec `client-search`).
   fileNumberChip: (n: string) => `תיק ${n}`,
   fileNumberChipTitle: 'מספר התיק במשרד (מהלוח ב-monday)',

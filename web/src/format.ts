@@ -63,6 +63,20 @@ export function clientMatchesQuery(
 }
 
 /**
+ * "My clients" rule (openspec `client-search`, my-clients-filter): the client's
+ * stored tax advisor email equals the signed-in email, ignoring case and
+ * surrounding spaces. False when either side is missing.
+ */
+export function isAssignedTo(
+  client: { agent_fields?: { tax_advisor?: { email: string | null } } },
+  email: string | null | undefined,
+): boolean {
+  const mine = email?.trim().toLowerCase() ?? '';
+  const advisor = client.agent_fields?.tax_advisor?.email?.trim().toLowerCase() ?? '';
+  return mine !== '' && advisor === mine;
+}
+
+/**
  * The doc-collector agent stopped chasing because the collection due date
  * passed and handed the client off to the accountant.
  */

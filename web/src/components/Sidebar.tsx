@@ -191,13 +191,16 @@ export function Sidebar({
     const state = dotStateOf(client);
     return { cls: clientDotClass(state), title: dotTitle(t, state) };
   };
-  // The checkbox only exists when someone in the loaded list is assigned to the
-  // signed-in person, so the narrowed list can never be empty by default.
-  const assignedCount = useMemo(() => clients.filter((client) => isAssignedTo(client, userEmail)).length, [clients, userEmail]);
+  // "Me" for the checkbox: the signed-in person, or the accountant being viewed
+  // under admin view-as (the admin sees what the accountant sees). The checkbox
+  // only exists when someone in the loaded list is assigned to that person, so
+  // the narrowed list can never be empty by default.
+  const meEmail = impersonatingEmail ?? userEmail;
+  const assignedCount = useMemo(() => clients.filter((client) => isAssignedTo(client, meEmail)).length, [clients, meEmail]);
   const myOnlyActive = myOnly && assignedCount > 0;
   const baseClients = useMemo(
-    () => (myOnlyActive ? clients.filter((client) => isAssignedTo(client, userEmail)) : clients),
-    [clients, myOnlyActive, userEmail],
+    () => (myOnlyActive ? clients.filter((client) => isAssignedTo(client, meEmail)) : clients),
+    [clients, myOnlyActive, meEmail],
   );
   // Counts describe the loaded list (live or deleted, narrowed to "my clients" when ticked), never the search result.
   const statusCounts = useMemo(() => countByDotColor(baseClients.map(dotStateOf)), [baseClients]);

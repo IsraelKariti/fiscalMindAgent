@@ -5,7 +5,7 @@ See proposal.md — Why. Facts that shape the approach:
 - `Sidebar.tsx` already narrows the loaded list client-side: `statusFilter` (color buttons, counts from `countByDotColor` over the loaded list) and `clientQuery` (`clientMatchesQuery`). Both are component state, reset on reload.
 - The sidebar receives `userEmail` (the signed-in email on both surfaces: Google session in `App.tsx`, monday identity in `MondayObject.tsx`) but not whether the session is a staff viewer; `Workspace.tsx` has `viewer` and already hides add/delete on it.
 - Every client row carries `agent_fields.tax_advisor` (`client-tax-advisor`), so the advisor email is available without a server call.
-- Under admin view-as, `userEmail` is the admin's email, so no client matches and the checkbox hides by the "at least one assigned" rule — no special case needed.
+- Under admin view-as, `userEmail` is the admin's email; the sidebar also receives `impersonatingEmail` (the accountant), which is the "me" the checkbox uses so the admin sees the accountant's view.
 
 ## Goals / Non-Goals
 

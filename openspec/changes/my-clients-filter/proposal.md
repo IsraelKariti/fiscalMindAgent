@@ -6,7 +6,7 @@ Since `client-tax-advisor` every declaration client carries the team member who 
 
 - A **"my clients only" checkbox** above the client search box, shown whenever the loaded list holds at least one client whose stored tax advisor email equals the signed-in person's email (case-insensitive). When ticked, the list, the color counts and the search apply to those clients only.
 - **Default**: ticked for a staff viewer, unticked for the accountant. The choice is not kept across page reloads (like the color filter).
-- The checkbox is never shown when nobody in the list is assigned to the signed-in person (the accountant with no own clients, an admin viewing as the accountant, a viewer without assigned clients), so the list can never open empty because of it.
+- The checkbox is never shown when nobody in the list is assigned to the signed-in person (the accountant with no own clients, a viewer without assigned clients), so the list can never open empty because of it. Under admin view-as, the accountant being viewed counts as the signed-in person.
 - Works on both surfaces, the standalone app and the monday custom object, since both pass the signed-in email to the sidebar.
 - No server change: the advisor email is already in every client row the list receives.
 

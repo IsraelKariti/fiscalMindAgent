@@ -139,7 +139,7 @@ const he = {
   sourcesFormLinkColumn: 'עמודת קישור לשאלון (Connect boards)',
   sourcesFileNumberColumn: "עמודת מס' תיק",
   sourcesYearColumn: 'עמודת שנת הצהרת ההון',
-  sourcesTaxAdvisorColumn: 'עמודת יועץ מס (אנשים)',
+  sourcesTaxAdvisorColumn: 'עמודת יועץ/ת מס (אנשים)',
   sourcesBoardMappingDescDeclaration:
     'מפו את עמודות הקישור של לוח ההצהרות: הקישור לכרטיס הלקוח ב-CRM (משם נלקחים הטלפון, השם והת"ז) והקישור לשאלון שמולא, וכן את עמודות מס\' התיק ושנת ההצהרה. עמודת טלפון בלוח עצמו אינה נדרשת.',
   sourcesKickoffDescDeclaration:
@@ -504,7 +504,7 @@ const he = {
   declinedBadge: 'הלקוח סירב — התיק בטיפולך',
   dueDateChipLabel: 'תאריך יעד לאיסוף',
   dueDateByDate: (date: string) => `עד ${date}`,
-  taxAdvisorLabel: 'יועץ מס',
+  taxAdvisorLabel: 'יועץ/ת מס',
   taxAdvisorUnlisted: (name: string) => `${name} (לא ברשימת הצוות)`,
   dueDateEditLabel: 'תאריך יעד לאיסוף',
 

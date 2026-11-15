@@ -161,7 +161,8 @@ monday WorkForm is the only source of which documents a declaration needs):
   `monday_crm_item_id`, `monday_form_item_id`).
 - **Tax advisor** (openspec `client-tax-advisor`, `kickoff.ts`
   `resolveTaxAdvisor` → `taxAdvisor.ts` `matchTaxAdvisor`): the board may map
-  a people column (`taxAdvisorColumnId`, conventionally "יועץ מס"). Every
+  a people column (`taxAdvisorColumnId`, conventionally "יועצת מס"; preselected
+  by the stem `יועצ|יועץ`). Every
   kickoff reads its first person (`PeopleValue.persons_and_teams` →
   `fetchUsers`, needs the **users:read** OAuth scope — accountants connected
   before 2026-11-15 must reconnect monday, until then the advisor is stored by

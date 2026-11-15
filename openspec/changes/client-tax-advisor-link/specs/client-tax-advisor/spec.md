@@ -5,10 +5,10 @@ Which team member handles a declaration-of-capital client: the board column that
 ## ADDED Requirements
 
 ### Requirement: A declaration board may map a tax advisor column
-When an accountant adds a declarations board as a client source, the board mapping SHALL offer an optional "tax advisor" field listing only the board's people-typed columns. A column whose title contains `יועץ` SHALL be preselected when one exists. The chosen column SHALL be shown in the board's mapping summary on the Settings page. The field is optional: a board mapped without it behaves as today.
+When an accountant adds a declarations board as a client source, the board mapping SHALL offer an optional "tax advisor" field listing only the board's people-typed columns. A column whose title contains `יועצת` or `יועץ` SHALL be preselected when one exists. The chosen column SHALL be shown in the board's mapping summary on the Settings page. The field is optional: a board mapped without it behaves as today.
 
 #### Scenario: People column preselected by title
-- **WHEN** an accountant adds a declarations board that has a people column titled "יועץ מס"
+- **WHEN** an accountant adds a declarations board that has a people column titled "יועצת מס"
 - **THEN** the mapping modal shows a tax advisor field with that column preselected, and after confirming, the board's summary names the column
 
 #### Scenario: Board without a people column

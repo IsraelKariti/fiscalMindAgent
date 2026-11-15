@@ -92,11 +92,12 @@ export function BoardMappingModal({
   const formLinkAuto = withDeclarationColumns ? linkByTitle(/שאלון|form/i, crmLinkAuto) : '';
   const scalarByTitle = (re: RegExp) =>
     board.columns.find((c) => c.type !== 'name' && c.type !== 'board_relation' && re.test(c.title))?.id ?? '';
-  // Tax advisor (openspec `client-tax-advisor`): a people column, conventionally titled "יועץ מס".
+  // Tax advisor (openspec `client-tax-advisor`): a people column, conventionally
+  // titled "יועצת מס" / "יועץ מס" — the stem יועצ catches both (final ץ differs from צ).
   const peopleOptions: MappingOption[] = withDeclarationColumns
     ? board.columns.filter((c) => c.type === 'people').map((c) => ({ value: c.id, label: c.title }))
     : [];
-  const taxAdvisorAuto = peopleOptions.find((o) => /יועץ/.test(o.label))?.value ?? '';
+  const taxAdvisorAuto = peopleOptions.find((o) => /יועצ|יועץ/.test(o.label))?.value ?? '';
 
   // A real email/phone-typed column beats a title match; either way the pick
   // must be a valid key candidate.

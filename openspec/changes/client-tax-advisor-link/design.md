@@ -38,7 +38,7 @@ See proposal.md — Why. Current state that shapes the approach:
 
 4. **`fetchItemDetails` gains `personIds: string[]`** (from `... on PeopleValue { persons_and_teams { id kind } }`, persons only), empty for other types — same pattern as `linkedItemIds`. `fetchUsers(accessToken, ids)` is a new exported helper in `mondayData.ts` returning `{ id, name, email }[]`.
 
-5. **Mapping UI:** `BoardMappingModal` computes `peopleOptions` (type `people`), preselects by `/יועץ/`, and passes `taxAdvisorOptions` to `SourceMappingForm`, which renders the dropdown inside the existing `declaration` block after the year field; `ColumnMapping.taxAdvisorColumn` → `BoardMapping.taxAdvisorColumnId`. `ClientSourcesSettings` adds the summary chip after the year chip. Server `BoardSourceSchema` gets `taxAdvisorColumnId` (optional, documented as declaration-only).
+5. **Mapping UI:** `BoardMappingModal` computes `peopleOptions` (type `people`), preselects by `/יועצ|יועץ/` (covers "יועצת מס" and "יועץ מס"), and passes `taxAdvisorOptions` to `SourceMappingForm`, which renders the dropdown inside the existing `declaration` block after the year field; `ColumnMapping.taxAdvisorColumn` → `BoardMapping.taxAdvisorColumnId`. `ClientSourcesSettings` adds the summary chip after the year chip. Server `BoardSourceSchema` gets `taxAdvisorColumnId` (optional, documented as declaration-only).
 
 6. **Details chip:** `ClientHeader` renders a `MetaChip` with a person icon, label `t.taxAdvisorLabel`, value = name, or `t.taxAdvisorUnlisted(name)` when `match === 'none'`; the `title` carries the email when present. Rendered in the read view only (not in the edit grid). No `readOnly` branch needed: the chip is never editable.
 

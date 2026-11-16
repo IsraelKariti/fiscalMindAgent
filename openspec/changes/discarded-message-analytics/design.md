@@ -42,7 +42,7 @@ For every outbound row: `plan_trigger` = `client_message` when the nearest earli
 For every outbound row with `status IN ('draft','held')` whose id is not the `scheduled_jobs` row's email id of its client:
 - `discarded_at` = the smallest `COALESCE(sent_at, created_at)` of a later row of the same client (`created_at > this.created_at`), else NULL.
 - `scheduled_for` = `(detail->>'sendAt')::timestamp AT TIME ZONE 'Asia/Jerusalem'` from the newest `audit_events` row with `action IN ('send_reply','send_whatsapp_text','send_whatsapp_template')` and `detail->>'emailId' = emails.id::text`, when the label matches `^\d{4}-\d{2}-\d{2} \d{2}:\d{2}` (the `wallClockLabel` format); else NULL.
-- `discard_reason = 'unknown'`.
+- `discard_reason = 'unknown'`; then (077) `client_message` where the thread row at `discarded_at` is inbound — the client wrote while the draft was pending.
 `plan_run_id` is not backfilled: pre-change cost stays unknown by design (spec: never zero).
 
 ### 5. One server module computes everything
@@ -65,7 +65,7 @@ For every outbound row with `status IN ('draft','held')` whose id is not the `sc
 ## Risks / Trade-offs
 
 - **Backfilled triggers are a guess from thread order**: an old draft that followed a verification or a tax fetch reads as `client_message` or `agent_message_sent`. Only drafts written after this change carry the exact trigger.
-- **Backfilled discard times are approximate** (the next thread row, not the cancel). Labelled `unknown` reason so the admin can tell them apart.
+- **Backfilled discard times are approximate** (the next thread row, not the cancel). Labelled `unknown` reason so the admin can tell them apart, except the ones followed by a client message (077): those read `client_message` so the wait curve has history, and a draft cancelled for another reason that no redraft replaced before the client wrote is misread as one.
 - **A cycle that drafts nothing still spends**: its calls carry a cycle id but no draft, so that spend appears in neither "all drafts" nor "discarded". The tab says "cost of drafts", not "cost of planning".
 - **`send_settled` stamps are rare**: after a real send the row is `sent` and the guard skips it; only the not-sent path (window closed, draft parked) leaves a `draft` row to stamp.
 - **Timezone**: weeks are bucketed in the accountant timezone on the server, not the browser's; identical for Israel-based admins, documented in the tab's tooltip.

@@ -23,5 +23,6 @@
 ## 4. Docs and checks
 
 - [x] 4.1 Update `docs/agents.md` (trigger, discard stamp, reasons, cycle id, the analytics tab) and `docs/pipeline.md` (`removeFutureEmail` now takes a reason; `setFutureEmail` takes a trigger and mints the cycle id). Verify: both files name the new columns and the route.
-- [x] 4.2 Add `.env.example` nothing (no new env var) and note in the change that production needs migration 076. Verify: `git diff` shows no `.env` change.
+- [x] 4.3 Write `migrations/077_backfill_client_reply_discards.sql`: backfilled `unknown` discards whose thread row at the discard time is inbound become `client_message`. Verify: `npm run db:migrate` locally, the reasons list shows client-reply discards and the wait curve draws.
+- [x] 4.2 Add `.env.example` nothing (no new env var) and note in the change that production needs migrations 076 and 077. Verify: `git diff` shows no `.env` change.
 - [ ] 4.3 Live check with the owner, step by step: send a WhatsApp message to a local test client that has a scheduled draft, confirm the old draft row reads `client_message`, open the analytics tab under view-as and read the discarded count and cost. Verify: the tab's figures match a `docker psql` count.

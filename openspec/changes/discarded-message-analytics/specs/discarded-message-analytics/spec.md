@@ -49,11 +49,15 @@ Whenever the system cancels a client's pending send and the draft is not going t
 - **THEN** that draft carries no discard stamp
 
 ### Requirement: Old drafts are backfilled once
-At migration time, every outbound draft SHALL be backfilled with a trigger read from the thread row right before it: `client_message` when that row is inbound, `agent_message_sent` when it is a sent outbound row, `kickoff` when nothing precedes it. Every outbound draft that is neither sent nor the client's live pending draft SHALL also be backfilled with: a discard time equal to the time of the next message in the client's thread after it (the next inbound or the next outbound row), or left unknown when nothing followed; the planned send time read from the draft's scheduling step in the audit trail when one exists; and the reason `unknown`.
+At migration time, every outbound draft SHALL be backfilled with a trigger read from the thread row right before it: `client_message` when that row is inbound, `agent_message_sent` when it is a sent outbound row, `kickoff` when nothing precedes it. Every outbound draft that is neither sent nor the client's live pending draft SHALL also be backfilled with: a discard time equal to the time of the next message in the client's thread after it (the next inbound or the next outbound row), or left unknown when nothing followed; the planned send time read from the draft's scheduling step in the audit trail when one exists; and the reason `unknown` — except that a backfilled discard whose next thread row is a client message SHALL read the reason `client_message` (the client wrote while the draft was pending), so the wait curve can count it.
 
 #### Scenario: Backfilled draft
 - **WHEN** an old draft of 3 March 10:00 was followed in the thread by a client message at 3 March 14:00
-- **THEN** after the migration the draft reads discarded at 3 March 14:00, reason `unknown`
+- **THEN** after the migration the draft reads discarded at 3 March 14:00, reason `client_message`
+
+#### Scenario: Backfilled draft followed by a redraft
+- **WHEN** an old draft of 3 March 10:00 was followed in the thread by another draft of the agent at 3 March 10:05
+- **THEN** after the migration the first draft reads discarded at 3 March 10:05, reason `unknown`
 
 #### Scenario: Live draft untouched
 - **WHEN** a client has a pending queued draft at migration time

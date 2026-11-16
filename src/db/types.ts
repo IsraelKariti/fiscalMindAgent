@@ -323,6 +323,43 @@ export type MessageChannel = 'email' | 'whatsapp';
  */
 export type ReviewStatus = 'pending' | 'approved' | 'superseded';
 
+/**
+ * What started the planning cycle that wrote an outbound draft (076, openspec
+ * `discarded-message-analytics`). Every setFutureEmail caller names one.
+ */
+export type PlanTrigger =
+  | 'client_message'
+  | 'agent_message_sent'
+  | 'file_verification'
+  | 'tax_fetch'
+  | 'kickoff'
+  | 'team_answer'
+  | 'admin_redraft'
+  | 'review_regenerate'
+  | 'admin_unpause'
+  | 'resume'
+  | 'goal_reopened'
+  | 'channel_changed';
+
+/**
+ * Why a pending draft was cancelled without being sent (076). Every
+ * removeFutureEmail caller names one; 'unknown' = backfilled before 076.
+ */
+export type DiscardReason =
+  | 'client_message'
+  | 'file_verification'
+  | 'tax_fetch'
+  | 'admin_redraft'
+  | 'admin_pause'
+  | 'resume'
+  | 'client_declined'
+  | 'goal_changed'
+  | 'channel_changed'
+  | 'client_deleted'
+  | 'send_settled'
+  | 'review_regenerate'
+  | 'unknown';
+
 export interface EmailRow {
   id: string;
   client_id: string;
@@ -348,6 +385,15 @@ export interface EmailRow {
   held_at: Date | null;
   /** Inbound only (054): the injection screen withheld this message from the planner. */
   blocked: InjectionBlock | null;
+  /** Outbound drafts (076): what started the cycle that wrote it; NULL on inbound rows. */
+  plan_trigger: PlanTrigger | null;
+  /** Outbound drafts (076): the planned send time, kept after the scheduled_jobs mirror row is deleted. */
+  scheduled_for: Date | null;
+  /** Outbound drafts (076): stamped by removeFutureEmail when the pending draft is cancelled unsent. */
+  discarded_at: Date | null;
+  discard_reason: DiscardReason | null;
+  /** Outbound drafts (076): the planning cycle id shared with the cycle's llm_calls rows; NULL before 076. */
+  plan_run_id: string | null;
   sent_at: Date | null;
   created_at: Date;
 }

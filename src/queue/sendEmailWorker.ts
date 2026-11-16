@@ -109,8 +109,8 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
     // not-sent path the abandoned draft simply stays in 'draft' status (the
     // established pattern) and the fresh decision sees the current state.
     if (sent !== 'skip_planning') {
-      await removeFutureEmail(clientId);
-      await setFutureEmail(clientId);
+      await removeFutureEmail(clientId, 'send_settled');
+      await setFutureEmail(clientId, 'agent_message_sent');
     }
   });
 }

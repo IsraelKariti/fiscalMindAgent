@@ -80,6 +80,7 @@ import {
   adminListInstanceClients,
   adminListLlmCalls,
 } from './llmAdmin.js';
+import { adminGetMessageAnalytics } from './messageAnalyticsAdmin.js';
 import {
   adminCreateWaTemplate,
   adminDeleteWaSender,
@@ -178,6 +179,7 @@ apiRouter.post('/admin/agent-admin-pause', wrap(requireAdmin), wrap(adminSetAgen
 apiRouter.post('/admin/clients/:clientId/admin-pause', wrap(requireAdmin), wrap(adminSetClientAdminPause));
 // Per-call LLM observability (049): admin-only conversation and call browsers.
 apiRouter.get('/admin/agents/:agentInstanceId/clients', wrap(requireAdmin), wrap(adminListInstanceClients));
+apiRouter.get('/admin/agents/:agentInstanceId/message-analytics', wrap(requireAdmin), wrap(adminGetMessageAnalytics));
 apiRouter.get('/admin/clients/:clientId/conversation', wrap(requireAdmin), wrap(adminGetClientConversation));
 apiRouter.get('/admin/clients/:clientId/llm-calls', wrap(requireAdmin), wrap(adminGetClientLlmCalls));
 apiRouter.get('/admin/audit-events/:id', wrap(requireAdmin), wrap(adminGetAuditEvent));

@@ -8,7 +8,7 @@ import { publishClientUpdated } from '../events/clientEvents.js';
 import { recordAudit } from '../audit/audit.js';
 import { sendEmailQueue } from '../queue/sendEmailQueue.js';
 import { logger } from '../util/logger.js';
-import type { MessageChannel } from '../db/types.js';
+import type { MessageChannel, PlanTrigger } from '../db/types.js';
 
 /**
  * Stores the drafted message (email or WhatsApp) and schedules its send.
@@ -33,8 +33,16 @@ export async function scheduleDraftMessage(
      * pauseFutureEmail leaves behind, so the accountant's resume restores it.
      */
     hold?: boolean;
+    /**
+     * Draft outcome columns (openspec `discarded-message-analytics`): what
+     * started the planning cycle and the cycle's id, shared with its llm_calls
+     * rows. Null from callers outside a planning cycle.
+     */
+    planTrigger?: PlanTrigger | null;
+    planRunId?: string | null;
   },
 ): Promise<{ emailId: string; jobId: string }> {
+  const scheduledFor = new Date(Date.now() + args.delayMs);
   const draft = await emails.insertDraft(clientId, {
     channel: args.channel,
     subject: args.subject,
@@ -42,13 +50,15 @@ export async function scheduleDraftMessage(
     reasoning: args.reasoning ?? null,
     waContentSid: args.waContentSid ?? null,
     waContentVariables: args.waContentVariables ?? null,
+    planTrigger: args.planTrigger ?? null,
+    scheduledFor,
+    planRunId: args.planRunId ?? null,
   });
   // Admin review (048): flag the draft BEFORE the job is enqueued, so even a
   // near-zero delay can't race the worker into sending it unreviewed. The
   // send-time gate in the worker only lets 'approved' drafts through.
   const client = await clients.getById(clientId);
   const instance = client?.agent_instance_id ? await agentInstances.getById(client.agent_instance_id) : null;
-  const scheduledFor = new Date(Date.now() + args.delayMs);
   if (client && isSupervisedInstance(instance) && instance.review_mode) {
     const pending = await emails.markReviewPending(draft.id);
     if (pending) {

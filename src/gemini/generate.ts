@@ -76,6 +76,12 @@ export interface LlmCallLogContext {
    * stage chip. Omit for calls that read no single file.
    */
   documentFileId?: string | null;
+  /**
+   * The planning cycle the call belongs to (openspec
+   * `discarded-message-analytics`): the draft the cycle schedules carries the
+   * same id, so a draft's cost is the sum of its cycle's rows. Planner only.
+   */
+  planRunId?: string | null;
   /** e.g. 'planner' | 'questionnaire_schema_mapping' | 'extract_document' | 'file_classification'. */
   purpose: string;
   /**
@@ -115,6 +121,7 @@ async function recordCall(
       agentInstanceId: log.agentInstanceId,
       clientId: log.clientId,
       documentFileId: log.documentFileId ?? null,
+      planRunId: log.planRunId ?? null,
       purpose: log.purpose,
       provider,
       model: request.model,

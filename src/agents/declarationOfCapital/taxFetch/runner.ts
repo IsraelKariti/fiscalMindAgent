@@ -64,8 +64,8 @@ async function sendCanned(client: ClientRow, body: string): Promise<void> {
 async function replanAfterFetchEnd(clientId: string): Promise<void> {
   try {
     await withClientLock(clientId, async () => {
-      await removeFutureEmail(clientId);
-      await setFutureEmail(clientId);
+      await removeFutureEmail(clientId, 'tax_fetch');
+      await setFutureEmail(clientId, 'tax_fetch');
     });
   } catch (err) {
     logger.error('tax fetch: post-outcome re-plan failed', err, { clientId });

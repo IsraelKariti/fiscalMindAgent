@@ -1,5 +1,5 @@
 import { pool } from '../pool.js';
-import type { EmailRow, InjectionBlock, MessageChannel } from '../types.js';
+import type { DiscardReason, EmailRow, InjectionBlock, MessageChannel, PlanTrigger } from '../types.js';
 
 /** Chronological history usable for LLM prompt context: sent outbound mail + received inbound mail only. */
 export async function listForClient(clientId: string): Promise<EmailRow[]> {
@@ -72,11 +72,16 @@ export async function insertDraft(
     /** Twilio Content SID + variables when this is a WhatsApp template message. */
     waContentSid?: string | null;
     waContentVariables?: string[] | null;
+    /** Draft outcome columns (076, openspec `discarded-message-analytics`); planner drafts only. */
+    planTrigger?: PlanTrigger | null;
+    scheduledFor?: Date | null;
+    planRunId?: string | null;
   },
 ): Promise<EmailRow> {
   const { rows } = await pool.query<EmailRow>(
-    `INSERT INTO emails (client_id, direction, status, channel, subject, body, reasoning, wa_content_sid, wa_content_variables)
-     VALUES ($1, 'outbound', 'draft', $2, $3, $4, $5, $6, $7) RETURNING *`,
+    `INSERT INTO emails (client_id, direction, status, channel, subject, body, reasoning, wa_content_sid, wa_content_variables,
+                         plan_trigger, scheduled_for, plan_run_id)
+     VALUES ($1, 'outbound', 'draft', $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
     [
       clientId,
       args.channel,
@@ -85,6 +90,9 @@ export async function insertDraft(
       args.reasoning ?? null,
       args.waContentSid ?? null,
       args.waContentVariables == null ? null : JSON.stringify(args.waContentVariables),
+      args.planTrigger ?? null,
+      args.scheduledFor ?? null,
+      args.planRunId ?? null,
     ],
   );
   const row = rows[0];
@@ -197,12 +205,27 @@ export async function approvePending(id: string): Promise<EmailRow | null> {
   return rows[0] ?? null;
 }
 
-/** A replan made the client's pending drafts obsolete; parked ones rejoin the abandoned-draft lifecycle. */
-export async function supersedePendingReview(clientId: string): Promise<void> {
+/** A replan made the client's pending drafts obsolete; parked ones rejoin the abandoned-draft lifecycle, stamped discarded (076). */
+export async function supersedePendingReview(clientId: string, reason: DiscardReason): Promise<void> {
   await pool.query(
-    `UPDATE emails SET review_status = 'superseded', status = 'draft'
+    `UPDATE emails SET review_status = 'superseded', status = 'draft',
+       discarded_at = COALESCE(discarded_at, now()), discard_reason = COALESCE(discard_reason, $2)
      WHERE client_id = $1 AND review_status = 'pending'`,
-    [clientId],
+    [clientId, reason],
+  );
+}
+
+/**
+ * The pending draft was cancelled and will not be sent (openspec
+ * `discarded-message-analytics`): stamp when and why, once. The status guard
+ * keeps a sent row clean — the post-send re-plan cancels a row that is
+ * already 'sent'.
+ */
+export async function markDiscarded(emailId: string, reason: DiscardReason): Promise<void> {
+  await pool.query(
+    `UPDATE emails SET discarded_at = now(), discard_reason = $2
+     WHERE id = $1 AND direction = 'outbound' AND status IN ('draft', 'held') AND discarded_at IS NULL`,
+    [emailId, reason],
   );
 }
 

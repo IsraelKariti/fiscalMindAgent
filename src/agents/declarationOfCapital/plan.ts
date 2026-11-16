@@ -463,6 +463,7 @@ async function askPlanner(run: PlanRun): Promise<NormalizedDecision> {
       agentInstanceId: client.agent_instance_id,
       clientId,
       purpose: 'planner',
+      planRunId: run.ctx.hints?.planRunId ?? null,
     },
   });
   if (client.user_id) {
@@ -1418,6 +1419,9 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
     reasoning: decision.reasoning,
     // Held first message (openspec `first-message-approval`): stored, not queued.
     hold: run.ctx.hints?.hold === true,
+    // Draft outcome (openspec `discarded-message-analytics`): the cycle's trigger and id.
+    planTrigger: run.ctx.hints?.trigger ?? null,
+    planRunId: run.ctx.hints?.planRunId ?? null,
   });
   const sendCall = callOf(run, message.kind === 'template' ? 'send_whatsapp_template' : 'send_whatsapp_text');
   if (sendCall) {

@@ -126,7 +126,7 @@ export const adminRegenerateReviewMessage: RequestHandler = async (req, res) => 
     if (!client || client.goal_status === 'complete' || client.paused || (await adminCommsPaused(client))) return true;
     // Supersedes the pending draft and cancels its job; the UI refetch after
     // the 202 already sees it gone from the queue.
-    await removeFutureEmail(target.clientId);
+    await removeFutureEmail(target.clientId, 'review_regenerate');
     await clients.markDraftingStarted(target.clientId);
     return false;
   });
@@ -135,7 +135,7 @@ export const adminRegenerateReviewMessage: RequestHandler = async (req, res) => 
     return;
   }
 
-  withClientLock(target.clientId, () => setFutureEmail(target.clientId)).catch((err) =>
+  withClientLock(target.clientId, () => setFutureEmail(target.clientId, 'review_regenerate')).catch((err) =>
     logger.error('review regenerate replan failed', err, { clientId: target.clientId }),
   );
   publishClientUpdated(target.clientId);

@@ -36,7 +36,7 @@ export function handleClientDecline(ctx: AgentContext, source: DeclineSource): P
   return handleClientDeclineWith(ctx, source, {
     markDeclined: clients.markDeclined,
     syncDocumentsStatus: syncMondayDocumentsStatus,
-    removeFutureEmail,
+    removeFutureEmail: (id) => removeFutureEmail(id, 'client_declined'),
     clearDraftingState: clients.clearDraftingState,
     channelState: (client, now) => getWaChannelState(client, now, DECLARATION_OF_CAPITAL),
     getSender: waSenders.getByInstanceId,

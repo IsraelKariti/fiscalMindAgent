@@ -386,8 +386,8 @@ workspaceRouter.patch(
         // Channel availability changed — let the agent re-decide the pending message.
         if (enabled.goal_status === 'pending') {
           await withClientLock(enabled.id, async () => {
-            await removeFutureEmail(enabled.id);
-            await setFutureEmail(enabled.id);
+            await removeFutureEmail(enabled.id, 'channel_changed');
+            await setFutureEmail(enabled.id, 'channel_changed');
           });
         }
       }
@@ -449,8 +449,8 @@ workspaceRouter.put(
     // Channel availability changed — let the agent re-decide the pending message.
     if (updated.goal_status === 'pending') {
       await withClientLock(updated.id, async () => {
-        await removeFutureEmail(updated.id);
-        await setFutureEmail(updated.id);
+        await removeFutureEmail(updated.id, 'channel_changed');
+        await setFutureEmail(updated.id, 'channel_changed');
       });
     }
     res.json({ client: toWorkspaceClient(updated) });
@@ -474,7 +474,7 @@ workspaceRouter.delete(
     // Cancel the pending BullMQ send under the client lock so an in-flight
     // draft/send settles first; work that re-reads the client afterwards finds
     // no live row and stops.
-    await withClientLock(client.id, () => removeFutureEmail(client.id));
+    await withClientLock(client.id, () => removeFutureEmail(client.id, 'client_deleted'));
     // False = already deleted meanwhile (a double delete) — "not found", as above.
     if (!(await clients.markDeleted(client.id, req.agentInstance!.id, req.realUserId ?? req.userId ?? null))) {
       res.status(404).json({ error: 'Client not found.' });
@@ -635,8 +635,8 @@ workspaceRouter.post(
     await clients.markDraftingStarted(client.id);
     publishClientUpdated(client.id);
     withClientLock(client.id, async () => {
-      await removeFutureEmail(client.id);
-      await setFutureEmail(client.id);
+      await removeFutureEmail(client.id, 'admin_redraft');
+      await setFutureEmail(client.id, 'admin_redraft');
     }).catch((err) => logger.error('manual redraft failed', err, { clientId: client.id }));
     res.status(202).json({ ok: true });
   }),
@@ -694,7 +694,7 @@ workspaceRouter.post(
       detail: { clientName: client.name, questionId: closed.id, how: closed.closed_how, textLength: text.length, by: actorName, question: closed.question },
     });
     publishClientUpdated(client.id);
-    withClientLock(client.id, () => setFutureEmail(client.id)).catch((err) =>
+    withClientLock(client.id, () => setFutureEmail(client.id, 'team_answer')).catch((err) =>
       logger.error('planner run after a team question closed failed', err, { clientId: client.id, questionId: closed.id }),
     );
     res.json({ question: toTeamQuestion(closed) });

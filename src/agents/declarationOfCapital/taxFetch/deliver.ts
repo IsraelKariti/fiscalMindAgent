@@ -200,8 +200,8 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   // Let the collector re-plan: mark-collected may have completed the goal, or a
   // follow-up for the remaining documents should be (re)scheduled.
   await withClientLock(client.id, async () => {
-    await removeFutureEmail(client.id);
-    await setFutureEmail(client.id);
+    await removeFutureEmail(client.id, 'tax_fetch');
+    await setFutureEmail(client.id, 'tax_fetch');
   });
   publishClientUpdated(client.id);
 }

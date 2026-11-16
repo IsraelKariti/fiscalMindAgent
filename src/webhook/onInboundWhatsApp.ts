@@ -168,7 +168,7 @@ async function disableWhatsAppOnOptOut(client: ClientRow): Promise<void> {
  * for the whole turn — "drafting" shows from now.
  */
 async function cancelPendingSendAndShowDrafting(client: ClientRow): Promise<void> {
-  await withClientLock(client.id, () => removeFutureEmail(client.id));
+  await withClientLock(client.id, () => removeFutureEmail(client.id, 'client_message'));
   if (!client.paused && client.goal_status === 'pending') await clients.markDraftingStarted(client.id);
   publishClientUpdated(client.id);
 }

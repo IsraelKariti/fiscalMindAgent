@@ -19,6 +19,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Store the message once per Twilio MessageSid | `webhook/onInboundWhatsApp.ts` · `storeInboundMessage` |
 | Opt-out keyword disables WhatsApp | `webhook/onInboundWhatsApp.ts` · `isOptOut`, `disableWhatsAppOnOptOut` |
 | Cancel the outdated pending send, show "drafting" | `webhook/onInboundWhatsApp.ts` · `cancelPendingSendAndShowDrafting` |
+| Stamp the cancelled draft with the time and the reason (`client_message` here; every `removeFutureEmail` caller names its own, openspec `discarded-message-analytics`) | `orchestration/removeFutureEmail.ts` · `removeFutureEmail` → `db/queries/emails.ts` · `markDiscarded`, `supersedePendingReview` |
 | Store the media items (see B) | `webhook/onInboundWhatsApp.ts` · `ingestMessageMedia` |
 | OTP reply for a website login? Handled by the fetch worker, no replan | `DOC/taxFetch/inboundOtp.ts` · `maybeHandleOtpInbound` (called from `DOC/index.ts` · `onInboundMessage`) |
 | Which messages are screened | `DOC/screenInbound.ts` · `inboundMessageToScreen` |
@@ -28,6 +29,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Ask for one planner run per turn (debounced) | `orchestration/requestReplan.ts` · `requestReplan` → `orchestration/inboundTurnCore.ts` · `createReplanRequester` |
 | Plan now, wait, or force? | `orchestration/inboundTurnRules.ts` · `decideReplan`, `isTurnSettled` |
 | The replan job: wait/force, kill switch, plan, re-run if the client wrote meanwhile | `queue/replanWorker.ts` · `onReplan` → `orchestration/setFutureEmail.ts` · `setFutureEmail` → D |
+| Name what started the cycle (`client_message` here; every `setFutureEmail` caller passes a `PlanTrigger`) and mint the cycle id every planner call and the draft record (`llm_calls.plan_run_id`, `emails.plan_run_id`) | `orchestration/setFutureEmail.ts` · `setFutureEmail` (hints `trigger`, `planRunId`) → `DOC/plan.ts` · `askPlanner` (log), `scheduleFollowUp` → `orchestration/scheduleDraftEmail.ts` · `scheduleDraftMessage` |
 
 ## B. An inbound file
 

@@ -3,16 +3,26 @@ import * as scheduledJobs from '../db/queries/scheduledJobs.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { sendEmailQueue } from '../queue/sendEmailQueue.js';
 import { logger } from '../util/logger.js';
+import type { DiscardReason } from '../db/types.js';
 
-/** Cancels the client's currently tracked pending "send_email" job, if any. Safe to call with none pending. */
-export async function removeFutureEmail(clientId: string): Promise<void> {
+/**
+ * Cancels the client's currently tracked pending "send_email" job, if any.
+ * Safe to call with none pending. `reason` says why the caller cancels; it is
+ * stamped on the draft that will now never be sent (openspec
+ * `discarded-message-analytics`) — a draft that was already sent is left
+ * alone by the status guard in emails.markDiscarded.
+ */
+export async function removeFutureEmail(clientId: string, reason: DiscardReason): Promise<void> {
   // The pending action is obsolete, so drafts awaiting admin review (048) are
   // too — supersede them so they leave the review queue instead of lingering.
   // Runs before the early return: a pending draft normally has a job row, but
   // a crash between the two writes must not leave a zombie review item.
-  await emails.supersedePendingReview(clientId);
+  await emails.supersedePendingReview(clientId, reason);
   const row = await scheduledJobs.getForClient(clientId);
   if (!row) return;
+  // The mirror row's job id is `send_email:<clientId>:<emailId>` (scheduleDraftMessage).
+  const draftId = row.bullmq_job_id.split(':')[2];
+  if (draftId) await emails.markDiscarded(draftId, reason);
 
   const job = await sendEmailQueue.getJob(row.bullmq_job_id);
   if (job) {

@@ -567,7 +567,8 @@ Industry pattern followed: one app with an agent registry
   + `ClientView`'s `admin` prop (Workspace passes `Boolean(impersonatingEmail)`)
   filter the tab out for the accountant and for staff viewers, a remembered
   admin-only tab falls back to Conversation, the button carries the
-  `client-tab-admin` / `admin-chip` marker of the Settings test tab.
+  `client-tab-admin` / `admin-chip` marker of the Settings test tab (and of
+  the analytics tab after it).
   `QuestionnaireCard` renders `questionnairePairs(agent_fields)` (well-formed
   non-blank pairs only, `tests/questionnairePairs.test.ts`) as text-only
   cards, or an empty state. No server route, no monday read.
@@ -593,6 +594,39 @@ Industry pattern followed: one app with an agent registry
   `selectedIdx` props) and the clicked bucket's call list; type, model,
   preset, grouping and measure persist in `localStorage` (`fm.costGraph`),
   custom dates do not.
+- **Draft outcomes + admin analytics tab** (openspec
+  `discarded-message-analytics`, migration 076): every outbound draft records
+  what started the planning cycle that wrote it (`emails.plan_trigger`, a
+  `PlanTrigger` every `setFutureEmail` caller passes: `client_message`,
+  `agent_message_sent`, `file_verification`, `tax_fetch`, `kickoff`,
+  `team_answer`, `admin_redraft`, `review_regenerate`, `admin_unpause`,
+  `resume`, `goal_reopened`, `channel_changed`), its planned send time
+  (`scheduled_for`, kept after the `scheduled_jobs` mirror row goes) and the
+  cycle id (`plan_run_id`, minted by `setFutureEmail`, carried on
+  `PlanHints`, written on every `llm_calls` row of the cycle through
+  `LlmCallLogContext.planRunId`) — so a draft's cost is the sum of its cycle's
+  call rows (null = unknown for pre-076 drafts, never zero).
+  `removeFutureEmail(clientId, reason)` stamps the cancelled draft
+  (`discarded_at`, `discard_reason` — a `DiscardReason` every caller names;
+  `emails.markDiscarded` guards on status draft/held so a sent row is never
+  stamped; review-superseded rows get the same stamp). The migration backfills
+  old rows: the trigger from the thread row before the draft, the discard time
+  from the next thread row, reason `unknown`, the planned time from the
+  scheduling step's `sendAt`. The Settings view gets a fifth admin-only tab
+  "ניתוח" (after the test tab, same `client-tab-admin` marker, falls back to
+  general outside view-as): `MessageAnalyticsTab` calls
+  `GET /api/admin/agents/:agentInstanceId/message-analytics?from=&to=`
+  (`requireAdmin`; `src/api/messageAnalyticsAdmin.ts` →
+  `db/queries/draftOutcomes.ts` → the pure `src/analytics/discardedMessages.ts`
+  `summarize`, `tests/discardedMessages.test.ts`): tiles (written / sent /
+  pending / discarded, discard rate, discarded vs all cost with a `+` when any
+  cost is unknown, waste share), discards by reason, drafts by trigger with
+  the most common reason, lifetime of discarded drafts (median, average,
+  median share of the planned wait, 7-bucket histogram), Monday-week trend
+  in `ACCOUNTANT_TIMEZONE`, and the ten clients with the highest discarded
+  cost. `web/src/components/messageAnalytics.ts` (`tests/messageAnalytics.test.ts`)
+  holds the presets (30 / 90 / all, remembered in `fm.messageAnalytics.range`)
+  and the duration/percent formatting.
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
   UNIQUE (migration 021): each agent instance that uses WhatsApp gets its own
   dedicated Twilio number, assigned by an admin (AdminDashboard agents section

@@ -59,8 +59,8 @@ export async function resumeFutureEmail(clientId: string): Promise<void> {
     logger.warn('preserved send not restorable, redrafting', { clientId, jobId: row.bullmq_job_id, state: jobState });
   }
 
-  await removeFutureEmail(clientId);
-  await setFutureEmail(clientId);
+  await removeFutureEmail(clientId, 'resume');
+  await setFutureEmail(clientId, 'resume');
 }
 
 /** Whether the job's draft is parked for admin review ('held'); false for an unparseable id or a missing draft. */

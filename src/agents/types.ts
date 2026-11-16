@@ -1,5 +1,5 @@
 import type { Router } from 'express';
-import type { AgentInstanceRow, ClientRow, DocumentFileRow, MessageChannel, UserRow } from '../db/types.js';
+import type { AgentInstanceRow, ClientRow, DocumentFileRow, MessageChannel, PlanTrigger, UserRow } from '../db/types.js';
 
 /**
  * How an agent type converses with clients:
@@ -30,6 +30,14 @@ export interface PlanHints {
    * time but no send is queued — the accountant's resume sends it.
    */
   hold?: boolean;
+  /**
+   * What started this cycle and the cycle's id (openspec
+   * `discarded-message-analytics`). Set by setFutureEmail on every run: the
+   * draft the cycle schedules stores both, every LLM call of the cycle
+   * records the id, so a draft's cost is the sum of its cycle's calls.
+   */
+  trigger?: PlanTrigger;
+  planRunId?: string;
 }
 
 /** Everything a hook needs to act for one client of one agent instance. */

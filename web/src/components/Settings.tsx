@@ -23,6 +23,8 @@ interface Props {
    * while an admin views the workspace as the accountant (`impersonating`).
    */
   adminTestPanel?: ReactNode;
+  /** The admin-only analytics tab (openspec `discarded-message-analytics`), rendered under view-as only, after the test tab. */
+  adminAnalyticsPanel?: ReactNode;
   impersonating?: boolean;
   /**
    * A staff viewer (openspec `accountant-employee-access`): only the dashboard
@@ -32,7 +34,7 @@ interface Props {
   viewerOnly?: boolean;
 }
 
-type Tab = 'general' | 'agent' | 'staff' | 'test' | 'dashboard';
+type Tab = 'general' | 'agent' | 'staff' | 'test' | 'analytics' | 'dashboard';
 
 export function Settings({
   mailbox,
@@ -41,6 +43,7 @@ export function Settings({
   agentPanelTabKey,
   hideMailbox,
   adminTestPanel,
+  adminAnalyticsPanel,
   impersonating,
   viewerOnly = false,
 }: Props) {
@@ -54,6 +57,8 @@ export function Settings({
   // The admin-only test tab exists only under view-as; a remembered 'test'
   // falls back to the general tab in the accountant's own session.
   const testTab = !viewerOnly && Boolean(impersonating) && adminTestPanel != null;
+  // Same rule for the admin-only analytics tab.
+  const analyticsTab = !viewerOnly && Boolean(impersonating) && adminAnalyticsPanel != null;
   // Survives a refresh alongside fm.lastView, so the user lands back on the same tab.
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (viewerOnly) return 'dashboard';
@@ -62,6 +67,7 @@ export function Settings({
     if (stored === 'agent' && tabbed) return 'agent';
     if (stored === 'staff') return 'staff';
     if (stored === 'test' && testTab) return 'test';
+    if (stored === 'analytics' && analyticsTab) return 'analytics';
     return 'general';
   });
   useEffect(() => {
@@ -138,6 +144,19 @@ export function Settings({
             <span className="admin-chip">{t.adminOnlyChip}</span>
           </button>
         )}
+        {analyticsTab && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'analytics'}
+            className={`client-tab client-tab-admin ${activeTab === 'analytics' ? 'active' : ''}`}
+            title={t.adminOnlyTabTitle}
+            onClick={() => setActiveTab('analytics')}
+          >
+            {t.settingsTabAnalytics}
+            <span className="admin-chip">{t.adminOnlyChip}</span>
+          </button>
+        )}
         <button
           type="button"
           role="tab"
@@ -158,6 +177,8 @@ export function Settings({
         <StaffSettings />
       ) : testTab && activeTab === 'test' ? (
         adminTestPanel
+      ) : analyticsTab && activeTab === 'analytics' ? (
+        adminAnalyticsPanel
       ) : (
         <>
       <SettingsGroup title={t.settingsGroupChannels}>

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import * as clients from '../db/queries/clients.js';
 import { loadAgentContext } from '../agents/resolve.js';
 import { adminCommsPaused } from './adminPause.js';
@@ -5,13 +6,18 @@ import { isHeldFirstMessageClient } from './heldFirstMessage.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { logger } from '../util/logger.js';
 import type { PlanHints } from '../agents/types.js';
+import type { PlanTrigger } from '../db/types.js';
 
 /**
  * Runs one planning step for the client's agent (loaded via the agent-type
  * registry) inside the generic lifecycle wrapper: complete/paused guards,
  * drafting stamps for the UI, and failure recording for the manual retry.
+ * `trigger` names what started the cycle; it is stored on the draft the cycle
+ * schedules, together with a fresh cycle id that every LLM call of the cycle
+ * records (openspec `discarded-message-analytics`).
  */
-export async function setFutureEmail(clientId: string, hints?: PlanHints): Promise<void> {
+export async function setFutureEmail(clientId: string, trigger: PlanTrigger, hints?: PlanHints): Promise<void> {
+  hints = { ...hints, trigger, planRunId: randomUUID() };
   const client = await clients.getById(clientId);
   if (!client) {
     // No live client: deleted meanwhile (openspec `soft-delete-clients`) or
@@ -49,7 +55,7 @@ export async function setFutureEmail(clientId: string, hints?: PlanHints): Promi
   await clients.markDraftingStarted(clientId);
   try {
     const agent = await loadAgentContext(client);
-    await agent.definition.planNextAction(hints ? { ...agent, hints } : agent);
+    await agent.definition.planNextAction({ ...agent, hints });
     await clients.clearDraftingState(clientId);
   } catch (err) {
     await clients.markDraftingFailed(clientId).catch((markErr) => {

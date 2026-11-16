@@ -47,8 +47,8 @@ export async function replanClientsAfterUnpause(clientIds: string[]): Promise<vo
         if (!client) return;
         if (client.goal_status === 'complete' || client.paused || client.admin_paused) return;
         if (await adminCommsPaused(client)) return; // instance still paused
-        await removeFutureEmail(clientId);
-        await setFutureEmail(clientId);
+        await removeFutureEmail(clientId, 'admin_pause');
+        await setFutureEmail(clientId, 'admin_unpause');
       });
     } catch (err) {
       logger.error('unpause replan failed for client', err, { clientId });

@@ -475,6 +475,62 @@ export const LLM_CALL_PURPOSES = [
 export type LlmCallPurpose = (typeof LLM_CALL_PURPOSES)[number];
 
 /** One client as the admin panel sees it. */
+/** A sum of per-draft costs; `unknown` = drafts whose cost is unknown (pre-076, or unpriced) — the UI shows a `+`. */
+export interface CostSum {
+  known: number;
+  unknown: number;
+}
+
+export type LifetimeBucket = 'under_1m' | '1m_10m' | '10m_1h' | '1h_6h' | '6h_24h' | '1d_3d' | 'over_3d';
+
+/** GET /admin/agents/:id/message-analytics (openspec `discarded-message-analytics`): src/analytics/discardedMessages.ts `Summary` plus the range. */
+export interface MessageAnalytics {
+  from: string;
+  to: string;
+  /** The day of the instance's first draft (the "all" preset's start); null for an instance with none. */
+  firstDraftDay: string | null;
+  /** The IANA zone the days and weeks are bucketed in. */
+  timeZone: string;
+  tiles: {
+    written: number;
+    sent: number;
+    discarded: number;
+    pending: number;
+    discardRate: number | null;
+    discardedCost: CostSum;
+    allCost: CostSum;
+    wasteShare: number | null;
+  };
+  reasons: { reason: string; count: number; share: number; cost: CostSum }[];
+  triggers: {
+    trigger: string | null;
+    written: number;
+    sent: number;
+    discarded: number;
+    discardRate: number | null;
+    discardedCost: CostSum;
+    topReason: string | null;
+  }[];
+  lifetime: {
+    known: number;
+    medianMs: number | null;
+    averageMs: number | null;
+    waitShareKnown: number;
+    medianWaitShare: number | null;
+    histogram: { bucket: LifetimeBucket; count: number }[];
+  };
+  weeks: { weekStart: string; written: number; discarded: number; discardedCost: CostSum }[];
+  topClients: {
+    clientId: string;
+    name: string;
+    deleted: boolean;
+    written: number;
+    discarded: number;
+    discardRate: number | null;
+    discardedCost: CostSum;
+  }[];
+}
+
 export interface AdminClient {
   id: string;
   name: string;
@@ -1189,6 +1245,14 @@ export const api = {
   /** Every LLM call of one client, payloads excluded — the admin cost tab (openspec `admin-cost-tab`). */
   adminGetClientLlmCalls: (clientId: string, opts?: RequestOpts) =>
     request<{ calls: LlmCallSummary[] }>(`/admin/clients/${clientId}/llm-calls`, undefined, opts),
+  /** What became of the instance's outbound drafts in a day range — the admin analytics tab (openspec `discarded-message-analytics`). */
+  adminGetMessageAnalytics: (agentInstanceId: string, range: { from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (range.from) qs.set('from', range.from);
+    if (range.to) qs.set('to', range.to);
+    const q = qs.toString();
+    return request<MessageAnalytics>(`/admin/agents/${agentInstanceId}/message-analytics${q ? `?${q}` : ''}`);
+  },
   /** One code step by id — the step link (#/steps/:id). */
   adminGetStep: (stepId: string) => request<{ step: AdminConversationStep }>(`/admin/audit-events/${stepId}`),
   /** The received file a step checked (404 when the step is not about a file, or the file is gone). */

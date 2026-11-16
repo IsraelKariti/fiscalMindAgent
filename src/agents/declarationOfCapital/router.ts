@@ -86,7 +86,7 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
     await clients.updateGoalStatus(clientId, 'complete');
     // Report the finished collection back to the board row's documents status column.
     void syncMondayDocumentsStatus(clientId);
-    await withClientLock(clientId, () => removeFutureEmail(clientId));
+    await withClientLock(clientId, () => removeFutureEmail(clientId, 'goal_changed'));
     // The fixed closing message (openspec `declaration-completion`): sent only
     // inside an open 24h window; silently skipped otherwise (never a template).
     await sendClosingMessage(client, new Date());
@@ -96,8 +96,8 @@ async function onDocumentsChanged(clientId: string): Promise<void> {
     // The goal reopened — the board must not keep claiming the documents are in.
     void syncMondayDocumentsStatus(clientId);
     await withClientLock(clientId, async () => {
-      await removeFutureEmail(clientId);
-      await setFutureEmail(clientId);
+      await removeFutureEmail(clientId, 'goal_changed');
+      await setFutureEmail(clientId, 'goal_reopened');
     });
   }
 }

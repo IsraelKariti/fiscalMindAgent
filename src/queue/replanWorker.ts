@@ -70,8 +70,8 @@ async function onReplan(job: Job<ReplanJobData>, token?: string): Promise<void> 
   // re-plan drafts the next one. Locked so a concurrent worker send and this
   // re-plan can't interleave.
   await withClientLock(clientId, async () => {
-    await removeFutureEmail(clientId);
-    await setFutureEmail(clientId);
+    await removeFutureEmail(clientId, 'client_message');
+    await setFutureEmail(clientId, 'client_message');
   });
   // setFutureEmail returns early for a complete or paused client without
   // touching the stamp the webhook set.

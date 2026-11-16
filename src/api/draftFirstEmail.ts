@@ -10,7 +10,7 @@ const FIRST_EMAIL_RETRY_DELAYS_MS = [30_000, 120_000, 480_000, 1_800_000, 3_600_
 
 /** Fire-and-forget: has the agent draft and schedule the new client's first email. */
 export function draftFirstEmail(clientId: string, attempt = 0): void {
-  withClientLock(clientId, () => setFutureEmail(clientId)).catch((err) => {
+  withClientLock(clientId, () => setFutureEmail(clientId, 'kickoff')).catch((err) => {
     logger.error('first email drafting failed', err, { clientId, attempt });
     const delay = FIRST_EMAIL_RETRY_DELAYS_MS[attempt];
     if (delay !== undefined) setTimeout(() => draftFirstEmail(clientId, attempt + 1), delay);

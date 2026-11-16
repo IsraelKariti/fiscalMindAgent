@@ -8,6 +8,7 @@ import { ClientView } from './ClientView';
 import { AddClientModal } from './AddClientModal';
 import { DeleteClientModal } from './DeleteClientModal';
 import { Overview } from './Overview';
+import { MessageAnalyticsTab } from './MessageAnalyticsTab';
 import { Settings } from './Settings';
 import { useT } from '../i18n';
 import { useWorkspaceRoute } from './workspaceRoute';
@@ -283,6 +284,14 @@ export function Workspace({
                   loadClients().catch(console.error);
                 },
               })}
+              adminAnalyticsPanel={
+                impersonatingEmail ? (
+                  <MessageAnalyticsTab
+                    agentInstanceId={agent.id}
+                    onOpenClient={(clientId) => navigate({ kind: 'client', agentId: agent.id, clientId })}
+                  />
+                ) : undefined
+              }
             />
           )}
           {route.kind === 'agent' && (

@@ -134,11 +134,11 @@ The tab SHALL list every trigger that occurs among the drafts in range with: dra
 - **THEN** the list reads the agent-send row first with 15 written, 10 discarded, 67%, `$0.03`, most common reason "the client replied", then the client-message row with 20, 4, 20%, `$0.01`
 
 ### Requirement: Lifetime of discarded drafts
-For the discarded drafts in range whose discard time is known, the tab SHALL show: the median and the average time alive (discard time minus written time); the median share of the planned wait that was used (time alive ÷ (planned send time minus written time), for drafts with a known planned time, capped at 100%); and a histogram of time alive with the buckets "under 1 minute", "1 to 10 minutes", "10 minutes to 1 hour", "1 to 6 hours", "6 to 24 hours", "1 to 3 days", "over 3 days". Durations SHALL be shown in the largest fitting unit ("4 h 20 min", "2 d 3 h", "35 s").
+For the discarded drafts in range whose discard time is known, the tab SHALL show: the median and the average time alive (discard time minus written time); the median share of the planned wait that was used (time alive ÷ (planned send time minus written time), for drafts with a known planned time, capped at 100%); and a histogram of time alive with 30 buckets: one per 10 seconds up to 3 minutes ("0 to 10 s", "10 to 20 s", ... "2 min 50 s to 3 min"), then one per minute up to 10 minutes ("3 to 4 min", ... "9 to 10 min"), then "10 minutes to 1 hour", "1 to 6 hours", "6 to 24 hours", "1 to 3 days", "over 3 days". Durations SHALL be shown in the largest fitting unit ("4 h 20 min", "2 d 3 h", "35 s").
 
 #### Scenario: Median lifetime
 - **WHEN** the discarded drafts in range lived 30 s, 2 h and 26 h
-- **THEN** the median reads 2 h and the histogram shows one draft in each of "under 1 minute", "1 to 6 hours" and "1 to 3 days"
+- **THEN** the median reads 2 h and the histogram shows one draft in each of "30 to 40 s", "1 to 6 hours" and "1 to 3 days"
 
 #### Scenario: Share of the planned wait
 - **WHEN** a draft was written at 09:00 for 21:00 and discarded at 12:00

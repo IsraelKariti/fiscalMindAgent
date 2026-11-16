@@ -12,6 +12,7 @@ import {
   barShares,
   durationParts,
   formatPercent,
+  lifetimeBucketLabel,
   readStoredPreset,
   writeStoredPreset,
   type AnalyticsPreset,
@@ -208,7 +209,7 @@ export function MessageAnalyticsTab({ agentInstanceId, onOpenClient }: { agentIn
                   <ol className="analytics-histogram" aria-label={t.analyticsLifetimeTitle}>
                     {data.lifetime.histogram.map((b, i) => (
                       <li key={b.bucket} className="analytics-histogram-row">
-                        <span className="analytics-histogram-label">{t.analyticsBucket[b.bucket]}</span>
+                        <span className="analytics-histogram-label">{lifetimeBucketLabel(b.bucket, t.analyticsUnit, t.analyticsBucket)}</span>
                         <span className="analytics-histogram-bar">
                           <span className="analytics-histogram-fill" style={{ width: `${Math.round((shares[i] ?? 0) * 100)}%` }} />
                         </span>

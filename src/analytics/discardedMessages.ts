@@ -25,17 +25,38 @@ export interface DraftOutcome {
   cost: number | null;
 }
 
-/** Time-alive buckets of a discarded draft, in display order. */
-export const LIFETIME_BUCKETS = ['under_1m', '1m_10m', '10m_1h', '1h_6h', '6h_24h', '1d_3d', 'over_3d'] as const;
-export type LifetimeBucket = (typeof LIFETIME_BUCKETS)[number];
-
-const MINUTE = 60_000;
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
+/** A 10-second bucket below 3 minutes: `0s_10s` … `170s_180s`. */
+type SecondsBucket = `${number}s_${number}s`;
+/** A one-minute bucket from 3 to 10 minutes: `3m_4m` … `9m_10m`. */
+type MinutesBucket = `${number}m_${number}m`;
+type CoarseBucket = '10m_1h' | '1h_6h' | '6h_24h' | '1d_3d' | 'over_3d';
+export type LifetimeBucket = SecondsBucket | MinutesBucket | CoarseBucket;
+
+const SECONDS_BUCKETS: SecondsBucket[] = Array.from({ length: 18 }, (_, i) => `${i * 10}s_${(i + 1) * 10}s` as const);
+const MINUTES_BUCKETS: MinutesBucket[] = Array.from({ length: 7 }, (_, i) => `${i + 3}m_${i + 4}m` as const);
+const COARSE_BUCKETS: CoarseBucket[] = ['10m_1h', '1h_6h', '6h_24h', '1d_3d', 'over_3d'];
+
+/**
+ * Time-alive buckets of a discarded draft, in display order: every 10 s up to
+ * 3 min, every minute up to 10 min, then coarse (30 buckets).
+ */
+export const LIFETIME_BUCKETS: readonly LifetimeBucket[] = [...SECONDS_BUCKETS, ...MINUTES_BUCKETS, ...COARSE_BUCKETS];
+
 export function lifetimeBucket(ms: number): LifetimeBucket {
-  if (ms < MINUTE) return 'under_1m';
-  if (ms < 10 * MINUTE) return '1m_10m';
+  const alive = Math.max(0, ms);
+  if (alive < 3 * MINUTE) {
+    const i = Math.floor(alive / (10 * SECOND));
+    return `${i * 10}s_${(i + 1) * 10}s`;
+  }
+  if (alive < 10 * MINUTE) {
+    const m = Math.floor(alive / MINUTE);
+    return `${m}m_${m + 1}m`;
+  }
   if (ms < HOUR) return '10m_1h';
   if (ms < 6 * HOUR) return '1h_6h';
   if (ms < DAY) return '6h_24h';

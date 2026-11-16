@@ -481,7 +481,8 @@ export interface CostSum {
   unknown: number;
 }
 
-export type LifetimeBucket = 'under_1m' | '1m_10m' | '10m_1h' | '1h_6h' | '6h_24h' | '1d_3d' | 'over_3d';
+/** `0s_10s` … `170s_180s`, `3m_4m` … `9m_10m`, then the coarse buckets (src/analytics/discardedMessages.ts). */
+export type LifetimeBucket = `${number}s_${number}s` | `${number}m_${number}m` | '10m_1h' | '1h_6h' | '6h_24h' | '1d_3d' | 'over_3d';
 
 /** GET /admin/agents/:id/message-analytics (openspec `discarded-message-analytics`): src/analytics/discardedMessages.ts `Summary` plus the range. */
 export interface MessageAnalytics {

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { lifetimeBucket, mondayOf, summarize, type DraftOutcome } from '../src/analytics/discardedMessages.js';
+import { LIFETIME_BUCKETS, lifetimeBucket, mondayOf, summarize, type DraftOutcome } from '../src/analytics/discardedMessages.js';
 
 // The admin analytics tab's figures (openspec `discarded-message-analytics`).
 // Times are UTC noon-ish so the Israel calendar day never straddles a boundary.
@@ -135,17 +135,29 @@ test('lifetime: median, average, histogram, share of the planned wait', () => {
   assert.deepEqual(
     s.lifetime.histogram.filter((b) => b.count > 0).map((b) => [b.bucket, b.count]),
     [
-      ['under_1m', 1],
+      ['30s_40s', 1],
       ['1h_6h', 2],
       ['1d_3d', 1],
     ],
   );
 });
 
-test('lifetime buckets', () => {
-  assert.equal(lifetimeBucket(0), 'under_1m');
-  assert.equal(lifetimeBucket(59_999), 'under_1m');
-  assert.equal(lifetimeBucket(60_000), '1m_10m');
+test('lifetime buckets: 10 s steps to 3 min, 1 min steps to 10 min, then coarse', () => {
+  assert.equal(LIFETIME_BUCKETS.length, 30);
+  assert.equal(LIFETIME_BUCKETS[0], '0s_10s');
+  assert.equal(LIFETIME_BUCKETS[17], '170s_180s');
+  assert.equal(LIFETIME_BUCKETS[18], '3m_4m');
+  assert.equal(LIFETIME_BUCKETS[24], '9m_10m');
+  assert.equal(LIFETIME_BUCKETS[25], '10m_1h');
+  assert.equal(lifetimeBucket(-5), '0s_10s');
+  assert.equal(lifetimeBucket(0), '0s_10s');
+  assert.equal(lifetimeBucket(9_999), '0s_10s');
+  assert.equal(lifetimeBucket(10_000), '10s_20s');
+  assert.equal(lifetimeBucket(59_999), '50s_60s');
+  assert.equal(lifetimeBucket(60_000), '60s_70s');
+  assert.equal(lifetimeBucket(179_999), '170s_180s');
+  assert.equal(lifetimeBucket(180_000), '3m_4m');
+  assert.equal(lifetimeBucket(9 * 60_000 + 59_999), '9m_10m');
   assert.equal(lifetimeBucket(10 * 60_000), '10m_1h');
   assert.equal(lifetimeBucket(h(1)), '1h_6h');
   assert.equal(lifetimeBucket(h(6)), '6h_24h');

@@ -540,8 +540,6 @@ const he = {
   analyticsWaitShareContext: (n: number) => (n === 1 ? '(טיוטה אחת עם מועד שליחה ידוע)' : `(${n} טיוטות עם מועד שליחה ידוע)`),
   analyticsUnit: { s: 'שנ׳', min: 'דק׳', h: 'שע׳', d: 'ימים' } as Record<string, string>,
   analyticsBucket: {
-    under_1m: 'פחות מדקה',
-    '1m_10m': 'דקה עד 10 דקות',
     '10m_1h': '10 דקות עד שעה',
     '1h_6h': 'שעה עד 6 שעות',
     '6h_24h': '6 עד 24 שעות',

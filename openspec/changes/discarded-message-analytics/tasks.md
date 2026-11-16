@@ -10,7 +10,7 @@
 ## 2. Compute the figures (server)
 
 - [x] 2.1 Write `src/db/queries/draftOutcomes.ts`: `listForInstance(agentInstanceId, from, to)` returning the row shape of design decision 5 (join `clients`, left join the per-`plan_run_id` cost sum), plus `firstDraftDay(agentInstanceId)`. Verify: a `docker psql` run of the same SQL returns the expected rows for the local instance.
-- [x] 2.2 Write the pure module `src/analytics/discardedMessages.ts` (`summarize`): tiles, reasons, triggers (written/sent/discarded/rate/cost/most common reason), lifetime stats + 7-bucket histogram, weekly buckets (Monday start, accountant timezone), top ten clients. Verify: `tests/discardedMessages.test.ts` covers every spec scenario of the figures and passes under `npm test`.
+- [x] 2.2 Write the pure module `src/analytics/discardedMessages.ts` (`summarize`): tiles, reasons, triggers (written/sent/discarded/rate/cost/most common reason), lifetime stats + 30-bucket histogram (10 s steps to 3 min, 1 min steps to 10 min, then 10m-1h/1h-6h/6h-24h/1d-3d/over 3d), weekly buckets (Monday start, accountant timezone), top ten clients. Verify: `tests/discardedMessages.test.ts` covers every spec scenario of the figures and passes under `npm test`.
 - [x] 2.3 Add `GET /api/admin/agents/:agentInstanceId/message-analytics?from=&to=` (`requireAdmin`, zod-validated dates, 404 on an unknown instance) returning `summarize`'s result and `firstDraftDay`. Verify: `curl` as admin returns JSON; the accountant's session gets 403.
 
 ## 3. Show the tab (web)

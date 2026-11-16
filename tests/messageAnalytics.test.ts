@@ -1,16 +1,19 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { analyticsPresetRange, barShares, durationParts, formatPercent, lifetimeBucketLabel } from '../web/src/components/messageAnalytics.js';
+import { analyticsPresetRange, barShares, durationParts, formatPercent, waitCurveIndex, waitLabel } from '../web/src/components/messageAnalytics.js';
 
-const units = { s: 'sec', min: 'min' };
-const coarse = { '10m_1h': '10 minutes to 1 hour' };
+test('waitLabel: m:ss ticks', () => {
+  assert.equal(waitLabel(0), '0:00');
+  assert.equal(waitLabel(5), '0:05');
+  assert.equal(waitLabel(90), '1:30');
+  assert.equal(waitLabel(600), '10:00');
+});
 
-test('lifetimeBucketLabel: generated fine buckets, dictionary coarse ones', () => {
-  assert.equal(lifetimeBucketLabel('0s_10s', units, coarse), '0-10 sec');
-  assert.equal(lifetimeBucketLabel('170s_180s', units, coarse), '170-180 sec');
-  assert.equal(lifetimeBucketLabel('3m_4m', units, coarse), '3-4 min');
-  assert.equal(lifetimeBucketLabel('10m_1h', units, coarse), '10 minutes to 1 hour');
-  assert.equal(lifetimeBucketLabel('over_3d', units, coarse), 'over_3d');
+test('waitCurveIndex: nearest point, clamped', () => {
+  assert.equal(waitCurveIndex(15, 5, 121), 3);
+  assert.equal(waitCurveIndex(17, 5, 121), 3);
+  assert.equal(waitCurveIndex(900, 5, 121), 120);
+  assert.equal(waitCurveIndex(-3, 5, 121), 0);
 });
 
 // The admin analytics tab's rendering helpers (openspec `discarded-message-analytics`).

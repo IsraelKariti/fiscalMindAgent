@@ -10,7 +10,7 @@ Every planner cycle ends with a scheduled WhatsApp draft, and every client reply
   - headline tiles: drafts written, sent, discarded, discard rate, money spent on discarded drafts, money spent on all drafts, waste share;
   - discards by reason (client reply, file verification, tax fetch, admin redraft/pause/resume, client declined, goal change, channel change, client deleted, unknown);
   - drafts by trigger: for each thing that started a cycle (client message, agent message sent, file verification, ...) how many drafts were written, sent and discarded, the discard rate, the discarded cost and the most common discard reason;
-  - lifetime of discarded drafts: median and average time alive, time alive as a share of the planned wait, and a histogram of time-alive buckets;
+  - lifetime of discarded drafts: median and average time alive, time alive as a share of the planned wait, and a wait curve (share of client-reply discards avoided by a wait of X seconds, with the current wait marked);
   - a weekly trend of drafted vs discarded counts and cost;
   - the ten clients that wasted the most, each linking to the client.
 - A new admin-only route serves the figures for one agent instance.

@@ -9,11 +9,11 @@ import { localDay } from './costSummary';
 import {
   ANALYTICS_PRESETS,
   analyticsPresetRange,
-  barShares,
   durationParts,
   formatPercent,
-  lifetimeBucketLabel,
   readStoredPreset,
+  waitCurveIndex,
+  waitLabel,
   writeStoredPreset,
   type AnalyticsPreset,
 } from './messageAnalytics';
@@ -89,7 +89,6 @@ export function MessageAnalyticsTab({ agentInstanceId, onOpenClient }: { agentIn
 
   const loaded = data !== null && from !== null && to !== null;
   const empty = loaded && data.tiles.written === 0;
-  const shares = loaded ? barShares(data.lifetime.histogram.map((b) => b.count)) : [];
 
   return (
     <div className="cost-graph message-analytics">
@@ -206,19 +205,39 @@ export function MessageAnalyticsTab({ agentInstanceId, onOpenClient }: { agentIn
                       </dd>
                     </div>
                   </dl>
-                  <ol className="analytics-histogram" aria-label={t.analyticsLifetimeTitle}>
-                    {data.lifetime.histogram.map((b, i) => (
-                      <li key={b.bucket} className="analytics-histogram-row">
-                        <span className="analytics-histogram-label">{lifetimeBucketLabel(b.bucket, t.analyticsUnit, t.analyticsBucket)}</span>
-                        <span className="analytics-histogram-bar">
-                          <span className="analytics-histogram-fill" style={{ width: `${Math.round((shares[i] ?? 0) * 100)}%` }} />
-                        </span>
-                        <span className="analytics-histogram-count" dir="ltr">
-                          {b.count}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
+                  {data.lifetime.waitCurve.total === 0 ? (
+                    <ChartEmpty>{t.analyticsNoWaitCurve}</ChartEmpty>
+                  ) : (
+                    <div className="analytics-wait-curve">
+                      <div className="chart-card-subtitle">{t.analyticsWaitCurveSubtitle}</div>
+                      <LineChart
+                        title={t.analyticsWaitCurveTitle}
+                        labels={data.lifetime.waitCurve.points.map((_, i) => waitLabel(i * data.lifetime.waitCurve.stepSeconds))}
+                        series={[
+                          {
+                            name: t.analyticsWaitCurveSeries,
+                            color: SERIES.pink,
+                            values: data.lifetime.waitCurve.points.map((p) => Math.round((100 * p.avoided) / data.lifetime.waitCurve.total)),
+                          },
+                        ]}
+                        format={(v) => `${v}%`}
+                        extraTip={(i) => {
+                          const p = data.lifetime.waitCurve.points[i];
+                          if (!p) return [];
+                          return [
+                            { value: `${p.avoided} / ${data.lifetime.waitCurve.total}`, label: t.analyticsWaitCurveCount },
+                            { value: cost(p.cost), label: t.analyticsWaitCurveCost },
+                          ];
+                        }}
+                        marker={{
+                          index: waitCurveIndex(data.currentQuietSeconds, data.lifetime.waitCurve.stepSeconds, data.lifetime.waitCurve.points.length),
+                          label: `${t.analyticsWaitCurveNow}: ${waitLabel(data.currentQuietSeconds)}`,
+                        }}
+                        area
+                        height={240}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </ChartCard>

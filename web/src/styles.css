@@ -3477,6 +3477,13 @@ button.meta-chip:hover {
   stroke-width: 1;
 }
 
+/* A fixed reference line (the wait curve's current-wait mark). */
+.chart-marker {
+  stroke: #b87e06;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
 /* A bucket picked by click (cost graph tab): faint band behind the lines. */
 .chart-selected {
   fill: rgba(148, 163, 216, 0.14);
@@ -5697,39 +5704,14 @@ pre.doc-text {
   font-weight: 400;
 }
 
-.analytics-histogram {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.analytics-wait-curve {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
-.analytics-histogram-row {
-  display: grid;
-  grid-template-columns: 130px minmax(0, 1fr) 36px;
-  gap: 10px;
-  align-items: center;
-  font-size: 13px;
-}
-
-.analytics-histogram-bar {
-  height: 12px;
-  border-radius: 6px;
-  background: rgba(102, 112, 146, 0.18);
-  overflow: hidden;
-}
-
-.analytics-histogram-fill {
-  display: block;
-  height: 100%;
-  border-radius: 6px;
-  background: #e0569a;
-  transition: width 0.3s ease;
-}
-
-.analytics-histogram-count {
-  text-align: end;
+.analytics-wait-curve .chart-card-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 @media (max-width: 900px) {

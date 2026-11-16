@@ -30,6 +30,7 @@ export function LineChart({
   extraTip,
   onSelect,
   selectedIdx = null,
+  marker,
 }: {
   title: string;
   labels: string[];
@@ -44,6 +45,8 @@ export function LineChart({
   onSelect?: (index: number) => void;
   /** The picked bucket, drawn as a faint band behind the lines. */
   selectedIdx?: number | null;
+  /** A labelled dashed vertical line at one point (the wait curve marks the current wait). */
+  marker?: { index: number; label: string } | null;
 }) {
   const { t } = useT();
   const { ref, width, tip, showTip, hideTip } = useChartBox<HTMLDivElement>();
@@ -186,6 +189,14 @@ export function LineChart({
                   {label}
                 </text>
               ) : null,
+            )}
+            {marker && marker.index >= 0 && marker.index < n && (
+              <g>
+                <line x1={x(marker.index)} x2={x(marker.index)} y1={PAD.top} y2={PAD.top + plotH} className="chart-marker" />
+                <text x={x(marker.index)} y={PAD.top - 4} textAnchor="middle" className="chart-tick-label">
+                  {marker.label}
+                </text>
+              </g>
             )}
             {hoverIdx !== null && (
               <line x1={x(hoverIdx)} x2={x(hoverIdx)} y1={PAD.top} y2={PAD.top + plotH} className="chart-crosshair" />

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { LIFETIME_BUCKETS, lifetimeBucket, mondayOf, summarize, type DraftOutcome } from '../src/analytics/discardedMessages.js';
+import { mondayOf, summarize, type DraftOutcome } from '../src/analytics/discardedMessages.js';
 
 // The admin analytics tab's figures (openspec `discarded-message-analytics`).
 // Times are UTC noon-ish so the Israel calendar day never straddles a boundary.
@@ -22,6 +22,7 @@ function draft(over: Partial<DraftOutcome> & { at: string }): DraftOutcome {
     discardedAt: null,
     discardReason: null,
     cost: null,
+    lastInboundAt: null,
     ...over,
     createdAt,
   };
@@ -132,37 +133,39 @@ test('lifetime: median, average, histogram, share of the planned wait', () => {
   assert.equal(s.lifetime.averageMs, (30_000 + h(3) + h(26) + h(5)) / 4);
   assert.equal(s.lifetime.waitShareKnown, 2);
   assert.equal(s.lifetime.medianWaitShare, (0.25 + 1) / 2);
-  assert.deepEqual(
-    s.lifetime.histogram.filter((b) => b.count > 0).map((b) => [b.bucket, b.count]),
-    [
-      ['30s_40s', 1],
-      ['1h_6h', 2],
-      ['1d_3d', 1],
-    ],
-  );
 });
 
-test('lifetime buckets: 10 s steps to 3 min, 1 min steps to 10 min, then coarse', () => {
-  assert.equal(LIFETIME_BUCKETS.length, 30);
-  assert.equal(LIFETIME_BUCKETS[0], '0s_10s');
-  assert.equal(LIFETIME_BUCKETS[17], '170s_180s');
-  assert.equal(LIFETIME_BUCKETS[18], '3m_4m');
-  assert.equal(LIFETIME_BUCKETS[24], '9m_10m');
-  assert.equal(LIFETIME_BUCKETS[25], '10m_1h');
-  assert.equal(lifetimeBucket(-5), '0s_10s');
-  assert.equal(lifetimeBucket(0), '0s_10s');
-  assert.equal(lifetimeBucket(9_999), '0s_10s');
-  assert.equal(lifetimeBucket(10_000), '10s_20s');
-  assert.equal(lifetimeBucket(59_999), '50s_60s');
-  assert.equal(lifetimeBucket(60_000), '60s_70s');
-  assert.equal(lifetimeBucket(179_999), '170s_180s');
-  assert.equal(lifetimeBucket(180_000), '3m_4m');
-  assert.equal(lifetimeBucket(9 * 60_000 + 59_999), '9m_10m');
-  assert.equal(lifetimeBucket(10 * 60_000), '10m_1h');
-  assert.equal(lifetimeBucket(h(1)), '1h_6h');
-  assert.equal(lifetimeBucket(h(6)), '6h_24h');
-  assert.equal(lifetimeBucket(h(24)), '1d_3d');
-  assert.equal(lifetimeBucket(h(72)), 'over_3d');
+test('wait curve: share of client-reply discards with client silence under the wait', () => {
+  const at = '2026-11-03T07:00:00Z';
+  const sec = (n: number) => n * 1000;
+  const rows: DraftOutcome[] = [
+    // the client's message came 20 s before the draft; silences 40 s, 70 s, 100 s, 20 min
+    draft({ at, discardReason: 'client_message', lastInboundAt: plus(at, -sec(20)), discardedAt: plus(at, sec(20)), cost: 0.01 }),
+    draft({ at, discardReason: 'client_message', lastInboundAt: plus(at, -sec(20)), discardedAt: plus(at, sec(50)), cost: 0.02 }),
+    draft({ at, discardReason: 'client_message', lastInboundAt: plus(at, -sec(20)), discardedAt: plus(at, sec(80)) }),
+    draft({ at, discardReason: 'client_message', lastInboundAt: plus(at, -sec(20)), discardedAt: plus(at, 20 * 60_000), cost: 0.04 }),
+    // no inbound on record: the silence counts from the written time (30 s)
+    draft({ at, discardReason: 'client_message', discardedAt: plus(at, sec(30)), cost: 0.08 }),
+    // a file-check discard is not avoided by waiting
+    draft({ at, discardReason: 'file_verification', discardedAt: plus(at, sec(30)), cost: 0.16 }),
+  ];
+  const curve = summarize(rows, TZ).lifetime.waitCurve;
+  assert.equal(curve.stepSeconds, 5);
+  assert.equal(curve.points.length, 121);
+  assert.equal(curve.total, 5);
+  // Costs are float sums: compare them in cents.
+  const cents = (c: { known: number; unknown: number }) => ({ known: Math.round(c.known * 100), unknown: c.unknown });
+  assert.deepEqual(cents(curve.totalCost), { known: 15, unknown: 1 });
+  const pointAt = (seconds: number) => {
+    const p = curve.points[seconds / 5]!;
+    return { avoided: p.avoided, cost: cents(p.cost) };
+  };
+  assert.deepEqual(pointAt(0), { avoided: 0, cost: { known: 0, unknown: 0 } });
+  assert.deepEqual(pointAt(30), { avoided: 0, cost: { known: 0, unknown: 0 } });
+  assert.deepEqual(pointAt(35), { avoided: 1, cost: { known: 8, unknown: 0 } });
+  assert.deepEqual(pointAt(60), { avoided: 2, cost: { known: 9, unknown: 0 } });
+  assert.deepEqual(pointAt(120), { avoided: 4, cost: { known: 11, unknown: 1 } });
+  assert.deepEqual(pointAt(600), { avoided: 4, cost: { known: 11, unknown: 1 } });
 });
 
 test('weeks: Monday buckets in the accountant timezone, empty weeks at zero', () => {

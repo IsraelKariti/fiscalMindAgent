@@ -23,46 +23,15 @@ export interface DraftOutcome {
   discardedAt: Date | null;
   discardReason: DiscardReason | null;
   cost: number | null;
+  /** The last client message before the draft was written (the message the draft answers); null when unknown. */
+  lastInboundAt: Date | null;
 }
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-
-/** A 10-second bucket below 3 minutes: `0s_10s` … `170s_180s`. */
-type SecondsBucket = `${number}s_${number}s`;
-/** A one-minute bucket from 3 to 10 minutes: `3m_4m` … `9m_10m`. */
-type MinutesBucket = `${number}m_${number}m`;
-type CoarseBucket = '10m_1h' | '1h_6h' | '6h_24h' | '1d_3d' | 'over_3d';
-export type LifetimeBucket = SecondsBucket | MinutesBucket | CoarseBucket;
-
-const SECONDS_BUCKETS: SecondsBucket[] = Array.from({ length: 18 }, (_, i) => `${i * 10}s_${(i + 1) * 10}s` as const);
-const MINUTES_BUCKETS: MinutesBucket[] = Array.from({ length: 7 }, (_, i) => `${i + 3}m_${i + 4}m` as const);
-const COARSE_BUCKETS: CoarseBucket[] = ['10m_1h', '1h_6h', '6h_24h', '1d_3d', 'over_3d'];
-
-/**
- * Time-alive buckets of a discarded draft, in display order: every 10 s up to
- * 3 min, every minute up to 10 min, then coarse (30 buckets).
- */
-export const LIFETIME_BUCKETS: readonly LifetimeBucket[] = [...SECONDS_BUCKETS, ...MINUTES_BUCKETS, ...COARSE_BUCKETS];
-
-export function lifetimeBucket(ms: number): LifetimeBucket {
-  const alive = Math.max(0, ms);
-  if (alive < 3 * MINUTE) {
-    const i = Math.floor(alive / (10 * SECOND));
-    return `${i * 10}s_${(i + 1) * 10}s`;
-  }
-  if (alive < 10 * MINUTE) {
-    const m = Math.floor(alive / MINUTE);
-    return `${m}m_${m + 1}m`;
-  }
-  if (ms < HOUR) return '10m_1h';
-  if (ms < 6 * HOUR) return '1h_6h';
-  if (ms < DAY) return '6h_24h';
-  if (ms < 3 * DAY) return '1d_3d';
-  return 'over_3d';
-}
+/** The wait curve's step and reach: a point every 5 s from 0 to 10 min (121 points). */
+export const WAIT_CURVE_STEP_SECONDS = 5;
+export const WAIT_CURVE_MAX_SECONDS = 10 * 60;
 
 export interface CostSum {
   /** Sum of the known costs. */
@@ -113,7 +82,24 @@ export interface Lifetime {
   waitShareKnown: number;
   /** Median of (time alive ÷ planned wait), capped at 1. */
   medianWaitShare: number | null;
-  histogram: { bucket: LifetimeBucket; count: number }[];
+  waitCurve: WaitCurve;
+}
+
+/**
+ * "If the agent waited X seconds of client silence before writing, how many
+ * discards would not have happened": for X = 0, 5, 10 … WAIT_CURVE_MAX_SECONDS,
+ * the drafts discarded because the client wrote again (`client_message`,
+ * discard time known) whose client silence — discard time minus the last
+ * client message before the draft (the written time when unknown) — was
+ * shorter than X. Other reasons are not avoided by waiting and do not count.
+ */
+export interface WaitCurve {
+  stepSeconds: number;
+  /** All client-reply discards with a known discard time, including those beyond the curve's reach. */
+  total: number;
+  totalCost: CostSum;
+  /** points[i] is the wait of i × stepSeconds. */
+  points: { avoided: number; cost: CostSum }[];
 }
 
 export interface WeekRow {
@@ -165,6 +151,24 @@ function median(values: number[]): number | null {
   return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
+function waitCurve(silences: readonly { ms: number; cost: number | null }[]): WaitCurve {
+  const totalCost = emptyCost();
+  for (const s of silences) addCost(totalCost, s.cost);
+  const points: WaitCurve['points'] = [];
+  for (let wait = 0; wait <= WAIT_CURVE_MAX_SECONDS; wait += WAIT_CURVE_STEP_SECONDS) {
+    const cost = emptyCost();
+    let avoided = 0;
+    for (const s of silences) {
+      if (s.ms < wait * SECOND) {
+        avoided += 1;
+        addCost(cost, s.cost);
+      }
+    }
+    points.push({ avoided, cost });
+  }
+  return { stepSeconds: WAIT_CURVE_STEP_SECONDS, total: silences.length, totalCost, points };
+}
+
 function isDiscarded(d: DraftOutcome): boolean {
   return d.discardReason != null;
 }
@@ -210,7 +214,7 @@ export function summarize(drafts: readonly DraftOutcome[], timeZone: string): Su
   const clients = new Map<string, ClientRow>();
   const lifetimes: number[] = [];
   const waitShares: number[] = [];
-  const histogram = new Map<LifetimeBucket, number>(LIFETIME_BUCKETS.map((b) => [b, 0]));
+  const silences: { ms: number; cost: number | null }[] = [];
 
   for (const d of drafts) {
     const discarded = isDiscarded(d);
@@ -267,7 +271,9 @@ export function summarize(drafts: readonly DraftOutcome[], timeZone: string): Su
     if (d.discardedAt) {
       const alive = Math.max(0, d.discardedAt.getTime() - d.createdAt.getTime());
       lifetimes.push(alive);
-      histogram.set(lifetimeBucket(alive), (histogram.get(lifetimeBucket(alive)) ?? 0) + 1);
+      if (d.discardReason === 'client_message') {
+        silences.push({ ms: Math.max(0, d.discardedAt.getTime() - (d.lastInboundAt ?? d.createdAt).getTime()), cost: d.cost });
+      }
       if (d.scheduledFor) {
         const wait = d.scheduledFor.getTime() - d.createdAt.getTime();
         if (wait > 0) waitShares.push(Math.min(1, alive / wait));
@@ -322,7 +328,7 @@ export function summarize(drafts: readonly DraftOutcome[], timeZone: string): Su
       averageMs: avg,
       waitShareKnown: waitShares.length,
       medianWaitShare: median(waitShares),
-      histogram: LIFETIME_BUCKETS.map((bucket) => ({ bucket, count: histogram.get(bucket) ?? 0 })),
+      waitCurve: waitCurve(silences),
     },
     weeks: weekRows,
     topClients,

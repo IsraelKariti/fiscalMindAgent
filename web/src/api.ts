@@ -481,9 +481,6 @@ export interface CostSum {
   unknown: number;
 }
 
-/** `0s_10s` … `170s_180s`, `3m_4m` … `9m_10m`, then the coarse buckets (src/analytics/discardedMessages.ts). */
-export type LifetimeBucket = `${number}s_${number}s` | `${number}m_${number}m` | '10m_1h' | '1h_6h' | '6h_24h' | '1d_3d' | 'over_3d';
-
 /** GET /admin/agents/:id/message-analytics (openspec `discarded-message-analytics`): src/analytics/discardedMessages.ts `Summary` plus the range. */
 export interface MessageAnalytics {
   from: string;
@@ -492,6 +489,8 @@ export interface MessageAnalytics {
   firstDraftDay: string | null;
   /** The IANA zone the days and weeks are bucketed in. */
   timeZone: string;
+  /** The quiet wait the agent keeps today before writing (INBOUND_QUIET_SECONDS); the wait curve marks it. */
+  currentQuietSeconds: number;
   tiles: {
     written: number;
     sent: number;
@@ -518,7 +517,8 @@ export interface MessageAnalytics {
     averageMs: number | null;
     waitShareKnown: number;
     medianWaitShare: number | null;
-    histogram: { bucket: LifetimeBucket; count: number }[];
+    /** Share of client-reply discards avoided by a wait of i × stepSeconds (src/analytics/discardedMessages.ts `WaitCurve`). */
+    waitCurve: { stepSeconds: number; total: number; totalCost: CostSum; points: { avoided: number; cost: CostSum }[] };
   };
   weeks: { weekStart: string; written: number; discarded: number; discardedCost: CostSum }[];
   topClients: {

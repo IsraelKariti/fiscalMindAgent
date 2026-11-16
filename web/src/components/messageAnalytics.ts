@@ -76,16 +76,16 @@ export function formatPercent(share: number | null): string {
   return `${Math.round(share * 100)}%`;
 }
 
-/**
- * The label of a lifetime histogram bucket. The fine buckets (`0s_10s`,
- * `3m_4m`) are generated, so their labels are too: "0-10" plus the unit word
- * (a hyphen-minus: in the RTL page an en dash would flip the two numbers);
- * the coarse buckets come from the dictionary.
- */
-export function lifetimeBucketLabel(bucket: string, units: Record<string, string>, coarse: Record<string, string>): string {
-  const fine = /^(\d+)([sm])_(\d+)\2$/.exec(bucket);
-  if (fine) return `${fine[1]}-${fine[3]} ${units[fine[2] === 's' ? 's' : 'min'] ?? ''}`.trim();
-  return coarse[bucket] ?? bucket;
+/** A wait of `seconds` as a clock-style m:ss tick label ("0:00", "1:30", "10:00"). */
+export function waitLabel(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+/** The curve point nearest to `seconds`, clamped to the curve. */
+export function waitCurveIndex(seconds: number, stepSeconds: number, pointCount: number): number {
+  return Math.min(pointCount - 1, Math.max(0, Math.round(seconds / stepSeconds)));
 }
 
 /** The share of each bar relative to the tallest bar, 0..1 (a histogram's bar widths). */

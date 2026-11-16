@@ -68,6 +68,14 @@ export const adminGetMessageAnalytics: RequestHandler = async (req, res) => {
     discardedAt: r.discarded_at,
     discardReason: r.discard_reason,
     cost: r.cost,
+    lastInboundAt: r.last_inbound_at,
   }));
-  res.json({ from, to, firstDraftDay: firstAt ? firstDay : null, timeZone: tz, ...summarize(drafts, tz) });
+  res.json({
+    from,
+    to,
+    firstDraftDay: firstAt ? firstDay : null,
+    timeZone: tz,
+    currentQuietSeconds: env.INBOUND_QUIET_SECONDS,
+    ...summarize(drafts, tz),
+  });
 };

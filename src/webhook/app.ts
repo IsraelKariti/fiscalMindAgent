@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Express } from 'express';
+import { APP_VERSION } from '../config/appVersion.js';
 import { resendRoute } from './resendRoute.js';
 import { twilioRoute } from './twilioRoute.js';
 import { mediaRoute } from './mediaRoute.js';
@@ -24,7 +25,7 @@ export function createApp(): Express {
   app.use(mondayKickoffRoute);
   // The sha lets the deploy workflow wait for THIS build to answer — during
   // a container swap the old build keeps serving 200s.
-  app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, sha: process.env.GIT_SHA ?? 'dev' }));
+  app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, sha: APP_VERSION }));
   // Signed, expiring public file links (Twilio media fetches) — before the SPA fallback.
   app.use(mediaRoute);
   // Long-lived public sender pictures (app logo, agent icons) — same reason.

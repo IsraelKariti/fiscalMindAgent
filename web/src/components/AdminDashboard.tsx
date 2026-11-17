@@ -11,6 +11,7 @@ import { AdminOverview } from './admin/AdminOverview';
 import { AdminReview } from './admin/AdminReview';
 import { AdminSettings } from './admin/AdminSettings';
 import { AdminUsage } from './admin/AdminUsage';
+import { AdminVersions } from './admin/AdminVersions';
 import { AgentPage } from './admin/AgentPage';
 import { useAdminRoute } from './admin/route';
 import { buildAccountantRows, type AccountantRow } from './admin/shared';
@@ -73,6 +74,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
   const activeTab =
     route.screen === 'settings' ||
     route.screen === 'usage' ||
+    route.screen === 'versions' ||
     route.screen === 'audit' ||
     route.screen === 'review' ||
     route.screen === 'llmCalls' ||
@@ -131,6 +133,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             onClick={() => navigate({ screen: 'usage' })}
           >
             {t.adminUsageTab}
+          </button>
+          <button
+            className={`client-tab ${activeTab === 'versions' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === 'versions'}
+            onClick={() => navigate({ screen: 'versions' })}
+          >
+            {t.adminVersionsTab}
           </button>
           <button
             className={`client-tab ${activeTab === 'audit' ? 'active' : ''}`}
@@ -210,6 +220,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
         {route.screen === 'agents' && accountants && <AdminAgents accountants={accountants} />}
 
         {route.screen === 'usage' && accountants && <AdminUsage accountants={accountants} />}
+        {route.screen === 'versions' && <AdminVersions />}
 
         {route.screen === 'audit' && <AdminAudit />}
 

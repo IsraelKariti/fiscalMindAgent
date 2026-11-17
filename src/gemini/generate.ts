@@ -1,4 +1,5 @@
 import { ApiError, type GenerateContentResponse } from '@google/genai';
+import { APP_VERSION } from '../config/appVersion.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { genaiClient } from './client.js';
 import { providerForModel } from './modelSettings.js';
@@ -122,6 +123,7 @@ async function recordCall(
       clientId: log.clientId,
       documentFileId: log.documentFileId ?? null,
       planRunId: log.planRunId ?? null,
+      appVersion: APP_VERSION,
       purpose: log.purpose,
       provider,
       model: request.model,

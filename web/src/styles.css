@@ -5719,3 +5719,161 @@ pre.doc-text {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------- Admin cost per version (#/versions, openspec `cost-per-version`) ---------- */
+.versions-intro {
+  margin: 0 0 14px;
+  max-width: 70ch;
+}
+
+.versions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.versions-card {
+  cursor: pointer;
+  padding: 16px 20px;
+}
+
+.versions-card-before {
+  opacity: 0.85;
+}
+
+.versions-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.versions-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.versions-sha {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.versions-card-when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 13px;
+}
+
+.versions-before-note {
+  margin: -6px 0 12px;
+  font-size: 13px;
+}
+
+.versions-stats {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.versions-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.versions-stat .stat-value {
+  font-size: 22px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.versions-delta {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.versions-delta-better {
+  color: var(--success);
+}
+
+.versions-delta-worse {
+  color: var(--error);
+}
+
+.versions-delta-same {
+  color: var(--text-muted);
+}
+
+.versions-card-foot {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.versions-stages {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  cursor: default;
+}
+
+.versions-stages h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.versions-stage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.versions-stage-table th,
+.versions-stage-table td {
+  padding: 6px 8px;
+  text-align: start;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.versions-stage-table th {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.versions-stage-table td[dir='ltr'] {
+  text-align: end;
+}
+
+.versions-more {
+  align-self: center;
+}
+
+@media (max-width: 1100px) {
+  .versions-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .versions-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .versions-stage-table {
+    display: block;
+    overflow-x: auto;
+  }
+}

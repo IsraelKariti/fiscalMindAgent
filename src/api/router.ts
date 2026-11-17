@@ -81,6 +81,7 @@ import {
   adminListLlmCalls,
 } from './llmAdmin.js';
 import { adminGetMessageAnalytics } from './messageAnalyticsAdmin.js';
+import { adminGetVersionCost } from './versionCostAdmin.js';
 import {
   adminCreateWaTemplate,
   adminDeleteWaSender,
@@ -140,6 +141,7 @@ apiRouter.delete('/admin/accountants/:userId', wrap(requireAdmin), wrap(adminDel
 apiRouter.post('/admin/impersonate', wrap(requireAdmin), wrap(startImpersonation));
 apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersonation));
 apiRouter.get('/admin/llm-usage/daily', wrap(requireAdmin), wrap(adminLlmUsageDaily));
+apiRouter.get('/admin/version-cost', wrap(requireAdmin), wrap(adminGetVersionCost));
 apiRouter.get('/admin/audit-events', wrap(requireAdmin), wrap(adminAuditEvents));
 apiRouter.get('/admin/alerts', wrap(requireAdmin), wrap(adminListAlerts));
 apiRouter.post('/admin/alerts/:id/ack', wrap(requireAdmin), wrap(adminAckAlert));

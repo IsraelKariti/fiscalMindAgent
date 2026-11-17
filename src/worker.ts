@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { APP_VERSION } from './config/appVersion.js';
 import { createSendEmailWorker } from './queue/sendEmailWorker.js';
 import { resyncScheduledJobs } from './queue/resyncScheduledJobs.js';
 import { createOverdueScanWorker, ensureOverdueScanScheduler } from './queue/overdueScanWorker.js';
@@ -22,7 +23,7 @@ if (env.WORKER_HEALTH_PORT) {
         // The sha lets the deploy workflow wait for THIS build to answer —
         // during a container swap the old build keeps serving 200s.
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, sha: process.env.GIT_SHA ?? 'dev' }));
+        res.end(JSON.stringify({ ok: true, sha: APP_VERSION }));
         return;
       }
       res.writeHead(404);

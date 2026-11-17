@@ -627,6 +627,31 @@ Industry pattern followed: one app with an agent registry
   cost. `web/src/components/messageAnalytics.ts` (`tests/messageAnalytics.test.ts`)
   holds the presets (30 / 90 / all, remembered in `fm.messageAnalytics.range`)
   and the duration/percent formatting.
+- **Cost per version** (openspec `cost-per-version`, migration 078): every
+  `llm_calls` row carries `app_version`, the short git commit of the build
+  that made the call — `APP_VERSION` in `src/config/appVersion.ts` (first 7
+  chars of `GIT_SHA` in the containers, `git rev-parse --short HEAD` once at
+  start locally, `dev` when neither works; `/healthz` of web and worker report
+  the same value). `recordCall` writes it; rows older than 078 stay NULL. The
+  admin dashboard's "גרסאות" page (`#/versions`, after the usage tab,
+  `web/src/components/admin/AdminVersions.tsx`) calls
+  `GET /api/admin/version-cost?agentInstanceId=&clients=all|live|test`
+  (`requireAdmin`; `src/api/versionCostAdmin.ts` →
+  `db/queries/versionCost.ts`, one query grouped by (version, purpose) with
+  the clients join for `is_test` → the pure `src/analytics/versionCost.ts`
+  `summarizeVersions`, `tests/versionCost.test.ts`): one card per version,
+  newest first by first call, with calls, failed, total cost (`+` when any
+  call is unpriced), cost per planning cycle (planner cost ÷ distinct
+  `plan_run_id`), cost per document (`extract_document` cost ÷ distinct
+  `document_file_id`), average planner input tokens, each with its change
+  against the next older version (decrease = green ▼, increase = red ▲, none
+  on the oldest), a "few calls" badge under 10 calls, a last "before
+  versions" card for NULL rows that compares with nothing, and an expandable
+  per-stage table (calls, failed, average cost / input / output tokens,
+  cache share, deltas per stage). Filters (instance, clients) persist in
+  `localStorage` (`fm.versions.filters`); helpers in
+  `web/src/components/admin/versionCost.ts` (`tests/versionCostFormat.test.ts`).
+  The call modal shows the version under the model.
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
   UNIQUE (migration 021): each agent instance that uses WhatsApp gets its own
   dedicated Twilio number, assigned by an admin (AdminDashboard agents section

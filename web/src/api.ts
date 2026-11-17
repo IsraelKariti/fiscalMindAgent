@@ -611,6 +611,49 @@ export interface StepFile {
   contentType: string;
 }
 
+/** One stage (purpose) of one app version on the admin versions page (openspec `cost-per-version`). */
+export interface VersionStageSummary {
+  purpose: string;
+  calls: number;
+  failed: number;
+  cost: number;
+  unpriced: number;
+  avgCost: number;
+  avgInputTokens: number;
+  avgOutputTokens: number;
+  cacheShare: number | null;
+  avgCostDelta: number | null;
+  avgInputTokensDelta: number | null;
+}
+
+/** One app version's figures; `version` null = the calls recorded before versions were stored. */
+export interface VersionSummary {
+  version: string | null;
+  firstAt: string;
+  lastAt: string;
+  daysActive: number;
+  calls: number;
+  failed: number;
+  cost: number;
+  unpriced: number;
+  cycles: number;
+  documents: number;
+  costPerCycle: number | null;
+  costPerDocument: number | null;
+  plannerCalls: number;
+  plannerInputTokensAvg: number | null;
+  costPerCycleDelta: number | null;
+  costPerDocumentDelta: number | null;
+  plannerInputTokensDelta: number | null;
+  fewCalls: boolean;
+  stages: VersionStageSummary[];
+}
+
+export interface VersionCostReply {
+  versions: VersionSummary[];
+  instances: { id: string; name: string | null; accountantEmail: string | null }[];
+}
+
 /** One LLM API call (payloads excluded — the list view). */
 export interface LlmCallSummary {
   id: string;
@@ -640,6 +683,8 @@ export interface LlmCallSummary {
   thinkingPricePerToken: number | null;
   cachedPricePerToken: number | null;
   cost: number | null;
+  /** The short git commit of the build that made the call; null on calls older than migration 078. */
+  appVersion: string | null;
   /** planner whose draft a replan discarded — set only by the conversation endpoint. */
   discarded?: boolean;
 }
@@ -1185,6 +1230,13 @@ export const api = {
   googleDisconnect: () => request<{ ok: true }>('/google-connection', { method: 'DELETE' }),
   googlePickerConfig: () => request<GooglePickerConfig>('/google-connection/picker'),
   adminListAccountants: () => request<{ accountants: Accountant[] }>('/admin/accountants'),
+  adminGetVersionCost: (filters: { agentInstanceId?: string; clients?: 'all' | 'live' | 'test' }) => {
+    const qs = new URLSearchParams();
+    if (filters.agentInstanceId && filters.agentInstanceId !== 'all') qs.set('agentInstanceId', filters.agentInstanceId);
+    if (filters.clients && filters.clients !== 'all') qs.set('clients', filters.clients);
+    const q = qs.toString();
+    return request<VersionCostReply>(`/admin/version-cost${q ? `?${q}` : ''}`);
+  },
   adminLlmUsageDaily: (days: number) =>
     request<{ since: string; rows: LlmDailyUsage[] }>(`/admin/llm-usage/daily?days=${days}`),
   adminAuditEvents: (days: number) => request<{ events: AuditEvent[] }>(`/admin/audit-events?days=${days}`),

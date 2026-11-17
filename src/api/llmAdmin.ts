@@ -330,6 +330,7 @@ function toAdminCall(r: Omit<llmCalls.LlmCallRow, 'request' | 'response'> & { cl
     thinkingPricePerToken: r.thinking_price_per_token,
     cachedPricePerToken: r.cached_price_per_token,
     cost: r.cost,
+    appVersion: r.app_version,
   };
 }
 

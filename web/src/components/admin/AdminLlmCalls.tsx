@@ -241,6 +241,15 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                   <dt>{t.adminLlmCallsColModel}</dt>
                   <dd>{MODEL_LABELS[call.model] ?? call.model}</dd>
                 </div>
+                {/* The build that made the call (openspec `cost-per-version`); calls older than 078 have none. */}
+                {call.appVersion && (
+                  <div>
+                    <dt>{t.adminLlmCallMetaVersion}</dt>
+                    <dd className="mono" dir="ltr">
+                      {call.appVersion}
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt>{t.adminLlmCallsColClient}</dt>
                   <dd>{call.clientName ? displayClientName(call.clientName) : '—'}</dd>

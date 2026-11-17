@@ -18,6 +18,7 @@ function call(over: Partial<LlmCallSummary>): LlmCallSummary {
     clientName: null,
     documentFileId: null,
     documentFileName: null,
+    appVersion: null,
     purpose: 'planner',
     provider: 'google',
     model: 'gemini-2.5-pro',

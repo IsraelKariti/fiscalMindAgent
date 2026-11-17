@@ -24,6 +24,7 @@ export type AdminRoute =
   | { screen: 'agent'; email: string; agentType: string }
   | { screen: 'agents' }
   | { screen: 'usage' }
+  | { screen: 'versions' }
   | { screen: 'audit' }
   | { screen: 'review' }
   | { screen: 'llmCalls'; callId?: string }
@@ -44,6 +45,8 @@ export function routeHash(route: AdminRoute): string {
       return '#/agents';
     case 'usage':
       return '#/usage';
+    case 'versions':
+      return '#/versions';
     case 'audit':
       return '#/audit';
     case 'review':
@@ -65,6 +68,7 @@ function parseHash(hash: string): AdminRoute {
     .map(decodeURIComponent);
   if (parts[0] === 'settings') return { screen: 'settings' };
   if (parts[0] === 'usage') return { screen: 'usage' };
+  if (parts[0] === 'versions') return { screen: 'versions' };
   if (parts[0] === 'audit') return { screen: 'audit' };
   if (parts[0] === 'review') return { screen: 'review' };
   if (parts[0] === 'llm-calls') return parts[1] ? { screen: 'llmCalls', callId: parts[1] } : { screen: 'llmCalls' };

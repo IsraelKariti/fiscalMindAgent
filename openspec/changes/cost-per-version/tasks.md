@@ -23,4 +23,4 @@
 ## 4. Docs and wrap-up
 
 - [x] 4.1 Add the "Cost per version" entry to `docs/agents.md` beside the analytics entries; verify it names migration 078, `APP_VERSION`, the route and the page
-- [ ] 4.2 Run `npm run typecheck` and `npm test`, commit per the git workflow, and note that production needs migration 078; verify the commit is pushed and sandbox `/healthz` reports the new sha after deploy
+- [x] 4.2 Run `npm run typecheck` and `npm test`, commit per the git workflow, and note that production needs migration 078; verify the commit is pushed and sandbox `/healthz` reports the new sha after deploy

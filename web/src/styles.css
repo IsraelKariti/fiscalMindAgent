@@ -2535,6 +2535,24 @@ textarea {
   margin: 0;
 }
 
+.tax-advisor-backfill {
+  max-width: 760px;
+  margin-top: 28px;
+}
+
+.tax-advisor-backfill-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tax-advisor-backfill-counts strong {
+  margin-inline-end: 4px;
+}
+
 .test-client-fields {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

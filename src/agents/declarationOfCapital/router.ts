@@ -17,6 +17,7 @@ import { sendGoalCompleteEmail } from './notifyAccountant.js';
 import { sendClosingMessage } from './plan.js';
 import { InstanceSettingsSchema, parseSettings } from './settings.js';
 import { createTestClient } from './testClient.js';
+import { backfillTaxAdvisors } from './taxAdvisorBackfill.js';
 import { TestClientSchema } from './testClientSchema.js';
 import { logger } from '../../util/logger.js';
 import type { DocumentStatus } from '../../db/types.js';
@@ -136,6 +137,26 @@ export function buildRouter(): Router {
         return;
       }
       res.status(201).json({ client: toWorkspaceClient(result.client) });
+    }),
+  );
+
+  // The admin's one-press advisor re-read (openspec `client-tax-advisor`,
+  // change `backfill-tax-advisor`): every remembered monday row of the agent,
+  // view-as only — the accountant's own session is refused.
+  router.post(
+    '/clients/tax-advisor-backfill',
+    wrap(async (req, res) => {
+      if (!isViewingAs(req)) {
+        res.status(403).json({ error: 'Tax advisors can be re-read by an administrator only.' });
+        return;
+      }
+      const result = await backfillTaxAdvisors(req.agentInstance!, req.realUserId!);
+      if (!result.ok) {
+        res.status(409).json({ error: 'The accountant has no monday connection.', reason: result.error });
+        return;
+      }
+      const { ok: _ok, ...counts } = result;
+      res.json(counts);
     }),
   );
 

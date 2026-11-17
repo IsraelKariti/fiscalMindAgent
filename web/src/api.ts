@@ -1066,6 +1066,15 @@ export interface AgentTypeEmailInfo {
   taxYearCapable: boolean;
 }
 
+/** What the admin's advisor re-read reports: one count per outcome, per client of the agent. */
+export interface TaxAdvisorBackfillResult {
+  updated: number;
+  cleared: number;
+  unchanged: number;
+  skipped: number;
+  failed: number;
+}
+
 /** The body of the admin's test-client form (declaration of capital): the identity the monday kickoff would read. */
 export interface TestClientInput {
   name: string;
@@ -1099,6 +1108,9 @@ function makeWorkspaceApi(prefix: string) {
     /** The admin's hand-filled test client (openspec `admin-test-client`) — an admin viewing as only (403 otherwise). */
     createTestClient: (args: TestClientInput) =>
       request<{ client: Client }>(`${prefix}/clients/test`, { method: 'POST', body: JSON.stringify(args) }),
+    /** Re-reads the advisor cell of every remembered monday row (openspec `client-tax-advisor`) — an admin viewing as only (403 otherwise, 409 without a monday connection). */
+    backfillTaxAdvisors: () =>
+      request<TaxAdvisorBackfillResult>(`${prefix}/clients/tax-advisor-backfill`, { method: 'POST' }),
     getClient: (id: string, opts?: RequestOpts) =>
       request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[]; teamQuestions?: TeamQuestion[] }>(
         `${prefix}/clients/${id}`,

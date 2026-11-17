@@ -559,6 +559,17 @@ Industry pattern followed: one app with an agent registry
   import scan sees its phone as already enrolled. The sidebar badges it
   "לקוח בדיקה" (`Client.isTest` from `toWorkspaceClient`). DB-backed test:
   `tests/testClientVisibility.test.ts` (`npm run test:db`, needs 067).
+  The same tab also holds the admin's **advisor re-read** (openspec
+  `client-tax-advisor`, change `backfill-tax-advisor`):
+  `TaxAdvisorBackfillPanel` posts to `POST /agents/:id/clients/tax-advisor-backfill`
+  (403 unless `isViewingAs`, 409 without a monday connection), which runs
+  `backfillTaxAdvisors` (`taxAdvisorBackfill.ts`) over every live client
+  that remembers its monday row (`agent_fields.monday_board_id` /
+  `monday_item_id`): the row is fetched and `resolveTaxAdvisor` stores the
+  advisor exactly as a re-fired kickoff would (new person replaces, empty
+  cell clears, unmapped board skipped); a changed client is audited
+  `client.tax_advisor_backfilled` with the admin as actor. The accountant
+  never sees the action.
 - **Admin questionnaire tab** (openspec `admin-questionnaire-tab`): a
   declaration-of-capital client has a fifth tab, "שאלון", shown only while
   an admin views as the accountant — the questionnaire the client submitted,

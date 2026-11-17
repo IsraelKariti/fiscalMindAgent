@@ -3,6 +3,7 @@ import { isDeclined, isOverdueStopped } from '../format';
 import { ClientHeader } from '../components/ClientHeader';
 import { ClientImportSettings } from '../components/ClientSourcesSettings';
 import { TestClientForm } from '../components/TestClientForm';
+import { TaxAdvisorBackfillPanel } from '../components/TaxAdvisorBackfillPanel';
 import { WhatsAppCard } from '../components/WhatsAppCard';
 import { DocumentsCard } from '../components/DocumentsCard';
 import { TeamQuestionsTab } from '../components/TeamQuestionsTab';
@@ -220,7 +221,13 @@ export const declarationOfCapitalUI: AgentTypeUI = {
   ),
   settingsPanelTabKey: 'settingsTabConnections',
   // Admin view-as only (openspec `admin-test-client`): a hand-filled test client.
-  adminTestPanel: ({ onCreated }) => <TestClientForm onCreated={onCreated} />,
+  // The advisor re-read (openspec `client-tax-advisor`) sits under the form on the same tab.
+  adminTestPanel: ({ onCreated }) => (
+    <>
+      <TestClientForm onCreated={onCreated} />
+      <TaxAdvisorBackfillPanel />
+    </>
+  ),
   nameKey: 'agentDeclarationOfCapitalName',
   descriptionKey: 'agentDeclarationOfCapitalDesc',
   icon: (

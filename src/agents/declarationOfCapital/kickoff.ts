@@ -4,6 +4,7 @@ import { fetchItemDetails, fetchUsers, type ItemDetails } from '../shared/monday
 import * as users from '../../db/queries/users.js';
 import * as accountantStaff from '../../db/queries/accountantStaff.js';
 import { matchTaxAdvisor, type StoredTaxAdvisor } from './taxAdvisor.js';
+import type { MondayUsersLookup } from './taxAdvisorBackfillRules.js';
 import { parseTaxYearCell } from '../shared/taxYear.js';
 import { normalizeE164 } from '../../util/phone.js';
 import { syntheticWaEmail } from '../../util/syntheticEmail.js';
@@ -92,6 +93,8 @@ export async function resolveTaxAdvisor(
   row: ItemDetails,
   accessToken: string,
   log: Record<string, unknown>,
+  // The users lookup; the admin backfill (taxAdvisorBackfill.ts) passes a per-run memo (taxAdvisorBackfillRules.ts).
+  lookup: MondayUsersLookup = fetchUsers,
 ): Promise<StoredTaxAdvisor | null | undefined> {
   if (!board.taxAdvisorColumnId) return undefined;
   const cell = row.columns.find((c) => c.id === board.taxAdvisorColumnId);
@@ -104,7 +107,7 @@ export async function resolveTaxAdvisor(
   const cellName = cell.text.split(',')[0]?.trim() || '';
   let person = { name: cellName, email: null as string | null, mondayUserId };
   try {
-    const found = (await fetchUsers(accessToken, [mondayUserId]))[0];
+    const found = (await lookup(accessToken, [mondayUserId]))[0];
     if (found) person = { name: found.name || cellName, email: found.email || null, mondayUserId };
     else logger.warn('declaration kickoff: advisor user not found in the monday account', { ...log, mondayUserId });
   } catch (err) {

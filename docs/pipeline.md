@@ -62,6 +62,12 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Which client the row is about (CRM link flow, or email/phone cell; enroll on the spot) | `webhook/mondayKickoffRoute.ts` · `resolveKickoffClient` → `DOC/kickoff.ts` · `resolveDeclarationClient` |
 | The tax advisor named on the row (first person of the people column → monday user → accountant / staff row / unmatched; empty cell clears) | `DOC/kickoff.ts` · `resolveTaxAdvisor` → `DOC/taxAdvisor.ts` · `matchTaxAdvisor` |
 | Remember the board row on the client | `webhook/mondayKickoffRoute.ts` · `rememberBoardRow` |
+| Admin re-reads the advisor of every remembered row (view-as only, `POST /clients/tax-advisor-backfill`; refuses without a monday connection; counts updated / cleared / unchanged / skipped / failed) | `DOC/taxAdvisorBackfill.ts` · `backfillTaxAdvisors` |
+| The client's remembered monday row (none → skipped) | `DOC/taxAdvisorBackfillRules.ts` · `rememberedRow` |
+| The configured board that maps the advisor column (not a source / unmapped → skipped) | `DOC/taxAdvisorBackfillRules.ts` · `boardForRow` |
+| Fetch the row and resolve the advisor (row gone / API error → failed) | `DOC/taxAdvisorBackfill.ts` · `rereadAdvisor` → `DOC/kickoff.ts` · `resolveTaxAdvisor` (users lookup memoised per run: `DOC/taxAdvisorBackfillRules.ts` · `memoisedUsersLookup`) |
+| Same person and match → unchanged, nothing written | `DOC/taxAdvisorBackfillRules.ts` · `advisorChanged` |
+| Store (null clears), audit `client.tax_advisor_backfilled` with the admin as actor | `DOC/taxAdvisorBackfill.ts` · `storeBackfilledAdvisor` |
 | Only a never-contacted client with no held/scheduled draft starts (paused or not) | `webhook/mondayKickoffRoute.ts` · `isStartable` → `orchestration/holdRule.ts` · `kickoffStartable` |
 | Audit `client.kickoff_triggered`; the client stays paused only while the instance's first-message approval is on | `webhook/mondayKickoffRoute.ts` · `recordKickoff` |
 | Map the form onto the checklist before the first draft (failure → full interview) | `webhook/mondayKickoffRoute.ts` · `preResolveFromForm` → `DOC/formIntake.ts` · `applyFormIntake` |

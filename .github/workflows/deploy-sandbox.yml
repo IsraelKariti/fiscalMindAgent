@@ -70,14 +70,15 @@ jobs:
             --container-registry-url https://fiscalmindacr.azurecr.io
           az webapp restart -n sandbox-il-worker -g $RG --subscription $SANDBOX_SUB
 
-      # /healthz reports the build's git sha: waiting for THIS sha (not any
+      # /healthz reports the build's git sha, SHORT (7 chars, APP_VERSION since
+      # 02862f3) — compare the short form. Waiting for THIS sha (not any
       # 200) is what proves the NEW container booted — during the swap the old
       # build keeps serving 200s, which used to pass this check spuriously.
       - name: Wait for worker health (this sha answering implies migrations + seed succeeded)
         run: |
           for i in $(seq 1 60); do
             got=$(curl -fsS "https://sandbox-il-worker.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null || true)
-            if [ "$got" = "${{ steps.sha.outputs.sha }}" ]; then
+            if [ "$got" = "$(echo ${{ steps.sha.outputs.sha }} | cut -c1-7)" ]; then
               echo "worker healthy on ${{ steps.sha.outputs.sha }}"; exit 0
             fi
             echo "waiting (serving: ${got:-none})"; sleep 10
@@ -95,7 +96,7 @@ jobs:
         run: |
           for i in $(seq 1 60); do
             got=$(curl -fsS "https://sandbox-il-web.azurewebsites.net/healthz" 2>/dev/null | jq -r '.sha // empty' 2>/dev/null || true)
-            if [ "$got" = "${{ steps.sha.outputs.sha }}" ]; then
+            if [ "$got" = "$(echo ${{ steps.sha.outputs.sha }} | cut -c1-7)" ]; then
               echo "web healthy on ${{ steps.sha.outputs.sha }}"; exit 0
             fi
             echo "waiting (serving: ${got:-none})"; sleep 10

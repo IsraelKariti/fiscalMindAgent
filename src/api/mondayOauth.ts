@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { RequestHandler } from 'express';
 import { env } from '../config/env.js';
 import * as mondayOauthTokens from '../db/queries/mondayOauthTokens.js';
+import { MONDAY_OAUTH_SCOPES, missingMondayScopes } from './mondayScopes.js';
 import { logger } from '../util/logger.js';
 
 /**
@@ -17,15 +18,6 @@ import { logger } from '../util/logger.js';
  * would not survive it for monday-iframe users, who have no session cookie.
  */
 
-/**
- * Scopes the agents need; must also be enabled on the monday app in the
- * Developer Center. boards:write powers the board status sync
- * (src/agents/shared/mondayStatusSync.ts) — accountants who connected before it
- * was added must reconnect monday for their stored token to gain it. users:read
- * resolves a people cell (the tax advisor, openspec `client-tax-advisor`) to a
- * name + email; same reconnect rule.
- */
-const MONDAY_OAUTH_SCOPES = 'boards:read boards:write docs:read users:read';
 const STATE_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 function oauthConfigured(): boolean {
@@ -96,6 +88,10 @@ export const mondayConnectionStatus: RequestHandler = async (req, res) => {
     configured: oauthConfigured(),
     connected: token !== null,
     scopes: token?.scopes ?? null,
+    // Requested scopes the stored token lacks (openspec `monday-connection`):
+    // the Settings page turns a non-empty list into the "update permissions"
+    // notice, whose button re-runs the same connect flow below.
+    missingScopes: missingMondayScopes(token?.scopes),
   });
 };
 
@@ -134,7 +130,11 @@ export const startMondayOauth: RequestHandler = (req, res) => {
   res.redirect(url.toString());
 };
 
-/** GET /api/auth/monday/callback — code exchange + token storage; closes the popup. */
+/**
+ * GET /api/auth/monday/callback — code exchange + token storage; closes the
+ * popup. Works for an already-connected accountant too: the upsert replaces
+ * the stored token and scopes, which is how missing permissions get granted.
+ */
 export const mondayOauthCallback: RequestHandler = async (req, res) => {
   const fail = (reason: string): void => {
     logger.warn('monday oauth callback failed', { reason });

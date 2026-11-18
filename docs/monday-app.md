@@ -73,7 +73,11 @@ server and built from `web/src/monday/`:
    per-accountant API token in `monday_oauth_tokens`, migration 020). Unlike
    the seamless in-iframe auth above, this token lets the *server* query
    monday at webhook time (boards + docs) with no browser involved. monday
-   access tokens don't expire; "Disconnect" just deletes the row.
+   access tokens don't expire; "Disconnect" just deletes the row. The scopes
+   the popup asks for live in `src/api/mondayScopes.ts`; when a new one is
+   added there (and enabled in step 4), accountants with an older token see
+   an "update monday permissions" notice in Settings whose button re-runs
+   this same popup (openspec `monday-connection`).
 6. Install the app on the account (**Install** / share URL). Then, in a
    workspace, **+ Add item → Apps → your app**.
 

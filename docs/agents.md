@@ -164,9 +164,10 @@ monday WorkForm is the only source of which documents a declaration needs):
   a people column (`taxAdvisorColumnId`, conventionally "יועצת מס"; preselected
   by the stem `יועצ|יועץ`). Every
   kickoff reads its first person (`PeopleValue.persons_and_teams` →
-  `fetchUsers`, needs the **users:read** OAuth scope — accountants connected
-  before 2026-11-15 must reconnect monday, until then the advisor is stored by
-  display name as unmatched with a warning), matches the email to the
+  `fetchUsers`, needs the **users:read** OAuth scope — a token without it
+  shows the "update monday permissions" notice in Settings (see "Adding a
+  monday scope" below); until the accountant approves, the advisor is stored
+  by display name as unmatched with a warning), matches the email to the
   accountant's own email or a row of `accountant_staff` for that accountant,
   and stores `agent_fields.tax_advisor` (`name`, `email`, `monday_user_id`,
   `match` accountant|staff|none, `staff_id`). An empty cell clears it; a board
@@ -396,15 +397,26 @@ address is remembered per client in `agent_fields.monday_board_id/monday_item_id
 (stamped at import — `fetchAllBoardRows` returns item ids — and re-stamped
 by every kickoff click; the import sweep backfills pre-existing clients).
 Labels are written with `create_labels_if_missing`, so boards need no
-pre-created labels. Requires the **boards:write** OAuth scope (added to
-`MONDAY_OAUTH_SCOPES` + must be enabled in the monday Developer Center);
-accountants connected before the scope change must reconnect monday. Sync is
-best-effort: failures are logged, never block the conversation, and the
+pre-created labels. Requires the **boards:write** OAuth scope (a token
+without it shows the "update monday permissions" notice, see "Adding a
+monday scope" below). Sync is best-effort: failures are logged, never block the conversation, and the
 status-change events the writes fire back at the kickoff webhook are ignored
 by its startable-state guards. The original progress-label column
 (`statusColumnId`, "agent working" / "documents collected") was retired on
 2026-11-09: nothing writes it any more and the mapping form no longer offers
 it; the key stays tolerated in `BoardSourceSchema` so stored settings parse.
+**Adding a monday scope** (openspec `monday-connection`, since 2026-11-19):
+append it to `MONDAY_OAUTH_SCOPES` in `src/api/mondayScopes.ts` and enable it
+on the app in the monday Developer Center — nothing else. `GET
+/api/monday-connection` returns `missingScopes` (`missingMondayScopes`:
+requested minus stored, order-insensitive, `[]` when not connected); the
+Settings monday row renders a non-empty list as a warning notice with one
+"update monday permissions" button that re-runs the ordinary connect popup
+while still connected (no Disconnect step — the callback upserts the new
+token + the scope string monday returns). The popup poll stops when the
+missing list empties. The same panel is mounted inside the monday object, so
+the notice shows there too. Never tell accountants to "reconnect by hand".
+
 Since 2026-11-05 a board source maps a **documents status column**
 (`documentsStatusColumnId`, openspec `monday-documents-status`) that mirrors
 the workspace client dot: `syncMondayDocumentsStatus(clientId)` re-reads the

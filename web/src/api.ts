@@ -887,6 +887,8 @@ export interface MondayConnection {
   configured: boolean;
   connected: boolean;
   scopes: string | null;
+  /** Requested scopes the stored token lacks; non-empty → "update permissions" notice. */
+  missingScopes: string[];
 }
 
 /** The signed-in accountant's Google OAuth connection (drive.file — Sheets/Docs knowledge sources). */

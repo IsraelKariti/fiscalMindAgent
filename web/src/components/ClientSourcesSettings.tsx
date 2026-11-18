@@ -142,10 +142,14 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
   // Popup-blocker-safe connect: open the window synchronously, then point it at
   // the OAuth start URL. The callback page postMessages back, but the message
   // can be lost (or blocked cross-origin) — poll the status too while waiting.
-  const openConnectPopup = async (
+  // `isDone` decides when polling may stop: plain connect waits for
+  // `connected`; the "update permissions" re-connect is already connected, so
+  // it waits for the missing-scope list to empty instead.
+  const openConnectPopup = async <S extends { connected: boolean }>(
     getUrl: () => Promise<{ url: string }>,
-    getStatus: () => Promise<{ connected: boolean }>,
+    getStatus: () => Promise<S>,
     doneMessage: string,
+    isDone: (conn: S) => boolean = (conn) => conn.connected,
   ) => {
     const win = window.open('about:blank', '_blank', 'popup,width=520,height=680');
     try {
@@ -169,7 +173,7 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
     connectPoll.current = setInterval(async () => {
       try {
         const conn = await getStatus();
-        if (conn.connected) finish();
+        if (isDone(conn)) finish();
       } catch {
         /* keep polling */
       }
@@ -195,6 +199,14 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
   };
 
   const connect = () => openConnectPopup(api.mondayConnectUrl, api.mondayConnection, 'fm-monday-connected');
+  /** Same OAuth round trip while connected; the callback overwrites the stored token + scopes. */
+  const updateMondayScopes = () =>
+    openConnectPopup(
+      api.mondayConnectUrl,
+      api.mondayConnection,
+      'fm-monday-connected',
+      (conn) => conn.missingScopes.length === 0,
+    );
   const connectGoogle = () => openConnectPopup(api.googleConnectUrl, api.googleConnection, 'fm-google-connected');
 
   const disconnect = async () => {
@@ -505,6 +517,19 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
             )
           }
         />
+        {connection.connected && connection.missingScopes.length > 0 && (
+          <div className="settings-notice-warning" role="status">
+            <div className="settings-row-text">
+              <span className="settings-row-title">{t.csMondayScopesTitle}</span>
+              <span className="settings-row-desc">{t.csMondayScopesHint}</span>
+            </div>
+            <div className="settings-row-control">
+              <button type="button" className="btn btn-primary btn-small" onClick={updateMondayScopes}>
+                {t.csMondayScopesUpdate}
+              </button>
+            </div>
+          </div>
+        )}
         {connection.connected && (
           <div className="settings-subsection">
             <SettingsRow

@@ -4086,6 +4086,24 @@ button.meta-chip:hover {
   padding: 16px 18px;
 }
 
+/* Settings: the monday token lacks a scope the app now asks for — one button
+   re-runs the connect popup (openspec monday-connection). */
+.settings-notice-warning {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 32px;
+  margin: 0 18px 12px;
+  padding: 12px 16px;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  border-radius: 10px;
+  background: var(--warning-bg);
+}
+
+.settings-notice-warning .settings-row-title {
+  color: var(--warning);
+}
+
 .settings-row-text {
   flex: 1 1 240px;
   min-width: 0;

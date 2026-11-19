@@ -62,9 +62,12 @@ server and built from `web/src/monday/`:
    `https://<host>/monday-object` (dev host: `<NGROK_DOMAIN>`; prod host:
    the Azure app). If the app still has a **Dashboard Widget** feature from
    before 2026-09-11, remove it — `/monday-widget` no longer exists.
-4. **Permissions (scopes)**: enable `me:read`, `boards:read` (the object
-   queries `me { email }`; the server reads client boards) and `boards:write`
-   (the board status sync).
+4. **Permissions (scopes)**: enable `me:read` (the object queries
+   `me { email }`) plus every scope in `MONDAY_OAUTH_SCOPES`
+   (`src/api/mondayScopes.ts`): `boards:read`, `boards:write`, `docs:read`,
+   `users:read`. A scope requested but not enabled here makes the connect
+   popup fail with monday's "Invalid scope param" (seen 2026-11-19 when
+   `users:read` was missing).
 5. **OAuth** (the "Connect monday" flow behind client-import sources): copy the **Client ID** (Basic
    Information) into `MONDAY_CLIENT_ID` in `.env`, and register the redirect
    URL `https://<host>/api/auth/monday/callback` under the app's OAuth

@@ -4,6 +4,8 @@
  * The bound instances live in inboundTurn.ts and requestReplan.ts.
  */
 
+import type { PlanTrigger } from '../db/types.js';
+
 /** The ioredis calls the turn store uses. */
 export interface TurnRedis {
   incr(key: string): Promise<number>;
@@ -71,7 +73,17 @@ export interface ReplanJobData {
   clientId: string;
   /** Epoch ms of the first inbound of the turn — the maximum wait counts from here. */
   turnStartedAt: number;
+  /**
+   * 'turn' = the run of an inbound turn; 'after_send' = the run that drafts the
+   * next follow-up once the agent's own message is delivered (openspec
+   * `after-send-plan-delay`). Jobs queued before the field existed read as 'turn'.
+   */
+  kind?: ReplanKind;
+  /** What the run names as the trigger of the draft it writes; missing = 'client_message'. */
+  trigger?: PlanTrigger;
 }
+
+export type ReplanKind = 'turn' | 'after_send';
 
 /** The BullMQ calls the requester uses. */
 export interface ReplanJobLike {
@@ -124,7 +136,9 @@ export function createReplanRequester(deps: {
         await deps.store.setDirty(clientId);
         return;
       }
-      if (NOT_STARTED.has(state)) turnStartedAt = existing.data.turnStartedAt;
+      // Only a pending turn keeps its start: an after-send wait is not a turn,
+      // and inheriting its (old) start would force-plan the reply at once.
+      if (NOT_STARTED.has(state) && replanKindOf(existing.data) === 'turn') turnStartedAt = existing.data.turnStartedAt;
       try {
         await existing.remove();
       } catch {
@@ -133,6 +147,54 @@ export function createReplanRequester(deps: {
         return;
       }
     }
-    await deps.queue.add('replan', { clientId, turnStartedAt }, { jobId, delay: await delayFor(clientId) });
+    await deps.queue.add(
+      'replan',
+      { clientId, turnStartedAt, kind: 'turn', trigger: 'client_message' },
+      { jobId, delay: await delayFor(clientId) },
+    );
+  };
+}
+
+export const replanKindOf = (data: ReplanJobData): ReplanKind => data.kind ?? 'turn';
+export const replanTriggerOf = (data: ReplanJobData): PlanTrigger => data.trigger ?? 'client_message';
+
+/**
+ * Builds `requestReplanAfterSend`: asks for the planner run that follows the
+ * agent's own delivered message, `delayMs` from now (openspec
+ * `after-send-plan-delay`). It shares the client's single replan job: a pending
+ * job (a turn waiting for its quiet window, or an earlier after-send wait) is
+ * left alone — it plans the same state sooner; a running planner only gets the
+ * dirty flag, so it plans again once done. `delayMs` may be 0 (plan at once).
+ */
+export function createAfterSendReplanRequester(deps: {
+  queue: ReplanQueueLike;
+  store: Pick<TurnStore, 'setDirty'>;
+  delayMs: number;
+  now?: () => number;
+}): (clientId: string, delayMs?: number) => Promise<void> {
+  const now = deps.now ?? (() => Date.now());
+  return async (clientId, delayMs = deps.delayMs) => {
+    const jobId = replanJobId(clientId);
+    const existing = await deps.queue.getJob(jobId);
+    if (existing) {
+      const state = await existing.getState();
+      if (state === 'active') {
+        await deps.store.setDirty(clientId);
+        return;
+      }
+      if (NOT_STARTED.has(state)) return;
+      // Finished job left behind (completed/failed): drop it so the id is free.
+      try {
+        await existing.remove();
+      } catch {
+        await deps.store.setDirty(clientId);
+        return;
+      }
+    }
+    await deps.queue.add(
+      'replan',
+      { clientId, turnStartedAt: now(), kind: 'after_send', trigger: 'agent_message_sent' },
+      { jobId, delay: Math.max(MIN_DELAY_MS, delayMs) },
+    );
   };
 }

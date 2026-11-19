@@ -14,6 +14,7 @@ import { sendWhatsAppTemplate, sendWhatsAppText } from '../twilio/send.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
+import { requestReplanAfterSend } from '../orchestration/requestReplan.js';
 import { isWhatsAppWindowOpen } from '../orchestration/whatsappWindow.js';
 import { agentWorkBlocked } from '../agents/killSwitch.js';
 import { adminCommsPaused, isSupervisedInstance } from '../orchestration/adminPause.js';
@@ -105,10 +106,16 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
       throw err;
     }
     if (sent === 'sent' && !contactedBefore) await onFirstContact(client, instance);
-    // Either way the pending action is settled — plan the next one. On the
-    // not-sent path the abandoned draft simply stays in 'draft' status (the
-    // established pattern) and the fresh decision sees the current state.
-    if (sent !== 'skip_planning') {
+    // Either way the pending action is settled — plan the next one. After a
+    // delivered message the next plan waits the after-send delay (openspec
+    // `after-send-plan-delay`): most clients answer within minutes, and the
+    // reply then merges into one planner run. On the not-sent path the
+    // abandoned draft simply stays in 'draft' status (the established pattern)
+    // and the fresh decision, taken at once, sees the current state.
+    if (sent === 'sent') {
+      await removeFutureEmail(clientId, 'send_settled');
+      await requestReplanAfterSend(clientId);
+    } else if (sent === 'not_sent') {
       await removeFutureEmail(clientId, 'send_settled');
       await setFutureEmail(clientId, 'agent_message_sent');
     }

@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { decideReplan, isTurnSettled } from '../src/orchestration/inboundTurnRules.js';
 import {
+  createAfterSendReplanRequester,
   createReplanRequester,
   createTurnStore,
   replanJobId,
@@ -207,5 +208,74 @@ describe('requestReplan', () => {
 
   it('uses a job id without a colon', () => {
     assert.equal(replanJobId('abc').includes(':'), false);
+  });
+});
+
+describe('requestReplanAfterSend', () => {
+  const AFTER_SEND_MS = 3_600_000;
+  const store = (dirty: string[]) => ({ setDirty: async (id: string) => void dirty.push(id) });
+
+  it('adds one job after the delay, as an after-send run that names the delivered message', async () => {
+    const queue = fakeQueue();
+    const request = createAfterSendReplanRequester({ queue, store: store([]), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+    await request('c1');
+    const job = queue.jobs.get(replanJobId('c1'))!;
+    assert.equal(queue.jobs.size, 1);
+    assert.equal(job.delay, AFTER_SEND_MS);
+    assert.equal(job.data.kind, 'after_send');
+    assert.equal(job.data.trigger, 'agent_message_sent');
+    assert.equal(job.data.turnStartedAt, queue.clock.t);
+  });
+
+  it('a reply inside the delay replaces the wait with a fresh turn', async () => {
+    const queue = fakeQueue();
+    const dirty: string[] = [];
+    const afterSend = createAfterSendReplanRequester({ queue, store: store(dirty), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+    await afterSend('c1');
+    queue.clock.t += 40_000;
+    const inbound = createReplanRequester({
+      queue,
+      store: { setDirty: async (id) => void dirty.push(id), read: async () => ({ inflight: 0, lastInboundAt: new Date(queue.clock.t) }) },
+      quietMs: QUIET_MS,
+      now: () => queue.clock.t,
+    });
+    await inbound('c1');
+    const job = queue.jobs.get(replanJobId('c1'))!;
+    assert.equal(queue.jobs.size, 1);
+    assert.equal(job.delay, QUIET_MS);
+    assert.equal(job.data.kind, 'turn');
+    assert.equal(job.data.trigger, 'client_message');
+    assert.equal(job.data.turnStartedAt, queue.clock.t); // not the send time
+    assert.deepEqual(dirty, []);
+  });
+
+  it('leaves a pending turn alone and only marks a running planner dirty', async () => {
+    const queue = fakeQueue();
+    const dirty: string[] = [];
+    const inbound = createReplanRequester({
+      queue,
+      store: { setDirty: async () => {}, read: async () => ({ inflight: 0, lastInboundAt: new Date(queue.clock.t) }) },
+      quietMs: QUIET_MS,
+      now: () => queue.clock.t,
+    });
+    await inbound('c1');
+    const turn = queue.jobs.get(replanJobId('c1'))!;
+    const afterSend = createAfterSendReplanRequester({ queue, store: store(dirty), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+    await afterSend('c1');
+    assert.equal(queue.jobs.get(replanJobId('c1')), turn);
+    assert.equal(turn.data.kind, 'turn');
+    assert.deepEqual(dirty, []);
+
+    turn.state = 'active';
+    await afterSend('c1');
+    assert.deepEqual(dirty, ['c1']);
+    assert.equal(queue.jobs.get(replanJobId('c1')), turn);
+  });
+
+  it('takes a shorter delay for a recovered wait, never below one second', async () => {
+    const queue = fakeQueue();
+    const request = createAfterSendReplanRequester({ queue, store: store([]), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+    await request('c1', 0);
+    assert.equal(queue.jobs.get(replanJobId('c1'))!.delay, 1_000);
   });
 });

@@ -77,6 +77,11 @@ const EnvSchema = z.object({
   // Upper bound of that wait, counted from the first inbound of the turn: past
   // it the planner runs with whatever is finished (a hung file can't block a reply).
   INBOUND_MAX_WAIT_SECONDS: z.coerce.number().int().positive().default(300),
+  // After the agent's own message is delivered, the planner run that drafts the
+  // next follow-up waits this long (openspec `after-send-plan-delay`): a reply
+  // inside the wait merges into the normal inbound turn, so only one run
+  // happens. 0 = plan at once.
+  AFTER_SEND_PLAN_DELAY_SECONDS: z.coerce.number().int().nonnegative().default(3600),
   // Encrypts secrets at rest in Postgres (client tax-portal credentials,
   // Google/monday OAuth tokens) — AES-256-GCM via src/crypto/secretBox.ts.
   // 32 bytes base64 (`openssl rand -base64 32`). Required: without it the app

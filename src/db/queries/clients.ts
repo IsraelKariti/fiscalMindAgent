@@ -353,6 +353,33 @@ export async function listDraftingWithoutSchedule(withinSeconds: number): Promis
   return rows.map((r) => r.id);
 }
 
+/**
+ * Clients whose latest outbound message was delivered and that have nothing
+ * planned: no scheduled send, no drafting attempt, no replan in sight. On
+ * worker boot these are after-send waits (openspec `after-send-plan-delay`)
+ * that may have been lost with Redis (see recoverLostReplans). Bounded to
+ * sends newer than the delay plus a day, so an old idle client is not woken.
+ */
+export async function listDeliveredWithoutPlan(delaySeconds: number): Promise<{ id: string; sentAt: Date }[]> {
+  const { rows } = await pool.query<{ id: string; sent_at: Date }>(
+    `SELECT c.id, e.sent_at
+     FROM clients c
+     JOIN LATERAL (
+       SELECT status, sent_at FROM emails
+       WHERE client_id = c.id AND direction = 'outbound' AND discarded_at IS NULL
+       ORDER BY created_at DESC LIMIT 1
+     ) e ON TRUE
+     WHERE c.deleted_at IS NULL
+       AND c.goal_status = 'pending' AND NOT c.paused
+       AND c.drafting_since IS NULL AND c.draft_failed_at IS NULL
+       AND e.status = 'sent'
+       AND e.sent_at > now() - make_interval(secs => $1) - interval '1 day'
+       AND NOT EXISTS (SELECT 1 FROM scheduled_jobs s WHERE s.client_id = c.id)`,
+    [delaySeconds],
+  );
+  return rows.map((r) => ({ id: r.id, sentAt: r.sent_at }));
+}
+
 export async function updateGoalStatus(id: string, goalStatus: GoalStatus): Promise<void> {
   await pool.query('UPDATE clients SET goal_status = $2, updated_at = now() WHERE id = $1', [id, goalStatus]);
 }

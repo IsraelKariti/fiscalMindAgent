@@ -140,6 +140,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | `tax_fetch`: the document-fetch action (agreed / start login / cancel) and whether a fetch context took it | `DOC/plan.ts` · `taxFetchDecisionOf` → `DOC/taxFetch/flow.ts` · `applyTaxFetchAction`; `DOC/plan.ts` · `recordTaxFetchStep` (`taxFetchDetail`) |
 | Legacy trace rows `apply_*`, `send_reply`, `withhold_reply` (written before the per-tool steps): still rendered, no writer | `web/src/components/stepSummary.ts`, `stepGlyph.ts` |
 | The scheduled send actually goes out | `queue/sendEmailWorker.ts` · `onScheduledSend` → `sendWhatsAppDraft` |
+| After a delivered send, the next plan waits the after-send delay (`AFTER_SEND_PLAN_DELAY_SECONDS`); a client reply inside it replaces the wait with the normal turn, a send that did not go out re-plans at once | `queue/sendEmailWorker.ts` · `onScheduledSend` → `orchestration/requestReplan.ts` · `requestReplanAfterSend` (`orchestration/inboundTurnCore.ts` · `createAfterSendReplanRequester`) → `queue/replanWorker.ts` · `onReplan` |
 | First delivered message starts the collection window: the client's due date = local delivery date + `collection_window_days`, unless a date is already set | `queue/sendEmailWorker.ts` · `onFirstContact` → `DOC/collectionWindow.ts` · `startCollectionWindow` (`dueDateFromWindow`, `clients.setDueDateIfAbsent`) |
 
 ## E. The document check (one document)

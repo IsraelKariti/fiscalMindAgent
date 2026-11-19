@@ -26,4 +26,4 @@
 
 ## 6. Deploy
 
-- [ ] 6.1 Set `AFTER_SEND_PLAN_DELAY_SECONDS=3600` on the production app settings of `fiscalmind-il-worker` and `fiscalmind-il-web` (owner confirms the value first).
+- [x] 6.1 Set `AFTER_SEND_PLAN_DELAY_SECONDS=3600` on the production app settings of `fiscalmind-il-worker` and `fiscalmind-il-web` (owner confirms the value first).

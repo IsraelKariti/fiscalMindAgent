@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import type { RequestHandler } from 'express';
 import { env } from '../config/env.js';
 import * as mondayOauthTokens from '../db/queries/mondayOauthTokens.js';
-import { MONDAY_OAUTH_SCOPES, missingMondayScopes } from './mondayScopes.js';
+import { MONDAY_OAUTH_SCOPES, missingMondayScopes, mondayInstallUrl } from './mondayScopes.js';
 import { logger } from '../util/logger.js';
 
 /**
@@ -92,6 +92,8 @@ export const mondayConnectionStatus: RequestHandler = async (req, res) => {
     // the Settings page turns a non-empty list into the "update permissions"
     // notice, whose button re-runs the same connect flow below.
     missingScopes: missingMondayScopes(token?.scopes),
+    // Step 1 of the notice: update the app on the accountant's monday account.
+    installUrl: mondayInstallUrl(env.MONDAY_CLIENT_ID),
   });
 };
 

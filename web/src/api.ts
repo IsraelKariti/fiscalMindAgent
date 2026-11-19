@@ -889,6 +889,8 @@ export interface MondayConnection {
   scopes: string | null;
   /** Requested scopes the stored token lacks; non-empty → "update permissions" notice. */
   missingScopes: string[];
+  /** The app's fixed install page on monday (step 1 of the notice); null when no client id. */
+  installUrl: string | null;
 }
 
 /** The signed-in accountant's Google OAuth connection (drive.file — Sheets/Docs knowledge sources). */

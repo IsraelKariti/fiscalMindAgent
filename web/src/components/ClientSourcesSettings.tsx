@@ -522,11 +522,25 @@ export function ClientSourcesSettings({ api: panelApi, boardsDescKey, sheetsDesc
             <div className="settings-row-text">
               <span className="settings-row-title">{t.csMondayScopesTitle}</span>
               <span className="settings-row-desc">{t.csMondayScopesHint}</span>
-            </div>
-            <div className="settings-row-control">
-              <button type="button" className="btn btn-primary btn-small" onClick={updateMondayScopes}>
-                {t.csMondayScopesUpdate}
-              </button>
+              {/* monday validates the scopes against the app version installed on
+                  the accountant's own monday account, so an outdated account must
+                  update the app before the approval popup can succeed. */}
+              <ol className="settings-notice-steps">
+                {connection.installUrl && (
+                  <li>
+                    <a href={connection.installUrl} target="_blank" rel="noopener noreferrer">
+                      {t.csMondayScopesStep1Link}
+                    </a>{' '}
+                    <span className="muted">{t.csMondayScopesStep1Note}</span>
+                  </li>
+                )}
+                <li>
+                  <span>{t.csMondayScopesStep2}</span>{' '}
+                  <button type="button" className="btn btn-primary btn-small" onClick={updateMondayScopes}>
+                    {t.csMondayScopesUpdate}
+                  </button>
+                </li>
+              </ol>
             </div>
           </div>
         )}

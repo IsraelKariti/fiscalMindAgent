@@ -4104,6 +4104,27 @@ button.meta-chip:hover {
   color: var(--warning);
 }
 
+/* The notice's two steps: install link first, approval button second. */
+.settings-notice-steps {
+  margin: 4px 0 0;
+  padding-inline-start: 1.25em;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.settings-notice-steps a {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.settings-notice-steps .btn {
+  vertical-align: middle;
+  margin-inline-start: 6px;
+}
+
 .settings-row-text {
   flex: 1 1 240px;
   min-width: 0;

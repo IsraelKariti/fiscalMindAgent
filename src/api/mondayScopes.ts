@@ -22,6 +22,18 @@ function parseScopes(scopes: string): string[] {
     .filter((s) => s.length > 0);
 }
 
+/**
+ * The app's fixed install page (Developer Center → Distribute → Share app →
+ * "Add to monday.com"). monday validates OAuth scopes against the app version
+ * installed on the *accountant's* account, so an account on an older version
+ * answers "Invalid scope param" until it updates — the Settings notice links
+ * here as step 1 (openspec `monday-connection`). Null when no client id.
+ */
+export function mondayInstallUrl(clientId: string | undefined): string | null {
+  if (!clientId) return null;
+  return `https://auth.monday.com/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&response_type=install`;
+}
+
 export function requestedMondayScopes(): string[] {
   return parseScopes(MONDAY_OAUTH_SCOPES);
 }

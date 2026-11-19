@@ -414,8 +414,15 @@ Settings monday row renders a non-empty list as a warning notice with one
 "update monday permissions" button that re-runs the ordinary connect popup
 while still connected (no Disconnect step — the callback upserts the new
 token + the scope string monday returns). The popup poll stops when the
-missing list empties. The same panel is mounted inside the monday object, so
-the notice shows there too. Never tell accountants to "reconnect by hand".
+missing list empties. monday validates the requested scopes against the app
+version installed on the *accountant's* monday account, so an account still
+on an older version answers "Invalid scope param"; the notice therefore
+shows two steps — (1) a link to the app's fixed install page
+(`mondayInstallUrl`: `https://auth.monday.com/oauth2/authorize?client_id=…&response_type=install`,
+returned as `installUrl`; an up-to-date account just sees "already
+installed"), (2) the button. The same panel is mounted inside the monday
+object, so the notice shows there too. Never tell accountants to "reconnect
+by hand" or send them the install link by hand.
 
 Since 2026-11-05 a board source maps a **documents status column**
 (`documentsStatusColumnId`, openspec `monday-documents-status`) that mirrors

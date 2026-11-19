@@ -80,7 +80,12 @@ server and built from `web/src/monday/`:
    the popup asks for live in `src/api/mondayScopes.ts`; when a new one is
    added there (and enabled in step 4), accountants with an older token see
    an "update monday permissions" notice in Settings whose button re-runs
-   this same popup (openspec `monday-connection`).
+   this same popup (openspec `monday-connection`). Because monday checks the
+   scopes against the version installed on the accountant's own account, the
+   notice first links to the app's install page
+   (`https://auth.monday.com/oauth2/authorize?client_id=<MONDAY_CLIENT_ID>&response_type=install`,
+   the "Add to monday.com" button under Distribute → Share app) so that
+   account updates to the live version before approving.
 6. Install the app on the account (**Install** / share URL). Then, in a
    workspace, **+ Add item → Apps → your app**.
 

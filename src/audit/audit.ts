@@ -106,6 +106,9 @@ export type AuditAction =
   | 'client.declined'
   | 'client.auto_enrolled'
   | 'client.kickoff_triggered'
+  // The kickoff did not start the client: no tax advisor with an email on the
+  // row (openspec `client-tax-advisor`). detail.reason names which.
+  | 'client.kickoff_refused'
   // An admin's hand-filled test client (openspec `admin-test-client`).
   | 'client.test_created'
   // An admin re-read the advisor cell of a remembered row (openspec `client-tax-advisor`).

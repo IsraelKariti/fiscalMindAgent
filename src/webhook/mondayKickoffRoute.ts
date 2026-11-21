@@ -7,6 +7,7 @@ import { verifyKickoffToken } from '../agents/shared/kickoffWebhook.js';
 import { syncMondayDocumentsStatus } from '../agents/shared/mondayStatusSync.js';
 import { resolveDeclarationClient, taxAdvisorAuditDetail, type DeclarationIntake } from '../agents/declarationOfCapital/kickoff.js';
 import { applyFormIntake } from '../agents/declarationOfCapital/formIntake.js';
+import { kickoffBlockReason, refuseKickoffWith } from '../agents/declarationOfCapital/kickoffGate.js';
 import { fetchBoardItemCells } from '../agents/shared/mondayData.js';
 import { normalizeE164 } from '../util/phone.js';
 import { draftFirstEmail } from '../api/draftFirstEmail.js';
@@ -98,8 +99,8 @@ interface KickoffTarget {
 /**
  * Resolves the board row to the instance's client (enrolling it first if
  * needed) and has its first message drafted and held. One named function per
- * step: kickoffBoard, resolveKickoffClient, isStartable, recordKickoff,
- * preResolveFromForm, then the held first draft.
+ * step: kickoffBoard, resolveKickoffClient, isStartable, hasTaxAdvisor,
+ * recordKickoff, preResolveFromForm, then the held first draft.
  */
 async function startClientForItem(instance: AgentInstanceRow, boardId: string, itemId: string): Promise<boolean> {
   const log = { instanceId: instance.id, boardId, itemId };
@@ -118,6 +119,7 @@ async function startClientForItem(instance: AgentInstanceRow, boardId: string, i
     logger.info('monday kickoff: client not in a startable state, ignoring', { ...log, clientId: client.id });
     return false;
   }
+  if (!(await hasTaxAdvisor(instance, target, boardId, itemId, log))) return false;
   await recordKickoff(instance, target, boardId, itemId);
   await preResolveFromForm(client, target.intake, log);
   // Same fire-and-forget first-draft path as manual client creation. With
@@ -210,6 +212,35 @@ async function isStartable(client: KickoffTarget['client']): Promise<boolean> {
   const messages = (await emails.listForClient(client.id)).length;
   const hasScheduledJob = (await scheduledJobs.getForClient(client.id)) !== null;
   return kickoffStartable({ goalStatus: client.goal_status, draftingSince: client.drafting_since, messages, hasScheduledJob });
+}
+
+/**
+ * The gate (openspec `client-tax-advisor`): the row must name a tax advisor
+ * with an email — the person the decline acknowledgement sends the client
+ * to. Otherwise the client is stamped blocked (header badge), the refusal is
+ * recorded (`client.kickoff_refused`) and nothing is drafted; the webhook
+ * still answers 200. A passing gate clears an earlier stamp.
+ */
+async function hasTaxAdvisor(
+  instance: AgentInstanceRow,
+  target: KickoffTarget,
+  boardId: string,
+  itemId: string,
+  log: Record<string, unknown>,
+): Promise<boolean> {
+  const { client } = target;
+  const reason = kickoffBlockReason(target.intake?.taxAdvisor);
+  if (reason) {
+    logger.warn('monday kickoff: no tax advisor with an email on the row, not starting', { ...log, clientId: client.id, reason });
+    await refuseKickoffWith(
+      { client, instanceId: instance.id, accountantUserId: instance.user_id, boardId, itemId },
+      reason,
+      { setKickoffBlocked: clients.setKickoffBlocked, recordAudit, publishClientUpdated },
+    );
+    return false;
+  }
+  if (client.agent_fields['kickoff_blocked'] !== undefined) await clients.clearKickoffBlocked(client.id);
+  return true;
 }
 
 /**

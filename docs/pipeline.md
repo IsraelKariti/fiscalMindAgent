@@ -69,6 +69,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Same person and match → unchanged, nothing written | `DOC/taxAdvisorBackfillRules.ts` · `advisorChanged` |
 | Store (null clears), audit `client.tax_advisor_backfilled` with the admin as actor | `DOC/taxAdvisorBackfill.ts` · `storeBackfilledAdvisor` |
 | Only a never-contacted client with no held/scheduled draft starts (paused or not) | `webhook/mondayKickoffRoute.ts` · `isStartable` → `orchestration/holdRule.ts` · `kickoffStartable` |
+| The row must name a tax advisor with an email (column unmapped / cell empty / email unreadable → `agent_fields.kickoff_blocked` + audit `client.kickoff_refused`, nothing drafted, header badge; a passing kickoff clears the stamp) | `webhook/mondayKickoffRoute.ts` · `hasTaxAdvisor` → `DOC/kickoffGate.ts` · `kickoffBlockReason`, `refuseKickoffWith` |
 | Audit `client.kickoff_triggered`; the client stays paused only while the instance's first-message approval is on | `webhook/mondayKickoffRoute.ts` · `recordKickoff` |
 | Map the form onto the checklist before the first draft (failure → full interview) | `webhook/mondayKickoffRoute.ts` · `preResolveFromForm` → `DOC/formIntake.ts` · `applyFormIntake` |
 | Sanitize the answers; an all-empty form is not submitted | `DOC/formIntake.ts` · `sanitizeFormAnswers` |

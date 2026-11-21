@@ -548,6 +548,26 @@ export async function setMondayItem(id: string, boardId: string, itemId: string)
   );
 }
 
+/** Why the last monday kickoff did not start the client (openspec `client-tax-advisor`). */
+export type KickoffBlockedReason = 'advisor_column_unmapped' | 'advisor_cell_empty' | 'advisor_email_unavailable';
+
+/**
+ * Stamps why the monday kickoff refused to start the client
+ * (`agent_fields.kickoff_blocked`, shown as a header badge). Agent
+ * bookkeeping — updated_at is left alone.
+ */
+export async function setKickoffBlocked(id: string, reason: KickoffBlockedReason, at: Date = new Date()): Promise<void> {
+  await pool.query(
+    `UPDATE clients SET agent_fields = agent_fields || jsonb_build_object('kickoff_blocked', jsonb_build_object('reason', $2::text, 'at', $3::text)) WHERE id = $1`,
+    [id, reason, at.toISOString()],
+  );
+}
+
+/** Clears the blocked-kickoff stamp once a kickoff starts the client. */
+export async function clearKickoffBlocked(id: string): Promise<void> {
+  await pool.query(`UPDATE clients SET agent_fields = agent_fields - 'kickoff_blocked' WHERE id = $1`, [id]);
+}
+
 /**
  * Stamps the declaration-of-capital engagement identity read from the monday
  * board row at kickoff: the tax-office file number, the declaration year the

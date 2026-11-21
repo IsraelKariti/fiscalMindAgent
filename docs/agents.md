@@ -86,10 +86,18 @@ activation is not email-gated and no mailbox is required — the instance's
   in words is the planner's `client_declined` decision (conclude only, the
   gate rejects anything else). Both run `handleClientDecline`: the client is
   paused with `agent_fields.declined_at` (`clients.markDeclined`, conditional
-  — a second decline is a no-op), the pending send is removed for good, one
-  fixed acknowledgement goes out (trace step `send_decline_ack`, open window
-  only, `{emailId}` or `{skipped}`), and the accountant gets the `declined`
-  email with the missing documents. The workspace shows "הלקוח סירב"
+  — a second decline is a no-op), the pending send is removed for good, the
+  still-missing documents are read once, one fixed acknowledgement goes out
+  (trace step `send_decline_ack`, open window only, `{emailId, missingCount}`
+  or `{skipped}`) and the accountant gets the `declined` email with the same
+  list. Since 2026-11-21 the acknowledgement names the **tax advisor** stored
+  on the client (`declineContact`: `agent_fields.tax_advisor`, guaranteed by
+  the kickoff gate below), gives the advisor's email, asks the client to send
+  the documents there, and lists every missing document (`declineAckBodies`;
+  a body over the 1600-char WhatsApp limit is sent as the sentences and then
+  the list, `emailIds` in the step). A client with no stored advisor (admin
+  test client, pre-gate client) is sent to the accountant's display name and
+  login email instead. The workspace shows "הלקוח סירב"
   (`isDeclined`); resume or a new due date clears the marker
   (`clients.clearHandedOff`) and a later decline is handled again.
 It is also a **manual-kickoff** type (`AgentTypeDefinition.manualKickoff`):
@@ -106,6 +114,14 @@ email via the board's configured email column, enrolls a not-yet-imported row
 on the spot (narrowed scan), and only starts a paused, never-contacted,
 goal-open client with no held draft — repeat fires are acknowledged (200) and
 ignored. Each start is audited as `client.kickoff_triggered`.
+**Kickoff gate** (openspec `client-tax-advisor`, since 2026-11-21): a row whose
+tax advisor column is unmapped, whose advisor cell is empty, or whose advisor
+has no readable email (monday token without `users:read`) does not start —
+the client is enrolled and remembers its row, but `hasTaxAdvisor`
+(`DOC/kickoffGate.ts`) stamps `agent_fields.kickoff_blocked = {reason, at}`,
+records `client.kickoff_refused`, and nothing is drafted; the header shows
+"אין יועץ/ת מס בשורת הלוח" until a later click resolves an advisor with an
+email, which clears the stamp. The webhook still answers 200.
 Since 2026-10-11 the kickoff **does not unpause** the client (openspec
 `first-message-approval`): the planner runs in hold mode (`PlanHints.hold`,
 derived in `setFutureEmail` from paused + manual-kickoff + no sent/received

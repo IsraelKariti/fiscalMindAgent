@@ -131,6 +131,8 @@ export function ClientHeader({ client, onSaved, withDueDate = false, readOnly = 
   const dueDate = withDueDate ? (client.agent_fields?.due_date ?? null) : null;
   // The team member named on the monday board (openspec `client-tax-advisor`): read-only, never in the edit grid.
   const advisor = client.agent_fields?.tax_advisor ?? null;
+  // The kickoff refused to start the client: no tax advisor with an email on the row (openspec `client-tax-advisor`).
+  const kickoffBlocked = client.goal_status === 'pending' && client.agent_fields?.kickoff_blocked != null;
 
   const set =(field: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setDraft({ ...draft, [field]: e.target.value });
@@ -178,6 +180,11 @@ export function ClientHeader({ client, onSaved, withDueDate = false, readOnly = 
                 ? t.allDocsReceived
                 : t.docCollectionInProgress}
           </span>
+          {kickoffBlocked && (
+            <span className="badge badge-danger" title={t.kickoffBlockedTitle}>
+              {t.kickoffBlockedBadge}
+            </span>
+          )}
         </div>
         {readOnly ? null : !editing ? (
           <button

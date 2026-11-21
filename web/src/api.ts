@@ -8,6 +8,8 @@ export interface ClientAgentFields {
   file_number?: string;
   /** Capital declaration: the team member named in the board's "יועץ מס" column (openspec `client-tax-advisor`). */
   tax_advisor?: { name: string; email: string | null; monday_user_id: string; match: 'accountant' | 'staff' | 'none'; staff_id?: string };
+  /** Capital declaration: the last monday kickoff did not start the client — no advisor with an email on the row (openspec `client-tax-advisor`). Cleared by a kickoff that starts. */
+  kickoff_blocked?: { reason: 'advisor_column_unmapped' | 'advisor_cell_empty' | 'advisor_email_unavailable'; at: string };
   /** Capital declaration: the scheduled draft that is the attestation summary (trusted once sent). */
   attestation_request_email_id?: string;
   /** Capital declaration: the client confirmed the closing summary. */

@@ -36,20 +36,23 @@ export function teamQuestionAddressee(
   return { email: accountant.email, name: accountantName(accountant), match: 'accountant' };
 }
 
-/** The subject and body of the email that carries the question to the team member. */
-export function teamQuestionEmail(client: Pick<ClientRow, 'name'>, question: Pick<TeamQuestionRow, 'question' | 'reason'>): { subject: string; body: string } {
+/**
+ * The subject and body of the email that tells the team member a question
+ * waits in the app. Generic on purpose: it carries neither the question nor
+ * the reason, so nobody answers by replying to the no-reply address — the
+ * answer is typed in the questions tab (openspec `team-questions`).
+ */
+export function teamQuestionEmail(client: Pick<ClientRow, 'name'>): { subject: string; body: string } {
   const subject = `הסוכן מבקש את עזרתך לגבי הלקוח ${client.name}`;
   const body = [
     'שלום,',
     '',
-    `במהלך איסוף המסמכים להצהרת ההון של הלקוח ${client.name} עלתה שאלה שהסוכן אינו יכול לענות עליה בעצמו:`,
-    '',
-    question.question,
-    '',
-    ...(question.reason.trim() !== '' ? ['למה הסוכן שואל:', question.reason, ''] : []),
+    `במהלך איסוף המסמכים להצהרת ההון של הלקוח ${client.name} עלתה שאלה שהסוכן אינו יכול לענות עליה בעצמו.`,
+    'השאלה ותיבת התשובה נמצאות בלשונית "שאלות" בתיק הלקוח באפליקציה.',
     'הסוכן אמר ללקוח שיבדוק מול המשרד ויחזור אליו. עד שתענו, הסוכן לא יענה בעצמו בנושא הזה.',
-    'את התשובה כותבים בלשונית "שאלות" בתיק הלקוח באפליקציה; הסוכן יעביר אותה ללקוח במילים שלו.',
     'אם כבר דיברתם עם הלקוח בעצמכם — סמנו זאת באותו מקום, והסוכן ימשיך באיסוף.',
+    '',
+    'שימו לב: תשובה למייל הזה לא נקראת. עונים רק באפליקציה.',
     '',
     `לתיק הלקוח: ${env.APP_BASE_URL}`,
   ].join('\n');

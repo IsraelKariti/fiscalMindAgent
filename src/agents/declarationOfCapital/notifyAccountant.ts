@@ -34,7 +34,7 @@ export function sendToAccountant(client: ClientRow, kind: AccountantEmailKind, s
  * (a staff member or the accountant), recorded on the trace like the others.
  */
 export async function sendTeamQuestionEmail(client: ClientRow, question: TeamQuestionRow): Promise<void> {
-  const { subject, body } = teamQuestionEmail(client, question);
+  const { subject, body } = teamQuestionEmail(client);
   await sendToAccountant(client, 'team_question', subject, body, { email: question.to_email });
 }
 

@@ -505,8 +505,10 @@ Industry pattern followed: one app with an agent registry
   the client the office is being consulted. The question lands in
   `team_questions`, addressed to the client's stored tax advisor when matched
   (`agent_fields.tax_advisor`, accountant or staff) and to the accountant
-  otherwise; the addressee gets one email (kind `team_question`, recorded on
-  the trace like the other platform emails). One open question per client
+  otherwise; the addressee gets one generic email (kind `team_question`,
+  recorded on the trace like the other platform emails) that names the client
+  and points to the questions tab — it carries neither the question nor the
+  reason, so nobody answers by replying to the no-reply address. One open question per client
   (partial unique index + the gate). The workspace's **questions tab** lists
   the questions as cards; the accountant, a staff viewer or an admin viewing
   as closes one either with an answer (the next planner cycle relays it in

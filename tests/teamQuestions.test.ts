@@ -39,17 +39,14 @@ describe('teamQuestionAddressee', () => {
 });
 
 describe('teamQuestionEmail', () => {
-  it('names the client in the subject and carries the question, the reason and the app link', () => {
-    const { subject, body } = teamQuestionEmail({ name: 'יוסי כהן' }, { question: 'האם המשרד מחזיק בהצהרה הקודמת?', reason: 'הלקוח שואל' });
+  it('is generic: names the client, points to the questions tab and the app, says a reply is not read, carries no question text', () => {
+    const { subject, body } = teamQuestionEmail({ name: 'יוסי כהן' });
     assert.ok(subject.includes('יוסי כהן'), subject);
-    assert.ok(body.includes('האם המשרד מחזיק בהצהרה הקודמת?'), body);
-    assert.ok(body.includes('למה הסוכן שואל:'), body);
-    assert.ok(body.includes('הלקוח שואל'), body);
+    assert.ok(body.includes('יוסי כהן'), body);
     assert.ok(body.includes('לשונית "שאלות"'), body);
-  });
-
-  it('leaves the reason block out when the reason is empty', () => {
-    const { body } = teamQuestionEmail({ name: 'יוסי כהן' }, { question: 'ש', reason: '  ' });
+    assert.ok(body.includes('תשובה למייל הזה לא נקראת'), body);
+    assert.ok(/לתיק הלקוח: https?:\/\//.test(body), body);
     assert.ok(!body.includes('למה הסוכן שואל'), body);
+    assert.equal(teamQuestionEmail.length, 1, 'the email takes no question: it must never carry its text or reason');
   });
 });

@@ -16,4 +16,4 @@
 
 - [x] 3.1 `docs/pipeline.md`: extend the after-send row with the workspace read (`api/workspace.ts` GET client → `requestReplan.ts · afterSendWaitUntil`) and the state it shows. Verify by reading the row.
 - [x] 3.2 Run `npm run typecheck` and `npm test`; both pass.
-- [ ] 3.3 Commit per the repo Git workflow (pull --rebase, typecheck, push).
+- [x] 3.3 Commit per the repo Git workflow (pull --rebase, typecheck, push).

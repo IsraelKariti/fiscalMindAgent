@@ -13,6 +13,7 @@ import { AdminSettings } from './admin/AdminSettings';
 import { AdminUsage } from './admin/AdminUsage';
 import { AdminVersions } from './admin/AdminVersions';
 import { AgentPage } from './admin/AgentPage';
+import { OutageBar } from './admin/OutageBar';
 import { useAdminRoute } from './admin/route';
 import { buildAccountantRows, type AccountantRow } from './admin/shared';
 
@@ -101,6 +102,8 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
       </header>
 
       <main className="admin-main">
+        {/* A held model provider (openspec `llm-provider-outage`): red bar on every admin page, hidden otherwise. */}
+        <OutageBar />
         <nav className="client-tabs" role="tablist">
           <button
             className={`client-tab ${activeTab === 'overview' ? 'active' : ''}`}

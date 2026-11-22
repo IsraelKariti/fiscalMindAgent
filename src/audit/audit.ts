@@ -55,6 +55,13 @@ export type AuditAction =
   | 'verify_extraction'
   | 'planner.rerun_after_verification'
   | 'llm.budget_exceeded'
+  // A model provider cannot serve calls for a reason on our side (billing,
+  // key, quota, outage, the spend cap) and the work that needs it is held
+  // (openspec `llm-provider-outage`): platform rows on open and clear
+  // (gemini/providerOutage.ts), and one client step per held turn.
+  | 'llm.provider_outage'
+  | 'llm.provider_recovered'
+  | 'outage.held'
   // The provider adapter's translation of an LLM request and the restore of
   // its answer (openspec `conversation-trace`): informational code steps,
   // recorded by gemini/generate.ts around every Anthropic / OpenAI call.
@@ -188,6 +195,8 @@ function criticalTitle(action: string): string {
       return 'חשד להזרקת פרומפט — מחזור תכנון דוכא';
     case 'admin.kill_switch_set':
       return 'מתג החירום הכלל-מערכתי שונה';
+    case 'llm.provider_outage':
+      return 'ספק המודלים אינו זמין — העבודה ממתינה';
     case 'admin.whitelist_added':
       return 'נוספה גישה לחשבון חדש (whitelist)';
     default:

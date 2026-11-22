@@ -100,21 +100,49 @@ export async function deleteChildren(parentFileId: string): Promise<string[]> {
 
 /** The file was cut into one child per document (058): it is never classified itself. */
 export async function setSplit(id: string): Promise<void> {
-  await pool.query(`UPDATE document_files SET analysis_status = 'split', analysis = NULL, analyzed_at = now() WHERE id = $1`, [id]);
+  await pool.query(`UPDATE document_files SET analysis_status = 'split', analysis = NULL, analyzed_at = now(), outage_held_at = NULL WHERE id = $1`, [id]);
 }
 
 /** Stores the content-analysis verdict for a file (analysis is null unless status is 'done'). */
 export async function setAnalysis(id: string, status: FileAnalysisStatus, analysis: FileAnalysis | null): Promise<void> {
   await pool.query(
-    `UPDATE document_files SET analysis_status = $2, analysis = $3, analyzed_at = now() WHERE id = $1`,
+    `UPDATE document_files SET analysis_status = $2, analysis = $3, analyzed_at = now(), outage_held_at = NULL WHERE id = $1`,
     [id, status, analysis === null ? null : JSON.stringify(analysis)],
   );
+}
+
+/**
+ * The analysis stopped on a provider hold (079): the status stays 'pending' so
+ * the turn keeps waiting; the recovery re-runs the analysis from the blob.
+ */
+export async function markOutageHeld(id: string): Promise<void> {
+  await pool.query(`UPDATE document_files SET outage_held_at = now() WHERE id = $1`, [id]);
+}
+
+export async function clearOutageHeld(id: string): Promise<void> {
+  await pool.query(`UPDATE document_files SET outage_held_at = NULL WHERE id = $1`, [id]);
+}
+
+/** Every held file, oldest first; recovery re-analyzes them one by one. */
+export async function listOutageHeld(): Promise<DocumentFileRow[]> {
+  const { rows } = await pool.query<DocumentFileRow>(
+    `SELECT * FROM document_files WHERE outage_held_at IS NOT NULL ORDER BY created_at`,
+  );
+  return rows;
+}
+
+export async function countOutageHeldForClient(clientId: string): Promise<number> {
+  const { rows } = await pool.query<{ count: string }>(
+    `SELECT count(*) AS count FROM document_files WHERE client_id = $1 AND outage_held_at IS NOT NULL`,
+    [clientId],
+  );
+  return Number(rows[0]?.count ?? 0);
 }
 
 /** The injection screen flagged the file: quarantined before classification (054). */
 export async function setBlocked(id: string, blocked: InjectionBlock): Promise<void> {
   await pool.query(
-    `UPDATE document_files SET analysis_status = 'blocked', analysis = NULL, blocked = $2, analyzed_at = now() WHERE id = $1`,
+    `UPDATE document_files SET analysis_status = 'blocked', analysis = NULL, blocked = $2, analyzed_at = now(), outage_held_at = NULL WHERE id = $1`,
     [id, JSON.stringify(blocked)],
   );
 }

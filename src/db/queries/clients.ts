@@ -337,6 +337,49 @@ export async function clearDraftingState(id: string): Promise<void> {
 }
 
 /**
+ * Held by a provider outage (079, openspec `llm-provider-outage`): a message,
+ * file or planner run of this client stopped on the hold. Keeps the first
+ * stamp of the hold (the trace step is written once per turn). Returns true
+ * when this call set the marker, false when it was already set.
+ */
+export async function markOutageHeld(id: string, provider: string): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `UPDATE clients SET outage_held_at = now(), outage_held_provider = $2, drafting_since = NULL, draft_failed_at = NULL
+     WHERE id = $1 AND outage_held_at IS NULL`,
+    [id, provider],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/** The recovery (or a state that no longer allows a plan) releases the client. */
+export async function clearOutageHeld(id: string): Promise<void> {
+  await pool.query('UPDATE clients SET outage_held_at = NULL, outage_held_provider = NULL, outage_ack_sent_at = NULL WHERE id = $1', [id]);
+}
+
+/** Every client waiting on a hold — on the given provider, or on any when omitted. */
+export async function listOutageHeld(provider?: string): Promise<ClientRow[]> {
+  const { rows } = await pool.query<ClientRow>(
+    `SELECT * FROM clients WHERE outage_held_at IS NOT NULL AND ($1::text IS NULL OR outage_held_provider = $1) ORDER BY outage_held_at`,
+    [provider ?? null],
+  );
+  return rows;
+}
+
+export async function countOutageHeld(): Promise<number> {
+  const { rows } = await pool.query<{ count: string }>('SELECT count(*) AS count FROM clients WHERE outage_held_at IS NOT NULL');
+  return Number(rows[0]?.count ?? 0);
+}
+
+/** Stamps the one calm acknowledgement of this hold; false when it was already sent. */
+export async function markOutageAckSent(id: string): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    'UPDATE clients SET outage_ack_sent_at = now() WHERE id = $1 AND outage_held_at IS NOT NULL AND outage_ack_sent_at IS NULL',
+    [id],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/**
  * Clients whose planning attempt started within the last `withinSeconds` and
  * that have nothing scheduled — on worker boot these are turns whose deferred
  * re-plan may have been lost with Redis (see recoverLostReplans).

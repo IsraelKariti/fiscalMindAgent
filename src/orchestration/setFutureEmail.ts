@@ -4,6 +4,7 @@ import { loadAgentContext } from '../agents/resolve.js';
 import { adminCommsPaused } from './adminPause.js';
 import { isHeldFirstMessageClient } from './heldFirstMessage.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
+import { holdClientForOutage, isProviderHeld } from './outageHold.js';
 import { logger } from '../util/logger.js';
 import type { PlanHints } from '../agents/types.js';
 import type { PlanTrigger } from '../db/types.js';
@@ -58,6 +59,14 @@ export async function setFutureEmail(clientId: string, trigger: PlanTrigger, hin
     await agent.definition.planNextAction({ ...agent, hints });
     await clients.clearDraftingState(clientId);
   } catch (err) {
+    // The planner's provider is held (openspec `llm-provider-outage`): the
+    // client waits for the system, not for a manual retry — the recovery
+    // re-plans it. Swallowed so the deferred run's job does not fail and vanish.
+    if (isProviderHeld(err)) {
+      await holdClientForOutage(client, err, { what: 'planner' });
+      await clients.clearDraftingState(clientId).catch(() => {});
+      return;
+    }
     await clients.markDraftingFailed(clientId).catch((markErr) => {
       logger.error('failed to record draft failure', markErr, { clientId });
     });

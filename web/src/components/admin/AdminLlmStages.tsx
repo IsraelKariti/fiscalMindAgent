@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api, type LlmStage } from '../../api';
+import { api, type LlmOutageState, type LlmStage } from '../../api';
 import { useT } from '../../i18n';
 import { CopyButton } from '../CopyButton';
 import { MarkdownPane } from '../MarkdownPane';
 import { MODEL_LABELS } from './shared';
+import { HeldProviderChip } from './OutageBar';
 
 /**
  * The pipeline's LLM stages as the code defines them right now — served from
@@ -213,7 +214,7 @@ function PromptVariant({ prompt, many }: { prompt: LlmStage['prompts'][number]; 
   );
 }
 
-function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () => void }) {
+function StageCard({ stage, onViewCalls, holds }: { stage: LlmStage; onViewCalls: () => void; holds: LlmOutageState['holds'] | null }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const many = stage.prompts.length > 1;
@@ -230,6 +231,8 @@ function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () =>
           <span className="badge badge-neutral">
             {t.llmStageModel}: {MODEL_LABELS[stage.model] ?? stage.model} ({stage.provider})
           </span>
+          {/* A held provider (openspec `llm-provider-outage`). */}
+          <HeldProviderChip provider={stage.provider} holds={holds} />
           {/* The backup model on another provider (openspec `llm-model-settings`), or none. */}
           <span className="badge badge-neutral">
             {t.llmBackupLabel}:{' '}
@@ -289,6 +292,10 @@ function StageCard({ stage, onViewCalls }: { stage: LlmStage; onViewCalls: () =>
 export function AdminLlmStages({ onViewCalls }: { onViewCalls: () => void }) {
   const { t } = useT();
   const [stages, setStages] = useState<LlmStage[] | null>(null);
+  const [outage, setOutage] = useState<LlmOutageState | null>(null);
+  useEffect(() => {
+    api.adminGetLlmOutage().then(setOutage).catch(() => {});
+  }, []);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -305,7 +312,7 @@ export function AdminLlmStages({ onViewCalls }: { onViewCalls: () => void }) {
       <p className="muted">{t.llmStagesDesc}</p>
       {error && <div className="error-banner">{error}</div>}
       {!stages && !error && <p className="muted">{t.loading}</p>}
-      {stages && stages.map((s) => <StageCard key={s.purpose} stage={s} onViewCalls={onViewCalls} />)}
+      {stages && stages.map((s) => <StageCard key={s.purpose} stage={s} onViewCalls={onViewCalls} holds={outage?.holds ?? null} />)}
     </div>
   );
 }

@@ -26,8 +26,9 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | `injection_detection_regex` → `injection_detection_llm` → `validate_injection_scan`, fail closed | `SH/injectionScreen.ts` · `runInjectionScreen` (`runInjectionRegexStep`, `screenForInjection`, `recordScanGate`; gate rules `SH/injectionScanRules.ts` · `validateInjectionScan`) |
 | Attack found: withhold the message, audit `injection.cycle_suppressed` | `DOC/screenInbound.ts` · `withholdMessage` |
 | Attack found: fixed reply, no model | `DOC/screenInbound.ts` · `sendBlockedReply` |
+| Screen could not run (provider held, openspec `llm-provider-outage`): the message waits for its screen, no reply, client marked held | `DOC/screenInbound.ts` · `screenMessageRow`, `holdMessage` → `orchestration/outageHold.ts` · `holdClientForOutage` |
 | Ask for one planner run per turn (debounced) | `orchestration/requestReplan.ts` · `requestReplan` → `orchestration/inboundTurnCore.ts` · `createReplanRequester` |
-| Plan now, wait, or force? | `orchestration/inboundTurnRules.ts` · `decideReplan`, `isTurnSettled` |
+| Plan now, wait, or force? (a hold → wait, never force) | `orchestration/inboundTurnRules.ts` · `decideReplan`, `isTurnSettled`; `orchestration/outageRecovery.ts` · `plannerHeld` |
 | The replan job: wait/force, kill switch, plan, re-run if the client wrote meanwhile | `queue/replanWorker.ts` · `onReplan` → `orchestration/setFutureEmail.ts` · `setFutureEmail` → D |
 | Name what started the cycle (`client_message` here; every `setFutureEmail` caller passes a `PlanTrigger`) and mint the cycle id every planner call and the draft record (`llm_calls.plan_run_id`, `emails.plan_run_id`) | `orchestration/setFutureEmail.ts` · `setFutureEmail` (hints `trigger`, `planRunId`) → `DOC/plan.ts` · `askPlanner` (log), `scheduleFollowUp` → `orchestration/scheduleDraftEmail.ts` · `scheduleDraftMessage` |
 
@@ -43,6 +44,7 @@ Paths are relative to `src/`. `DOC` = `agents/declarationOfCapital/`,
 | Keep the "drafting" stamp fresh before each slow step | `DOC/analyzeInboundFile.ts` · `keepDrafting` |
 | The three injection layers over the file (filename + text layer, then the bytes) | `DOC/analyzeInboundFile.ts` · `screenFileForAttackText` → `SH/injectionScreen.ts` · `runInjectionScreen` (`screenFileForInjection`) |
 | Attack found: quarantine the file | `DOC/analyzeInboundFile.ts` · `quarantineFile` |
+| Provider held at any model step (screen, split, classify): the file stays pending, marked held, client marked held | `DOC/analyzeInboundFile.ts` · `holdFile` → `orchestration/outageHold.ts` · `holdClientForOutage` |
 | Split a multi-document PDF, or keep the whole file on any trouble | `DOC/analyzeInboundFile.ts` · `splitOrKeepWhole` → `splitIntoChildren` |
 | `file_splitting` LLM call | `DOC/splitFile.ts` · `splitFile`, `buildFileSplitCall` |
 | `validate_file_split` gate + step row | `DOC/splitFileRules.ts` · `validateFileSplit`; `DOC/analyzeInboundFile.ts` · `recordFileSplitGate` |
@@ -208,3 +210,20 @@ same request goes to the backup with the full retry loop.
 | `fallback_model`: the trace step naming the primary, the backup, their providers and the failure reason (between the primary's error row and the backup's call row) | `gemini/llmCall.ts` · `runWithBackup` → `gemini/wireRequest.ts` · `fallbackStepOf` |
 | The same request on the backup, full retry loop, own call row; the result names the backup model | `gemini/llmCall.ts` · `runWithBackup` → `gemini/generate.ts` · `generateWithRetryDetailed` |
 | The admin saves / refuses the pair (backup must be from another provider; a colliding primary change is refused too) | `api/admin.ts` · `adminSetPurposeBackupModel`, `adminSetPurposeModel`, `adminSetModel` (`backupConflictingStage`) |
+
+## H. A model provider outage (openspec `llm-provider-outage`)
+
+| Step | File · function |
+| --- | --- |
+| Before every call: a held provider gets no request (healthy backup → straight to it; nothing free → refused) | `gemini/llmCall.ts` · `runLlmCall` → `gemini/outageRules.ts` · `routeUnderHold` |
+| After every model of a call failed: does the failure prove an outage kind (billing, auth, quota, rate limit, server, unreachable, budget)? | `gemini/outageRules.ts` · `outageKindOf`, `holdsAfterFailures` |
+| Open the hold (once): critical alert + platform audit row | `gemini/llmCall.ts` · `holdAfterFailure` → `gemini/providerOutage.ts` · `openHold` |
+| A stage's work stops on the hold: client marked held, one `outage.held` step per turn | `orchestration/outageHold.ts` · `holdClientForOutage` |
+| Planner run hits the hold: held, not draft-failed | `orchestration/setFutureEmail.ts` · `setFutureEmail` (catch) |
+| Verification hits the hold: the batch aborts | `DOC/verifyBatchRules.ts` · `runVerificationBatch` (`abortOn`); `DOC/verifyDocument.ts` · `extractDocumentData`, `verifyBatchAndReplan` |
+| Probe each held provider every `LLM_OUTAGE_PROBE_SECONDS` (admin "retry now" runs the same round) | `queue/outageProbeWorker.ts` · `runOutageProbeTick` → `orchestration/outageRecovery.ts` · `probeAllHolds` → `gemini/outageProbe.ts` · `probeProvider` |
+| Probe answered: release the hold, recover, report | `gemini/providerOutage.ts` · `releaseHold`, `reportRecovered` |
+| Recovery per client: re-screen waiting messages, re-analyze held files, re-verify cut-short documents, one replan | `orchestration/outageRecovery.ts` · `createOutageRecovery` (`recoverFromOutage`); `DOC/index.ts` · `rescreenInboundMessage`, `analyzeInboundFile`; `DOC/outageReverify.ts` · `reverifyCollected` |
+| Boot: held clients' turns re-requested | `queue/replanWorker.ts` · `recoverLostReplans` |
+| The one calm acknowledgement after `LLM_OUTAGE_ACK_AFTER_SECONDS` | `orchestration/outageRecovery.ts` · `acknowledgeHeldClients` |
+| Admin: the holds and clients waiting; retry now | `api/admin.ts` · `adminGetLlmOutage`, `adminProbeLlmOutage`; `web/src/components/admin/OutageBar.tsx` |

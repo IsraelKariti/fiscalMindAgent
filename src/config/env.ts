@@ -82,6 +82,13 @@ const EnvSchema = z.object({
   // inside the wait merges into the normal inbound turn, so only one run
   // happens. 0 = plan at once.
   AFTER_SEND_PLAN_DELAY_SECONDS: z.coerce.number().int().nonnegative().default(3600),
+  // Provider outage hold (openspec `llm-provider-outage`): while a model
+  // provider is held (no credits, bad key, quota, outage, the spend cap) the
+  // worker probes it this often and the held turns re-check at the same pace.
+  LLM_OUTAGE_PROBE_SECONDS: z.coerce.number().int().positive().default(300),
+  // A hold older than this gets each waiting client one fixed WhatsApp line
+  // ("short delay on our side"), once per hold. 0 = never.
+  LLM_OUTAGE_ACK_AFTER_SECONDS: z.coerce.number().int().nonnegative().default(600),
   // Encrypts secrets at rest in Postgres (client tax-portal credentials,
   // Google/monday OAuth tokens) — AES-256-GCM via src/crypto/secretBox.ts.
   // 32 bytes base64 (`openssl rand -base64 32`). Required: without it the app

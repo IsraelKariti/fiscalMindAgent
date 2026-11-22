@@ -152,6 +152,7 @@ describe('the item a self-evident file creates', () => {
       subject: '',
       body: 'מצרף',
       blocked: null,
+      screen_pending: false,
       sent_at: null,
       created_at: new Date('2026-10-19T13:17:00.000Z'),
     } as unknown as EmailRow;

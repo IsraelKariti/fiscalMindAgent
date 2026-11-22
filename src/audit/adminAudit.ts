@@ -14,6 +14,7 @@ const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  */
 const KNOWN_ROUTES: Record<string, { action: `admin.${string}`; severity: AuditSeverity }> = {
   'PUT /admin/kill-switch': { action: 'admin.kill_switch_set', severity: 'critical' },
+  'POST /admin/llm-outage/probe': { action: 'admin.llm_outage_probed', severity: 'warning' },
   'POST /admin/whitelist': { action: 'admin.whitelist_added', severity: 'critical' },
   'DELETE /admin/whitelist/:email': { action: 'admin.whitelist_removed', severity: 'warning' },
   'PATCH /admin/whitelist/:email': { action: 'admin.whitelist_hebrew_name_set', severity: 'info' },

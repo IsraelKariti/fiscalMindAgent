@@ -24,6 +24,7 @@ function fileWith(analysis: Partial<FileAnalysis> | null, status: DocumentFileRo
     sha256: 'x',
     analysis_status: status,
     blocked: null,
+    outage_held_at: null,
     parent_file_id: null,
     page_from: null,
     page_to: null,

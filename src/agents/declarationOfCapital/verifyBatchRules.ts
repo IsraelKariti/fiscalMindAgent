@@ -23,7 +23,12 @@ export interface VerificationResult extends VerificationTarget {
 export async function runVerificationBatch(
   targets: readonly VerificationTarget[],
   verifyOne: (target: VerificationTarget) => Promise<VerificationOutcome>,
-  hooks: { beforeEach?: (target: VerificationTarget) => Promise<void>; onError?: (target: VerificationTarget, err: unknown) => void } = {},
+  hooks: {
+    beforeEach?: (target: VerificationTarget) => Promise<void>;
+    onError?: (target: VerificationTarget, err: unknown) => void;
+    /** An error that ends the whole batch instead of marking one target 'error' (a provider outage hold: nothing can be verified now). */
+    abortOn?: (err: unknown) => boolean;
+  } = {},
 ): Promise<VerificationResult[]> {
   const results: VerificationResult[] = [];
   for (const target of targets) {
@@ -31,6 +36,7 @@ export async function runVerificationBatch(
       await hooks.beforeEach?.(target);
       results.push({ ...target, outcome: await verifyOne(target) });
     } catch (err) {
+      if (hooks.abortOn?.(err)) throw err;
       hooks.onError?.(target, err);
       results.push({ ...target, outcome: 'error' });
     }

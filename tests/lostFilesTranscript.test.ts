@@ -15,6 +15,7 @@ const inbound = {
   subject: '',
   body: 'contract.pdf',
   blocked: null,
+  screen_pending: false,
   sent_at: null,
   created_at: new Date('2026-09-24T07:19:23.000Z'),
 } as unknown as EmailRow;
@@ -41,6 +42,7 @@ const storedFile = {
     injection_suspected: false,
   },
   blocked: null,
+  outage_held_at: null,
   parent_file_id: null,
   page_from: null,
   page_to: null,

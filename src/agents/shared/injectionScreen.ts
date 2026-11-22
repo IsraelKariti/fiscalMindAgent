@@ -4,6 +4,7 @@ import * as llmUsage from '../../db/queries/llmUsage.js';
 import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
 import { recordAudit } from '../../audit/audit.js';
 import { logger } from '../../util/logger.js';
+import { isProviderHeld } from '../../gemini/providerOutage.js';
 import { injectionRegexChecks, matchInjectionRegex, type InjectionRegexHit } from './injectionRegex.js';
 import { validateInjectionScan, type InjectionScanGateResult } from './injectionScanRules.js';
 import { endFence, fence, makeFenceToken, sanitizeInline } from './promptSafety.js';
@@ -227,11 +228,28 @@ export async function screenFileForInjection(
   return { suspected: gate.suspected, evidence: gate.evidence };
 }
 
+/**
+ * What a screen failure becomes (openspec `llm-provider-outage`): a held
+ * provider always propagates (the caller holds the content, unscreened);
+ * every other failure follows the caller's mode — a block (fail closed) or a
+ * throw the caller handles.
+ */
+export function screenFailureHandling(err: unknown, onFailure: 'block' | 'throw'): 'throw' | 'block' {
+  if (isProviderHeld(err)) return 'throw';
+  return onFailure;
+}
+
 /** What the screen looks at: sanitized text snippets, or a file with the text layer code could read. */
 export type InjectionScreenInput = { text: string[] } | { file: FileScreenInput & { text: string } };
 
 export interface InjectionScreenOptions {
-  /** 'block' (default): a screen failure becomes a block — fail closed. 'throw': the caller handles the failure itself. */
+  /**
+   * 'block' (default): a screen failure becomes a block — fail closed. 'throw':
+   * the caller handles the failure itself. A ProviderHeldError (the screen's
+   * provider is under an outage hold, openspec `llm-provider-outage`) is
+   * never a block: it is thrown in both modes, so the caller holds the
+   * content as unscreened instead of judging it.
+   */
   onFailure?: 'block' | 'throw';
   /** The log line written when the screen fails and the content is blocked. */
   failureMessage?: string;
@@ -245,7 +263,8 @@ export interface InjectionScreenOptions {
  * regex found nothing — the dedicated LLM screen and its code gate. Returns
  * the block to record (which detector, which pattern, the verbatim proof) or
  * null when the content is clean. Fails CLOSED by default: a screen failure
- * blocks like a hit.
+ * blocks like a hit — except a held provider, which throws (see
+ * screenFailureHandling): no model ran, so there is no verdict to give.
  */
 export async function runInjectionScreen(
   input: InjectionScreenInput,
@@ -259,7 +278,7 @@ export async function runInjectionScreen(
     const verdict = 'file' in input ? await screenFileForInjection(input.file, ctx) : await screenForInjection(input.text, ctx);
     return verdict.suspected ? { detector: 'llm', kind: null, evidence: verdict.evidence } : null;
   } catch (err) {
-    if (opts.onFailure === 'throw') throw err;
+    if (screenFailureHandling(err, opts.onFailure ?? 'block') === 'throw') throw err;
     logger.error(opts.failureMessage ?? 'injection screen failed — blocking the content (fail closed)', err, {
       clientId: ctx.clientId,
       source: ctx.source,

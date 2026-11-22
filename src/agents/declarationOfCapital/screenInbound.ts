@@ -4,6 +4,7 @@ import { recordAudit } from '../../audit/audit.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { sendWhatsAppTextAndRecord } from '../../twilio/sendAndRecord.js';
 import { runInjectionScreen } from '../shared/injectionScreen.js';
+import { holdClientForOutage, isProviderHeld } from '../../orchestration/outageHold.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { logger } from '../../util/logger.js';
 import type { AgentContext, InboundEvent } from '../types.js';
@@ -19,10 +20,16 @@ import type { ClientRow, EmailRow, InjectionBlock } from '../../db/types.js';
  * chain is not broken by an attacker's message.
  *
  * Fails CLOSED: a screen failure blocks like a hit — the accountant sees the
- * audit row and the client is asked to resend.
+ * audit row and the client is asked to resend. One exception (openspec
+ * `llm-provider-outage`): when the screen's provider is under an outage hold
+ * no model ran, so there is no verdict — the message is held as unscreened
+ * (holdMessage): it reaches no model, the client gets no reply, and the
+ * recovery screens it again (screenMessageRow).
  *
  * One named function per step: inboundMessageToScreen (which messages are
- * screened), runInjectionScreen (shared, the three layers), withholdMessage,
+ * screened), screenMessageRow (one row through the layers, also the
+ * recovery's entry), runInjectionScreen (shared, the three layers),
+ * holdMessage (provider held), withholdMessage,
  * sendBlockedReply.
  */
 
@@ -30,21 +37,54 @@ import type { ClientRow, EmailRow, InjectionBlock } from '../../db/types.js';
 export const BLOCKED_REPLY_HE =
   'קיבלנו את הודעתך, אך היא מכילה תוכן שהמערכת אינה יכולה לעבד. נשמח אם תשלח/י שוב את המידע או המסמכים בנוסח פשוט, ונמשיך משם.';
 
-export async function screenInboundMessage(ctx: AgentContext, evt: InboundEvent): Promise<{ blocked: boolean }> {
+export async function screenInboundMessage(ctx: AgentContext, evt: InboundEvent): Promise<{ blocked: boolean; held: boolean }> {
   const target = await inboundMessageToScreen(evt);
-  if (!target) return { blocked: false };
+  if (!target) return { blocked: false, held: false };
+  return screenMessageRow(ctx, target);
+}
+
+/**
+ * One inbound row through the three layers. Three outcomes: clean (a row
+ * that waited for its screen is released), a hit (withheld + fixed reply), or
+ * held — the screen's provider is down, the row waits (openspec
+ * `llm-provider-outage`). The recovery calls this for every waiting row.
+ */
+export async function screenMessageRow(ctx: AgentContext, target: { row: EmailRow; text: string }): Promise<{ blocked: boolean; held: boolean }> {
   const { row, text } = target;
   const client = ctx.client;
-  const block = await runInjectionScreen(
-    { text: [text] },
-    { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id, source: 'inbound_message', targetId: row.id },
-    { failureMessage: 'inbound message injection screen failed — withholding the message (fail closed)', logContext: { messageId: row.id } },
-  );
-  if (!block) return { blocked: false };
+  let block: InjectionBlock | null;
+  try {
+    block = await runInjectionScreen(
+      { text: [text] },
+      { userId: client.user_id, agentInstanceId: client.agent_instance_id, clientId: client.id, source: 'inbound_message', targetId: row.id },
+      { failureMessage: 'inbound message injection screen failed — withholding the message (fail closed)', logContext: { messageId: row.id } },
+    );
+  } catch (err) {
+    if (!isProviderHeld(err)) throw err;
+    await holdMessage(client, row, err);
+    return { blocked: false, held: true };
+  }
+  if (row.screen_pending) await emails.setScreenPending(row.id, false);
+  if (!block) return { blocked: false, held: false };
   await withholdMessage(client, row, block);
   await sendBlockedReply(client, row);
   publishClientUpdated(client.id);
-  return { blocked: true };
+  return { blocked: true, held: false };
+}
+
+/** The text a waiting row is screened with — the same as a fresh one. */
+export function messageScreenText(row: EmailRow): string {
+  return `${row.channel === 'email' ? `${sanitizeInline(row.subject, 300)}\n` : ''}${sanitizeUntrusted(row.body, 10_000)}`.trim();
+}
+
+/**
+ * The screen could not run (provider held): the row is marked waiting for
+ * the safety check — not withheld, no injection audit row, no fixed reply —
+ * and the client is marked held so the turn waits and the recovery returns.
+ */
+async function holdMessage(client: ClientRow, row: EmailRow, err: Parameters<typeof holdClientForOutage>[1]): Promise<void> {
+  await emails.setScreenPending(row.id, true);
+  await holdClientForOutage(client, err, { what: 'message', targetType: 'email', targetId: row.id });
 }
 
 /**
@@ -56,7 +96,7 @@ async function inboundMessageToScreen(evt: InboundEvent): Promise<{ row: EmailRo
   if (!evt.isNewMessage || !evt.messageRowId) return null;
   const row = await emails.getById(evt.messageRowId);
   if (!row || row.direction !== 'inbound' || row.blocked) return null;
-  const text = `${row.channel === 'email' ? `${sanitizeInline(row.subject, 300)}\n` : ''}${sanitizeUntrusted(row.body, 10_000)}`.trim();
+  const text = messageScreenText(row);
   if (text === '') return null;
   return { row, text };
 }

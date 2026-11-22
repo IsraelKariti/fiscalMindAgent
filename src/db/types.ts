@@ -130,6 +130,12 @@ export interface ClientRow {
   drafting_since: Date | null;
   /** Set when the last planning attempt threw; the UI shows a Retry button. */
   draft_failed_at: Date | null;
+  /** Held by a model-provider outage (079, openspec `llm-provider-outage`): a message, file or planner run of this client waits for the provider; the workspace shows "waiting for the system". Cleared by the recovery. */
+  outage_held_at: Date | null;
+  /** The provider the hold waits for (gemini | openai | anthropic | budget); set with outage_held_at. */
+  outage_held_provider: string | null;
+  /** The one calm acknowledgement sent to the client during this hold (079); cleared with outage_held_at. */
+  outage_ack_sent_at: Date | null;
   /** Soft delete (migration 063): set when the client was deleted; the row and all its data stay. NULL = live. */
   deleted_at: Date | null;
   /** The user who deleted the client (the admin while viewing as); NULL when live or the user is gone. */
@@ -303,6 +309,8 @@ export interface DocumentFileRow {
   analysis: FileAnalysis | null;
   /** Set with analysis_status 'blocked' (054). */
   blocked: InjectionBlock | null;
+  /** Held by a provider outage (079): the analysis stopped before a verdict, analysis_status stays 'pending'; cleared when the analysis runs again. */
+  outage_held_at: Date | null;
   /** Set on a child cut out of a multi-document PDF (058): the file it came from and its 1-based, inclusive page range. */
   parent_file_id: string | null;
   page_from: number | null;
@@ -385,6 +393,8 @@ export interface EmailRow {
   held_at: Date | null;
   /** Inbound only (054): the injection screen withheld this message from the planner. */
   blocked: InjectionBlock | null;
+  /** Inbound only (079): the injection screen could not run (provider held); the text reaches no model until it is screened. */
+  screen_pending: boolean;
   /** Outbound drafts (076): what started the cycle that wrote it; NULL on inbound rows. */
   plan_trigger: PlanTrigger | null;
   /** Outbound drafts (076): the planned send time, kept after the scheduled_jobs mirror row is deleted. */

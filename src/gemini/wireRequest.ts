@@ -143,7 +143,8 @@ export interface StepModel {
 
 /** Why the primary failed: the provider's HTTP status, 'timeout' / 'network' when it never answered, 'error' otherwise. */
 export interface FailureReason {
-  kind: number | 'timeout' | 'network' | 'error';
+  /** 'held': the primary's provider is under an outage hold (openspec `llm-provider-outage`); no request was sent to it. */
+  kind: number | 'timeout' | 'network' | 'error' | 'held';
   message: string;
 }
 

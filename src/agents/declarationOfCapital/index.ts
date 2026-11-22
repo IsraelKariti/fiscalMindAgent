@@ -2,7 +2,8 @@ import { requestReplan } from '../../orchestration/requestReplan.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { planFollowUp } from './plan.js';
 import { analyzeInboundFile } from './analyzeInboundFile.js';
-import { screenInboundMessage } from './screenInbound.js';
+import { messageScreenText, screenInboundMessage, screenMessageRow } from './screenInbound.js';
+import { reverifyCollected } from './outageReverify.js';
 import { buildRouter } from './router.js';
 import { catalogSeedRows } from './catalog.js';
 import { maybeHandleOtpInbound } from './taxFetch/inboundOtp.js';
@@ -65,5 +66,10 @@ export const declarationOfCapitalAgent: AgentTypeDefinition = {
     await requestReplan(ctx.client.id);
   },
   analyzeInboundFile,
+  // Recovery after a provider outage hold (openspec `llm-provider-outage`).
+  async rescreenInboundMessage(ctx, row) {
+    await screenMessageRow(ctx, { row, text: messageScreenText(row) });
+  },
+  reverifyCollected,
   buildRouter,
 };

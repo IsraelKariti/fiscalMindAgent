@@ -137,6 +137,16 @@ const MAPPINGS: Record<string, Mapping> = {
   }),
   // The primary model did not answer and the backup took the call (openspec
   // `llm-model-settings`): both sides of the switch and why.
+  // The client's work stopped on a provider outage hold (openspec `llm-provider-outage`): which provider, why, what waited.
+  'outage.held': (d) => ({
+    rows: [
+      ...(str(d['provider']) ? [{ key: 'provider', value: str(d['provider'])! }] : []),
+      ...(str(d['kind']) ? [{ key: 'outage_kind', value: str(d['kind'])! }] : []),
+      ...(str(d['held']) ? [{ key: 'held', value: str(d['held'])! }] : []),
+      ...(str(d['error']) ? [{ key: 'error', value: str(d['error'])! }] : []),
+    ],
+    consumed: ['provider', 'kind', 'held', 'error'],
+  }),
   fallback_model: (d) => ({
     rows: (['purpose', 'from_model', 'from_provider', 'to_model', 'to_provider', 'failure_reason', 'failure_error'] as const)
       .filter((k) => str(d[k]))

@@ -7,12 +7,14 @@ import {
   type AppLogoState,
   type GeminiModelState,
   type KillSwitchState,
+  type LlmOutageState,
   type LlmBudgetState,
   type LlmCallPurpose,
   type OrphanedWaNumber,
 } from '../../api';
 import { formatTimestamp, humanizePurpose } from '../../format';
 import { useT } from '../../i18n';
+import { HeldProviderChip } from './OutageBar';
 import { ConfirmModal } from '../ConfirmModal';
 import { Spinner } from '../Spinner';
 import { MODEL_LABELS, providerOfModel } from './shared';
@@ -51,6 +53,11 @@ export function AdminSettings({ userEmail }: Props) {
   };
 
   const [modelState, setModelState] = useState<GeminiModelState | null>(null);
+  // The open provider outage holds (openspec `llm-provider-outage`): a chip next to a held provider's models.
+  const [outage, setOutage] = useState<LlmOutageState | null>(null);
+  useEffect(() => {
+    api.adminGetLlmOutage().then(setOutage).catch(() => {});
+  }, []);
   // A refused save keeps the server's message (e.g. "backup must be from a
   // different provider"), so the admin reads why; the pickers stay on the
   // saved state because the state is only replaced by a successful answer.
@@ -341,7 +348,9 @@ export function AdminSettings({ userEmail }: Props) {
                 return (
                   <div key={purpose} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <span>{stageLabel}</span>
+                      <span>
+                        {stageLabel} <HeldProviderChip provider={primaryProvider} holds={outage?.holds ?? null} />
+                      </span>
                       <div className="model-picker model-picker--fill" dir="ltr">
                         <select
                           value={primary}

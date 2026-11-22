@@ -143,6 +143,25 @@ export async function markBlocked(id: string, blocked: InjectionBlock): Promise<
   await pool.query(`UPDATE emails SET blocked = $2 WHERE id = $1`, [id, JSON.stringify(blocked)]);
 }
 
+/** The screen could not run (provider held, 079): the text waits, unseen by any model, until it is screened. */
+export async function setScreenPending(id: string, pending: boolean): Promise<void> {
+  await pool.query(`UPDATE emails SET screen_pending = $2 WHERE id = $1`, [id, pending]);
+}
+
+/** Every inbound message waiting for its screen, oldest first; recovery re-screens them. */
+export async function listScreenPending(): Promise<EmailRow[]> {
+  const { rows } = await pool.query<EmailRow>(`SELECT * FROM emails WHERE screen_pending ORDER BY created_at`);
+  return rows;
+}
+
+export async function countScreenPendingForClient(clientId: string): Promise<number> {
+  const { rows } = await pool.query<{ count: string }>(
+    `SELECT count(*) AS count FROM emails WHERE client_id = $1 AND screen_pending`,
+    [clientId],
+  );
+  return Number(rows[0]?.count ?? 0);
+}
+
 export async function overwriteBody(id: string, body: string): Promise<void> {
   await pool.query('UPDATE emails SET body = $2 WHERE id = $1', [id, body]);
 }

@@ -14,6 +14,7 @@ const inbound = {
   subject: '',
   body: 'מצרף את המסמכים',
   blocked: null,
+  screen_pending: false,
   sent_at: null,
   created_at: new Date('2026-09-19T08:00:00.000Z'),
 } as unknown as EmailRow;
@@ -31,6 +32,7 @@ const file = (overrides: Partial<DocumentFileRow>): DocumentFileRow =>
     analysis_status: 'done',
     analysis: null,
     blocked: null,
+    outage_held_at: null,
     parent_file_id: null,
     page_from: null,
     page_to: null,

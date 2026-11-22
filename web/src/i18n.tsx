@@ -684,6 +684,8 @@ const he = {
   scheduledDraftUnavailable: 'מעקב מתוזמן (הטיוטה אינה זמינה)',
   draftingEmail: (first: boolean) => `הסוכן מנסח כעת את ההודעה ${first ? 'הראשונה' : 'הבאה'}…`,
   draftingFailed: 'ניסוח ההודעה נכשל.',
+  // Held by a provider outage (openspec `llm-provider-outage`): a calm wait, no cause, no retry.
+  draftingHeld: 'ממתין למערכת — הסוכן ימשיך לבד ברגע שיתאפשר.',
   draftingStuck: 'הניסוח נמשך זמן רב מהצפוי וכנראה נתקע.',
   retryDraft: 'ניסיון חוזר',
   retryingDraft: 'מנסה שוב…',
@@ -1267,6 +1269,10 @@ const he = {
     'client.declined': 'Client Declined',
     'client.kickoff_refused': 'Kickoff Refused (no tax advisor)',
     withhold_reply: 'Reply deferred (awaiting verification)',
+    // The client's work stopped on a provider outage hold (openspec `llm-provider-outage`).
+    'outage.held': 'Held (provider outage)',
+    'llm.provider_outage': 'Provider Outage Hold Opened',
+    'llm.provider_recovered': 'Provider Recovered',
     'document.instances_added': 'Document Instances Added',
     'document.retired': 'Document Retired',
     'document.stated': 'Document Stated In Chat',
@@ -1315,6 +1321,9 @@ const he = {
     omitted: 'שדות בקשה שהושמטו',
     tools_strict: 'הכלים סומנו strict',
     filled: 'שדות שמולאו ב-null (המודל השמיט אותם)',
+    // outage.held: what of the client's work waited for the hold (openspec `llm-provider-outage`); provider/kind/error reuse the labels below.
+    held: 'מה הושהה',
+    outage_kind: 'סיבת ההשהיה',
     // fallback_model: the switch from the primary to the backup model (openspec `llm-model-settings`).
     from_model: 'המודל הראשי (לא ענה)',
     from_provider: 'הספק הראשי',
@@ -1507,6 +1516,28 @@ const he = {
   llmBudgetLoadFailed: 'טעינת תקרת ההוצאה נכשלה.',
   llmBudgetSaveFailed: 'שמירת התקרות נכשלה — יש להזין סכומים לא שליליים.',
   llmModelEnvDefault: 'ברירת המחדל של השרת',
+  // The provider outage bar (openspec `llm-provider-outage`), admin pages only.
+  outageProviderLabels: { gemini: 'Gemini', openai: 'OpenAI', anthropic: 'Anthropic', budget: 'תקרת ההוצאה היומית' } as Record<string, string>,
+  outageKindLabels: {
+    billing: 'בעיית תשלום או יתרה',
+    auth: 'מפתח API לא תקין',
+    quota: 'חריגה ממכסה',
+    rate_limit: 'הגבלת קצב אצל הספק',
+    server: 'תקלה אצל הספק',
+    unreachable: 'לא ניתן להתחבר לספק',
+    budget: 'תקרת ההוצאה היומית הושגה',
+  } as Record<string, string>,
+  outageSince: (ts: string) => `מאז ${ts}`,
+  outageLastProbe: (ts: string) => `ניסיון אחרון: ${ts}`,
+  outageErrorDetails: 'הודעת השגיאה',
+  outageClientsWaiting: (n: number) => (n === 1 ? 'לקוח אחד ממתין' : `${n} לקוחות ממתינים`),
+  outageNothingLost: 'שום דבר לא אבד — ההודעות והקבצים ימתינו ויטופלו אוטומטית כשהספק יחזור.',
+  outageRetryNow: 'נסה שוב עכשיו',
+  outageProbing: 'בודק…',
+  outageProbeFailed: 'הבדיקה נכשלה.',
+  outageRecovered: (clients: number) => `חזר לפעול — ${clients} לקוחות שוחררו`,
+  outageStillFailing: 'עדיין נכשל',
+  outageHeldChip: 'מושהה',
   killSwitchTitle: 'מתג חירום כללי',
   killSwitchDesc:
     'עצירת חירום של כל הסוכנים בבת אחת: הודעות נכנסות לא מטופלות, שליחות שממתינות בתור נעצרות לפני היציאה, משיכות מרשות המסים מבוטלות והסריקות היומיות מדולגות. נכנס לתוקף מייד, ללא פריסה מחדש.',

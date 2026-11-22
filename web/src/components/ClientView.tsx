@@ -157,15 +157,18 @@ export function ClientView({
   // Drafting normally settles within ~2 minutes (one Gemini call, worst case a few
   // internal retries), so past this it isn't "still thinking" — the attempt is gone.
   const DRAFT_STALE_MS = 3 * 60_000;
+  // Held by a provider outage (openspec `llm-provider-outage`): the agent waits
+  // for the system and continues by itself — neither failed nor stuck.
+  const heldBySystem = client !== null && client.deletedAt == null && client.goal_status === 'pending' && client.outage_held_at != null;
   // Observed failure: the planning attempt threw and recorded it.
-  const draftFailed = drafting && client?.draft_failed_at != null;
+  const draftFailed = drafting && !heldBySystem && client?.draft_failed_at != null;
   // Abandoned attempt: a crash/restart killed the draft without recording anything.
   // drafting_since is authoritative; rows from before it existed (or the rare kill
   // between cancel and re-plan) fall back to the last timeline activity.
   const lastEmail = emails[emails.length - 1];
   const draftAnchor = client?.drafting_since ?? lastEmail?.sent_at ?? lastEmail?.created_at ?? client?.created_at;
   const draftStale =
-    drafting && !draftFailed && draftAnchor !== undefined && Date.now() - new Date(draftAnchor).getTime() > DRAFT_STALE_MS;
+    drafting && !draftFailed && !heldBySystem && draftAnchor !== undefined && Date.now() - new Date(draftAnchor).getTime() > DRAFT_STALE_MS;
 
   // Fallback polling in case the event stream drops: refetch every 15s when
   // the tab is visible, and immediately when it becomes visible again.
@@ -200,6 +203,7 @@ export function ClientView({
     drafting,
     draftFailed,
     draftStale,
+    heldBySystem,
     focusMessage,
     focusedMessageId,
     clearFocusedMessage,

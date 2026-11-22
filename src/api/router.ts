@@ -31,6 +31,8 @@ import {
   adminDisableAgent,
   adminEnableAgent,
   adminGetKillSwitch,
+  adminGetLlmOutage,
+  adminProbeLlmOutage,
   adminDeleteAccountant,
   adminGetLlmBudget,
   adminGetModel,
@@ -152,6 +154,8 @@ apiRouter.put('/admin/model/purpose/backup', wrap(requireAdmin), wrap(adminSetPu
 apiRouter.get('/admin/llm-budget', wrap(requireAdmin), wrap(adminGetLlmBudget));
 apiRouter.put('/admin/llm-budget', wrap(requireAdmin), wrap(adminSetLlmBudget));
 apiRouter.get('/admin/kill-switch', wrap(requireAdmin), wrap(adminGetKillSwitch));
+apiRouter.get('/admin/llm-outage', wrap(requireAdmin), wrap(adminGetLlmOutage));
+apiRouter.post('/admin/llm-outage/probe', wrap(requireAdmin), wrap(adminProbeLlmOutage));
 apiRouter.put('/admin/kill-switch', wrap(requireAdmin), wrap(adminSetKillSwitch));
 apiRouter.get('/admin/admins', wrap(requireAdmin), wrap(adminListAdmins));
 apiRouter.post('/admin/admins', wrap(requireAdmin), wrap(adminGrantAdmin));

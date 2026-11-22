@@ -8,6 +8,7 @@ import { createTaxFetchWorker, sweepOrphanedTaxFetchSessions } from './queue/tax
 import { createAnomalyScanWorker, ensureAnomalyScanScheduler } from './queue/anomalyScanWorker.js';
 import { createDebugCleanupWorker, ensureDebugCleanupScheduler } from './queue/debugCleanupWorker.js';
 import { createReplanWorker, recoverLostReplans } from './queue/replanWorker.js';
+import { createOutageProbeWorker, ensureOutageProbeScheduler } from './queue/outageProbeWorker.js';
 import { env } from './config/env.js';
 import { runOverdueScan } from './agents/declarationOfCapital/overdueScan.js';
 import { runClientImportScan } from './agents/shared/clientImportScan.js';
@@ -57,6 +58,10 @@ await ensureAnomalyScanScheduler();
 const anomalyScanWorker = createAnomalyScanWorker();
 logger.info('anomaly_scan worker started');
 
+await ensureOutageProbeScheduler();
+const outageProbeWorker = createOutageProbeWorker();
+logger.info('outage_probe worker started');
+
 await ensureDebugCleanupScheduler();
 const debugCleanupWorker = createDebugCleanupWorker();
 logger.info('debug_cleanup worker started');
@@ -71,6 +76,7 @@ async function shutdown(): Promise<void> {
   await Promise.all([
     worker.close(),
     replanWorker.close(),
+    outageProbeWorker.close(),
     overdueWorker.close(),
     clientImportScanWorker.close(),
     anomalyScanWorker.close(),

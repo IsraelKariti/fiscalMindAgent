@@ -397,6 +397,7 @@ export function Timeline({
   declined = false,
   drafting = false,
   draftFailed,
+  heldBySystem = false,
   draftStale,
   onSendNow,
   onTogglePause,
@@ -438,6 +439,8 @@ export function Timeline({
   drafting?: boolean;
   /** The last drafting attempt threw — show the failure notice with a Retry button. */
   draftFailed: boolean;
+  /** Held by a provider outage (openspec `llm-provider-outage`): the calm waiting notice, no retry, no cause. */
+  heldBySystem?: boolean;
   /** Drafting has been "in progress" implausibly long (attempt killed mid-flight) — offer Retry too. */
   draftStale: boolean;
   onSendNow: () => Promise<void>;
@@ -1151,9 +1154,22 @@ export function Timeline({
               </div>
             </li>
           )}
+          {/* Held by a provider outage (openspec `llm-provider-outage`): the agent waits for
+              the system and continues by itself — a calm notice, no retry, no cause. */}
+          {!readOnly && heldBySystem && !nextScheduled && goalStatus === 'pending' && (
+            <li className="timeline-item outbound scheduled drafting">
+              <div className="bubble bubble-scheduled bubble-drafting">
+                <svg className="scheduled-clock" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <span>{t.draftingHeld}</span>
+              </div>
+            </li>
+          )}
           {/* Drafting failed (the attempt threw) or stalled (killed mid-flight and will
               never finish): swap the pulsing placeholder for a notice with a manual retry. */}
-          {!readOnly && (!paused || drafting) && !nextScheduled && goalStatus === 'pending' && (draftFailed || draftStale) && (
+          {!readOnly && !heldBySystem && (!paused || drafting) && !nextScheduled && goalStatus === 'pending' && (draftFailed || draftStale) && (
             <li className="timeline-item outbound scheduled">
               <div className="bubble bubble-scheduled bubble-draft-failed">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1174,7 +1190,7 @@ export function Timeline({
           )}
           {/* Goal open but nothing scheduled: the agent is between decisions — a fresh
               client awaiting its first draft, or a follow-up being drafted after a send/reply. */}
-          {!readOnly && (!paused || drafting) && !nextScheduled && goalStatus === 'pending' && !draftFailed && !draftStale && (
+          {!readOnly && !heldBySystem && (!paused || drafting) && !nextScheduled && goalStatus === 'pending' && !draftFailed && !draftStale && (
             <li className="timeline-item outbound scheduled drafting">
               <div className="bubble bubble-scheduled bubble-drafting">
                 <svg

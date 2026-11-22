@@ -12,6 +12,8 @@ import { capitalClientTaxYear } from '../shared/taxYear.js';
 import { recordAudit } from '../../audit/audit.js';
 import { toModelFile, type ModelFile } from '../shared/modelFile.js';
 import { runInjectionScreen } from '../shared/injectionScreen.js';
+import { holdClientForOutage, isProviderHeld } from '../../orchestration/outageHold.js';
+import type { ProviderHeldError } from '../../gemini/providerOutage.js';
 import { sanitizeInline, sanitizeUntrusted } from '../shared/promptSafety.js';
 import { deleteBlob, downloadBlob, uploadBlob } from '../../storage/blob.js';
 import { logger } from '../../util/logger.js';
@@ -57,20 +59,51 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
   const model = await renderForModel(ctx, file, body);
   if (model === null) return;
   // The three injection layers BEFORE classification. A hit quarantines the
-  // file — never classified, never evidence, never linked.
+  // file — never classified, never evidence, never linked. A held provider
+  // (openspec `llm-provider-outage`) is no verdict: the file waits.
   await keepDrafting(ctx);
-  const block = await screenFileForAttackText(ctx, file, model);
+  let block: InjectionBlock | null;
+  try {
+    block = await screenFileForAttackText(ctx, file, model);
+  } catch (err) {
+    if (!isProviderHeld(err)) throw err;
+    await holdFile(ctx, file, err);
+    return;
+  }
   if (block) {
     await quarantineFile(ctx, file, block);
     return;
   }
-  const children = await splitOrKeepWhole(ctx, file, body);
+  let children: DocumentFileRow[] | null;
+  try {
+    children = await splitOrKeepWhole(ctx, file, body);
+  } catch (err) {
+    if (!isProviderHeld(err)) throw err;
+    await holdFile(ctx, file, err);
+    return;
+  }
   if (children === null) {
     await keepDrafting(ctx);
-    await classifyAndStore(ctx, file, model);
+    try {
+      await classifyAndStore(ctx, file, model);
+    } catch (err) {
+      if (!isProviderHeld(err)) throw err;
+      await holdFile(ctx, file, err);
+    }
     return;
   }
   await classifyChildren(ctx, file, children);
+}
+
+/**
+ * The analysis stopped on a provider hold: the file stays pending, marked
+ * held (not quarantined, not failed, no injection audit row), and the client
+ * is marked held so the turn waits for the recovery, which re-runs the
+ * analysis from the stored bytes.
+ */
+async function holdFile(ctx: AgentContext, file: DocumentFileRow, err: ProviderHeldError): Promise<void> {
+  await documentFiles.markOutageHeld(file.id);
+  await holdClientForOutage(ctx.client, err, { what: 'file', targetType: 'document_file', targetId: file.id });
 }
 
 /**
@@ -117,6 +150,8 @@ async function splitOrKeepWhole(ctx: AgentContext, file: DocumentFileRow, body: 
     await keepDrafting(ctx);
     return await splitIntoChildren(ctx, file, body);
   } catch (err) {
+    // A held provider is not "no split": the whole analysis waits (the caller holds the file).
+    if (isProviderHeld(err)) throw err;
     logger.error('file splitting failed — classifying the whole file', err, { clientId: ctx.client.id, fileId: file.id });
     return null;
   }
@@ -135,6 +170,11 @@ async function classifyChildren(ctx: AgentContext, parent: DocumentFileRow, chil
       await keepDrafting(ctx);
       await classifyAndStore(ctx, child, await toModelFile({ bytes: await readBlob(child.blob_key), contentType: child.content_type }));
     } catch (err) {
+      if (isProviderHeld(err)) {
+        // The child waits with its parent: the recovery re-runs the parent, which classifies the pending children.
+        await holdFile(ctx, parent, err);
+        return;
+      }
       await documentFiles.setAnalysis(child.id, 'failed', null).catch(() => {});
       logger.error('split child could not be read for content analysis', err, { clientId: ctx.client.id, fileId: child.id, parentFileId: parent.id });
     }
@@ -355,6 +395,8 @@ async function classifyAndStore(ctx: AgentContext, file: DocumentFileRow, model:
       confidence: analysis.confidence,
     });
   } catch (err) {
+    // A held provider: the file is not failed, it waits (the caller holds it).
+    if (isProviderHeld(err)) throw err;
     await documentFiles.setAnalysis(file.id, 'failed', null).catch(() => {});
     if (file.parent_file_id !== null) await documentFiles.setLabel(file.id, null).catch(() => {});
     logger.error('attachment content analysis failed', err, { clientId, fileId: file.id });

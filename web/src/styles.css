@@ -5934,3 +5934,28 @@ pre.doc-text {
     overflow-x: auto;
   }
 }
+
+/* Provider outage bar (openspec `llm-provider-outage`): red, on every admin page while a hold is open. */
+.outage-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.outage-bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.outage-bar-error summary {
+  cursor: pointer;
+  font-size: 0.85em;
+}
+.outage-bar-error code {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 0.8em;
+  max-width: 100%;
+}

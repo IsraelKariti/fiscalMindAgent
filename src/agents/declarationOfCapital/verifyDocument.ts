@@ -8,6 +8,7 @@ import { recordAudit } from '../../audit/audit.js';
 import { withClientLock } from '../../db/withClientLock.js';
 import { removeFutureEmail } from '../../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../../orchestration/setFutureEmail.js';
+import { holdClientForOutage, isProviderHeld } from '../../orchestration/outageHold.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { isKillSwitchOn } from '../killSwitch.js';
 import { isAnalyzable } from '../declarationOfCapital/analyzeFile.js';
@@ -296,6 +297,9 @@ async function extractDocumentData(run: VerificationRun, file: StoredFile, rules
     }
     return rules.schema.parse(JSON.parse(text));
   } catch (err) {
+    // A held provider (openspec `llm-provider-outage`) is no verdict: the
+    // batch aborts, the client is held, the recovery verifies again.
+    if (isProviderHeld(err)) throw err;
     logger.error('document verification: extraction failed', err, { clientId: client.id, documentId: doc.id, fileId });
     return null;
   }
@@ -512,6 +516,7 @@ export async function verifyBatch(
     // A long batch must not push the workspace's "drafting…" placeholder past its stale limit.
     beforeEach: () => clients.markDraftingStarted(client.id),
     onError: (t, err) => logger.error('document verification failed', err, { clientId: client.id, documentId: t.documentId, fileId: t.fileId }),
+    abortOn: isProviderHeld,
   });
 }
 
@@ -550,7 +555,16 @@ export async function verifyBatchAndReplan(
   targets: readonly VerificationTarget[],
 ): Promise<void> {
   if (targets.length === 0) return;
-  const results = await verifyBatch(client, instance, targets);
+  let results: VerificationResult[];
+  try {
+    results = await verifyBatch(client, instance, targets);
+  } catch (err) {
+    // The provider is held: the client is marked held (the recovery verifies
+    // the collected documents again and re-plans); anything else propagates.
+    if (!isProviderHeld(err)) throw err;
+    await holdClientForOutage(client, err, { what: 'verification' });
+    return;
+  }
   await recordRerunAfterVerification(client, results);
   try {
     await withClientLock(client.id, async () => {

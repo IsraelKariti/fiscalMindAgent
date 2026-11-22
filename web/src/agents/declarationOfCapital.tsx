@@ -37,6 +37,7 @@ const clientTabs: ClientTab[] = [
           drafting={ctx.drafting}
           draftFailed={ctx.draftFailed}
           draftStale={ctx.draftStale}
+          heldBySystem={ctx.heldBySystem}
           readOnly={ctx.readOnly}
           focusedMessageId={ctx.focusedMessageId}
           onFocusedMessageShown={ctx.clearFocusedMessage}

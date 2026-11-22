@@ -279,3 +279,18 @@ describe('requestReplanAfterSend', () => {
     assert.equal(queue.jobs.get(replanJobId('c1'))!.delay, 1_000);
   });
 });
+
+describe('decideReplan under a provider outage hold (openspec `llm-provider-outage`)', () => {
+  it('waits while held, even past the maximum wait, and never forces', () => {
+    const settled = { inflight: 0, lastInboundAt: secondsAgo(60), pendingFiles: 0, held: true };
+    assert.equal(decideReplan(settled, secondsAgo(10), now, limits), 'wait');
+    assert.equal(decideReplan(settled, secondsAgo(3600), now, limits), 'wait');
+    const unsettled = { inflight: 0, lastInboundAt: secondsAgo(60), pendingFiles: 1, held: true };
+    assert.equal(decideReplan(unsettled, secondsAgo(3600), now, limits), 'wait');
+  });
+
+  it('plans as before once nothing is held', () => {
+    assert.equal(decideReplan({ inflight: 0, lastInboundAt: secondsAgo(60), pendingFiles: 0, held: false }, secondsAgo(10), now, limits), 'plan');
+    assert.equal(decideReplan({ inflight: 0, lastInboundAt: secondsAgo(60), pendingFiles: 1, held: false }, secondsAgo(3600), now, limits), 'force');
+  });
+});

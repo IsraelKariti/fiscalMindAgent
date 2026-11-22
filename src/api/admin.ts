@@ -10,6 +10,9 @@ import * as waSenders from '../db/queries/waSenders.js';
 import * as whitelist from '../db/queries/whitelist.js';
 import { getAgentType, getAgentTypeIfKnown, listAgentTypes } from '../agents/registry.js';
 import { getKillSwitchState, setKillSwitch } from '../agents/killSwitch.js';
+import * as clients from '../db/queries/clients.js';
+import { getHoldsFresh } from '../gemini/providerOutage.js';
+import { probeAllHolds } from '../orchestration/outageRecovery.js';
 import { defaultTaxYear } from '../agents/shared/taxYear.js';
 import { RESERVED } from './mailbox.js';
 import { env } from '../config/env.js';
@@ -595,6 +598,23 @@ export const stopImpersonation: RequestHandler = async (req, res) => {
   clearImpersonationCookie(res);
   logger.info('impersonation stopped', { adminUserId: req.realUserId, targetUserId: req.userId });
   res.json({ ok: true });
+};
+
+/**
+ * GET /api/admin/llm-outage — the open provider outage holds (openspec
+ * `llm-provider-outage`) and how many clients wait on them; the admin bar.
+ */
+export const adminGetLlmOutage: RequestHandler = async (_req, res) => {
+  const [holds, clientsWaiting] = await Promise.all([getHoldsFresh(), clients.countOutageHeld()]);
+  res.json({ holds, clientsWaiting });
+};
+
+/** POST /api/admin/llm-outage/probe — "retry now": probe every held provider, recover the ones that answer. */
+export const adminProbeLlmOutage: RequestHandler = async (req, res) => {
+  const outcomes = await probeAllHolds();
+  logger.warn('provider outage probe run by an admin', { adminUserId: req.realUserId, outcomes: outcomes.map((o) => `${o.provider}:${o.result}`) });
+  const [holds, clientsWaiting] = await Promise.all([getHoldsFresh(), clients.countOutageHeld()]);
+  res.json({ outcomes, holds, clientsWaiting });
 };
 
 /** GET /api/admin/kill-switch — is the platform-wide emergency stop on. */

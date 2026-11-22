@@ -12,6 +12,12 @@ export interface TurnState {
   lastInboundAt: Date | null;
   /** Recent document_files rows of the client still waiting for an analysis result. */
   pendingFiles: number;
+  /**
+   * A provider outage hold stands in the way (openspec `llm-provider-outage`):
+   * the planner's own provider is held, or the client has a message or file
+   * waiting for the provider. The turn then waits — past the maximum wait too.
+   */
+  held?: boolean;
 }
 
 /** The turn is settled when nothing is being processed and the client has been quiet for the whole window. */
@@ -35,6 +41,9 @@ export function decideReplan(
   now: Date,
   limits: { quietMs: number; maxWaitMs: number },
 ): ReplanDecision {
+  // A hold is not a hung file: the planner could not run anyway, and forcing
+  // would plan without the held messages and files. Wait for the recovery.
+  if (state.held) return 'wait';
   if (isTurnSettled(state, now, limits.quietMs)) return 'plan';
   return now.getTime() - turnStartedAt.getTime() >= limits.maxWaitMs ? 'force' : 'wait';
 }

@@ -56,6 +56,8 @@ export interface Client {
   drafting_since: string | null;
   /** Set when the last planning attempt threw; the timeline shows a Retry button. */
   draft_failed_at: string | null;
+  /** Held by a model-provider outage (openspec `llm-provider-outage`): the agent waits for the system and continues by itself; the timeline shows the waiting notice, never the cause. */
+  outage_held_at: string | null;
   /** Soft-deleted (openspec `soft-delete-clients`): out of the roster, read-only for an admin viewing as. null = live. */
   deletedAt: string | null;
   /** Display name of the user who deleted the client; set on the deleted list only. */
@@ -763,6 +765,26 @@ export interface AnomalyAlert {
   ackedAt: string | null;
 }
 
+/** One held model provider (openspec `llm-provider-outage`): why, since when, and the last probe. */
+export interface ProviderHold {
+  since: string;
+  kind: string;
+  message: string;
+  model: string | null;
+  lastProbeAt: string | null;
+  lastError: string | null;
+}
+
+/** The open holds by provider (gemini | openai | anthropic | budget) and how many clients wait on them. */
+export interface LlmOutageState {
+  holds: Record<string, ProviderHold>;
+  clientsWaiting: number;
+}
+
+export type OutageProbeOutcome =
+  | { provider: string; result: 'recovered'; recovered: { clients: number; messages: number; files: number } }
+  | { provider: string; result: 'still_failing'; error: string };
+
 /** The platform-wide emergency stop: on = every agent is silenced at once. */
 export interface KillSwitchState {
   on: boolean;
@@ -1402,6 +1424,8 @@ export const api = {
   adminSetPurposeBackupModel: (purpose: LlmCallPurpose, model: string | null) =>
     request<GeminiModelState>('/admin/model/purpose/backup', { method: 'PUT', body: JSON.stringify({ purpose, model }) }),
   adminGetKillSwitch: () => request<KillSwitchState>('/admin/kill-switch'),
+  adminGetLlmOutage: () => request<LlmOutageState>('/admin/llm-outage'),
+  adminProbeLlmOutage: () => request<LlmOutageState & { outcomes: OutageProbeOutcome[] }>('/admin/llm-outage/probe', { method: 'POST' }),
   adminSetKillSwitch: (on: boolean) =>
     request<KillSwitchState>('/admin/kill-switch', { method: 'PUT', body: JSON.stringify({ on }) }),
   adminListAdmins: () => request<{ admins: AdminUser[] }>('/admin/admins'),

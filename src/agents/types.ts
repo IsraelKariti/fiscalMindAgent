@@ -1,5 +1,5 @@
 import type { Router } from 'express';
-import type { AgentInstanceRow, ClientRow, DocumentFileRow, MessageChannel, PlanTrigger, UserRow } from '../db/types.js';
+import type { AgentInstanceRow, ClientRow, DocumentFileRow, MessageChannel, PlanTrigger, UserRow, EmailRow } from '../db/types.js';
 
 /**
  * How an agent type converses with clients:
@@ -135,6 +135,17 @@ export interface AgentTypeDefinition {
    * Undefined = the agent doesn't analyze files; rows are marked unsupported.
    */
   analyzeInboundFile?(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<void>;
+  /**
+   * Recovery after a provider outage hold (openspec `llm-provider-outage`):
+   * the safety check of a message that waited for it. Undefined = the agent
+   * screens nothing.
+   */
+  rescreenInboundMessage?(ctx: AgentContext, row: EmailRow): Promise<void>;
+  /**
+   * Same recovery: verify the collected documents whose verification the
+   * hold cut short. Undefined = the agent verifies nothing.
+   */
+  reverifyCollected?(ctx: AgentContext): Promise<void>;
   /**
    * Agent-type-specific API routes (e.g. the required-documents CRUD),
    * composed into the agent-scoped workspace router. Handlers see

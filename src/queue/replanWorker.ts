@@ -3,6 +3,8 @@ import { bullOpts } from './connection.js';
 import { REPLAN_QUEUE_NAME, replanQueue } from './replanQueue.js';
 import * as clients from '../db/queries/clients.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
+import * as emails from '../db/queries/emails.js';
+import { plannerHeld } from '../orchestration/outageRecovery.js';
 import { withClientLock } from '../db/withClientLock.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
@@ -37,15 +39,21 @@ async function onReplan(job: Job<ReplanJobData>, token?: string): Promise<void> 
   const turnStartedAt = new Date(job.data.turnStartedAt);
   const limits = { quietMs: env.INBOUND_QUIET_SECONDS * 1000, maxWaitMs: env.INBOUND_MAX_WAIT_SECONDS * 1000 };
 
-  const [{ inflight, lastInboundAt }, pendingFiles] = await Promise.all([
+  const [{ inflight, lastInboundAt }, pendingFiles, heldFiles, heldMessages, providerHeld] = await Promise.all([
     turnStore.read(clientId),
     documentFiles.countRecentPendingForClient(clientId, env.INBOUND_MAX_WAIT_SECONDS),
+    documentFiles.countOutageHeldForClient(clientId),
+    emails.countScreenPendingForClient(clientId),
+    plannerHeld(),
   ]);
-  const decision = decideReplan({ inflight, lastInboundAt, pendingFiles }, turnStartedAt, new Date(), limits);
+  // A provider outage hold (openspec `llm-provider-outage`): the turn waits
+  // for the recovery, re-checking at the probe's pace instead of every 2 s.
+  const held = providerHeld || heldFiles > 0 || heldMessages > 0;
+  const decision = decideReplan({ inflight, lastInboundAt, pendingFiles, held }, turnStartedAt, new Date(), limits);
   if (decision === 'wait') {
     // Keeps the workspace's "drafting…" placeholder from going stale during a long turn.
     await clients.markDraftingStarted(clientId);
-    await runAgainIn(job, token, RECHECK_MS);
+    await runAgainIn(job, token, held ? env.LLM_OUTAGE_PROBE_SECONDS * 1000 : RECHECK_MS);
   }
   if (decision === 'force') {
     logger.warn('inbound turn not settled after the maximum wait — planning with what is finished', {
@@ -115,6 +123,17 @@ export async function recoverLostReplans(): Promise<void> {
     recovered += 1;
   }
   if (recovered > 0) logger.info('re-requested lost deferred re-plans', { recovered });
+
+  // A client held by a provider outage (openspec `llm-provider-outage`) keeps
+  // its marker across restarts; its turn is re-requested whatever its age —
+  // the job then waits while the hold is open and plans after the recovery.
+  let held = 0;
+  for (const client of await clients.listOutageHeld()) {
+    if (await replanQueue.getJob(replanJobId(client.id))) continue;
+    await requestReplan(client.id);
+    held += 1;
+  }
+  if (held > 0) logger.info('re-requested the turns of clients held by a provider outage', { recovered: held });
 
   const delayMs = env.AFTER_SEND_PLAN_DELAY_SECONDS * 1000;
   const delivered = await clients.listDeliveredWithoutPlan(env.AFTER_SEND_PLAN_DELAY_SECONDS);

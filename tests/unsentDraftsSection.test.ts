@@ -18,6 +18,7 @@ const draft = (overrides: Partial<EmailRow>): EmailRow =>
     body: 'הוספתי את הפנסיה בהראל לרשימה.',
     review_status: null,
     blocked: null,
+    screen_pending: false,
     sent_at: null,
     created_at: new Date('2026-09-18T14:19:05.000Z'),
     ...overrides,

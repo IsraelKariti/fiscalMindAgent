@@ -834,6 +834,7 @@ function clientRow(c: DecideCase): ClientRow {
     paused: false,
     admin_paused: false,
     drafting_since: null,
+    processing_since: null,
     draft_failed_at: null,
     outage_held_at: null,
     outage_held_provider: null,

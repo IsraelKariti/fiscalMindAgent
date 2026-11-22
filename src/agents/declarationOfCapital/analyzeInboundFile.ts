@@ -33,10 +33,10 @@ const PDF_CONTENT_TYPE = 'application/pdf';
  * drafting from the first webhook until the planner run ends). Same guard as
  * the webhook's own stamp: a paused or finished client is not drafting.
  */
-async function keepDrafting(ctx: AgentContext): Promise<void> {
+async function keepProcessing(ctx: AgentContext): Promise<void> {
   if (ctx.client.paused || ctx.client.goal_status !== 'pending') return;
-  await clients.markDraftingStarted(ctx.client.id).catch((err) => {
-    logger.warn('could not refresh the drafting stamp during file analysis', { clientId: ctx.client.id, err: String(err) });
+  await clients.markProcessingStarted(ctx.client.id).catch((err) => {
+    logger.warn('could not refresh the processing stamp during file analysis', { clientId: ctx.client.id, err: String(err) });
   });
 }
 
@@ -61,7 +61,7 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
   // The three injection layers BEFORE classification. A hit quarantines the
   // file — never classified, never evidence, never linked. A held provider
   // (openspec `llm-provider-outage`) is no verdict: the file waits.
-  await keepDrafting(ctx);
+  await keepProcessing(ctx);
   let block: InjectionBlock | null;
   try {
     block = await screenFileForAttackText(ctx, file, model);
@@ -83,7 +83,7 @@ export async function analyzeInboundFile(ctx: AgentContext, file: DocumentFileRo
     return;
   }
   if (children === null) {
-    await keepDrafting(ctx);
+    await keepProcessing(ctx);
     try {
       await classifyAndStore(ctx, file, model);
     } catch (err) {
@@ -147,7 +147,7 @@ async function skipUnsupportedFile(ctx: AgentContext, file: DocumentFileRow, bod
  */
 async function splitOrKeepWhole(ctx: AgentContext, file: DocumentFileRow, body: Buffer): Promise<DocumentFileRow[] | null> {
   try {
-    await keepDrafting(ctx);
+    await keepProcessing(ctx);
     return await splitIntoChildren(ctx, file, body);
   } catch (err) {
     // A held provider is not "no split": the whole analysis waits (the caller holds the file).
@@ -167,7 +167,7 @@ async function classifyChildren(ctx: AgentContext, parent: DocumentFileRow, chil
   for (const child of children) {
     if (child.analysis_status !== 'pending') continue; // a re-run: already classified
     try {
-      await keepDrafting(ctx);
+      await keepProcessing(ctx);
       await classifyAndStore(ctx, child, await toModelFile({ bytes: await readBlob(child.blob_key), contentType: child.content_type }));
     } catch (err) {
       if (isProviderHeld(err)) {

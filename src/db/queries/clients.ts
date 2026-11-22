@@ -323,17 +323,31 @@ export async function setAdminPaused(id: string, on: boolean): Promise<ClientRow
  * Agent-status fields only, so updated_at is left alone — it tracks accountant edits.
  */
 export async function markDraftingStarted(id: string): Promise<void> {
-  await pool.query('UPDATE clients SET drafting_since = now(), draft_failed_at = NULL WHERE id = $1', [id]);
+  // The planner takes over from the input analysis: one activity at a time (openspec `turn-activity-states`).
+  await pool.query('UPDATE clients SET drafting_since = now(), processing_since = NULL, draft_failed_at = NULL WHERE id = $1', [id]);
+}
+
+/**
+ * Stamps (or refreshes) the analysis of the turn's inputs (openspec
+ * `turn-activity-states`): the workspace shows "processing" while it is fresh.
+ */
+export async function markProcessingStarted(id: string): Promise<void> {
+  await pool.query('UPDATE clients SET processing_since = now(), draft_failed_at = NULL WHERE id = $1', [id]);
+}
+
+/** The analysis is over and only a timer remains: the workspace shows nothing. */
+export async function clearProcessing(id: string): Promise<void> {
+  await pool.query('UPDATE clients SET processing_since = NULL WHERE id = $1', [id]);
 }
 
 /** Records that the planning attempt threw; the UI offers a manual retry. */
 export async function markDraftingFailed(id: string): Promise<void> {
-  await pool.query('UPDATE clients SET drafting_since = NULL, draft_failed_at = now() WHERE id = $1', [id]);
+  await pool.query('UPDATE clients SET drafting_since = NULL, processing_since = NULL, draft_failed_at = now() WHERE id = $1', [id]);
 }
 
-/** Clears the drafting stamp after a successful planning attempt. */
+/** Clears both activity stamps after a successful planning attempt. */
 export async function clearDraftingState(id: string): Promise<void> {
-  await pool.query('UPDATE clients SET drafting_since = NULL, draft_failed_at = NULL WHERE id = $1', [id]);
+  await pool.query('UPDATE clients SET drafting_since = NULL, processing_since = NULL, draft_failed_at = NULL WHERE id = $1', [id]);
 }
 
 /**
@@ -387,7 +401,7 @@ export async function markOutageAckSent(id: string): Promise<boolean> {
 export async function listDraftingWithoutSchedule(withinSeconds: number): Promise<string[]> {
   const { rows } = await pool.query<{ id: string }>(
     `SELECT c.id FROM clients c
-     WHERE c.drafting_since > now() - make_interval(secs => $1)
+     WHERE (c.drafting_since > now() - make_interval(secs => $1) OR c.processing_since > now() - make_interval(secs => $1))
        AND c.deleted_at IS NULL
        AND c.goal_status = 'pending' AND NOT c.paused
        AND NOT EXISTS (SELECT 1 FROM scheduled_jobs s WHERE s.client_id = c.id)`,
@@ -414,7 +428,7 @@ export async function listDeliveredWithoutPlan(delaySeconds: number): Promise<{ 
      ) e ON TRUE
      WHERE c.deleted_at IS NULL
        AND c.goal_status = 'pending' AND NOT c.paused
-       AND c.drafting_since IS NULL AND c.draft_failed_at IS NULL
+       AND c.drafting_since IS NULL AND c.processing_since IS NULL AND c.draft_failed_at IS NULL
        AND e.status = 'sent'
        AND e.sent_at > now() - make_interval(secs => $1) - interval '1 day'
        AND NOT EXISTS (SELECT 1 FROM scheduled_jobs s WHERE s.client_id = c.id)`,

@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { decideReplan, isTurnSettled } from '../src/orchestration/inboundTurnRules.js';
+import { decideReplan, isTurnSettled, waitKindOf } from '../src/orchestration/inboundTurnRules.js';
 import {
-  afterSendDueAt,
+  replanDueAt,
   createAfterSendReplanRequester,
   createReplanRequester,
   createTurnStore,
@@ -37,6 +37,15 @@ describe('isTurnSettled', () => {
 
   it('is settled when the last inbound time is unknown (keys expired)', () => {
     assert.equal(isTurnSettled({ inflight: 0, lastInboundAt: null, pendingFiles: 0 }, now, QUIET_MS), true);
+  });
+});
+
+describe('waitKindOf (openspec `turn-activity-states`)', () => {
+  it('is work while inputs are in flight, pending or held, else quiet', () => {
+    assert.equal(waitKindOf({ inflight: 1, lastInboundAt: secondsAgo(5), pendingFiles: 0 }), 'work');
+    assert.equal(waitKindOf({ inflight: 0, lastInboundAt: secondsAgo(5), pendingFiles: 2 }), 'work');
+    assert.equal(waitKindOf({ inflight: 0, lastInboundAt: secondsAgo(5), pendingFiles: 0, held: true }), 'work');
+    assert.equal(waitKindOf({ inflight: 0, lastInboundAt: secondsAgo(5), pendingFiles: 0 }), 'quiet');
   });
 });
 
@@ -282,25 +291,25 @@ describe('requestReplanAfterSend', () => {
     assert.equal(queue.jobs.get(replanJobId('c1'))!.delay, 1_000);
   });
 
-  describe('afterSendDueAt (openspec `after-send-wait-state`)', () => {
-    it('gives the due time of a queued after-send wait', async () => {
+  describe('replanDueAt (openspec `turn-activity-states`)', () => {
+    it('gives the due time of a queued after-send wait and of a queued turn', async () => {
       const queue = fakeQueue();
       const request = createAfterSendReplanRequester({ queue, store: store([]), delayMs: async () => AFTER_SEND_MS, now: () => queue.clock.t });
       await request('c1');
-      const due = await afterSendDueAt(await queue.getJob(replanJobId('c1')));
+      const due = await replanDueAt(await queue.getJob(replanJobId('c1')));
       assert.equal(due?.getTime(), queue.clock.t + AFTER_SEND_MS);
+      const turn = createReplanRequester({ queue, store: { setDirty: async () => {}, read: async () => ({ inflight: 0, lastInboundAt: null }) }, quietMs: async () => QUIET_MS, now: () => queue.clock.t });
+      await turn('c2');
+      assert.equal((await replanDueAt(await queue.getJob(replanJobId('c2'))))?.getTime(), queue.clock.t + QUIET_MS);
     });
 
-    it('gives null for a turn job, a running wait, and no job', async () => {
+    it('gives null for a running run and for no job', async () => {
       const queue = fakeQueue();
-      const turn = createReplanRequester({ queue, store: { setDirty: async () => {}, read: async () => ({ inflight: 0, lastInboundAt: null }) }, quietMs: async () => QUIET_MS, now: () => queue.clock.t });
-      await turn('c1');
-      assert.equal(await afterSendDueAt(await queue.getJob(replanJobId('c1'))), null);
       const afterSend = createAfterSendReplanRequester({ queue, store: store([]), delayMs: async () => AFTER_SEND_MS, now: () => queue.clock.t });
       await afterSend('c2');
       queue.jobs.get(replanJobId('c2'))!.state = 'active';
-      assert.equal(await afterSendDueAt(await queue.getJob(replanJobId('c2'))), null);
-      assert.equal(await afterSendDueAt(await queue.getJob(replanJobId('c3'))), null);
+      assert.equal(await replanDueAt(await queue.getJob(replanJobId('c2'))), null);
+      assert.equal(await replanDueAt(await queue.getJob(replanJobId('c3'))), null);
     });
   });
 });

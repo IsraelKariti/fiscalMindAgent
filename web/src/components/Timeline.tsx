@@ -26,6 +26,7 @@ import { isAccountantEmailStep } from './stepLink';
 import { StepDetailModal, gateReasonOf, gateResultOf } from './StepDetailModal';
 import { SendNowModal } from './SendNowModal';
 import { mergeTrace, type TraceEntry } from './timelineRows';
+import type { TurnActivity } from './turnActivity';
 
 type ChannelFilter = 'all' | MessageChannel;
 
@@ -395,11 +396,7 @@ export function Timeline({
   paused,
   overdueStopped = false,
   declined = false,
-  drafting = false,
-  draftFailed,
-  heldBySystem = false,
-  waitingAfterSend = false,
-  draftStale,
+  activity = null,
   onSendNow,
   onTogglePause,
   onRetryDraft,
@@ -432,20 +429,13 @@ export function Timeline({
   /** The pause is because the client declined the WhatsApp collection (openspec `client-decline`) — its own handed-off copy. */
   declined?: boolean;
   /**
-   * The agent is writing the next message (goal open, nothing scheduled). Set
-   * while paused too when a never-contacted client's first message is being
-   * drafted and held (openspec `first-message-approval`), so the drafting
-   * placeholder shows instead of the paused notice.
+   * What the agent is doing (openspec `turn-activity-states`): 'processing' /
+   * 'drafting' get their placeholder, 'stuck' / 'failed' the notice with Retry,
+   * 'held' the calm outage notice; 'waiting', 'idle' and null show nothing here.
+   * A paused client with a held first draft (openspec `first-message-approval`)
+   * resolves to 'drafting', so its placeholder shows instead of the paused notice.
    */
-  drafting?: boolean;
-  /** The last drafting attempt threw — show the failure notice with a Retry button. */
-  draftFailed: boolean;
-  /** Held by a provider outage (openspec `llm-provider-outage`): the calm waiting notice, no retry, no cause. */
-  heldBySystem?: boolean;
-  /** Drafting has been "in progress" implausibly long (attempt killed mid-flight) — offer Retry too. */
-  draftStale: boolean;
-  /** The agent waits out the after-send delay (openspec `after-send-wait-state`): no placeholder, no notice — the timeline ends at the delivered message. */
-  waitingAfterSend?: boolean;
+  activity?: TurnActivity;
   onSendNow: () => Promise<void>;
   onTogglePause: (paused: boolean) => Promise<void>;
   onRetryDraft: () => Promise<void>;
@@ -1141,7 +1131,7 @@ export function Timeline({
           {/* Paused with no preserved draft (a reply obsoleted it while paused, or the
               pause landed mid-redraft): nothing is scheduled and nothing will be until
               the accountant resumes, which has the agent redraft. */}
-          {!readOnly && paused && !nextScheduled && goalStatus === 'pending' && !drafting && (
+          {!readOnly && paused && !nextScheduled && goalStatus === 'pending' && activity == null && (
             <li className="timeline-item outbound scheduled">
               <div className="bubble bubble-scheduled bubble-paused">
                 <span className="paused-icon">{icon.pause}</span>
@@ -1159,7 +1149,7 @@ export function Timeline({
           )}
           {/* Held by a provider outage (openspec `llm-provider-outage`): the agent waits for
               the system and continues by itself — a calm notice, no retry, no cause. */}
-          {!readOnly && !waitingAfterSend && heldBySystem && !nextScheduled && goalStatus === 'pending' && (
+          {!readOnly && activity === 'held' && (
             <li className="timeline-item outbound scheduled drafting">
               <div className="bubble bubble-scheduled bubble-drafting">
                 <svg className="scheduled-clock" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
@@ -1172,14 +1162,14 @@ export function Timeline({
           )}
           {/* Drafting failed (the attempt threw) or stalled (killed mid-flight and will
               never finish): swap the pulsing placeholder for a notice with a manual retry. */}
-          {!readOnly && !waitingAfterSend && !heldBySystem && (!paused || drafting) && !nextScheduled && goalStatus === 'pending' && (draftFailed || draftStale) && (
+          {!readOnly && (activity === 'failed' || activity === 'stuck') && (
             <li className="timeline-item outbound scheduled">
               <div className="bubble bubble-scheduled bubble-draft-failed">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
                   <path d="M12 9v4M12 17h.01" />
                 </svg>
-                <span>{draftFailed ? t.draftingFailed : t.draftingStuck}</span>
+                <span>{activity === 'failed' ? t.draftingFailed : t.draftingStuck}</span>
                 <button
                   type="button"
                   className="btn btn-ghost btn-small retry-draft-btn"
@@ -1191,9 +1181,9 @@ export function Timeline({
               </div>
             </li>
           )}
-          {/* Goal open but nothing scheduled: the agent is between decisions — a fresh
-              client awaiting its first draft, or a follow-up being drafted after a send/reply. */}
-          {!readOnly && !waitingAfterSend && !heldBySystem && (!paused || drafting) && !nextScheduled && goalStatus === 'pending' && !draftFailed && !draftStale && (
+          {/* The agent is analyzing the turn's inputs (files, verification) or writing the
+              message. A queued run, or nothing at all, shows no placeholder. */}
+          {!readOnly && (activity === 'processing' || activity === 'drafting') && (
             <li className="timeline-item outbound scheduled drafting">
               <div className="bubble bubble-scheduled bubble-drafting">
                 <svg
@@ -1206,7 +1196,7 @@ export function Timeline({
                   <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
                   <path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
-                <span>{t.draftingEmail(emails.length === 0)}</span>
+                <span>{activity === 'processing' ? t.processingInputs : t.draftingEmail(emails.length === 0)}</span>
               </div>
             </li>
           )}

@@ -11,7 +11,7 @@ import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
 import { setFutureEmail } from '../orchestration/setFutureEmail.js';
 import { turnStore } from '../orchestration/inboundTurn.js';
 import { replanJobId, replanKindOf, replanTriggerOf, type ReplanJobData } from '../orchestration/inboundTurnCore.js';
-import { decideReplan } from '../orchestration/inboundTurnRules.js';
+import { decideReplan, waitKindOf } from '../orchestration/inboundTurnRules.js';
 import { requestReplan, requestReplanAfterSend } from '../orchestration/requestReplan.js';
 import { getMessageTiming } from '../orchestration/timingSettings.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
@@ -54,8 +54,12 @@ async function onReplan(job: Job<ReplanJobData>, token?: string): Promise<void> 
   const held = providerHeld || heldFiles > 0 || heldMessages > 0;
   const decision = decideReplan({ inflight, lastInboundAt, pendingFiles, held }, turnStartedAt, new Date(), limits);
   if (decision === 'wait') {
-    // Keeps the workspace's "drafting…" placeholder from going stale during a long turn.
-    await clients.markDraftingStarted(clientId);
+    // Inputs still being handled: keep the "processing" stamp fresh so a long
+    // turn never looks stuck. Only the quiet window left: clear it, the
+    // workspace shows nothing until the planner runs (openspec `turn-activity-states`).
+    const state = { inflight, lastInboundAt, pendingFiles, held };
+    if (waitKindOf(state) === 'work') await clients.markProcessingStarted(clientId);
+    else await clients.clearProcessing(clientId);
     await runAgainIn(job, token, held ? env.LLM_OUTAGE_PROBE_SECONDS * 1000 : RECHECK_MS);
   }
   if (decision === 'force') {
@@ -96,7 +100,8 @@ async function onReplan(job: Job<ReplanJobData>, token?: string): Promise<void> 
     // The client wrote again while the planner ran: a new turn, planned by this same job.
     logger.info('inbound arrived during the re-plan, planning again after the quiet window', { clientId });
     await job.updateData({ clientId, turnStartedAt: Date.now(), kind: 'turn', trigger: 'client_message' });
-    await clients.markDraftingStarted(clientId);
+    // The inbound that set the dirty flag stamped its own processing; this run is done.
+    await clients.clearProcessing(clientId);
     await runAgainIn(job, token, limits.quietMs);
   }
 }

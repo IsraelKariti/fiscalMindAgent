@@ -54,6 +54,8 @@ export interface Client {
   paused: boolean;
   /** Set while a planning attempt is in flight; stale = the attempt died mid-flight. */
   drafting_since: string | null;
+  /** Set while the turn's inputs are being analyzed (openspec `turn-activity-states`); the timeline shows "processing". Absent on a server without migration 080. */
+  processing_since?: string | null;
   /** Set when the last planning attempt threw; the timeline shows a Retry button. */
   draft_failed_at: string | null;
   /** Held by a model-provider outage (openspec `llm-provider-outage`): the agent waits for the system and continues by itself; the timeline shows the waiting notice, never the cause. */

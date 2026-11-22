@@ -513,8 +513,8 @@ export async function verifyBatch(
   targets: readonly VerificationTarget[],
 ): Promise<VerificationResult[]> {
   return runVerificationBatch(targets, (t) => verifyCollectedDocument(client, instance, t.documentId, t.fileId), {
-    // A long batch must not push the workspace's "drafting…" placeholder past its stale limit.
-    beforeEach: () => clients.markDraftingStarted(client.id),
+    // Verification is input analysis: the workspace shows "processing", refreshed per document (openspec `turn-activity-states`).
+    beforeEach: () => clients.markProcessingStarted(client.id),
     onError: (t, err) => logger.error('document verification failed', err, { clientId: client.id, documentId: t.documentId, fileId: t.fileId }),
     abortOn: isProviderHeld,
   });

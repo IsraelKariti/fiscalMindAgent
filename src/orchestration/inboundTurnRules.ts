@@ -20,6 +20,15 @@ export interface TurnState {
   held?: boolean;
 }
 
+/**
+ * Why an unsettled turn waits (openspec `turn-activity-states`): 'work' while
+ * inputs are still being handled (or held) — the workspace shows "processing";
+ * 'quiet' when only the quiet window is left — the workspace shows nothing.
+ */
+export function waitKindOf(state: TurnState): 'work' | 'quiet' {
+  return state.held || state.inflight > 0 || state.pendingFiles > 0 ? 'work' : 'quiet';
+}
+
 /** The turn is settled when nothing is being processed and the client has been quiet for the whole window. */
 export function isTurnSettled(state: TurnState, now: Date, quietMs: number): boolean {
   if (state.inflight > 0) return false;

@@ -13,6 +13,7 @@ import { useWorkspaceApi } from '../agents/ApiContext';
 import type { AgentTypeUI, ClientTabContext } from '../agents/types';
 import { useT } from '../i18n';
 import { formatTimestamp } from '../format';
+import { resolveTurnActivity, type TurnActivity } from './turnActivity';
 
 // Per-client last-viewed tab, in memory only: switching between clients
 // restores each client's tab, but a page load always starts on Conversation.
@@ -149,42 +150,22 @@ export function ClientView({
   // send now / retry controls (openspec `staff-conversation-controls`); the tabs
   // hide the other action controls on `viewer`.
   const readOnly = client?.deletedAt != null;
-  // The after-send wait (openspec `after-send-wait-state`): the agent's message
-  // was delivered and its next plan is queued for later on purpose. Not a
-  // drafting state — the timeline shows nothing until the run starts.
-  const waitingAfterSend =
-    client !== null &&
-    client.deletedAt == null &&
-    client.goal_status === 'pending' &&
-    !client.paused &&
-    !nextScheduled &&
-    client.outage_held_at == null &&
-    client.drafting_since == null &&
-    client.draft_failed_at == null &&
-    planWaitUntil != null;
-  const drafting =
-    client !== null &&
-    client.deletedAt == null &&
-    client.goal_status === 'pending' &&
-    !nextScheduled &&
-    !waitingAfterSend &&
-    (!client.paused || client.drafting_since != null || client.draft_failed_at != null);
-
-  // Drafting normally settles within ~2 minutes (one Gemini call, worst case a few
-  // internal retries), so past this it isn't "still thinking" — the attempt is gone.
-  const DRAFT_STALE_MS = 3 * 60_000;
-  // Held by a provider outage (openspec `llm-provider-outage`): the agent waits
-  // for the system and continues by itself — neither failed nor stuck.
-  const heldBySystem = client !== null && client.deletedAt == null && client.goal_status === 'pending' && client.outage_held_at != null;
-  // Observed failure: the planning attempt threw and recorded it.
-  const draftFailed = drafting && !heldBySystem && client?.draft_failed_at != null;
-  // Abandoned attempt: a crash/restart killed the draft without recording anything.
-  // drafting_since is authoritative; rows from before it existed (or the rare kill
-  // between cancel and re-plan) fall back to the last timeline activity.
+  // What the agent is doing for this client (openspec `turn-activity-states`):
+  // processing its inputs, drafting the message, stuck/failed/held — or nothing
+  // while it only waits for a queued run. Rendered from server facts only;
+  // "nothing scheduled" never implies drafting any more.
   const lastEmail = emails[emails.length - 1];
-  const draftAnchor = client?.drafting_since ?? lastEmail?.sent_at ?? lastEmail?.created_at ?? client?.created_at;
-  const draftStale =
-    drafting && !draftFailed && !heldBySystem && draftAnchor !== undefined && Date.now() - new Date(draftAnchor).getTime() > DRAFT_STALE_MS;
+  const activity: TurnActivity =
+    client === null
+      ? null
+      : resolveTurnActivity({
+          client,
+          hasScheduled: nextScheduled != null,
+          planWaitUntil,
+          lastActivityAt: lastEmail?.sent_at ?? lastEmail?.created_at ?? client.created_at,
+          now: Date.now(),
+        });
+  const busy = activity === 'processing' || activity === 'drafting';
 
   // Fallback polling in case the event stream drops: refetch every 15s when
   // the tab is visible, and immediately when it becomes visible again.
@@ -193,23 +174,23 @@ export function ClientView({
     const refreshIfVisible = () => {
       if (document.visibilityState === 'visible') load({ background: true });
     };
-    // No fast poll once drafting failed/stalled — nothing changes until the user retries.
-    const interval = setInterval(refreshIfVisible, drafting && !draftFailed && !draftStale ? 3_000 : 15_000);
+    // Fast poll only while the agent is really working; failed/stuck wait for the user.
+    const interval = setInterval(refreshIfVisible, busy ? 3_000 : 15_000);
     document.addEventListener('visibilitychange', refreshIfVisible);
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refreshIfVisible);
     };
-  }, [load, drafting, draftFailed, draftStale]);
+  }, [load, busy]);
 
-  // The after-send wait ends at a known time: refetch just after it, so the
-  // drafting placeholder appears as soon as the planner starts.
+  // A queued run ends at a known time: refetch just after it, so the drafting
+  // placeholder appears as soon as the planner starts.
   useEffect(() => {
-    if (!waitingAfterSend || planWaitUntil == null) return;
+    if (activity !== 'waiting' || planWaitUntil == null) return;
     const ms = Math.max(1_000, new Date(planWaitUntil).getTime() - Date.now() + 1_000);
     const timer = setTimeout(() => load({ background: true }), ms);
     return () => clearTimeout(timer);
-  }, [load, waitingAfterSend, planWaitUntil]);
+  }, [load, activity, planWaitUntil]);
 
   if (error) return <div className="error-banner">{error}</div>;
   if (!client) return <div className="muted">{t.loading}</div>;
@@ -225,11 +206,7 @@ export function ClientView({
     load,
     onClientUpdated,
     setClient,
-    drafting,
-    draftFailed,
-    draftStale,
-    heldBySystem,
-    waitingAfterSend,
+    activity,
     focusMessage,
     focusedMessageId,
     clearFocusedMessage,

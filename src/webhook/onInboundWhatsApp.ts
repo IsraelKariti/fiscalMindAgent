@@ -97,7 +97,7 @@ export async function onInboundWhatsApp(params: TwilioInboundParams): Promise<vo
 /**
  * One inbound WhatsApp webhook of a client's turn. One named function per
  * step: logInjectionTripwires, storeInboundMessage, disableWhatsAppOnOptOut,
- * cancelPendingSendAndShowDrafting, ingestMessageMedia, then the agent's own
+ * cancelPendingSendAndShowProcessing, ingestMessageMedia, then the agent's own
  * inbound hook (declarationOfCapitalAgent.onInboundMessage).
  */
 async function handleClientMessage(params: TwilioInboundParams, client: ClientRow, clientNumber: string): Promise<void> {
@@ -106,7 +106,7 @@ async function handleClientMessage(params: TwilioInboundParams, client: ClientRo
   const { inserted, messageRow } = await storeInboundMessage(client, params, body);
   if (inserted && isOptOut(body)) await disableWhatsAppOnOptOut(client);
   const agent = await loadAgentContext(client);
-  if (inserted && agent.definition.conversationModel === 'scheduled_follow_up') await cancelPendingSendAndShowDrafting(client);
+  if (inserted && agent.definition.conversationModel === 'scheduled_follow_up') await cancelPendingSendAndShowProcessing(client);
   const newFiles = await ingestMessageMedia(params, client, body, messageRow?.id ?? null);
   if (inserted || newFiles > 0) {
     await agent.definition.onInboundMessage(agent, {
@@ -165,11 +165,12 @@ async function disableWhatsAppOnOptOut(client: ClientRow): Promise<void> {
  * A new reply always leads to a fresh draft, so the now-outdated pending send
  * is cancelled right away — before the slow media ingestion — and the UI is
  * signalled (same contract as inbound email). The planner runs later, once
- * for the whole turn — "drafting" shows from now.
+ * for the whole turn — "processing" shows from now (openspec
+ * `turn-activity-states`): the inputs are being analyzed, nothing is drafted yet.
  */
-async function cancelPendingSendAndShowDrafting(client: ClientRow): Promise<void> {
+async function cancelPendingSendAndShowProcessing(client: ClientRow): Promise<void> {
   await withClientLock(client.id, () => removeFutureEmail(client.id, 'client_message'));
-  if (!client.paused && client.goal_status === 'pending') await clients.markDraftingStarted(client.id);
+  if (!client.paused && client.goal_status === 'pending') await clients.markProcessingStarted(client.id);
   publishClientUpdated(client.id);
 }
 

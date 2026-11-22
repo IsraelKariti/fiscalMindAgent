@@ -1,7 +1,7 @@
 import { replanQueue } from '../queue/replanQueue.js';
 import { getMessageTiming } from './timingSettings.js';
 import { turnStore } from './inboundTurn.js';
-import { afterSendDueAt, createAfterSendReplanRequester, createReplanRequester, replanJobId } from './inboundTurnCore.js';
+import { createAfterSendReplanRequester, createReplanRequester, replanDueAt, replanJobId } from './inboundTurnCore.js';
 
 /**
  * Asks for the client's deferred planner run (openspec `inbound-turn`). Called
@@ -26,10 +26,10 @@ export const requestReplanAfterSend = createAfterSendReplanRequester({
 });
 
 /**
- * When the client's queued after-send wait is due, or null when no such wait
- * is queued (openspec `after-send-wait-state`). The workspace client read
- * serves it so the page stays silent instead of showing a drafting state.
+ * When the client's queued planner run is due (a turn's quiet window or an
+ * after-send wait), or null when none is queued (openspec `turn-activity-states`).
+ * The workspace client read serves it so the page tells a timer wait from a lost run.
  */
-export async function afterSendWaitUntil(clientId: string): Promise<Date | null> {
-  return afterSendDueAt(await replanQueue.getJob(replanJobId(clientId)));
+export async function queuedReplanUntil(clientId: string): Promise<Date | null> {
+  return replanDueAt(await replanQueue.getJob(replanJobId(clientId)));
 }

@@ -683,6 +683,8 @@ const he = {
   pauseFailed: 'עדכון ההשהיה נכשל.',
   scheduledDraftUnavailable: 'מעקב מתוזמן (הטיוטה אינה זמינה)',
   draftingEmail: (first: boolean) => `הסוכן מנסח כעת את ההודעה ${first ? 'הראשונה' : 'הבאה'}…`,
+  // The turn's inputs are being analyzed (openspec `turn-activity-states`).
+  processingInputs: 'הסוכן מעבד כעת את ההודעות והקבצים שהתקבלו…',
   draftingFailed: 'ניסוח ההודעה נכשל.',
   // Held by a provider outage (openspec `llm-provider-outage`): a calm wait, no cause, no retry.
   draftingHeld: 'ממתין למערכת — הסוכן ימשיך לבד ברגע שיתאפשר.',

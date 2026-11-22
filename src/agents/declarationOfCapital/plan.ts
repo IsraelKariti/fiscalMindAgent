@@ -1260,6 +1260,8 @@ async function verifyThenReplan(run: PlanRun, o: CollectionOutcome): Promise<voi
   });
   const results = await verifyBatch(client, ctx.instance, verificationTargets);
   await recordRerunAfterVerification(client, results);
+  // Back from "processing" to "drafting" for the follow-up cycle (openspec `turn-activity-states`).
+  await clients.markDraftingStarted(clientId);
   const fresh = await clients.getById(clientId);
   if (!fresh) return;
   return planFollowUp({ ...ctx, client: fresh, hints: { ...ctx.hints, afterVerification: true, verificationResults: results } });

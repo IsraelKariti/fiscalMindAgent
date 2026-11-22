@@ -812,7 +812,8 @@ delivers the text and each file of one client turn as separate webhooks, so an
 inbound webhook never runs the planner itself. The webhook half wraps its work
 in `withInboundInFlight` (`src/orchestration/inboundTurn.ts` — a per-client
 Redis counter plus a last-inbound stamp), cancels the outdated pending send at
-once, stamps `drafting_since`, and the agent's `onInboundMessage` ends with
+once, stamps `processing_since` (openspec `turn-activity-states`; the planner
+later stamps `drafting_since`), and the agent's `onInboundMessage` ends with
 `requestReplan(clientId)` — a delayed BullMQ job `replan-<clientId>` that every
 further webhook of the client pushes `INBOUND_QUIET_SECONDS` (15) into the
 future. The job (`src/queue/replanWorker.ts`) plans only when the turn is
@@ -823,7 +824,7 @@ as a warning). An inbound that lands while the planner runs leaves a dirty
 flag and the same job plans again after the quiet window. Not deferred: the
 tax-fetch OTP fast path (returns before `requestReplan`) and the fixed reply
 to a blocked message. Worker boot re-requests a lost job for clients with a
-recent `drafting_since` and nothing scheduled (`recoverLostReplans`). New
+recent `drafting_since` or `processing_since` and nothing scheduled (`recoverLostReplans`). New
 inbound reactions must call `requestReplan`, never `setFutureEmail` directly.
 
 **Inbound files are fetched with a retry, and a lost file is a trace step**
@@ -913,7 +914,8 @@ tenancy / admin impersonation / monday token auth.
 
 `AgentTypeUI`: `nameKey`/`descriptionKey` (i18n), `icon`, `clientTabs[]`
 (id, labelKey, `render(ClientTabContext)`). The generic
-`components/ClientView.tsx` owns load/SSE/poll/drafting logic and renders the
+`components/ClientView.tsx` owns load/SSE/poll logic, resolves the agent's
+activity (`turnActivity.ts`: processing / drafting / stuck / nothing) and renders the
 active type's tabs. Requests flow through `agentApi(agentId)` provided via
 `WorkspaceApiContext` (`useWorkspaceApi()` in components; it throws outside a
 provider — there is no unprefixed fallback).

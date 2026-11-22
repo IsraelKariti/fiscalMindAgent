@@ -10,6 +10,7 @@ import type {
   WorkspaceApi,
 } from '../api';
 import type { Messages } from '../i18n';
+import type { TurnActivity } from '../components/turnActivity';
 
 /** Everything a client tab needs, loaded and kept fresh by the generic ClientView. */
 export interface ClientTabContext {
@@ -28,14 +29,8 @@ export interface ClientTabContext {
   /** Notify the shell (sidebar list, dashboard) that the client changed. */
   onClientUpdated: () => Promise<void>;
   setClient: (client: Client) => void;
-  /** Goal open, nothing scheduled, and the agent is (or should be) writing the next message — also while paused for a held first draft. */
-  drafting: boolean;
-  draftFailed: boolean;
-  draftStale: boolean;
-  /** Held by a provider outage (openspec `llm-provider-outage`): the timeline shows the calm waiting notice instead of a failure or a stall. */
-  heldBySystem: boolean;
-  /** The agent waits out the after-send delay (openspec `after-send-wait-state`): the timeline ends at the delivered message and shows no drafting state. */
-  waitingAfterSend: boolean;
+  /** What the agent is doing right now, as the timeline shows it (openspec `turn-activity-states`): processing / drafting / stuck / failed / held, or nothing. */
+  activity: TurnActivity;
   /** Show the Conversation tab scrolled to this message, highlighted briefly (openspec `chat-stated-cost`). */
   focusMessage: (messageId: string) => void;
   /** The message the Conversation tab should scroll to on its next render; null when none is requested. */

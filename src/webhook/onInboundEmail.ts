@@ -132,10 +132,10 @@ async function handleClientEmail(data: ResendInboundData, resendId: string, clie
     // A new reply always leads to a fresh draft, so cancel the now-outdated pending send
     // right away — before the slow attachment ingestion below — and signal the UI: the
     // timeline must never show the reply alongside the scheduled email it obsoletes, and
-    // should show its "drafting" placeholder for the whole time the agent is deciding.
+    // should show its "processing" placeholder while the agent analyzes the inputs.
     await withClientLock(client.id, () => removeFutureEmail(client.id, 'client_message'));
-    // The planner runs later, once for the whole turn — show "drafting" from now.
-    if (!client.paused && client.goal_status === 'pending') await clients.markDraftingStarted(client.id);
+    // The planner runs later, once for the whole turn — show "processing" from now (openspec `turn-activity-states`).
+    if (!client.paused && client.goal_status === 'pending') await clients.markProcessingStarted(client.id);
     publishClientUpdated(client.id);
   }
 

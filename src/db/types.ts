@@ -128,6 +128,8 @@ export interface ClientRow {
   admin_paused: boolean;
   /** Set while a planning attempt (setFutureEmail) is in flight; stale = attempt died mid-flight. */
   drafting_since: Date | null;
+  /** Set while the turn's inputs are being analyzed (080, openspec `turn-activity-states`): media stored, files split/classified, documents verified. The workspace shows "processing". */
+  processing_since: Date | null;
   /** Set when the last planning attempt threw; the UI shows a Retry button. */
   draft_failed_at: Date | null;
   /** Held by a model-provider outage (079, openspec `llm-provider-outage`): a message, file or planner run of this client waits for the provider; the workspace shows "waiting for the system". Cleared by the recovery. */

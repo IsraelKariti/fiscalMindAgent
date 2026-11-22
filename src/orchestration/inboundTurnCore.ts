@@ -164,13 +164,15 @@ export const replanKindOf = (data: ReplanJobData): ReplanKind => data.kind ?? 't
 export const replanTriggerOf = (data: ReplanJobData): PlanTrigger => data.trigger ?? 'client_message';
 
 /**
- * The time a queued after-send wait is due (openspec `after-send-wait-state`):
- * the job's add time plus its delay, only while the job is an after-send run
- * that has not started. A turn job, a running job or no job gives null — the
- * workspace then shows its usual drafting state.
+ * The time a queued planner run is due (openspec `turn-activity-states`): the
+ * job's add time plus its delay, for any replan job (a turn waiting for its
+ * quiet window, an after-send wait) that has not started. A running job or no
+ * job gives null — the workspace then renders from the activity stamps alone.
+ * For a turn the worker re-delays every 2 s the value is approximate; the
+ * page only needs to know a run is queued and roughly when.
  */
-export async function afterSendDueAt(job: ReplanJobLike | undefined): Promise<Date | null> {
-  if (!job || replanKindOf(job.data) !== 'after_send') return null;
+export async function replanDueAt(job: ReplanJobLike | undefined): Promise<Date | null> {
+  if (!job) return null;
   if (!NOT_STARTED.has(await job.getState())) return null;
   return new Date(job.timestamp + (job.opts.delay ?? 0));
 }

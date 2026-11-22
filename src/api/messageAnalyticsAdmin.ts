@@ -4,6 +4,7 @@ import * as agentInstances from '../db/queries/agentInstances.js';
 import * as draftOutcomes from '../db/queries/draftOutcomes.js';
 import { summarize, type DraftOutcome } from '../analytics/discardedMessages.js';
 import { env } from '../config/env.js';
+import { getMessageTiming } from '../orchestration/timingSettings.js';
 import { zonedTimeToUtc } from '../util/time.js';
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -75,7 +76,7 @@ export const adminGetMessageAnalytics: RequestHandler = async (req, res) => {
     to,
     firstDraftDay: firstAt ? firstDay : null,
     timeZone: tz,
-    currentQuietSeconds: env.INBOUND_QUIET_SECONDS,
+    currentQuietSeconds: (await getMessageTiming()).quietSeconds,
     ...summarize(drafts, tz),
   });
 };

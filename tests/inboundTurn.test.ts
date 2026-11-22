@@ -152,7 +152,7 @@ describe('requestReplan', () => {
     const request = createReplanRequester({
       queue,
       store: { setDirty: async (id) => void dirty.push(id), read: async () => ({ inflight: 0, lastInboundAt: new Date(queue.clock.t) }) },
-      quietMs: QUIET_MS,
+      quietMs: async () => QUIET_MS,
       now: () => queue.clock.t,
     });
     await request('c1');
@@ -173,7 +173,7 @@ describe('requestReplan', () => {
     const request = createReplanRequester({
       queue,
       store: { setDirty: async (id) => void dirty.push(id), read: async () => ({ inflight: 0, lastInboundAt: null }) },
-      quietMs: QUIET_MS,
+      quietMs: async () => QUIET_MS,
     });
     await request('c1');
     const running = queue.jobs.get(replanJobId('c1'))!;
@@ -190,7 +190,7 @@ describe('requestReplan', () => {
     const request = createReplanRequester({
       queue,
       store: { setDirty: async () => {}, read: async () => ({ inflight: 1, lastInboundAt }) },
-      quietMs: QUIET_MS,
+      quietMs: async () => QUIET_MS,
       now: () => queue.clock.t,
     });
     await request('c1');
@@ -202,7 +202,7 @@ describe('requestReplan', () => {
     const request = createReplanRequester({
       queue,
       store: { setDirty: async () => {}, read: async () => ({ inflight: 1, lastInboundAt: new Date(queue.clock.t - 60_000) }) },
-      quietMs: QUIET_MS,
+      quietMs: async () => QUIET_MS,
       now: () => queue.clock.t,
     });
     await request('c1');
@@ -220,7 +220,7 @@ describe('requestReplanAfterSend', () => {
 
   it('adds one job after the delay, as an after-send run that names the delivered message', async () => {
     const queue = fakeQueue();
-    const request = createAfterSendReplanRequester({ queue, store: store([]), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+    const request = createAfterSendReplanRequester({ queue, store: store([]), delayMs: async () => AFTER_SEND_MS, now: () => queue.clock.t });
     await request('c1');
     const job = queue.jobs.get(replanJobId('c1'))!;
     assert.equal(queue.jobs.size, 1);
@@ -233,13 +233,13 @@ describe('requestReplanAfterSend', () => {
   it('a reply inside the delay replaces the wait with a fresh turn', async () => {
     const queue = fakeQueue();
     const dirty: string[] = [];
-    const afterSend = createAfterSendReplanRequester({ queue, store: store(dirty), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+    const afterSend = createAfterSendReplanRequester({ queue, store: store(dirty), delayMs: async () => AFTER_SEND_MS, now: () => queue.clock.t });
     await afterSend('c1');
     queue.clock.t += 40_000;
     const inbound = createReplanRequester({
       queue,
       store: { setDirty: async (id) => void dirty.push(id), read: async () => ({ inflight: 0, lastInboundAt: new Date(queue.clock.t) }) },
-      quietMs: QUIET_MS,
+      quietMs: async () => QUIET_MS,
       now: () => queue.clock.t,
     });
     await inbound('c1');
@@ -258,12 +258,12 @@ describe('requestReplanAfterSend', () => {
     const inbound = createReplanRequester({
       queue,
       store: { setDirty: async () => {}, read: async () => ({ inflight: 0, lastInboundAt: new Date(queue.clock.t) }) },
-      quietMs: QUIET_MS,
+      quietMs: async () => QUIET_MS,
       now: () => queue.clock.t,
     });
     await inbound('c1');
     const turn = queue.jobs.get(replanJobId('c1'))!;
-    const afterSend = createAfterSendReplanRequester({ queue, store: store(dirty), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+    const afterSend = createAfterSendReplanRequester({ queue, store: store(dirty), delayMs: async () => AFTER_SEND_MS, now: () => queue.clock.t });
     await afterSend('c1');
     assert.equal(queue.jobs.get(replanJobId('c1')), turn);
     assert.equal(turn.data.kind, 'turn');
@@ -277,7 +277,7 @@ describe('requestReplanAfterSend', () => {
 
   it('takes a shorter delay for a recovered wait, never below one second', async () => {
     const queue = fakeQueue();
-    const request = createAfterSendReplanRequester({ queue, store: store([]), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+    const request = createAfterSendReplanRequester({ queue, store: store([]), delayMs: async () => AFTER_SEND_MS, now: () => queue.clock.t });
     await request('c1', 0);
     assert.equal(queue.jobs.get(replanJobId('c1'))!.delay, 1_000);
   });
@@ -285,7 +285,7 @@ describe('requestReplanAfterSend', () => {
   describe('afterSendDueAt (openspec `after-send-wait-state`)', () => {
     it('gives the due time of a queued after-send wait', async () => {
       const queue = fakeQueue();
-      const request = createAfterSendReplanRequester({ queue, store: store([]), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+      const request = createAfterSendReplanRequester({ queue, store: store([]), delayMs: async () => AFTER_SEND_MS, now: () => queue.clock.t });
       await request('c1');
       const due = await afterSendDueAt(await queue.getJob(replanJobId('c1')));
       assert.equal(due?.getTime(), queue.clock.t + AFTER_SEND_MS);
@@ -293,10 +293,10 @@ describe('requestReplanAfterSend', () => {
 
     it('gives null for a turn job, a running wait, and no job', async () => {
       const queue = fakeQueue();
-      const turn = createReplanRequester({ queue, store: { setDirty: async () => {}, read: async () => ({ inflight: 0, lastInboundAt: null }) }, quietMs: QUIET_MS, now: () => queue.clock.t });
+      const turn = createReplanRequester({ queue, store: { setDirty: async () => {}, read: async () => ({ inflight: 0, lastInboundAt: null }) }, quietMs: async () => QUIET_MS, now: () => queue.clock.t });
       await turn('c1');
       assert.equal(await afterSendDueAt(await queue.getJob(replanJobId('c1'))), null);
-      const afterSend = createAfterSendReplanRequester({ queue, store: store([]), delayMs: AFTER_SEND_MS, now: () => queue.clock.t });
+      const afterSend = createAfterSendReplanRequester({ queue, store: store([]), delayMs: async () => AFTER_SEND_MS, now: () => queue.clock.t });
       await afterSend('c2');
       queue.jobs.get(replanJobId('c2'))!.state = 'active';
       assert.equal(await afterSendDueAt(await queue.getJob(replanJobId('c2'))), null);

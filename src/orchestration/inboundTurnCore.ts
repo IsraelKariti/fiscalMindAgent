@@ -117,7 +117,8 @@ const NOT_STARTED = new Set(['delayed', 'waiting', 'prioritized', 'paused', 'wai
 export function createReplanRequester(deps: {
   queue: ReplanQueueLike;
   store: Pick<TurnStore, 'setDirty' | 'read'>;
-  quietMs: number;
+  /** The quiet window, read per request so an admin change applies at once (openspec `admin-timing-settings`). */
+  quietMs: () => Promise<number>;
   now?: () => number;
 }): (clientId: string) => Promise<void> {
   const now = deps.now ?? (() => Date.now());
@@ -125,9 +126,10 @@ export function createReplanRequester(deps: {
   // this call: a handler asks at its END, after its slow file work, and most
   // of the window has usually passed by then.
   const delayFor = async (clientId: string): Promise<number> => {
+    const quietMs = await deps.quietMs();
     const { lastInboundAt } = await deps.store.read(clientId);
-    if (lastInboundAt === null) return deps.quietMs;
-    return Math.min(deps.quietMs, Math.max(MIN_DELAY_MS, lastInboundAt.getTime() + deps.quietMs - now()));
+    if (lastInboundAt === null) return quietMs;
+    return Math.min(quietMs, Math.max(MIN_DELAY_MS, lastInboundAt.getTime() + quietMs - now()));
   };
   return async (clientId) => {
     const jobId = replanJobId(clientId);
@@ -184,11 +186,13 @@ export async function afterSendDueAt(job: ReplanJobLike | undefined): Promise<Da
 export function createAfterSendReplanRequester(deps: {
   queue: ReplanQueueLike;
   store: Pick<TurnStore, 'setDirty'>;
-  delayMs: number;
+  /** The after-send delay, read per request so an admin change applies at once (openspec `admin-timing-settings`). */
+  delayMs: () => Promise<number>;
   now?: () => number;
 }): (clientId: string, delayMs?: number) => Promise<void> {
   const now = deps.now ?? (() => Date.now());
-  return async (clientId, delayMs = deps.delayMs) => {
+  return async (clientId, delayMsArg?: number) => {
+    const delayMs = delayMsArg ?? (await deps.delayMs());
     const jobId = replanJobId(clientId);
     const existing = await deps.queue.getJob(jobId);
     if (existing) {

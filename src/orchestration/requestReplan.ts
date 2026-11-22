@@ -1,5 +1,5 @@
 import { replanQueue } from '../queue/replanQueue.js';
-import { env } from '../config/env.js';
+import { getMessageTiming } from './timingSettings.js';
 import { turnStore } from './inboundTurn.js';
 import { afterSendDueAt, createAfterSendReplanRequester, createReplanRequester, replanJobId } from './inboundTurnCore.js';
 
@@ -11,7 +11,7 @@ import { afterSendDueAt, createAfterSendReplanRequester, createReplanRequester, 
 export const requestReplan = createReplanRequester({
   queue: replanQueue,
   store: turnStore,
-  quietMs: env.INBOUND_QUIET_SECONDS * 1000,
+  quietMs: async () => (await getMessageTiming()).quietSeconds * 1000,
 });
 
 /**
@@ -22,7 +22,7 @@ export const requestReplan = createReplanRequester({
 export const requestReplanAfterSend = createAfterSendReplanRequester({
   queue: replanQueue,
   store: turnStore,
-  delayMs: env.AFTER_SEND_PLAN_DELAY_SECONDS * 1000,
+  delayMs: async () => (await getMessageTiming()).afterSendDelaySeconds * 1000,
 });
 
 /**

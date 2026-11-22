@@ -32,6 +32,7 @@ import {
   type LlmCallPurpose,
 } from '../gemini/modelSettings.js';
 import { getBudgetState, saveBudgetSettings } from '../gemini/budget.js';
+import { getMessageTiming, MessageTimingError, saveMessageTiming } from '../orchestration/timingSettings.js';
 import { auditAdminMutation } from '../audit/adminAudit.js';
 import { markNumberAsPooled } from '../twilio/provision.js';
 import { getAppLogoKey } from '../storage/agentPicture.js';
@@ -733,6 +734,39 @@ export const adminSetLlmBudget: RequestHandler = async (req, res) => {
   await saveBudgetSettings(parsed.data);
   logger.info('llm budget changed', { adminUserId: req.realUserId, ...parsed.data });
   res.json(await getBudgetState());
+};
+
+const MessageTimingSchema = z
+  .object({
+    quietSeconds: z.number().int().min(0).max(7 * 24 * 3600),
+    maxWaitSeconds: z.number().int().min(0).max(7 * 24 * 3600),
+    afterSendDelaySeconds: z.number().int().min(0).max(7 * 24 * 3600),
+  })
+  .strict();
+
+/** GET /api/admin/message-timing — the effective waits of the conversation (openspec `admin-timing-settings`). */
+export const adminGetMessageTiming: RequestHandler = async (_req, res) => {
+  res.json(await getMessageTiming());
+};
+
+/** PUT /api/admin/message-timing — save the three waits; applies from the next decision, no restart. */
+export const adminSetMessageTiming: RequestHandler = async (req, res) => {
+  const parsed = MessageTimingSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Every value must be a whole number of seconds.' });
+    return;
+  }
+  try {
+    await saveMessageTiming(parsed.data);
+  } catch (err) {
+    if (err instanceof MessageTimingError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+  logger.info('message timing changed', { adminUserId: req.realUserId, ...parsed.data });
+  res.json(await getMessageTiming());
 };
 
 /** PUT /api/admin/model — switch every LLM call, for every accountant and client, to this model. */

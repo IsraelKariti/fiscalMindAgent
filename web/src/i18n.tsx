@@ -1515,6 +1515,16 @@ const he = {
   llmBudgetSaved: 'התקרות נשמרו.',
   llmBudgetLoadFailed: 'טעינת תקרת ההוצאה נכשלה.',
   llmBudgetSaveFailed: 'שמירת התקרות נכשלה — יש להזין סכומים לא שליליים.',
+  // Message timing (openspec `admin-timing-settings`): the three waits of the conversation.
+  messageTimingTitle: 'תזמון הודעות',
+  messageTimingDesc:
+    'כמה זמן הסוכן ממתין לפני שהוא מנסח הודעה. החלון השקט נספר מההודעה האחרונה של הלקוח; כל הודעה או קובץ נוספים מאפסים אותו (חלון קצר מאוד = יותר קריאות למודל). ההמתנה המרבית מגבילה את ההמתנה הכוללת מתחילת התור. ההשהיה אחרי שליחה נספרת מהודעה שהסוכן שלח, עד שהוא מתכנן את ההודעה הבאה (0 = מיד). השינוי חל מיד, ללא הפעלה מחדש.',
+  messageTimingQuietLabel: 'חלון שקט אחרי הודעת לקוח (שניות)',
+  messageTimingMaxWaitLabel: 'המתנה מרבית לתור (שניות)',
+  messageTimingAfterSendLabel: 'השהיה אחרי הודעה שנשלחה (שניות)',
+  messageTimingSaved: 'התזמון נשמר.',
+  messageTimingLoadFailed: 'טעינת תזמון ההודעות נכשלה.',
+  messageTimingSaveFailed: 'שמירת התזמון נכשלה.',
   llmModelEnvDefault: 'ברירת המחדל של השרת',
   // The provider outage bar (openspec `llm-provider-outage`), admin pages only.
   outageProviderLabels: { gemini: 'Gemini', openai: 'OpenAI', anthropic: 'Anthropic', budget: 'תקרת ההוצאה היומית' } as Record<string, string>,

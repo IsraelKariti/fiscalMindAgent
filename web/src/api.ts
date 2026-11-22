@@ -829,6 +829,13 @@ export interface LlmBudgetState {
   spentTodayUsd: number;
 }
 
+/** The waits of the conversation, in seconds (openspec `admin-timing-settings`); each is the admin-saved value or the server default. */
+export interface MessageTimingState {
+  quietSeconds: number;
+  maxWaitSeconds: number;
+  afterSendDelaySeconds: number;
+}
+
 export interface GeminiModelState {
   model: string;
   /** True when set by an admin; false while running on the server's env default. */
@@ -1416,6 +1423,9 @@ export const api = {
   adminGetLlmBudget: () => request<LlmBudgetState>('/admin/llm-budget'),
   adminSetLlmBudget: (budget: { platformDailyUsd: number; instanceDailyUsd: number }) =>
     request<LlmBudgetState>('/admin/llm-budget', { method: 'PUT', body: JSON.stringify(budget) }),
+  adminGetMessageTiming: () => request<MessageTimingState>('/admin/message-timing'),
+  adminSetMessageTiming: (timing: MessageTimingState) =>
+    request<MessageTimingState>('/admin/message-timing', { method: 'PUT', body: JSON.stringify(timing) }),
   adminGetModel: () => request<GeminiModelState>('/admin/model'),
   adminSetModel: (model: string) =>
     request<GeminiModelState>('/admin/model', { method: 'PUT', body: JSON.stringify({ model }) }),

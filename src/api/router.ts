@@ -51,6 +51,8 @@ import {
   adminSetAgentFirstMessageApproval,
   adminSetKillSwitch,
   adminSetLlmBudget,
+  adminGetMessageTiming,
+  adminSetMessageTiming,
   adminSetModel,
   adminSetPurposeBackupModel,
   adminSetPurposeModel,
@@ -153,6 +155,8 @@ apiRouter.put('/admin/model/purpose', wrap(requireAdmin), wrap(adminSetPurposeMo
 apiRouter.put('/admin/model/purpose/backup', wrap(requireAdmin), wrap(adminSetPurposeBackupModel));
 apiRouter.get('/admin/llm-budget', wrap(requireAdmin), wrap(adminGetLlmBudget));
 apiRouter.put('/admin/llm-budget', wrap(requireAdmin), wrap(adminSetLlmBudget));
+apiRouter.get('/admin/message-timing', wrap(requireAdmin), wrap(adminGetMessageTiming));
+apiRouter.put('/admin/message-timing', wrap(requireAdmin), wrap(adminSetMessageTiming));
 apiRouter.get('/admin/kill-switch', wrap(requireAdmin), wrap(adminGetKillSwitch));
 apiRouter.get('/admin/llm-outage', wrap(requireAdmin), wrap(adminGetLlmOutage));
 apiRouter.post('/admin/llm-outage/probe', wrap(requireAdmin), wrap(adminProbeLlmOutage));

@@ -13,6 +13,7 @@ import { turnStore } from '../orchestration/inboundTurn.js';
 import { replanJobId, replanKindOf, replanTriggerOf, type ReplanJobData } from '../orchestration/inboundTurnCore.js';
 import { decideReplan } from '../orchestration/inboundTurnRules.js';
 import { requestReplan, requestReplanAfterSend } from '../orchestration/requestReplan.js';
+import { getMessageTiming } from '../orchestration/timingSettings.js';
 import { publishClientUpdated } from '../events/clientEvents.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
@@ -37,11 +38,13 @@ async function runAgainIn(job: Job<ReplanJobData>, token: string | undefined, ms
 async function onReplan(job: Job<ReplanJobData>, token?: string): Promise<void> {
   const { clientId } = job.data;
   const turnStartedAt = new Date(job.data.turnStartedAt);
-  const limits = { quietMs: env.INBOUND_QUIET_SECONDS * 1000, maxWaitMs: env.INBOUND_MAX_WAIT_SECONDS * 1000 };
+  // The admin-set timing, read per run (openspec `admin-timing-settings`).
+  const timing = await getMessageTiming();
+  const limits = { quietMs: timing.quietSeconds * 1000, maxWaitMs: timing.maxWaitSeconds * 1000 };
 
   const [{ inflight, lastInboundAt }, pendingFiles, heldFiles, heldMessages, providerHeld] = await Promise.all([
     turnStore.read(clientId),
-    documentFiles.countRecentPendingForClient(clientId, env.INBOUND_MAX_WAIT_SECONDS),
+    documentFiles.countRecentPendingForClient(clientId, timing.maxWaitSeconds),
     documentFiles.countOutageHeldForClient(clientId),
     emails.countScreenPendingForClient(clientId),
     plannerHeld(),
@@ -135,8 +138,9 @@ export async function recoverLostReplans(): Promise<void> {
   }
   if (held > 0) logger.info('re-requested the turns of clients held by a provider outage', { recovered: held });
 
-  const delayMs = env.AFTER_SEND_PLAN_DELAY_SECONDS * 1000;
-  const delivered = await clients.listDeliveredWithoutPlan(env.AFTER_SEND_PLAN_DELAY_SECONDS);
+  const { afterSendDelaySeconds } = await getMessageTiming();
+  const delayMs = afterSendDelaySeconds * 1000;
+  const delivered = await clients.listDeliveredWithoutPlan(afterSendDelaySeconds);
   let waits = 0;
   for (const { id, sentAt } of delivered) {
     if (await replanQueue.getJob(replanJobId(id))) continue;

@@ -9,6 +9,7 @@ import {
   type KillSwitchState,
   type LlmOutageState,
   type LlmBudgetState,
+  type MessageTimingState,
   type LlmCallPurpose,
   type OrphanedWaNumber,
 } from '../../api';
@@ -111,6 +112,45 @@ export function AdminSettings({ userEmail }: Props) {
       })
       .catch(() => setBudgetNotice('load_failed'));
   }, []);
+
+  // Message timing (openspec `admin-timing-settings`): three waits in seconds,
+  // same shape as the budget section; a refused save shows the server's reason
+  // and puts the inputs back on the saved values.
+  const [timing, setTiming] = useState<MessageTimingState | null>(null);
+  const [timingDraft, setTimingDraft] = useState<{ quiet: string; maxWait: string; afterSend: string }>({ quiet: '', maxWait: '', afterSend: '' });
+  const [timingNotice, setTimingNotice] = useState<'saved' | 'load_failed' | 'save_failed' | null>(null);
+  const [timingError, setTimingError] = useState<string | null>(null);
+  const [timingSaving, setTimingSaving] = useState(false);
+  const timingToDraft = (v: MessageTimingState) => ({ quiet: String(v.quietSeconds), maxWait: String(v.maxWaitSeconds), afterSend: String(v.afterSendDelaySeconds) });
+
+  useEffect(() => {
+    api
+      .adminGetMessageTiming()
+      .then((v) => {
+        setTiming(v);
+        setTimingDraft(timingToDraft(v));
+      })
+      .catch(() => setTimingNotice('load_failed'));
+  }, []);
+
+  const saveTiming = async () => {
+    const next = { quietSeconds: Number(timingDraft.quiet), maxWaitSeconds: Number(timingDraft.maxWait), afterSendDelaySeconds: Number(timingDraft.afterSend) };
+    setTimingSaving(true);
+    setTimingNotice(null);
+    setTimingError(null);
+    try {
+      const saved = await api.adminSetMessageTiming(next);
+      setTiming(saved);
+      setTimingDraft(timingToDraft(saved));
+      setTimingNotice('saved');
+    } catch (err) {
+      setTimingNotice('save_failed');
+      setTimingError(err instanceof ApiError ? err.message : null);
+      if (timing) setTimingDraft(timingToDraft(timing));
+    } finally {
+      setTimingSaving(false);
+    }
+  };
 
   const saveBudget = async () => {
     const platformDailyUsd = Number(budgetDraft.platform);
@@ -445,6 +485,51 @@ export function AdminSettings({ userEmail }: Props) {
             </div>
             {budgetNotice === 'saved' && <div className="ok-banner">{t.llmBudgetSaved}</div>}
             {budgetNotice === 'save_failed' && <div className="error-banner">{t.llmBudgetSaveFailed}</div>}
+          </>
+        )}
+      </div>
+
+      <div className="settings-section">
+        <h3>{t.messageTimingTitle}</h3>
+        <p className="muted">{t.messageTimingDesc}</p>
+        {timingNotice === 'load_failed' && !timing ? (
+          <div className="error-banner">{t.messageTimingLoadFailed}</div>
+        ) : !timing ? (
+          <p className="muted">{t.loading}</p>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              {(
+                [
+                  ['quiet', 'message-timing-quiet', t.messageTimingQuietLabel, 1],
+                  ['maxWait', 'message-timing-max-wait', t.messageTimingMaxWaitLabel, 1],
+                  ['afterSend', 'message-timing-after-send', t.messageTimingAfterSendLabel, 0],
+                ] as const
+              ).map(([key, id, label, min]) => (
+                <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span>{label}</span>
+                  <input
+                    id={id}
+                    type="number"
+                    min={min}
+                    step={1}
+                    dir="ltr"
+                    value={timingDraft[key]}
+                    disabled={timingSaving}
+                    onChange={(e) => setTimingDraft((d) => ({ ...d, [key]: e.target.value }))}
+                  />
+                </label>
+              ))}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <button className="btn btn-primary" disabled={timingSaving} onClick={() => void saveTiming()}>
+                {timingSaving ? t.saving : t.save}
+              </button>
+            </div>
+            {timingNotice === 'saved' && <div className="ok-banner">{t.messageTimingSaved}</div>}
+            {timingNotice === 'save_failed' && (
+              <div className="error-banner">{timingError ? `${t.messageTimingSaveFailed} ${timingError}` : t.messageTimingSaveFailed}</div>
+            )}
           </>
         )}
       </div>

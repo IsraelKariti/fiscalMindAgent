@@ -1140,7 +1140,7 @@ function makeWorkspaceApi(prefix: string) {
     backfillTaxAdvisors: () =>
       request<TaxAdvisorBackfillResult>(`${prefix}/clients/tax-advisor-backfill`, { method: 'POST' }),
     getClient: (id: string, opts?: RequestOpts) =>
-      request<{ client: Client; nextScheduled: NextScheduled | null; documents: ClientDocument[]; teamQuestions?: TeamQuestion[] }>(
+      request<{ client: Client; nextScheduled: NextScheduled | null; planWaitUntil?: string | null; documents: ClientDocument[]; teamQuestions?: TeamQuestion[] }>(
         `${prefix}/clients/${id}`,
         undefined,
         opts,

@@ -88,6 +88,9 @@ export type ReplanKind = 'turn' | 'after_send';
 /** The BullMQ calls the requester uses. */
 export interface ReplanJobLike {
   data: ReplanJobData;
+  /** Epoch ms the job was added (BullMQ's `timestamp`); with `opts.delay` it gives the due time. */
+  timestamp: number;
+  opts: { delay?: number };
   getState(): Promise<string>;
   remove(): Promise<void>;
 }
@@ -157,6 +160,18 @@ export function createReplanRequester(deps: {
 
 export const replanKindOf = (data: ReplanJobData): ReplanKind => data.kind ?? 'turn';
 export const replanTriggerOf = (data: ReplanJobData): PlanTrigger => data.trigger ?? 'client_message';
+
+/**
+ * The time a queued after-send wait is due (openspec `after-send-wait-state`):
+ * the job's add time plus its delay, only while the job is an after-send run
+ * that has not started. A turn job, a running job or no job gives null — the
+ * workspace then shows its usual drafting state.
+ */
+export async function afterSendDueAt(job: ReplanJobLike | undefined): Promise<Date | null> {
+  if (!job || replanKindOf(job.data) !== 'after_send') return null;
+  if (!NOT_STARTED.has(await job.getState())) return null;
+  return new Date(job.timestamp + (job.opts.delay ?? 0));
+}
 
 /**
  * Builds `requestReplanAfterSend`: asks for the planner run that follows the

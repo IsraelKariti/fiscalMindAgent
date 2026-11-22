@@ -1,7 +1,7 @@
 import { replanQueue } from '../queue/replanQueue.js';
 import { env } from '../config/env.js';
 import { turnStore } from './inboundTurn.js';
-import { createAfterSendReplanRequester, createReplanRequester } from './inboundTurnCore.js';
+import { afterSendDueAt, createAfterSendReplanRequester, createReplanRequester, replanJobId } from './inboundTurnCore.js';
 
 /**
  * Asks for the client's deferred planner run (openspec `inbound-turn`). Called
@@ -24,3 +24,12 @@ export const requestReplanAfterSend = createAfterSendReplanRequester({
   store: turnStore,
   delayMs: env.AFTER_SEND_PLAN_DELAY_SECONDS * 1000,
 });
+
+/**
+ * When the client's queued after-send wait is due, or null when no such wait
+ * is queued (openspec `after-send-wait-state`). The workspace client read
+ * serves it so the page stays silent instead of showing a drafting state.
+ */
+export async function afterSendWaitUntil(clientId: string): Promise<Date | null> {
+  return afterSendDueAt(await replanQueue.getJob(replanJobId(clientId)));
+}

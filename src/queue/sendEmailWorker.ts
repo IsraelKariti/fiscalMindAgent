@@ -115,6 +115,9 @@ export async function onScheduledSend(job: Job<{ clientId: string; emailId: stri
     if (sent === 'sent') {
       await removeFutureEmail(clientId, 'send_settled');
       await requestReplanAfterSend(clientId);
+      // removeFutureEmail already ticked the page, but before the wait was
+      // queued; tick again so the next read sees it (openspec `after-send-wait-state`).
+      publishClientUpdated(clientId);
     } else if (sent === 'not_sent') {
       await removeFutureEmail(clientId, 'send_settled');
       await setFutureEmail(clientId, 'agent_message_sent');

@@ -50,6 +50,7 @@ export function ClientView({
   const api = useWorkspaceApi();
   const [client, setClient] = useState<Client | null>(null);
   const [nextScheduled, setNextScheduled] = useState<NextScheduled | null>(null);
+  const [planWaitUntil, setPlanWaitUntil] = useState<string | null>(null);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
   const [files, setFiles] = useState<DocumentFile[]>([]);
@@ -91,6 +92,7 @@ export function ClientView({
       ]);
       setClient(detail.client);
       setNextScheduled(detail.nextScheduled);
+      setPlanWaitUntil(detail.planWaitUntil ?? null);
       setDocuments(detail.documents);
       setTeamQuestions(detail.teamQuestions ?? []);
       setEmails(thread.emails);
@@ -147,11 +149,25 @@ export function ClientView({
   // send now / retry controls (openspec `staff-conversation-controls`); the tabs
   // hide the other action controls on `viewer`.
   const readOnly = client?.deletedAt != null;
+  // The after-send wait (openspec `after-send-wait-state`): the agent's message
+  // was delivered and its next plan is queued for later on purpose. Not a
+  // drafting state — the timeline shows nothing until the run starts.
+  const waitingAfterSend =
+    client !== null &&
+    client.deletedAt == null &&
+    client.goal_status === 'pending' &&
+    !client.paused &&
+    !nextScheduled &&
+    client.outage_held_at == null &&
+    client.drafting_since == null &&
+    client.draft_failed_at == null &&
+    planWaitUntil != null;
   const drafting =
     client !== null &&
     client.deletedAt == null &&
     client.goal_status === 'pending' &&
     !nextScheduled &&
+    !waitingAfterSend &&
     (!client.paused || client.drafting_since != null || client.draft_failed_at != null);
 
   // Drafting normally settles within ~2 minutes (one Gemini call, worst case a few
@@ -186,6 +202,15 @@ export function ClientView({
     };
   }, [load, drafting, draftFailed, draftStale]);
 
+  // The after-send wait ends at a known time: refetch just after it, so the
+  // drafting placeholder appears as soon as the planner starts.
+  useEffect(() => {
+    if (!waitingAfterSend || planWaitUntil == null) return;
+    const ms = Math.max(1_000, new Date(planWaitUntil).getTime() - Date.now() + 1_000);
+    const timer = setTimeout(() => load({ background: true }), ms);
+    return () => clearTimeout(timer);
+  }, [load, waitingAfterSend, planWaitUntil]);
+
   if (error) return <div className="error-banner">{error}</div>;
   if (!client) return <div className="muted">{t.loading}</div>;
 
@@ -204,6 +229,7 @@ export function ClientView({
     draftFailed,
     draftStale,
     heldBySystem,
+    waitingAfterSend,
     focusMessage,
     focusedMessageId,
     clearFocusedMessage,

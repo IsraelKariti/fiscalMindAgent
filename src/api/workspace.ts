@@ -21,6 +21,7 @@ import {
 } from '../events/clientEvents.js';
 import { pauseFutureEmail } from '../orchestration/pauseFutureEmail.js';
 import { removeFutureEmail } from '../orchestration/removeFutureEmail.js';
+import { afterSendWaitUntil } from '../orchestration/requestReplan.js';
 import { resumeFutureEmail } from '../orchestration/resumeFutureEmail.js';
 import { retryFailedSend } from '../orchestration/retryFailedSend.js';
 import { sendFutureEmailNow } from '../orchestration/sendFutureEmailNow.js';
@@ -327,6 +328,9 @@ workspaceRouter.get(
     res.json({
       client: toWorkspaceClient(client),
       nextScheduled,
+      // The queued after-send wait (openspec `after-send-wait-state`): the page
+      // shows nothing during it and refetches when it is due.
+      planWaitUntil: nextScheduled ? null : ((await afterSendWaitUntil(client.id))?.toISOString() ?? null),
       documents: await clientDocuments.listForClient(client.id),
       // The agent's questions to the team, newest first (openspec `team-questions`): the questions tab.
       teamQuestions: (await teamQuestions.listForClient(client.id)).map(toTeamQuestion),

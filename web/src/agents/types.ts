@@ -34,6 +34,8 @@ export interface ClientTabContext {
   draftStale: boolean;
   /** Held by a provider outage (openspec `llm-provider-outage`): the timeline shows the calm waiting notice instead of a failure or a stall. */
   heldBySystem: boolean;
+  /** The agent waits out the after-send delay (openspec `after-send-wait-state`): the timeline ends at the delivered message and shows no drafting state. */
+  waitingAfterSend: boolean;
   /** Show the Conversation tab scrolled to this message, highlighted briefly (openspec `chat-stated-cost`). */
   focusMessage: (messageId: string) => void;
   /** The message the Conversation tab should scroll to on its next render; null when none is requested. */

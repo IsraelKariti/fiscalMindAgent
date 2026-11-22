@@ -5,7 +5,6 @@ Defines how the agent's reply relates to document verification: the agent does n
 
 ## Requirements
 
-
 ### Requirement: No draft before the verdicts
 A planning answer that marks one or more documents as collected, pairs a file with a document, or names a file for a newly created document SHALL be a collecting answer. A collecting answer SHALL carry no message, no send time, no attestation request and no document-fetch action. The system SHALL reject an answer that both collects and carries a message, and an answer that carries no message and collects nothing, and SHALL ask the model for one corrected answer before failing the cycle. The reply SHALL be drafted only after every just-collected document of the cycle has a verification outcome.
 
@@ -89,11 +88,15 @@ When the document-fetch delivery marks several fetched documents as collected, t
 - **THEN** both are verified, and exactly one planning cycle runs afterwards
 
 ### Requirement: The turn stays visibly in progress
-From the start of the collecting cycle until the follow-up cycle has ended, the workspace SHALL show the client as drafting.
+From the start of the collecting cycle until the follow-up cycle has ended, the workspace SHALL show the client as busy, never as idle and never as stuck: the drafting notice during the collecting planner cycle, the processing notice while the collected documents are verified (refreshed per document), and the drafting notice again during the follow-up cycle.
 
 #### Scenario: Accountant opens the client during verification
 - **WHEN** the accountant opens the client while verification of a just-collected document is running
-- **THEN** the client shows the drafting state and no scheduled message
+- **THEN** the client shows the processing notice and no scheduled message
+
+#### Scenario: Verification ends, follow-up cycle runs
+- **WHEN** the last document of the batch is verified and the follow-up planner cycle starts
+- **THEN** the processing notice turns into the drafting notice until the reply is scheduled
 
 ### Requirement: The withheld draft and the follow-up are audited
 The system SHALL record one audit step when a collecting answer defers the reply, naming the documents it collected, and one `planner.rerun_after_verification` step per batch that names every document of the batch with its outcome. The deferred-reply step SHALL keep the key of the former withheld-draft step, so older trails read the same, and its label SHALL say that the reply is deferred until verification, not that a draft was withheld.

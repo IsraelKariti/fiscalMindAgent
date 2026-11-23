@@ -59,3 +59,15 @@ export function resolveTurnActivity(input: TurnActivityInput): TurnActivity {
   if (input.lastActivityAt != null && ageOf(input.lastActivityAt) > ACTIVITY_STALE_MS) return 'stuck';
   return 'idle';
 }
+
+/**
+ * Whether the conversation header shows its own pause control (openspec
+ * `conversation-pause`): the goal is open, the client is not paused, the view
+ * is not read-only (a deleted client) and no scheduled bubble carries the
+ * control — a scheduled message has its own pause button, and a scheduled
+ * draft held for admin review deliberately has none (openspec
+ * `review-wait-visibility`), so the header shows none either.
+ */
+export function showHeaderPause(input: { readOnly: boolean; goalStatus: string; paused: boolean; hasScheduled: boolean }): boolean {
+  return !input.readOnly && input.goalStatus === 'pending' && !input.paused && !input.hasScheduled;
+}

@@ -5959,3 +5959,14 @@ pre.doc-text {
   font-size: 0.8em;
   max-width: 100%;
 }
+
+/* Conversation header pause (openspec `conversation-pause`): sits between the
+   message count and the copy button while nothing is scheduled. */
+.header-pause-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 10px;
+  font-size: 13px;
+  flex-shrink: 0;
+}

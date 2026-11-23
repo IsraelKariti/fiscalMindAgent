@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveTurnActivity, type TurnActivityInput } from '../web/src/components/turnActivity.js';
+import { resolveTurnActivity, showHeaderPause, type TurnActivityInput } from '../web/src/components/turnActivity.js';
 
 const NOW = Date.parse('2026-11-22T18:25:00Z');
 const ago = (s: number): string => new Date(NOW - s * 1000).toISOString();
@@ -71,5 +71,23 @@ describe('resolveTurnActivity (openspec `turn-activity-states`)', () => {
     const noColumn = input();
     delete noColumn.client.processing_since;
     assert.equal(resolveTurnActivity({ ...noColumn, planWaitUntil: ahead(10) }), 'waiting');
+  });
+});
+
+describe('showHeaderPause (openspec `conversation-pause`)', () => {
+  const base = { readOnly: false, goalStatus: 'pending', paused: false, hasScheduled: false };
+
+  it('shows the header control while the agent waits with nothing scheduled', () => {
+    assert.equal(showHeaderPause(base), true);
+  });
+
+  it('hides it when a scheduled bubble exists (it carries its own control, or none when held for review)', () => {
+    assert.equal(showHeaderPause({ ...base, hasScheduled: true }), false);
+  });
+
+  it('hides it for a paused client, a completed goal and a read-only (deleted) client', () => {
+    assert.equal(showHeaderPause({ ...base, paused: true }), false);
+    assert.equal(showHeaderPause({ ...base, goalStatus: 'complete' }), false);
+    assert.equal(showHeaderPause({ ...base, readOnly: true }), false);
   });
 });

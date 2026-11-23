@@ -672,6 +672,8 @@ const he = {
   sendNowWaitingBody: 'ההודעה תישלח רק אחרי שהמנהל יאשר אותה. אי אפשר לשלוח אותה עכשיו.',
   close: 'סגור',
   pauseSchedule: 'השהה',
+  pausing: 'משהה…',
+  pauseConversationTitle: 'השהיית הסוכן — שום הודעה לא תישלח ללקוח ותשובות הלקוח לא ייענו עד לחידוש השיחה',
   resumeSchedule: 'חידוש השיחה',
   resuming: 'מחדש…',
   pausedScheduledNote: (ts: string) => `מושהה — מתוזמן ל־${ts}`,

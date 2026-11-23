@@ -26,7 +26,7 @@ import { isAccountantEmailStep } from './stepLink';
 import { StepDetailModal, gateReasonOf, gateResultOf } from './StepDetailModal';
 import { SendNowModal } from './SendNowModal';
 import { mergeTrace, type TraceEntry } from './timelineRows';
-import type { TurnActivity } from './turnActivity';
+import { showHeaderPause, type TurnActivity } from './turnActivity';
 
 type ChannelFilter = 'all' | MessageChannel;
 
@@ -891,6 +891,22 @@ export function Timeline({
             <span className="muted panel-count">
               {visibleEmails.length === 1 ? t.oneMessage : t.nMessages(visibleEmails.length)}
             </span>
+          )}
+          {/* Pause while nothing is scheduled (openspec `conversation-pause`): the
+              scheduled bubble carries its own control; this one covers the wait
+              for a reply, the quiet window and the drafting states, without
+              adding a row to a timeline that must end at the last message. */}
+          {showHeaderPause({ readOnly, goalStatus, paused, hasScheduled: nextScheduled != null }) && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-small header-pause-btn"
+              onClick={() => togglePause(true)}
+              disabled={pauseBusy}
+              title={t.pauseConversationTitle}
+            >
+              <span className="paused-icon">{icon.pause}</span>
+              {pauseBusy ? t.pausing : t.pauseSchedule}
+            </button>
           )}
           {(emails.length > 0 || nextScheduled) && (
             <button

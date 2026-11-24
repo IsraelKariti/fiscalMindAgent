@@ -301,6 +301,33 @@ class MockTaxFetchClient implements TaxFetchClient {
           kind: d.key,
         }));
     }
+    // Migdal's four rounds (openspec `migdal-fetch`) yield the full and the
+    // short annual report per product, both of the product's kind, titled the
+    // way the site names its rows (the pension titles are the owner's real
+    // ones; the study-fund titles are invented for the mock).
+    if (provider === 'migdal') {
+      const titlesByKey: Record<string, string[]> = {
+        pension_annual: [
+          `דוח שנתי לעמית- מקפת אישית - לשנת ${opts.taxYear}`,
+          `דוח שנתי מקוצר לעמית -מקפת אישית - לשנת ${opts.taxYear}`,
+        ],
+        study_fund_annual: [
+          `דוח שנתי לעמית - קרן השתלמות - לשנת ${opts.taxYear}`,
+          `דוח שנתי מקוצר לעמית - קרן השתלמות - לשנת ${opts.taxYear}`,
+        ],
+      };
+      return opts.documentKeys
+        .filter((key) => key in titlesByKey)
+        .flatMap((key) => titlesByKey[key]!.map((title) => ({ key, title })))
+        .map((d, i) => ({
+          buffer: MOCK_PDF,
+          filename: `mock_migdal_${opts.taxYear}_${i + 1}.pdf`,
+          contentType: 'application/pdf',
+          employerName: null,
+          title: d.title,
+          kind: d.key,
+        }));
+    }
     // Provider-aware via the agreed keys: any non-106 key set (e.g. Altshuler's
     // pension/study fund) returns one PDF per requested key, so the multi-document
     // delivery path is exercised with the right kinds and labels.

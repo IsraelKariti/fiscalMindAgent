@@ -508,11 +508,124 @@ const phoenixSpec: FetchProviderSpec = {
   },
 };
 
+// ── Migdal ──────────────────────────────────────────────────────────────────
+
+/** A required-document name that mentions Migdal (the insurer, מקפת the pension/provident arm, or the Latin name). */
+const MIGDAL_NAME = /מגדל|מקפת|migdal/i;
+
+/** Human product noun per Migdal document kind, for delivery wording. */
+function migdalProductNoun(kind: string | null | undefined): string {
+  return kind === 'study_fund_annual' ? 'קרן ההשתלמות' : 'הפנסיה';
+}
+
+/** The product nouns of a delivery, each once, in document order. */
+function migdalProducts(docs: FetchedDocument[]): string {
+  return joinHe([...new Set(docs.map((d) => migdalProductNoun(d.kind)))]);
+}
+
+/**
+ * Migdal (מגדל). One SMS-OTP login with the client's national id only — the
+ * site sends the code to the mobile number it holds for that id, so no phone
+ * is sent. The runner runs four filter rounds on "הדוחות והאישורים שלי": the
+ * full annual report ("דוח שנתי") and the short one ("דוח שנתי מקוצר"), each
+ * for פנסיה and for השתלמות (openspec `migdal-fetch`); both reports of a
+ * product carry the same kind and attach to the same checklist row, titled by
+ * their on-site row title.
+ */
+const migdalSpec: FetchProviderSpec = {
+  id: 'migdal',
+  siteNameHe: 'מגדל',
+  otpChannel: 'sms',
+  // Same consent rule as Harel/Phoenix: both products are always searched and
+  // a kind the list lacks gets its row at delivery.
+  takesAllDocuments: true,
+
+  documents: [
+    {
+      key: 'pension_annual',
+      documentDescriptionHe: 'דוח שנתי מלא ומקוצר — פנסיה / קופת גמל (מגדל מקפת)',
+      matchesRequiredDocument: (doc) => MIGDAL_NAME.test(doc.name) && /פנסיה|גמל|מקפת/.test(doc.name) && !/השתלמות/.test(doc.name),
+      catalogTypeKey: 'pension_provident',
+    },
+    {
+      key: 'study_fund_annual',
+      documentDescriptionHe: 'דוח שנתי מלא ומקוצר — קרן השתלמות (מגדל)',
+      matchesRequiredDocument: (doc) => MIGDAL_NAME.test(doc.name) && /השתלמות/.test(doc.name),
+      catalogTypeKey: 'study_fund',
+    },
+  ],
+
+  async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
+    // National id from clientIdNumber's shared order (own credentials row →
+    // tax-authority row → the id the kickoff stored from the CRM card). The
+    // site asks for no phone, but the code is relayed over WhatsApp, so a
+    // client without a WhatsApp number cannot be served.
+    const idNumber = (await clientIdNumber(client, 'migdal'))?.id;
+    if (!idNumber || !client.wa_phone) return null;
+    return { idNumber };
+  },
+
+  messages: {
+    otpSent:
+      'הקוד נשלח אליך הרגע ממגדל ב-SMS 📱 למספר הנייד הרשום אצלם. הוא תקף לדקות ספורות — אנא שלח/י לי אותו כאן ברגע שהוא מגיע.',
+    loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר מגדל כרגע. נוכל לנסות שוב מאוחר יותר.',
+    busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
+    otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
+    otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS ממגדל.',
+    otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
+    downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
+    noDocumentsOnSite:
+      'הזדהיתי בהצלחה באתר מגדל, אך לא נמצאו שם דוחות שנתיים לשנה המבוקשת. ייתכן שהדוח טרם פורסם או שהחשבון מתנהל בחברה אחרת — נבדוק את זה מול המשרד ונעדכן אותך.',
+  },
+
+  delivery: {
+    waConfirmation(docs: FetchedDocument[], canEmail: boolean, createdKinds: string[] = []): string {
+      const single = docs.length === 1;
+      const fetchedWhat = single
+        ? `את הדוח השנתי של ${migdalProducts(docs)} שלך`
+        : `${docs.length} דוחות שנתיים של ${migdalProducts(docs)} שלך`;
+      const tail = canEmail
+        ? single
+          ? 'שלחתי לך עותק למייל.'
+          : 'שלחתי לך עותקים למייל.'
+        : single
+          ? 'המסמך נשמר והועבר לרואה החשבון.'
+          : 'המסמכים נשמרו והועברו לרואה החשבון.';
+      // A kind the list did not expect: told after the fact (openspec `migdal-fetch`).
+      const alsoFound = createdKinds.map(
+        (kind) => ` מצאתי שם גם את ${migdalProductNoun(kind)} שלך — הוספתי אותה לרשימת המסמכים.`,
+      );
+      return `הצלחתי למשוך ${fetchedWhat} ממגדל 🎉 ${tail}${alsoFound.join('')}`;
+    },
+
+    emailSubject(docs: FetchedDocument[], taxYear: number): string {
+      const products = joinHe([...new Set(docs.map((d) => (d.kind === 'study_fund_annual' ? 'קרן השתלמות' : 'פנסיה')))]);
+      return docs.length > 1
+        ? `דוחות שנתיים (${products}) - מגדל - ${taxYear}`
+        : `דוח שנתי (${products}) - מגדל - ${taxYear}`;
+    },
+
+    emailBodyLines(docs: FetchedDocument[], taxYear: number): string[] {
+      return [
+        docs.length === 1
+          ? `מצורף הדוח השנתי של ${migdalProducts(docs)} שלך לשנת ${taxYear}, שנמשך עבורך ממגדל.`
+          : `מצורפים ${docs.length} הדוחות השנתיים של ${migdalProducts(docs)} שלך לשנת ${taxYear}, שנמשכו עבורך ממגדל:`,
+        ...(docs.length > 1 ? ['', ...docs.map((d) => `• ${d.title ?? 'דוח שנתי'} — ${migdalProductNoun(d.kind)}`)] : []),
+      ];
+    },
+
+    fileLabel(doc: FetchedDocument, taxYear: number): string | null {
+      return `${doc.title ?? 'דוח שנתי'} — מגדל ${taxYear}`;
+    },
+  },
+};
+
 const SPECS: Record<string, FetchProviderSpec> = {
   [israelTaxAuthoritySpec.id]: israelTaxAuthoritySpec,
   [altshulerShahamSpec.id]: altshulerShahamSpec,
   [harelSpec.id]: harelSpec,
   [phoenixSpec.id]: phoenixSpec,
+  [migdalSpec.id]: migdalSpec,
 };
 
 /** Looks up a provider spec; throws on an id the worker doesn't know (bad row / version skew). */

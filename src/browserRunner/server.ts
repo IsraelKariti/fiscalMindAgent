@@ -8,6 +8,7 @@ import { israelTaxAuthorityProvider } from './israelTaxAuthority.js';
 import { altshulerShahamProvider } from './altshulerShaham.js';
 import { harelProvider } from './harel.js';
 import { phoenixProvider } from './phoenix.js';
+import { migdalProvider } from './migdal.js';
 import { NoDocumentsOnSiteError, OtpRejectedError, type DocumentFetchProvider } from './providerTypes.js';
 import { RUNNER_PROTOCOL_VERSION } from './protocol.js';
 import { logger } from '../util/logger.js';
@@ -17,6 +18,7 @@ const PROVIDERS: Record<string, DocumentFetchProvider> = {
   altshuler_shaham: altshulerShahamProvider,
   harel: harelProvider,
   phoenix: phoenixProvider,
+  migdal: migdalProvider,
 };
 
 /** At most this many browsers open at once (each is a real Chrome; the box is small). */

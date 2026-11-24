@@ -1217,7 +1217,22 @@ capability** — there is no accountant button.
   first file; audit `tax_fetch.document_created`; documents tab shows "נוצר
   ממסמך שנמשך מאתר הפניקס"). The WhatsApp confirmation then adds one "also found
   … added to the list" sentence per created kind. Tested in
-  `tests/fetchedRows.test.ts`. `TAX_FETCH_MOCK=true` swaps in an
+  `tests/fetchedRows.test.ts`. `migdal` (pension + study fund in one SMS-OTP
+  login with the national id only — the site sends the code to the mobile
+  number it holds for that id; openspec `migdal-fetch`): four filter rounds on
+  my.migdal.co.il/mymigdal/info/approvals using the page's own dropdowns —
+  report type "דוח שנתי" then "דוח שנתי מקוצר", each for product פנסיה then
+  השתלמות, year by label (a year the dropdown lacks fails loudly; a product
+  the account lacks ends its round quietly; "לא מצאנו נתונים לתצוגה" is an
+  empty round) — every row of an answered round whose title carries the year
+  is downloaded through the browser download event and tagged with the
+  round's kind, so the full and the short report of a product land on the same
+  checklist row; health reports are never requested. The pure
+  `selectMigdalRows` in `browserRunner/migdal.ts` is tested in
+  `tests/migdalSelect.test.ts`; Migdal is a `takesAllDocuments` provider like
+  Harel and Phoenix (rows created at delivery are named " — מגדל").
+  `scripts/migdalFetchSmoke.ts <id> [year]` is its live check.
+  `TAX_FETCH_MOCK=true` swaps in an
   in-worker no-runner mock (`fetchClient.ts` — every real login emails a real
   citizen an OTP, so iterate on the mock). `scripts/taxFetchSmoke.ts` validates the
   real-site port once, interactively (no token/runner needed).
@@ -1227,7 +1242,8 @@ capability** — there is no accountant button.
   national ID + permanent user code), synced for new *and* existing clients.
   Only the tax authority needs that row (its login also takes the user code).
   Altshuler, Harel and Phoenix log in with a national id + the client's WhatsApp
-  number, and take the id from `taxFetch/clientId.ts` `clientIdNumber` in
+  number (Migdal with the national id alone — it sends its SMS to the number
+  it holds, so the WhatsApp number is only the relay channel), and take the id from `taxFetch/clientId.ts` `clientIdNumber` in
   one shared order — the provider's own credentials row → the tax-authority
   row → `agent_fields.id_number` stored by the kickoff from the CRM card —
   used both by the availability check (`flow.ts`) and the runner's login, so

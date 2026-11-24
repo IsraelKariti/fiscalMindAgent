@@ -36,8 +36,8 @@ describe('buildSiteAccessReport', () => {
     assert.deepEqual(
       empty.groups.map((g) => [g.key, g.size, g.builtCount, g.totalAccesses]),
       [
-        ['pension', 9, 3, 0],
-        ['study_fund', 11, 3, 0],
+        ['pension', 9, 4, 0],
+        ['study_fund', 11, 4, 0],
         ['other', 1, 1, 0],
       ],
     );
@@ -51,6 +51,8 @@ describe('buildSiteAccessReport', () => {
     assert.equal(find('harel', 'pension_annual').built, true);
     assert.equal(find('phoenix', 'pension_annual').built, true);
     assert.equal(find('phoenix', 'study_fund_annual').built, true);
+    assert.equal(find('migdal', 'pension_annual').built, true);
+    assert.equal(find('migdal', 'study_fund_annual').built, true);
   });
 
   it('an Altshuler session with two keys counts under both products', () => {

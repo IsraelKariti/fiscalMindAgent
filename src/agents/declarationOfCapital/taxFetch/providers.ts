@@ -214,8 +214,10 @@ const altshulerShahamSpec: FetchProviderSpec = {
       key: 'pension_annual',
       documentDescriptionHe: 'דוח שנתי ואישורי מס — פנסיה',
       // Both names carry "אלטשולר"; the study fund adds "קרן השתלמות", so the
-      // pension is an Altshuler doc that is NOT the study fund.
-      matchesRequiredDocument: (doc) => /אלטשולר/.test(doc.name) && !/השתלמות/.test(doc.name),
+      // pension is an Altshuler pension / provident doc that is NOT the study
+      // fund (the fund words keep a securities or insurance row of the same
+      // company from counting, as for the other fund sites).
+      matchesRequiredDocument: (doc) => /אלטשולר/.test(doc.name) && /פנסיה|גמל/.test(doc.name) && !/השתלמות/.test(doc.name),
     },
     {
       key: 'study_fund_annual',

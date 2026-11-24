@@ -37,6 +37,7 @@ import {
   concludeDetail,
   resolveDocumentDetail,
   retireDocumentDetail,
+  setCompanyDetail,
   sendMessageDetail,
   stateCostDetail,
   stateVehicleDetail,
@@ -48,7 +49,7 @@ import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
 import type { ParsedToolCall } from './decisionTools.js';
 import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState, type NormalizedDecision, type StatedCost, type StatedVehicle } from './decisionSchema.js';
-import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys, type TaxFetchContext } from './taxFetch/flow.js';
+import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys, sitesForUnnamedRows, type TaxFetchContext } from './taxFetch/flow.js';
 import { getProviderSpec } from './taxFetch/providers.js';
 import { clientIdNumber } from './taxFetch/clientId.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
@@ -205,6 +206,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
   }
   const changes: ChecklistChanges = { applied: 0, createdWithFiles: [], claimedAtCreation: [], createdStated: [], createdStatedVehicles: [] };
   await applyResolutions(run, decision, changes);
+  await applyCompanies(run, decision, changes);
   await applyAdditions(run, decision, changes);
   await applyRetirements(run, decision, changes);
   await applyStatedCosts(run, decision, changes);
@@ -414,6 +416,7 @@ async function buildIntakeState(
       .filter((d) => d.type_key !== null && d.status !== 'unresolved' && d.status !== 'not_required')
       .map((d) => ({
         id: d.id,
+        name: d.name,
         status: d.status,
         typeKey: d.type_key,
         multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
@@ -504,6 +507,9 @@ async function buildPlannerPrompt(run: PlanRun): Promise<{ systemInstruction: st
     lostFiles,
     intake.selfEvidentFiles ?? new Map(),
     run.teamQuestions,
+    // The fetch sites a company answer would unlock for each row that names
+    // no company (openspec `item-company-clarification`).
+    await sitesForUnnamedRows(client, documents, waState),
   );
   return { systemInstruction, contents };
 }
@@ -670,6 +676,52 @@ async function applyResolutions(run: PlanRun, decision: NormalizedDecision, chan
       step(true, rows.map((r) => r.name));
     }
   }
+}
+
+/**
+ * `set_company` (openspec `item-company-clarification`): a pending row that
+ * named no company takes the company the client named — the gate built the
+ * new name; this writes it, records the step and the audit event, and reloads
+ * the list so a sibling added in the same answer sits next to the renamed
+ * head. Runs before apply_additions for that reason.
+ */
+async function applyCompanies(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
+  const { client, clientId } = run;
+  if (decision.setCompanies.length === 0) return;
+  for (const setting of decision.setCompanies) {
+    const call = run.calls.find((c) => c.name === 'set_company' && c.args.document_id === setting.documentId);
+    const step = (applied: boolean) => {
+      if (!call) return;
+      recordToolStep(run, call, setCompanyDetail(call, { applied, ...setting }), { type: 'client_document', id: setting.documentId });
+    };
+    const row = await clientDocuments.setCompanyName(setting.documentId, clientId, setting.newName);
+    if (!row) {
+      step(false);
+      continue;
+    }
+    changes.applied += 1;
+    recordAudit({
+      actorType: 'agent',
+      action: 'document.company_set',
+      agentInstanceId: client.agent_instance_id,
+      clientId,
+      targetType: 'client_document',
+      targetId: row.id,
+      detail: {
+        clientName: client.name,
+        oldName: setting.oldName,
+        name: row.name,
+        typeKey: row.type_key,
+        company: setting.companyText,
+        companyKey: setting.companyKey ?? 'not in table',
+        evidence: setting.evidence,
+      },
+    });
+    step(true);
+    logger.info('item company set', { clientId, documentId: row.id, name: row.name, companyKey: setting.companyKey });
+  }
+  run.documents = await clientDocuments.listForClient(clientId);
+  publishClientUpdated(clientId);
 }
 
 /**

@@ -1,0 +1,303 @@
+{
+  "ranAt": "2026-11-24T21:27:58.960Z",
+  "finishedAt": "2026-11-24T21:28:08.166Z",
+  "models": [
+    "gemini-2.5-flash"
+  ],
+  "stages": [
+    "injection_detection_llm",
+    "questionnaire_schema_mapping",
+    "file_splitting",
+    "file_classification",
+    "extract_document",
+    "planner"
+  ],
+  "concurrency": 4,
+  "maxSpendUsd": 30,
+  "accountantTimezone": "Asia/Jerusalem",
+  "pricing": {
+    "gemini-2.5-flash": {
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "thinkingCostPerToken": 0.0000025,
+      "cachedCostPerToken": 3e-8
+    }
+  },
+  "results": [
+    {
+      "stage": "planner",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_45",
+      "notes": "Change fund-company-clarification: the pension row names no company (חברה: לא ידועה, the six fund sites listed) and the client names Migdal -> set_company on the row with the quote, and the reply offers to pull the certificate from the Migdal site instead of asking for an upload (the tax_fetch tool itself arrives next run).",
+      "ranAt": "2026-11-24T21:28:00.792Z",
+      "latencyMs": 5860,
+      "attempts": 1,
+      "inputTokens": 30116,
+      "outputTokens": 202,
+      "thinkingTokens": 648,
+      "cachedTokens": 0,
+      "costUsd": 0.0111598,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "set_company",
+            "args": {
+              "evidence_quote": "הפנסיה שלי במגדל",
+              "company": "מגדל",
+              "evidence_message_id": "msg-4",
+              "document_id": "doc-pension"
+            }
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "מעולה ישראל, רשמתי שהפנסיה שלך מנוהלת במגדל. אפשר למשוך את אישור היתרה ישירות מהאתר של מגדל עבורך (עם קוד אימות חד-פעמי שישלח אליך). תרצה שאמשיך עם זה?",
+              "send_at": "asap"
+            }
+          },
+          {
+            "name": "conclude",
+            "args": {
+              "decision": "follow_up",
+              "reasoning": "הלקוח ציין את חברת הפנסיה. עדכנתי את השורה ואני מציע לו למשוך את המסמך ישירות מהאתר."
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 1,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-11-10T10:31:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "send_asap",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "message_includes.מגדל",
+          "expected": true,
+          "actual": true,
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "אתר",
+            "למשוך",
+            "משיכה",
+            "אמשוך"
+          ],
+          "actual": [
+            "אתר",
+            "למשוך"
+          ],
+          "pass": true
+        },
+        {
+          "key": "message_excludes.לצרף",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "message_excludes.להעלות",
+          "expected": false,
+          "actual": false,
+          "pass": true
+        },
+        {
+          "key": "added_instances",
+          "expected": {},
+          "actual": {},
+          "pass": true
+        },
+        {
+          "key": "set_companies",
+          "expected": {
+            "doc-pension": "migdal"
+          },
+          "actual": {
+            "doc-pension": "migdal"
+          },
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "set_company",
+          "send_whatsapp_text",
+          "conclude"
+        ],
+        "reasoning": "הלקוח ציין את חברת הפנסיה. עדכנתי את השורה ואני מציע לו למשוך את המסמך ישירות מהאתר.",
+        "send_at": "asap",
+        "message": "מעולה ישראל, רשמתי שהפנסיה שלך מנוהלת במגדל. אפשר למשוך את אישור היתרה ישירות מהאתר של מגדל עבורך (עם קוד אימות חד-פעמי שישלח אליך). תרצה שאמשיך עם זה?",
+        "resolutions": [],
+        "added_instance_names": [],
+        "evidence_quotes": [],
+        "team_question": null,
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    },
+    {
+      "stage": "planner",
+      "model": "gemini-2.5-flash",
+      "provider": "gemini",
+      "caseId": "dec_46",
+      "notes": "Change fund-company-clarification: the client does not know which company holds the pension -> no set_company (nothing to quote), the list is unchanged and the reply asks for the certificate as before.",
+      "ranAt": "2026-11-24T21:28:00.898Z",
+      "latencyMs": 7260,
+      "attempts": 1,
+      "inputTokens": 30133,
+      "outputTokens": 168,
+      "thinkingTokens": 1010,
+      "cachedTokens": 0,
+      "costUsd": 0.0119849,
+      "error": null,
+      "output": {
+        "calls": [
+          {
+            "name": "conclude",
+            "args": {
+              "reasoning": "The client replied that he will check the pension company. I need to acknowledge this and ask for the bank statement for Bank Hapoalim.",
+              "decision": "follow_up"
+            }
+          },
+          {
+            "name": "send_whatsapp_text",
+            "args": {
+              "text": "הבנתי, תודה ישראל. כשיהיה לך מידע לגבי חברת הפנסיה, אשמח לעדכון. בינתיים, אשמח אם תוכל לשלוח אישור יתרות מהבנק הבינלאומי ליום 31.12.2025. אפשר גם ריכוז יתרות, דוח שנתי מקוצר או תעודת זהות בנקאית.",
+              "send_at": "asap"
+            }
+          }
+        ]
+      },
+      "checks": [
+        {
+          "key": "gate",
+          "expected": "accepted",
+          "actual": "accepted",
+          "pass": true
+        },
+        {
+          "key": "decision",
+          "expected": "follow_up",
+          "actual": "follow_up",
+          "pass": true
+        },
+        {
+          "key": "message_kind",
+          "expected": "freeform",
+          "actual": "freeform",
+          "pass": true
+        },
+        {
+          "key": "question_marks",
+          "expected": "<= 2",
+          "actual": 0,
+          "pass": true
+        },
+        {
+          "key": "send_at_future",
+          "expected": "asap or after 2026-11-10T10:31:00Z",
+          "actual": "asap",
+          "pass": true
+        },
+        {
+          "key": "message_includes_any",
+          "expected": [
+            "אישור",
+            "דוח"
+          ],
+          "actual": [
+            "אישור",
+            "דוח"
+          ],
+          "pass": true
+        },
+        {
+          "key": "no_list_change",
+          "expected": 0,
+          "actual": 0,
+          "pass": true
+        }
+      ],
+      "info": {
+        "calls": [
+          "conclude",
+          "send_whatsapp_text"
+        ],
+        "reasoning": "The client replied that he will check the pension company. I need to acknowledge this and ask for the bank statement for Bank Hapoalim.",
+        "send_at": "asap",
+        "message": "הבנתי, תודה ישראל. כשיהיה לך מידע לגבי חברת הפנסיה, אשמח לעדכון. בינתיים, אשמח אם תוכל לשלוח אישור יתרות מהבנק הבינלאומי ליום 31.12.2025. אפשר גם ריכוז יתרות, דוח שנתי מקוצר או תעודת זהות בנקאית.",
+        "resolutions": [],
+        "evidence_quotes": [],
+        "team_question": null,
+        "tax_fetch": null,
+        "attestation": null,
+        "collected_document_ids": [],
+        "addedInstances": 0,
+        "retired": 0
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "planner": {
+      "gemini-2.5-flash": {
+        "total": 2,
+        "passed": 2,
+        "passRate": 1,
+        "errors": 0,
+        "latencyMs": {
+          "avg": 6560,
+          "p50": 5860,
+          "p90": 5860,
+          "min": 5860,
+          "max": 7260
+        },
+        "inputTokens": 60249,
+        "outputTokens": 370,
+        "thinkingTokens": 1658,
+        "cachedTokens": 0,
+        "costUsd": 0.023145,
+        "unpriced": 0
+      }
+    }
+  }
+}

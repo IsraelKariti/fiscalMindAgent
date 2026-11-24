@@ -29,6 +29,8 @@ export type AuditAction =
   | 'document.resolved'
   | 'document.instances_added'
   | 'document.retired'
+  // A row renamed with the company the client named for it (openspec `item-company-clarification`).
+  | 'document.company_set'
   // A cost declaration closed by the client's own chat message (openspec `chat-stated-cost`).
   | 'document.stated'
   | 'document.verified'
@@ -78,6 +80,7 @@ export type AuditAction =
   | 'resolve_document'
   | 'add_instance'
   | 'retire_document'
+  | 'set_company'
   | 'state_cost'
   | 'state_vehicle'
   | 'attestation'

@@ -296,6 +296,22 @@ export async function splitByCompany(
 }
 
 /**
+ * Company clarification (capital declaration, openspec
+ * `item-company-clarification`): a pending row that named no company is
+ * renamed after the company the client named for it. Only a pending row
+ * takes the name (the gate checked that too); null when the row is no longer
+ * pending (raced to another status) — nothing then changes.
+ */
+export async function setCompanyName(id: string, clientId: string, newName: string): Promise<ClientDocumentRow | null> {
+  const { rows } = await pool.query<ClientDocumentRow>(
+    `UPDATE client_documents SET name = $3, updated_at = now()
+     WHERE id = $1 AND client_id = $2 AND status = 'pending' RETURNING *`,
+    [id, clientId, newName],
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * Requirements-ladder retirement (capital declaration): the document is no
  * longer needed because different documents replaced it (e.g. the contract +
  * appendix unit gave way to assessment + Tabu). Valid from any live status —

@@ -196,6 +196,18 @@ const INTAKE_TOOLS: DecisionTool[] = [
       .strict(),
   },
   {
+    name: 'set_company',
+    description:
+      'The company that manages a pending fund / account / policy row whose line says "חברה: לא ידועה", on the client\'s words: the row keeps its id and status and its name gains the company. One row per call; a further company the client names for the same row is an add_instance.',
+    params: z
+      .object({
+        document_id: z.string(),
+        company: z.string().describe('The company as the client named it.'),
+        ...EVIDENCE_PARAMS,
+      })
+      .strict(),
+  },
+  {
     name: 'attestation',
     description:
       'The final-confirmation gate: request — this answer\'s message IS the closing summary (evidence "" / ""); confirmed — the client confirmed the summary (evidence required).',
@@ -231,6 +243,7 @@ export const DECISION_TOOL_NAMES = [
   'state_cost',
   'state_vehicle',
   'retire_document',
+  'set_company',
   'attestation',
   'tax_fetch',
   'ask_team',
@@ -483,6 +496,13 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
     proven_by_file_id: str(r.proven_by_file_id),
   }));
 
+  // Company clarifications (openspec `item-company-clarification`): one row per call; the gate checks the rest.
+  const setCompanies: NonNullable<DecisionResponse['set_companies']> = of('set_company').map((c) => ({
+    document_id: str(c.document_id),
+    company: str(c.company),
+    evidence: evidenceOf(c),
+  }));
+
   const sendAt = text ? str(text.send_at) : template ? str(template.send_at) : null;
   const fetchKeys = fetch ? strs(fetch.document_keys) : null;
   return {
@@ -499,6 +519,7 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
     resolved_documents: resolvedDocuments.length > 0 ? resolvedDocuments : null,
     added_instances: additions.size > 0 ? [...additions.values()] : null,
     retired_documents: retired.length > 0 ? retired : null,
+    ...(setCompanies.length > 0 ? { set_companies: setCompanies } : {}),
     stated_costs: statedCosts,
     stated_vehicles: statedVehicles,
     attestation: attestation ? (str(attestation.action) as DecisionResponse['attestation']) : null,

@@ -87,7 +87,7 @@ describe('toolsForContext', () => {
   it('capital declaration without a fetch offer: every tool except tax_fetch', () => {
     assert.deepEqual(names(CAPITAL), [
       'conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'ask_team', 'mark_collected', 'tie_file',
-      'resolve_document', 'add_instance', 'state_cost', 'state_vehicle', 'retire_document', 'attestation',
+      'resolve_document', 'add_instance', 'state_cost', 'state_vehicle', 'retire_document', 'set_company', 'attestation',
     ]);
     assert.ok(names(CAPITAL_WITH_FETCH).includes('tax_fetch'));
     assert.deepEqual(decisionValues(CAPITAL), ['goal_complete', 'follow_up', 'collect', 'client_declined']);

@@ -1276,6 +1276,7 @@ const he = {
     resolve_document: 'resolve_document',
     add_instance: 'add_instance',
     retire_document: 'retire_document',
+    set_company: 'set_company',
     state_cost: 'state_cost',
     state_vehicle: 'state_vehicle',
     attestation: 'attestation',

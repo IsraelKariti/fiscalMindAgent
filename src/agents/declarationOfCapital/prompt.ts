@@ -21,6 +21,7 @@ import { MAX_EMPLOYER, cleanEmployer } from './splitChildNames.js';
 import { readMaritalStatus, readSpouse, type SpouseSource } from './spouseIdentity.js';
 import type { LostFilesByMessage } from './lostFiles.js';
 import { selfEvidentMarker, type SelfEvidentFile } from './selfEvidentFiles.js';
+import { rowCompanyUnknown } from './companyClarification.js';
 
 /**
  * The fenced sections the platform itself writes. The input-safety rule names
@@ -309,8 +310,30 @@ export function statedVehicleLine(doc: Pick<ClientDocumentRow, 'status' | 'resol
   return `הוצהר בצ'אט${count}: ${sanitizeInline(vehicleFactsLine(ev.facts), 300)}${quote}`;
 }
 
+/**
+ * The "company unknown" note of a pending institution-bound row that names no
+ * company (openspec `item-company-clarification`): the agent must ask which
+ * company manages it, and the sites that would then become fetchable (only
+ * the ones this client can use now — computed by the caller) are named.
+ */
+export function companyUnknownLine(doc: Pick<ClientDocumentRow, 'id' | 'name' | 'type_key' | 'status'>, sites: ReadonlyMap<string, string[]>): string | null {
+  if (!rowCompanyUnknown(doc)) return null;
+  const names = sites.get(doc.id) ?? [];
+  const fetchable =
+    names.length > 0
+      ? ` אם הלקוח נוקב באחת מהחברות האלה - ${names.map((n) => sanitizeInline(n, 60)).join(', ')} - אז יחד עם \`set_company\`, באותה תשובה, אמור לו שאפשר למשוך את המסמך מאתר החברה עבורו (קוד חד-פעמי לנייד / למייל שלו) ושאל אם להמשיך כך, ואל תבקש ממנו להעלות אותו.`
+      : '';
+  return `חברה: לא ידועה — שאל את הלקוח באיזו חברה / גוף מנוהל הנכס (יחד עם בקשת המסמך, שאלה אחת), ורשום את תשובתו ב-\`set_company\` עם ציטוט.${fetchable}`;
+}
+
 /** Lives in `contents` (not the template) so the system prompt stays static and cacheable. */
-export function buildDocumentsSection(token: string, documents: ClientDocumentRow[], taxYear?: number): string {
+export function buildDocumentsSection(
+  token: string,
+  documents: ClientDocumentRow[],
+  taxYear?: number,
+  /** By row id, the fetch sites a company answer would unlock (openspec `item-company-clarification`). */
+  companySites: ReadonlyMap<string, string[]> = new Map(),
+): string {
   // Retired rows (capital declaration: replaced by other documents via the
   // requirements ladder) are settled history — hidden from the model so they
   // are never re-requested nor presented as "doesn't have".
@@ -348,6 +371,11 @@ export function buildDocumentsSection(token: string, documents: ClientDocumentRo
     // client a fact this line settles.
     const proven = provenFactsLine(provenFactsOf(doc));
     if (proven) extras.push(proven);
+    // A pending fund/account/policy row that names no company (openspec
+    // `item-company-clarification`): ask the client, and say which sites a
+    // company answer would make fetchable.
+    const companyUnknown = companyUnknownLine(doc, companySites);
+    if (companyUnknown) extras.push(companyUnknown);
     // A cost declaration the client stated in the chat (openspec
     // `chat-stated-cost`): settled with no file; the model never asks for it again.
     const stated = statedVehicleLine(doc) ?? statedCostLine(doc);
@@ -764,11 +792,13 @@ export function buildPrompt(
   selfEvidentFiles: ReadonlyMap<string, SelfEvidentFile> = new Map(),
   /** The questions the agent asked the client's team, newest first (openspec `team-questions`). */
   teamQuestions: readonly TeamQuestionRow[] = [],
+  /** By row id, the fetch sites a company answer would unlock for a row that names none (openspec `item-company-clarification`). */
+  companySites: ReadonlyMap<string, string[]> = new Map(),
 ): Prompt {
   const token = makeFenceToken();
   const sections = [
     buildRunContextSection(token, client, accountant, history, now),
-    buildDocumentsSection(token, documents, taxYear),
+    buildDocumentsSection(token, documents, taxYear, companySites),
     buildClientIdentitySection(token, client, clientIdOnFile),
     buildFormAnswersSection(token, client),
     buildIntakeSection(token, intake),

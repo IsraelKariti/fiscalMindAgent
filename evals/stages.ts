@@ -53,6 +53,7 @@ import {
   type WaChannelState,
 } from '../src/agents/declarationOfCapital/prompt.js';
 import { getProviderSpec } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
+import { rowCompanyUnknown, sitesForUnnamedRow } from '../src/agents/declarationOfCapital/companyClarification.js';
 import { env } from '../src/config/env.js';
 import { zonedTimeToUtc } from '../src/util/time.js';
 import type { LlmCallPurpose } from '../src/gemini/modelCatalog.js';
@@ -695,6 +696,12 @@ interface DecideCase {
    */
   tax_fetch?: { provider: string; state: string }[];
   /**
+   * Fetch providers whose login identity resolves for the client (openspec `item-company-clarification`): like
+   * taxFetch/flow.ts, a pending row that names no company lists the sites among these that would fetch it once it
+   * names their company ("חברה: לא ידועה" line).
+   */
+  fetch_credentials?: string[];
+  /**
    * Follow-up cycle after a verification batch: the verdicts that just landed, shown in the VERIFICATION RESULTS
    * block. The reasons come from the row's `verification.reasons`, like in the app.
    */
@@ -738,8 +745,10 @@ interface DecideCase {
     added_instances?: Record<string, number>;
     /** Exactly the row ids the decision retires (retired_documents). */
     retired_documents?: string[];
-    /** true: the decision creates no list item at all (no resolution, no addition, no retirement) — a file alone never changes the list. */
+    /** true: the decision creates no list item at all (no resolution, no addition, no retirement, no company set) — a file alone never changes the list. */
     no_list_change?: boolean;
+    /** Row id -> institutions-table key (null = not in the table): exactly the rows the decision sets a company on (`set_company`, openspec `item-company-clarification`). */
+    set_companies?: Record<string, string | null>;
     /** Per resolved id: what the needed resolution rests on — the client's quote, a self-evident file (openspec `unlisted-files`) or an approved property paper. */
     resolution_evidence_source?: Record<string, 'quote' | 'self_evident_file' | 'approved_file'>;
     /** File ids that some newly created instance must name in its file_ids (exactly this set). */
@@ -1039,6 +1048,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
       .filter((d) => d.type_key !== null && d.status !== 'unresolved' && d.status !== 'not_required')
       .map((d) => ({
         id: d.id,
+        name: d.name,
         status: d.status,
         typeKey: d.type_key,
         multiInstance: getCatalogType(d.type_key as string)?.multiInstance ?? false,
@@ -1100,14 +1110,22 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
   const teamQuestions = teamQuestionRows(c);
   const openQuestion = teamQuestions.find((q) => q.closed_at === null);
   decisionCtx.openTeamQuestion = openQuestion ? { id: openQuestion.id, question: openQuestion.question, askedAt: openQuestion.asked_at } : null;
-  return { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx, teamQuestions };
+  // Like taxFetch/flow.ts `sitesForUnnamedRows`: the sites a company answer would unlock for each row that names none.
+  const usableProviders = (c.fetch_credentials ?? []).map(getProviderSpec);
+  const companySites = new Map<string, string[]>();
+  for (const d of documents) {
+    if (!rowCompanyUnknown(d)) continue;
+    const sites = sitesForUnnamedRow(d.name, usableProviders);
+    if (sites.length > 0) companySites.set(d.id, sites);
+  }
+  return { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx, teamQuestions, companySites };
 }
 
 const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
   purpose: 'planner',
   load: () => readCases('planner'),
   build(c, ctx) {
-    const { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx, teamQuestions } = decideInputs(c, ctx);
+    const { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx, teamQuestions, companySites } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
     const verificationResults: VerificationResultPromptInput[] = (c.verification_results ?? []).map((r, i) => {
       const doc = documents.find((d) => d.id === r.document_id);
@@ -1143,6 +1161,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       new Map(),
       decisionCtx.intake?.selfEvidentFiles ?? new Map(),
       teamQuestions,
+      companySites,
     );
     const { spec } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
     // The planner answers with tool calls (openspec `planner-answer-tools`); the judge runs the gate on them.
@@ -1267,8 +1286,14 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       const wanted = e.retired_documents.slice().sort();
       checks.push({ key: 'retired_documents', expected: wanted, actual: retiredIds, pass: JSON.stringify(wanted) === JSON.stringify(retiredIds) });
     }
+    if (e.set_companies !== undefined) {
+      const sortKeys = (o: Record<string, string | null>) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
+      const actual = sortKeys(Object.fromEntries(decision.setCompanies.map((s) => [s.documentId, s.companyKey])));
+      const wanted = sortKeys(e.set_companies);
+      checks.push({ key: 'set_companies', expected: wanted, actual, pass: JSON.stringify(wanted) === JSON.stringify(actual) });
+    }
     if (e.no_list_change !== undefined) {
-      const changes = decision.resolutions.length + decision.addedInstances.length + decision.retired.length;
+      const changes = decision.resolutions.length + decision.addedInstances.length + decision.retired.length + decision.setCompanies.length;
       checks.push({ key: 'no_list_change', expected: e.no_list_change ? 0 : '>0', actual: changes, pass: e.no_list_change ? changes === 0 : changes > 0 });
     }
     if (e.new_instance_file_ids !== undefined) {

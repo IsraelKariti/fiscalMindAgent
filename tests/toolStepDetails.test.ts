@@ -20,7 +20,7 @@ import type { DocumentFileRow } from '../src/db/types.js';
 // Every planner tool is an audited step name (openspec `conversation-trace`): a compile-time check.
 const TOOL_ACTIONS: AuditAction[] = [...DECISION_TOOL_NAMES];
 test('every planner tool name is an audit action', () => {
-  assert.equal(TOOL_ACTIONS.length, 13);
+  assert.equal(TOOL_ACTIONS.length, 14);
 });
 
 // openspec `team-questions`: the ask_team step carries the question, the reason, the addressee and the stored id.

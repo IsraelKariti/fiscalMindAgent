@@ -4587,6 +4587,48 @@
       ],
       "expects": {"decision": "follow_up", "message_kind": "freeform", "team_question": false, "no_list_change": true, "message_excludes": ["תשלום", "עדיין בודק", "נבדוק", "אבדוק"], "mentions_valuation_date": false, "max_question_marks": 2},
       "notes": "Change agent-asks-team-member: the team member closed the question as answered directly (TEAM QUESTIONS: HANDLED DIRECTLY) -> the cycle does not repeat the fee answer, does not say the office is checking, and simply continues the collection."
+    },
+    {
+      "id": "dec_45",
+      "now": "2026-11-10T10:31:00Z",
+      "seedCatalog": false,
+      "client": {"name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-11-09T10:00:00Z", "agent_fields": {"form_answers": [{"question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "הבנק הבינלאומי, חשבון אחד"}, {"question": "באילו קופות גמל וקרנות פנסיה אתה חבר?", "answer": "יש לי קרן פנסיה"}]}},
+      "wa": {"windowOpen": true, "windowClosesAt": "2026-11-11T10:20:00Z", "templates": ["capital_intro", "capital_update"]},
+      "documents": [
+        {"id": "doc-bank-fibi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות הבנק הבינלאומי ליום 31.12.2025", "description": null},
+        {"id": "doc-pension", "type_key": "pension_provident", "status": "pending", "name": "אישור יתרת קרן פנסיה ליום 31.12.2025 — קרן פנסיה", "description": null},
+        {"type_key": "vehicle", "status": "not_required"}
+      ],
+      "fetch_credentials": ["altshuler_shaham", "harel", "phoenix", "migdal", "meitav", "menora_mivtachim"],
+      "thread": [
+        {"id": "msg-1", "direction": "outbound", "at": "2026-11-09T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?"},
+        {"id": "msg-2", "direction": "inbound", "at": "2026-11-10T10:20:00Z", "body": "אני מוכן"},
+        {"id": "msg-3", "direction": "outbound", "at": "2026-11-10T10:25:00Z", "body": "מצוין, תודה ישראל. נתחיל מקרן הפנסיה: באיזו חברה מנוהלת הפנסיה שלך? ואשמח לאישור יתרה צבורה ליום 31.12.2025 — אפשר להפיק אותו מהאזור האישי באתר החברה."},
+        {"id": "msg-4", "direction": "inbound", "at": "2026-11-10T10:30:00Z", "body": "הפנסיה שלי במגדל"}
+      ],
+      "expects": {"decision": "follow_up", "message_kind": "freeform", "set_companies": {"doc-pension": "migdal"}, "added_instances": {}, "message_includes": ["מגדל"], "message_includes_any": ["אתר", "למשוך", "משיכה", "אמשוך"], "message_excludes": ["לצרף", "להעלות"], "mentions_valuation_date": false, "max_question_marks": 2, "send_asap": true},
+      "notes": "Change fund-company-clarification: the pension row names no company (חברה: לא ידועה, the six fund sites listed) and the client names Migdal -> set_company on the row with the quote, and the reply offers to pull the certificate from the Migdal site instead of asking for an upload (the tax_fetch tool itself arrives next run)."
+    },
+    {
+      "id": "dec_46",
+      "now": "2026-11-10T10:31:00Z",
+      "seedCatalog": false,
+      "client": {"name": "ישראל ישראלי", "wa_phone": "+972501234567", "created_at": "2026-11-09T10:00:00Z", "agent_fields": {"form_answers": [{"question": "חשבונות בנק בארץ או בחו\"ל - באילו בנקים, וכמה חשבונות בכל בנק?", "answer": "הבנק הבינלאומי, חשבון אחד"}, {"question": "באילו קופות גמל וקרנות פנסיה אתה חבר?", "answer": "יש לי קרן פנסיה"}]}},
+      "wa": {"windowOpen": true, "windowClosesAt": "2026-11-11T10:20:00Z", "templates": ["capital_intro", "capital_update"]},
+      "documents": [
+        {"id": "doc-bank-fibi", "type_key": "bank_balance", "status": "pending", "name": "אישור יתרות הבנק הבינלאומי ליום 31.12.2025", "description": null},
+        {"id": "doc-pension", "type_key": "pension_provident", "status": "pending", "name": "אישור יתרת קרן פנסיה ליום 31.12.2025 — קרן פנסיה", "description": null},
+        {"type_key": "vehicle", "status": "not_required"}
+      ],
+      "fetch_credentials": ["altshuler_shaham", "harel", "phoenix", "migdal", "meitav", "menora_mivtachim"],
+      "thread": [
+        {"id": "msg-1", "direction": "outbound", "at": "2026-11-09T10:05:00Z", "wa_content_sid": "HXEVAL0001", "wa_content_variables": ["ישראל", "כהן ושות' רואי חשבון", "2025"], "body": "שלום ישראל, כאן העוזר הדיגיטלי של משרד רואה החשבון כהן ושות' רואי חשבון.\nקיבלנו את השאלון שמילאת עבור הצהרת ההון ליום 31.12.2025 — תודה!\nהשלב הבא הוא איסוף המסמכים הנדרשים להצהרה. אפשר לעשות את זה כאן בוואטסאפ, בליווי שלי, צעד אחר צעד.\nאם תעדיף/י שלא, תצטרך/י ליצור קשר עם המשרד בעצמך ולהעביר אליו את כל המסמכים הנדרשים ישירות.\nאיך נוח לך?"},
+        {"id": "msg-2", "direction": "inbound", "at": "2026-11-10T10:20:00Z", "body": "אני מוכן"},
+        {"id": "msg-3", "direction": "outbound", "at": "2026-11-10T10:25:00Z", "body": "מצוין, תודה ישראל. נתחיל מקרן הפנסיה: באיזו חברה מנוהלת הפנסיה שלך? ואשמח לאישור יתרה צבורה ליום 31.12.2025 — אפשר להפיק אותו מהאזור האישי באתר החברה."},
+        {"id": "msg-4", "direction": "inbound", "at": "2026-11-10T10:30:00Z", "body": "לא יודע באיזו חברה, אבדוק"}
+      ],
+      "expects": {"decision": "follow_up", "message_kind": "freeform", "no_list_change": true, "message_includes_any": ["אישור", "דוח"], "mentions_valuation_date": false, "max_question_marks": 2},
+      "notes": "Change fund-company-clarification: the client does not know which company holds the pension -> no set_company (nothing to quote), the list is unchanged and the reply asks for the certificate as before."
     }
   ]
 }

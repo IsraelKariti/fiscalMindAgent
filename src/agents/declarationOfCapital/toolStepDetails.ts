@@ -130,6 +130,29 @@ export function retireDocumentDetail(
   };
 }
 
+/**
+ * `set_company` (openspec `item-company-clarification`): the row's old and new
+ * name, the company as the client named it, the table key it identified (or
+ * "not in table"), the quote, and whether the rename landed.
+ */
+export function setCompanyDetail(
+  call: ParsedToolCall,
+  outcome: { applied: boolean; oldName: string; newName: string; companyKey: string | null; evidence: EvidenceRef },
+) {
+  const id = str(call.args.document_id);
+  return {
+    ...toolHeader(call),
+    documentId: id,
+    name: outcome.oldName,
+    newName: outcome.newName,
+    company: str(call.args.company),
+    companyKey: outcome.companyKey ?? 'not in table',
+    ...evidenceDetail(outcome.evidence),
+    applied: outcome.applied,
+    reason: outcome.applied ? `renamed "${outcome.oldName}" → "${outcome.newName}"` : 'no change: the row is no longer pending',
+  };
+}
+
 export function stateCostDetail(call: ParsedToolCall, docName: NameLookup, outcome: { documentId: string | null; applied: boolean }) {
   const amount = typeof call.args.amount === 'number' ? call.args.amount : Number(call.args.amount);
   const currency = str(call.args.currency);

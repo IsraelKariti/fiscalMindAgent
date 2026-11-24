@@ -78,6 +78,9 @@ export function callsOf(raw: DecisionResponse): ToolCall[] {
   for (const r of raw.retired_documents ?? []) {
     calls.push({ name: 'retire_document', args: { document_id: r.document_id, ...ev(r.evidence), proven_by_file_id: r.proven_by_file_id } });
   }
+  for (const c of raw.set_companies ?? []) {
+    calls.push({ name: 'set_company', args: { document_id: c.document_id, company: c.company, ...ev(c.evidence) } });
+  }
   for (const s of raw.stated_costs) {
     calls.push({
       name: 'state_cost',

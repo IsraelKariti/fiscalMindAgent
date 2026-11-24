@@ -4,7 +4,8 @@ import { isWallClockDateTime } from '../../util/time.js';
 import { ASAP_SEND_AT } from '../shared/sendAtGuard.js';
 import { renderTemplateBody } from '../../twilio/renderTemplate.js';
 import type { WaTemplateRow } from '../../db/types.js';
-import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault, paperStatedBy } from './catalog.js';
+import { CAPITAL_DOCUMENT_PAPER_VALUES, instancePaperFault, isInstitutionBound, paperStatedBy } from './catalog.js';
+import { companyAppearsInQuote, companyRename, rowCompanyUnknown } from './companyClarification.js';
 import type { VehicleFacts } from '../../db/types.js';
 import { VEHICLE_FACT_KEYS, VEHICLE_FACT_LABELS_HE, hasAnyVehicleFact, vehicleFactMissingFromQuote } from './vehicleDeclaration.js';
 import type { ApprovedPropertyFile } from './provenFacts.js';
@@ -224,6 +225,22 @@ export const DecisionResponseSchema = z.object({
     )
     .nullable(),
   /**
+   * Capital-declaration company clarification (openspec
+   * `item-company-clarification`, the `set_company` tool): the company the
+   * client named for a pending institution-bound row that names none. Code
+   * renames the row "<name> — <company>" on the quote. Optional: [] / absent = none.
+   */
+  set_companies: z
+    .array(
+      z.object({
+        document_id: z.string(),
+        /** The company as the client named it. */
+        company: z.string(),
+        evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
+      }),
+    )
+    .optional(),
+  /**
    * Capital-declaration stated costs (openspec `chat-stated-cost`): a purchase
    * cost the client stated in the conversation for an EXISTING pending
    * cost-declaration item (a property's הצהרת עלות, a vehicle's הצהרת עלות).
@@ -395,6 +412,19 @@ export interface DocumentRetirement {
   evidence: EvidenceRef;
 }
 
+/** One validated company clarification (openspec `item-company-clarification`): the row is renamed on the client's words. */
+export interface CompanySetting {
+  documentId: string;
+  /** The row's name before the rename. */
+  oldName: string;
+  /** The company as the client named it. */
+  companyText: string;
+  /** The institutions-table key the text identified; null when the table does not know the company. */
+  companyKey: string | null;
+  newName: string;
+  evidence: QuoteEvidence;
+}
+
 /** A validated attestation step (capital declaration). */
 export type AttestationDecision = { action: 'request' } | { action: 'confirmed'; evidence: QuoteEvidence };
 
@@ -417,6 +447,7 @@ export type NormalizedDecision =
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
+      setCompanies: CompanySetting[];
       statedCosts: StatedCostDecision[];
       statedVehicles: StatedVehicleDecision[];
       attestation: null;
@@ -430,6 +461,8 @@ export type NormalizedDecision =
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
+      /** Rows renamed with the company the client named (openspec `item-company-clarification`). */
+      setCompanies: CompanySetting[];
       /** Costs stated in the chat for existing items (openspec `chat-stated-cost`); costs on new instances travel on the instances. */
       statedCosts: StatedCostDecision[];
       /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
@@ -447,6 +480,8 @@ export type NormalizedDecision =
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
+      /** Rows renamed with the company the client named (openspec `item-company-clarification`). */
+      setCompanies: CompanySetting[];
       statedCosts: StatedCostDecision[];
       /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
       statedVehicles: StatedVehicleDecision[];
@@ -465,6 +500,8 @@ export type NormalizedDecision =
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
+      /** Rows renamed with the company the client named (openspec `item-company-clarification`). */
+      setCompanies: CompanySetting[];
       /** Costs stated in the chat for existing items (openspec `chat-stated-cost`); costs on new instances travel on the instances. */
       statedCosts: StatedCostDecision[];
       /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
@@ -503,6 +540,8 @@ export interface ResolvableRow {
 /** One already-resolved catalog row — a valid anchor for added_instances / target for retired_documents. */
 export interface TypedRow {
   id: string;
+  /** The row's name — tells whether it names a company (openspec `item-company-clarification`). Absent in older callers. */
+  name?: string;
   /** Current status (anything past 'unresolved'). */
   status: string;
   /** The catalog type of the row — decides which papers added instances may name (openspec `document-papers`). */
@@ -971,6 +1010,69 @@ function statedCostTargetFault(row: TypedRow | undefined, documentId: string): s
  * (the existing evidence rule — its failure is the gate's business_rules); the
  * amount is written in the quote. The first failure rejects the whole answer.
  */
+/** A row that may take a company, or the reason it may not (openspec `item-company-clarification`). */
+function setCompanyTargetFault(row: TypedRow | undefined, documentId: string): string | null {
+  if (!row) return `document ${documentId} is not an already-resolved catalog row of this client`;
+  if (row.status !== 'pending') return `document ${documentId} is ${row.status} — only a pending row can take a company`;
+  if (!isInstitutionBound(row.typeKey)) {
+    return `document ${documentId} is a ${row.typeKey ?? 'ad-hoc'} row — only a bank, fund or policy row (an institution-bound type) names a company`;
+  }
+  if (!rowCompanyUnknown({ name: row.name ?? '', type_key: row.typeKey, status: row.status })) {
+    return `document ${documentId} already names a company ("${row.name ?? ''}") — set_company only fills a row whose line says the company is unknown`;
+  }
+  return null;
+}
+
+/**
+ * Validates the company clarifications (openspec `item-company-clarification`,
+ * the `set_company` tool). Checks per call, reported into `checks`: the target
+ * is a pending institution-bound row that names no company
+ * (`set_company_row_allows`); the quote is verbatim in a stored inbound
+ * message (the evidence rule — its failure is business_rules); the company
+ * text is written in the quote (`set_company_in_quote`); whether the table
+ * knows the company (`set_company_recognised`, informational). The first
+ * failure rejects the whole answer. The new name is built here, the way the
+ * per-company split names items, so the apply step only writes it.
+ */
+function validateSetCompanies(raw: DecisionResponse, ctx: DecisionContext, checks: GateCheck[]): CompanySetting[] {
+  const entries = raw.set_companies ?? [];
+  if (entries.length === 0) return [];
+  const intake = ctx.intake;
+  if (!intake) throw new Error('set_company is not applicable to this agent');
+  const byId = new Map(intake.typedRows.map((r) => [r.id, r]));
+  const seen = new Set<string>();
+  const result: CompanySetting[] = [];
+  for (const entry of entries) {
+    const what = `set_company of ${entry.document_id}`;
+    if (seen.has(entry.document_id)) throw new Error(`set_company targets document ${entry.document_id} twice — one company per row; a further company is an add_instance`);
+    seen.add(entry.document_id);
+    const row = byId.get(entry.document_id);
+    const fault = setCompanyTargetFault(row, entry.document_id);
+    checks.push(
+      check('set_company_row_allows', fault === null, fault && `${what}: ${fault}`, {
+        observed: row ? `"${row.name ?? ''}", status ${row.status}` : 'unknown document',
+        expected: 'a pending institution-bound row that names no company',
+      }),
+    );
+    if (fault) throw new Error(`${what}: ${fault}`);
+    const evidence = validateEvidence(entry.evidence, intake.inboundTexts, what);
+    const company = entry.company.trim();
+    const inQuote = companyAppearsInQuote(company, evidence.quote);
+    const note = inQuote
+      ? null
+      : company === ''
+        ? `${what}: the company is empty — give the company as the client named it`
+        : `${what}: the company "${company}" is not written in the quote — quote the client's words that name it`;
+    checks.push(check('set_company_in_quote', inQuote, note, { observed: evidence.quote, expected: company }));
+    if (!inQuote) throw new Error(note!);
+    const oldName = row!.name ?? '';
+    const { companyKey, newName } = companyRename(oldName, company);
+    checks.push(check('set_company_recognised', true, null, { observed: companyKey ?? 'not in table', expected: null }));
+    result.push({ documentId: entry.document_id, oldName, companyText: company, companyKey, newName, evidence });
+  }
+  return result;
+}
+
 function validateStatedCosts(
   raw: DecisionResponse,
   ctx: DecisionContext,
@@ -1383,6 +1485,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       ...((raw.resolved_documents ?? []).length > 0 ? ['resolve_document'] : []),
       ...((raw.added_instances ?? []).length > 0 ? ['add_instance'] : []),
       ...((raw.retired_documents ?? []).length > 0 ? ['retire_document'] : []),
+      ...((raw.set_companies ?? []).length > 0 ? ['set_company'] : []),
       ...((raw.stated_costs ?? []).length > 0 ? ['state_cost'] : []),
       ...((raw.stated_vehicles ?? []).length > 0 ? ['state_vehicle'] : []),
       ...(raw.team_question ? ['ask_team'] : []),
@@ -1401,6 +1504,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       resolutions: [],
       addedInstances: [],
       retired: [],
+      setCompanies: [],
       statedCosts: [],
       statedVehicles: [],
       attestation: null,
@@ -1440,6 +1544,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
   const resolutions = validateResolutions(raw, ctx);
   const addedInstances = validateAddedInstances(raw, ctx);
   const retired = validateRetirements(raw, ctx);
+  const setCompanies = validateSetCompanies(raw, ctx, checks);
   const statedCosts = validateStatedCosts(raw, ctx, resolutions, addedInstances, checks);
   const statedVehicles = validateStatedVehicles(raw, ctx, resolutions, addedInstances, checks);
   const attestation = validateAttestation(raw, ctx);
@@ -1454,6 +1559,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       resolutions,
       addedInstances,
       retired,
+      setCompanies,
       statedCosts,
       statedVehicles,
       attestation,
@@ -1469,6 +1575,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       resolutions,
       addedInstances,
       retired,
+      setCompanies,
       statedCosts,
       statedVehicles,
       attestation,
@@ -1489,6 +1596,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
     resolutions,
     addedInstances,
     retired,
+    setCompanies,
     statedCosts,
     statedVehicles,
     attestation,

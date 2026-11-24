@@ -9,6 +9,7 @@ import type { TaxFetchAction } from '../decisionSchema.js';
 import { effectiveFetchKeys } from './fetchedRows.js';
 import { getProviderSpec, listProviderSpecs, type FetchDocumentType, type FetchProviderSpec } from './providers.js';
 import { NO_DOCUMENTS_ERROR_PREFIX } from './types.js';
+import { rowCompanyUnknown, sitesForUnnamedRow } from '../companyClarification.js';
 
 /** The fetch's state as the prompt/decision layer sees it (collapses the worker's finer statuses). */
 export type TaxFetchPromptState =
@@ -144,6 +145,33 @@ export async function loadTaxFetchContexts(
     if (ctx) contexts.push(ctx);
   }
   return contexts;
+}
+
+/**
+ * The sites the prompt lists on each pending row that names no company
+ * (openspec `item-company-clarification`): by row id, the site names of every
+ * provider the client could use now (login identity resolvable, WhatsApp
+ * allowed) whose matcher would accept the row once it names that company.
+ * Credentials are resolved once per provider, and only when such a row
+ * exists. Rows with no site are absent (the prompt still marks them unknown).
+ */
+export async function sitesForUnnamedRows(
+  client: ClientRow,
+  documents: ClientDocumentRow[],
+  waState: WaChannelState,
+): Promise<Map<string, string[]>> {
+  const sites = new Map<string, string[]>();
+  const unnamed = documents.filter((d) => rowCompanyUnknown(d));
+  if (!waState.allowed || unnamed.length === 0) return sites;
+  const usable: FetchProviderSpec[] = [];
+  for (const spec of listProviderSpecs()) {
+    if ((await spec.buildCredentials(client)) !== null) usable.push(spec);
+  }
+  for (const doc of unnamed) {
+    const names = sitesForUnnamedRow(doc.name, usable);
+    if (names.length > 0) sites.set(doc.id, names);
+  }
+  return sites;
 }
 
 /** Enqueue the login this long after the heads-up message's send time, so the send has settled. */

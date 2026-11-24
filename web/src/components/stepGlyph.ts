@@ -12,6 +12,7 @@ export const PLANNER_TOOL_STEPS: ReadonlySet<string> = new Set([
   'resolve_document',
   'add_instance',
   'retire_document',
+  'set_company',
   'state_cost',
   'state_vehicle',
   'attestation',

@@ -24,4 +24,4 @@
 ## 5. Docs and wrap-up
 
 - [x] 5.1 Update `docs/agents.md` (providers + credentials paragraphs) to list `phoenix` with its two products and the owner's selection rule, and verify the text reads correctly.
-- [ ] 5.2 Run `npm test` and `npm run typecheck`, then commit and push per the repo Git workflow.
+- [x] 5.2 Run `npm test` and `npm run typecheck`, then commit and push per the repo Git workflow.

@@ -90,7 +90,10 @@ function SiteCard({ entry: e }: { entry: SiteAccessEntry }) {
           {e.last ? (
             <>
               <span>
-                {t.siteAccessLast}: {formatTimestamp(e.last.at)} · {t.siteAccessOutcome[e.last.outcome]}
+                {t.siteAccessLast}:{' '}
+                <a className="site-access-last-link" href={`#/site-access/sessions/${encodeURIComponent(e.last.sessionId)}`} title={t.fetchEvidenceOpen}>
+                  {formatTimestamp(e.last.at)} · {t.siteAccessOutcome[e.last.outcome]}
+                </a>
               </span>
               {e.last.outcome === 'failed' && e.last.error && (
                 <span className="site-access-error mono" dir="ltr">

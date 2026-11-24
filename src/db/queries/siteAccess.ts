@@ -82,6 +82,8 @@ export async function recentFinished(): Promise<SiteAccessRecentRow[]> {
 }
 
 export interface SiteAccessLastRow {
+  /** The session's id — the card links to its evidence gallery (openspec `fetch-step-evidence`). */
+  id: string;
   provider: string;
   document_key: string | null;
   status: string;
@@ -93,12 +95,12 @@ export interface SiteAccessLastRow {
 export async function lastAccess(): Promise<SiteAccessLastRow[]> {
   const { rows } = await pool.query<SiteAccessLastRow>(
     `WITH keyed AS (
-       SELECT s.provider, k.document_key, s.status, s.error, s.updated_at
+       SELECT s.id, s.provider, k.document_key, s.status, s.error, s.updated_at
        FROM tax_fetch_sessions s
        LEFT JOIN LATERAL unnest(s.document_keys) AS k(document_key) ON TRUE
        WHERE ${REACHED_SITE}
      )
-     SELECT DISTINCT ON (provider, document_key) provider, document_key, status, error, updated_at
+     SELECT DISTINCT ON (provider, document_key) id, provider, document_key, status, error, updated_at
      FROM keyed
      ORDER BY provider, document_key, updated_at DESC`,
   );

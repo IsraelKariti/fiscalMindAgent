@@ -26,7 +26,7 @@ export interface SiteAccessEntryReport {
   built: boolean;
   counts: SiteAccessCounts;
   health: SiteHealth;
-  last: { at: string; outcome: LastOutcome; error: string | null } | null;
+  last: { sessionId: string; at: string; outcome: LastOutcome; error: string | null } | null;
 }
 
 export interface SiteAccessGroupReport {
@@ -117,7 +117,7 @@ export function buildSiteAccessReport(inputs: SiteAccessInputs, catalog: readonl
       built: isBuilt(e),
       counts: counts.get(key) ?? { total: 0, today: 0, last7: 0, last30: 0 },
       health: healthOf(finishedOf(key)),
-      last: lastRow ? { at: lastRow.updated_at.toISOString(), outcome: outcomeOf(lastRow), error: lastRow.error } : null,
+      last: lastRow ? { sessionId: lastRow.id, at: lastRow.updated_at.toISOString(), outcome: outcomeOf(lastRow), error: lastRow.error } : null,
     };
   });
 

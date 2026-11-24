@@ -1174,14 +1174,41 @@ capability** — there is no accountant button.
   period later; a worker-boot sweep marks orphaned DB rows `expired`. Keep
   `src/browserRunner/` free of imports from worker/web code — pulling in
   `config/env.ts` would defeat the isolation.
+- **Step evidence** (openspec `fetch-step-evidence`): every provider step —
+  each `debugShot(page, name)` call in `src/browserRunner/<provider>.ts`, plus
+  a final `<stage>-failed` item recorded by the server's `failureBody` — leaves
+  an evidence item on the page's collector (`src/browserRunner/stepEvidence.ts`,
+  attached in `launch.ts`): a full-page screenshot, the live DOM of every frame
+  as one HTML document, a complete MHTML snapshot (CDP `Page.captureSnapshot`)
+  and a record (seq, name, time, url, title, frame URLs, console messages and
+  failed / ≥400 responses since the previous step, error text, missing parts
+  with reasons, sizes). Each part is guarded by a 10 s timeout and size caps
+  (8/4/24 MB, 120 MB per session, MHTML dropped first) — capture never fails
+  a step. The runner keeps items in memory past `closeSession()` and serves
+  them on `GET /sessions/:id/evidence?after=N` (records; `after` releases
+  what the worker confirmed) and `GET /sessions/:id/evidence/:seq/:part`
+  (bytes); protocol version 4. The worker (`HttpTaxFetchClient.pullEvidence`,
+  called after every step on success and failure, before any ACI teardown)
+  stores each item under `debug/taxfetch/<creation day>/<sessionId>/
+  <seq>-<name>.<png|html|mhtml|json>` in the documents blob container
+  (`taxFetch/stepEvidence.ts`; no DB row — the prefix is the index, and the
+  `tax_fetch.login_started` / `tax_fetch.failed` audit rows carry it as
+  `evidencePrefix`). A 502 whose pull yielded nothing keeps its
+  `screenshotBase64` as a `<stage>-failed-fallback` item. The mock client
+  writes two synthetic items per session. Admins see the gallery in the step
+  modal of any `tax_fetch_session` step and at `#/site-access/sessions/:id`
+  (linked from each site-access card's last access) via
+  `GET /api/admin/tax-fetch/:sessionId/evidence` and
+  `.../evidence/:seq/:part?as=view|download` (`src/api/fetchEvidenceAdmin.ts`):
+  the HTML view is served with `Content-Security-Policy: sandbox` (no
+  scripts, opaque origin) inside a `sandbox=""` iframe, the MHTML is
+  download-only. The daily `debug_cleanup` job (03:20 local) deletes
+  evidence older than `TAX_FETCH_DEBUG_RETENTION_DAYS` (default 14); old flat
+  failure shots under the same prefix age out the same way. The dev-only
+  `TAX_FETCH_DEBUG_DIR` PNG dump is unchanged.
 - **Failure diagnostics**: a failed runner step (login/OTP/download) answers
   its 502 with a full-page screenshot of the moment of failure plus an optional
-  machine-readable `code` — the only evidence that survives an ACI container
-  teardown. The worker stores the screenshot under `debug/taxfetch/<day>/` in
-  the documents blob container (`taxFetch/failureShots.ts`; blob key logged and
-  recorded on the `tax_fetch.failed` audit event) and the daily `debug_cleanup`
-  job (03:20 local) deletes shots older than `TAX_FETCH_DEBUG_RETENTION_DAYS`
-  (default 14). `code: 'no_documents'` marks the login-worked-but-the-site-
+  machine-readable `code`. `code: 'no_documents'` marks the login-worked-but-the-site-
   listed-nothing outcome (e.g. Harel's filter query answered with an empty
   table): the session still ends `failed`, but with a marker error prefix that
   becomes the `failed_no_documents` prompt state — the client hears "the

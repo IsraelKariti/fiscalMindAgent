@@ -113,12 +113,14 @@ export function App() {
     return (
       <>
         {envBanner}
-        <StepLinkPage
-          hash={hash}
-          onClose={() => {
-            window.location.hash = '#/';
-          }}
-        />
+        <ViewerProvider value={{ isAdmin: true, readOnly: false }}>
+          <StepLinkPage
+            hash={hash}
+            onClose={() => {
+              window.location.hash = '#/';
+            }}
+          />
+        </ViewerProvider>
       </>
     );
 
@@ -142,7 +144,9 @@ export function App() {
     return (
       <>
         {envBanner}
-        <AdminDashboard userEmail={user?.email ?? null} onLogout={requestLogout} />
+        <ViewerProvider value={{ isAdmin: true, readOnly: false }}>
+          <AdminDashboard userEmail={user?.email ?? null} onLogout={requestLogout} />
+        </ViewerProvider>
         {logoutModal}
       </>
     );

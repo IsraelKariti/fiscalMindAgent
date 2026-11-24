@@ -666,7 +666,39 @@ export interface SiteAccessEntry {
   built: boolean;
   counts: { total: number; today: number; last7: number; last30: number };
   health: SiteHealth;
-  last: { at: string; outcome: SiteAccessOutcome; error: string | null } | null;
+  last: { sessionId: string; at: string; outcome: SiteAccessOutcome; error: string | null } | null;
+}
+
+/** One recorded step of a website fetch's evidence gallery (openspec `fetch-step-evidence`). */
+export interface FetchEvidenceStep {
+  seq: number;
+  name: string;
+  parts: Array<'screenshot' | 'html' | 'mhtml' | 'record'>;
+  at: string | null;
+  url: string | null;
+  title: string | null;
+  error: string | null;
+  missing: Record<string, string>;
+  record: {
+    frames: string[];
+    console: Array<{ at: string; type: string; text: string }>;
+    responses: Array<{ at: string; method: string; url: string; status: number | null; failure: string | null }>;
+    sizes: Record<string, number>;
+  } | null;
+}
+
+export interface FetchEvidenceReply {
+  session: {
+    id: string;
+    clientId: string;
+    provider: string;
+    status: string;
+    error: string | null;
+    taxYear: number;
+    createdAt: string;
+    updatedAt: string;
+  };
+  steps: FetchEvidenceStep[];
 }
 
 export interface SiteAccessGroup {
@@ -1313,6 +1345,11 @@ export const api = {
     return request<VersionCostReply>(`/admin/version-cost${q ? `?${q}` : ''}`);
   },
   adminSiteAccess: () => request<SiteAccessReply>('/admin/site-access'),
+  /** A website fetch's step evidence (404 for an unknown session; empty steps when none was kept). */
+  adminFetchEvidence: (sessionId: string) => request<FetchEvidenceReply>(`/admin/tax-fetch/${sessionId}/evidence`),
+  /** Same-origin URLs of one evidence file (admin pages never run inside monday, so no ?sessionToken=). */
+  adminFetchEvidenceUrl: (sessionId: string, seq: number, part: 'screenshot' | 'html' | 'mhtml' | 'record', as: 'view' | 'download') =>
+    `${transport.basePath}/admin/tax-fetch/${sessionId}/evidence/${seq}/${part}?as=${as}`,
   adminLlmUsageDaily: (days: number) =>
     request<{ since: string; rows: LlmDailyUsage[] }>(`/admin/llm-usage/daily?days=${days}`),
   adminAuditEvents: (days: number) => request<{ events: AuditEvent[] }>(`/admin/audit-events?days=${days}`),

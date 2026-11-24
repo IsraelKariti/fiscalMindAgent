@@ -101,21 +101,21 @@ describe('buildSiteAccessReport', () => {
         { provider: 'harel', document_key: 'study_fund_annual', status: 'failed', error: 'otp rejected too many times', updated_at: t(10) },
         { provider: 'harel', document_key: 'study_fund_annual', status: 'delivered', error: null, updated_at: t(100) },
       ],
-      last: [{ provider: 'harel', document_key: 'study_fund_annual', status: 'expired', error: null, updated_at: t(1) }],
+      last: [{ id: 'sess-1', provider: 'harel', document_key: 'study_fund_annual', status: 'expired', error: null, updated_at: t(1) }],
     });
     const harel = entryOf(r, 1, 'harel');
     assert.equal(harel.health, 'warning');
-    assert.deepEqual(harel.last, { at: t(1).toISOString(), outcome: 'abandoned', error: null });
+    assert.deepEqual(harel.last, { sessionId: 'sess-1', at: t(1).toISOString(), outcome: 'abandoned', error: null });
   });
 
   it('a failed last access carries its error text', () => {
     const r = buildSiteAccessReport({
       counts: [],
       recent: [{ provider: 'harel', document_key: 'study_fund_annual', status: 'failed', error: 'login failed', updated_at: t(5) }],
-      last: [{ provider: 'harel', document_key: 'study_fund_annual', status: 'failed', error: 'login failed', updated_at: t(5) }],
+      last: [{ id: 'sess-5', provider: 'harel', document_key: 'study_fund_annual', status: 'failed', error: 'login failed', updated_at: t(5) }],
     });
     const harel = entryOf(r, 1, 'harel');
     assert.equal(harel.health, 'warning');
-    assert.deepEqual(harel.last, { at: t(5).toISOString(), outcome: 'failed', error: 'login failed' });
+    assert.deepEqual(harel.last, { sessionId: 'sess-5', at: t(5).toISOString(), outcome: 'failed', error: 'login failed' });
   });
 });

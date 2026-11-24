@@ -1,5 +1,42 @@
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
 import { runnerEnv } from './env.js';
+import { StepCollector, captureStep, type EvidenceItem } from './stepEvidence.js';
+
+/**
+ * The step-evidence collector of each page the runner drives (openspec
+ * `fetch-step-evidence`). Attached in launchInteractivePage(); the server
+ * reads it by page to serve the items to the worker.
+ */
+const collectors = new WeakMap<Page, StepCollector>();
+
+export function collectorOf(page: Page): StepCollector | undefined {
+  return collectors.get(page);
+}
+
+/** Attaches a collector and the console / error-response listeners that feed the next step's record. */
+export function attachCollector(page: Page, collector = new StepCollector()): StepCollector {
+  collectors.set(page, collector);
+  page.on('console', (msg) => {
+    collector.pushConsole({ at: new Date().toISOString(), type: msg.type(), text: msg.text().slice(0, 2_000) });
+  });
+  page.on('pageerror', (err) => {
+    collector.pushConsole({ at: new Date().toISOString(), type: 'pageerror', text: String(err.message ?? err).slice(0, 2_000) });
+  });
+  page.on('response', (res) => {
+    if (res.status() < 400) return;
+    collector.pushResponse({ at: new Date().toISOString(), method: res.request().method(), url: res.url().slice(0, 2_000), status: res.status(), failure: null });
+  });
+  page.on('requestfailed', (req) => {
+    collector.pushResponse({
+      at: new Date().toISOString(),
+      method: req.method(),
+      url: req.url().slice(0, 2_000),
+      status: null,
+      failure: req.failure()?.errorText ?? 'request failed',
+    });
+  });
+  return collector;
+}
 
 export interface LaunchedSession {
   browser: Browser;
@@ -39,6 +76,7 @@ export async function launchInteractivePage(): Promise<LaunchedSession> {
   });
   const context = await browser.newContext({ locale: 'he-IL', timezoneId: 'Asia/Jerusalem' });
   const page = await context.newPage();
+  attachCollector(page);
   return { browser, context, page };
 }
 
@@ -71,12 +109,28 @@ export async function humanPause(page: Page, minMs = 5_000, maxMs = 20_000): Pro
   await page.waitForTimeout(rand(minMs, maxMs));
 }
 
-/** Best-effort step screenshot when TAX_FETCH_DEBUG_DIR is set; never throws. */
-export async function debugShot(page: Page, name: string): Promise<void> {
-  if (!runnerEnv.TAX_FETCH_DEBUG_DIR) return;
-  try {
-    await page.screenshot({ path: `${runnerEnv.TAX_FETCH_DEBUG_DIR}/${name}.png`, fullPage: true });
-  } catch {
-    /* debugging aid only */
+/**
+ * Records the step's evidence (screenshot, HTML, MHTML, record — see
+ * stepEvidence.ts) on the page's collector, and, when TAX_FETCH_DEBUG_DIR is
+ * set, also saves the screenshot there (dev only). Never throws. Every
+ * provider calls this at each of its steps; the name is the step's label.
+ */
+export async function debugShot(page: Page, name: string, error: string | null = null): Promise<EvidenceItem | null> {
+  let item: EvidenceItem | null = null;
+  const collector = collectors.get(page);
+  if (collector) {
+    try {
+      item = await captureStep(page, collector, name, error);
+    } catch {
+      /* evidence is best-effort */
+    }
   }
+  if (runnerEnv.TAX_FETCH_DEBUG_DIR) {
+    try {
+      await page.screenshot({ path: `${runnerEnv.TAX_FETCH_DEBUG_DIR}/${name}.png`, fullPage: true });
+    } catch {
+      /* debugging aid only */
+    }
+  }
+  return item;
 }

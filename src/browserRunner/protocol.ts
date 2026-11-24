@@ -11,6 +11,10 @@
  * unversioned skew that broke prod fetches on 2026-08-01; 3 = 502 error bodies
  * carry `code` ('no_documents') + `screenshotBase64` failure evidence
  * (2026-08-02) — additive, but versioned so the worker never diagnoses against
- * a runner that can't produce the evidence.
+ * a runner that can't produce the evidence; 4 = step evidence routes
+ * `GET /sessions/:id/evidence` and `/evidence/:seq/:part` (openspec
+ * `fetch-step-evidence`, 2026-11-25) — the worker pulls every step's
+ * screenshot/HTML/MHTML/record after each step, so it must not run against a
+ * runner that lacks the routes.
  */
-export const RUNNER_PROTOCOL_VERSION = 3;
+export const RUNNER_PROTOCOL_VERSION = 4;

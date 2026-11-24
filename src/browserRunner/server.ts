@@ -3,7 +3,8 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
 import { runnerEnv } from './env.js';
-import { launchInteractivePage } from './launch.js';
+import { attachCollector, collectorOf, debugShot, launchInteractivePage, type LaunchedSession } from './launch.js';
+import { type EvidencePart, type StepCollector } from './stepEvidence.js';
 import { israelTaxAuthorityProvider } from './israelTaxAuthority.js';
 import { altshulerShahamProvider } from './altshulerShaham.js';
 import { harelProvider } from './harel.js';
@@ -40,6 +41,28 @@ interface RunnerSession {
 }
 
 const sessions = new Map<string, RunnerSession>();
+
+/**
+ * Step evidence per session (openspec `fetch-step-evidence`), kept apart from
+ * the live browsers: it must outlive closeSession() — a failed login closes
+ * the browser before the worker can pull — and go away only when reaped.
+ */
+interface SessionEvidence {
+  collector: StepCollector;
+  timer: NodeJS.Timeout;
+}
+const evidence = new Map<string, SessionEvidence>();
+
+function touchEvidence(sessionId: string, collector: StepCollector): void {
+  const prior = evidence.get(sessionId);
+  if (prior) clearTimeout(prior.timer);
+  const timer = setTimeout(() => {
+    evidence.delete(sessionId);
+    logger.info('browser runner: evidence of a finished session released', { sessionId });
+  }, runnerEnv.TAX_FETCH_SESSION_TTL_MS + BACKSTOP_GRACE_MS);
+  timer.unref?.();
+  evidence.set(sessionId, { collector, timer });
+}
 
 async function closeSession(sessionId: string): Promise<void> {
   const session = sessions.get(sessionId);
@@ -103,9 +126,9 @@ const errText = (err: unknown): string => (err instanceof Error ? err.message : 
 const MAX_FAILURE_SHOT_BYTES = 8 * 1024 * 1024;
 
 /**
- * What the page looked like when a step failed, for the 502 body — the only
- * post-mortem evidence that survives an ACI container teardown (the runner's
- * own logs and TAX_FETCH_DEBUG_DIR die with it). Best-effort; never throws.
+ * What the page looked like when a step failed, for the 502 body. Kept as a
+ * fallback for a worker whose evidence pull fails; the same screenshot is
+ * also the last step-evidence item (failureBody records it). Best-effort.
  */
 async function captureFailureShot(page: Page | null): Promise<string | undefined> {
   if (!page) return undefined;
@@ -118,8 +141,13 @@ async function captureFailureShot(page: Page | null): Promise<string | undefined
   }
 }
 
-/** The 502 error body for a failed step: message, machine-readable code, evidence screenshot. */
-async function failureBody(err: unknown, page: Page | null): Promise<Record<string, unknown>> {
+/**
+ * The 502 error body for a failed step: message, machine-readable code,
+ * evidence screenshot. The moment of failure is first recorded as one more
+ * step-evidence item named `<stage>-failed`, so the gallery ends with it.
+ */
+async function failureBody(err: unknown, page: Page | null, stage: string): Promise<Record<string, unknown>> {
+  if (page) await debugShot(page, `${stage}-failed`, errText(err));
   return {
     error: errText(err),
     ...(err instanceof NoDocumentsOnSiteError ? { code: 'no_documents' } : {}),
@@ -127,7 +155,21 @@ async function failureBody(err: unknown, page: Page | null): Promise<Record<stri
   };
 }
 
-export function createRunnerApp(): Express {
+const EVIDENCE_PARTS: Record<EvidencePart, string> = {
+  screenshot: 'image/png',
+  html: 'text/html; charset=utf-8',
+  mhtml: 'multipart/related',
+};
+
+/** Injectable for tests: the providers and the browser launcher. */
+export interface RunnerAppDeps {
+  providers?: Record<string, DocumentFetchProvider>;
+  launch?: () => Promise<LaunchedSession>;
+}
+
+export function createRunnerApp(deps: RunnerAppDeps = {}): Express {
+  const providers = deps.providers ?? PROVIDERS;
+  const launch = deps.launch ?? launchInteractivePage;
   const app = express();
   app.use(express.json({ limit: '16kb' }));
 
@@ -148,7 +190,7 @@ export function createRunnerApp(): Express {
       return;
     }
     const { sessionId, provider: providerId, credentials } = parsed.data;
-    const provider = PROVIDERS[providerId];
+    const provider = providers[providerId];
     if (!provider) {
       res.status(400).json({ error: `unknown provider: ${providerId}` });
       return;
@@ -161,18 +203,50 @@ export function createRunnerApp(): Express {
     let browser: Browser | null = null;
     let page: Page | null = null;
     try {
-      const launched = await launchInteractivePage();
+      const launched = await launch();
       browser = launched.browser;
       page = launched.page;
+      // Evidence is registered before the first step so a failed login still leaves its items.
+      touchEvidence(sessionId, collectorOf(page) ?? attachCollector(page));
       await provider.startLogin(launched.page, credentials);
       sessions.set(sessionId, { browser, page: launched.page, providerId, timer: armBackstop(sessionId) });
       res.status(201).json({ ok: true });
     } catch (err) {
       logger.error('browser runner: start login failed', err, { sessionId });
-      const body = await failureBody(err, page);
+      const body = await failureBody(err, page, 'login');
       if (browser) await browser.close().catch(() => undefined);
       res.status(502).json(body);
     }
+  });
+
+  // Step evidence recorded since `after` (metadata only; bytes per part below).
+  // Asking with `after=N` confirms the worker stored everything up to N, which
+  // releases those items from memory.
+  app.get('/sessions/:id/evidence', (req, res) => {
+    const entry = evidence.get(req.params.id);
+    if (!entry) {
+      res.status(404).json({ error: 'no evidence' });
+      return;
+    }
+    const after = Number.parseInt(String(req.query['after'] ?? '0'), 10);
+    if (Number.isFinite(after) && after > 0) entry.collector.release(after);
+    touchEvidence(req.params.id, entry.collector);
+    res.json({ items: entry.collector.listAfter(Number.isFinite(after) ? after : 0).map((item) => item.record) });
+  });
+
+  app.get('/sessions/:id/evidence/:seq/:part', (req, res) => {
+    const entry = evidence.get(req.params.id);
+    const seq = Number.parseInt(req.params.seq, 10);
+    const part = req.params.part as EvidencePart;
+    const item = entry && Number.isFinite(seq) ? entry.collector.get(seq) : undefined;
+    const bytes = item && part in EVIDENCE_PARTS ? item[part] : null;
+    if (!bytes) {
+      res.status(404).json({ error: 'no such evidence part' });
+      return;
+    }
+    res.setHeader('Content-Type', EVIDENCE_PARTS[part]);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(bytes);
   });
 
   // Types the OTP. 422 keeps the session alive on the OTP screen for a retry;
@@ -190,7 +264,7 @@ export function createRunnerApp(): Express {
       return;
     }
     try {
-      await PROVIDERS[session.providerId]!.submitOtp(session.page, parsed.data.otp);
+      await providers[session.providerId]!.submitOtp(session.page, parsed.data.otp);
       clearTimeout(session.timer);
       session.timer = armBackstop(sessionId);
       res.status(204).end();
@@ -202,7 +276,7 @@ export function createRunnerApp(): Express {
         return;
       }
       logger.error('browser runner: otp submit failed', err, { sessionId });
-      const body = await failureBody(err, session.page);
+      const body = await failureBody(err, session.page, 'otp');
       await closeSession(sessionId);
       res.status(502).json(body);
     }
@@ -224,7 +298,7 @@ export function createRunnerApp(): Express {
       return;
     }
     try {
-      const docs = await PROVIDERS[session.providerId]!.downloadDocuments(session.page, {
+      const docs = await providers[session.providerId]!.downloadDocuments(session.page, {
         taxYear: parsed.data.taxYear,
         documentKeys: parsed.data.documentKeys ?? [],
       });
@@ -240,7 +314,7 @@ export function createRunnerApp(): Express {
       });
     } catch (err) {
       logger.error('browser runner: download failed', err, { sessionId });
-      res.status(502).json(await failureBody(err, session.page));
+      res.status(502).json(await failureBody(err, session.page, 'download'));
     } finally {
       await closeSession(sessionId);
     }
@@ -254,7 +328,11 @@ export function createRunnerApp(): Express {
   return app;
 }
 
-/** Shutdown hook: close every live browser. */
+/** Shutdown hook: close every live browser and drop held evidence. */
 export async function closeAllSessions(): Promise<void> {
   await Promise.all([...sessions.keys()].map((id) => closeSession(id)));
+  for (const [id, entry] of evidence) {
+    clearTimeout(entry.timer);
+    evidence.delete(id);
+  }
 }

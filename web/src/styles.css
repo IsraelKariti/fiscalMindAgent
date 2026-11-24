@@ -6078,3 +6078,116 @@ pre.doc-text {
   font-size: 12px;
   word-break: break-all;
 }
+
+/* Fetch step evidence (openspec `fetch-step-evidence`): the step gallery, in the
+   step modal's second pane and on the admin #/site-access/sessions/:id screen. */
+.evidence-pane .gate-modal-doc-body {
+  overflow-y: auto;
+}
+.evidence-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.evidence-step {
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.evidence-step-failed {
+  border-color: var(--danger, #c0392b);
+}
+.evidence-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.evidence-step-seq {
+  font-weight: 600;
+}
+.evidence-step-name,
+.evidence-step-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.evidence-step-title,
+.evidence-step-url,
+.evidence-step-error,
+.evidence-missing,
+.evidence-sandbox-note {
+  margin: 0;
+  font-size: 0.88rem;
+}
+.evidence-step-error {
+  color: var(--danger, #c0392b);
+}
+.evidence-shot-link {
+  display: block;
+  max-height: 360px;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  background: #fff;
+}
+.evidence-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: top;
+}
+.evidence-step-actions {
+  flex-wrap: wrap;
+}
+.evidence-step-actions a.btn {
+  display: inline-block;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+.evidence-html iframe {
+  width: 100%;
+  height: 480px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 6px;
+  background: #fff;
+}
+.evidence-record h4 {
+  margin: 10px 0 4px;
+  font-size: 0.85rem;
+}
+.evidence-record ul {
+  margin: 0;
+  padding-inline-start: 18px;
+  font-size: 0.8rem;
+  max-height: 220px;
+  overflow: auto;
+}
+.evidence-record li {
+  overflow-wrap: anywhere;
+}
+.fetch-evidence-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.fetch-evidence-title {
+  margin: 0;
+}
+.fetch-evidence-gallery .evidence-pane {
+  max-height: none;
+}
+.site-access-last-link {
+  color: inherit;
+  text-decoration: underline dotted;
+}
+.site-access-last-link:hover {
+  text-decoration: underline;
+}

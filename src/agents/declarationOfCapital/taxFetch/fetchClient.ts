@@ -3,6 +3,8 @@ import { env } from '../../../config/env.js';
 import { RUNNER_PROTOCOL_VERSION } from '../../../browserRunner/protocol.js';
 import { logger } from '../../../util/logger.js';
 import { provisionSessionContainer, resolveSessionBaseUrl, teardownSessionContainer } from './aciSessionPool.js';
+import { fallbackShotItem, storeSessionEvidence, type StoredEvidenceItem } from './stepEvidence.js';
+import type { StepRecord } from '../../../browserRunner/stepEvidence.js';
 import {
   FetchAtCapacityError,
   NO_DOCUMENTS_ERROR_PREFIX,
@@ -41,6 +43,43 @@ const MAX_EMPLOYER_NAME_CHARS = 200;
 const MAX_TITLE_CHARS = 200;
 const ALLOWED_CONTENT_TYPES = new Set(['application/pdf']);
 
+// Step evidence (openspec `fetch-step-evidence`): the runner's list answer.
+// Each record is bounded like everything else that crosses the runner boundary.
+const MAX_EVIDENCE_ITEMS_PER_PULL = 50;
+const MAX_EVIDENCE_PART_BYTES = 24 * 1024 * 1024;
+const EvidenceListResponse = z.object({
+  items: z
+    .array(
+      z.object({
+        seq: z.number().int().positive(),
+        name: z.string().min(1).max(120),
+        at: z.string().max(40),
+        url: z.string().max(2_000).nullable(),
+        title: z.string().max(500).nullable(),
+        frames: z.array(z.string().max(2_000)).max(100),
+        console: z.array(z.object({ at: z.string().max(40), type: z.string().max(40), text: z.string().max(2_000) })).max(200),
+        responses: z
+          .array(
+            z.object({
+              at: z.string().max(40),
+              method: z.string().max(20),
+              url: z.string().max(2_000),
+              status: z.number().int().nullable(),
+              failure: z.string().max(500).nullable(),
+            }),
+          )
+          .max(200),
+        error: z.string().max(4_000).nullable(),
+        missing: z.record(z.string().max(500)).default({}),
+        sizes: z.record(z.number().int().nonnegative()).default({}),
+      }),
+    )
+    .max(MAX_EVIDENCE_ITEMS_PER_PULL),
+});
+
+/** Where pulled evidence goes; the default stores it under the session's blob prefix. Injectable for tests. */
+export type EvidenceSink = (sessionId: string, item: StoredEvidenceItem) => Promise<boolean>;
+
 const DownloadResponse = z.object({
   documents: z
     .array(
@@ -67,10 +106,10 @@ const DownloadResponse = z.object({
  * unreachable or malformed /healthz is NOT treated as a mismatch: the login
  * call right after will fail with the real transport error instead.
  */
-async function assertRunnerProtocol(baseUrl: string): Promise<void> {
+async function assertRunnerProtocol(baseUrl: string, fetchImpl: typeof fetch = fetch): Promise<void> {
   let version: unknown;
   try {
-    const res = await fetch(`${baseUrl}/healthz`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetchImpl(`${baseUrl}/healthz`, { signal: AbortSignal.timeout(5000) });
     version = ((await res.json()) as { protocolVersion?: unknown }).protocolVersion;
   } catch {
     return;
@@ -84,22 +123,97 @@ async function assertRunnerProtocol(baseUrl: string): Promise<void> {
   }
 }
 
-class HttpTaxFetchClient implements TaxFetchClient {
+export class HttpTaxFetchClient implements TaxFetchClient {
+  private readonly fetchImpl: typeof fetch;
+  private readonly sink: EvidenceSink;
+  private readonly token: () => string | undefined;
+  /** session id → highest evidence seq already stored (the runner releases up to it on the next pull). */
+  private readonly pulled = new Map<string, number>();
+
   /** Maps a session to its runner's base URL — a fixed sidecar in static mode, that session's own container in aci mode. */
-  constructor(private readonly baseUrlFor: (sessionId: string) => string | Promise<string>) {}
+  constructor(
+    private readonly baseUrlFor: (sessionId: string) => string | Promise<string>,
+    opts: { fetchImpl?: typeof fetch; evidenceSink?: EvidenceSink; token?: () => string | undefined } = {},
+  ) {
+    this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.sink = opts.evidenceSink ?? storeSessionEvidence;
+    this.token = opts.token ?? (() => env.BROWSER_RUNNER_TOKEN);
+  }
 
   private async request(sessionId: string, path: string, init: { method: string; body?: unknown }): Promise<globalThis.Response> {
-    if (!env.BROWSER_RUNNER_TOKEN) {
+    const token = this.token();
+    if (!token) {
       throw new Error('BROWSER_RUNNER_TOKEN is not set — cannot reach the browser runner for a real fetch');
     }
-    return fetch(`${await this.baseUrlFor(sessionId)}${path}`, {
+    return this.fetchImpl(`${await this.baseUrlFor(sessionId)}${path}`, {
       method: init.method,
       headers: {
-        authorization: `Bearer ${env.BROWSER_RUNNER_TOKEN}`,
+        authorization: `Bearer ${token}`,
         ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
       },
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     });
+  }
+
+  /**
+   * Pulls the step evidence recorded since the previous pull and stores it.
+   * Runs after every step, on success and failure alike, before any teardown
+   * — and never throws: evidence must never change a fetch's outcome.
+   */
+  async pullEvidence(sessionId: string): Promise<number> {
+    let stored = 0;
+    try {
+      const after = this.pulled.get(sessionId) ?? 0;
+      const res = await this.request(sessionId, `/sessions/${encodeURIComponent(sessionId)}/evidence?after=${after}`, { method: 'GET' });
+      if (res.status === 404) return 0;
+      if (!res.ok) throw new Error(`runner answered ${res.status} to the evidence list`);
+      const parsed = EvidenceListResponse.safeParse(await res.json().catch(() => null));
+      if (!parsed.success) throw new Error('malformed evidence list');
+      for (const record of parsed.data.items) {
+        const item: StoredEvidenceItem = { record: record as StepRecord };
+        for (const part of ['screenshot', 'html', 'mhtml'] as const) {
+          if (!(part in record.sizes)) continue;
+          const bytes = await this.fetchPart(sessionId, record.seq, part);
+          if (bytes) item[part] = bytes;
+          else record.missing[part] = record.missing[part] ?? 'the part could not be pulled from the runner';
+        }
+        if (await this.sink(sessionId, item)) stored += 1;
+        this.pulled.set(sessionId, Math.max(this.pulled.get(sessionId) ?? 0, record.seq));
+      }
+    } catch (err) {
+      logger.warn('tax fetch: evidence pull failed', { sessionId, reason: String(err) });
+    }
+    return stored;
+  }
+
+  private async fetchPart(sessionId: string, seq: number, part: 'screenshot' | 'html' | 'mhtml'): Promise<Buffer | null> {
+    try {
+      const res = await this.request(sessionId, `/sessions/${encodeURIComponent(sessionId)}/evidence/${seq}/${part}`, { method: 'GET' });
+      if (!res.ok) return null;
+      const length = Number(res.headers.get('content-length') ?? 0);
+      if (length > MAX_EVIDENCE_PART_BYTES) return null;
+      const bytes = Buffer.from(await res.arrayBuffer());
+      return bytes.length === 0 || bytes.length > MAX_EVIDENCE_PART_BYTES ? null : bytes;
+    } catch (err) {
+      logger.warn('tax fetch: evidence part pull failed', { sessionId, seq, part, reason: String(err) });
+      return null;
+    }
+  }
+
+  /**
+   * After a step: pull its evidence, and when the pull produced nothing at all
+   * for this session, keep the 502 body's screenshot as a fallback item.
+   */
+  private async afterStep(sessionId: string, stage: string, err: unknown = null): Promise<void> {
+    await this.pullEvidence(sessionId);
+    if (err === null || this.pulled.has(sessionId)) return;
+    const fallback = fallbackShotItem(stage, err);
+    if (fallback) await this.sink(sessionId, fallback);
+  }
+
+  /** Forgets a session's pull bookkeeping once it is over. */
+  forget(sessionId: string): void {
+    this.pulled.delete(sessionId);
   }
 
   private async errorFrom(res: globalThis.Response): Promise<Error> {
@@ -120,22 +234,36 @@ class HttpTaxFetchClient implements TaxFetchClient {
   }
 
   async startLogin(sessionId: string, provider: string, credentials: PortalCredentials): Promise<void> {
-    await assertRunnerProtocol(await this.baseUrlFor(sessionId));
+    await assertRunnerProtocol(await this.baseUrlFor(sessionId), this.fetchImpl);
+    this.pulled.delete(sessionId);
     const res = await this.request(sessionId, '/sessions', {
       method: 'POST',
       body: { sessionId, provider, credentials },
     });
-    if (res.status === 201) return;
+    if (res.status === 201) {
+      await this.afterStep(sessionId, 'login');
+      return;
+    }
     if (res.status === 409) throw new FetchAtCapacityError();
-    throw await this.errorFrom(res);
+    const err = await this.errorFrom(res);
+    await this.afterStep(sessionId, 'login', err);
+    throw err;
   }
 
   async submitOtp(sessionId: string, otp: string): Promise<void> {
     const res = await this.request(sessionId, `/sessions/${encodeURIComponent(sessionId)}/otp`, { method: 'POST', body: { otp } });
-    if (res.status === 204) return;
-    if (res.status === 422) throw new OtpRejectedError();
+    if (res.status === 204) {
+      await this.afterStep(sessionId, 'otp');
+      return;
+    }
+    if (res.status === 422) {
+      await this.afterStep(sessionId, 'otp');
+      throw new OtpRejectedError();
+    }
     if (res.status === 410 || res.status === 404) throw new SessionGoneError();
-    throw await this.errorFrom(res);
+    const err = await this.errorFrom(res);
+    await this.afterStep(sessionId, 'otp', err);
+    throw err;
   }
 
   async downloadDocuments(sessionId: string, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]> {
@@ -144,7 +272,13 @@ class HttpTaxFetchClient implements TaxFetchClient {
       body: { taxYear: opts.taxYear, documentKeys: opts.documentKeys },
     });
     if (res.status === 410 || res.status === 404) throw new SessionGoneError();
-    if (!res.ok) throw await this.errorFrom(res);
+    if (!res.ok) {
+      const err = await this.errorFrom(res);
+      await this.afterStep(sessionId, 'download', err);
+      throw err;
+    }
+    // The runner has closed the browser but still holds the evidence until pulled.
+    await this.afterStep(sessionId, 'download');
 
     const parsed = DownloadResponse.safeParse(await res.json().catch(() => null));
     if (!parsed.success) throw new Error('browser runner returned a malformed download response');
@@ -180,6 +314,7 @@ class HttpTaxFetchClient implements TaxFetchClient {
     } catch (err) {
       logger.warn('tax fetch: closing runner session failed', { sessionId, reason: String(err) });
     }
+    this.forget(sessionId);
   }
 }
 
@@ -211,6 +346,8 @@ class AciTaxFetchClient implements TaxFetchClient {
     await this.http.submitOtp(sessionId, otp);
   }
 
+  // The HTTP client pulls each step's evidence before returning or throwing,
+  // so by the time a container is torn down here its evidence is in storage.
   async downloadDocuments(sessionId: string, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]> {
     try {
       return await this.http.downloadDocuments(sessionId, opts);
@@ -222,6 +359,36 @@ class AciTaxFetchClient implements TaxFetchClient {
   // No runner DELETE call: the whole container goes away with the session.
   async close(sessionId: string): Promise<void> {
     await teardownSessionContainer(sessionId);
+    this.http.forget(sessionId);
+  }
+}
+
+// A 1×1 transparent PNG — the mock's "screenshot", so the gallery has a picture to show.
+const MOCK_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+
+/** The mock's synthetic step evidence: two steps per session, through the same store as a real pull. */
+async function storeMockEvidence(sessionId: string, provider: string): Promise<void> {
+  const steps = [
+    { name: `${provider}-01-login-page`, title: 'Mock login', console: [{ at: new Date().toISOString(), type: 'log', text: 'mock page loaded' }] },
+    { name: `${provider}-02-credentials-filled`, title: 'Mock login (filled)', console: [] },
+  ];
+  for (const [i, step] of steps.entries()) {
+    const record: StepRecord = {
+      seq: i + 1,
+      name: step.name,
+      at: new Date().toISOString(),
+      url: `https://mock.example/${provider}/login`,
+      title: step.title,
+      frames: [`https://mock.example/${provider}/login`],
+      console: step.console,
+      responses: i === 1 ? [{ at: new Date().toISOString(), method: 'GET', url: `https://mock.example/${provider}/missing.js`, status: 404, failure: null }] : [],
+      error: null,
+      missing: { mhtml: 'the mock records no snapshot' },
+      sizes: { screenshot: MOCK_PNG.length },
+    };
+    const html = Buffer.from(`<!doctype html><html lang="he" dir="rtl"><head><title>${step.title}</title></head><body><h1>${step.title}</h1><p>mock evidence for session ${sessionId}</p></body></html>`, 'utf8');
+    record.sizes['html'] = html.length;
+    await storeSessionEvidence(sessionId, { record, screenshot: MOCK_PNG, html });
   }
 }
 
@@ -245,6 +412,7 @@ class MockTaxFetchClient implements TaxFetchClient {
   async startLogin(sessionId: string, provider: string): Promise<void> {
     await sleep(2000);
     this.live.set(sessionId, provider);
+    await storeMockEvidence(sessionId, provider);
   }
 
   async submitOtp(sessionId: string, otp: string): Promise<void> {

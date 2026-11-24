@@ -15,6 +15,8 @@ import { useCallback, useEffect, useState } from 'react';
  *   #/review                             pilot message review queue
  *   #/llm-calls                          per-call LLM log browser
  *   #/llm-calls/:callId                  one call's drill-down (shareable)
+ *   #/site-access                        external-site access monitor
+ *   #/site-access/sessions/:id           one fetch session's step evidence
  *   #/settings                           platform settings
  */
 export type AdminRoute =
@@ -25,6 +27,7 @@ export type AdminRoute =
   | { screen: 'agents' }
   | { screen: 'usage' }
   | { screen: 'siteAccess' }
+  | { screen: 'fetchEvidence'; sessionId: string }
   | { screen: 'versions' }
   | { screen: 'audit' }
   | { screen: 'review' }
@@ -48,6 +51,8 @@ export function routeHash(route: AdminRoute): string {
       return '#/usage';
     case 'siteAccess':
       return '#/site-access';
+    case 'fetchEvidence':
+      return `#/site-access/sessions/${encodeURIComponent(route.sessionId)}`;
     case 'versions':
       return '#/versions';
     case 'audit':
@@ -71,7 +76,10 @@ function parseHash(hash: string): AdminRoute {
     .map(decodeURIComponent);
   if (parts[0] === 'settings') return { screen: 'settings' };
   if (parts[0] === 'usage') return { screen: 'usage' };
-  if (parts[0] === 'site-access') return { screen: 'siteAccess' };
+  if (parts[0] === 'site-access') {
+    if (parts[1] === 'sessions' && parts[2]) return { screen: 'fetchEvidence', sessionId: parts[2] };
+    return { screen: 'siteAccess' };
+  }
   if (parts[0] === 'versions') return { screen: 'versions' };
   if (parts[0] === 'audit') return { screen: 'audit' };
   if (parts[0] === 'review') return { screen: 'review' };

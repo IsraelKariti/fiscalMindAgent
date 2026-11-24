@@ -5,6 +5,8 @@ import { formatTimestamp, humanizePurpose } from '../format';
 import { useT } from '../i18n';
 import { CopyButton } from './CopyButton';
 import { DocumentPane, isTwoPane, useDocumentOf } from './DocumentPane';
+import { EvidencePane, hasEvidence, useFetchEvidence } from './EvidencePane';
+import { useViewer } from '../agents/ApiContext';
 import { isAccountantEmailStep, isFileStep, stepDetailsText, stepLinkOf } from './stepLink';
 import { isIsoDateTime, stepSummaryOf } from './stepSummary';
 
@@ -120,6 +122,11 @@ function EmailStatusBadge({ status }: { status: EmailStatusView }) {
   );
 }
 
+/** True for a step whose recorded target is a website-fetch session (login started, code submitted, failed). */
+export function isFetchSessionStep(step: Pick<AdminConversationStep, 'targetType' | 'targetId'>): boolean {
+  return step.targetType === 'tax_fetch_session' && typeof step.targetId === 'string' && step.targetId !== '';
+}
+
 /**
  * Read-only drill-down of one audited code step: what the step did (its
  * detail as labelled rows), and, for a gate row, which checks ran, which
@@ -150,7 +157,13 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
   // A file step asks for its document (by step id) on open; any other step asks for nothing.
   const doc = useDocumentOf(isFileStep(step) ? step.id : null, api.adminGetStepFile);
   const emailStatus = useEmailStatusOf(step);
-  const twoPane = isTwoPane(doc);
+  // A fetch-session step asks an admin's session for the step evidence gallery
+  // (openspec `fetch-step-evidence`); an accountant's view never asks.
+  const { isAdmin } = useViewer();
+  const evidenceSessionId = isAdmin && isFetchSessionStep(step) ? step.targetId : null;
+  const evidence = useFetchEvidence(evidenceSessionId);
+  const evidencePane = evidence === 'loading' || hasEvidence(evidence);
+  const twoPane = isTwoPane(doc) || evidencePane;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -198,6 +211,9 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
             </p>
           )}
           {doc === 'missing' && <p className="muted gate-modal-doc-missing">{t.stepDocMissing}</p>}
+          {evidenceSessionId && !evidencePane && (
+            <p className="muted gate-modal-doc-missing">{evidence === 'failed' ? t.fetchEvidenceLoadFailed : t.fetchEvidenceNone}</p>
+          )}
           {emailStatus !== null && (
             <p className="gate-modal-email-status">
               <span className="muted">{t.stepEmailStatusLabel}</span> <EmailStatusBadge status={emailStatus} />
@@ -301,7 +317,8 @@ export function StepDetailModal({ step, onClose }: { step: AdminConversationStep
             </pre>
           </details>
         </div>
-        {twoPane && <DocumentPane doc={doc} viewUrl={api.adminStepFileViewUrl(step.id)} downloadUrl={api.adminStepFileDownloadUrl(step.id)} />}
+        {isTwoPane(doc) && <DocumentPane doc={doc} viewUrl={api.adminStepFileViewUrl(step.id)} downloadUrl={api.adminStepFileDownloadUrl(step.id)} />}
+        {evidenceSessionId && evidencePane && <EvidencePane sessionId={evidenceSessionId} state={evidence} />}
       </div>
     </div>,
     document.body,

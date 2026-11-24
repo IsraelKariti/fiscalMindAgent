@@ -11,6 +11,7 @@ import { AdminOverview } from './admin/AdminOverview';
 import { AdminReview } from './admin/AdminReview';
 import { AdminSettings } from './admin/AdminSettings';
 import { AdminSiteAccess } from './admin/AdminSiteAccess';
+import { AdminFetchEvidence } from './admin/AdminFetchEvidence';
 import { AdminUsage } from './admin/AdminUsage';
 import { AdminVersions } from './admin/AdminVersions';
 import { AgentPage } from './admin/AgentPage';
@@ -77,6 +78,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     route.screen === 'settings' ||
     route.screen === 'usage' ||
     route.screen === 'siteAccess' ||
+    route.screen === 'fetchEvidence' ||
     route.screen === 'versions' ||
     route.screen === 'audit' ||
     route.screen === 'review' ||
@@ -84,7 +86,9 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     route.screen === 'llmStages' ||
     route.screen === 'overview' ||
     route.screen === 'agents'
-      ? route.screen
+      ? route.screen === 'fetchEvidence'
+        ? 'siteAccess'
+        : route.screen
       : 'accountants';
 
   return (
@@ -234,6 +238,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
 
         {route.screen === 'usage' && accountants && <AdminUsage accountants={accountants} />}
         {route.screen === 'siteAccess' && <AdminSiteAccess />}
+        {route.screen === 'fetchEvidence' && <AdminFetchEvidence sessionId={route.sessionId} onBack={() => navigate({ screen: 'siteAccess' })} />}
         {route.screen === 'versions' && <AdminVersions />}
 
         {route.screen === 'audit' && <AdminAudit />}

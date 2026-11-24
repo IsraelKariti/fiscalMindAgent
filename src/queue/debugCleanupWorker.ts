@@ -1,6 +1,6 @@
 import { Queue, Worker } from 'bullmq';
 import { bullOpts } from './connection.js';
-import { cleanupExpiredFailureShots } from '../agents/declarationOfCapital/taxFetch/failureShots.js';
+import { cleanupExpiredEvidence } from '../agents/declarationOfCapital/taxFetch/stepEvidence.js';
 import { isKillSwitchOn } from '../agents/killSwitch.js';
 import { env } from '../config/env.js';
 import { logger } from '../util/logger.js';
@@ -10,8 +10,8 @@ export const DEBUG_CLEANUP_QUEUE_NAME = 'debug_cleanup';
 export const debugCleanupQueue = new Queue(DEBUG_CLEANUP_QUEUE_NAME, { ...bullOpts });
 
 /**
- * Registers (idempotently) the daily sweep that deletes expired failure
- * screenshots (debug/taxfetch/ blobs past TAX_FETCH_DEBUG_RETENTION_DAYS).
+ * Registers (idempotently) the daily sweep that deletes expired fetch step
+ * evidence (debug/taxfetch/ blobs past TAX_FETCH_DEBUG_RETENTION_DAYS).
  * 03:20 local — off-hours, clear of the 00:10/00:50 business scans.
  */
 export async function ensureDebugCleanupScheduler(): Promise<void> {
@@ -32,7 +32,7 @@ export function createDebugCleanupWorker(): Worker {
         logger.warn('debug_cleanup skipped: platform kill switch is on');
         return;
       }
-      await cleanupExpiredFailureShots();
+      await cleanupExpiredEvidence();
     },
     { ...bullOpts, concurrency: 1 },
   );

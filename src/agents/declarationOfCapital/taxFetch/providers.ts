@@ -620,12 +620,126 @@ const migdalSpec: FetchProviderSpec = {
   },
 };
 
+// ── Meitav ──────────────────────────────────────────────────────────────────
+
+/** A required-document name that mentions Meitav (the gemel/pension company or the Latin name). */
+const MEITAV_NAME = /מיטב|meitav/i;
+/** Meitav Trade (securities) is a different area of the same portal and never this provider. */
+const MEITAV_TRADE = /טרייד|trade|ניירות ערך/i;
+
+/** Human product noun per Meitav document kind, for delivery wording. */
+function meitavProductNoun(kind: string | null | undefined): string {
+  return kind === 'study_fund_annual' ? 'קרן ההשתלמות' : 'הפנסיה';
+}
+
+/** The product nouns of a delivery, each once, in document order. */
+function meitavProducts(docs: FetchedDocument[]): string {
+  return joinHe([...new Set(docs.map((d) => meitavProductNoun(d.kind)))]);
+}
+
+/**
+ * Meitav (מיטב). One SMS-OTP login with the client's national id and WhatsApp
+ * number (the site takes the phone as a mobile prefix plus seven digits). The
+ * runner opens the personal area's "דוחות תקופתיים" page, sets the tax year in
+ * its year picker and takes, from every product card, the detailed and the
+ * short annual report ("דוח שנתי מפורט/מקוצר דצמבר <year>"; openspec
+ * `meitav-fetch`); both reports of a product carry the same kind and attach to
+ * the same checklist row, titled by their on-site row title.
+ */
+const meitavSpec: FetchProviderSpec = {
+  id: 'meitav',
+  siteNameHe: 'מיטב',
+  otpChannel: 'sms',
+  // Same consent rule as Harel/Phoenix/Migdal: every product card is read and
+  // a kind the list lacks gets its row at delivery.
+  takesAllDocuments: true,
+
+  documents: [
+    {
+      key: 'pension_annual',
+      documentDescriptionHe: 'דוח שנתי מפורט ומקוצר — פנסיה / קופת גמל (מיטב)',
+      matchesRequiredDocument: (doc) =>
+        MEITAV_NAME.test(doc.name) && !MEITAV_TRADE.test(doc.name) && /פנסיה|גמל/.test(doc.name) && !/השתלמות/.test(doc.name),
+      catalogTypeKey: 'pension_provident',
+    },
+    {
+      key: 'study_fund_annual',
+      documentDescriptionHe: 'דוח שנתי מפורט ומקוצר — קרן השתלמות (מיטב)',
+      matchesRequiredDocument: (doc) => MEITAV_NAME.test(doc.name) && !MEITAV_TRADE.test(doc.name) && /השתלמות/.test(doc.name),
+      catalogTypeKey: 'study_fund',
+    },
+  ],
+
+  async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
+    // National id from clientIdNumber's shared order (own credentials row →
+    // tax-authority row → the id the kickoff stored from the CRM card) plus the
+    // WhatsApp number the site sends the SMS code to.
+    const idNumber = (await clientIdNumber(client, 'meitav'))?.id;
+    if (!idNumber || !client.wa_phone) return null;
+    return { idNumber, phoneNumber: client.wa_phone };
+  },
+
+  messages: {
+    otpSent: 'הקוד נשלח אליך הרגע ממיטב ב-SMS 📱 הוא תקף לדקות ספורות — אנא שלח/י לי אותו כאן ברגע שהוא מגיע.',
+    loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר מיטב כרגע. נוכל לנסות שוב מאוחר יותר.',
+    busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
+    otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
+    otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS ממיטב.',
+    otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
+    downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
+    noDocumentsOnSite:
+      'הזדהיתי בהצלחה באתר מיטב, אך לא נמצאו שם דוחות שנתיים לשנה המבוקשת. ייתכן שהדוח טרם פורסם או שהחשבון מתנהל בחברה אחרת — נבדוק את זה מול המשרד ונעדכן אותך.',
+  },
+
+  delivery: {
+    waConfirmation(docs: FetchedDocument[], canEmail: boolean, createdKinds: string[] = []): string {
+      const single = docs.length === 1;
+      const fetchedWhat = single
+        ? `את הדוח השנתי של ${meitavProducts(docs)} שלך`
+        : `${docs.length} דוחות שנתיים של ${meitavProducts(docs)} שלך`;
+      const tail = canEmail
+        ? single
+          ? 'שלחתי לך עותק למייל.'
+          : 'שלחתי לך עותקים למייל.'
+        : single
+          ? 'המסמך נשמר והועבר לרואה החשבון.'
+          : 'המסמכים נשמרו והועברו לרואה החשבון.';
+      // A kind the list did not expect: told after the fact (openspec `meitav-fetch`).
+      const alsoFound = createdKinds.map(
+        (kind) => ` מצאתי שם גם את ${meitavProductNoun(kind)} שלך — הוספתי אותה לרשימת המסמכים.`,
+      );
+      return `הצלחתי למשוך ${fetchedWhat} ממיטב 🎉 ${tail}${alsoFound.join('')}`;
+    },
+
+    emailSubject(docs: FetchedDocument[], taxYear: number): string {
+      const products = joinHe([...new Set(docs.map((d) => (d.kind === 'study_fund_annual' ? 'קרן השתלמות' : 'פנסיה')))]);
+      return docs.length > 1
+        ? `דוחות שנתיים (${products}) - מיטב - ${taxYear}`
+        : `דוח שנתי (${products}) - מיטב - ${taxYear}`;
+    },
+
+    emailBodyLines(docs: FetchedDocument[], taxYear: number): string[] {
+      return [
+        docs.length === 1
+          ? `מצורף הדוח השנתי של ${meitavProducts(docs)} שלך לשנת ${taxYear}, שנמשך עבורך ממיטב.`
+          : `מצורפים ${docs.length} הדוחות השנתיים של ${meitavProducts(docs)} שלך לשנת ${taxYear}, שנמשכו עבורך ממיטב:`,
+        ...(docs.length > 1 ? ['', ...docs.map((d) => `• ${d.title ?? 'דוח שנתי'} — ${meitavProductNoun(d.kind)}`)] : []),
+      ];
+    },
+
+    fileLabel(doc: FetchedDocument, taxYear: number): string | null {
+      return `${doc.title ?? 'דוח שנתי'} — מיטב ${taxYear}`;
+    },
+  },
+};
+
 const SPECS: Record<string, FetchProviderSpec> = {
   [israelTaxAuthoritySpec.id]: israelTaxAuthoritySpec,
   [altshulerShahamSpec.id]: altshulerShahamSpec,
   [harelSpec.id]: harelSpec,
   [phoenixSpec.id]: phoenixSpec,
   [migdalSpec.id]: migdalSpec,
+  [meitavSpec.id]: meitavSpec,
 };
 
 /** Looks up a provider spec; throws on an id the worker doesn't know (bad row / version skew). */

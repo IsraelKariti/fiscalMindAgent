@@ -8,7 +8,8 @@ export const PDF_CAPTURE_TIMEOUT_MS = 30_000;
  * racing four delivery mechanisms: a popup on a blob: URL whose bytes we
  * re-fetch from the opener (same-origin; the tax authority's observed method),
  * plus a real download event and an application/pdf response on the page or on
- * a popup, in case the site delivers differently or changes. Listeners are
+ * a popup (Meitav opens the download URL in a popup that saves the attachment
+ * and closes itself), in case the site delivers differently or changes. Listeners are
  * detached and viewer popups closed before returning, so the capture can run
  * once per document row.
  */
@@ -42,6 +43,11 @@ export async function captureNextPdf(
     // viewer shows regardless of how the server transported the bytes.
     onPage = (p: Page) => {
       popups.push(p);
+      // A popup whose navigation turns into an attachment (Meitav's
+      // window.open on the download URL) emits its download — or its
+      // application/pdf response — on the popup, not on the opener.
+      p.on('download', onDownload);
+      p.on('response', onResponse);
       void (async () => {
         try {
           await p.waitForURL(/^blob:/, { timeout: PDF_CAPTURE_TIMEOUT_MS }).catch(() => undefined);

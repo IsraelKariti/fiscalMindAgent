@@ -301,6 +301,24 @@ class MockTaxFetchClient implements TaxFetchClient {
           kind: d.key,
         }));
     }
+    // Meitav's periodic-reports page (openspec `meitav-fetch`) lists per
+    // product the detailed and the short annual report of the year, both of
+    // the product's kind; the titles are the site's real ones (the same for
+    // every product).
+    if (provider === 'meitav') {
+      const titles = [`דוח שנתי מפורט דצמבר ${opts.taxYear}`, `דוח שנתי מקוצר דצמבר ${opts.taxYear}`];
+      return opts.documentKeys
+        .filter((key) => key === 'pension_annual' || key === 'study_fund_annual')
+        .flatMap((key) => titles.map((title) => ({ key, title })))
+        .map((d, i) => ({
+          buffer: MOCK_PDF,
+          filename: `mock_meitav_${opts.taxYear}_${i + 1}.pdf`,
+          contentType: 'application/pdf',
+          employerName: null,
+          title: d.title,
+          kind: d.key,
+        }));
+    }
     // Migdal's four rounds (openspec `migdal-fetch`) yield the full and the
     // short annual report per product, both of the product's kind, titled the
     // way the site names its rows (the pension titles are the owner's real

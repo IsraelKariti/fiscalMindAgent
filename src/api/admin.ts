@@ -14,6 +14,7 @@ import * as clients from '../db/queries/clients.js';
 import { getHoldsFresh } from '../gemini/providerOutage.js';
 import { probeAllHolds } from '../orchestration/outageRecovery.js';
 import { defaultTaxYear } from '../agents/shared/taxYear.js';
+import { loadSiteAccessReport } from '../agents/declarationOfCapital/taxFetch/siteAccessReport.js';
 import { RESERVED } from './mailbox.js';
 import { env } from '../config/env.js';
 import { computeCost, getPricingForModel } from '../gemini/pricing.js';
@@ -1029,4 +1030,13 @@ export const adminRemoveFromWhitelist: RequestHandler = async (req, res) => {
   }
   logger.info('whitelist entry removed', { adminUserId: req.realUserId, email: email.data.toLowerCase() });
   res.json({ ok: true });
+};
+
+/**
+ * GET /api/admin/site-access — the site-access screen (openspec
+ * `admin-site-access`): every monitored site × product with its built badge,
+ * access counts, health and last access, derived from tax_fetch_sessions.
+ */
+export const adminSiteAccess: RequestHandler = async (_req, res) => {
+  res.json(await loadSiteAccessReport());
 };

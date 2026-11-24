@@ -5970,3 +5970,111 @@ pre.doc-text {
   font-size: 13px;
   flex-shrink: 0;
 }
+
+/* ── Admin site access (#/site-access, openspec `admin-site-access`) ── */
+.site-access-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.site-access-intro {
+  margin: 0;
+}
+
+.site-access-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.site-access-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 16px;
+}
+
+.site-access-group-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.site-access-group-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.site-access-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.site-access-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.site-access-card-unbuilt {
+  opacity: 0.7;
+}
+
+.site-access-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.site-access-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.site-access-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.site-access-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.site-access-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.site-access-stat .stat-label {
+  font-size: 11px;
+}
+
+.site-access-stat .stat-value {
+  font-size: 20px;
+}
+
+.site-access-last {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.site-access-error {
+  font-size: 12px;
+  word-break: break-all;
+}

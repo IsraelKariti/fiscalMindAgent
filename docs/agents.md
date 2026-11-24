@@ -1235,6 +1235,26 @@ capability** — there is no accountant button.
     Capacity: `sessionTracker` caps at 100 (`TAX_FETCH_MAX_LIVE_SESSIONS`);
     the tax-fetch queue runs concurrency 8 in this mode.
 
+### Site access screen (admin, `#/site-access`)
+
+Admin-only monitor of every external site the agent is meant to log in to
+(openspec `admin-site-access`). The list is a fixed catalog in
+`taxFetch/accessCatalog.ts`: one entry per site × product (9 pension funds,
+11 study funds, the tax authority). Each card shows a **built** badge (a
+provider in `taxFetch/providers.ts` has that site id and offers that product
+key), access counts (total / today / 7 days / 30 days, calendar days in
+`ACCOUNTANT_TIMEZONE`, by `created_at`) and a **health** badge from the two
+newest `delivered`/`failed` sessions (healthy, warning, failing; a
+"no documents on the site" failure counts as a successful login; expired and
+cancelled sessions never judge health). A session counts as an access once it
+reached the site (`status` logging_in/verifying/downloading/delivered/failed,
+or `otp_requested_at` set); a NULL `document_keys` counts under every product
+the provider offers. Data: `GET /api/admin/site-access`
+(`db/queries/siteAccess.ts` → `taxFetch/siteAccessReport.ts`); no table of
+its own. **Rule for new providers:** the provider id must equal the catalog
+`site`, which for fund managers is the `institutionsTable.ts` key (a Meitav
+provider is `meitav`); `tests/accessCatalog.test.ts` fails on drift.
+
 ## Prompt-injection defenses (content-level)
 
 All untrusted content (email subject/body, WhatsApp text, file bytes and the

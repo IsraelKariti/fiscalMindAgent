@@ -655,6 +655,32 @@ export interface VersionSummary {
   stages: VersionStageSummary[];
 }
 
+export type SiteHealth = 'no_data' | 'healthy' | 'warning' | 'failing';
+export type SiteAccessOutcome = 'delivered' | 'failed' | 'no_documents' | 'abandoned' | 'in_progress';
+
+/** One monitored site × product on the admin site-access screen (openspec `admin-site-access`). */
+export interface SiteAccessEntry {
+  site: string;
+  product: string;
+  nameHe: string;
+  built: boolean;
+  counts: { total: number; today: number; last7: number; last30: number };
+  health: SiteHealth;
+  last: { at: string; outcome: SiteAccessOutcome; error: string | null } | null;
+}
+
+export interface SiteAccessGroup {
+  key: 'pension' | 'study_fund' | 'other';
+  size: number;
+  builtCount: number;
+  totalAccesses: number;
+  entries: SiteAccessEntry[];
+}
+
+export interface SiteAccessReply {
+  groups: SiteAccessGroup[];
+}
+
 export interface VersionCostReply {
   versions: VersionSummary[];
   instances: { id: string; name: string | null; accountantEmail: string | null }[];
@@ -1286,6 +1312,7 @@ export const api = {
     const q = qs.toString();
     return request<VersionCostReply>(`/admin/version-cost${q ? `?${q}` : ''}`);
   },
+  adminSiteAccess: () => request<SiteAccessReply>('/admin/site-access'),
   adminLlmUsageDaily: (days: number) =>
     request<{ since: string; rows: LlmDailyUsage[] }>(`/admin/llm-usage/daily?days=${days}`),
   adminAuditEvents: (days: number) => request<{ events: AuditEvent[] }>(`/admin/audit-events?days=${days}`),

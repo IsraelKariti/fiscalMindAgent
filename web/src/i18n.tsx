@@ -944,6 +944,30 @@ const he = {
   usageColShare: 'נתח',
   usageLoadFailed: 'טעינת נתוני השימוש נכשלה.',
 
+  // Admin site access (#/site-access, openspec `admin-site-access`)
+  adminSiteAccessTab: 'גישה לאתרים',
+  siteAccessIntro: 'כל אתר חיצוני שהסוכן אמור להתחבר אליו בשם הלקוח: האם החיבור כבר בנוי, כמה פעמים הסוכן ניגש אליו, והאם הגישות האחרונות הצליחו.',
+  siteAccessLoadFailed: 'טעינת נתוני הגישה לאתרים נכשלה.',
+  siteAccessGroup: { pension: 'קליטת פנסיה', study_fund: 'קליטת קרן השתלמות', other: 'אתרים נוספים' } as Record<string, string>,
+  siteAccessBuiltOf: (built: number, size: number) => `${built} מתוך ${size} בנויים`,
+  siteAccessGroupTotal: (n: number) => `${n} גישות בסך הכול`,
+  siteAccessBuilt: 'בנוי',
+  siteAccessNotBuilt: 'טרם נבנה',
+  siteAccessHealth: { no_data: 'אין נתונים עדיין', healthy: 'תקין', warning: 'אזהרה', failing: 'נכשל' } as Record<string, string>,
+  siteAccessCountTotal: 'סך הכול',
+  siteAccessCountToday: 'היום',
+  siteAccessCount7: '7 ימים',
+  siteAccessCount30: '30 ימים',
+  siteAccessLast: 'גישה אחרונה',
+  siteAccessNoAccessYet: 'אין גישות עדיין',
+  siteAccessOutcome: {
+    delivered: 'הצליחה',
+    failed: 'נכשלה',
+    no_documents: 'התחברות הצליחה, אין מסמכים באתר',
+    abandoned: 'הלקוח לא השלים',
+    in_progress: 'בתהליך',
+  } as Record<string, string>,
+
   // Admin cost per version (#/versions, openspec `cost-per-version`)
   adminVersionsTab: 'גרסאות',
   versionsIntro: 'כל גרסה של האפליקציה שביצעה קריאות LLM, מהחדשה לישנה. המספרים ליחידת עבודה (מחזור תכנון, מסמך, קריאת מתכנן) מושווים לגרסה הקודמת ברשימה.',

@@ -43,6 +43,7 @@ import {
   adminListAlerts,
   adminListWhitelist,
   adminLlmUsageDaily,
+  adminSiteAccess,
   adminRemoveFromWhitelist,
   adminRevokeAdmin,
   adminSetAgentEmail,
@@ -145,6 +146,7 @@ apiRouter.delete('/admin/accountants/:userId', wrap(requireAdmin), wrap(adminDel
 apiRouter.post('/admin/impersonate', wrap(requireAdmin), wrap(startImpersonation));
 apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersonation));
 apiRouter.get('/admin/llm-usage/daily', wrap(requireAdmin), wrap(adminLlmUsageDaily));
+apiRouter.get('/admin/site-access', wrap(requireAdmin), wrap(adminSiteAccess));
 apiRouter.get('/admin/version-cost', wrap(requireAdmin), wrap(adminGetVersionCost));
 apiRouter.get('/admin/audit-events', wrap(requireAdmin), wrap(adminAuditEvents));
 apiRouter.get('/admin/alerts', wrap(requireAdmin), wrap(adminListAlerts));

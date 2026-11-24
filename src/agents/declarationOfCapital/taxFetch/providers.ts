@@ -733,6 +733,115 @@ const meitavSpec: FetchProviderSpec = {
   },
 };
 
+// ── Menora Mivtachim ────────────────────────────────────────────────────────
+
+/** A required-document name that mentions Menora (Hebrew or Latin). */
+const MENORA_NAME = /מנורה|menora/i;
+
+/** Human product noun per Menora document kind, for delivery wording. */
+function menoraProductNoun(kind: string | null | undefined): string {
+  return kind === 'study_fund_annual' ? 'קרן ההשתלמות' : 'הפנסיה';
+}
+
+/** The product nouns of a delivery, each once, in document order. */
+function menoraProducts(docs: FetchedDocument[]): string {
+  return joinHe([...new Set(docs.map((d) => menoraProductNoun(d.kind)))]);
+}
+
+/**
+ * Menora Mivtachim (מנורה מבטחים). One SMS-OTP login with the client's national
+ * id and WhatsApp number (one phone field, the full number). The runner runs
+ * one filter on the personal area's "הדוחות שלי" page — the short annual
+ * report ("שנתי מקוצר / אישור מס והצהרת הון") for the sectors פנסיה and גמל
+ * והשתלמות and the tax year — and downloads every row it lists (openspec
+ * `menora-fetch`); each file is titled by its row ("<type> <year> — <product>").
+ */
+const menoraSpec: FetchProviderSpec = {
+  id: 'menora_mivtachim',
+  siteNameHe: 'מנורה מבטחים',
+  otpChannel: 'sms',
+  // Same consent rule as Harel/Phoenix/Migdal/Meitav: both sectors are always
+  // searched and a kind the list lacks gets its row at delivery.
+  takesAllDocuments: true,
+
+  documents: [
+    {
+      key: 'pension_annual',
+      documentDescriptionHe: 'דוח שנתי מקוצר ואישור מס — פנסיה / קופת גמל (מנורה מבטחים)',
+      matchesRequiredDocument: (doc) => MENORA_NAME.test(doc.name) && /פנסיה|גמל/.test(doc.name) && !/השתלמות/.test(doc.name),
+      catalogTypeKey: 'pension_provident',
+    },
+    {
+      key: 'study_fund_annual',
+      documentDescriptionHe: 'דוח שנתי מקוצר ואישור מס — קרן השתלמות (מנורה מבטחים)',
+      matchesRequiredDocument: (doc) => MENORA_NAME.test(doc.name) && /השתלמות/.test(doc.name),
+      catalogTypeKey: 'study_fund',
+    },
+  ],
+
+  async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
+    // National id from clientIdNumber's shared order (own credentials row →
+    // tax-authority row → the id the kickoff stored from the CRM card) plus the
+    // WhatsApp number the site sends the SMS code to.
+    const idNumber = (await clientIdNumber(client, 'menora_mivtachim'))?.id;
+    if (!idNumber || !client.wa_phone) return null;
+    return { idNumber, phoneNumber: client.wa_phone };
+  },
+
+  messages: {
+    otpSent: 'הקוד נשלח אליך הרגע ממנורה מבטחים ב-SMS 📱 הוא תקף לדקות ספורות — אנא שלח/י לי אותו כאן ברגע שהוא מגיע.',
+    loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר מנורה מבטחים כרגע. נוכל לנסות שוב מאוחר יותר.',
+    busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
+    otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
+    otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS ממנורה מבטחים.',
+    otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
+    downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
+    noDocumentsOnSite:
+      'הזדהיתי בהצלחה באתר מנורה מבטחים, אך לא נמצאו שם דוחות שנתיים לשנה המבוקשת. ייתכן שהדוח טרם פורסם או שהחשבון מתנהל בחברה אחרת — נבדוק את זה מול המשרד ונעדכן אותך.',
+  },
+
+  delivery: {
+    waConfirmation(docs: FetchedDocument[], canEmail: boolean, createdKinds: string[] = []): string {
+      const single = docs.length === 1;
+      const fetchedWhat = single
+        ? `את הדוח השנתי של ${menoraProducts(docs)} שלך`
+        : `${docs.length} דוחות שנתיים של ${menoraProducts(docs)} שלך`;
+      const tail = canEmail
+        ? single
+          ? 'שלחתי לך עותק למייל.'
+          : 'שלחתי לך עותקים למייל.'
+        : single
+          ? 'המסמך נשמר והועבר לרואה החשבון.'
+          : 'המסמכים נשמרו והועברו לרואה החשבון.';
+      // A kind the list did not expect: told after the fact (openspec `menora-fetch`).
+      const alsoFound = createdKinds.map(
+        (kind) => ` מצאתי שם גם את ${menoraProductNoun(kind)} שלך — הוספתי אותה לרשימת המסמכים.`,
+      );
+      return `הצלחתי למשוך ${fetchedWhat} ממנורה מבטחים 🎉 ${tail}${alsoFound.join('')}`;
+    },
+
+    emailSubject(docs: FetchedDocument[], taxYear: number): string {
+      const products = joinHe([...new Set(docs.map((d) => (d.kind === 'study_fund_annual' ? 'קרן השתלמות' : 'פנסיה')))]);
+      return docs.length > 1
+        ? `דוחות שנתיים ואישורי מס (${products}) - מנורה מבטחים - ${taxYear}`
+        : `דוח שנתי ואישור מס (${products}) - מנורה מבטחים - ${taxYear}`;
+    },
+
+    emailBodyLines(docs: FetchedDocument[], taxYear: number): string[] {
+      return [
+        docs.length === 1
+          ? `מצורף הדוח השנתי של ${menoraProducts(docs)} שלך לשנת ${taxYear}, שנמשך עבורך ממנורה מבטחים.`
+          : `מצורפים ${docs.length} הדוחות השנתיים של ${menoraProducts(docs)} שלך לשנת ${taxYear}, שנמשכו עבורך ממנורה מבטחים:`,
+        ...(docs.length > 1 ? ['', ...docs.map((d) => `• ${d.title ?? 'דוח שנתי'} — ${menoraProductNoun(d.kind)}`)] : []),
+      ];
+    },
+
+    fileLabel(doc: FetchedDocument, taxYear: number): string | null {
+      return `${doc.title ?? 'דוח שנתי'} — מנורה מבטחים ${taxYear}`;
+    },
+  },
+};
+
 const SPECS: Record<string, FetchProviderSpec> = {
   [israelTaxAuthoritySpec.id]: israelTaxAuthoritySpec,
   [altshulerShahamSpec.id]: altshulerShahamSpec,
@@ -740,6 +849,7 @@ const SPECS: Record<string, FetchProviderSpec> = {
   [phoenixSpec.id]: phoenixSpec,
   [migdalSpec.id]: migdalSpec,
   [meitavSpec.id]: meitavSpec,
+  [menoraSpec.id]: menoraSpec,
 };
 
 /** Looks up a provider spec; throws on an id the worker doesn't know (bad row / version skew). */

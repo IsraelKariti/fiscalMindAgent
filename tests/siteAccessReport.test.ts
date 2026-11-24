@@ -36,8 +36,8 @@ describe('buildSiteAccessReport', () => {
     assert.deepEqual(
       empty.groups.map((g) => [g.key, g.size, g.builtCount, g.totalAccesses]),
       [
-        ['pension', 9, 5, 0],
-        ['study_fund', 11, 5, 0],
+        ['pension', 9, 6, 0],
+        ['study_fund', 11, 6, 0],
         ['other', 1, 1, 0],
       ],
     );
@@ -46,7 +46,9 @@ describe('buildSiteAccessReport', () => {
       assert.equal(e.health, 'no_data');
       assert.equal(e.last, null);
     }
-    assert.equal(find('menora_mivtachim', 'study_fund_annual').built, false);
+    assert.equal(find('mor', 'study_fund_annual').built, false);
+    assert.equal(find('menora_mivtachim', 'pension_annual').built, true);
+    assert.equal(find('menora_mivtachim', 'study_fund_annual').built, true);
     assert.equal(find('meitav', 'pension_annual').built, true);
     assert.equal(find('meitav', 'study_fund_annual').built, true);
     assert.equal(find('harel', 'study_fund_annual').built, true);

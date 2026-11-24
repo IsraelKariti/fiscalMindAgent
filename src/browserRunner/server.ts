@@ -10,6 +10,7 @@ import { harelProvider } from './harel.js';
 import { phoenixProvider } from './phoenix.js';
 import { migdalProvider } from './migdal.js';
 import { meitavProvider } from './meitav.js';
+import { menoraProvider } from './menora.js';
 import { NoDocumentsOnSiteError, OtpRejectedError, type DocumentFetchProvider } from './providerTypes.js';
 import { RUNNER_PROTOCOL_VERSION } from './protocol.js';
 import { logger } from '../util/logger.js';
@@ -21,6 +22,7 @@ const PROVIDERS: Record<string, DocumentFetchProvider> = {
   phoenix: phoenixProvider,
   migdal: migdalProvider,
   meitav: meitavProvider,
+  menora_mivtachim: menoraProvider,
 };
 
 /** At most this many browsers open at once (each is a real Chrome; the box is small). */

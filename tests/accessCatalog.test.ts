@@ -18,7 +18,7 @@ describe('access catalog', () => {
     for (const e of ACCESS_CATALOG) assert.ok(e.nameHe.length > 0, `${e.site} has a Hebrew name`);
   });
 
-  it('marks exactly the eleven existing accesses as built', () => {
+  it('marks exactly the thirteen existing accesses as built', () => {
     const built = ACCESS_CATALOG.filter(isBuilt).map((e) => `${e.site}/${e.product}`);
     assert.deepEqual(built.sort(), [
       'altshuler_shaham/pension_annual',
@@ -28,6 +28,8 @@ describe('access catalog', () => {
       'israel_tax_authority/form106',
       'meitav/pension_annual',
       'meitav/study_fund_annual',
+      'menora_mivtachim/pension_annual',
+      'menora_mivtachim/study_fund_annual',
       'migdal/pension_annual',
       'migdal/study_fund_annual',
       'phoenix/pension_annual',

@@ -1252,6 +1252,26 @@ capability** — there is no accountant button.
   `takesAllDocuments` provider like Migdal (rows created at delivery are named
   " — מיטב"). `scripts/meitavFetchSmoke.ts <id> <phone> [year]` is its live
   check.
+  `menora_mivtachim` (pension + study fund in one SMS-OTP login with the
+  national id and the WhatsApp number typed as one full number into the
+  site's phone-or-email field; six code boxes; openspec `menora-fetch`): one
+  filter on menoramivt.co.il/personal/reports ("הדוחות שלי", crawled live
+  2026-11-24) through the page's three Material-UI selects — report type
+  "שנתי מקוצר / אישור מס והצהרת הון" ONLY (the owner's decision: the short
+  report carries the tax certificate; the detailed one is not fetched),
+  sectors פנסיה + גמל והשתלמות (never "כל התחומים", which includes
+  insurance), the tax year (a fixed site range — a year outside it fails
+  loudly; a filter answered "לצערנו, לא נמצאו תוצאות" is "no documents") —
+  then every result row is read from its button's aria-label ("סוג הדוח: …
+  שנה: … מוצר: … תחום …"), tagged by its sector, titled "<type> <year> —
+  <product>" and downloaded through `captureNextPdf` (the לצפיה click fetches
+  a base64 PDF and opens it as a blob in a viewer tab). The pure
+  `parseMenoraRowLabel` / `selectMenoraRows` / `normalizeMenoraPhone` in
+  `browserRunner/menora.ts` are tested in `tests/menoraSelect.test.ts`, the
+  spec's row matching in `tests/menoraSpec.test.ts`; Menora is a
+  `takesAllDocuments` provider (rows created at delivery are named
+  " — מנורה מבטחים"). `scripts/menoraFetchSmoke.ts <id> <phone> [year]` is its
+  live check (the owner's account holds a 2018 pension row).
   `TAX_FETCH_MOCK=true` swaps in an
   in-worker no-runner mock (`fetchClient.ts` — every real login emails a real
   citizen an OTP, so iterate on the mock). `scripts/taxFetchSmoke.ts` validates the
@@ -1261,7 +1281,7 @@ capability** — there is no accountant button.
   boards/sheets via the shared client-import mapping (two optional columns:
   national ID + permanent user code), synced for new *and* existing clients.
   Only the tax authority needs that row (its login also takes the user code).
-  Altshuler, Harel, Phoenix and Meitav log in with a national id + the client's WhatsApp
+  Altshuler, Harel, Phoenix, Meitav and Menora log in with a national id + the client's WhatsApp
   number (Migdal with the national id alone — it sends its SMS to the number
   it holds, so the WhatsApp number is only the relay channel), and take the id from `taxFetch/clientId.ts` `clientIdNumber` in
   one shared order — the provider's own credentials row → the tax-authority

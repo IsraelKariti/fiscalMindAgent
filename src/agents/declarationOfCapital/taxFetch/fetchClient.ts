@@ -301,6 +301,26 @@ class MockTaxFetchClient implements TaxFetchClient {
           kind: d.key,
         }));
     }
+    // Menora's reports filter (openspec `menora-fetch`) lists one short annual
+    // report per product, titled "<type> <year> — <product>" as the row reads;
+    // the pension title is the owner's real row, the study-fund product name
+    // comes from the dashboard card.
+    if (provider === 'menora_mivtachim') {
+      const titlesByKey: Record<string, string> = {
+        pension_annual: `דוח שנתי מקוצר ${opts.taxYear} — מנורה מבטחים פנסיה מקיפה`,
+        study_fund_annual: `דוח שנתי מקוצר ${opts.taxYear} — מנורה מבטחים השתלמות`,
+      };
+      return opts.documentKeys
+        .filter((key) => key in titlesByKey)
+        .map((key, i) => ({
+          buffer: MOCK_PDF,
+          filename: `mock_menora_${opts.taxYear}_${i + 1}.pdf`,
+          contentType: 'application/pdf',
+          employerName: null,
+          title: titlesByKey[key]!,
+          kind: key,
+        }));
+    }
     // Meitav's periodic-reports page (openspec `meitav-fetch`) lists per
     // product the detailed and the short annual report of the year, both of
     // the product's kind; the titles are the site's real ones (the same for

@@ -354,10 +354,112 @@ const harelSpec: FetchProviderSpec = {
   },
 };
 
+// ── Phoenix ─────────────────────────────────────────────────────────────────
+
+/** A required-document name that mentions Phoenix (any spelling the catalog or the planner uses). */
+const PHOENIX_NAME = /פניקס|phoenix/i;
+
+/** Human product noun per Phoenix document kind, for delivery wording. */
+function phoenixProductNoun(kind: string | null | undefined): string {
+  return kind === 'study_fund_annual' ? 'קרן ההשתלמות' : 'הפנסיה';
+}
+
+/** The product nouns of a delivery, each once, in document order. */
+function phoenixProducts(docs: FetchedDocument[]): string {
+  return joinHe([...new Set(docs.map((d) => phoenixProductNoun(d.kind)))]);
+}
+
+/**
+ * Phoenix (הפניקס). One SMS-OTP login pulls the tax year's annual documents
+ * for the client's pension (rows under תחום חיים/פנסיה) and/or study fund
+ * (rows under גמל והשתלמות) — whichever the client agreed to. The runner walks
+ * every page of the personal area's reports list and takes the rows whose
+ * NAME carries the tax year and is not a quarterly report (openspec
+ * `phoenix-fetch`); a client can hold several policies with the same report
+ * name, so each file carries its on-site row title.
+ */
+const phoenixSpec: FetchProviderSpec = {
+  id: 'phoenix',
+  siteNameHe: 'הפניקס',
+  otpChannel: 'sms',
+
+  documents: [
+    {
+      key: 'pension_annual',
+      documentDescriptionHe: 'דוח שנתי ואישורי מס — פנסיה / קופת גמל (כל הדוחות השנתיים אם יש כמה)',
+      matchesRequiredDocument: (doc) => PHOENIX_NAME.test(doc.name) && /פנסיה|גמל/.test(doc.name) && !/השתלמות/.test(doc.name),
+    },
+    {
+      key: 'study_fund_annual',
+      documentDescriptionHe: 'דוח שנתי ואישורי מס — קרן השתלמות (כל הדוחות השנתיים אם יש כמה)',
+      matchesRequiredDocument: (doc) => PHOENIX_NAME.test(doc.name) && /השתלמות/.test(doc.name),
+    },
+  ],
+
+  async buildCredentials(client: ClientRow): Promise<PortalCredentials | null> {
+    // National id from clientIdNumber's shared order (own credentials row →
+    // tax-authority row → the id the kickoff stored from the CRM card) plus the
+    // WhatsApp number the site sends the SMS code to.
+    const idNumber = (await clientIdNumber(client, 'phoenix'))?.id;
+    if (!idNumber || !client.wa_phone) return null;
+    return { idNumber, phoneNumber: client.wa_phone };
+  },
+
+  messages: {
+    otpSent: 'הקוד נשלח אליך הרגע מהפניקס ב-SMS 📱 הוא תקף לדקות ספורות — אנא שלח/י לי אותו כאן ברגע שהוא מגיע.',
+    loginFailed: 'מצטער, לא הצלחתי להתחבר לאתר הפניקס כרגע. נוכל לנסות שוב מאוחר יותר.',
+    busy: 'אני מטפל כרגע בכמה בקשות במקביל — ננסה שוב בעוד מספר דקות.',
+    otpExpired: 'הקוד הגיע מאוחר מדי ופג תוקפו. נוכל להתחיל את התהליך מחדש מתי שנוח לך.',
+    otpRejected: 'הקוד לא התקבל. אנא בדוק/י ושלח/י שוב את הקוד שקיבלת ב-SMS מהפניקס.',
+    otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
+    downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
+    noDocumentsOnSite:
+      'הזדהיתי בהצלחה באתר הפניקס, אך לא נמצאו שם דוחות שנתיים לשנה המבוקשת. ייתכן שהדוח טרם פורסם או שהחשבון מתנהל בחברה אחרת — נבדוק את זה מול המשרד ונעדכן אותך.',
+  },
+
+  delivery: {
+    waConfirmation(docs: FetchedDocument[], canEmail: boolean): string {
+      const single = docs.length === 1;
+      const fetchedWhat = single
+        ? `את הדוח השנתי של ${phoenixProducts(docs)} שלך`
+        : `${docs.length} דוחות שנתיים של ${phoenixProducts(docs)} שלך`;
+      const tail = canEmail
+        ? single
+          ? 'שלחתי לך עותק למייל.'
+          : 'שלחתי לך עותקים למייל.'
+        : single
+          ? 'המסמך נשמר והועבר לרואה החשבון.'
+          : 'המסמכים נשמרו והועברו לרואה החשבון.';
+      return `הצלחתי למשוך ${fetchedWhat} מהפניקס 🎉 ${tail}`;
+    },
+
+    emailSubject(docs: FetchedDocument[], taxYear: number): string {
+      const products = joinHe([...new Set(docs.map((d) => (d.kind === 'study_fund_annual' ? 'קרן השתלמות' : 'פנסיה')))]);
+      return docs.length > 1
+        ? `דוחות שנתיים ואישורי מס (${products}) - הפניקס - ${taxYear}`
+        : `דוח שנתי ואישורי מס (${products}) - הפניקס - ${taxYear}`;
+    },
+
+    emailBodyLines(docs: FetchedDocument[], taxYear: number): string[] {
+      return [
+        docs.length === 1
+          ? `מצורף הדוח השנתי של ${phoenixProducts(docs)} שלך לשנת ${taxYear}, שנמשך עבורך מהפניקס.`
+          : `מצורפים ${docs.length} הדוחות השנתיים של ${phoenixProducts(docs)} שלך לשנת ${taxYear}, שנמשכו עבורך מהפניקס:`,
+        ...(docs.length > 1 ? ['', ...docs.map((d) => `• ${d.title ?? 'דוח שנתי'} — ${phoenixProductNoun(d.kind)}`)] : []),
+      ];
+    },
+
+    fileLabel(doc: FetchedDocument, taxYear: number): string | null {
+      return `${doc.title ?? 'דוח שנתי'} — הפניקס ${taxYear}`;
+    },
+  },
+};
+
 const SPECS: Record<string, FetchProviderSpec> = {
   [israelTaxAuthoritySpec.id]: israelTaxAuthoritySpec,
   [altshulerShahamSpec.id]: altshulerShahamSpec,
   [harelSpec.id]: harelSpec,
+  [phoenixSpec.id]: phoenixSpec,
 };
 
 /** Looks up a provider spec; throws on an id the worker doesn't know (bad row / version skew). */

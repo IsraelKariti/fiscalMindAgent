@@ -1190,9 +1190,17 @@ capability** — there is no accountant button.
 - **Providers**: `src/browserRunner/` is provider-structured
   (`DocumentFetchProvider` in `providerTypes.ts`) so other sites can be added;
   today `israel_tax_authority` (Form 106), `altshuler_shaham` (pension/study-fund
-  annual report + tax certs) and `harel` (study-fund annual reports — downloads
-  every doc under תחום גמל והשתלמות for the year, all result pages; a worker-side
-  spec in `taxFetch/providers.ts` mirrors each). `TAX_FETCH_MOCK=true` swaps in an
+  annual report + tax certs), `harel` (study-fund annual reports — downloads
+  every doc under תחום גמל והשתלמות for the year, all result pages) and
+  `phoenix` (pension + study fund in one SMS-OTP login, openspec
+  `phoenix-fetch`: walks every page of my.fnx.co.il/mails/reports with the
+  page-bar buttons only — never the site's filters — and takes rows whose
+  תחום contains פנסיה / השתלמות and whose NAME carries the tax year, skipping
+  names with רבעון; the date column is the publication date and is ignored;
+  identical names are several policies and are all downloaded; selection is
+  the pure `selectPhoenixRows` in `browserRunner/phoenix.ts`, tested in
+  `tests/phoenixSelect.test.ts`; a worker-side spec in `taxFetch/providers.ts`
+  mirrors each provider). `TAX_FETCH_MOCK=true` swaps in an
   in-worker no-runner mock (`fetchClient.ts` — every real login emails a real
   citizen an OTP, so iterate on the mock). `scripts/taxFetchSmoke.ts` validates the
   real-site port once, interactively (no token/runner needed).
@@ -1201,7 +1209,7 @@ capability** — there is no accountant button.
   boards/sheets via the shared client-import mapping (two optional columns:
   national ID + permanent user code), synced for new *and* existing clients.
   Only the tax authority needs that row (its login also takes the user code).
-  Altshuler and Harel log in with a national id + the client's WhatsApp
+  Altshuler, Harel and Phoenix log in with a national id + the client's WhatsApp
   number, and take the id from `taxFetch/clientId.ts` `clientIdNumber` in
   one shared order — the provider's own credentials row → the tax-authority
   row → `agent_fields.id_number` stored by the kickoff from the CRM card —

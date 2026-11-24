@@ -1,0 +1,49 @@
+## Context
+
+See proposal.md — Why. The fetch machinery is provider-structured: a runner-side `DocumentFetchProvider` (`src/browserRunner/`, drives one Playwright page: `startLogin` → `submitOtp` → `downloadDocuments`) and a worker-side `FetchProviderSpec` (`taxFetch/providers.ts`: document types, credentials, canned texts, delivery wording). Sessions, OTP relay, delivery, the prompt block and the site-access screen are generic and need no change.
+
+What was observed live on 2026-11-24 in the owner's own account (the only source for the selectors below; nothing is assumed from memory):
+
+- **Login page** `https://auth.fnx.co.il/u/login?state=…` (Auth0 universal login hosting an Angular form). No element ids. Fields by placeholder: `input[placeholder="מספר ת.ז*"]` (maxlength 9, numeric), `input[placeholder="טלפון נייד או כתובת מייל*"]`; identity-type dropdown defaults to ת.ז (other options דרכון, ח.פ); submit `button:has-text("שלחו לי קוד כניסה")`; alternative `שלחו לי קוד בשיחת טלפון` (unused).
+- **Code page** `https://auth.fnx.co.il/u/mfa-sms-challenge?state=…`: a modal "קוד זיהוי חד פעמי" / "שלחנו קוד למספר שמסתיים ב-NNNN" with one text input (the only visible text input in the modal), `button:has-text("כניסה")`, resend `עדיין מחכה לקוד? שלח שוב`. Success lands on `https://my.fnx.co.il/` (title "הפניקס | עמוד הבית"). The wrong-code behaviour was NOT observed.
+- **Reports list** `https://my.fnx.co.il/mails/reports` (header link "דוחות ומסמכים" → `/mails`, sub-tab "דוחות"). Rows are `[role=row]` (first one is the header) with `[role=cell]` cells in order: date, report name (an `h3`), תחום; then `button[aria-label^="לחץ לצפיה בקובץ"]` (view) and `app-icon[role=button][aria-label^="לחץ להורדת קובץ"]` (download). 8 rows per page. Rows carry no document id in the DOM.
+- **Page bar**: one container holding, in DOM order: an arrow `button` (= NEXT, moves to higher page numbers; the bar is RTL), number `button`s with class `caption-1`, a `span` "…", and a second arrow `button` (= previous). The current page's number button is the only one with a non-zero computed `border-width`. No control is ever disabled, not even on the last page. The list is loaded once (`/api/v1/info/mail/reports`); paging is client-side, no network round trip.
+- **Download**: clicking the row's download control POSTs `/api/v1/info/document/document-content` (HTTP 201) and then triggers a normal browser download named `<report name>.pdf` (a real `%PDF-1.4`, ~466 KB for one report). No popup, no new tab.
+- **Side filters** (תחום / סוג / שנה, with "הצגת שנים נוספות"): exist but are NOT used — the owner wants the walk to depend on the page bar only, and the year to come from the report name only (the date column is the publication date).
+
+## Goals / Non-Goals
+
+**Goals:**
+- A `phoenix` provider that mirrors the Harel/Altshuler shape so nothing generic changes.
+- Selection that is exactly the owner's rule and fails loudly when the list never rendered (never silently delivers nothing or the wrong year).
+
+**Non-Goals:**
+- Using the site's JSON API directly (list or document-content) — the UI path is what was verified; the API's request body was not observed.
+- Passport / company (דרכון / ח.פ) identities, email as the login contact, the phone-call code.
+- Life-insurance-only clients: rows under "חיים/פנסיה" that are life-insurance documents (e.g. "אישור מס ביטוח חיים מקוצר לשנת X") ride along with the pension by the owner's rule; filtering them out is out of scope.
+
+## Decisions
+
+1. **Entry URL = `https://my.fnx.co.il/`** (not the captured `auth.fnx.co.il/u/login?state=…`, whose `state` is a one-time Auth0 value). Confirmed 2026-11-24: the public site's "לאיזור האישי" links (e.g. on `www.fnx.co.il/pension-savings/fnx-pension-ltd/`) point to exactly `https://my.fnx.co.il`, so that is what a person opens; the unauthenticated visit redirects to the Auth0 login. The provider waits for the ת.ז placeholder input instead of a URL. Task 1.1 only confirms the redirect in a logged-out browser.
+2. **Login selectors by placeholder and button text**, since the Angular form has no ids/names. Identity type is left at its default (ת.ז). Phone normalized to `05XXXXXXXX` (same `normalizePhone` as Harel; worker passes `client.wa_phone`, which is `972…`).
+3. **OTP outcome**: success = URL reaches `my.fnx.co.il` within 45 s. Timeout with the code input still visible = `OtpRejectedError` (field cleared for the retry), as Harel infers it; anything else = login failed. The wrong-code path is confirmed in the live check (task 4.3) and the detection tightened if the site shows a distinct error element.
+4. **Navigation = direct `page.goto('https://my.fnx.co.il/mails/reports')`** after login, with the header-link → "דוחות" tab path as fallback if the direct URL ever stops rendering the list. Wait for at least one `[role=row]` beyond the header (60 s). An empty list after the wait with no rows at all is a generic failure (list never rendered), not "no documents".
+5. **Walk**: read the page's rows; then, while the current page number (number button with non-zero border) < the highest number button, click the first arrow button (next) and wait until the current page number increases (poll ≤ 10 s). Hard cap 40 pages. Rows are read in page order, so duplicates by name are kept on purpose (two policies can share a name); nothing is deduped. Each page's row set is compared with the previous page's to detect a stuck pager (identical rows + unchanged page number ⇒ throw).
+6. **Row selection** (`selectRows(rows, taxYear, keys)` — pure, unit-tested): `kind = sector.includes('פנסיה') ? 'pension_annual' : sector.includes('השתלמות') ? 'study_fund_annual' : null`; take when `kind` is in the agreed keys, `name.includes(String(taxYear))` and `!name.includes('רבעון')`. Rows whose sector matches neither (e.g. ביטוח כללי) are ignored. A sector that contains both words would be classed as pension (first test wins) — none was observed.
+7. **Download = Playwright `download` event** around a click on the row's `app-icon[role=button][aria-label^="לחץ להורדת קובץ"]` (Altshuler's `captureDownload` pattern), 60 s per file, human-cadence pauses between files. Downloads are done per page right after reading that page (the row handles would go stale after paging). `title` = report name; `filename` = `download.suggestedFilename()` or a slug of the name; `kind` per decision 6.
+8. **Worker spec** (`phoenixSpec`): `otpChannel: 'sms'`; `matchesRequiredDocument`: pension = `/פניקס|phoenix/i` ∧ `/פנסיה|גמל/` ∧ ¬`/השתלמות/`; study fund = `/פניקס|phoenix/i` ∧ `/השתלמות/`. Delivery wording copies Altshuler's product-noun joiner and Harel's per-file titles; `fileLabel` = `"<title> — הפניקס <year>"`. Canned messages mirror Altshuler's SMS texts with "הפניקס".
+9. **Mock**: `MockTaxFetchClient.downloadDocuments` gets a `phoenix` branch returning two files per agreed key with Phoenix-style titles ("דוח שנתי מלא <year>", "דוח שנתי מקוצר ואישור מס <year>"), so plural labels/texts are exercised offline.
+10. **No new access-catalog entry, no migration, no runner protocol bump**: the catalog already lists `phoenix` for both products; provider ids are free text in the DB; the runner HTTP contract is unchanged.
+
+## Risks / Trade-offs
+
+- [The Auth0 `state` flow may require starting from a specific "login" link rather than `my.fnx.co.il/`] → task 1.1 verifies the redirect before any code is written against it; if a specific link is needed it becomes the constant.
+- [Placeholder-based selectors break on a wording change] → the provider fails fast on `waitForSelector` with a debug screenshot (`debugShot`), like the other providers; no silent fallbacks.
+- [Current-page detection via computed border width is a styling detail] → fallback: the page bar's number list is also used as a hard bound (click next at most `max − 1` times), and a stuck pager is detected by unchanged rows (decision 5).
+- [Life-insurance documents under חיים/פנסיה are delivered as pension files] → accepted by the owner (only quarterly rows are excluded); the accountant sees them labelled with their on-site names.
+- [Bot defence on the download path (as Harel showed)] → the live click produced a real download in a normal Chrome; if the runner's Chrome is answered differently, fall back to reading the `document-content` response body in `page.waitForResponse` (left as a documented fallback, not built up front).
+- [Wrong-code behaviour unverified] → inferred detection as for Harel; tightened after the live check.
+
+## Migration Plan
+
+No DB migration. Deploy = normal push (worker + browser-runner image are built per commit). Rollback = revert the commit; sessions already created for `phoenix` fail with "unknown provider" only if the worker is rolled back while a session is mid-flight, which the existing failure path handles.

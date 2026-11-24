@@ -281,6 +281,27 @@ class MockTaxFetchClient implements TaxFetchClient {
         },
       ];
     }
+    // Phoenix: the list walk takes every annual row for the year, and a client
+    // usually has two per product (full report + short report with the tax
+    // certificate) — return both per agreed key, titled like the site names
+    // them, so plural labels and texts are exercised.
+    if (provider === 'phoenix') {
+      const titlesByKey: Record<string, string[]> = {
+        pension_annual: [`דוח מפורט לשנת ${opts.taxYear}`, `דוח מקוצר לשנת ${opts.taxYear}`],
+        study_fund_annual: [`דוח שנתי מלא ${opts.taxYear}`, `דוח שנתי מקוצר ואישור מס ${opts.taxYear}`],
+      };
+      return opts.documentKeys
+        .filter((key) => key in titlesByKey)
+        .flatMap((key) => titlesByKey[key]!.map((title) => ({ key, title })))
+        .map((d, i) => ({
+          buffer: MOCK_PDF,
+          filename: `mock_phoenix_${opts.taxYear}_${i + 1}.pdf`,
+          contentType: 'application/pdf',
+          employerName: null,
+          title: d.title,
+          kind: d.key,
+        }));
+    }
     // Provider-aware via the agreed keys: any non-106 key set (e.g. Altshuler's
     // pension/study fund) returns one PDF per requested key, so the multi-document
     // delivery path is exercised with the right kinds and labels.

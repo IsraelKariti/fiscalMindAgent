@@ -525,6 +525,7 @@ function taxFetchPromptInputs(run: PlanRun) {
         pending: d.pendingDocumentId !== null,
         collected: d.collected,
       })),
+      takesAllDocuments: spec.takesAllDocuments === true,
     };
   });
 }

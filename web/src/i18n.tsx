@@ -814,6 +814,8 @@ const he = {
   // A row created from a self-evident file (openspec `unlisted-files`); the issuer follows.
   selfEvidentFileClientNote: 'נוצר מקובץ על שם הלקוח: ',
   selfEvidentFileSpouseNote: 'נוצר מקובץ על שם בן/בת הזוג: ',
+  // A row created at delivery from a document the platform fetched itself (openspec `phoenix-fetch`); the site follows.
+  fetchedFileNote: 'נוצר ממסמך שנמשך מאתר ',
   provenFactSellerPrivate: 'המוכר אדם פרטי (יד שנייה)',
   provenFactSellerBuilder: 'המוכר קבלן / חברה',
   removeDocument: 'הסרת המסמך',

@@ -19,6 +19,7 @@ What was observed live on 2026-11-24 in the owner's own account (the only source
 
 **Non-Goals:**
 - Using the site's JSON API directly (list or document-content) — the UI path is what was verified; the API's request body was not observed.
+- Changing Altshuler Shaham to the "bring everything" rule (its two products sit under separate tabs and keep per-document consent); offering Phoenix to a client whose list names Phoenix nowhere (availability still needs one pending Phoenix row).
 - Passport / company (דרכון / ח.פ) identities, email as the login contact, the phone-call code.
 - Life-insurance-only clients: rows under "חיים/פנסיה" that are life-insurance documents (e.g. "אישור מס ביטוח חיים מקוצר לשנת X") ride along with the pension by the owner's rule; filtering them out is out of scope.
 
@@ -34,6 +35,9 @@ What was observed live on 2026-11-24 in the owner's own account (the only source
 8. **Worker spec** (`phoenixSpec`): `otpChannel: 'sms'`; `matchesRequiredDocument`: pension = `/פניקס|phoenix/i` ∧ `/פנסיה|גמל/` ∧ ¬`/השתלמות/`; study fund = `/פניקס|phoenix/i` ∧ `/השתלמות/`. Delivery wording copies Altshuler's product-noun joiner and Harel's per-file titles; `fileLabel` = `"<title> — הפניקס <year>"`. Canned messages mirror Altshuler's SMS texts with "הפניקס".
 9. **Mock**: `MockTaxFetchClient.downloadDocuments` gets a `phoenix` branch returning two files per agreed key with Phoenix-style titles ("דוח שנתי מלא <year>", "דוח שנתי מקוצר ואישור מס <year>"), so plural labels/texts are exercised offline.
 10. **No new access-catalog entry, no migration, no runner protocol bump**: the catalog already lists `phoenix` for both products; provider ids are free text in the DB; the runner HTTP contract is unchanged.
+11. **Bring everything (owner's decision 2026-11-24)**: `FetchProviderSpec` gains `takesAllDocuments?: true`; for such a provider `flow.ts` `effectiveKeys` returns every key the provider offers (the LLM's `tax_fetch_document_keys` is ignored, the gate still accepts it), and the prompt block replaces the per-document consent line with "the fetch brings every annual document the site holds for the year (pension and study fund), whether or not both are on the list". The runner already takes whatever keys it is given.
+12. **Row creation at delivery** (`deliver.ts`, Phoenix-only by `takesAllDocuments` + a `catalogTypeKey` on each `FetchDocumentType`: `pension_annual → pension_provident`, `study_fund_annual → study_fund`): for each kind present in the delivery with no row that `matchesRequiredDocument` in a status other than `retired`/`not_required`, find the client's row of that `type_key`: if its status is `unresolved` or `not_required` → `clientDocuments.resolveRequired(row, [{ name, description }])`; else → `clientDocuments.addInstances(anchor = any row of that type_key that left unresolved, [{ name }])`. Name = catalog `nameHe` with `{{tax_year}}` filled + ` — הפניקס` (the institutions-table Hebrew name, same joiner as `companySuffixedName`). Evidence = new `ResolutionEvidence` variant `{ source: 'fetched_file'; file_id; provider; session_id }` (`src/db/types.ts`; `web/src/api.ts` mirror). Then the files are linked, the row marked collected and verified in the same batch as the rest. Runs before the WhatsApp confirmation is composed so the confirmation can name the created kinds; `waConfirmation` gets an optional `createdKinds` argument.
+13. **Client-facing wording**: confirmation adds "מצאתי שם גם את קרן ההשתלמות שלך — הוספתי אותה לרשימת המסמכים." (or הפנסיה) per created kind; the documents tab shows "נוצר ממסמך שנמשך מאתר הפניקס" (new i18n key beside `selfEvidentFileClientNote`); `toolStepDetails.ts` renders the evidence; audit action `tax_fetch.document_created` with the row id, kind and session. The follow-up reply after verification needs no change — the planner sees a received item like any other.
 
 ## Risks / Trade-offs
 
@@ -43,6 +47,8 @@ What was observed live on 2026-11-24 in the owner's own account (the only source
 - [Life-insurance documents under חיים/פנסיה are delivered as pension files] → accepted by the owner (only quarterly rows are excluded); the accountant sees them labelled with their on-site names.
 - [Bot defence on the download path (as Harel showed)] → the live click produced a real download in a normal Chrome; if the runner's Chrome is answered differently, fall back to reading the `document-content` response body in `page.waitForResponse` (left as a documented fallback, not built up front).
 - [Wrong-code behaviour unverified] → inferred detection as for Harel; tightened after the live check.
+- [A life-insurance-only client gets a pension row created from "חיים/פנסיה" documents that are life-insurance papers] → accepted by the owner's sector rule; the verification step judges the file against the pension type and the accountant sees the on-site name on the row.
+- [Row creation races a planner cycle that settles the same catalog row] → creation runs under the client lock like the rest of delivery; `resolveRequired`/`addInstances` are transactional and a lost race leaves the files attached to whichever row matches on retry of the link step.
 
 ## Migration Plan
 

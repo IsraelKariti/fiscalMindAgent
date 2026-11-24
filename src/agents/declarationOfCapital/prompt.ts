@@ -241,10 +241,14 @@ export function buildTaxFetchSection(token: string, providers: TaxFetchPromptInp
       const status = d.pending ? 'ממתין למשיכה' : d.collected ? 'כבר נאסף' : 'לא נדרש';
       return `  • ${d.descriptionHe} [key: ${d.key}] — ${status}`;
     });
+    const allDocsLine = p.takesAllDocuments
+      ? `היקף המשיכה: המשיכה מ${p.siteNameHe} מביאה תמיד את כל המסמכים השנתיים שיש באתר לשנת המס (כל הסוגים שלמעלה), גם אם רק חלקם ברשימה — ההסכמה היא למשיכה עצמה, לא לכל מסמך בנפרד; אל תבקש מהלקוח לבחור ואל תקבע document_keys עבור מקור זה. מסמך שנמצא באתר ולא היה ברשימה מתווסף אליה אוטומטית אחרי המשיכה, והלקוח מקבל על כך הודעה.`
+      : null;
     return [
       `— מקור: ${p.siteNameHe} (tax_fetch_provider: ${p.provider})`,
       'מסמכים במקור זה:',
       ...docLines,
+      ...(allDocsLine ? [allDocsLine] : []),
       `status: ${p.state}`,
       otpLine,
       taxFetchStateGuidance(p.state, p),
@@ -733,6 +737,8 @@ export interface TaxFetchPromptInput {
   allowedActions: string[];
   /** Each fetchable document type and its status (drives per-document consent). */
   documentTypes: { key: string; descriptionHe: string; pending: boolean; collected: boolean }[];
+  /** The fetch takes every document the site holds for the year; consent is to the fetch, not per document (openspec `phoenix-fetch`). */
+  takesAllDocuments: boolean;
 }
 
 export function buildPrompt(

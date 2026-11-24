@@ -1,6 +1,6 @@
 ## 1. Verify the entry point
 
-- [ ] 1.1 In a logged-out browser (a private window is enough), open `https://my.fnx.co.il/` (the public site's "לאיזור האישי" link target) and confirm it redirects to the Auth0 login page showing the "מספר ת.ז*" field; record the final login URL pattern in the provider file's header comment.
+- [x] 1.1 In a logged-out browser (a private window is enough), open `https://my.fnx.co.il/` (the public site's "לאיזור האישי" link target) and confirm it redirects to the Auth0 login page showing the "מספר ת.ז*" field; record the final login URL pattern in the provider file's header comment.
 
 ## 2. Runner-side provider
 
@@ -14,14 +14,22 @@
 - [x] 3.2 Update `tests/accessCatalog.test.ts` so the built list includes `phoenix/pension_annual` and `phoenix/study_fund_annual` (six entries) and verify `npm test` passes, including `tests/siteAccessReport.test.ts`.
 - [ ] 3.3 Add a `phoenix` branch to `MockTaxFetchClient.downloadDocuments` in `taxFetch/fetchClient.ts` returning two titled files per agreed key, and verify with `TAX_FETCH_MOCK=true` on a local test client that has a pending "… — הפניקס" study-fund row: the agent offers the fetch, a 6-digit code completes it, two labelled files land on the Documents tab and the WhatsApp/email wording names the study fund.
 
-## 4. Live check (owner drives the code)
+## 4. Bring everything it finds (owner's decision 2026-11-24)
 
-- [ ] 4.1 Point the local worker at the local runner (`TAX_FETCH_MOCK=false`, static runner mode) and run a real session for the owner's own Phoenix account with tax year 2024 and the study fund agreed; verify the SMS code is relayed, both גמל והשתלמות 2024 reports arrive as real PDFs with their on-site names as labels.
-- [ ] 4.2 Repeat with the pension type agreed for a year that has annual pension rows (2023): verify the annual rows arrive and the quarterly rows do not.
-- [ ] 4.3 Send a wrong code once and confirm the session reports a rejected code and accepts the right code afterwards; if the site shows a distinct error element, tighten the detection in `submitOtp` and note the markup in the file header comment.
-- [ ] 4.4 Open the admin site-access screen and verify both הפניקס cards show the built badge and the sessions above count as accesses.
+- [x] 4.1 Add `takesAllDocuments?: true` to `FetchProviderSpec` and `catalogTypeKey` to `FetchDocumentType`; set them on `phoenixSpec` (`pension_annual → pension_provident`, `study_fund_annual → study_fund`); make `flow.ts` `effectiveKeys` return every provider key for such a provider and `prompt.ts` print the "brings every annual document for the year" line instead of the per-document consent line in the Phoenix block. Verify with a unit test on `effectiveKeys` (exported or via a thin wrapper) and `npm run typecheck`.
+- [x] 4.2 Add the `fetched_file` evidence variant to `src/db/types.ts` and `web/src/api.ts`, and the row-creation step to `deliver.ts` (per design decision 12: resolveRequired for an open / not-needed catalog row, addInstances otherwise, catalog name + " — הפניקס", files linked, row collected, verified in the same batch, audit `tax_fetch.document_created`). Verify with a new `tests/fetchedRowCreation.test.ts` that drives the pure planning helper (which row to settle/add and the name) over the five spec scenarios.
+- [x] 4.3 Add the "also found … added to the list" sentence to the Phoenix `waConfirmation` (per created kind) and the documents-tab note "נוצר ממסמך שנמשך מאתר הפניקס" (DocumentsCard + i18n) plus the `toolStepDetails.ts` rendering. Verify the phoenixSelect test's wording assertions and a browser look at a documents tab with a row carrying `fetched_file` evidence (temporary row, deleted after).
+- [ ] 4.4 Mock run (`TAX_FETCH_MOCK=true`) on a local test client with only a Phoenix pension row: after the 6-digit code, verify the study-fund row "… — הפניקס" appears with two files, the confirmation carries the "also found" sentence, and the pension row got its files.
 
-## 5. Docs and wrap-up
+## 5. Live check (owner drives the code)
 
-- [x] 5.1 Update `docs/agents.md` (providers + credentials paragraphs) to list `phoenix` with its two products and the owner's selection rule, and verify the text reads correctly.
-- [x] 5.2 Run `npm test` and `npm run typecheck`, then commit and push per the repo Git workflow.
+- [ ] 5.1 Run `npx tsx scripts/phoenixFetchSmoke.ts <id> <phone> 2024` (the owner, in their own terminal): verify the SMS code is accepted and the 2024 study-fund and pension annual documents arrive as real PDFs with their on-site names, and no quarterly report.
+- [ ] 5.2 Run the same for 2023 and verify the three annual pension documents arrive and the quarterly rows do not.
+- [ ] 5.3 Type a wrong code once and confirm the script reports a rejected code and accepts the right code afterwards; if the site shows a distinct error element, tighten the detection in `submitOtp` and note the markup in the file header comment.
+- [ ] 5.4 Open the admin site-access screen and verify both הפניקס cards show the built badge.
+
+## 6. Docs and wrap-up
+
+- [x] 6.1 Update `docs/agents.md` (providers + credentials paragraphs) to list `phoenix` with its two products and the owner's selection rule, and verify the text reads correctly.
+- [x] 6.2 Run `npm test` and `npm run typecheck`, then commit and push per the repo Git workflow (provider build, commits a18ebc9 + df6db6f).
+- [x] 6.3 Update `docs/agents.md` with the bring-everything rule and the row creation at delivery; run `npm test` and `npm run typecheck`, then commit and push.

@@ -17,8 +17,9 @@ import { uploadBlob } from '../../../storage/blob.js';
 import { isSyntheticWaEmail } from '../../../util/syntheticEmail.js';
 import { sendWhatsAppTextAndRecord } from '../../../twilio/sendAndRecord.js';
 import { logger } from '../../../util/logger.js';
-import type { ClientRow } from '../../../db/types.js';
+import type { ClientRow, DocumentFileRow } from '../../../db/types.js';
 import { verifyBatchAndReplan } from '../../declarationOfCapital/verifyDocument.js';
+import { planFetchedRows } from './fetchedRows.js';
 import { getProviderSpec, typeOwnsFetched } from './providers.js';
 import { sanitizeFilename, type FetchedDocument } from './types.js';
 import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js';
@@ -60,12 +61,23 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   const spec = getProviderSpec(session.provider);
   const single = docs.length === 1;
 
+  // A provider that takes everything it finds (openspec `phoenix-fetch`) may
+  // have fetched a kind the list lacks: those get their own row below, and the
+  // confirmation tells the client after the fact — so the plan comes first.
+  const clientDocs = await clientDocuments.listForClient(client.id);
+  const rowPlans = planFetchedRows(spec, docs, clientDocs, session.tax_year);
+  const plannedDocIndexes = new Set(rowPlans.flatMap((p) => p.docIndexes));
+
   // Confirmation text first, so a timeline row exists to hang the files off of
   // (the prompt transcript groups files by their email_id).
   const message = await sendWhatsAppTextAndRecord(client.id, {
     from: sender.phone_number,
     to: client.wa_phone,
-    body: spec.delivery.waConfirmation(docs, canEmail),
+    body: spec.delivery.waConfirmation(
+      docs,
+      canEmail,
+      rowPlans.map((p) => p.kind),
+    ),
     reasoning: `tax fetch delivered (session ${session.id}, ${docs.length} document${single ? '' : 's'})`,
     agentInstanceId: client.agent_instance_id,
   });
@@ -75,7 +87,6 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   // is linked to the pending required document its type matches, so both get
   // marked collected independently. session.document_keys scopes which types are
   // in play; session.client_document_id is the legacy single-doc fallback.
-  const clientDocs = await clientDocuments.listForClient(client.id);
   const activeKeys = session.document_keys ?? spec.documents.map((t) => t.key);
   const targetDocIdFor = (doc: FetchedDocument): string | null => {
     const type = spec.documents.find((t) => activeKeys.includes(t.key) && typeOwnsFetched(t, doc));
@@ -86,7 +97,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   /** Document → the file that satisfied it, for the verification pipeline (last file wins on multi-file docs). */
   const verifyPairs = new Map<string, string>();
 
-  const files = [];
+  const files: DocumentFileRow[] = [];
   const usedNames = new Set<string>();
   for (const [i, doc] of docs.entries()) {
     // The filename originates on the external site — never let it shape the key
@@ -116,12 +127,83 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     if (!file) throw new Error(`tax fetch: document_files insert returned no row for session ${session.id}`);
     files.push(file);
 
+    // A file of a kind that gets its own row is linked after that row exists.
+    if (plannedDocIndexes.has(i)) continue;
     const targetDocId = targetDocIdFor(doc);
     if (targetDocId) {
       await documentFiles.linkToDocument(file.id, client.id, targetDocId);
       collectedDocIds.add(targetDocId);
       verifyPairs.set(targetDocId, file.id);
     }
+  }
+
+  // Rows for the kinds the list lacked (openspec `phoenix-fetch`): created by
+  // code with the fetch as evidence, then the kind's files are attached and
+  // the row goes through the same verification as the rest. A lost race (the
+  // target row changed under us) falls back to today's linking.
+  for (const plan of rowPlans) {
+    const planFiles = plan.docIndexes.map((i) => files[i]!);
+    const evidence = {
+      source: 'fetched_file' as const,
+      file_id: planFiles[0]!.id,
+      provider: spec.id,
+      issuer: spec.siteNameHe,
+      session_id: session.id,
+    };
+    const instance = { name: plan.name, description: plan.description, paperKey: plan.paperKey };
+    const created =
+      plan.action === 'resolve'
+        ? await clientDocuments.resolveRequired(plan.targetRowId, client.id, [instance], evidence)
+        : await clientDocuments.addInstances(plan.targetRowId, client.id, [instance], evidence);
+    const row = created?.[0] ?? null;
+    if (!row) {
+      logger.warn('tax fetch: row creation for a fetched kind lost its target, falling back to plain linking', {
+        clientId: client.id,
+        sessionId: session.id,
+        kind: plan.kind,
+        action: plan.action,
+        targetRowId: plan.targetRowId,
+      });
+      for (const i of plan.docIndexes) {
+        const targetDocId = targetDocIdFor(docs[i]!);
+        if (!targetDocId) continue;
+        await documentFiles.linkToDocument(files[i]!.id, client.id, targetDocId);
+        collectedDocIds.add(targetDocId);
+        verifyPairs.set(targetDocId, files[i]!.id);
+      }
+      continue;
+    }
+    for (const file of planFiles) {
+      await documentFiles.linkToDocument(file.id, client.id, row.id);
+      verifyPairs.set(row.id, file.id);
+    }
+    collectedDocIds.add(row.id);
+    logger.info('tax fetch: checklist row created for a fetched kind', {
+      clientId: client.id,
+      sessionId: session.id,
+      kind: plan.kind,
+      action: plan.action,
+      documentId: row.id,
+      name: row.name,
+      files: planFiles.length,
+    });
+    recordAudit({
+      actorType: 'agent',
+      action: 'tax_fetch.document_created',
+      agentInstanceId: client.agent_instance_id,
+      clientId: client.id,
+      targetType: 'client_document',
+      targetId: row.id,
+      detail: {
+        clientName: client.name,
+        name: row.name,
+        kind: plan.kind,
+        action: plan.action,
+        sessionId: session.id,
+        provider: spec.id,
+        fileIds: planFiles.map((f) => f.id),
+      },
+    });
   }
   if (collectedDocIds.size > 0) {
     await clientDocuments.markCollected(client.id, [...collectedDocIds]);

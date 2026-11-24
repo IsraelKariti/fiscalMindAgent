@@ -21,6 +21,8 @@ export type AuditAction =
   | 'tax_fetch.login_started'
   | 'tax_fetch.otp_submitted'
   | 'tax_fetch.document_delivered'
+  // A checklist row created at delivery for a fetched kind the list lacked (openspec `phoenix-fetch`).
+  | 'tax_fetch.document_created'
   | 'tax_fetch.failed'
   | 'document.collected'
   | 'document.claimed'

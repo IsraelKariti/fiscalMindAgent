@@ -19,6 +19,13 @@ export interface FetchDocumentType {
   matchesRequiredDocument(doc: { name: string }): boolean;
   /** Which downloaded files count toward this type's checklist item. Defaults to `doc.kind === key`. */
   ownsFetchedDocument?(doc: FetchedDocument): boolean;
+  /**
+   * The catalog type (declarationOfCapital/catalog.ts key) this document stands
+   * for. Only read for a provider that takes every document it finds
+   * (`takesAllDocuments`): a fetched kind with no row of this type that names
+   * the provider creates its own row at delivery (openspec `phoenix-fetch`).
+   */
+  catalogTypeKey?: string;
 }
 
 /**
@@ -37,6 +44,14 @@ export interface FetchProviderSpec {
   otpChannel: 'email' | 'sms';
   /** The document types this provider can fetch (one login can produce several). */
   documents: FetchDocumentType[];
+  /**
+   * The fetch always takes every document type the site holds for the year,
+   * whatever the checklist expects (openspec `phoenix-fetch`): the client's
+   * consent is to the fetch itself, per-document consent is ignored, and a
+   * kind with no row on the list gets one created at delivery. Default false:
+   * per-document consent as for Altshuler Shaham.
+   */
+  takesAllDocuments?: boolean;
   /**
    * Gathers what the runner needs to log in for this client. Null when a
    * required value is missing — the fetch then fails before touching the site.
@@ -57,8 +72,13 @@ export interface FetchProviderSpec {
   };
   /** Client-facing wording for a successful delivery. */
   delivery: {
-    /** WhatsApp confirmation line — what was fetched and where the copies went. */
-    waConfirmation(docs: FetchedDocument[], canEmail: boolean): string;
+    /**
+     * WhatsApp confirmation line — what was fetched and where the copies went.
+     * `createdKinds` names the document kinds the delivery added to the list
+     * because the site held them and the list did not (takesAllDocuments
+     * providers only; empty otherwise) — the client is told after the fact.
+     */
+    waConfirmation(docs: FetchedDocument[], canEmail: boolean, createdKinds?: string[]): string;
     emailSubject(docs: FetchedDocument[], taxYear: number): string;
     /** Body lines after the greeting (deliver.ts adds 'שלום,' and joins). */
     emailBodyLines(docs: FetchedDocument[], taxYear: number): string[];
@@ -382,17 +402,22 @@ const phoenixSpec: FetchProviderSpec = {
   id: 'phoenix',
   siteNameHe: 'הפניקס',
   otpChannel: 'sms',
+  // The owner's rule (2026-11-24): the walk takes both kinds whatever the list
+  // holds, and a kind the list lacks gets its row at delivery.
+  takesAllDocuments: true,
 
   documents: [
     {
       key: 'pension_annual',
       documentDescriptionHe: 'דוח שנתי ואישורי מס — פנסיה / קופת גמל (כל הדוחות השנתיים אם יש כמה)',
       matchesRequiredDocument: (doc) => PHOENIX_NAME.test(doc.name) && /פנסיה|גמל/.test(doc.name) && !/השתלמות/.test(doc.name),
+      catalogTypeKey: 'pension_provident',
     },
     {
       key: 'study_fund_annual',
       documentDescriptionHe: 'דוח שנתי ואישורי מס — קרן השתלמות (כל הדוחות השנתיים אם יש כמה)',
       matchesRequiredDocument: (doc) => PHOENIX_NAME.test(doc.name) && /השתלמות/.test(doc.name),
+      catalogTypeKey: 'study_fund',
     },
   ],
 
@@ -418,7 +443,7 @@ const phoenixSpec: FetchProviderSpec = {
   },
 
   delivery: {
-    waConfirmation(docs: FetchedDocument[], canEmail: boolean): string {
+    waConfirmation(docs: FetchedDocument[], canEmail: boolean, createdKinds: string[] = []): string {
       const single = docs.length === 1;
       const fetchedWhat = single
         ? `את הדוח השנתי של ${phoenixProducts(docs)} שלך`
@@ -430,7 +455,11 @@ const phoenixSpec: FetchProviderSpec = {
         : single
           ? 'המסמך נשמר והועבר לרואה החשבון.'
           : 'המסמכים נשמרו והועברו לרואה החשבון.';
-      return `הצלחתי למשוך ${fetchedWhat} מהפניקס 🎉 ${tail}`;
+      // A kind the list did not expect: told after the fact (openspec `phoenix-fetch`).
+      const alsoFound = createdKinds.map(
+        (kind) => ` מצאתי שם גם את ${phoenixProductNoun(kind)} שלך — הוספתי אותה לרשימת המסמכים.`,
+      );
+      return `הצלחתי למשוך ${fetchedWhat} מהפניקס 🎉 ${tail}${alsoFound.join('')}`;
     },
 
     emailSubject(docs: FetchedDocument[], taxYear: number): string {

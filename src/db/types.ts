@@ -198,6 +198,11 @@ export type ResolutionEvidence =
   // spouse's name that created its own item — the file, the issuer as
   // printed, the matched holders, whom they matched, and the cleaned employer.
   | { source: 'self_evident_file'; file_id: string; issuer: string; holders: string[]; matched: 'client' | 'spouse'; employer?: string }
+  // A document the platform fetched itself from the client's own login at an
+  // external site (openspec `phoenix-fetch`): the fetch session, the provider
+  // id, the site's Hebrew name (`issuer`) and the first file attached — a kind
+  // the site held and the list did not gets its row from this at delivery.
+  | { source: 'fetched_file'; file_id: string; provider: string; issuer: string; session_id: string }
   // A cost the client stated in the conversation (openspec `chat-stated-cost`):
   // the inbound message, the verbatim quote that carries the amount, and the
   // amount with its currency code — the content of the cost declaration.

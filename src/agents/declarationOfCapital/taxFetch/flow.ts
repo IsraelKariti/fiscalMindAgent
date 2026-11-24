@@ -6,7 +6,8 @@ import type { ClientDocumentRow, ClientRow } from '../../../db/types.js';
 import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js';
 import type { WaChannelState } from '../prompt.js';
 import type { TaxFetchAction } from '../decisionSchema.js';
-import { listProviderSpecs, type FetchDocumentType, type FetchProviderSpec } from './providers.js';
+import { effectiveFetchKeys } from './fetchedRows.js';
+import { getProviderSpec, listProviderSpecs, type FetchDocumentType, type FetchProviderSpec } from './providers.js';
 import { NO_DOCUMENTS_ERROR_PREFIX } from './types.js';
 
 /** The fetch's state as the prompt/decision layer sees it (collapses the worker's finer statuses). */
@@ -148,16 +149,13 @@ export async function loadTaxFetchContexts(
 /** Enqueue the login this long after the heads-up message's send time, so the send has settled. */
 const START_LOGIN_SEND_GRACE_MS = 5_000;
 
-/**
- * The document-type keys a fetch will actually cover: the client-agreed set
- * (per-document consent) intersected with what is still pending; falls back to
- * every pending type when the caller passed nothing (e.g. a single-type provider
- * whose LLM omitted the field).
- */
-function effectiveKeys(agreedKeys: string[] | null, ctx: TaxFetchContext): string[] {
-  const pending = pendingKeys(ctx);
-  const chosen = agreedKeys && agreedKeys.length > 0 ? agreedKeys.filter((k) => pending.includes(k)) : pending;
-  return chosen.length > 0 ? chosen : pending;
+/** The document-type keys a fetch will actually cover — see fetchedRows.ts `effectiveFetchKeys`. */
+function effectiveKeys(
+  agreedKeys: string[] | null,
+  ctx: TaxFetchContext,
+  spec: Pick<FetchProviderSpec, 'documents' | 'takesAllDocuments'>,
+): string[] {
+  return effectiveFetchKeys(agreedKeys, pendingKeys(ctx), spec);
 }
 
 /** The checklist doc id to record as the session's primary (first covered pending type). */
@@ -189,7 +187,7 @@ export async function applyTaxFetchAction(
 ): Promise<void> {
   if (!action || !ctx) return;
   const provider = ctx.provider;
-  const keys = effectiveKeys(agreedKeys, ctx);
+  const keys = effectiveKeys(agreedKeys, ctx, getProviderSpec(provider));
 
   switch (action) {
     case 'client_agreed': {

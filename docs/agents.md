@@ -1200,7 +1200,18 @@ capability** — there is no accountant button.
   identical names are several policies and are all downloaded; selection is
   the pure `selectPhoenixRows` in `browserRunner/phoenix.ts`, tested in
   `tests/phoenixSelect.test.ts`; a worker-side spec in `taxFetch/providers.ts`
-  mirrors each provider). `TAX_FETCH_MOCK=true` swaps in an
+  mirrors each provider). Phoenix is a `takesAllDocuments` provider: the
+  client's consent is to the fetch itself, the session always covers both
+  kinds (`effectiveFetchKeys` in `taxFetch/fetchedRows.ts`; the planner's
+  `document_keys` is ignored and the prompt block says so), and at delivery a
+  fetched kind with no live Phoenix row on the list gets one created by code
+  (`planFetchedRows`: the open / not-needed catalog row is settled as needed,
+  otherwise a sibling is added; name = catalog name for the year + " — הפניקס";
+  evidence `source: 'fetched_file'` with the session, provider, site name and
+  first file; audit `tax_fetch.document_created`; documents tab shows "נוצר
+  ממסמך שנמשך מאתר הפניקס"). The WhatsApp confirmation then adds one "also found
+  … added to the list" sentence per created kind. Tested in
+  `tests/fetchedRows.test.ts`. `TAX_FETCH_MOCK=true` swaps in an
   in-worker no-runner mock (`fetchClient.ts` — every real login emails a real
   citizen an OTP, so iterate on the mock). `scripts/taxFetchSmoke.ts` validates the
   real-site port once, interactively (no token/runner needed).

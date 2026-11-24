@@ -1067,6 +1067,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
       provider: spec.id,
       siteNameHe: spec.siteNameHe,
       otpChannel: spec.otpChannel,
+      takesAllDocuments: spec.takesAllDocuments === true,
       state: t.state,
       available: true,
       allowedActions: allowedTaxFetchActions(t.state, true, clientOnWhatsapp),

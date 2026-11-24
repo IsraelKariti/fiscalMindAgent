@@ -23,8 +23,43 @@ const ANNUAL_REPORTS_URL = 'https://www.harel-group.co.il/CustomerRouting.ashx?a
 const DESKTOP_VIEWPORT = { width: 1680, height: 950 };
 
 /** Filter values on the reports app (native selects, verified live 2026-07-27). */
-const SECTOR_OPTION_LABEL = 'גמל והשתלמות';
 const ANNUAL_PERIOD_LABEL = 'שנתי';
+
+/** The document kinds this provider fetches, in the order the filter rounds run. */
+export type HarelKind = 'study_fund_annual' | 'pension_annual';
+
+/**
+ * Which תחום (sector) option of the reports app holds each kind. The option
+ * is matched by its visible label, never by position: "גמל והשתלמות" (value
+ * 37, verified live 2026-07-27) for study funds and "פנסיה" (owner confirmed
+ * 2026-11-24) for pension reports (openspec `harel-fetch`).
+ */
+const SECTOR_OF_KIND: Record<HarelKind, RegExp> = {
+  study_fund_annual: /גמל והשתלמות/,
+  pension_annual: /פנסיה/,
+};
+
+const KIND_ORDER: HarelKind[] = ['study_fund_annual', 'pension_annual'];
+
+/**
+ * Maps each requested kind to the תחום option label that holds it. Pure, so
+ * the resolution is unit-tested (tests/harelSectors.test.ts). Unknown keys are
+ * ignored (the worker only sends this provider's keys); a kind with no matching
+ * option throws an error that lists the labels seen, so a renamed option fails
+ * the fetch loudly instead of filtering another sector.
+ */
+export function resolveHarelSectors(
+  optionLabels: readonly string[],
+  kinds: readonly string[],
+): Array<{ kind: HarelKind; label: string }> {
+  const labels = optionLabels.map((l) => l.trim());
+  const wanted = KIND_ORDER.filter((k) => kinds.includes(k));
+  return wanted.map((kind) => {
+    const label = labels.find((l) => SECTOR_OF_KIND[kind].test(l));
+    if (!label) throw new Error(`harel: no תחום option for ${kind}; options: ${labels.join(' | ')}`);
+    return { kind, label };
+  });
+}
 
 /** Hard cap on result pages walked, against a pager that never disables. */
 const MAX_RESULT_PAGES = 30;
@@ -45,7 +80,8 @@ interface ReportRow {
 }
 
 /**
- * Harel (הראל ביטוח ופיננסים) personal area — study-fund annual reports.
+ * Harel (הראל ביטוח ופיננסים) personal area — study-fund and pension annual
+ * reports, two filter rounds in one login (openspec `harel-fetch`).
  * Whole flow verified LIVE 2026-07-27 with the user driving the OTP:
  *
  * 1. Login: harel-group.co.il PortalOTP page auto-opens an `.otp-login` modal —
@@ -61,9 +97,11 @@ interface ReportRow {
  *    cross-origin iframe#quarter-reports (www.hrl.co.il DimutWebDocs JSP app).
  *    The iframe's URL becomes empty after its ticket exchange, so it is always
  *    located via the iframe ELEMENT, never by frame URL.
- * 4. Filters: native selects #madorCurrentValue (תחום; גמל והשתלמות),
- *    #repType (תקופה; שנתי = value '31/12/'), #repYear (שנה; value = the year
- *    string) — options picked by their visible label, NEVER by position. The
+ * 4. Filters: native selects #madorCurrentValue (תחום; גמל והשתלמות for study
+ *    funds, פנסיה for pension reports — one round per kind, see
+ *    SECTOR_OF_KIND), #repType (תקופה; שנתי = value '31/12/'), #repYear (שנה;
+ *    value = the year string) — options picked by their visible label, NEVER
+ *    by position. The
  *    selects have no change handlers: filtering runs server-side (getDimutTable
  *    AJAX), triggered by the app's חפש button (or its document-level Enter-key
  *    handler as fallback). The values are set, the search is triggered, and the
@@ -80,9 +118,12 @@ interface ReportRow {
  * 6. Pagination: #pagination_holder, li.next → AJAX page flip; the li gains
  *    class "disable" on the last page. 10 rows per page.
  *
- * A client can hold several study funds and Harel names report documents freely
+ * A client can hold several funds and Harel names report documents freely
  * (דוח תקופתי מקוצר / דוחות תקופתיים / אישור מס…), so EVERY row the filters
- * produce is downloaded — nothing is matched by document name.
+ * produce is downloaded — nothing is matched by document name. Each row's kind
+ * is the round that produced it; a round whose filter is answered with an
+ * empty table is a kind the client does not hold (the other kind still
+ * arrives), and only both rounds empty is "no documents on the site".
  */
 export const harelProvider: DocumentFetchProvider = {
   id: 'harel',
@@ -174,8 +215,8 @@ export const harelProvider: DocumentFetchProvider = {
   },
 
   async downloadDocuments(page: Page, opts: { taxYear: number; documentKeys: string[] }): Promise<FetchedDocument[]> {
-    // Single document type (study_fund_annual) — documentKeys carries no extra
-    // information; the גמל והשתלמות + year filters define the set.
+    // Two kinds, one login (openspec `harel-fetch`): the filter runs once per
+    // requested kind (study fund, then pension), each round tagging its rows.
     const year = String(opts.taxYear);
 
     await dismissOverlays(page);
@@ -207,91 +248,129 @@ export const harelProvider: DocumentFetchProvider = {
     await reports.locator('#madorCurrentValue').waitFor({ state: 'visible', timeout: 60_000 });
     await debugShot(page, 'harel-07-reports-app');
 
-    // Filters, picked by visible label (the year by its text, never by index).
-    // A missing year option fails loudly here instead of downloading another
-    // year's documents.
-    await humanPause(page); // "reading" the reports page before filtering
-    await reports.locator('#madorCurrentValue').selectOption({ label: SECTOR_OPTION_LABEL });
-    await humanPause(page, 1_000, 4_000);
-    await reports.locator('#repType').selectOption({ label: ANNUAL_PERIOD_LABEL });
-    await humanPause(page, 1_000, 4_000);
-    await reports.locator('#repYear').selectOption({ label: year });
-    // Snapshot before filtering: whether the table held anything pre-Enter is
-    // what tells a genuinely-empty result apart from a filter that never ran
-    // (the ACI container's logs die with it, so this also rides the error text).
-    const preFilterRows = await readRows(reports).catch(() => [] as ReportRow[]);
-    logger.info('harel fetch: pre-filter table state', {
-      year,
-      rows: preFilterRows.length,
-      sample: preFilterRows.slice(0, 3).map((r) => `${r.sector}|${r.yearText}`),
-    });
-    // No change handlers on the selects — the search runs server-side
-    // (getDimutTable AJAX). Prefer the app's dedicated חפש button, clicked like
-    // a person would; the document-level Enter handler (keyCode 13) stays as a
-    // fallback if the button's markup shifts. The watcher is armed BEFORE the
-    // trigger so the round-trip can't slip past it.
-    await humanPause(page, 2_000, 8_000);
-    let filterAnswered = watchFilterRoundTrip(page);
-    await triggerSearch(reports);
-    await waitForFilteredRows(page, reports, year, {
-      filterAnswered,
-      preFilterRowCount: preFilterRows.length,
-      initialFilter: true,
-    });
-    await debugShot(page, 'harel-08-filtered');
+    // The תחום option per kind, by label; a kind with no option fails here,
+    // listing the labels, before anything is filtered.
+    const optionLabels = await reports.locator('#madorCurrentValue option').allTextContents();
+    const rounds = resolveHarelSectors(optionLabels, opts.documentKeys);
+    logger.info('harel fetch: sector rounds resolved', { year, rounds, optionLabels });
 
-    // Walk every result page, downloading every row; docId dedups across pages.
     const docs: FetchedDocument[] = [];
     const seenDocIds = new Set<string>();
-    for (let resultPage = 1; resultPage <= MAX_RESULT_PAGES; resultPage++) {
-      const rows = await readRows(reports);
-      logger.info('harel fetch: result page scanned', { year, resultPage, rows: rows.length });
-
-      for (const row of rows) {
-        if (seenDocIds.has(row.docId)) continue;
-        seenDocIds.add(row.docId);
-
-        // The site names every download dimutWeb.PDF, so the filename is
-        // synthesized from the row: document type + account + year.
-        const filename = `${slug(row.docType) || 'report'}_${row.accountNumber || row.docId}_${year}.pdf`;
-        await humanPause(page, 2_000, 6_000); // brief cadence between XHR retrievals
-        const buffer = await fetchDocumentPdf(reports, row.docId, row.sessionId);
-        docs.push({
-          buffer,
-          filename,
-          contentType: 'application/pdf',
-          title: [row.docType, row.accountNumber ? `חשבון ${row.accountNumber}` : null].filter(Boolean).join(' — ') || null,
-          kind: 'study_fund_annual',
-        });
-        logger.info('harel fetch: document captured', {
-          year,
-          docId: row.docId,
-          docType: row.docType,
-          accountNumber: row.accountNumber,
-          bytes: buffer.length,
-        });
-      }
-      await debugShot(page, `harel-09-page-${resultPage}-done`);
-
-      // li.next carries class "disable" on the last page.
-      const next = reports.locator('#pagination_holder li.next:not(.disable) a').first();
-      if (!(await next.isVisible().catch(() => false))) break;
-      await humanPause(page);
-      filterAnswered = watchFilterRoundTrip(page);
-      await next.click();
-      await waitForFilteredRows(page, reports, year, {
-        filterAnswered,
-        preFilterRowCount: rows.length,
-        initialFilter: false,
-      });
+    const emptyKinds: HarelKind[] = [];
+    for (const round of rounds) {
+      const before = docs.length;
+      await fetchSectorRound(page, reports, round, year, docs, seenDocIds);
+      if (docs.length === before) emptyKinds.push(round.kind);
     }
 
     if (docs.length === 0) {
-      throw new Error(`no documents found under ${SECTOR_OPTION_LABEL} for year ${year}`);
+      throw new NoDocumentsOnSiteError(
+        `the site lists no documents under ${rounds.map((r) => r.label).join(' / ')} for ${ANNUAL_PERIOD_LABEL}/${year} — every filter was answered and its table stayed empty`,
+      );
     }
+    if (emptyKinds.length > 0) logger.info('harel fetch: kinds with no documents for the year', { year, emptyKinds });
     return docs;
   },
 };
+
+/**
+ * One filter round: sets תחום to the round's label, the annual period and the
+ * year (all by visible label — a missing year option fails loudly instead of
+ * downloading another year), triggers the search, waits for the table to settle
+ * on that sector + year, then walks every result page downloading every row
+ * not yet seen. Appends to `docs`; an answered-but-empty table appends nothing.
+ */
+async function fetchSectorRound(
+  page: Page,
+  reports: FrameLocator,
+  round: { kind: HarelKind; label: string },
+  year: string,
+  docs: FetchedDocument[],
+  seenDocIds: Set<string>,
+): Promise<void> {
+  const { kind, label: sectorLabel } = round;
+  await humanPause(page); // "reading" the reports page before filtering
+  await reports.locator('#madorCurrentValue').selectOption({ label: sectorLabel });
+  await humanPause(page, 1_000, 4_000);
+  await reports.locator('#repType').selectOption({ label: ANNUAL_PERIOD_LABEL });
+  await humanPause(page, 1_000, 4_000);
+  await reports.locator('#repYear').selectOption({ label: year });
+  // Snapshot before filtering: whether the table held anything pre-search is
+  // what tells a genuinely-empty result apart from a filter that never ran
+  // (the ACI container's logs die with it, so this also rides the error text).
+  const preFilterRows = await readRows(reports).catch(() => [] as ReportRow[]);
+  logger.info('harel fetch: pre-filter table state', {
+    year,
+    kind,
+    sectorLabel,
+    rows: preFilterRows.length,
+    sample: preFilterRows.slice(0, 3).map((r) => `${r.sector}|${r.yearText}`),
+  });
+  // No change handlers on the selects — the search runs server-side
+  // (getDimutTable AJAX). Prefer the app's dedicated חפש button, clicked like
+  // a person would; the document-level Enter handler (keyCode 13) stays as a
+  // fallback if the button's markup shifts. The watcher is armed BEFORE the
+  // trigger so the round-trip can't slip past it.
+  await humanPause(page, 2_000, 8_000);
+  let filterAnswered = watchFilterRoundTrip(page);
+  await triggerSearch(reports);
+  const settled = await waitForFilteredRows(page, reports, sectorLabel, year, {
+    filterAnswered,
+    preFilterRowCount: preFilterRows.length,
+    initialFilter: true,
+  });
+  await debugShot(page, `harel-08-${kind}-filtered`);
+  if (settled === 'empty') {
+    logger.info('harel fetch: no documents under this sector for the year', { year, kind, sectorLabel });
+    return;
+  }
+
+  // Walk every result page, downloading every row; docId dedups across pages
+  // (and across rounds, should the site list a document under both sectors).
+  for (let resultPage = 1; resultPage <= MAX_RESULT_PAGES; resultPage++) {
+    const rows = await readRows(reports);
+    logger.info('harel fetch: result page scanned', { year, kind, resultPage, rows: rows.length });
+
+    for (const row of rows) {
+      if (seenDocIds.has(row.docId)) continue;
+      seenDocIds.add(row.docId);
+
+      // The site names every download dimutWeb.PDF, so the filename is
+      // synthesized from the row: document type + account + year.
+      const filename = `${slug(row.docType) || 'report'}_${row.accountNumber || row.docId}_${year}.pdf`;
+      await humanPause(page, 2_000, 6_000); // brief cadence between XHR retrievals
+      const buffer = await fetchDocumentPdf(reports, row.docId, row.sessionId);
+      docs.push({
+        buffer,
+        filename,
+        contentType: 'application/pdf',
+        title: [row.docType, row.accountNumber ? `חשבון ${row.accountNumber}` : null].filter(Boolean).join(' — ') || null,
+        kind,
+      });
+      logger.info('harel fetch: document captured', {
+        year,
+        kind,
+        docId: row.docId,
+        docType: row.docType,
+        accountNumber: row.accountNumber,
+        bytes: buffer.length,
+      });
+    }
+    await debugShot(page, `harel-09-${kind}-page-${resultPage}-done`);
+
+    // li.next carries class "disable" on the last page.
+    const next = reports.locator('#pagination_holder li.next:not(.disable) a').first();
+    if (!(await next.isVisible().catch(() => false))) break;
+    await humanPause(page);
+    filterAnswered = watchFilterRoundTrip(page);
+    await next.click();
+    await waitForFilteredRows(page, reports, sectorLabel, year, {
+      filterAnswered,
+      preFilterRowCount: rows.length,
+      initialFilter: false,
+    });
+  }
+}
 
 /** Normalizes an Israeli mobile to the site's local 10-digit form: 972506839593 / +972… → 0506839593. */
 function normalizePhone(raw: string): string {
@@ -405,29 +484,28 @@ function watchFilterRoundTrip(page: Page): Promise<number | null> {
 
 /**
  * Waits for the AJAX-rendered table to show only rows matching the requested
- * sector + year. This doubles as the filter's success check: if the Enter
+ * sector + year. This doubles as the filter's success check: if the search
  * round-trip failed, this throws instead of letting the caller download
  * whatever mix the table happened to hold. An empty table is ambiguous on its
  * own — the round-trip watcher disambiguates: query answered + still empty
- * means the client genuinely has no matching documents (NoDocumentsOnSiteError,
- * only on the initial filter — mid-pagination emptiness is a site bug), while
- * no answer at all means the search was never triggered.
+ * means the client genuinely has no documents under this sector ('empty',
+ * only on the initial filter; the caller decides whether that makes the whole
+ * fetch a NoDocumentsOnSiteError — mid-pagination emptiness is a site bug),
+ * while no answer at all means the search was never triggered.
  */
 async function waitForFilteredRows(
   page: Page,
   reports: FrameLocator,
+  sectorLabel: string,
   year: string,
   diag: { filterAnswered: Promise<number | null>; preFilterRowCount: number; initialFilter: boolean },
-): Promise<void> {
+): Promise<'rows' | 'empty'> {
   const deadline = Date.now() + FILTER_SETTLE_MS;
   let lastRows: ReportRow[] = [];
   for (;;) {
     lastRows = await readRows(reports).catch(() => [] as ReportRow[]);
-    if (
-      lastRows.length > 0 &&
-      lastRows.every((r) => r.yearText.includes(year) && r.sector.includes(SECTOR_OPTION_LABEL))
-    ) {
-      return;
+    if (lastRows.length > 0 && lastRows.every((r) => r.yearText.includes(year) && r.sector.includes(sectorLabel))) {
+      return 'rows';
     }
     if (Date.now() > deadline) break;
     await page.waitForTimeout(1_000);
@@ -436,9 +514,8 @@ async function waitForFilteredRows(
   const answered = await diag.filterAnswered;
   const context = `pre-filter rows: ${diag.preFilterRowCount}, filter response: ${answered === null ? 'none' : `HTTP ${answered}`}`;
   if (lastRows.length === 0 && diag.initialFilter && answered !== null && answered < 400) {
-    throw new NoDocumentsOnSiteError(
-      `the site lists no documents under ${SECTOR_OPTION_LABEL}/${ANNUAL_PERIOD_LABEL}/${year} — the filter query was answered and the table stayed empty (${context})`,
-    );
+    logger.info('harel fetch: filter answered with an empty table', { sectorLabel, year, context });
+    return 'empty';
   }
   const lastState =
     lastRows.length === 0
@@ -446,7 +523,7 @@ async function waitForFilteredRows(
         ? 'no rows and the search query never fired'
         : 'no rows'
       : `rows: ${lastRows.map((r) => `${r.sector}|${r.yearText}`).slice(0, 5).join(', ')}`;
-  throw new Error(`reports table did not settle on ${SECTOR_OPTION_LABEL}/${year} within 30s (${lastState}; ${context})`);
+  throw new Error(`reports table did not settle on ${sectorLabel}/${year} within 30s (${lastState}; ${context})`);
 }
 
 /** A filename-safe slug of a Hebrew document-type cell. */

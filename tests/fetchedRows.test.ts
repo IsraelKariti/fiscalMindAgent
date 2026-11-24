@@ -128,3 +128,52 @@ describe('phoenix confirmation names the kinds added to the list', () => {
     assert.doesNotMatch(phoenix.delivery.waConfirmation(DOCS, true), /מצאתי שם גם/);
   });
 });
+
+// Harel brings everything it finds too (openspec `harel-fetch`): the same
+// planner, keyed on the provider flag, names the row "— הראל".
+describe('harel fetched rows and wording', () => {
+  const harel = getProviderSpec('harel');
+  const HAREL_DOCS: FetchedDocument[] = [
+    pdf('study_fund_annual', 'דוח תקופתי מקוצר — חשבון 111'),
+    pdf('study_fund_annual', 'אישור מס דוח שנתי מקוצר — חשבון 222'),
+    pdf('pension_annual', 'דוח שנתי — חשבון 333'),
+  ];
+
+  it('pension found with no Harel pension row: the open catalog row is settled with the Harel name', () => {
+    const studyHarel = row('אישור יתרת קרן השתלמות ליום 31.12.2025 — הראל', 'study_fund', 'pending');
+    const pensionOpen = row('אישור יתרות קופות גמל ופנסיה ליום 31.12.2025', 'pension_provident', 'unresolved');
+    const plans = planFetchedRows(harel, HAREL_DOCS, [studyHarel, pensionOpen], 2025);
+    assert.deepEqual(plans.map((p) => [p.kind, p.action, p.targetRowId, p.name, p.docIndexes]), [
+      ['pension_annual', 'resolve', pensionOpen.id, 'אישור יתרות קופות גמל ופנסיה ליום 31.12.2025 — הראל', [2]],
+    ]);
+  });
+
+  it('Harel pension row already exists: nothing is created', () => {
+    const studyHarel = row('אישור יתרת קרן השתלמות ליום 31.12.2025 — הראל', 'study_fund', 'pending');
+    const pensionHarel = row('אישור יתרות קופות גמל ופנסיה ליום 31.12.2025 — הראל', 'pension_provident', 'pending');
+    assert.deepEqual(planFetchedRows(harel, HAREL_DOCS, [studyHarel, pensionHarel], 2025), []);
+  });
+
+  it('Harel always covers both kinds', () => {
+    assert.deepEqual(effectiveFetchKeys(['study_fund_annual'], ['study_fund_annual'], harel), ['pension_annual', 'study_fund_annual']);
+  });
+
+  it('the Harel name match tells pension from study fund', () => {
+    const [pension, study] = harel.documents;
+    assert.equal(pension!.matchesRequiredDocument({ name: 'אישור יתרות קופות גמל ופנסיה ליום 31.12.2025 — הראל' }), true);
+    assert.equal(pension!.matchesRequiredDocument({ name: 'אישור יתרת קרן השתלמות ליום 31.12.2025 — הראל' }), false);
+    assert.equal(study!.matchesRequiredDocument({ name: 'אישור יתרת קרן השתלמות ליום 31.12.2025 — הראל' }), true);
+    assert.equal(study!.matchesRequiredDocument({ name: 'קרן השתלמות — הפניקס' }), false);
+  });
+
+  it('wording names the products fetched and the kinds added', () => {
+    const both = harel.delivery.waConfirmation(HAREL_DOCS, true, ['pension_annual']);
+    assert.match(both, /3 דוחות שנתיים של קרן ההשתלמות והפנסיה שלך מהראל/);
+    assert.match(both, /מצאתי שם גם את הפנסיה שלך — הוספתי אותה לרשימת המסמכים\./);
+    const studyOnly = HAREL_DOCS.filter((d) => d.kind === 'study_fund_annual');
+    assert.match(harel.delivery.waConfirmation(studyOnly, false), /2 דוחות שנתיים של קרן ההשתלמות שלך מהראל/);
+    assert.doesNotMatch(harel.delivery.waConfirmation(studyOnly, false), /מצאתי שם גם/);
+    assert.equal(harel.delivery.emailSubject(HAREL_DOCS, 2025), 'דוחות שנתיים קרן ההשתלמות והפנסיה - הראל - 2025');
+    assert.equal(harel.delivery.fileLabel(HAREL_DOCS[2]!, 2025), 'דוח שנתי — חשבון 333 — הראל 2025');
+  });
+});

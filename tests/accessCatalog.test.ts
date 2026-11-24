@@ -18,11 +18,12 @@ describe('access catalog', () => {
     for (const e of ACCESS_CATALOG) assert.ok(e.nameHe.length > 0, `${e.site} has a Hebrew name`);
   });
 
-  it('marks exactly the six existing accesses as built', () => {
+  it('marks exactly the seven existing accesses as built', () => {
     const built = ACCESS_CATALOG.filter(isBuilt).map((e) => `${e.site}/${e.product}`);
     assert.deepEqual(built.sort(), [
       'altshuler_shaham/pension_annual',
       'altshuler_shaham/study_fund_annual',
+      'harel/pension_annual',
       'harel/study_fund_annual',
       'israel_tax_authority/form106',
       'phoenix/pension_annual',

@@ -282,20 +282,35 @@ const altshulerShahamSpec: FetchProviderSpec = {
 
 // ── Harel ───────────────────────────────────────────────────────────────────
 
-/** A fetched Harel doc's display name: the on-site row title, else a generic noun. */
+/** A required-document name that mentions Harel. */
+const HAREL_NAME = /הראל/;
+
+/** Human product noun per Harel document kind, for delivery wording. */
+function harelProductNoun(kind: string | null | undefined): string {
+  return kind === 'pension_annual' ? 'הפנסיה' : 'קרן ההשתלמות';
+}
+
+/** The distinct products in a delivery, joined for Hebrew prose ("הפנסיה וקרן ההשתלמות"). */
+function harelProducts(docs: FetchedDocument[]): string {
+  return joinHe([...new Set(docs.map((d) => harelProductNoun(d.kind)))]);
+}
+
+/** A fetched Harel doc's display name: the on-site row title, else a generic noun of its product. */
 function harelDocName(doc: FetchedDocument): string {
-  return doc.title ?? 'דוח שנתי — קרן השתלמות';
+  return doc.title ?? `דוח שנתי — ${harelProductNoun(doc.kind)}`;
 }
 
 /**
- * Harel (הראל ביטוח ופיננסים). One email-OTP login pulls the previous year's
- * annual documents for EVERY study fund the client holds there (the personal
- * area's דוחות תקופתיים list filtered to תחום גמל והשתלמות + שנתי + the year) —
- * a client can hold several funds/accounts and Harel names the report documents
- * freely (דוח תקופתי מקוצר / דוחות תקופתיים / אישור מס דוח שנתי מקוצר…, verified
- * live 2026-07-27), so the runner downloads the whole filtered list and each
- * file carries its on-site row title (doc type + account), never a hardcoded
- * document name.
+ * Harel (הראל ביטוח ופיננסים). One email-OTP login pulls the tax year's annual
+ * documents for EVERY study fund and pension the client holds there — the
+ * personal area's דוחות תקופתיים list filtered per תחום (גמל והשתלמות, then
+ * פנסיה) + שנתי + the year, both rounds in the same session (openspec
+ * `harel-fetch`). A client can hold several funds/accounts and Harel names
+ * the report documents freely (דוח תקופתי מקוצר / דוחות תקופתיים / אישור מס דוח
+ * שנתי מקוצר…, verified live 2026-07-27), so the runner downloads each whole
+ * filtered list and each file carries its on-site row title (doc type +
+ * account), never a hardcoded document name. Like Phoenix, the fetch brings
+ * everything it finds: a kind the list lacks gets its own row at delivery.
  */
 const harelSpec: FetchProviderSpec = {
   id: 'harel',
@@ -303,15 +318,20 @@ const harelSpec: FetchProviderSpec = {
   // The login modal offers נייד/SMS (its default) or מייל; the runner selects
   // מייל, so the code goes to the address Harel holds for that ת"ז.
   otpChannel: 'email',
+  takesAllDocuments: true,
 
   documents: [
     {
+      key: 'pension_annual',
+      documentDescriptionHe: 'דוח שנתי ואישורי מס — פנסיה / קופת גמל (כל הדוחות אם יש כמה)',
+      matchesRequiredDocument: (doc) => HAREL_NAME.test(doc.name) && /פנסיה|גמל/.test(doc.name) && !/השתלמות/.test(doc.name),
+      catalogTypeKey: 'pension_provident',
+    },
+    {
       key: 'study_fund_annual',
       documentDescriptionHe: 'דוח שנתי ואישורי מס — קרן השתלמות (כל הדוחות אם יש כמה קרנות)',
-      matchesRequiredDocument: (doc) => /השתלמות/.test(doc.name) && /הראל/.test(doc.name),
-      // One login yields a report per fund; all of them satisfy the single
-      // study-fund checklist item.
-      ownsFetchedDocument: () => true,
+      matchesRequiredDocument: (doc) => HAREL_NAME.test(doc.name) && /השתלמות/.test(doc.name),
+      catalogTypeKey: 'study_fund',
     },
   ],
 
@@ -334,15 +354,15 @@ const harelSpec: FetchProviderSpec = {
     otpGaveUp: 'לא הצלחנו לאמת את הקוד. נוכל לנסות את התהליך שוב מאוחר יותר.',
     downloadFailed: 'הזדהיתי בהצלחה אך לא הצלחתי להוריד את הדוח כרגע. נוכל לנסות שוב מאוחר יותר.',
     noDocumentsOnSite:
-      'הזדהיתי בהצלחה באתר הראל, אך לא נמצאו שם דוחות קרן השתלמות לשנה המבוקשת. ייתכן שהדוח טרם פורסם או שהקרן מתנהלת בחברה אחרת — נבדוק את זה מול המשרד ונעדכן אותך.',
+      'הזדהיתי בהצלחה באתר הראל, אך לא נמצאו שם דוחות פנסיה או קרן השתלמות לשנה המבוקשת. ייתכן שהדוח טרם פורסם או שהחיסכון מתנהל בחברה אחרת — נבדוק את זה מול המשרד ונעדכן אותך.',
   },
 
   delivery: {
-    waConfirmation(docs: FetchedDocument[], canEmail: boolean): string {
+    waConfirmation(docs: FetchedDocument[], canEmail: boolean, createdKinds: string[] = []): string {
       const single = docs.length === 1;
       const fetchedWhat = single
-        ? 'את הדוח השנתי של קרן ההשתלמות שלך'
-        : `${docs.length} דוחות שנתיים של קרנות ההשתלמות שלך`;
+        ? `את הדוח השנתי של ${harelProducts(docs)} שלך`
+        : `${docs.length} דוחות שנתיים של ${harelProducts(docs)} שלך`;
       const tail = canEmail
         ? single
           ? 'שלחתי לך עותק למייל.'
@@ -350,21 +370,25 @@ const harelSpec: FetchProviderSpec = {
         : single
           ? 'המסמך נשמר והועבר לרואה החשבון.'
           : 'המסמכים נשמרו והועברו לרואה החשבון.';
-      return `הצלחתי למשוך ${fetchedWhat} מהראל 🎉 ${tail}`;
+      // A kind the list did not expect: told after the fact (openspec `harel-fetch`).
+      const alsoFound = createdKinds.map(
+        (kind) => ` מצאתי שם גם את ${harelProductNoun(kind)} שלך — הוספתי אותה לרשימת המסמכים.`,
+      );
+      return `הצלחתי למשוך ${fetchedWhat} מהראל 🎉${alsoFound.join('')} ${tail}`;
     },
 
     emailSubject(docs: FetchedDocument[], taxYear: number): string {
       return docs.length > 1
-        ? `דוחות שנתיים קרנות השתלמות - הראל - ${taxYear}`
-        : `דוח שנתי קרן השתלמות - הראל - ${taxYear}`;
+        ? `דוחות שנתיים ${harelProducts(docs)} - הראל - ${taxYear}`
+        : `דוח שנתי ${harelProducts(docs)} - הראל - ${taxYear}`;
     },
 
     emailBodyLines(docs: FetchedDocument[], taxYear: number): string[] {
       return [
         docs.length === 1
-          ? `מצורף הדוח השנתי של קרן ההשתלמות שלך לשנת ${taxYear}, שנמשך עבורך מהראל.`
-          : `מצורפים ${docs.length} הדוחות השנתיים של קרנות ההשתלמות שלך לשנת ${taxYear}, שנמשכו עבורך מהראל:`,
-        ...(docs.length > 1 ? ['', ...docs.map((d) => `• ${harelDocName(d)}`)] : []),
+          ? `מצורף הדוח השנתי של ${harelProducts(docs)} שלך לשנת ${taxYear}, שנמשך עבורך מהראל.`
+          : `מצורפים ${docs.length} הדוחות השנתיים של ${harelProducts(docs)} שלך לשנת ${taxYear}, שנמשכו עבורך מהראל:`,
+        ...(docs.length > 1 ? ['', ...docs.map((d) => `• ${harelDocName(d)} — ${harelProductNoun(d.kind)}`)] : []),
       ];
     },
 

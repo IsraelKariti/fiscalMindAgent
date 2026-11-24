@@ -1190,8 +1190,14 @@ capability** — there is no accountant button.
 - **Providers**: `src/browserRunner/` is provider-structured
   (`DocumentFetchProvider` in `providerTypes.ts`) so other sites can be added;
   today `israel_tax_authority` (Form 106), `altshuler_shaham` (pension/study-fund
-  annual report + tax certs), `harel` (study-fund annual reports — downloads
-  every doc under תחום גמל והשתלמות for the year, all result pages) and
+  annual report + tax certs), `harel` (study-fund + pension annual reports in
+  one email-OTP login, openspec `harel-fetch`: two filter rounds on the
+  reports app, תחום גמל והשתלמות then פנסיה — options picked by label via
+  the pure `resolveHarelSectors`, tested in `tests/harelSectors.test.ts` —
+  each round downloads every row for the year across all result pages and
+  tags it with its kind; a round answered with an empty table is a kind the
+  client lacks, only both empty is "no documents"; Harel is a
+  `takesAllDocuments` provider like Phoenix below, rows named " — הראל") and
   `phoenix` (pension + study fund in one SMS-OTP login, openspec
   `phoenix-fetch`: walks every page of my.fnx.co.il/mails/reports with the
   page-bar buttons only — never the site's filters — and takes rows whose
@@ -1200,7 +1206,7 @@ capability** — there is no accountant button.
   identical names are several policies and are all downloaded; selection is
   the pure `selectPhoenixRows` in `browserRunner/phoenix.ts`, tested in
   `tests/phoenixSelect.test.ts`; a worker-side spec in `taxFetch/providers.ts`
-  mirrors each provider). Phoenix is a `takesAllDocuments` provider: the
+  mirrors each provider). Phoenix (and Harel) is a `takesAllDocuments` provider: the
   client's consent is to the fetch itself, the session always covers both
   kinds (`effectiveFetchKeys` in `taxFetch/fetchedRows.ts`; the planner's
   `document_keys` is ignored and the prompt block says so), and at delivery a

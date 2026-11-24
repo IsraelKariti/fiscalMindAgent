@@ -258,28 +258,27 @@ class MockTaxFetchClient implements TaxFetchClient {
     if (!provider) throw new SessionGoneError();
     await sleep(500);
     this.live.delete(sessionId);
-    // Harel: a client can hold several study funds, all the same document kind
-    // told apart only by their on-site titles — return two so the multi-fund
-    // delivery path (labels, plural texts) is exercised without the site.
+    // Harel: two filter rounds in one login (openspec `harel-fetch`); a client
+    // can hold several study funds, all the same document kind told apart only
+    // by their on-site titles — return two study-fund files and one pension
+    // file per agreed key so the multi-fund delivery path (labels, plural
+    // texts, row creation for a kind the list lacks) is exercised without the site.
     if (provider === 'harel') {
-      return [
-        {
+      const titlesByKey: Record<string, string[]> = {
+        study_fund_annual: ['דוח שנתי קרן השתלמות מסלול כללי', 'דוח שנתי קרן השתלמות מסלול מניות'],
+        pension_annual: ['דוח שנתי קרן פנסיה מקיפה — חשבון 12345'],
+      };
+      return opts.documentKeys
+        .filter((key) => key in titlesByKey)
+        .flatMap((key) => titlesByKey[key]!.map((title) => ({ key, title })))
+        .map((d, i) => ({
           buffer: MOCK_PDF,
-          filename: `mock_harel_study_fund_${opts.taxYear}_1.pdf`,
+          filename: `mock_harel_${d.key}_${opts.taxYear}_${i + 1}.pdf`,
           contentType: 'application/pdf',
           employerName: null,
-          title: 'דוח שנתי קרן השתלמות מסלול כללי',
-          kind: 'study_fund_annual',
-        },
-        {
-          buffer: MOCK_PDF,
-          filename: `mock_harel_study_fund_${opts.taxYear}_2.pdf`,
-          contentType: 'application/pdf',
-          employerName: null,
-          title: 'דוח שנתי קרן השתלמות מסלול מניות',
-          kind: 'study_fund_annual',
-        },
-      ];
+          title: d.title,
+          kind: d.key,
+        }));
     }
     // Phoenix: the list walk takes every annual row for the year, and a client
     // usually has two per product (full report + short report with the tax

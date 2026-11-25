@@ -20,4 +20,4 @@
 ## 4. Docs and finish
 
 - [x] 4.1 Document the page and the mark in `docs/agents.md` (admin observability list, the `llm_calls` columns paragraph next to `app_version`) and note that production needs migration 081. Verify by reading the two sections.
-- [ ] 4.2 Run `npm test` and `npm run typecheck`, commit per the Git workflow, and leave the change for `/opsx:archive fallbacks-dashboard`.
+- [x] 4.2 Run `npm test` and `npm run typecheck`, commit per the Git workflow, and leave the change for `/opsx:archive fallbacks-dashboard`.

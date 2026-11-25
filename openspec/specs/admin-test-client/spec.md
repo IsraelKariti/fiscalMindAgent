@@ -10,7 +10,7 @@ While an admin views the workspace as an accountant, the workspace Settings view
 
 #### Scenario: Admin sees the tab
 - **WHEN** an admin viewing as an accountant opens the agent's Settings view
-- **THEN** the tabs are general, connections, test, dashboard, and the test tab carries the admin-only marker
+- **THEN** the tabs are general, connections, staff, test, analytics, documents, dashboard, and the test tab carries the admin-only marker
 
 #### Scenario: Accountant does not see the tab
 - **WHEN** the accountant opens the agent's Settings view in their own session
@@ -23,6 +23,7 @@ While an admin views the workspace as an accountant, the workspace Settings view
 #### Scenario: Advisor action on the tab
 - **WHEN** an admin viewing as an accountant opens the test tab
 - **THEN** the test-client form is followed by a group holding the "re-read tax advisors" button, and no such group exists on any other tab
+
 ### Requirement: The test-client form takes the identity the kickoff would read from monday
 The form SHALL take: name (required), WhatsApp phone (required, must normalise to a valid international number), declaration year (required, four digits, prefilled with the last concluded year), national id (optional), file number (optional), marital status (optional: married / not married), spouse name and spouse id (optional), and zero or more questionnaire answers as question/answer pairs (optional). Submitting SHALL be refused, with the reason shown in the form, when a required field is missing, the phone is not a valid number, the year is not a four-digit year, or a live client of the same instance already has that phone. The refusal SHALL create nothing.
 

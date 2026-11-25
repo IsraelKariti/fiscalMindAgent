@@ -31,7 +31,7 @@ export function AdminSettings({ userEmail }: Props) {
   const { t } = useT();
 
   // Org-wide emergency stop: silences every agent at once (inbound, queued
-  // sends, tax fetches, daily scans) until switched back on.
+  // sends, document fetches, daily scans) until switched back on.
   const [killSwitch, setKillSwitch] = useState<KillSwitchState | null>(null);
   const [killNotice, setKillNotice] = useState<'load_failed' | 'save_failed' | null>(null);
   const [killSaving, setKillSaving] = useState(false);

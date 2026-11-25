@@ -1,5 +1,5 @@
 /**
- * Worker-side tax-fetch types. Deliberately free of Playwright: the worker
+ * Worker-side document-fetch types. Deliberately free of Playwright: the worker
  * never touches a browser — real fetches run in the secret-free browser-runner
  * sidecar (src/browserRunner.ts) and cross an HTTP trust boundary, so what
  * comes back is data to validate, not objects to trust.

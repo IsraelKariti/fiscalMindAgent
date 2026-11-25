@@ -48,7 +48,7 @@ jobs:
             docker push $IMAGE:${{ github.sha }}
           fi
 
-      # The tax-fetch ACI browser runner ships as its own image and must stay
+      # The document-fetch ACI browser runner ships as its own image and must stay
       # in lockstep with the worker's HTTP contract (src/browserRunner/protocol.ts)
       # — a stale image broke every prod fetch on 2026-08-01. Building it here,
       # tagged with the same SHA, keeps them in sync by construction.
@@ -65,7 +65,7 @@ jobs:
         run: |
           # appsettings set echoes every setting's value — keep secrets out of the CI log.
           az webapp config appsettings set -n fiscalmind-il-worker -g $RG \
-            --settings TAX_FETCH_ACI_IMAGE=$BROWSER_IMAGE:${{ github.sha }} > /dev/null
+            --settings DOCUMENT_FETCH_ACI_IMAGE=$BROWSER_IMAGE:${{ github.sha }} > /dev/null
           az webapp config container set -n fiscalmind-il-worker -g $RG \
             --container-image-name $IMAGE:${{ github.sha }} \
             --container-registry-url https://fiscalmindacr.azurecr.io

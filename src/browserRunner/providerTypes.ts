@@ -40,7 +40,7 @@ export function requireCredential(credentials: PortalCredentials, key: string, p
  * stateless — the server owns the browser/page lifecycle.
  */
 export interface DocumentFetchProvider {
-  /** Registry id; matches client_portal_credentials.provider and tax_fetch_sessions.provider. */
+  /** Registry id; matches client_portal_credentials.provider and document_fetch_sessions.provider. */
   id: string;
   /**
    * Fills the login form and submits, leaving the page on the OTP screen. This

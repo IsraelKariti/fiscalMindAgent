@@ -462,7 +462,7 @@ workspaceRouter.put(
 );
 
 // Soft delete (openspec `soft-delete-clients`): the client leaves the roster
-// and keeps everything — messages, documents, files, blobs, tax-fetch sessions,
+// and keeps everything — messages, documents, files, blobs, document-fetch sessions,
 // LLM calls and audit links — for the records and for the admin's read-only
 // view. Nothing is wiped from blob storage. The same email / phone may then be
 // added again as a brand-new client (the unique indexes cover live rows only).

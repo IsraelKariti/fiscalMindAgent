@@ -40,7 +40,7 @@ The tools offered SHALL be exactly these, with these parameters; every parameter
 - `state_cost(document_id, instance_name, amount, currency, evidence_message_id, evidence_quote)`: a purchase cost the client stated in the chat, for an existing item (`document_id` set, `instance_name` `''`) or for an item added in this same answer (`document_id` `''`, `instance_name` equal to that `add_instance` call's `name`).
 - `retire_document(document_id, evidence_message_id, evidence_quote, proven_by_file_id)`: exactly one of the evidence pair or `proven_by_file_id` is non-empty.
 - `attestation(action, evidence_message_id, evidence_quote)`: `action` one of `request` (this answer's message is the closing summary; evidence `''`/`''`) or `confirmed` (the client confirmed the summary; evidence required). One tool with an action, not two tools: a tool without parameters is not accepted by every provider.
-- `tax_fetch(action, provider, document_keys)`: `action` one of `client_agreed`, `start_login`, `cancel`; `document_keys` `[]` means all pending documents of the provider.
+- `document_fetch(action, provider, document_keys)`: `action` one of `client_agreed`, `start_login`, `cancel`; `document_keys` `[]` means all pending documents of the provider.
 
 #### Scenario: Cost of a new item in the same answer
 - **WHEN** the model calls `add_instance(anchor_document_id: R, name: "דירה ברחוב הרצל", …, paper_key: "cost_declaration")` and `state_cost(document_id: "", instance_name: "דירה ברחוב הרצל", amount: 1850000, currency: "ILS", evidence_message_id: M, evidence_quote: "…1,850,000…")`
@@ -55,18 +55,18 @@ The tools offered SHALL be exactly these, with these parameters; every parameter
 - **THEN** the call is read as "no evidence given" and the match is accepted on code evidence alone, as the form's null evidence was
 
 ### Requirement: Only the tools this call can use are offered
-Before each planner call the system SHALL build the tool set from the full set minus the tools the client cannot use in this call: the checklist tools (`set_required`, `add_instance`, `state_cost`, `retire_document`, `attestation`) when the agent has no intake; `tax_fetch` when no fetch provider is offered; `mark_collected` and `tie_file`, and the `collect` value of `conclude`, in the follow-up cycle after a verification batch. `conclude`, `send_whatsapp_text` and `send_whatsapp_template` SHALL always be offered. A call naming a tool that was not offered SHALL fail the `tool_calls` check.
+Before each planner call the system SHALL build the tool set from the full set minus the tools the client cannot use in this call: the checklist tools (`set_required`, `add_instance`, `state_cost`, `retire_document`, `attestation`) when the agent has no intake; `document_fetch` when no fetch provider is offered; `mark_collected` and `tie_file`, and the `collect` value of `conclude`, in the follow-up cycle after a verification batch. `conclude`, `send_whatsapp_text` and `send_whatsapp_template` SHALL always be offered. A call naming a tool that was not offered SHALL fail the `tool_calls` check.
 
 #### Scenario: Capital declaration without a fetch offer
 - **WHEN** the planner runs for a capital-declaration client to whom no fetch provider is offered
-- **THEN** the request carries every tool except `tax_fetch`
+- **THEN** the request carries every tool except `document_fetch`
 
 #### Scenario: After-verification cycle
 - **WHEN** the follow-up cycle after a verification batch runs
 - **THEN** the request carries no `mark_collected` and no `tie_file`, and `conclude.decision` offers only `goal_complete` and `follow_up`
 
 ### Requirement: Calls are assembled into one decision before the business rules
-The system SHALL assemble the calls of one answer into a single planning decision and SHALL then apply the existing business rules unchanged (evidence quotes from stored inbound messages, instance caps and paper checks, the window/template rules, the attestation gate, the collect/follow-up separation). Assembly SHALL reject, with a corrective retry: zero or more than one `conclude`; more than one `send_*` call; more than one `attestation` call; `tax_fetch` more than once; `set_required` twice for one row; a `state_cost` with both or neither of `document_id` and `instance_name`, or naming an instance no `add_instance` of the answer has. A `follow_up` SHALL carry exactly one `send_*` call; a `collect` and a `goal_complete` SHALL carry none. Instances added under a row that this answer resolves `required` SHALL become that resolution's instances; instances added under an already-resolved row SHALL become one addition per row, all of that row's `add_instance` calls together (the evidence of the first call that gives one).
+The system SHALL assemble the calls of one answer into a single planning decision and SHALL then apply the existing business rules unchanged (evidence quotes from stored inbound messages, instance caps and paper checks, the window/template rules, the attestation gate, the collect/follow-up separation). Assembly SHALL reject, with a corrective retry: zero or more than one `conclude`; more than one `send_*` call; more than one `attestation` call; `document_fetch` more than once; `set_required` twice for one row; a `state_cost` with both or neither of `document_id` and `instance_name`, or naming an instance no `add_instance` of the answer has. A `follow_up` SHALL carry exactly one `send_*` call; a `collect` and a `goal_complete` SHALL carry none. Instances added under a row that this answer resolves `required` SHALL become that resolution's instances; instances added under an already-resolved row SHALL become one addition per row, all of that row's `add_instance` calls together (the evidence of the first call that gives one).
 
 #### Scenario: Two conclude calls
 - **WHEN** the model answers with two `conclude` calls

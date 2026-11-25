@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCESS_CATALOG, isBuilt } from '../src/agents/declarationOfCapital/taxFetch/accessCatalog.js';
-import { listProviderSpecs } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
+import { ACCESS_CATALOG, isBuilt } from '../src/agents/declarationOfCapital/documentFetch/accessCatalog.js';
+import { listProviderSpecs } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
 
 // Admin site-access screen (openspec `admin-site-access`): the fixed catalog of
 // monitored sites × products, and the built badge read from the provider registry.

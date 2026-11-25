@@ -36,7 +36,7 @@ test('the planner stage lists its tools, conclude first', () => {
   assert.ok(planner?.tools);
   assert.equal(planner.tools[0]!.name, 'conclude');
   assert.ok(planner.tools.some((t) => t.name === 'send_whatsapp_text'));
-  assert.ok(!planner.tools.some((t) => t.name === 'tax_fetch'), 'no fetch provider is offered in the documented context');
+  assert.ok(!planner.tools.some((t) => t.name === 'document_fetch'), 'no fetch provider is offered in the documented context');
   // The continuation rule the OpenAI adapter follows, shown on the stages page.
   assert.deepEqual(planner.continuation, { untilTool: 'conclude', maxTurns: 6 });
 });

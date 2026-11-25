@@ -2,7 +2,7 @@ import { pool } from '../pool.js';
 import { env } from '../../config/env.js';
 
 /**
- * Aggregates over tax_fetch_sessions for the admin site-access screen
+ * Aggregates over document_fetch_sessions for the admin site-access screen
  * (openspec `admin-site-access`). Both queries return one row per provider ×
  * document key; a session with NULL document_keys lands in a NULL-key bucket
  * that the report expands to every product the provider offers.
@@ -30,7 +30,7 @@ export async function countAccesses(): Promise<SiteAccessCountRow[]> {
   const { rows } = await pool.query<SiteAccessCountRow>(
     `WITH reached AS (
        SELECT provider, document_keys, (created_at AT TIME ZONE $1)::date AS day
-       FROM tax_fetch_sessions
+       FROM document_fetch_sessions
        WHERE ${REACHED_SITE}
      ),
      keyed AS (
@@ -65,7 +65,7 @@ export async function recentFinished(): Promise<SiteAccessRecentRow[]> {
   const { rows } = await pool.query<SiteAccessRecentRow>(
     `WITH keyed AS (
        SELECT s.provider, k.document_key, s.status, s.error, s.updated_at
-       FROM tax_fetch_sessions s
+       FROM document_fetch_sessions s
        LEFT JOIN LATERAL unnest(s.document_keys) AS k(document_key) ON TRUE
        WHERE s.status IN ('delivered','failed')
      ),
@@ -96,7 +96,7 @@ export async function lastAccess(): Promise<SiteAccessLastRow[]> {
   const { rows } = await pool.query<SiteAccessLastRow>(
     `WITH keyed AS (
        SELECT s.id, s.provider, k.document_key, s.status, s.error, s.updated_at
-       FROM tax_fetch_sessions s
+       FROM document_fetch_sessions s
        LEFT JOIN LATERAL unnest(s.document_keys) AS k(document_key) ON TRUE
        WHERE ${REACHED_SITE}
      )

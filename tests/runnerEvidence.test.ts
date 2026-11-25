@@ -4,7 +4,7 @@ import type { Server } from 'node:http';
 
 // The runner's env is read at import time; the token must exist before the server module loads.
 process.env['BROWSER_RUNNER_TOKEN'] = 'test-token-test-token-test';
-process.env['TAX_FETCH_SESSION_TTL_MS'] = '2000';
+process.env['DOCUMENT_FETCH_SESSION_TTL_MS'] = '2000';
 
 const { createRunnerApp, closeAllSessions } = await import('../src/browserRunner/server.js');
 const { attachCollector, debugShot } = await import('../src/browserRunner/launch.js');

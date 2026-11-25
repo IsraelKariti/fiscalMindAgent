@@ -195,7 +195,7 @@ export interface DocumentFile {
   email_id: string | null;
   client_document_id: string | null;
   filename: string;
-  /** Display label when the filename isn't descriptive (e.g. employer name on a tax-fetched 106). */
+  /** Display label when the filename isn't descriptive (e.g. employer name on a document-fetched 106). */
   label: string | null;
   content_type: string;
   size_bytes: string;
@@ -1460,10 +1460,10 @@ export const api = {
   adminGetLlmFallbacks: (days: FallbackDays) => request<FallbacksReply>(`/admin/llm-fallbacks${days ? `?days=${days}` : ''}`),
   adminSiteAccess: () => request<SiteAccessReply>('/admin/site-access'),
   /** A website fetch's step evidence (404 for an unknown session; empty steps when none was kept). */
-  adminFetchEvidence: (sessionId: string) => request<FetchEvidenceReply>(`/admin/tax-fetch/${sessionId}/evidence`),
+  adminFetchEvidence: (sessionId: string) => request<FetchEvidenceReply>(`/admin/document-fetch/${sessionId}/evidence`),
   /** Same-origin URLs of one evidence file (admin pages never run inside monday, so no ?sessionToken=). */
   adminFetchEvidenceUrl: (sessionId: string, seq: number, part: 'screenshot' | 'html' | 'mhtml' | 'record', as: 'view' | 'download') =>
-    `${transport.basePath}/admin/tax-fetch/${sessionId}/evidence/${seq}/${part}?as=${as}`,
+    `${transport.basePath}/admin/document-fetch/${sessionId}/evidence/${seq}/${part}?as=${as}`,
   adminLlmUsageDaily: (days: number) =>
     request<{ since: string; rows: LlmDailyUsage[] }>(`/admin/llm-usage/daily?days=${days}`),
   adminAuditEvents: (days: number) => request<{ events: AuditEvent[] }>(`/admin/audit-events?days=${days}`),

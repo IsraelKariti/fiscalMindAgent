@@ -1,12 +1,12 @@
 # Browser-runner sidecar (src/browserRunner.ts): the only image that ships a
 # browser. Runs headful Chrome under Xvfb, driven over HTTP by the worker.
 # SECURITY: deploy this with ONLY these env vars — BROWSER_RUNNER_PORT,
-# BROWSER_RUNNER_TOKEN, TAX_FETCH_SESSION_TTL_MS. Never give it DATABASE_URL,
+# BROWSER_RUNNER_TOKEN, DOCUMENT_FETCH_SESSION_TTL_MS. Never give it DATABASE_URL,
 # REDIS_URL, SECRET_ENC_KEY or any API key: the whole point of the sidecar is
 # that the process rendering hostile web content has nothing worth stealing.
 #
 # Built by deploy.yml on every prod deploy (tagged with the git SHA, wired to
-# the worker via TAX_FETCH_ACI_IMAGE) so it can't drift from the worker's HTTP
+# the worker via DOCUMENT_FETCH_ACI_IMAGE) so it can't drift from the worker's HTTP
 # contract (src/browserRunner/protocol.ts). Local build:
 #   docker build -f Dockerfile.browser-runner -t fiscalmind-browser .
 

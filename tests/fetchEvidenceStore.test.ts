@@ -7,14 +7,14 @@ import {
   fallbackShotItem,
   groupEvidenceKeys,
   parseEvidenceKey,
-} from '../src/agents/declarationOfCapital/taxFetch/stepEvidence.js';
-import { RunnerStepError } from '../src/agents/declarationOfCapital/taxFetch/types.js';
+} from '../src/agents/declarationOfCapital/documentFetch/stepEvidence.js';
+import { RunnerStepError } from '../src/agents/declarationOfCapital/documentFetch/types.js';
 
 const SESSION = '3f1c2a9e-0000-4000-8000-000000000001';
 const prefix = evidencePrefixFor(SESSION, new Date('2026-11-25T22:30:00+02:00'));
 
 test('a session prefix is its creation day (UTC) and its id', () => {
-  assert.equal(prefix, `debug/taxfetch/2026-11-25/${SESSION}/`);
+  assert.equal(prefix, `debug/documentfetch/2026-11-25/${SESSION}/`);
 });
 
 test('a part key pads the seq, keeps the step name safe and uses the part extension', () => {
@@ -22,7 +22,7 @@ test('a part key pads the seq, keeps the step name safe and uses the part extens
   assert.equal(evidenceKey(prefix, 12, 'login-failed', 'mhtml'), `${prefix}12-login-failed.mhtml`);
   assert.equal(evidenceKey(prefix, 1, 'x', 'record'), `${prefix}01-x.json`);
   assert.deepEqual(parseEvidenceKey(prefix, `${prefix}12-login-failed.mhtml`), { seq: 12, name: 'login-failed', part: 'mhtml' });
-  assert.equal(parseEvidenceKey(prefix, `debug/taxfetch/2026-11-25/${SESSION}-login.png`), null);
+  assert.equal(parseEvidenceKey(prefix, `debug/documentfetch/2026-11-25/${SESSION}-login.png`), null);
 });
 
 test('a prefix listing groups into ordered steps with their parts', () => {
@@ -33,7 +33,7 @@ test('a prefix listing groups into ordered steps with their parts', () => {
     `${prefix}01-menora-01-login-page.html`,
     `${prefix}01-menora-01-login-page.mhtml`,
     `${prefix}01-menora-01-login-page.json`,
-    'debug/taxfetch/2026-11-25/other.png',
+    'debug/documentfetch/2026-11-25/other.png',
   ]);
   assert.deepEqual(steps, [
     { seq: 1, name: 'menora-01-login-page', parts: ['screenshot', 'html', 'mhtml', 'record'] },
@@ -43,7 +43,7 @@ test('a prefix listing groups into ordered steps with their parts', () => {
 
 test('the expiry fallback reads the day from both key layouts', () => {
   assert.equal(evidenceDayOf(`${prefix}01-x.png`), '2026-11-25');
-  assert.equal(evidenceDayOf('debug/taxfetch/2026-08-02/abc-login.png'), '2026-08-02');
+  assert.equal(evidenceDayOf('debug/documentfetch/2026-08-02/abc-login.png'), '2026-08-02');
   assert.equal(evidenceDayOf('documents/abc.pdf'), null);
 });
 

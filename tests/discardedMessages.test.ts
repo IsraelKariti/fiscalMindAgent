@@ -95,7 +95,7 @@ test('triggers: sorted by discarded cost, with the most common discard reason', 
   // 15 after the agent's own send: 10 discarded (0.03 total), 9 of them by a client reply.
   for (let i = 0; i < 5; i++) rows.push(draft({ at: '2026-11-03T10:00:00Z', planTrigger: 'agent_message_sent', sent: true, cost: 0.001 }));
   for (let i = 0; i < 9; i++) rows.push(draft({ at: '2026-11-03T10:00:00Z', planTrigger: 'agent_message_sent', discardReason: 'client_message', cost: 0.003 }));
-  rows.push(draft({ at: '2026-11-03T10:00:00Z', planTrigger: 'agent_message_sent', discardReason: 'tax_fetch', cost: 0.003 }));
+  rows.push(draft({ at: '2026-11-03T10:00:00Z', planTrigger: 'agent_message_sent', discardReason: 'document_fetch', cost: 0.003 }));
   const s = summarize(rows, TZ);
   assert.equal(s.triggers.length, 2);
   const [first, second] = s.triggers;

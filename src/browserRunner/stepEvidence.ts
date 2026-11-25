@@ -9,7 +9,7 @@ import type { Page } from 'playwright';
  * why). Capturing never fails the step — every part is best-effort.
  *
  * The collector lives on the runner side only; the worker pulls items over
- * HTTP (server.ts) and stores them (taxFetch/stepEvidence.ts). Keep this file
+ * HTTP (server.ts) and stores them (documentFetch/stepEvidence.ts). Keep this file
  * free of worker imports — the runner holds no platform secrets.
  */
 

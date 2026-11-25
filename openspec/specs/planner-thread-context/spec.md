@@ -29,7 +29,7 @@ The unsent-drafts block SHALL state that its entries were never delivered and th
 - **THEN** the prompt presents that offer as undelivered, and the delivered thread contains no such offer
 
 ### Requirement: Unsent drafts never count as delivered messages in code rules
-Code rules that depend on what was delivered — the attestation request and its confirmation window, evidence quotes from client messages, the WhatsApp 24h window, and tax-fetch readiness — SHALL ignore unsent drafts.
+Code rules that depend on what was delivered — the attestation request and its confirmation window, evidence quotes from client messages, the WhatsApp 24h window, and document-fetch readiness — SHALL ignore unsent drafts.
 
 #### Scenario: Attestation request only in an unsent draft
 - **WHEN** an attestation request exists only in an unsent draft and the client then writes "confirmed"

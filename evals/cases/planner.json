@@ -1,6 +1,6 @@
 {
   "stage": "planner",
-  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected (collect = the answer ties a file or claims a document and carries no message: no_message checks that every message field and send_at are null); for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is \"asap\" or after `now` in the accountant's timezone, send_asap (when listed) pins whether the answer must carry \"asap\", no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, tax_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain; question_excludes are substrings that must not appear inside any question of the message (the sentence that ends with a question mark) — the agent may state a proven fact but must not ask about it; message_includes_any passes when at least one of its substrings appears. A file of the snapshot may carry holdings (the accounts list of the file check) and subject_name (null = no readable name). The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
+  "judge": "Hard code asserts only, after normalizeDecision (the gate: verbatim evidence quotes, WhatsApp-only channel, valid send_at — a throw fails the case). Then: decision equals expected (collect = the answer ties a file or claims a document and carries no message: no_message checks that every message field and send_at are null); for follow_up: channel is whatsapp, message_kind when listed, the message names 31.12.<taxYear> (unless mentions_valuation_date is false), at most max_question_marks (default 3) question marks, send_at is \"asap\" or after `now` in the accountant's timezone, send_asap (when listed) pins whether the answer must carry \"asap\", no substring of no_settled_rows_mentioned appears in the message; resolved_documents is exactly the listed id set (an object also pins each resolution), instances pins the per-row instance count, added_instances pins the number of instances added per catalog type (exactly the listed types; any row of the type may be the anchor), attestation equals the expected action, document_fetch_action equals the decision's document-fetch action (null = none). message_includes / message_excludes are substrings the message must / must not contain; question_excludes are substrings that must not appear inside any question of the message (the sentence that ends with a question mark) — the agent may state a proven fact but must not ask about it; message_includes_any passes when at least one of its substrings appears. A file of the snapshot may carry holdings (the accounts list of the file check) and subject_name (null = no readable name). The optional verification_results (the verdicts that just landed, reasons read from the row) are shown in the VERIFICATION RESULTS block. Each case is a state snapshot: the client row, the checklist (explicit rows + every other catalog type seeded 'unresolved'), the thread, the optional unsent_drafts (the agent's own undelivered replies, shown in the UNSENT DRAFTS block) and the WhatsApp channel state, built into the exact prompt by buildPrompt() with the declaration-of-capital template.",
   "taxYear": 2025,
   "accountant": { "name": "Cohen & Co. CPA", "hebrew_name": "כהן ושות' רואי חשבון", "email": "office@cohen-cpa.example" },
   "templates": [
@@ -633,7 +633,7 @@
           "description": null
         }
       ],
-      "tax_fetch": [
+      "document_fetch": [
         {
           "provider": "altshuler_shaham",
           "state": "none"
@@ -778,7 +778,7 @@
           "description": null
         }
       ],
-      "tax_fetch": [
+      "document_fetch": [
         {
           "provider": "altshuler_shaham",
           "state": "none"
@@ -819,7 +819,7 @@
       "expects": {
         "decision": "follow_up",
         "message_kind": "freeform",
-        "tax_fetch_action": "client_agreed",
+        "document_fetch_action": "client_agreed",
         "mentions_valuation_date": false
       },
       "notes": "Change reply-after-verification (2026-09-19): the cycle that collects a file withholds its message and does NOT apply the fetch action; the follow-up cycle (this snapshot: the bank row is already approved, the client's consent to the Altshuler fetch is in the same turn) must propose client_agreed again, or the consent would be lost."
@@ -4607,7 +4607,7 @@
         {"id": "msg-4", "direction": "inbound", "at": "2026-11-10T10:30:00Z", "body": "הפנסיה שלי במגדל"}
       ],
       "expects": {"decision": "follow_up", "message_kind": "freeform", "set_companies": {"doc-pension": "migdal"}, "added_instances": {}, "message_includes": ["מגדל"], "message_includes_any": ["אתר", "למשוך", "משיכה", "אמשוך"], "message_excludes": ["לצרף", "להעלות"], "mentions_valuation_date": false, "max_question_marks": 2, "send_asap": true},
-      "notes": "Change fund-company-clarification: the pension row names no company (חברה: לא ידועה, the six fund sites listed) and the client names Migdal -> set_company on the row with the quote, and the reply offers to pull the certificate from the Migdal site instead of asking for an upload (the tax_fetch tool itself arrives next run)."
+      "notes": "Change fund-company-clarification: the pension row names no company (חברה: לא ידועה, the six fund sites listed) and the client names Migdal -> set_company on the row with the quote, and the reply offers to pull the certificate from the Migdal site instead of asking for an upload (the document_fetch tool itself arrives next run)."
     },
     {
       "id": "dec_46",

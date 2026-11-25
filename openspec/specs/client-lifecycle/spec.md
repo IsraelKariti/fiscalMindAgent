@@ -25,7 +25,7 @@ Every client SHALL be identified by its own id for its whole life, including aft
 - **THEN** a new client is created with that phone as its WhatsApp number, with a new id and an empty history
 
 ### Requirement: Deleting a client keeps its record and all its data
-When an accountant (or an admin viewing as the accountant) deletes a client, the system SHALL mark the client deleted with the deletion time and the acting user, and SHALL keep the client's record, conversation, documents, files, stored file contents, tax-fetch sessions, LLM calls and audit links unchanged. The deletion SHALL cancel the client's pending scheduled send, as today. The deletion SHALL NOT remove any stored file. The delete confirmation SHALL tell the accountant that the client leaves the list, that messages, documents and files are kept for the records, and that a client with the same phone or email can be added again as a new client; it SHALL NOT say that the data is erased. Deleting a client SHALL be recorded as a `client.deleted` audit event naming the acting user (the admin when viewing as), the agent instance and the client.
+When an accountant (or an admin viewing as the accountant) deletes a client, the system SHALL mark the client deleted with the deletion time and the acting user, and SHALL keep the client's record, conversation, documents, files, stored file contents, document-fetch sessions, LLM calls and audit links unchanged. The deletion SHALL cancel the client's pending scheduled send, as today. The deletion SHALL NOT remove any stored file. The delete confirmation SHALL tell the accountant that the client leaves the list, that messages, documents and files are kept for the records, and that a client with the same phone or email can be added again as a new client; it SHALL NOT say that the data is erased. Deleting a client SHALL be recorded as a `client.deleted` audit event naming the acting user (the admin when viewing as), the agent instance and the client.
 
 #### Scenario: Delete keeps the data
 - **WHEN** an accountant deletes a client that has 12 messages, 5 documents and 3 files
@@ -71,7 +71,7 @@ A deleted client SHALL NOT appear in the accountant's client list, the dashboard
 - **THEN** the admin agent roster shows 7 clients and the accountant's dashboard lists 7
 
 ### Requirement: Work in flight on a deleted client stops
-Any work that re-reads its client after the client was deleted (a planner run, a scheduled send, a re-plan, a tax fetch, the send resync at boot, the attestation or closing message) SHALL find no live client and SHALL end without sending, writing documents, or recording a message on the deleted record. An error log line is acceptable; a message to the client is not.
+Any work that re-reads its client after the client was deleted (a planner run, a scheduled send, a re-plan, a document fetch, the send resync at boot, the attestation or closing message) SHALL find no live client and SHALL end without sending, writing documents, or recording a message on the deleted record. An error log line is acceptable; a message to the client is not.
 
 #### Scenario: Planner finishes after delete
 - **WHEN** a planner run is in progress for a client and the accountant deletes the client before the run writes its reply

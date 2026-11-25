@@ -21,7 +21,8 @@ export const PLANNER_TOOL_STEPS: ReadonlySet<string> = new Set([
   'mark_collected',
   'send_whatsapp_text',
   'send_whatsapp_template',
-  'tax_fetch',
+  'document_fetch',
+  'tax_fetch', // rows recorded before the rename (2026-11-25)
   'conclude',
   'ask_team',
 ]);

@@ -14,7 +14,7 @@ import * as clients from '../db/queries/clients.js';
 import { getHoldsFresh } from '../gemini/providerOutage.js';
 import { probeAllHolds } from '../orchestration/outageRecovery.js';
 import { defaultTaxYear } from '../agents/shared/taxYear.js';
-import { loadSiteAccessReport } from '../agents/declarationOfCapital/taxFetch/siteAccessReport.js';
+import { loadSiteAccessReport } from '../agents/declarationOfCapital/documentFetch/siteAccessReport.js';
 import { RESERVED } from './mailbox.js';
 import { env } from '../config/env.js';
 import { computeCost, getPricingForModel } from '../gemini/pricing.js';
@@ -473,7 +473,7 @@ const AgentTaxYearSchema = z.object({ agentInstanceId: z.string().uuid(), taxYea
 /**
  * POST /api/admin/agent-tax-year — set or change the tax year a year-scoped
  * agent instance collects documents for. Takes effect on the next planning
- * cycle / fetch session; already-created tax_fetch_sessions keep their year.
+ * cycle / fetch session; already-created document_fetch_sessions keep their year.
  */
 export const adminSetAgentTaxYear: RequestHandler = async (req, res) => {
   const parsed = AgentTaxYearSchema.safeParse(req.body);
@@ -1035,7 +1035,7 @@ export const adminRemoveFromWhitelist: RequestHandler = async (req, res) => {
 /**
  * GET /api/admin/site-access — the site-access screen (openspec
  * `admin-site-access`): every monitored site × product with its built badge,
- * access counts, health and last access, derived from tax_fetch_sessions.
+ * access counts, health and last access, derived from document_fetch_sessions.
  */
 export const adminSiteAccess: RequestHandler = async (_req, res) => {
   res.json(await loadSiteAccessReport());

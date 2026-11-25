@@ -124,7 +124,8 @@ function EmailStatusBadge({ status }: { status: EmailStatusView }) {
 
 /** True for a step whose recorded target is a website-fetch session (login started, code submitted, failed). */
 export function isFetchSessionStep(step: Pick<AdminConversationStep, 'targetType' | 'targetId'>): boolean {
-  return step.targetType === 'tax_fetch_session' && typeof step.targetId === 'string' && step.targetId !== '';
+  // 'tax_fetch_session': rows recorded before the rename (2026-11-25).
+  return (step.targetType === 'document_fetch_session' || step.targetType === 'tax_fetch_session') && typeof step.targetId === 'string' && step.targetId !== '';
 }
 
 /**

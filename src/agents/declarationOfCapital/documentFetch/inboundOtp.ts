@@ -1,6 +1,6 @@
 import * as emails from '../../../db/queries/emails.js';
-import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
-import { enqueueTaxFetch } from '../../../queue/taxFetchQueue.js';
+import * as documentFetchSessions from '../../../db/queries/documentFetchSessions.js';
+import { enqueueDocumentFetch } from '../../../queue/documentFetchQueue.js';
 import { logger } from '../../../util/logger.js';
 import type { AgentContext, InboundEvent } from '../../types.js';
 
@@ -24,7 +24,7 @@ function extractOtp(body: string): string | null {
 export async function maybeHandleOtpInbound(ctx: AgentContext, evt: InboundEvent): Promise<boolean> {
   if (evt.channel !== 'whatsapp' || !evt.isNewMessage || !evt.messageRowId) return false;
 
-  const session = await taxFetchSessions.getAwaitingOtpForClient(ctx.client.id);
+  const session = await documentFetchSessions.getAwaitingOtpForClient(ctx.client.id);
   if (!session) return false;
 
   const message = await emails.getById(evt.messageRowId);
@@ -32,16 +32,16 @@ export async function maybeHandleOtpInbound(ctx: AgentContext, evt: InboundEvent
   const otp = extractOtp(message.body);
   if (!otp) return false; // let the LLM converse; the prompt explains we're waiting
 
-  await enqueueTaxFetch({ kind: 'submit_otp', sessionId: session.id, otp });
+  await enqueueDocumentFetch({ kind: 'submit_otp', sessionId: session.id, otp });
 
   // The code is single-use and now consumed — don't keep it at rest. Redaction
   // failing must not lose the fetch, so it only logs.
   try {
     await emails.overwriteBody(message.id, message.body.replace(OTP_PATTERN, '••••••'));
   } catch (err) {
-    logger.error('tax fetch: failed to redact otp from stored message', err, { messageRowId: message.id });
+    logger.error('document fetch: failed to redact otp from stored message', err, { messageRowId: message.id });
   }
 
-  logger.info('tax fetch: otp captured from whatsapp reply', { clientId: ctx.client.id, sessionId: session.id });
+  logger.info('document fetch: otp captured from whatsapp reply', { clientId: ctx.client.id, sessionId: session.id });
   return true;
 }

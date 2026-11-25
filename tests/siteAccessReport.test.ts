@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSiteAccessReport, healthOf } from '../src/agents/declarationOfCapital/taxFetch/siteAccessReport.js';
-import { NO_DOCUMENTS_ERROR_PREFIX } from '../src/agents/declarationOfCapital/taxFetch/types.js';
+import { buildSiteAccessReport, healthOf } from '../src/agents/declarationOfCapital/documentFetch/siteAccessReport.js';
+import { NO_DOCUMENTS_ERROR_PREFIX } from '../src/agents/declarationOfCapital/documentFetch/types.js';
 
 // Admin site-access screen (openspec `admin-site-access`): counts per site ×
 // product and the health rule over the newest finished accesses.

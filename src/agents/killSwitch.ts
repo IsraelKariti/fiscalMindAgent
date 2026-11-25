@@ -33,7 +33,7 @@ export type AgentBlockedReason = 'kill_switch' | 'instance_disabled';
 
 /**
  * Why agent work for this client must not run right now, or null. The check
- * every deferred execution path (queued send, tax-fetch job) re-runs at act
+ * every deferred execution path (queued send, document-fetch job) re-runs at act
  * time: disabling an instance — or the whole platform — must also stop work
  * that was enqueued while it was still enabled.
  */

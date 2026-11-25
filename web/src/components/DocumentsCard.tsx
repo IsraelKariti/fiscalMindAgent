@@ -215,7 +215,7 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
   const [tab, setTab] = useState<string | null>(null);
 
   // All files linked to a checklist item, oldest first (the list arrives
-  // created_at ascending). A tax-fetched multi-employer year links several
+  // created_at ascending). A document-fetched multi-employer year links several
   // 106s to the one item — every one of them must stay visible.
   const filesFor = (docId: string): DocumentFile[] => files.filter((f) => f.client_document_id === docId);
   // Files whose analysis matched no checklist item — the accountant must see these.

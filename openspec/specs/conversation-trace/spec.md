@@ -606,7 +606,7 @@ The costs toggle and the cost pills SHALL exist only where the trace exists toda
 - **THEN** the costs toggle and the cost pills are shown
 
 ### Requirement: Every accepted tool call is executed and recorded as its own step
-After the `validate_message` gate accepts a planner answer, the system SHALL execute the answer's tool calls one by one, in a fixed safe order (checklist changes, then the attestation confirmation, then file ties and collections, then the conclusion, then the team question, then the message and the fetch action), and SHALL record one code step per tool call, named exactly after the tool: `set_required`, `add_instance`, `retire_document`, `state_cost`, `state_vehicle`, `attestation`, `tie_file`, `mark_collected`, `ask_team`, `send_whatsapp_text`, `send_whatsapp_template`, `tax_fetch`, `conclude`. Each step SHALL record the time it ran, the call's parameters with every document and file id accompanied by its name, and the outcome of the execution. A call that changed nothing SHALL still get its step, with the outcome saying why (for example "already settled", "refused: papers differ"). The old group steps `apply_resolutions`, `apply_additions`, `apply_retirements`, `apply_stated_costs`, `apply_vehicle_declarations`, `apply_attestation`, `apply_collections`, `send_reply` and `withhold_reply` SHALL NOT be written any more; rows written before this change stay readable as they are. The gate SHALL keep checking the whole answer before any call runs, and a rejected answer SHALL execute nothing.
+After the `validate_message` gate accepts a planner answer, the system SHALL execute the answer's tool calls one by one, in a fixed safe order (checklist changes, then the attestation confirmation, then file ties and collections, then the conclusion, then the team question, then the message and the fetch action), and SHALL record one code step per tool call, named exactly after the tool: `set_required`, `add_instance`, `retire_document`, `state_cost`, `state_vehicle`, `attestation`, `tie_file`, `mark_collected`, `ask_team`, `send_whatsapp_text`, `send_whatsapp_template`, `document_fetch`, `conclude`. Each step SHALL record the time it ran, the call's parameters with every document and file id accompanied by its name, and the outcome of the execution. A call that changed nothing SHALL still get its step, with the outcome saying why (for example "already settled", "refused: papers differ"). The old group steps `apply_resolutions`, `apply_additions`, `apply_retirements`, `apply_stated_costs`, `apply_vehicle_declarations`, `apply_attestation`, `apply_collections`, `send_reply` and `withhold_reply` SHALL NOT be written any more; rows written before this change stay readable as they are. The gate SHALL keep checking the whole answer before any call runs, and a rejected answer SHALL execute nothing.
 
 #### Scenario: Collect cycle
 - **WHEN** the planner answers `tie_file(file F, document D)`, `mark_collected(D)`, `conclude(collect)` and the gate accepts
@@ -695,26 +695,26 @@ The `set_company` tool SHALL be executed and recorded like every other planner t
 - **THEN** the `set_company` step records outcome "no change: the row is no longer pending" and no rename happens
 
 ### Requirement: A fetch step shows the session's evidence beside the details
-A code step is about a fetch session when its recorded target is a fetch session (today: `tax_fetch.login_started`, `tax_fetch.otp_submitted`, `tax_fetch.failed`). When such a step is opened and the session has stored evidence (openspec `fetch-step-evidence`), the step detail modal SHALL show the session's evidence gallery next to the step details, inside the same modal, in the same two-pane layout as the received-file document pane: details in one pane, the gallery in the other, both scrolling independently, the gallery moving below the details on a narrow screen. Everything the modal shows today SHALL remain in the details pane.
+A code step is about a fetch session when its recorded target is a fetch session (today: `document_fetch.login_started`, `document_fetch.otp_submitted`, `document_fetch.failed`). When such a step is opened and the session has stored evidence (openspec `fetch-step-evidence`), the step detail modal SHALL show the session's evidence gallery next to the step details, inside the same modal, in the same two-pane layout as the received-file document pane: details in one pane, the gallery in the other, both scrolling independently, the gallery moving below the details on a narrow screen. Everything the modal shows today SHALL remain in the details pane.
 
 The gallery pane SHALL list the session's steps in order with each step's screenshot, and for each step offer "view HTML", "download HTML", "download snapshot" and "record", with the same safety rules as the admin gallery (HTML only in a sandbox). The evidence SHALL be requested only when the modal opens on that step; loading the trace SHALL NOT request any evidence. While the evidence list loads, the details pane SHALL already be shown and the gallery pane SHALL show a loading note.
 
 A fetch step whose session has no stored evidence SHALL keep the single-column modal and SHALL show a short "no evidence kept" note. The evidence pane SHALL be shown only to an admin (impersonating or not, including from a step link); an accountant viewing the trace SHALL see the single-column modal with no evidence request.
 
 #### Scenario: Failed fetch step beside its screenshots
-- **WHEN** an admin opens the `tax_fetch.failed` step of a Menora session whose error says the year list does not offer 2023
+- **WHEN** an admin opens the `document_fetch.failed` step of a Menora session whose error says the year list does not offer 2023
 - **THEN** the modal shows the error and details on one side and the step screenshots on the other, ending with the failure screenshot, and the admin can open the HTML copy of the filters step without leaving the modal
 
 #### Scenario: Login step of a successful session
-- **WHEN** an admin opens the `tax_fetch.login_started` step of a session that later delivered
+- **WHEN** an admin opens the `document_fetch.login_started` step of a session that later delivered
 - **THEN** the gallery shows every step of that session, including the ones recorded after the login
 
 #### Scenario: Session evidence expired
-- **WHEN** an admin opens a `tax_fetch.failed` step older than the retention window
+- **WHEN** an admin opens a `document_fetch.failed` step older than the retention window
 - **THEN** the single-column modal opens with the recorded details and a "no evidence kept" note
 
 #### Scenario: Accountant opens a fetch step
-- **WHEN** an accountant opens a `tax_fetch.failed` step in the workspace trace
+- **WHEN** an accountant opens a `document_fetch.failed` step in the workspace trace
 - **THEN** the single-column modal opens and no evidence is requested
 
 ### Requirement: A tool-call answer shows document and file names beside their ids

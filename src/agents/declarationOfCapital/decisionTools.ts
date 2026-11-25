@@ -40,7 +40,7 @@ const EVIDENCE_PARAMS = {
 };
 
 export const ATTESTATION_ACTIONS = ['request', 'confirmed'] as const;
-export const TAX_FETCH_ACTIONS = ['client_agreed', 'start_login', 'cancel'] as const;
+export const DOCUMENT_FETCH_ACTIONS = ['client_agreed', 'start_login', 'cancel'] as const;
 
 /** One planner tool: its name, the one-line description the model reads, and its flat parameter schema. */
 export interface DecisionTool {
@@ -220,12 +220,12 @@ const INTAKE_TOOLS: DecisionTool[] = [
   },
 ];
 
-const TAX_FETCH_TOOL: DecisionTool = {
-  name: 'tax_fetch',
+const DOCUMENT_FETCH_TOOL: DecisionTool = {
+  name: 'document_fetch',
   description: 'A document-fetch step for one provider (see the DOCUMENT FETCH sections for the actions allowed now).',
   params: z
     .object({
-      action: z.enum(TAX_FETCH_ACTIONS),
+      action: z.enum(DOCUMENT_FETCH_ACTIONS),
       provider: z.string().describe('The provider id of a DOCUMENT FETCH section.'),
       document_keys: z.array(z.string()).describe("The provider's document-type keys the client agreed to; [] = all pending."),
     })
@@ -245,14 +245,14 @@ export const DECISION_TOOL_NAMES = [
   'retire_document',
   'set_company',
   'attestation',
-  'tax_fetch',
+  'document_fetch',
   'ask_team',
 ] as const;
 export type DecisionToolName = (typeof DECISION_TOOL_NAMES)[number];
 
 /**
  * The tools offered for one call: the full set minus what this client cannot
- * use (no intake → no checklist tools; no fetch provider → no tax_fetch; the
+ * use (no intake → no checklist tools; no fetch provider → no document_fetch; the
  * follow-up cycle after a verification batch → no collecting tools and no
  * 'collect' value). conclude and the two send_* tools are always offered.
  */
@@ -263,7 +263,7 @@ export function toolsForContext(ctx: DecisionContext): DecisionTool[] {
     ...ALWAYS_TOOLS,
     ...(ctx.afterVerification ? [] : COLLECT_TOOLS),
     ...(ctx.intake ? INTAKE_TOOLS : []),
-    ...((ctx.taxFetch ?? []).length > 0 ? [TAX_FETCH_TOOL] : []),
+    ...((ctx.documentFetch ?? []).length > 0 ? [DOCUMENT_FETCH_TOOL] : []),
   ];
 }
 
@@ -351,7 +351,7 @@ const NO_VEHICLE = { manufacturer: '', model: '', production_year: 0, license_pl
 /**
  * Turns the parsed calls of one answer into the raw form `normalizeDecision`
  * reads. Throws a plain Error for the call-count rules (one send_* at most,
- * one attestation at most, one tax_fetch at most, a state_cost naming exactly
+ * one attestation at most, one document_fetch at most, a state_cost naming exactly
  * one target, an unknown instance name); those surface as `business_rules`.
  */
 export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
@@ -376,8 +376,8 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
   if (attestations.length > 1) throw new Error('attestation must be called at most once per answer');
   const attestation = attestations[0];
 
-  const fetches = of('tax_fetch');
-  if (fetches.length > 1) throw new Error('tax_fetch must be called at most once per answer');
+  const fetches = of('document_fetch');
+  if (fetches.length > 1) throw new Error('document_fetch must be called at most once per answer');
   const fetch = fetches[0];
 
   // One question to the team at most (openspec `team-questions`); the gate checks the rest.
@@ -513,9 +513,9 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
     whatsapp_text: text ? str(text.text) : null,
     whatsapp_template: template ? { template_id: str(template.template_id), variables: strs(template.variables) } : null,
     send_at: sendAt === '' ? null : sendAt,
-    tax_fetch_action: fetch ? (str(fetch.action) as DecisionResponse['tax_fetch_action']) : null,
-    tax_fetch_provider: fetch ? str(fetch.provider) : null,
-    tax_fetch_document_keys: fetchKeys && fetchKeys.length > 0 ? fetchKeys : null,
+    document_fetch_action: fetch ? (str(fetch.action) as DecisionResponse['document_fetch_action']) : null,
+    document_fetch_provider: fetch ? str(fetch.provider) : null,
+    document_fetch_document_keys: fetchKeys && fetchKeys.length > 0 ? fetchKeys : null,
     resolved_documents: resolvedDocuments.length > 0 ? resolvedDocuments : null,
     added_instances: additions.size > 0 ? [...additions.values()] : null,
     retired_documents: retired.length > 0 ? retired : null,

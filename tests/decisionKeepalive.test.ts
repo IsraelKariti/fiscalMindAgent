@@ -6,7 +6,7 @@ import { callsOf } from './helpers/decisionCalls.js';
 
 // The exact decision Gemini returned in the 2026-08-02 production incident:
 // "no message needed, the client will reply with the SMS code" — a follow_up
-// with every message field and send_at null, carrying only a tax-fetch action.
+// with every message field and send_at null, carrying only a document-fetch action.
 const incidentAnswer = JSON.stringify({
   decision: 'follow_up',
   reasoning:
@@ -16,9 +16,9 @@ const incidentAnswer = JSON.stringify({
   whatsapp_text: null,
   whatsapp_template: null,
   send_at: null,
-  tax_fetch_action: 'start_login',
-  tax_fetch_provider: 'altshuler_shaham',
-  tax_fetch_document_keys: ['pension_annual'],
+  document_fetch_action: 'start_login',
+  document_fetch_provider: 'altshuler_shaham',
+  document_fetch_document_keys: ['pension_annual'],
   resolved_documents: null,
   added_instances: null,
   retired_documents: null,
@@ -32,7 +32,7 @@ const incidentAnswer = JSON.stringify({
 const ctx: DecisionContext = {
   windowOpen: true,
   templates: [],
-  taxFetch: [
+  documentFetch: [
     {
       provider: 'altshuler_shaham',
       state: 'wa_intro_sent',
@@ -59,7 +59,7 @@ describe('keepalive contract (normalizeDecision)', () => {
     if (decision.decision !== 'follow_up') return;
     assert.deepEqual(decision.message, { channel: 'whatsapp', kind: 'freeform', body: 'רק בודק - קיבלת את הקוד?' });
     assert.equal(decision.send_at, '2026-08-02 11:05');
-    assert.equal(decision.tax_fetch?.action, 'start_login');
+    assert.equal(decision.document_fetch?.action, 'start_login');
   });
 });
 

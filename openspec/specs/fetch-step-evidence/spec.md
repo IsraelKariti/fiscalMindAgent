@@ -43,7 +43,7 @@ The evidence SHALL be moved out of the runner into the platform's own storage be
 - **THEN** the session continues to the download step, the delivery happens as usual and the missing pull is logged
 
 ### Requirement: Evidence is kept for a retention window
-The platform SHALL keep a session's evidence for a configurable number of days (`TAX_FETCH_DEBUG_RETENTION_DAYS`), defaulting to 14, and the existing daily cleanup SHALL delete only evidence older than that window. Evidence of successful sessions SHALL be kept for the same window as evidence of failed sessions. The kill-switch exemption of the cleanup SHALL still apply.
+The platform SHALL keep a session's evidence for a configurable number of days (`DOCUMENT_FETCH_DEBUG_RETENTION_DAYS`), defaulting to 14, and the existing daily cleanup SHALL delete only evidence older than that window. Evidence of successful sessions SHALL be kept for the same window as evidence of failed sessions. The kill-switch exemption of the cleanup SHALL still apply.
 
 #### Scenario: Old evidence removed
 - **WHEN** the daily cleanup runs and a session's evidence is 15 days old with the default retention
@@ -90,7 +90,7 @@ Evidence SHALL be streamed through the server under the admin's session; no publ
 - **THEN** the server answers "not found" and sends no bytes
 
 ### Requirement: The mock fetch leaves synthetic evidence
-When the platform runs with the mock fetch (`TAX_FETCH_MOCK=true`), each mock session SHALL leave a small synthetic evidence set (at least two steps with a screenshot, an HTML copy and a record) so the gallery can be checked locally without a browser.
+When the platform runs with the mock fetch (`DOCUMENT_FETCH_MOCK=true`), each mock session SHALL leave a small synthetic evidence set (at least two steps with a screenshot, an HTML copy and a record) so the gallery can be checked locally without a browser.
 
 #### Scenario: Mock session gallery
 - **WHEN** an admin opens the gallery of a mock session that delivered its mock documents

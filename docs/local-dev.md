@@ -60,7 +60,7 @@ test client that must not receive anything:
   to anyone *not* listed is dropped (logged as `outbound message blocked by
   OUTBOUND_ALLOWLIST`) while the flow proceeds as if delivered. Empty =
   unrestricted (current).
-- `TAX_FETCH_MOCK=true` — replaces the real tax-authority browser flow with a
+- `DOCUMENT_FETCH_MOCK=true` — replaces the real tax-authority browser flow with a
   no-browser mock (no OTP is sent to anyone). Default `false` (current) = real.
 
 `.env` is read only when a process starts. **Any `.env` edit ⇒ Ctrl+C the dev
@@ -260,7 +260,7 @@ domain is used every time (that's why the domain is reserved):
 | Google sign-in error `redirect_uri_mismatch` | The Google OAuth client must list `http://localhost:3000/api/auth/google/callback` (matches `APP_BASE_URL`). Add it in Google Cloud Console → Credentials. |
 | Emails/WhatsApp never arrive | If you set `OUTBOUND_ALLOWLIST`, the recipient isn't on it (worker log warns `outbound message blocked by OUTBOUND_ALLOWLIST`). Otherwise check the worker log for the Resend/Twilio error. |
 | WhatsApp document send throws `MEDIA_SIGNING_SECRET is not set` | Add `MEDIA_SIGNING_SECRET` to `.env` (step 1) and restart. |
-| Tax fetch fails with a runner/connection error | The browser runner didn't start: `BROWSER_RUNNER_TOKEN` empty, or port 4100 busy. Check the cyan `browser` line in the dev terminal. |
+| Document fetch fails with a runner/connection error | The browser runner didn't start: `BROWSER_RUNNER_TOKEN` empty, or port 4100 busy. Check the cyan `browser` line in the dev terminal. |
 | Migrations fail on start | Read the SQL error; usually a half-applied migration from a crash. Worst case `docker compose down -v` and start fresh (local data only). |
 
 ## Quick reference

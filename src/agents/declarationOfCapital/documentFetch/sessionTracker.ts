@@ -20,7 +20,7 @@ export interface TrackedSession {
  * Chrome on the one small runner. ACI mode: each session brings its own
  * container, so the default cap is high and the ACI quota is the real bound.
  */
-const MAX_LIVE_SESSIONS = env.TAX_FETCH_MAX_LIVE_SESSIONS ?? (env.TAX_FETCH_RUNNER_MODE === 'aci' ? 100 : 3);
+const MAX_LIVE_SESSIONS = env.DOCUMENT_FETCH_MAX_LIVE_SESSIONS ?? (env.DOCUMENT_FETCH_RUNNER_MODE === 'aci' ? 100 : 3);
 
 type ExpiryHandler = (session: TrackedSession) => void;
 
@@ -40,7 +40,7 @@ class SessionTracker {
   /** Tracks a freshly-logged-in session and arms its OTP-wait TTL. */
   put(args: { sessionId: string; clientId: string; provider: string }): void {
     this.discard(args.sessionId); // replace any prior entry for this session
-    const timer = setTimeout(() => this.expire(args.sessionId), env.TAX_FETCH_SESSION_TTL_MS);
+    const timer = setTimeout(() => this.expire(args.sessionId), env.DOCUMENT_FETCH_SESSION_TTL_MS);
     this.sessions.set(args.sessionId, { ...args, timer });
   }
 

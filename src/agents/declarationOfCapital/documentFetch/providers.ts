@@ -7,7 +7,7 @@ import type { FetchedDocument, PortalCredentials } from './types.js';
  * One kind of document a provider can fetch — the unit of both consent and
  * checklist-matching. A provider may offer several (Altshuler: pension + study
  * fund, fetched in one login); the tax authority offers exactly one. `key` is
- * stored in tax_fetch_sessions.document_keys and passed to the runner to select
+ * stored in document_fetch_sessions.document_keys and passed to the runner to select
  * what to download.
  */
 export interface FetchDocumentType {
@@ -36,7 +36,7 @@ export interface FetchDocumentType {
  * live in the runner sidecar's provider of the same id (src/browserRunner/).
  */
 export interface FetchProviderSpec {
-  /** Matches client_portal_credentials.provider, tax_fetch_sessions.provider and the runner-side provider id. */
+  /** Matches client_portal_credentials.provider, document_fetch_sessions.provider and the runner-side provider id. */
   id: string;
   /** Site name as client-facing Hebrew texts spell it. */
   siteNameHe: string;

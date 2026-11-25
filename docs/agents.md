@@ -39,7 +39,7 @@ activation is not email-gated and no mailbox is required — the instance's
   dedupes by the E.164 number, the import looks rows up via
   `getByWaPhoneForInstance`, and `email_address` gets the synthetic
   `wa-<digits>@wa.invalid` placeholder (`src/util/syntheticEmail.ts`, same
-  pattern; the UI hides it, tax-fetch delivery treats it
+  pattern; the UI hides it, document-fetch delivery treats it
   as "no email"). The kickoff webhook resolves the clicked row by its phone
   cell the same way.
 - The import gate is a **WhatsApp sender**, not a mailbox
@@ -49,7 +49,7 @@ activation is not email-gated and no mailbox is required — the instance's
   `planner-answer-tools`, 2026-10-14): `decisionTools.ts` offers `conclude`,
   `send_whatsapp_text`, `send_whatsapp_template`, `mark_collected`, `tie_file`,
   `set_required`, `add_instance`, `state_cost`, `retire_document`,
-  `set_company`, `attestation`, `tax_fetch` (per context, `toolsForContext`); the model calls
+  `set_company`, `attestation`, `document_fetch` (per context, `toolsForContext`); the model calls
   several (in one turn on Gemini/Anthropic; OpenAI's reasoning models make one
   call per turn, so the adapter answers each `recorded` and asks again until
   `conclude`, `LlmCallSpec.finalTool`) and `assembleDecision` rebuilds the `DecisionResponse`
@@ -486,12 +486,12 @@ Industry pattern followed: one app with an agent registry
   hides an instance; **never DELETE an instance row — clients cascade off it
   and the agent's data would be destroyed.**
 - **Kill switches** — `agent_instances.enabled` is re-checked at act time
-  wherever work runs deferred (queued sends in `sendEmailWorker`, tax-fetch
+  wherever work runs deferred (queued sends in `sendEmailWorker`, document-fetch
   jobs in the runner), not only on inbound webhooks and daily scans, so
   disabling an agent also drains its in-flight work. The org-wide emergency
   stop is the `platform_kill_switch` app-setting (`src/agents/killSwitch.ts`,
   admin Settings page, `GET/PUT /api/admin/kill-switch`): when on, inbound
-  webhooks, queued sends, tax fetches and the daily scans all stop, with no
+  webhooks, queued sends, document fetches and the daily scans all stop, with no
   deploy or restart. New deferred/scheduled execution paths must call
   `agentWorkBlocked` (or at least `isKillSwitchOn`) before acting.
 - **Clients belong to an instance** — `clients.agent_instance_id` (NULL only
@@ -531,7 +531,7 @@ Industry pattern followed: one app with an agent registry
   /api/agents/:agentId/clients/:id` cancels the pending send under the client
   lock, `clients.markDeleted` stamps `deleted_at` / `deleted_by` (the admin
   while viewing as), the roster tick fires and a `client.deleted` audit row
-  is written; messages, documents, files, blobs, tax-fetch sessions, LLM
+  is written; messages, documents, files, blobs, document-fetch sessions, LLM
   calls and audit links stay, nothing is wiped from blob storage (a later
   retention change may purge). A double delete answers "not found". Account
   deletion (the user's own) still erases by cascade. The same email / phone
@@ -547,7 +547,7 @@ Industry pattern followed: one app with an agent registry
   `dashboard.ts` (summaries, activity, file counts),
   `agentInstances.listAllWithClientCounts` and the admin review queue. Work
   in flight that re-reads its client (`setFutureEmail`, `sendEmailWorker`,
-  `resyncScheduledJobs`, the tax-fetch runner, `plan.ts`' fresh read)
+  `resyncScheduledJobs`, the document-fetch runner, `plan.ts`' fresh read)
   finds `null` and ends with a log line; an inbound message from a deleted
   client's number is an unknown number unless a live client has it. Display
   reads that must still show a deleted client use `clients.getAnyById`
@@ -646,7 +646,7 @@ Industry pattern followed: one app with an agent registry
   `discarded-message-analytics`, migration 076): every outbound draft records
   what started the planning cycle that wrote it (`emails.plan_trigger`, a
   `PlanTrigger` every `setFutureEmail` caller passes: `client_message`,
-  `agent_message_sent`, `file_verification`, `tax_fetch`, `kickoff`,
+  `agent_message_sent`, `file_verification`, `document_fetch`, `kickoff`,
   `team_answer`, `admin_redraft`, `review_regenerate`, `admin_unpause`,
   `resume`, `goal_reopened`, `channel_changed`), its planned send time
   (`scheduled_for`, kept after the `scheduled_jobs` mirror row goes) and the
@@ -874,7 +874,7 @@ settled (`inboundTurnRules.ts`: no handler in flight, no recent
 again every 2 s and plans anyway after `INBOUND_MAX_WAIT_SECONDS` (300, logged
 as a warning). An inbound that lands while the planner runs leaves a dirty
 flag and the same job plans again after the quiet window. Not deferred: the
-tax-fetch OTP fast path (returns before `requestReplan`) and the fixed reply
+document-fetch OTP fast path (returns before `requestReplan`) and the fixed reply
 to a blocked message. Worker boot re-requests a lost job for clients with a
 recent `drafting_since` or `processing_since` and nothing scheduled (`recoverLostReplans`). New
 inbound reactions must call `requestReplan`, never `setFutureEmail` directly.
@@ -948,7 +948,7 @@ tenancy / admin impersonation / monday token auth.
   (`src/agents/shared/taxYear.ts`) falls back to the last concluded year when
   unset (legacy instances from the auto-provisioning era). The year feeds the planner prompt
   (`{{tax_year}}` placeholder), the file analyzer (year-mismatched annual
-  documents must not match), and new tax-fetch sessions (external sites hold
+  documents must not match), and new document-fetch sessions (external sites hold
   multiple years).
   There is deliberately NO auto-derivation of instance sender addresses
   anywhere — `POST /api/admin/agent-emails` (also modal-confirmed in the UI)
@@ -1165,7 +1165,7 @@ capability** — there is no accountant button.
   model judges when to offer/agree/start, and the code keeps only the hard
   gates. `start_login` is allowed in any non-mid-flight state, but **only while
   the conversation is live on WhatsApp** (`clientOnWhatsapp` in
-  `loadTaxFetchContext`: channel allowed + 24h window open + an inbound WhatsApp
+  `loadDocumentFetchContext`: channel allowed + 24h window open + an inbound WhatsApp
   message exists — email is spoof-adjacent and must never be able to arm the
   login, which fires a real OTP email at the client). On `start_login` with no
   pre-login session in flight (first time, or retry after failed/expired),
@@ -1176,7 +1176,7 @@ capability** — there is no accountant button.
   OTP email can't precede the WhatsApp message warning about it. The first
   WhatsApp message is prompted to read as a continuation of the email thread
   (prefer a dedicated 106 template when the 24h window is closed). The client's
-  WhatsApp reply with the code is intercepted (`taxFetch/inboundOtp.ts`, before
+  WhatsApp reply with the code is intercepted (`documentFetch/inboundOtp.ts`, before
   the LLM re-plan — OTPs expire in minutes), the worker submits it, downloads
   the year's 106 for **every employer** (the site lists one להצגת טופס 106 link
   per employer; the provider scrapes each row's employer name — exactly as the
@@ -1193,11 +1193,11 @@ capability** — there is no accountant button.
   WhatsApp media — possession of the phone number must not be enough to receive
   the document); the WhatsApp conversation only gets a confirmation text. A
   client with no email address / sender mailbox gets the platform copy only.
-- **State machine**: `tax_fetch_sessions` (migration 025) tracks one attempt
+- **State machine**: `document_fetch_sessions` (migration 025) tracks one attempt
   consent→delivery; the LLM sees every mechanically-possible action in the
-  current state (`allowedTaxFetchActions` in `decisionSchema.ts`, shown in the
-  prompt's `buildTaxFetchSection` and re-validated in `normalizeDecision` via
-  the `tax_fetch_action` decision field). Offering is NOT a state or an action
+  current state (`allowedDocumentFetchActions` in `decisionSchema.ts`, shown in the
+  prompt's `buildDocumentFetchSection` and re-validated in `normalizeDecision` via
+  the `document_fetch_action` decision field). Offering is NOT a state or an action
   (the `offered` status was retired in migration 045): the model offers in
   message text and reads the thread to know it already did; the session first
   exists when the client agrees — `client_agreed` creates it directly at
@@ -1206,20 +1206,20 @@ capability** — there is no accountant button.
   session is mid-flight, consent/login require `available`, and `start_login`
   requires `clientOnWhatsapp` (above). Everything conversational is the
   model's judgment; only side-effecting steps are code-gated.
-  `taxFetch/flow.ts` loads state + acts.
+  `documentFetch/flow.ts` loads state + acts.
 - **Where the browser lives — secret isolation**: NOT in the worker. Real
   fetches run in the browser-runner sidecar (`src/browserRunner.ts`, own
   process/container), which holds no platform secrets — its env
   (`src/browserRunner/env.ts`, never `src/config/env.ts`) is only its port,
   the shared bearer token and the TTL, so a compromised page (Chrome exploit
   on the external site) can't reach `DATABASE_URL`, `SECRET_ENC_KEY` or any
-  API key. The worker drives it over HTTP (`taxFetch/fetchClient.ts` →
+  API key. The worker drives it over HTTP (`documentFetch/fetchClient.ts` →
   `BROWSER_RUNNER_URL` + `BROWSER_RUNNER_TOKEN`), keeps only bookkeeping in
-  memory (`taxFetch/sessionTracker.ts`), and treats responses as untrusted
+  memory (`documentFetch/sessionTracker.ts`), and treats responses as untrusted
   (size cap, content-type allowlist, filename sanitization). Jobs still flow
-  through the `tax_fetch` BullMQ queue (`start_login` / `submit_otp` /
+  through the `document_fetch` BullMQ queue (`start_login` / `submit_otp` /
   `cancel`); the live page is held in the runner between the login and OTP
-  jobs. TTLs: the worker's timer (`TAX_FETCH_SESSION_TTL_MS`) expires the
+  jobs. TTLs: the worker's timer (`DOCUMENT_FETCH_SESSION_TTL_MS`) expires the
   session and messages the client; the runner reaps orphaned browsers a grace
   period later; a worker-boot sweep marks orphaned DB rows `expired`. Keep
   `src/browserRunner/` free of imports from worker/web code — pulling in
@@ -1237,25 +1237,25 @@ capability** — there is no accountant button.
   a step. The runner keeps items in memory past `closeSession()` and serves
   them on `GET /sessions/:id/evidence?after=N` (records; `after` releases
   what the worker confirmed) and `GET /sessions/:id/evidence/:seq/:part`
-  (bytes); protocol version 4. The worker (`HttpTaxFetchClient.pullEvidence`,
+  (bytes); protocol version 4. The worker (`HttpDocumentFetchClient.pullEvidence`,
   called after every step on success and failure, before any ACI teardown)
-  stores each item under `debug/taxfetch/<creation day>/<sessionId>/
+  stores each item under `debug/documentfetch/<creation day>/<sessionId>/
   <seq>-<name>.<png|html|mhtml|json>` in the documents blob container
-  (`taxFetch/stepEvidence.ts`; no DB row — the prefix is the index, and the
-  `tax_fetch.login_started` / `tax_fetch.failed` audit rows carry it as
+  (`documentFetch/stepEvidence.ts`; no DB row — the prefix is the index, and the
+  `document_fetch.login_started` / `document_fetch.failed` audit rows carry it as
   `evidencePrefix`). A 502 whose pull yielded nothing keeps its
   `screenshotBase64` as a `<stage>-failed-fallback` item. The mock client
   writes two synthetic items per session. Admins see the gallery in the step
-  modal of any `tax_fetch_session` step and at `#/site-access/sessions/:id`
+  modal of any `document_fetch_session` step and at `#/site-access/sessions/:id`
   (linked from each site-access card's last access) via
-  `GET /api/admin/tax-fetch/:sessionId/evidence` and
+  `GET /api/admin/document-fetch/:sessionId/evidence` and
   `.../evidence/:seq/:part?as=view|download` (`src/api/fetchEvidenceAdmin.ts`):
   the HTML view is served with `Content-Security-Policy: sandbox` (no
   scripts, opaque origin) inside a `sandbox=""` iframe, the MHTML is
   download-only. The daily `debug_cleanup` job (03:20 local) deletes
-  evidence older than `TAX_FETCH_DEBUG_RETENTION_DAYS` (default 14); old flat
+  evidence older than `DOCUMENT_FETCH_DEBUG_RETENTION_DAYS` (default 14); old flat
   failure shots under the same prefix age out the same way. The dev-only
-  `TAX_FETCH_DEBUG_DIR` PNG dump is unchanged.
+  `DOCUMENT_FETCH_DEBUG_DIR` PNG dump is unchanged.
 - **Failure diagnostics**: a failed runner step (login/OTP/download) answers
   its 502 with a full-page screenshot of the moment of failure plus an optional
   machine-readable `code`. `code: 'no_documents'` marks the login-worked-but-the-site-
@@ -1282,16 +1282,16 @@ capability** — there is no accountant button.
   names with רבעון; the date column is the publication date and is ignored;
   identical names are several policies and are all downloaded; selection is
   the pure `selectPhoenixRows` in `browserRunner/phoenix.ts`, tested in
-  `tests/phoenixSelect.test.ts`; a worker-side spec in `taxFetch/providers.ts`
+  `tests/phoenixSelect.test.ts`; a worker-side spec in `documentFetch/providers.ts`
   mirrors each provider). Phoenix (and Harel) is a `takesAllDocuments` provider: the
   client's consent is to the fetch itself, the session always covers both
-  kinds (`effectiveFetchKeys` in `taxFetch/fetchedRows.ts`; the planner's
+  kinds (`effectiveFetchKeys` in `documentFetch/fetchedRows.ts`; the planner's
   `document_keys` is ignored and the prompt block says so), and at delivery a
   fetched kind with no live Phoenix row on the list gets one created by code
   (`planFetchedRows`: the open / not-needed catalog row is settled as needed,
   otherwise a sibling is added; name = catalog name for the year + " — הפניקס";
   evidence `source: 'fetched_file'` with the session, provider, site name and
-  first file; audit `tax_fetch.document_created`; documents tab shows "נוצר
+  first file; audit `document_fetch.document_created`; documents tab shows "נוצר
   ממסמך שנמשך מאתר הפניקס"). The WhatsApp confirmation then adds one "also found
   … added to the list" sentence per created kind. Tested in
   `tests/fetchedRows.test.ts`. `migdal` (pension + study fund in one SMS-OTP
@@ -1349,9 +1349,9 @@ capability** — there is no accountant button.
   `takesAllDocuments` provider (rows created at delivery are named
   " — מנורה מבטחים"). `scripts/menoraFetchSmoke.ts <id> <phone> [year]` is its
   live check (the owner's account holds a 2018 pension row).
-  `TAX_FETCH_MOCK=true` swaps in an
+  `DOCUMENT_FETCH_MOCK=true` swaps in an
   in-worker no-runner mock (`fetchClient.ts` — every real login emails a real
-  citizen an OTP, so iterate on the mock). `scripts/taxFetchSmoke.ts` validates the
+  citizen an OTP, so iterate on the mock). `scripts/documentFetchSmoke.ts` validates the
   real-site port once, interactively (no token/runner needed).
 - **Credentials**: `client_portal_credentials` (migration 025, plaintext, same
   precedent as the OAuth token tables), imported from the accountant's
@@ -1360,7 +1360,7 @@ capability** — there is no accountant button.
   Only the tax authority needs that row (its login also takes the user code).
   Altshuler, Harel, Phoenix, Meitav and Menora log in with a national id + the client's WhatsApp
   number (Migdal with the national id alone — it sends its SMS to the number
-  it holds, so the WhatsApp number is only the relay channel), and take the id from `taxFetch/clientId.ts` `clientIdNumber` in
+  it holds, so the WhatsApp number is only the relay channel), and take the id from `documentFetch/clientId.ts` `clientIdNumber` in
   one shared order — the provider's own credentials row → the tax-authority
   row → `agent_fields.id_number` stored by the kickoff from the CRM card —
   used both by the availability check (`flow.ts`) and the runner's login, so
@@ -1374,32 +1374,32 @@ capability** — there is no accountant button.
   documents go to clients by email attachment only (see above).
 - **Prod**: `Dockerfile.browser-runner` (Playwright/noble base, Chrome
   channel, Xvfb, non-root) is the only image with a browser — web/worker stay
-  Alpine. Two runner modes (`TAX_FETCH_RUNNER_MODE`, `fetchClient.ts`):
+  Alpine. Two runner modes (`DOCUMENT_FETCH_RUNNER_MODE`, `fetchClient.ts`):
   - `static` (local dev): one long-lived runner process at
     `BROWSER_RUNNER_URL`, with ONLY
-    `BROWSER_RUNNER_PORT`/`BROWSER_RUNNER_TOKEN`/`TAX_FETCH_SESSION_TTL_MS` in
+    `BROWSER_RUNNER_PORT`/`BROWSER_RUNNER_TOKEN`/`DOCUMENT_FETCH_SESSION_TTL_MS` in
     its env.
   - `aci` (prod): the tax authority drops non-Israeli source IPs (and only
     some Azure Israel ranges pass its filter), so each session gets its own
-    throwaway Azure Container Instance (`taxFetch/aciSessionPool.ts`) in the
+    throwaway Azure Container Instance (`documentFetch/aciSessionPool.ts`) in the
     `fiscalmind-israel` RG's `aci-sessions` subnet, whose NAT gateway holds a
     static egress IP verified against the site. Group names derive from the
     session id (worker restarts re-find containers via ARM — no DB state);
     containers are deleted on download/close/expiry, with a 15-min orphan
     sweep as backstop. The worker's managed identity has Contributor on that
     RG; image pulls use an AcrPull user-assigned identity
-    (`TAX_FETCH_ACI_ACR_IDENTITY_ID`). The Israel vnet is peered to the
+    (`DOCUMENT_FETCH_ACI_ACR_IDENTITY_ID`). The Israel vnet is peered to the
     Poland vnet, so the worker reaches session containers on private IPs.
-    Capacity: `sessionTracker` caps at 100 (`TAX_FETCH_MAX_LIVE_SESSIONS`);
-    the tax-fetch queue runs concurrency 8 in this mode.
+    Capacity: `sessionTracker` caps at 100 (`DOCUMENT_FETCH_MAX_LIVE_SESSIONS`);
+    the document-fetch queue runs concurrency 8 in this mode.
 
 ### Site access screen (admin, `#/site-access`)
 
 Admin-only monitor of every external site the agent is meant to log in to
 (openspec `admin-site-access`). The list is a fixed catalog in
-`taxFetch/accessCatalog.ts`: one entry per site × product (9 pension funds,
+`documentFetch/accessCatalog.ts`: one entry per site × product (9 pension funds,
 11 study funds, the tax authority). Each card shows a **built** badge (a
-provider in `taxFetch/providers.ts` has that site id and offers that product
+provider in `documentFetch/providers.ts` has that site id and offers that product
 key), access counts (total / today / 7 days / 30 days, calendar days in
 `ACCOUNTANT_TIMEZONE`, by `created_at`) and a **health** badge from the two
 newest `delivered`/`failed` sessions (healthy, warning, failing; a
@@ -1408,7 +1408,7 @@ cancelled sessions never judge health). A session counts as an access once it
 reached the site (`status` logging_in/verifying/downloading/delivered/failed,
 or `otp_requested_at` set); a NULL `document_keys` counts under every product
 the provider offers. Data: `GET /api/admin/site-access`
-(`db/queries/siteAccess.ts` → `taxFetch/siteAccessReport.ts`); no table of
+(`db/queries/siteAccess.ts` → `documentFetch/siteAccessReport.ts`); no table of
 its own. **Rule for new providers:** the provider id must equal the catalog
 `site`, which for fund managers is the `institutionsTable.ts` key (a Meitav
 provider is `meitav`); `tests/accessCatalog.test.ts` fails on drift.
@@ -1453,7 +1453,7 @@ touching prompt builders or planners:
     (migration 030) + a confirm-request email to the accountant; only the
     accountant's click (documents-tab checkbox → `collected`) completes it.
     Goal completion counts only `collected`.
-  - Tax fetch: `start_login` requires a live WhatsApp conversation — an email
+  - Document fetch: `start_login` requires a live WhatsApp conversation — an email
     alone can never arm it (see the 106-fetch section above).
 
 Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
@@ -1530,7 +1530,7 @@ Tests for the pure helpers live in `tests/` (`npm test`, node:test via tsx).
   alert at event time from `recordAudit`, and the `anomaly_scan` queue
   (every 15 min, `src/alerts/anomalyScan.ts` over pure rule evaluators in
   `anomalyRules.ts`) sweeps for send-volume/enrollment/token spikes, repeated
-  tax-fetch failures and off-hours tax logins. Findings land in
+  document-fetch failures and off-hours tax logins. Findings land in
   `anomaly_alerts` (deduped per rule+scope by `insertIfNotRecent`) and email
   the DB-managed admins (`users.is_admin`, falling back to `ADMIN_EMAILS`
   before the one-time bootstrap has seeded any) via
@@ -2032,7 +2032,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   mandatory whenever the answer ties a file to a row (`collected_document_ids`,
   `matched_files`, or an instance's `file_ids` — `answerTiesFiles`) or claims a
   document, and a `collect` answer carries **no message**: every message
-  field, `send_at`, `tax_fetch_action` and `attestation: request` must be
+  field, `send_at`, `document_fetch_action` and `attestation: request` must be
   null (the gate rejects a `collect` with a message and a `follow_up` with
   ties, then asks for one correction; change `no-draft-when-collecting`,
   2026-09-23 — before it the collecting cycle wrote a full message that was
@@ -2055,7 +2055,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   `client_agreed` assumes this cycle's message is the intro) are absent from
   the collecting answer; the follow-up decides them. `verifyCollectedDocument`
   only returns its outcome and never re-plans. Batches started outside a
-  planning cycle (fetch delivery, `taxFetch/deliver.ts`) use
+  planning cycle (fetch delivery, `documentFetch/deliver.ts`) use
   `verifyBatchAndReplan`: verify the batch, then one locked re-plan with the
   hint. The follow-up cycle is told which verdicts just landed:
   `PlanHints.verificationResults` becomes the **VERIFICATION RESULTS** prompt
@@ -2119,7 +2119,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   order and records ONE step per accepted call, named after the tool
   (`set_required`, `add_instance`, `retire_document`, `state_cost`,
   `state_vehicle`, `attestation`, `tie_file`, `mark_collected`, `conclude`,
-  `send_whatsapp_text` / `send_whatsapp_template`, `tax_fetch`;
+  `send_whatsapp_text` / `send_whatsapp_template`, `document_fetch`;
   `recordToolStep`, builders in `toolStepDetails.ts`). Each detail is flat:
   the call's parameters with every id next to its name, `turn` for a
   continued answer, `applied` / `outcome`, and `reason` = the short outcome

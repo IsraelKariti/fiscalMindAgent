@@ -1,6 +1,6 @@
 import { isInstitutionBound } from './catalog.js';
 import { identifyInstitution, institutionLabelHe, normalizeCompanyText, type Institution } from './institutions.js';
-import type { FetchProviderSpec } from './taxFetch/providers.js';
+import type { FetchProviderSpec } from './documentFetch/providers.js';
 
 /**
  * Pure rules of the company clarification (openspec

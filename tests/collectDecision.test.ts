@@ -28,9 +28,9 @@ const base: DecisionResponse = {
   whatsapp_text: null,
   whatsapp_template: null,
   send_at: null,
-  tax_fetch_action: null,
-  tax_fetch_provider: null,
-  tax_fetch_document_keys: null,
+  document_fetch_action: null,
+  document_fetch_provider: null,
+  document_fetch_document_keys: null,
   resolved_documents: null,
   added_instances: null,
   retired_documents: null,
@@ -97,7 +97,7 @@ describe('the collect decision (normalizeDecision)', () => {
     if (decision.decision !== 'collect') return;
     assert.deepEqual(decision.collected_document_ids, ['doc-bank-leumi']);
     assert.equal(decision.matched_files.length, 1);
-    assert.equal(decision.tax_fetch, null);
+    assert.equal(decision.document_fetch, null);
   });
 
   it('accepts a claimed-only answer (collected without a file) as collect', () => {
@@ -130,8 +130,8 @@ describe('the collect decision (normalizeDecision)', () => {
 
   it('rejects collect with a fetch action', () => {
     assert.throws(
-      () => normalizeDecision(answer({ tax_fetch_action: 'client_agreed', tax_fetch_provider: 'altshuler_shaham', tax_fetch_document_keys: ['pension_annual'] }), ctx),
-      /cannot carry a tax_fetch_action/,
+      () => normalizeDecision(answer({ document_fetch_action: 'client_agreed', document_fetch_provider: 'altshuler_shaham', document_fetch_document_keys: ['pension_annual'] }), ctx),
+      /cannot carry a document_fetch_action/,
     );
   });
 

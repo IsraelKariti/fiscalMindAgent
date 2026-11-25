@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { phoenixKindOfSector, selectPhoenixRows, type PhoenixRow } from '../src/browserRunner/phoenix.js';
-import { getProviderSpec } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
+import { getProviderSpec } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
 
 // Phoenix reports-list selection (openspec `phoenix-fetch`): sector decides the
 // kind, the NAME carries the year, quarterly rows are skipped, nothing is

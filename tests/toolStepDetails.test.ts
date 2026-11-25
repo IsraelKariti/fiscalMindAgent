@@ -11,7 +11,7 @@ import {
   sendMessageDetail,
   stateCostDetail,
   stateVehicleDetail,
-  taxFetchDetail,
+  documentFetchDetail,
 } from '../src/agents/declarationOfCapital/toolStepDetails.js';
 import { DECISION_TOOL_NAMES, type ParsedToolCall } from '../src/agents/declarationOfCapital/decisionTools.js';
 import type { AuditAction } from '../src/audit/audit.js';
@@ -260,9 +260,9 @@ test('send_whatsapp_text / send_whatsapp_template: the requested and the schedul
   assert.equal(template.reason, 'scheduled 2026-11-08 09:00 (rolled off a weekend / chag)');
 });
 
-test('tax_fetch and conclude record the action / decision and what the cycle did with it', () => {
-  assert.equal(taxFetchDetail(call('tax_fetch', { action: 'client_agreed', provider: 'tax_authority', document_keys: ['form_106'] }), { applied: true, provider: 'tax_authority', documentKeys: ['form_106'], emailId: 'e1' }).reason, 'client_agreed applied');
-  assert.equal(taxFetchDetail(call('tax_fetch', { action: 'cancel', provider: 'x' }), { applied: false, provider: null, documentKeys: null, emailId: null }).reason, 'cancel: no fetch context for this provider');
+test('document_fetch and conclude record the action / decision and what the cycle did with it', () => {
+  assert.equal(documentFetchDetail(call('document_fetch', { action: 'client_agreed', provider: 'tax_authority', document_keys: ['form_106'] }), { applied: true, provider: 'tax_authority', documentKeys: ['form_106'], emailId: 'e1' }).reason, 'client_agreed applied');
+  assert.equal(documentFetchDetail(call('document_fetch', { action: 'cancel', provider: 'x' }), { applied: false, provider: null, documentKeys: null, emailId: null }).reason, 'cancel: no fetch context for this provider');
   const conclude = call('conclude', { decision: 'collect', reasoning: 'קובץ תואם' });
   const collect = concludeDetail(conclude, { kind: 'collect', collectedNames: ['x'], verified: [{ documentName: 'x', fileName: 'a.pdf' }] });
   assert.deepEqual(collect, { tool: 'conclude', decision: 'collect', reasoning: 'קובץ תואם', collected: ['x'], verifying: ['x ← a.pdf'], reason: 'reply withheld · verifying 1 document' });

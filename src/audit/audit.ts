@@ -18,12 +18,12 @@ export type AuditAction =
   | 'wa.text_sent'
   | 'wa.template_sent'
   | 'wa.media_sent'
-  | 'tax_fetch.login_started'
-  | 'tax_fetch.otp_submitted'
-  | 'tax_fetch.document_delivered'
+  | 'document_fetch.login_started'
+  | 'document_fetch.otp_submitted'
+  | 'document_fetch.document_delivered'
   // A checklist row created at delivery for a fetched kind the list lacked (openspec `phoenix-fetch`).
-  | 'tax_fetch.document_created'
-  | 'tax_fetch.failed'
+  | 'document_fetch.document_created'
+  | 'document_fetch.failed'
   | 'document.collected'
   | 'document.claimed'
   | 'document.resolved'
@@ -89,7 +89,7 @@ export type AuditAction =
   | 'mark_collected'
   | 'send_whatsapp_text'
   | 'send_whatsapp_template'
-  | 'tax_fetch'
+  | 'document_fetch'
   | 'conclude'
   // The planner asked the client's team member a question (openspec
   // `team-questions`): the tool step, and the closing by a person in the

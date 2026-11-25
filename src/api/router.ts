@@ -151,8 +151,8 @@ apiRouter.post('/admin/impersonate/stop', wrap(requireAdmin), wrap(stopImpersona
 apiRouter.get('/admin/llm-usage/daily', wrap(requireAdmin), wrap(adminLlmUsageDaily));
 apiRouter.get('/admin/site-access', wrap(requireAdmin), wrap(adminSiteAccess));
 // Step evidence of a website fetch (openspec `fetch-step-evidence`): admin-only, streamed, HTML sandboxed.
-apiRouter.get('/admin/tax-fetch/:sessionId/evidence', wrap(requireAdmin), wrap(adminGetFetchEvidence));
-apiRouter.get('/admin/tax-fetch/:sessionId/evidence/:seq/:part', wrap(requireAdmin), wrap(adminServeFetchEvidence));
+apiRouter.get('/admin/document-fetch/:sessionId/evidence', wrap(requireAdmin), wrap(adminGetFetchEvidence));
+apiRouter.get('/admin/document-fetch/:sessionId/evidence/:seq/:part', wrap(requireAdmin), wrap(adminServeFetchEvidence));
 apiRouter.get('/admin/version-cost', wrap(requireAdmin), wrap(adminGetVersionCost));
 apiRouter.get('/admin/llm-fallbacks', wrap(requireAdmin), wrap(adminGetLlmFallbacks));
 apiRouter.get('/admin/audit-events', wrap(requireAdmin), wrap(adminAuditEvents));

@@ -1,10 +1,10 @@
 /**
  * Manual, one-off validation of the tax-authority browser port against the REAL
  * site. Every run sends a real OTP email to the citizen whose ID you pass, so use it
- * sparingly and only with consent — iterate on the mock (TAX_FETCH_MOCK=true)
+ * sparingly and only with consent — iterate on the mock (DOCUMENT_FETCH_MOCK=true)
  * for everything else.
  *
- *   npx tsx scripts/taxFetchSmoke.ts <idNumber> <userCode> [taxYear]
+ *   npx tsx scripts/documentFetchSmoke.ts <idNumber> <userCode> [taxYear]
  *
  * It opens Chrome, logs in, waits for you to type the OTP you receive by email,
  * downloads the year's Form 106 for every employer, and writes the PDFs next to
@@ -18,7 +18,7 @@ import { israelTaxAuthorityProvider } from '../src/browserRunner/israelTaxAuthor
 async function main(): Promise<void> {
   const [idNumber, userCode, taxYearArg] = process.argv.slice(2);
   if (!idNumber || !userCode) {
-    console.error('usage: npx tsx scripts/taxFetchSmoke.ts <idNumber> <userCode> [taxYear]');
+    console.error('usage: npx tsx scripts/documentFetchSmoke.ts <idNumber> <userCode> [taxYear]');
     process.exit(1);
   }
   const taxYear = taxYearArg ? Number(taxYearArg) : new Date().getFullYear() - 1;

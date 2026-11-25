@@ -101,7 +101,7 @@ export async function typeHuman(page: Page, locator: Locator, text: string): Pro
  * Random pre-action pause so clicks and navigations arrive at a human cadence
  * instead of back-to-back. The default 5–20s is for page-level actions; pass a
  * tighter range for micro-steps. Ranges are budgeted against the 10-minute
- * session TTL (TAX_FETCH_SESSION_TTL_MS) — a whole fetch, including per-row
+ * session TTL (DOCUMENT_FETCH_SESSION_TTL_MS) — a whole fetch, including per-row
  * pauses, must stay well inside it. OTP submission must NOT get a long pause:
  * the sites' one-time codes expire within minutes of the client receiving them.
  */
@@ -111,7 +111,7 @@ export async function humanPause(page: Page, minMs = 5_000, maxMs = 20_000): Pro
 
 /**
  * Records the step's evidence (screenshot, HTML, MHTML, record — see
- * stepEvidence.ts) on the page's collector, and, when TAX_FETCH_DEBUG_DIR is
+ * stepEvidence.ts) on the page's collector, and, when DOCUMENT_FETCH_DEBUG_DIR is
  * set, also saves the screenshot there (dev only). Never throws. Every
  * provider calls this at each of its steps; the name is the step's label.
  */
@@ -125,9 +125,9 @@ export async function debugShot(page: Page, name: string, error: string | null =
       /* evidence is best-effort */
     }
   }
-  if (runnerEnv.TAX_FETCH_DEBUG_DIR) {
+  if (runnerEnv.DOCUMENT_FETCH_DEBUG_DIR) {
     try {
-      await page.screenshot({ path: `${runnerEnv.TAX_FETCH_DEBUG_DIR}/${name}.png`, fullPage: true });
+      await page.screenshot({ path: `${runnerEnv.DOCUMENT_FETCH_DEBUG_DIR}/${name}.png`, fullPage: true });
     } catch {
       /* debugging aid only */
     }

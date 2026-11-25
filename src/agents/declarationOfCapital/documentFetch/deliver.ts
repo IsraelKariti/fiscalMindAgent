@@ -3,7 +3,7 @@ import * as agentInstances from '../../../db/queries/agentInstances.js';
 import * as clientDocuments from '../../../db/queries/clientDocuments.js';
 import * as documentFiles from '../../../db/queries/documentFiles.js';
 import * as emails from '../../../db/queries/emails.js';
-import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
+import * as documentFetchSessions from '../../../db/queries/documentFetchSessions.js';
 import * as users from '../../../db/queries/users.js';
 import * as waSenders from '../../../db/queries/waSenders.js';
 import { withClientLock } from '../../../db/withClientLock.js';
@@ -22,7 +22,7 @@ import { verifyBatchAndReplan } from '../../declarationOfCapital/verifyDocument.
 import { planFetchedRows } from './fetchedRows.js';
 import { getProviderSpec, typeOwnsFetched } from './providers.js';
 import { sanitizeFilename, type FetchedDocument } from './types.js';
-import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js';
+import type { DocumentFetchSessionRow } from '../../../db/queries/documentFetchSessions.js';
 
 /**
  * The successfully downloaded documents land here: store them on the platform
@@ -40,8 +40,8 @@ import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js
  * ride the independent email channel while only the confirmation text goes
  * to the WhatsApp conversation the fetch ran in.
  */
-export async function deliver(session: TaxFetchSessionRow, client: ClientRow, docs: FetchedDocument[]): Promise<void> {
-  if (docs.length === 0) throw new Error(`tax fetch: nothing to deliver for session ${session.id}`);
+export async function deliver(session: DocumentFetchSessionRow, client: ClientRow, docs: FetchedDocument[]): Promise<void> {
+  if (docs.length === 0) throw new Error(`document fetch: nothing to deliver for session ${session.id}`);
   const sender = client.agent_instance_id ? await waSenders.getByInstanceId(client.agent_instance_id) : null;
   if (!sender || !client.wa_phone) {
     throw new Error('cannot deliver tax documents: client is not WhatsApp-reachable');
@@ -50,7 +50,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   // Synthetic wa-*@wa.invalid placeholders (WhatsApp-only clients) are not real addresses.
   const canEmail = Boolean(mailbox && client.email_address && !isSyntheticWaEmail(client.email_address));
   if (!canEmail) {
-    logger.warn('tax fetch: client not emailable, documents stored on platform only', {
+    logger.warn('document fetch: client not emailable, documents stored on platform only', {
       clientId: client.id,
       sessionId: session.id,
       hasMailbox: Boolean(mailbox),
@@ -78,7 +78,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
       canEmail,
       rowPlans.map((p) => p.kind),
     ),
-    reasoning: `tax fetch delivered (session ${session.id}, ${docs.length} document${single ? '' : 's'})`,
+    reasoning: `document fetch delivered (session ${session.id}, ${docs.length} document${single ? '' : 's'})`,
     agentInstanceId: client.agent_instance_id,
   });
 
@@ -105,15 +105,15 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     let safeName = sanitizeFilename(doc.filename);
     if (usedNames.has(safeName)) safeName = `${i + 1}_${safeName}`;
     usedNames.add(safeName);
-    const blobKey = `clients/${client.id}/taxfetch-${session.id}/${safeName}`;
+    const blobKey = `clients/${client.id}/documentfetch-${session.id}/${safeName}`;
     await uploadBlob(blobKey, doc.buffer, doc.contentType);
 
     const file = await documentFiles.insertIfNew({
       clientId: client.id,
       emailId: message.id,
-      // Pre-multi-download sessions used the bare `taxfetch-<session>` id; the
+      // Pre-multi-download sessions used the bare `documentfetch-<session>` id; the
       // `-<n>` suffix keeps each employer's form its own idempotency key.
-      providerAttachmentId: single ? `taxfetch-${session.id}` : `taxfetch-${session.id}-${i + 1}`,
+      providerAttachmentId: single ? `documentfetch-${session.id}` : `documentfetch-${session.id}-${i + 1}`,
       blobKey,
       filename: doc.filename,
       label: spec.delivery.fileLabel(doc, session.tax_year),
@@ -124,7 +124,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
       // analyzer (which matches a client-sent file to a document) never runs on it.
       analysisStatus: 'not_needed',
     });
-    if (!file) throw new Error(`tax fetch: document_files insert returned no row for session ${session.id}`);
+    if (!file) throw new Error(`document fetch: document_files insert returned no row for session ${session.id}`);
     files.push(file);
 
     // A file of a kind that gets its own row is linked after that row exists.
@@ -157,7 +157,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
         : await clientDocuments.addInstances(plan.targetRowId, client.id, [instance], evidence);
     const row = created?.[0] ?? null;
     if (!row) {
-      logger.warn('tax fetch: row creation for a fetched kind lost its target, falling back to plain linking', {
+      logger.warn('document fetch: row creation for a fetched kind lost its target, falling back to plain linking', {
         clientId: client.id,
         sessionId: session.id,
         kind: plan.kind,
@@ -178,7 +178,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
       verifyPairs.set(row.id, file.id);
     }
     collectedDocIds.add(row.id);
-    logger.info('tax fetch: checklist row created for a fetched kind', {
+    logger.info('document fetch: checklist row created for a fetched kind', {
       clientId: client.id,
       sessionId: session.id,
       kind: plan.kind,
@@ -189,7 +189,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     });
     recordAudit({
       actorType: 'agent',
-      action: 'tax_fetch.document_created',
+      action: 'document_fetch.document_created',
       agentInstanceId: client.agent_instance_id,
       clientId: client.id,
       targetType: 'client_document',
@@ -215,7 +215,7 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
     if (owningInstance?.agent_type === 'declaration_of_capital') {
       const targets = [...verifyPairs].map(([documentId, fileId]) => ({ documentId, fileId }));
       void verifyBatchAndReplan(client, owningInstance, targets).catch((err) =>
-        logger.error('tax-fetch verification pipeline failed', err, { clientId: client.id }),
+        logger.error('document-fetch verification pipeline failed', err, { clientId: client.id }),
       );
     }
   }
@@ -253,11 +253,11 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   }
 
   const firstFile = files[0]!;
-  await taxFetchSessions.updateStatus(session.id, 'delivered', {
+  await documentFetchSessions.updateStatus(session.id, 'delivered', {
     documentFileId: firstFile.id,
     deliveredAt: new Date(),
   });
-  logger.info('tax fetch: delivered', {
+  logger.info('document fetch: delivered', {
     sessionId: session.id,
     clientId: client.id,
     fileIds: files.map((f) => f.id),
@@ -265,10 +265,10 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   });
   recordAudit({
     actorType: 'agent',
-    action: 'tax_fetch.document_delivered',
+    action: 'document_fetch.document_delivered',
     agentInstanceId: client.agent_instance_id,
     clientId: client.id,
-    targetType: 'tax_fetch_session',
+    targetType: 'document_fetch_session',
     targetId: session.id,
     detail: {
       clientName: client.name,
@@ -282,8 +282,8 @@ export async function deliver(session: TaxFetchSessionRow, client: ClientRow, do
   // Let the collector re-plan: mark-collected may have completed the goal, or a
   // follow-up for the remaining documents should be (re)scheduled.
   await withClientLock(client.id, async () => {
-    await removeFutureEmail(client.id, 'tax_fetch');
-    await setFutureEmail(client.id, 'tax_fetch');
+    await removeFutureEmail(client.id, 'document_fetch');
+    await setFutureEmail(client.id, 'document_fetch');
   });
   publishClientUpdated(client.id);
 }

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { MIGDAL_ROUNDS, normalizeMigdalTitle, selectMigdalRows, type MigdalRow } from '../src/browserRunner/migdal.js';
-import { getProviderSpec } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
+import { getProviderSpec } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
 
 // Migdal row selection (openspec `migdal-fetch`): the kind comes from the
 // round, the title must carry the year, duplicates within a kind are taken

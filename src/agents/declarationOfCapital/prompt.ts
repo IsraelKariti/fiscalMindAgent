@@ -189,7 +189,7 @@ export function buildWhatsAppSection(token: string, wa: WaChannelState): string 
 }
 
 /** Per-state Hebrew note, parameterized by the provider's site + OTP channel. */
-function taxFetchStateGuidance(state: string, p: TaxFetchPromptInput): string {
+function documentFetchStateGuidance(state: string, p: DocumentFetchPromptInput): string {
   const site = p.siteNameHe;
   const otpWhere = p.otpChannel === 'email' ? 'לתיבת האימייל שלו' : 'ב-SMS לנייד שלו';
   const otpCheck = p.otpChannel === 'email' ? 'את תיבת האימייל (כולל ספאם), לא הודעות SMS' : 'את הודעות ה-SMS בנייד';
@@ -207,15 +207,15 @@ function taxFetchStateGuidance(state: string, p: TaxFetchPromptInput): string {
 }
 
 /** The shared action semantics + channel doctrine, stated once above the per-provider blocks. */
-function taxFetchPreamble(): string {
+function documentFetchPreamble(): string {
   return [
-    'יש באפשרותך למשוך עבור הלקוח מסמכים ישירות מאתרים חיצוניים, בהזדהות מטעמו. כל מקור מפורט בנפרד למטה; כשאתה בוחר פעולת משיכה, קבע תמיד גם את `tax_fetch_provider` למזהה המקור המופיע באותו בלוק, ופעל רק לפי מה שמותר באותו מקור.',
+    'יש באפשרותך למשוך עבור הלקוח מסמכים ישירות מאתרים חיצוניים, בהזדהות מטעמו. כל מקור מפורט בנפרד למטה; כשאתה בוחר פעולת משיכה, קבע תמיד גם את `document_fetch_provider` למזהה המקור המופיע באותו בלוק, ופעל רק לפי מה שמותר באותו מקור.',
     'משמעות הפעולות — בחר לפי שיקול דעתך, ושמור תמיד על התאמה מלאה בין הפעולה לבין מה שההודעה שלך אומרת ללקוח:',
     'להציע את המשיכה ללקוח זה עניין של ניסוח בלבד — כתוב את ההצעה בגוף ההודעה, בלי לקבוע שום פעולה. ההצעה עצמה היא משפט או שניים: אילו מסמכים אפשר למשוך עבורו, ושאלה אם הוא מעוניין; את שלב הקוד מסבירים רק אחרי שהלקוח הסכים (בהודעת `client_agreed`), בשני משפטים לכל היותר. פעולה נקבעת רק כשמשהו קורה בפועל:',
     '- `client_agreed` — הלקוח הסכים (על סמך השיחה); צרף הודעה שמסבירה את שלב הקוד בשני משפטים לכל היותר. בהודעה הזו: תאר את הקוד בלשון עתיד — "כשנתחיל את המשיכה, יישלח אליך קוד" (הקוד נשלח בפועל רק עם `start_login`, בשלב הבא) — והסבר שכשהקוד יגיע, מעבירים אותו אלינו ב-WhatsApp. אם השיחה מתנהלת כרגע באימייל, זו בדיוק ההודעה שבה תציע ללקוח לעבור ל-WhatsApp לשלב הקוד (ראה "המשכיות בין הערוצים" למטה).',
     '- `start_login` — מתחיל בפועל את ההזדהות בדפדפן; ההתחברות אורכת עד כמה דקות, ובסופה האתר שולח קוד אמיתי ללקוח. שלח אותו רק כשברור מהשיחה שהלקוח מסכים וזמין עכשיו, ותמיד יחד עם הודעה שמודיעה לו שאתה מתחיל עכשיו ושברגע שהקוד יישלח אליו בפועל הוא יקבל ממך הודעה נוספת (המערכת שולחת את ההודעה הנוספת הזו אוטומטית ברגע שליחת הקוד — אל תכתוב שהקוד כבר בדרך, כי ייקח עוד כמה דקות עד שיישלח). הפעולה זמינה רק כשהשיחה חיה ב-WhatsApp (הלקוח כתב שם ב-24 השעות האחרונות); אם היא לא ברשימת המותרות, קודם העבר את השיחה ל-WhatsApp - אבל רק לאחר שהלקוח כבר הסכים לכך בשיחה (ראה "המשכיות בין הערוצים" למטה). כתוב ללקוח "אני מתחיל/מנסה עכשיו" אך ורק בתשובה שבה אתה שולח `start_login` בפועל — כך ההודעה והמציאות תמיד מסונכרנות.',
     '- `cancel` — עוצר את התהליך (למשל כשהלקוח מבקש להפסיק, או מסרב להעביר את הקוד ב-WhatsApp).',
-    'מסמכים מרובים באותו מקור (משיכה אחת): כשלמקור יש יותר ממסמך אחד שממתין (למשל פנסיה וגם קרן השתלמות באלטשולר), אפשר למשוך את כולם בהזדהות אחת. הצע ללקוח להביא את כולם יחד, אך משוך רק את מה שהלקוח אישר בפירוש — ההסכמה היא לכל מסמך בנפרד (הוא יכול לאשר את שניהם, רק אחד, או אף אחד). קבע ב-`tax_fetch_document_keys` את רשימת המפתחות (keys) של המסמכים שהלקוח אישר. אם הלקוח אישר את כל המסמכים הממתינים, אפשר להשאיר את השדה ריק (משמעו: כל הממתינים).',
+    'מסמכים מרובים באותו מקור (משיכה אחת): כשלמקור יש יותר ממסמך אחד שממתין (למשל פנסיה וגם קרן השתלמות באלטשולר), אפשר למשוך את כולם בהזדהות אחת. הצע ללקוח להביא את כולם יחד, אך משוך רק את מה שהלקוח אישר בפירוש — ההסכמה היא לכל מסמך בנפרד (הוא יכול לאשר את שניהם, רק אחד, או אף אחד). קבע ב-`document_fetch_document_keys` את רשימת המפתחות (keys) של המסמכים שהלקוח אישר. אם הלקוח אישר את כל המסמכים הממתינים, אפשר להשאיר את השדה ריק (משמעו: כל הממתינים).',
     'עיקרון הערוץ לשלב הקוד: הקוד תקף דקות ספורות, לכן העברתו אלינו היא חילופי הודעות מהירים. שים לב להבחנה בין שני מסלולים: הקוד מגיע אל הלקוח (למייל או ל-SMS שלו, תלוי באתר), והלקוח מעביר אותו אלינו ב-WhatsApp — זה הערוץ שבו המערכת קולטת אותו. בכל פעם שאתה מזכיר את שלב הקוד, הפנה את הלקוח להעביר את הקוד ב-WhatsApp. המעבר ל-WhatsApp לשלב הזה הוא החלטה משותפת: הצע אותו, הסבר בקצרה למה, ואם הלקוח רוצה לעבור — עבור לשם מיד.',
     'המשכיות בין הערוצים: אם עד עכשיו ההתכתבות התנהלה באימייל, ההודעה הראשונה ב-WhatsApp היא המשך ישיר של אותה שיחה — נסח אותה כך (למשל "בהמשך למייל שלנו..."), בלי להציג את עצמך מחדש. אם החלון סגור וחובה להשתמש בתבנית, בחר את התבנית שמתאימה ביותר; אם יש תבנית ייעודית למעבר מהמייל לוואטסאפ, העדף אותה. זכור: המעבר ל-WhatsApp הוא תגובה להסכמה שהלקוח כבר נתן בשיחה (למשיכה או למעבר). כשהלקוח טרם השיב להצעה, ההודעה המתוזמנת הבאה היא תזכורת להצעה בערוץ שבו היא נשלחה — לא הודעת המעבר ל-WhatsApp, שמניחה הסכמה שעוד לא ניתנה.',
   ].join('\n');
@@ -226,9 +226,9 @@ function taxFetchPreamble(): string {
  * see the fetch capability and its current state. One block per available
  * provider; empty string when no provider applies — zero noise for the many
  * clients this never applies to. `state` and `allowedActions` are derived by the
- * caller (loadTaxFetchContexts) so the LLM only ever sees actions valid right now.
+ * caller (loadDocumentFetchContexts) so the LLM only ever sees actions valid right now.
  */
-export function buildTaxFetchSection(token: string, providers: TaxFetchPromptInput[]): string {
+export function buildDocumentFetchSection(token: string, providers: DocumentFetchPromptInput[]): string {
   const active = providers.filter((p) => p.available || p.state !== 'none');
   if (active.length === 0) return '';
 
@@ -246,24 +246,24 @@ export function buildTaxFetchSection(token: string, providers: TaxFetchPromptInp
       ? `היקף המשיכה: המשיכה מ${p.siteNameHe} מביאה תמיד את כל המסמכים השנתיים שיש באתר לשנת המס (כל הסוגים שלמעלה), גם אם רק חלקם ברשימה — ההסכמה היא למשיכה עצמה, לא לכל מסמך בנפרד; אל תבקש מהלקוח לבחור ואל תקבע document_keys עבור מקור זה. מסמך שנמצא באתר ולא היה ברשימה מתווסף אליה אוטומטית אחרי המשיכה, והלקוח מקבל על כך הודעה.`
       : null;
     return [
-      `— מקור: ${p.siteNameHe} (tax_fetch_provider: ${p.provider})`,
+      `— מקור: ${p.siteNameHe} (document_fetch_provider: ${p.provider})`,
       'מסמכים במקור זה:',
       ...docLines,
       ...(allDocsLine ? [allDocsLine] : []),
       `status: ${p.state}`,
       otpLine,
-      taxFetchStateGuidance(p.state, p),
-      `פעולות tax_fetch (action) מותרות כעת עבור מקור זה: ${actions}.`,
+      documentFetchStateGuidance(p.state, p),
+      `פעולות document_fetch (action) מותרות כעת עבור מקור זה: ${actions}.`,
     ].join('\n');
   });
 
   return [
     fence(token, PLATFORM_SECTIONS.documentFetch),
-    taxFetchPreamble(),
+    documentFetchPreamble(),
     '',
     blocks.join('\n\n'),
     '',
-    'פעולת משיכה נמסרת בקריאה אחת לכלי tax_fetch (action, provider, document_keys). בכל מצב אחר, או כשאין פעולה לבצע, אל תקרא ל-tax_fetch כלל.',
+    'פעולת משיכה נמסרת בקריאה אחת לכלי document_fetch (action, provider, document_keys). בכל מצב אחר, או כשאין פעולה לבצע, אל תקרא ל-document_fetch כלל.',
     endFence(token, PLATFORM_SECTIONS.documentFetch),
   ].join('\n');
 }
@@ -756,7 +756,7 @@ export interface Prompt {
 }
 
 /** One provider's fetch state the prompt should surface, already gated to valid actions. */
-export interface TaxFetchPromptInput {
+export interface DocumentFetchPromptInput {
   provider: string;
   siteNameHe: string;
   otpChannel: 'email' | 'sms';
@@ -777,7 +777,7 @@ export function buildPrompt(
   files: DocumentFileRow[],
   now: Date,
   waState: WaChannelState = WHATSAPP_UNAVAILABLE,
-  taxFetch: TaxFetchPromptInput[] = [],
+  documentFetch: DocumentFetchPromptInput[] = [],
   taxYear?: number,
   intake?: IntakePromptInput,
   unsentDrafts: EmailRow[] = [],
@@ -804,7 +804,7 @@ export function buildPrompt(
     buildIntakeSection(token, intake),
     buildDeadlineSection(token, client, now),
     buildWhatsAppSection(token, waState),
-    buildTaxFetchSection(token, taxFetch),
+    buildDocumentFetchSection(token, documentFetch),
     buildUnsentDraftsSection(token, unsentDrafts),
     buildTeamQuestionsSection(token, teamQuestions),
     buildVerificationResultsSection(token, verificationResults, afterVerification),

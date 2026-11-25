@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { clientIdNumber, type CredentialsLookup } from '../src/agents/declarationOfCapital/taxFetch/clientId.js';
+import { clientIdNumber, type CredentialsLookup } from '../src/agents/declarationOfCapital/documentFetch/clientId.js';
 
 function lookupOf(rows: Partial<Record<string, string>>): CredentialsLookup {
   return async (_clientId, provider) => {

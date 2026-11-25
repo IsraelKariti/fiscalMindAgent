@@ -96,7 +96,7 @@ export function sameSpouse(a: SpouseOnFile, b: SpouseOnFile): boolean {
 // The identity rule of document verification.
 // ---------------------------------------------------------------------------
 
-/** Where the client's own id on file came from (taxFetch/clientId.ts) — shown next to the expected value. */
+/** Where the client's own id on file came from (documentFetch/clientId.ts) — shown next to the expected value. */
 export type ClientIdSource = 'credentials' | 'monday_crm';
 
 export interface IdentityContext {

@@ -2,7 +2,7 @@
  * Manual, one-off validation of the Migdal browser port against the REAL
  * site (openspec `migdal-fetch`). Every run makes Migdal send a real SMS code
  * to the mobile number it holds for that id, so use it only with that
- * person's consent — iterate on the mock (TAX_FETCH_MOCK=true) for everything
+ * person's consent — iterate on the mock (DOCUMENT_FETCH_MOCK=true) for everything
  * else.
  *
  *   npx tsx scripts/migdalFetchSmoke.ts <idNumber> [taxYear] [keys]

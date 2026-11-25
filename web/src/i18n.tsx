@@ -536,7 +536,7 @@ const he = {
   analyticsReason: {
     client_message: 'הלקוח ענה',
     file_verification: 'בדיקת קובץ הסתיימה',
-    tax_fetch: 'משיכה מרשות המסים',
+    document_fetch: 'משיכת מסמכים מאתר',
     admin_redraft: 'ניסוח מחדש ידני',
     admin_pause: 'השהיה על ידי מנהל',
     resume: 'חידוש הלקוח',
@@ -574,7 +574,7 @@ const he = {
     client_message: 'אחרי הודעה מהלקוח',
     agent_message_sent: 'אחרי שליחת הודעה של הסוכן',
     file_verification: 'אחרי בדיקת קובץ',
-    tax_fetch: 'אחרי משיכה מרשות המסים',
+    document_fetch: 'אחרי משיכת מסמכים מאתר',
     kickoff: 'הודעה ראשונה',
     team_answer: 'אחרי תשובה מהצוות',
     admin_redraft: 'ניסוח מחדש ידני',
@@ -1420,7 +1420,8 @@ const he = {
     mark_collected: 'mark_collected',
     send_whatsapp_text: 'send_whatsapp_text',
     send_whatsapp_template: 'send_whatsapp_template',
-    tax_fetch: 'tax_fetch',
+    document_fetch: 'document_fetch',
+    tax_fetch: 'tax_fetch', // rows recorded before the rename (2026-11-25)
     conclude: 'conclude',
     // Legacy apply phase (rows written before the per-tool steps).
     apply_resolutions: 'Apply Resolutions',

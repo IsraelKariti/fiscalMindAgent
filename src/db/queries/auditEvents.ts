@@ -161,7 +161,7 @@ export async function countByInstanceBetween(
   return rows;
 }
 
-/** Platform-wide count of one action since `since` (e.g. tax-fetch failures in the last hour). */
+/** Platform-wide count of one action since `since` (e.g. document-fetch failures in the last hour). */
 export async function countActionSince(action: string, since: Date): Promise<number> {
   const { rows } = await pool.query<{ count: number }>(
     `SELECT count(*)::float8 AS count FROM audit_events WHERE action = $1 AND occurred_at >= $2`,

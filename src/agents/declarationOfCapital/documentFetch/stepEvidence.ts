@@ -1,6 +1,6 @@
 import { deleteBlob, downloadBlob, listBlobs, uploadBlob } from '../../../storage/blob.js';
 import { env } from '../../../config/env.js';
-import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
+import * as documentFetchSessions from '../../../db/queries/documentFetchSessions.js';
 import { logger } from '../../../util/logger.js';
 import type { EvidencePart, StepRecord } from '../../../browserRunner/stepEvidence.js';
 import { RunnerStepError } from './types.js';
@@ -8,15 +8,17 @@ import { RunnerStepError } from './types.js';
 /**
  * Where a fetch session's step evidence lives once the worker pulled it out
  * of the runner (openspec `fetch-step-evidence`): one blob per part under
- * `debug/taxfetch/<day of session creation>/<sessionId>/<seq>-<name>.<ext>`
+ * `debug/documentfetch/<day of session creation>/<sessionId>/<seq>-<name>.<ext>`
  * in the documents container. No table points at it — the session id and
  * its creation day are the whole index (listBlobs on the prefix) — and the
  * daily cleanup job deletes everything older than
- * TAX_FETCH_DEBUG_RETENTION_DAYS. Old flat failure shots
- * (`debug/taxfetch/<day>/<sessionId>-<stage>.png`) share the prefix and age
+ * DOCUMENT_FETCH_DEBUG_RETENTION_DAYS. Old flat failure shots
+ * (`debug/documentfetch/<day>/<sessionId>-<stage>.png`) share the prefix and age
  * out the same way.
  */
-export const EVIDENCE_PREFIX = 'debug/taxfetch/';
+export const EVIDENCE_PREFIX = 'debug/documentfetch/';
+/** The prefix before the rename of 2026-11-25; only the cleanup still reads it. */
+export const LEGACY_EVIDENCE_PREFIX = 'debug/taxfetch/';
 
 export type EvidenceFile = EvidencePart | 'record';
 
@@ -79,7 +81,7 @@ const prefixCache = new Map<string, string>();
 export async function sessionEvidencePrefix(sessionId: string): Promise<string | null> {
   const cached = prefixCache.get(sessionId);
   if (cached) return cached;
-  const row = await taxFetchSessions.getById(sessionId);
+  const row = await documentFetchSessions.getById(sessionId);
   if (!row) return null;
   const prefix = evidencePrefixFor(sessionId, row.created_at);
   prefixCache.set(sessionId, prefix);
@@ -91,13 +93,13 @@ export async function storeSessionEvidence(sessionId: string, item: StoredEviden
   try {
     const prefix = await sessionEvidencePrefix(sessionId);
     if (!prefix) {
-      logger.warn('tax fetch: evidence for an unknown session dropped', { sessionId, seq: item.record.seq });
+      logger.warn('document fetch: evidence for an unknown session dropped', { sessionId, seq: item.record.seq });
       return false;
     }
     await storeEvidenceItem(prefix, item);
     return true;
   } catch (err) {
-    logger.warn('tax fetch: storing step evidence failed', { sessionId, seq: item.record.seq, reason: String(err) });
+    logger.warn('document fetch: storing step evidence failed', { sessionId, seq: item.record.seq, reason: String(err) });
     return false;
   }
 }
@@ -167,7 +169,7 @@ export async function listSessionEvidence(sessionId: string, createdAt: Date): P
         try {
           record = JSON.parse(await readBlobText(evidenceKey(prefix, step.seq, step.name, 'record'))) as StepRecord;
         } catch (err) {
-          logger.warn('tax fetch: evidence record unreadable', { sessionId, seq: step.seq, reason: String(err) });
+          logger.warn('document fetch: evidence record unreadable', { sessionId, seq: step.seq, reason: String(err) });
         }
       }
       return { ...step, record };
@@ -177,13 +179,15 @@ export async function listSessionEvidence(sessionId: string, createdAt: Date): P
 
 /** The day encoded in an evidence key (either layout), for a blob the service reports without a creation time. */
 export function evidenceDayOf(key: string): string | null {
-  return /^debug\/taxfetch\/(\d{4}-\d{2}-\d{2})\//.exec(key)?.[1] ?? null;
+  return /^debug\/(?:documentfetch|taxfetch)\/(\d{4}-\d{2}-\d{2})\//.exec(key)?.[1] ?? null;
 }
 
 /** Deletes evidence (and old flat failure shots) older than the retention window. Returns how many blobs were removed. */
 export async function cleanupExpiredEvidence(now = new Date()): Promise<number> {
-  const cutoff = now.getTime() - env.TAX_FETCH_DEBUG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
-  const blobs = await listBlobs(EVIDENCE_PREFIX);
+  const cutoff = now.getTime() - env.DOCUMENT_FETCH_DEBUG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  // The legacy prefix holds blobs written before the rename (2026-11-25); they
+  // age out within the retention window, after which this second listing is dead.
+  const blobs = [...(await listBlobs(EVIDENCE_PREFIX)), ...(await listBlobs(LEGACY_EVIDENCE_PREFIX))];
   // A blob the service reports without a creation time still expires: fall back
   // to the day encoded in its key, so nothing can linger forever.
   const createdAt = (blob: { key: string; createdOn: Date | null }): number => {
@@ -196,10 +200,10 @@ export async function cleanupExpiredEvidence(now = new Date()): Promise<number> 
     await deleteBlob(blob.key);
   }
   if (expired.length > 0) {
-    logger.info('tax fetch: expired step evidence deleted', {
+    logger.info('document fetch: expired step evidence deleted', {
       deleted: expired.length,
       kept: blobs.length - expired.length,
-      retentionDays: env.TAX_FETCH_DEBUG_RETENTION_DAYS,
+      retentionDays: env.DOCUMENT_FETCH_DEBUG_RETENTION_DAYS,
     });
   }
   return expired.length;

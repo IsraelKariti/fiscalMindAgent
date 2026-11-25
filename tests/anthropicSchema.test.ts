@@ -121,7 +121,7 @@ describe('restoreOmittedNulls', () => {
     const entry = parsed.resolved_documents?.[0];
     assert.equal(entry?.evidence, null);
     assert.equal(entry?.instances?.[0]!.description, null);
-    assert.equal(parsed.tax_fetch_action, null);
+    assert.equal(parsed.document_fetch_action, null);
     assert.equal(parsed.whatsapp_template, null);
   });
 
@@ -136,9 +136,9 @@ describe('restoreOmittedNulls', () => {
       whatsapp_text: 'שלום',
       whatsapp_template: null,
       send_at: '2026-09-02 10:00',
-      tax_fetch_action: null,
-      tax_fetch_provider: null,
-      tax_fetch_document_keys: null,
+      document_fetch_action: null,
+      document_fetch_provider: null,
+      document_fetch_document_keys: null,
       resolved_documents: null,
       added_instances: null,
       retired_documents: null,

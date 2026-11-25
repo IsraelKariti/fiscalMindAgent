@@ -2,7 +2,7 @@
  * Manual, one-off validation of the Meitav browser port against the REAL
  * site (openspec `meitav-fetch`). Every run makes Meitav send a real SMS code
  * to the phone given, so use it only with that person's consent — iterate on
- * the mock (TAX_FETCH_MOCK=true) for everything else.
+ * the mock (DOCUMENT_FETCH_MOCK=true) for everything else.
  *
  *   npx tsx scripts/meitavFetchSmoke.ts <idNumber> <phone> [taxYear] [keys]
  *

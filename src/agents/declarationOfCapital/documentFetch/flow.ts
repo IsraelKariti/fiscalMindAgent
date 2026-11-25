@@ -1,18 +1,18 @@
-import * as taxFetchSessions from '../../../db/queries/taxFetchSessions.js';
+import * as documentFetchSessions from '../../../db/queries/documentFetchSessions.js';
 import { publishClientUpdated } from '../../../events/clientEvents.js';
-import { enqueueTaxFetch } from '../../../queue/taxFetchQueue.js';
+import { enqueueDocumentFetch } from '../../../queue/documentFetchQueue.js';
 import { logger } from '../../../util/logger.js';
 import type { ClientDocumentRow, ClientRow } from '../../../db/types.js';
-import type { TaxFetchSessionRow } from '../../../db/queries/taxFetchSessions.js';
+import type { DocumentFetchSessionRow } from '../../../db/queries/documentFetchSessions.js';
 import type { WaChannelState } from '../prompt.js';
-import type { TaxFetchAction } from '../decisionSchema.js';
+import type { DocumentFetchAction } from '../decisionSchema.js';
 import { effectiveFetchKeys } from './fetchedRows.js';
 import { getProviderSpec, listProviderSpecs, type FetchDocumentType, type FetchProviderSpec } from './providers.js';
 import { NO_DOCUMENTS_ERROR_PREFIX } from './types.js';
 import { rowCompanyUnknown, sitesForUnnamedRow } from '../companyClarification.js';
 
 /** The fetch's state as the prompt/decision layer sees it (collapses the worker's finer statuses). */
-export type TaxFetchPromptState =
+export type DocumentFetchPromptState =
   | 'none'
   | 'agreed'
   | 'wa_intro_sent'
@@ -24,7 +24,7 @@ export type TaxFetchPromptState =
   | 'failed_no_documents';
 
 /** One fetchable document type's situation for a client (pending vs already collected). */
-export interface TaxFetchDocumentTypeState {
+export interface DocumentFetchDocumentTypeState {
   key: string;
   descriptionHe: string;
   /** The pending required-document row this type would satisfy, if any. */
@@ -34,26 +34,26 @@ export interface TaxFetchDocumentTypeState {
 }
 
 /** One provider's fetch situation for a client — the unit the prompt and decision layer reason about. */
-export interface TaxFetchContext {
+export interface DocumentFetchContext {
   /** Which portal this context is for (providers.ts id). */
   provider: string;
   /** Credentials on file + at least one pending document type + WhatsApp usable — the fetch can be offered/run. */
   available: boolean;
-  state: TaxFetchPromptState;
+  state: DocumentFetchPromptState;
   /** The active (or most-recent relevant) session for this provider, for gating and status text. */
-  session: TaxFetchSessionRow | null;
+  session: DocumentFetchSessionRow | null;
   /** The conversation is live on WhatsApp (client wrote there in the last 24h) — gates start_login. */
   clientOnWhatsapp: boolean;
   /** Per-document-type status for this provider (drives per-document consent). */
-  documentTypes: TaxFetchDocumentTypeState[];
+  documentTypes: DocumentFetchDocumentTypeState[];
 }
 
 /** The document-type keys that are currently pending (offerable) for a context. */
-export function pendingKeys(ctx: TaxFetchContext): string[] {
+export function pendingKeys(ctx: DocumentFetchContext): string[] {
   return ctx.documentTypes.filter((t) => t.pendingDocumentId).map((t) => t.key);
 }
 
-function promptStateFor(session: TaxFetchSessionRow): TaxFetchPromptState {
+function promptStateFor(session: DocumentFetchSessionRow): DocumentFetchPromptState {
   switch (session.status) {
     case 'agreed':
       return 'agreed';
@@ -79,7 +79,7 @@ function promptStateFor(session: TaxFetchSessionRow): TaxFetchPromptState {
 }
 
 /** Per-type status: the first pending required doc it would satisfy, and whether one is already collected. */
-function documentTypeState(type: FetchDocumentType, documents: ClientDocumentRow[]): TaxFetchDocumentTypeState {
+function documentTypeState(type: FetchDocumentType, documents: ClientDocumentRow[]): DocumentFetchDocumentTypeState {
   const matching = documents.filter((d) => type.matchesRequiredDocument(d));
   const pending = matching.find((d) => d.status === 'pending') ?? null;
   return {
@@ -97,17 +97,17 @@ async function loadContextForProvider(
   documents: ClientDocumentRow[],
   waState: WaChannelState,
   clientOnWhatsapp: boolean,
-): Promise<TaxFetchContext | null> {
+): Promise<DocumentFetchContext | null> {
   const documentTypes = spec.documents.map((t) => documentTypeState(t, documents));
   const anyPending = documentTypes.some((t) => t.pendingDocumentId !== null);
   const hasCredentials = (await spec.buildCredentials(client)) !== null;
   const available = hasCredentials && anyPending && waState.allowed;
 
-  const active = await taxFetchSessions.getActiveForClientAndProvider(client.id, spec.id);
+  const active = await documentFetchSessions.getActiveForClientAndProvider(client.id, spec.id);
   let session = active;
-  let state: TaxFetchPromptState = active ? promptStateFor(active) : 'none';
+  let state: DocumentFetchPromptState = active ? promptStateFor(active) : 'none';
   if (!active) {
-    const latest = await taxFetchSessions.getLatestForClientAndProvider(client.id, spec.id);
+    const latest = await documentFetchSessions.getLatestForClientAndProvider(client.id, spec.id);
     if (latest && (latest.status === 'delivered' || latest.status === 'failed')) {
       session = latest;
       state = promptStateFor(latest);
@@ -126,20 +126,20 @@ async function loadContextForProvider(
  * providers that are available or have a relevant session are returned, so a
  * client with none gets an empty list (the prompt then omits the whole section).
  */
-export async function loadTaxFetchContexts(
+export async function loadDocumentFetchContexts(
   client: ClientRow,
   documents: ClientDocumentRow[],
   waState: WaChannelState,
   /** When the client last wrote on WhatsApp (phone-verified; email is spoof-adjacent) — the readiness signal for start_login. */
   lastInboundAt: Date | null,
-): Promise<TaxFetchContext[]> {
+): Promise<DocumentFetchContext[]> {
   // start_login readiness: the browser login (which fires a real OTP at the
   // client) may only run once the conversation is live on WhatsApp — the client
   // wrote there within the 24h window. WhatsApp is phone-verified; email sender
   // addresses are spoofable, so an email alone must never trigger the login.
   const clientOnWhatsapp = waState.allowed && waState.windowOpen && lastInboundAt !== null;
 
-  const contexts: TaxFetchContext[] = [];
+  const contexts: DocumentFetchContext[] = [];
   for (const spec of listProviderSpecs()) {
     const ctx = await loadContextForProvider(spec, client, documents, waState, clientOnWhatsapp);
     if (ctx) contexts.push(ctx);
@@ -180,14 +180,14 @@ const START_LOGIN_SEND_GRACE_MS = 5_000;
 /** The document-type keys a fetch will actually cover — see fetchedRows.ts `effectiveFetchKeys`. */
 function effectiveKeys(
   agreedKeys: string[] | null,
-  ctx: TaxFetchContext,
+  ctx: DocumentFetchContext,
   spec: Pick<FetchProviderSpec, 'documents' | 'takesAllDocuments'>,
 ): string[] {
   return effectiveFetchKeys(agreedKeys, pendingKeys(ctx), spec);
 }
 
 /** The checklist doc id to record as the session's primary (first covered pending type). */
-function primaryDocumentId(keys: string[], ctx: TaxFetchContext): string | null {
+function primaryDocumentId(keys: string[], ctx: DocumentFetchContext): string | null {
   for (const key of keys) {
     const type = ctx.documentTypes.find((t) => t.key === key);
     if (type?.pendingDocumentId) return type.pendingDocumentId;
@@ -196,7 +196,7 @@ function primaryDocumentId(keys: string[], ctx: TaxFetchContext): string | null 
 }
 
 /**
- * Acts on the LLM's tax_fetch_action for one provider after the normal document
+ * Acts on the LLM's document_fetch_action for one provider after the normal document
  * handling. `agreedKeys` is the per-document consent subset (which of the
  * provider's document types the client agreed to fetch). `message` is the
  * accompanying drafted row + its send delay: start_login is enqueued to run
@@ -204,10 +204,10 @@ function primaryDocumentId(keys: string[], ctx: TaxFetchContext): string | null 
  * which must never reach the client before the message warning about it.
  * Offers are message text only and never touch this function.
  */
-export async function applyTaxFetchAction(
+export async function applyDocumentFetchAction(
   client: ClientRow,
-  action: TaxFetchAction | null,
-  ctx: TaxFetchContext | null,
+  action: DocumentFetchAction | null,
+  ctx: DocumentFetchContext | null,
   agreedKeys: string[] | null,
   /** The instance's configured tax year (resolveTaxYear) — sites hold documents for multiple years. */
   taxYear: number,
@@ -224,14 +224,14 @@ export async function applyTaxFetchAction(
       // (the scheduled message is the WhatsApp intro). A pre-login session
       // already in flight just absorbs the (possibly narrowed) document set.
       const active =
-        ctx.session && taxFetchSessions.ACTIVE_TAX_FETCH_STATUSES.includes(ctx.session.status) ? ctx.session : null;
+        ctx.session && documentFetchSessions.ACTIVE_DOCUMENT_FETCH_STATUSES.includes(ctx.session.status) ? ctx.session : null;
       if (active) {
-        await taxFetchSessions.setDocumentKeys(active.id, keys);
-        if (active.status === 'agreed') await taxFetchSessions.updateStatus(active.id, 'wa_intro_sent');
-        logger.info('tax fetch: client agreed, intro scheduled', { clientId: client.id, provider, sessionId: active.id, keys });
+        await documentFetchSessions.setDocumentKeys(active.id, keys);
+        if (active.status === 'agreed') await documentFetchSessions.updateStatus(active.id, 'wa_intro_sent');
+        logger.info('document fetch: client agreed, intro scheduled', { clientId: client.id, provider, sessionId: active.id, keys });
       } else {
         if (!ctx.available || keys.length === 0) return;
-        const fresh = await taxFetchSessions.insert({
+        const fresh = await documentFetchSessions.insert({
           clientId: client.id,
           provider,
           clientDocumentId: primaryDocumentId(keys, ctx),
@@ -239,7 +239,7 @@ export async function applyTaxFetchAction(
           taxYear,
           documentKeys: keys,
         });
-        logger.info('tax fetch: client agreed, session created', {
+        logger.info('document fetch: client agreed, session created', {
           clientId: client.id,
           provider,
           priorSessionId: ctx.session?.id ?? null,
@@ -258,13 +258,13 @@ export async function applyTaxFetchAction(
       // wa_intro_sent.
       let sessionId: string;
       const active =
-        ctx.session && taxFetchSessions.ACTIVE_TAX_FETCH_STATUSES.includes(ctx.session.status) ? ctx.session : null;
+        ctx.session && documentFetchSessions.ACTIVE_DOCUMENT_FETCH_STATUSES.includes(ctx.session.status) ? ctx.session : null;
       if (active) {
-        await taxFetchSessions.setDocumentKeys(active.id, keys);
+        await documentFetchSessions.setDocumentKeys(active.id, keys);
         sessionId = active.id;
       } else {
         if (!ctx.available || keys.length === 0) return;
-        const fresh = await taxFetchSessions.insert({
+        const fresh = await documentFetchSessions.insert({
           clientId: client.id,
           provider,
           clientDocumentId: primaryDocumentId(keys, ctx),
@@ -273,7 +273,7 @@ export async function applyTaxFetchAction(
           documentKeys: keys,
         });
         sessionId = fresh.id;
-        logger.info('tax fetch: fresh session created for start_login', {
+        logger.info('document fetch: fresh session created for start_login', {
           clientId: client.id,
           provider,
           priorSessionId: ctx.session?.id ?? null,
@@ -284,11 +284,11 @@ export async function applyTaxFetchAction(
       }
       // Delayed to just after the heads-up message's send time; the runner then
       // verifies that message actually went out before driving the browser.
-      await enqueueTaxFetch(
+      await enqueueDocumentFetch(
         { kind: 'start_login', sessionId, awaitEmailId: message.emailId ?? undefined },
         { delayMs: message.emailId ? message.delayMs + START_LOGIN_SEND_GRACE_MS : 0 },
       );
-      logger.info('tax fetch: start_login enqueued', {
+      logger.info('document fetch: start_login enqueued', {
         clientId: client.id,
         provider,
         sessionId,
@@ -299,8 +299,8 @@ export async function applyTaxFetchAction(
     }
     case 'cancel': {
       if (!ctx.session) return;
-      await enqueueTaxFetch({ kind: 'cancel', sessionId: ctx.session.id });
-      logger.info('tax fetch: cancel enqueued', { clientId: client.id, provider, sessionId: ctx.session.id });
+      await enqueueDocumentFetch({ kind: 'cancel', sessionId: ctx.session.id });
+      logger.info('document fetch: cancel enqueued', { clientId: client.id, provider, sessionId: ctx.session.id });
       return;
     }
   }

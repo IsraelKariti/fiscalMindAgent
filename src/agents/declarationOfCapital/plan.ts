@@ -41,17 +41,17 @@ import {
   sendMessageDetail,
   stateCostDetail,
   stateVehicleDetail,
-  taxFetchDetail,
+  documentFetchDetail,
   type CompanySplitDetail,
 } from './toolStepDetails.js';
 import { vehicleFactsLine } from './vehicleDeclaration.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
 import { decide } from './decide.js';
 import type { ParsedToolCall } from './decisionTools.js';
-import { allowedTaxFetchActions, type DecisionContext, type IntakeDecisionState, type NormalizedDecision, type StatedCost, type StatedVehicle } from './decisionSchema.js';
-import { applyTaxFetchAction, loadTaxFetchContexts, pendingKeys, sitesForUnnamedRows, type TaxFetchContext } from './taxFetch/flow.js';
-import { getProviderSpec } from './taxFetch/providers.js';
-import { clientIdNumber } from './taxFetch/clientId.js';
+import { allowedDocumentFetchActions, type DecisionContext, type IntakeDecisionState, type NormalizedDecision, type StatedCost, type StatedVehicle } from './decisionSchema.js';
+import { applyDocumentFetchAction, loadDocumentFetchContexts, pendingKeys, sitesForUnnamedRows, type DocumentFetchContext } from './documentFetch/flow.js';
+import { getProviderSpec } from './documentFetch/providers.js';
+import { clientIdNumber } from './documentFetch/clientId.js';
 import { publishClientUpdated } from '../../events/clientEvents.js';
 import { recordAudit, type AuditAction } from '../../audit/audit.js';
 import { scheduleDraftMessage } from '../../orchestration/scheduleDraftEmail.js';
@@ -139,7 +139,7 @@ interface PlanRun {
   files: DocumentFileRow[];
   fileById: Map<string, DocumentFileRow>;
   waState: WaChannelState;
-  taxFetchContexts: TaxFetchContext[];
+  documentFetchContexts: DocumentFetchContext[];
   intake: IntakeDecisionState;
   attestationConfirmed: boolean;
   /** The questions the agent asked the client's team, newest first (openspec `team-questions`): the prompt section and the one-open-question gate. */
@@ -190,7 +190,7 @@ interface CollectionOutcome {
  * documents were just provided and whether a follow-up is needed, and acts on
  * it. One named function per step; the trail reads validate_message → one
  * step per accepted tool call (set_required, add_instance, …, tie_file,
- * mark_collected) → conclude → (verify → rerun) or send_whatsapp_* / tax_fetch
+ * mark_collected) → conclude → (verify → rerun) or send_whatsapp_* / document_fetch
  * (openspec `conversation-trace`).
  */
 export async function planFollowUp(ctx: AgentContext): Promise<void> {
@@ -328,7 +328,7 @@ async function loadPlanningContext(ctx: AgentContext): Promise<PlanRun> {
   const documents = await clientDocuments.listForClient(clientId);
   const files = await documentFiles.listForClient(clientId);
   const waState = await loadWaChannelOrThrow(client, now, agentType);
-  const taxFetchContexts = await loadTaxFetchContexts(client, documents, waState, lastInboundWhatsAppAt(history));
+  const documentFetchContexts = await loadDocumentFetchContexts(client, documents, waState, lastInboundWhatsAppAt(history));
   const { intake, attestationConfirmed } = await buildIntakeState(client, history, documents, files);
   const questions = await teamQuestions.listForClient(clientId);
   return {
@@ -344,7 +344,7 @@ async function loadPlanningContext(ctx: AgentContext): Promise<PlanRun> {
     files,
     fileById: new Map(files.map((f) => [f.id, f])),
     waState,
-    taxFetchContexts,
+    documentFetchContexts,
     intake,
     attestationConfirmed,
     teamQuestions: questions,
@@ -493,7 +493,7 @@ async function buildPlannerPrompt(run: PlanRun): Promise<{ systemInstruction: st
     files,
     now,
     waState,
-    taxFetchPromptInputs(run),
+    documentFetchPromptInputs(run),
     taxYear,
     {
       unresolvedCount: intake.resolvable.filter((r) => r.status === 'unresolved').length,
@@ -515,8 +515,8 @@ async function buildPlannerPrompt(run: PlanRun): Promise<{ systemInstruction: st
 }
 
 /** The document-fetch section of the prompt: per website, its state and the actions the model may pick. */
-function taxFetchPromptInputs(run: PlanRun) {
-  return run.taxFetchContexts.map((c) => {
+function documentFetchPromptInputs(run: PlanRun) {
+  return run.documentFetchContexts.map((c) => {
     const spec = getProviderSpec(c.provider);
     return {
       provider: c.provider,
@@ -524,7 +524,7 @@ function taxFetchPromptInputs(run: PlanRun) {
       otpChannel: spec.otpChannel,
       state: c.state,
       available: c.available,
-      allowedActions: allowedTaxFetchActions(c.state, c.available, c.clientOnWhatsapp),
+      allowedActions: allowedDocumentFetchActions(c.state, c.available, c.clientOnWhatsapp),
       documentTypes: c.documentTypes.map((d) => ({
         key: d.key,
         descriptionHe: d.descriptionHe,
@@ -582,7 +582,7 @@ function buildDecisionContext(run: PlanRun): DecisionContext {
     windowOpen: run.waState.windowOpen,
     templates: run.waState.templates,
     hiddenTemplates: run.waState.hiddenTemplates,
-    taxFetch: run.taxFetchContexts.map((c) => ({
+    documentFetch: run.documentFetchContexts.map((c) => ({
       provider: c.provider,
       state: c.state,
       available: c.available,
@@ -1336,9 +1336,9 @@ async function completeGoalIfDone(run: PlanRun, decision: NormalizedDecision): P
   if (allCollected) {
     // No message is drafted on this path; a fresh offer can't happen here (no
     // pending matching document left), but cancel/agreed actions still need to land.
-    const fetch = taxFetchDecisionOf(run, decision);
-    await applyTaxFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, { emailId: null, delayMs: 0 });
-    recordTaxFetchStep(run, fetch, null);
+    const fetch = documentFetchDecisionOf(run, decision);
+    await applyDocumentFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, { emailId: null, delayMs: 0 });
+    recordDocumentFetchStep(run, fetch, null);
     recordConclude(run, { kind: 'goal_complete', completed: true, derived: decision.decision !== 'goal_complete' });
     await clients.updateGoalStatus(clientId, 'complete');
     // Report the finished collection back to the board row's documents status column.
@@ -1369,14 +1369,14 @@ async function completeGoalIfDone(run: PlanRun, decision: NormalizedDecision): P
   return false;
 }
 
-/** The `tax_fetch` step: the action the call asked for and whether a fetch context took it. */
-function recordTaxFetchStep(run: PlanRun, fetch: ReturnType<typeof taxFetchDecisionOf>, emailId: string | null): void {
-  const call = callOf(run, 'tax_fetch');
+/** The `document_fetch` step: the action the call asked for and whether a fetch context took it. */
+function recordDocumentFetchStep(run: PlanRun, fetch: ReturnType<typeof documentFetchDecisionOf>, emailId: string | null): void {
+  const call = callOf(run, 'document_fetch');
   if (!call) return;
   recordToolStep(
     run,
     call,
-    taxFetchDetail(call, { applied: fetch.action !== null && fetch.targetCtx !== null, provider: fetch.targetCtx?.provider ?? null, documentKeys: fetch.keys, emailId }),
+    documentFetchDetail(call, { applied: fetch.action !== null && fetch.targetCtx !== null, provider: fetch.targetCtx?.provider ?? null, documentKeys: fetch.keys, emailId }),
   );
 }
 
@@ -1423,12 +1423,12 @@ export async function sendClosingMessage(
 }
 
 /** The document-fetch step the model chose (client agreed / start login / cancel), with the website it is about. */
-function taxFetchDecisionOf(run: PlanRun, decision: NormalizedDecision) {
-  const taxFetchDecision = decision.tax_fetch;
+function documentFetchDecisionOf(run: PlanRun, decision: NormalizedDecision) {
+  const documentFetchDecision = decision.document_fetch;
   return {
-    action: taxFetchDecision?.action ?? null,
-    targetCtx: taxFetchDecision ? (run.taxFetchContexts.find((c) => c.provider === taxFetchDecision.provider) ?? null) : null,
-    keys: taxFetchDecision?.documentKeys ?? null,
+    action: documentFetchDecision?.action ?? null,
+    targetCtx: documentFetchDecision ? (run.documentFetchContexts.find((c) => c.provider === documentFetchDecision.provider) ?? null) : null,
+    keys: documentFetchDecision?.documentKeys ?? null,
   };
 }
 
@@ -1496,12 +1496,12 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
     );
   }
   await applyAttestationRequest(run, decision, emailId, sendAtLabel, resolved.requested);
-  const fetch = taxFetchDecisionOf(run, decision);
-  await applyTaxFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, {
+  const fetch = documentFetchDecisionOf(run, decision);
+  await applyDocumentFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, {
     emailId,
     delayMs: Math.max(0, delayMs),
   });
-  recordTaxFetchStep(run, fetch, emailId);
+  recordDocumentFetchStep(run, fetch, emailId);
   logger.info('follow-up scheduled', {
     clientId,
     channel: message.channel,

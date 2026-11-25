@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { effectiveFetchKeys, planFetchedRows } from '../src/agents/declarationOfCapital/taxFetch/fetchedRows.js';
-import { getProviderSpec } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
-import type { FetchedDocument } from '../src/agents/declarationOfCapital/taxFetch/types.js';
+import { effectiveFetchKeys, planFetchedRows } from '../src/agents/declarationOfCapital/documentFetch/fetchedRows.js';
+import { getProviderSpec } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
+import type { FetchedDocument } from '../src/agents/declarationOfCapital/documentFetch/types.js';
 import type { ClientDocumentRow, DocumentStatus } from '../src/db/types.js';
 
 // A Phoenix fetch brings everything it finds; a kind the list lacks gets its

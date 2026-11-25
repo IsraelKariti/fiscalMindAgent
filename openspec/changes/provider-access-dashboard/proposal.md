@@ -23,8 +23,8 @@ The agent can already log in to three external sites on a client's behalf (Israe
 
 ## Impact
 
-- `src/agents/declarationOfCapital/taxFetch/`: new `accessCatalog.ts` (the fixed list of monitored sites × products) and a query helper that aggregates `tax_fetch_sessions` per provider and document key.
+- `src/agents/declarationOfCapital/documentFetch/`: new `accessCatalog.ts` (the fixed list of monitored sites × products) and a query helper that aggregates `document_fetch_sessions` per provider and document key.
 - `src/api/admin.ts` + `src/api/router.ts`: one new admin route.
 - `web/src/components/admin/`: new `AdminSiteAccess.tsx`, a new `siteAccess` screen in `route.ts`, a new tab in `AdminDashboard.tsx`, Hebrew labels in `i18n.tsx`, `api.ts` client call.
-- No migration: everything is derived from existing `tax_fetch_sessions` columns (`provider`, `document_keys`, `status`, `error`, `created_at`, `updated_at`).
+- No migration: everything is derived from existing `document_fetch_sessions` columns (`provider`, `document_keys`, `status`, `error`, `created_at`, `updated_at`).
 - `docs/agents.md`: one paragraph on the new admin screen.

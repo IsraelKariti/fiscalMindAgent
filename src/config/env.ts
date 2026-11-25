@@ -180,14 +180,14 @@ const EnvSchema = z.object({
   // Tax-authority document fetch (browser automation). When true, the mock
   // provider is used instead of driving a real browser — every real login sends
   // an OTP email to a real citizen, so iterate on the mock. Default false.
-  TAX_FETCH_MOCK: z.coerce.boolean().default(false),
+  DOCUMENT_FETCH_MOCK: z.coerce.boolean().default(false),
   // How long a live browser session waits for the client's OTP before it is
   // closed and the fetch is marked expired (ms). Default 10 minutes.
-  TAX_FETCH_SESSION_TTL_MS: z.coerce.number().int().positive().default(600_000),
+  DOCUMENT_FETCH_SESSION_TTL_MS: z.coerce.number().int().positive().default(600_000),
   // Browser-runner sidecar (src/browserRunner.ts): the worker never drives
   // Chrome itself — real fetches go over HTTP to this separate process, which
   // holds no platform secrets, so a browser compromise can't reach them.
-  // (TAX_FETCH_DEBUG_DIR is read by the runner, not here.)
+  // (DOCUMENT_FETCH_DEBUG_DIR is read by the runner, not here.)
   BROWSER_RUNNER_URL: z
     .string()
     .url()
@@ -201,22 +201,37 @@ const EnvSchema = z.object({
   // Instance per session in the Israel Central egress subnet — the tax
   // authority drops non-Israeli source IPs, so browsers must exit through the
   // verified NAT IP there (aciSessionPool.ts).
-  TAX_FETCH_RUNNER_MODE: z.enum(['static', 'aci']).default('static'),
+  DOCUMENT_FETCH_RUNNER_MODE: z.enum(['static', 'aci']).default('static'),
   // aci mode only; all validated together on first use (aciSessionPool.ts).
-  TAX_FETCH_ACI_SUBSCRIPTION_ID: z.string().optional(),
-  TAX_FETCH_ACI_RESOURCE_GROUP: z.string().optional(),
-  TAX_FETCH_ACI_SUBNET_ID: z.string().optional(),
-  TAX_FETCH_ACI_IMAGE: z.string().optional(),
-  TAX_FETCH_ACI_ACR_IDENTITY_ID: z.string().optional(),
-  TAX_FETCH_ACI_LOCATION: z.string().default('israelcentral'),
+  DOCUMENT_FETCH_ACI_SUBSCRIPTION_ID: z.string().optional(),
+  DOCUMENT_FETCH_ACI_RESOURCE_GROUP: z.string().optional(),
+  DOCUMENT_FETCH_ACI_SUBNET_ID: z.string().optional(),
+  DOCUMENT_FETCH_ACI_IMAGE: z.string().optional(),
+  DOCUMENT_FETCH_ACI_ACR_IDENTITY_ID: z.string().optional(),
+  DOCUMENT_FETCH_ACI_LOCATION: z.string().default('israelcentral'),
   // Cap on fetches in flight. Unset: 3 in static mode (real Chromes on one
   // small runner), 100 in aci mode (each session is its own container; the
   // effective bound is the ACI container-group quota).
-  TAX_FETCH_MAX_LIVE_SESSIONS: z.coerce.number().int().positive().optional(),
-  // How long fetch step evidence (debug/taxfetch/ blobs: every step's
+  DOCUMENT_FETCH_MAX_LIVE_SESSIONS: z.coerce.number().int().positive().optional(),
+  // How long fetch step evidence (debug/documentfetch/ blobs: every step's
   // screenshot, HTML, snapshot and record, of successful and failed sessions
   // alike) is kept before the daily cleanup job deletes it. Default 14 days.
-  TAX_FETCH_DEBUG_RETENTION_DAYS: z.coerce.number().int().positive().default(14),
+  DOCUMENT_FETCH_DEBUG_RETENTION_DAYS: z.coerce.number().int().positive().default(14),
 });
 
-export const env = EnvSchema.parse(process.env);
+/**
+ * The DOCUMENT_FETCH_* variables were called TAX_FETCH_* until 2026-11-25. An
+ * environment that still sets the old name is read under the new one, so a
+ * deploy never depends on the app settings being renamed first.
+ */
+export function withRenamedFetchVars(source: Record<string, string | undefined>): Record<string, string | undefined> {
+  const out = { ...source };
+  for (const [key, value] of Object.entries(source)) {
+    if (!key.startsWith('TAX_FETCH_')) continue;
+    const renamed = `DOCUMENT_FETCH_${key.slice('TAX_FETCH_'.length)}`;
+    if (out[renamed] === undefined) out[renamed] = value;
+  }
+  return out;
+}
+
+export const env = EnvSchema.parse(withRenamedFetchVars(process.env));

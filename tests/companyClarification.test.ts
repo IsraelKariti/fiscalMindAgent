@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { companyAppearsInQuote, companyRename, rowCompanyUnknown, sitesForUnnamedRow } from '../src/agents/declarationOfCapital/companyClarification.js';
 import { buildDocumentsSection } from '../src/agents/declarationOfCapital/prompt.js';
-import { listProviderSpecs } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
+import { listProviderSpecs } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
 import { compareCompanies } from '../src/agents/declarationOfCapital/institutions.js';
 import { DecisionRejectedError, type DecisionContext, type DecisionResponse, type IntakeDecisionState } from '../src/agents/declarationOfCapital/decisionSchema.js';
 import { gateDecision } from '../src/agents/declarationOfCapital/decisionTools.js';
@@ -148,9 +148,9 @@ describe('the set_company gate (validate_message)', () => {
     whatsapp_text: 'תוכן',
     whatsapp_template: null,
     send_at: 'asap',
-    tax_fetch_action: null,
-    tax_fetch_provider: null,
-    tax_fetch_document_keys: null,
+    document_fetch_action: null,
+    document_fetch_provider: null,
+    document_fetch_document_keys: null,
     resolved_documents: null,
     added_instances: null,
     retired_documents: null,

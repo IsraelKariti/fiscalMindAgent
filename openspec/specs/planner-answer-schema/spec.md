@@ -33,7 +33,7 @@ Before each planner call the code SHALL build the request schema from the full a
 
 #### Scenario: Capital declaration without a fetch offer
 - **WHEN** the planner runs for a capital-declaration client to whom no fetch provider is offered
-- **THEN** the request schema has no `tax_fetch_action`, `tax_fetch_provider` or `tax_fetch_document_keys`, and the parsed answer still has those three fields as null
+- **THEN** the request schema has no `document_fetch_action`, `document_fetch_provider` or `document_fetch_document_keys`, and the parsed answer still has those three fields as null
 
 #### Scenario: Message fields never removed
 - **WHEN** the planner runs for any client

@@ -40,13 +40,13 @@ const OTP_PATTERN = /\b(\d[\d\s-]{2,}\d)\b/;
 
 /**
  * Historical OTPs: inbound WhatsApp replies sent within 30 minutes of a
- * tax-fetch session requesting an OTP. The window keeps the sweep from
+ * document-fetch session requesting an OTP. The window keeps the sweep from
  * touching unrelated digit-bearing messages (amounts, phone numbers).
  */
 async function redactHistoricalOtps(pool: Pool): Promise<void> {
   const { rows } = await pool.query<{ id: string; body: string }>(
     `SELECT DISTINCT e.id, e.body FROM emails e
-     JOIN tax_fetch_sessions s ON s.client_id = e.client_id
+     JOIN document_fetch_sessions s ON s.client_id = e.client_id
      WHERE e.direction = 'inbound' AND e.channel = 'whatsapp'
        AND s.otp_requested_at IS NOT NULL
        AND COALESCE(e.sent_at, e.created_at)

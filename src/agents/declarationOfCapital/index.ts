@@ -6,7 +6,7 @@ import { messageScreenText, screenInboundMessage, screenMessageRow } from './scr
 import { reverifyCollected } from './outageReverify.js';
 import { buildRouter } from './router.js';
 import { catalogSeedRows } from './catalog.js';
-import { maybeHandleOtpInbound } from './taxFetch/inboundOtp.js';
+import { maybeHandleOtpInbound } from './documentFetch/inboundOtp.js';
 import { startCollectionWindow } from './collectionWindow.js';
 import { handleClientDecline, inboundMessageBody, isDeclineButton } from './clientDecline.js';
 import { withClientLock } from '../../db/withClientLock.js';

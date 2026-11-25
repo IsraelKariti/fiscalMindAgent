@@ -2,7 +2,7 @@
  * Manual, one-off validation of the Phoenix browser port against the REAL
  * site (openspec `phoenix-fetch`). Every run sends a real SMS code to the
  * phone you pass, so use it only with that person's consent — iterate on the
- * mock (TAX_FETCH_MOCK=true) for everything else.
+ * mock (DOCUMENT_FETCH_MOCK=true) for everything else.
  *
  *   npx tsx scripts/phoenixFetchSmoke.ts <idNumber> <phone> [taxYear] [keys]
  *

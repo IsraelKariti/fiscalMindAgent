@@ -2,7 +2,7 @@
  * Manual, one-off validation of the Menora Mivtachim browser port against the
  * REAL site (openspec `menora-fetch`). Every run makes Menora send a real SMS
  * code to the phone given, so use it only with that person's consent —
- * iterate on the mock (TAX_FETCH_MOCK=true) for everything else.
+ * iterate on the mock (DOCUMENT_FETCH_MOCK=true) for everything else.
  *
  *   npx tsx scripts/menoraFetchSmoke.ts <idNumber> <phone> [taxYear] [keys]
  *

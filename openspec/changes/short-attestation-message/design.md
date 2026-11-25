@@ -3,7 +3,7 @@
 - The closing summary is written by the planner model. Its content is governed by `prompt.md` action 3 ("אישור סופיות") and by the WhatsApp drafting rules that call the summary "the one long exception". The INTAKE STATUS block (`buildIntakeSection`, `prompt.ts`) tells the model when the next message must be the summary.
 - The attestation gate (`validateAttestation` in `decisionSchema.ts`) and the evidence rules are code and stay untouched.
 - Goal completion has two paths: the planner cycle (`completeGoalIfDone`, `plan.ts`) and the manual documents toggle (`onDocumentsChanged`, `router.ts`). Both email the accountant via `sendGoalCompleteEmail`; neither sends anything to the client. Once `goal_status` is `complete`, `setFutureEmail`, the send worker and the review approve route all refuse to act — so a closing message cannot be a normal scheduled draft.
-- `sendWhatsAppTextAndRecord` (`src/twilio/sendAndRecord.ts`) sends a free-form WhatsApp text and stores it as a sent outbound row in `emails`; the tax-fetch progress messages already use it. The 24h window state comes from `getWaChannelState` (`plan.ts`).
+- `sendWhatsAppTextAndRecord` (`src/twilio/sendAndRecord.ts`) sends a free-form WhatsApp text and stores it as a sent outbound row in `emails`; the document-fetch progress messages already use it. The 24h window state comes from `getWaChannelState` (`plan.ts`).
 
 ## Goals / Non-Goals
 

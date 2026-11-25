@@ -5,7 +5,7 @@
  * runner that answers with anything else.
  *
  * Bump this on ANY breaking change to the session endpoints' request or
- * response shapes (src/browserRunner/server.ts ↔ taxFetch/fetchClient.ts).
+ * response shapes (src/browserRunner/server.ts ↔ documentFetch/fetchClient.ts).
  * History: 1 = flat idNumber/userCode login body (images v1/v2); 2 = nested
  * provider-keyed `credentials` record (2026-07-26, commit a578dad) — the
  * unversioned skew that broke prod fetches on 2026-08-01; 3 = 502 error bodies

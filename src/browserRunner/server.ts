@@ -59,7 +59,7 @@ function touchEvidence(sessionId: string, collector: StepCollector): void {
   const timer = setTimeout(() => {
     evidence.delete(sessionId);
     logger.info('browser runner: evidence of a finished session released', { sessionId });
-  }, runnerEnv.TAX_FETCH_SESSION_TTL_MS + BACKSTOP_GRACE_MS);
+  }, runnerEnv.DOCUMENT_FETCH_SESSION_TTL_MS + BACKSTOP_GRACE_MS);
   timer.unref?.();
   evidence.set(sessionId, { collector, timer });
 }
@@ -80,7 +80,7 @@ function armBackstop(sessionId: string): NodeJS.Timeout {
   return setTimeout(() => {
     logger.info('browser runner: backstop TTL closed orphaned session', { sessionId });
     void closeSession(sessionId);
-  }, runnerEnv.TAX_FETCH_SESSION_TTL_MS + BACKSTOP_GRACE_MS);
+  }, runnerEnv.DOCUMENT_FETCH_SESSION_TTL_MS + BACKSTOP_GRACE_MS);
 }
 
 function buildAuthMiddleware(): (req: Request, res: Response, next: NextFunction) => void {

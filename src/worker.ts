@@ -4,7 +4,7 @@ import { createSendEmailWorker } from './queue/sendEmailWorker.js';
 import { resyncScheduledJobs } from './queue/resyncScheduledJobs.js';
 import { createOverdueScanWorker, ensureOverdueScanScheduler } from './queue/overdueScanWorker.js';
 import { createClientImportScanWorker, ensureClientImportScanScheduler } from './queue/clientImportScanWorker.js';
-import { createTaxFetchWorker, sweepOrphanedTaxFetchSessions } from './queue/taxFetchWorker.js';
+import { createDocumentFetchWorker, sweepOrphanedDocumentFetchSessions } from './queue/documentFetchWorker.js';
 import { createAnomalyScanWorker, ensureAnomalyScanScheduler } from './queue/anomalyScanWorker.js';
 import { createDebugCleanupWorker, ensureDebugCleanupScheduler } from './queue/debugCleanupWorker.js';
 import { createReplanWorker, recoverLostReplans } from './queue/replanWorker.js';
@@ -66,10 +66,10 @@ await ensureDebugCleanupScheduler();
 const debugCleanupWorker = createDebugCleanupWorker();
 logger.info('debug_cleanup worker started');
 
-const taxFetchWorker = createTaxFetchWorker();
-logger.info('tax_fetch worker started');
+const documentFetchWorker = createDocumentFetchWorker();
+logger.info('document_fetch worker started');
 // Any live-browser session in the DB was orphaned by the last restart (pages are in-memory).
-sweepOrphanedTaxFetchSessions().catch((err) => logger.error('boot tax-fetch sweep failed', err));
+sweepOrphanedDocumentFetchSessions().catch((err) => logger.error('boot document-fetch sweep failed', err));
 
 async function shutdown(): Promise<void> {
   logger.info('shutting down worker...');
@@ -81,7 +81,7 @@ async function shutdown(): Promise<void> {
     clientImportScanWorker.close(),
     anomalyScanWorker.close(),
     debugCleanupWorker.close(),
-    taxFetchWorker.close(),
+    documentFetchWorker.close(),
   ]);
   process.exit(0);
 }

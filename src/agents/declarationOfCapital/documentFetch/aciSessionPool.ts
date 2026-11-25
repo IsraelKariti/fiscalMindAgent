@@ -6,7 +6,7 @@ import { logger } from '../../../util/logger.js';
 import { FetchAtCapacityError } from './types.js';
 
 /**
- * Container-per-session pool for tax fetches (TAX_FETCH_RUNNER_MODE=aci).
+ * Container-per-session pool for document fetches (DOCUMENT_FETCH_RUNNER_MODE=aci).
  * Each session gets its own throwaway Azure Container Instance running the
  * browser-runner image, created in the Israel Central egress subnet — the tax
  * authority drops non-Israeli source IPs, and that subnet's NAT gateway holds
@@ -16,8 +16,8 @@ import { FetchAtCapacityError } from './types.js';
  * backstop for containers orphaned by a crash between jobs.
  */
 
-const GROUP_PREFIX = 'taxfetch-';
-const ROLE_TAG = 'fiscalmind-tax-fetch-session';
+const GROUP_PREFIX = 'documentfetch-';
+const ROLE_TAG = 'fiscalmind-document-fetch-session';
 const CREATED_AT_TAG = 'fm-created-at';
 const RUNNER_PORT = 4100;
 // Provisioning + image pull (same-region ACR) + Chrome boot. Generous: a cold
@@ -45,16 +45,16 @@ function requireConfig(): AciConfig {
     return value ?? '';
   };
   const cfg: AciConfig = {
-    subscriptionId: need('TAX_FETCH_ACI_SUBSCRIPTION_ID', env.TAX_FETCH_ACI_SUBSCRIPTION_ID),
-    resourceGroup: need('TAX_FETCH_ACI_RESOURCE_GROUP', env.TAX_FETCH_ACI_RESOURCE_GROUP),
-    subnetId: need('TAX_FETCH_ACI_SUBNET_ID', env.TAX_FETCH_ACI_SUBNET_ID),
-    image: need('TAX_FETCH_ACI_IMAGE', env.TAX_FETCH_ACI_IMAGE),
-    acrIdentityId: need('TAX_FETCH_ACI_ACR_IDENTITY_ID', env.TAX_FETCH_ACI_ACR_IDENTITY_ID),
-    location: env.TAX_FETCH_ACI_LOCATION,
+    subscriptionId: need('DOCUMENT_FETCH_ACI_SUBSCRIPTION_ID', env.DOCUMENT_FETCH_ACI_SUBSCRIPTION_ID),
+    resourceGroup: need('DOCUMENT_FETCH_ACI_RESOURCE_GROUP', env.DOCUMENT_FETCH_ACI_RESOURCE_GROUP),
+    subnetId: need('DOCUMENT_FETCH_ACI_SUBNET_ID', env.DOCUMENT_FETCH_ACI_SUBNET_ID),
+    image: need('DOCUMENT_FETCH_ACI_IMAGE', env.DOCUMENT_FETCH_ACI_IMAGE),
+    acrIdentityId: need('DOCUMENT_FETCH_ACI_ACR_IDENTITY_ID', env.DOCUMENT_FETCH_ACI_ACR_IDENTITY_ID),
+    location: env.DOCUMENT_FETCH_ACI_LOCATION,
     runnerToken: need('BROWSER_RUNNER_TOKEN', env.BROWSER_RUNNER_TOKEN),
   };
   if (missing.length > 0) {
-    throw new Error(`TAX_FETCH_RUNNER_MODE=aci but missing env: ${missing.join(', ')}`);
+    throw new Error(`DOCUMENT_FETCH_RUNNER_MODE=aci but missing env: ${missing.join(', ')}`);
   }
   return cfg;
 }
@@ -95,7 +95,7 @@ export async function provisionSessionContainer(sessionId: string): Promise<stri
           ports: [{ port: RUNNER_PORT, protocol: 'TCP' }],
           environmentVariables: [
             { name: 'BROWSER_RUNNER_TOKEN', secureValue: cfg.runnerToken },
-            { name: 'TAX_FETCH_SESSION_TTL_MS', value: String(env.TAX_FETCH_SESSION_TTL_MS) },
+            { name: 'DOCUMENT_FETCH_SESSION_TTL_MS', value: String(env.DOCUMENT_FETCH_SESSION_TTL_MS) },
           ],
         },
       ],
@@ -115,7 +115,7 @@ export async function provisionSessionContainer(sessionId: string): Promise<stri
     throw err;
   }
   ipCache.set(name, ip);
-  logger.info('tax fetch: session container ready', { sessionId, group: name, ip });
+  logger.info('document fetch: session container ready', { sessionId, group: name, ip });
   return baseUrlOf(ip);
 }
 
@@ -146,7 +146,7 @@ export async function teardownSessionContainer(sessionId: string): Promise<void>
     await arm(cfg).containerGroups.beginDeleteAndWait(cfg.resourceGroup, name);
   } catch (err) {
     if (!isNotFound(err)) {
-      logger.warn('tax fetch: session container delete failed', { sessionId, group: name, reason: errText(err) });
+      logger.warn('document fetch: session container delete failed', { sessionId, group: name, reason: errText(err) });
     }
   }
 }
@@ -156,9 +156,9 @@ export async function teardownSessionContainer(sessionId: string): Promise<void>
  * jobs, teardown call lost). Runs at boot and on an interval in aci mode.
  */
 export async function sweepOrphanedSessionContainers(): Promise<void> {
-  if (env.TAX_FETCH_RUNNER_MODE !== 'aci') return;
+  if (env.DOCUMENT_FETCH_RUNNER_MODE !== 'aci') return;
   const cfg = requireConfig();
-  const cutoff = Date.now() - (env.TAX_FETCH_SESSION_TTL_MS + ORPHAN_GRACE_MS);
+  const cutoff = Date.now() - (env.DOCUMENT_FETCH_SESSION_TTL_MS + ORPHAN_GRACE_MS);
   let reaped = 0;
   for await (const group of arm(cfg).containerGroups.listByResourceGroup(cfg.resourceGroup)) {
     if (group.tags?.['fm-role'] !== ROLE_TAG || !group.name) continue;
@@ -169,10 +169,10 @@ export async function sweepOrphanedSessionContainers(): Promise<void> {
       await arm(cfg).containerGroups.beginDeleteAndWait(cfg.resourceGroup, group.name);
       reaped += 1;
     } catch (err) {
-      logger.warn('tax fetch: orphan container delete failed', { group: group.name, reason: errText(err) });
+      logger.warn('document fetch: orphan container delete failed', { group: group.name, reason: errText(err) });
     }
   }
-  if (reaped > 0) logger.info('tax fetch: reaped orphaned session containers', { count: reaped });
+  if (reaped > 0) logger.info('document fetch: reaped orphaned session containers', { count: reaped });
 }
 
 async function waitForRunner(baseUrl: string): Promise<void> {

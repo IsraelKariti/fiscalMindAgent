@@ -24,7 +24,7 @@ import * as clients from '../../db/queries/clients.js';
 import * as mondayOauthTokens from '../../db/queries/mondayOauthTokens.js';
 import { fetchItemDetails } from '../shared/mondayData.js';
 import { crmIdNumber } from './crmIdentity.js';
-import { clientIdNumber, type ClientIdOnFile } from './taxFetch/clientId.js';
+import { clientIdNumber, type ClientIdOnFile } from './documentFetch/clientId.js';
 import { mergeSpouse, readMaritalStatus, readSpouse, spouseToStored } from './spouseIdentity.js';
 import { maskId } from '../shared/gateChecks.js';
 import type { AgentInstanceRow, ClientRow, ClientDocumentRow } from '../../db/types.js';

@@ -138,7 +138,7 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
       });
     }, linkCss)) as LinkInfo[];
     if (links.length === 0) throw new Error(`no Form 106 links found for year ${year}`);
-    logger.info('tax fetch: form-106 links found', {
+    logger.info('document fetch: form-106 links found', {
       year,
       employers: links.filter((l) => l.kind === 'form106').length,
       summaries: links.filter((l) => l.kind === 'salary_summary').length,
@@ -162,7 +162,7 @@ export const israelTaxAuthorityProvider: DocumentFetchProvider = {
       usedFilenames.add(filename);
 
       docs.push({ buffer: captured.buffer, filename, contentType: 'application/pdf', employerName: info.employerName, kind: info.kind });
-      logger.info('tax fetch: document captured', { year, kind: info.kind, employerName: info.employerName, bytes: captured.buffer.length });
+      logger.info('document fetch: document captured', { year, kind: info.kind, employerName: info.employerName, bytes: captured.buffer.length });
       await debugShot(page, `taxes-09-after-download-${i + 1}`);
     }
     return docs;

@@ -1,13 +1,13 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
-import * as taxFetchSessions from '../db/queries/taxFetchSessions.js';
+import * as documentFetchSessions from '../db/queries/documentFetchSessions.js';
 import {
   evidenceKey,
   evidencePrefixFor,
   groupEvidenceKeys,
   listSessionEvidence,
   type EvidenceFile,
-} from '../agents/declarationOfCapital/taxFetch/stepEvidence.js';
+} from '../agents/declarationOfCapital/documentFetch/stepEvidence.js';
 import { downloadBlob, listBlobs } from '../storage/blob.js';
 
 /**
@@ -21,14 +21,14 @@ import { downloadBlob, listBlobs } from '../storage/blob.js';
 const PART_SCHEMA = z.enum(['screenshot', 'html', 'mhtml', 'record']);
 
 /**
- * GET /api/admin/tax-fetch/:sessionId/evidence — the session's summary and
+ * GET /api/admin/document-fetch/:sessionId/evidence — the session's summary and
  * its stored steps in order. An unknown session is "not found"; a known
  * session without evidence answers an empty step list (the UI says "no
  * evidence kept").
  */
 export const adminGetFetchEvidence: RequestHandler = async (req, res) => {
   const id = z.string().uuid().safeParse(req.params.sessionId);
-  const session = id.success ? await taxFetchSessions.getById(id.data) : null;
+  const session = id.success ? await documentFetchSessions.getById(id.data) : null;
   if (!session) {
     res.status(404).json({ error: 'Session not found.' });
     return;
@@ -92,7 +92,7 @@ function headersFor(part: EvidenceFile, as: 'view' | 'download', filename: strin
 const EXT: Record<EvidenceFile, string> = { screenshot: 'png', html: 'html', mhtml: 'mhtml', record: 'json' };
 
 /**
- * GET /api/admin/tax-fetch/:sessionId/evidence/:seq/:part?as=view|download —
+ * GET /api/admin/document-fetch/:sessionId/evidence/:seq/:part?as=view|download —
  * one evidence file. The blob key is built server-side from the session's
  * own listing; the request names only a step number and a part from the
  * allowlist, so no path from the browser ever reaches storage.
@@ -102,7 +102,7 @@ export const adminServeFetchEvidence: RequestHandler = async (req, res) => {
   const seq = z.coerce.number().int().min(1).max(999).safeParse(req.params.seq);
   const part = PART_SCHEMA.safeParse(req.params.part);
   const as = req.query['as'] === 'download' ? 'download' : 'view';
-  const session = id.success && seq.success && part.success ? await taxFetchSessions.getById(id.data) : null;
+  const session = id.success && seq.success && part.success ? await documentFetchSessions.getById(id.data) : null;
   if (!session || !seq.success || !part.success) {
     res.status(404).json({ error: 'Evidence not found.' });
     return;

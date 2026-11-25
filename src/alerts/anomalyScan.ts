@@ -71,12 +71,12 @@ export async function runAnomalyScan(): Promise<void> {
     });
   }
 
-  // 3. Repeated tax-fetch failures platform-wide (broken automation, a changed
+  // 3. Repeated document-fetch failures platform-wide (broken automation, a changed
   //    tax-authority site, or someone probing the OTP flow).
-  const taxFailures = await auditEvents.countActionSince('tax_fetch.failed', hourAgo);
+  const taxFailures = await auditEvents.countActionSince('document_fetch.failed', hourAgo);
   if (taxFailures >= 3) {
     await raiseAlert({
-      rule: 'tax_fetch_failures',
+      rule: 'document_fetch_failures',
       severity: 'critical',
       title: `כשלונות חוזרים במשיכה מרשות המסים — ${taxFailures} בשעה האחרונה`,
       detail: { failures: taxFailures },
@@ -85,7 +85,7 @@ export async function runAnomalyScan(): Promise<void> {
 
   // 4. Tax-authority logins at odd local hours — each one fires a real OTP email,
   //    and the normal conversational flow doesn't produce 3am logins.
-  const logins = await auditEvents.listActionSince('tax_fetch.login_started', hourAgo);
+  const logins = await auditEvents.listActionSince('document_fetch.login_started', hourAgo);
   const offHours = evaluateOffHours(
     logins.map((l) => ({ occurredAt: l.occurred_at, key: l.agent_instance_id })),
     env.ACCOUNTANT_TIMEZONE,

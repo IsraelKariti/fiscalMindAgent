@@ -1,6 +1,6 @@
 // Dev launcher for the browser-runner sidecar (src/browserRunner.ts). Skips
-// cleanly when BROWSER_RUNNER_TOKEN isn't set — mock-mode tax fetches
-// (TAX_FETCH_MOCK=true) never need the runner.
+// cleanly when BROWSER_RUNNER_TOKEN isn't set — mock-mode document fetches
+// (DOCUMENT_FETCH_MOCK=true) never need the runner.
 //
 // The child is spawned with every .env-sourced variable STRIPPED except the
 // runner's own: the whole point of the sidecar is that the process driving
@@ -14,14 +14,14 @@ import { parse } from 'dotenv';
 const RUNNER_KEYS = new Set([
   'BROWSER_RUNNER_PORT',
   'BROWSER_RUNNER_TOKEN',
-  'TAX_FETCH_SESSION_TTL_MS',
-  'TAX_FETCH_DEBUG_DIR',
+  'DOCUMENT_FETCH_SESSION_TTL_MS',
+  'DOCUMENT_FETCH_DEBUG_DIR',
 ]);
 
 const fileVars = existsSync('.env') ? parse(readFileSync('.env')) : {};
 
 if (!(process.env.BROWSER_RUNNER_TOKEN ?? fileVars.BROWSER_RUNNER_TOKEN)) {
-  console.error('devBrowserRunner: BROWSER_RUNNER_TOKEN is not set in .env — skipping the browser runner (mock-mode tax fetches do not need it).');
+  console.error('devBrowserRunner: BROWSER_RUNNER_TOKEN is not set in .env — skipping the browser runner (mock-mode document fetches do not need it).');
   process.exit(0);
 }
 

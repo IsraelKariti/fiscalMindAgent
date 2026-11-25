@@ -1,14 +1,14 @@
 ## Why
 
-Every planner cycle ends with a scheduled WhatsApp draft, and every client reply, file verification, tax fetch or admin action throws that draft away and drafts again. Each thrown-away draft cost one or more planner calls, but nothing today counts them, so nobody can see how much money dies in discarded drafts, why they are discarded, or how long they lived before they died.
+Every planner cycle ends with a scheduled WhatsApp draft, and every client reply, file verification, document fetch or admin action throws that draft away and drafts again. Each thrown-away draft cost one or more planner calls, but nothing today counts them, so nobody can see how much money dies in discarded drafts, why they are discarded, or how long they lived before they died.
 
 ## What Changes
 
-- An outbound draft remembers what started its planning cycle (a client message, the agent's own sent message, a file verification, a tax fetch, the kickoff, an admin action...), its planned send time, and when and why it was discarded (new `emails` columns, migration 076). Every discard path stamps the row through the one cancel function; old rows are backfilled from the audit trail and the thread.
+- An outbound draft remembers what started its planning cycle (a client message, the agent's own sent message, a file verification, a document fetch, the kickoff, an admin action...), its planned send time, and when and why it was discarded (new `emails` columns, migration 076). Every discard path stamps the row through the one cancel function; old rows are backfilled from the audit trail and the thread.
 - Every LLM call made inside one planning cycle carries that cycle's id (new `llm_calls.plan_run_id`), and the draft the cycle scheduled carries the same id, so the cost of a draft is the sum of its cycle's calls.
 - The workspace Settings view gets an admin-only **analytics** tab ("ניתוח"), after the test tab, visible only while an admin views as the accountant. It shows, for the agent instance and a chosen date range:
   - headline tiles: drafts written, sent, discarded, discard rate, money spent on discarded drafts, money spent on all drafts, waste share;
-  - discards by reason (client reply, file verification, tax fetch, admin redraft/pause/resume, client declined, goal change, channel change, client deleted, unknown);
+  - discards by reason (client reply, file verification, document fetch, admin redraft/pause/resume, client declined, goal change, channel change, client deleted, unknown);
   - drafts by trigger: for each thing that started a cycle (client message, agent message sent, file verification, ...) how many drafts were written, sent and discarded, the discard rate, the discarded cost and the most common discard reason;
   - lifetime of discarded drafts: median and average time alive, time alive as a share of the planned wait, and a wait curve (share of client-reply discards avoided by a wait of X seconds, with the current wait marked);
   - a weekly trend of drafted vs discarded counts and cost;

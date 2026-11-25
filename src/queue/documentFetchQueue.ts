@@ -1,10 +1,10 @@
 import { Queue } from 'bullmq';
 import { bullOpts } from './connection.js';
 
-export const TAX_FETCH_QUEUE_NAME = 'tax_fetch';
+export const DOCUMENT_FETCH_QUEUE_NAME = 'document_fetch';
 
 /** One step of a tax-authority fetch, executed in the worker (it owns the browser). */
-export type TaxFetchJob =
+export type DocumentFetchJob =
   | {
       kind: 'start_login';
       sessionId: string;
@@ -22,10 +22,10 @@ export type TaxFetchJob =
     }
   | { kind: 'cancel'; sessionId: string };
 
-export const taxFetchQueue = new Queue<TaxFetchJob>(TAX_FETCH_QUEUE_NAME, { ...bullOpts });
+export const documentFetchQueue = new Queue<DocumentFetchJob>(DOCUMENT_FETCH_QUEUE_NAME, { ...bullOpts });
 
-export async function enqueueTaxFetch(job: TaxFetchJob, opts: { delayMs?: number } = {}): Promise<void> {
-  await taxFetchQueue.add(job.kind, job, {
+export async function enqueueDocumentFetch(job: DocumentFetchJob, opts: { delayMs?: number } = {}): Promise<void> {
+  await documentFetchQueue.add(job.kind, job, {
     removeOnComplete: true,
     removeOnFail: 100,
     ...(opts.delayMs && opts.delayMs > 0 ? { delay: opts.delayMs } : {}),

@@ -18,12 +18,12 @@ import {
 } from './types.js';
 
 /**
- * How the worker performs a tax-fetch, without ever touching a browser. The
+ * How the worker performs a document-fetch, without ever touching a browser. The
  * real implementation talks HTTP to the browser-runner sidecar
  * (src/browserRunner.ts), which holds no platform secrets; the mock stays fully
- * in-process (TAX_FETCH_MOCK=true — no runner needed).
+ * in-process (DOCUMENT_FETCH_MOCK=true — no runner needed).
  */
-export interface TaxFetchClient {
+export interface DocumentFetchClient {
   /** Launches the login; on return the remote page sits on the OTP screen. */
   startLogin(sessionId: string, provider: string, credentials: PortalCredentials): Promise<void>;
   /** Submits the OTP. Throws OtpRejectedError (retryable) or SessionGoneError. */
@@ -118,12 +118,12 @@ async function assertRunnerProtocol(baseUrl: string, fetchImpl: typeof fetch = f
     throw new Error(
       `browser runner speaks protocol ${typeof version === 'number' ? version : 'pre-versioning'}, ` +
         `worker expects ${RUNNER_PROTOCOL_VERSION} — rebuild the fiscalmind-browser image from this commit ` +
-        `and update TAX_FETCH_ACI_IMAGE (deploy.yml does this on prod deploys)`,
+        `and update DOCUMENT_FETCH_ACI_IMAGE (deploy.yml does this on prod deploys)`,
     );
   }
 }
 
-export class HttpTaxFetchClient implements TaxFetchClient {
+export class HttpDocumentFetchClient implements DocumentFetchClient {
   private readonly fetchImpl: typeof fetch;
   private readonly sink: EvidenceSink;
   private readonly token: () => string | undefined;
@@ -181,7 +181,7 @@ export class HttpTaxFetchClient implements TaxFetchClient {
         this.pulled.set(sessionId, Math.max(this.pulled.get(sessionId) ?? 0, record.seq));
       }
     } catch (err) {
-      logger.warn('tax fetch: evidence pull failed', { sessionId, reason: String(err) });
+      logger.warn('document fetch: evidence pull failed', { sessionId, reason: String(err) });
     }
     return stored;
   }
@@ -195,7 +195,7 @@ export class HttpTaxFetchClient implements TaxFetchClient {
       const bytes = Buffer.from(await res.arrayBuffer());
       return bytes.length === 0 || bytes.length > MAX_EVIDENCE_PART_BYTES ? null : bytes;
     } catch (err) {
-      logger.warn('tax fetch: evidence part pull failed', { sessionId, seq, part, reason: String(err) });
+      logger.warn('document fetch: evidence part pull failed', { sessionId, seq, part, reason: String(err) });
       return null;
     }
   }
@@ -312,21 +312,21 @@ export class HttpTaxFetchClient implements TaxFetchClient {
     try {
       await this.request(sessionId, `/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
     } catch (err) {
-      logger.warn('tax fetch: closing runner session failed', { sessionId, reason: String(err) });
+      logger.warn('document fetch: closing runner session failed', { sessionId, reason: String(err) });
     }
     this.forget(sessionId);
   }
 }
 
 /**
- * Container-per-session client (TAX_FETCH_RUNNER_MODE=aci): provisions an
+ * Container-per-session client (DOCUMENT_FETCH_RUNNER_MODE=aci): provisions an
  * Azure Container Instance in the Israel egress subnet for each session and
  * deletes it when the session ends, so capacity scales per fetch and the tax
  * authority always sees the verified Israeli NAT IP. The in-session HTTP
  * protocol is identical to the static runner's.
  */
-class AciTaxFetchClient implements TaxFetchClient {
-  private readonly http = new HttpTaxFetchClient(async (sessionId) => {
+class AciDocumentFetchClient implements DocumentFetchClient {
+  private readonly http = new HttpDocumentFetchClient(async (sessionId) => {
     const base = await resolveSessionBaseUrl(sessionId);
     if (!base) throw new SessionGoneError();
     return base;
@@ -401,11 +401,11 @@ const MOCK_PDF = Buffer.from(
 
 /**
  * No-browser, no-runner stand-in for iterating on the whole flow without
- * emailing a real citizen an OTP. Enabled by TAX_FETCH_MOCK=true. Accepts any 6-digit
+ * emailing a real citizen an OTP. Enabled by DOCUMENT_FETCH_MOCK=true. Accepts any 6-digit
  * OTP; anything else is rejected like a wrong code so the retry path can be
  * tested.
  */
-class MockTaxFetchClient implements TaxFetchClient {
+class MockDocumentFetchClient implements DocumentFetchClient {
   /** session id → provider, so downloads can mirror each provider's real document shape. */
   private readonly live = new Map<string, string>();
 
@@ -584,11 +584,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const staticClient = new HttpTaxFetchClient(() => env.BROWSER_RUNNER_URL);
-const aciClient = new AciTaxFetchClient();
-const mockClient = new MockTaxFetchClient();
+const staticClient = new HttpDocumentFetchClient(() => env.BROWSER_RUNNER_URL);
+const aciClient = new AciDocumentFetchClient();
+const mockClient = new MockDocumentFetchClient();
 
-export function getFetchClient(): TaxFetchClient {
-  if (env.TAX_FETCH_MOCK) return mockClient;
-  return env.TAX_FETCH_RUNNER_MODE === 'aci' ? aciClient : staticClient;
+export function getFetchClient(): DocumentFetchClient {
+  if (env.DOCUMENT_FETCH_MOCK) return mockClient;
+  return env.DOCUMENT_FETCH_RUNNER_MODE === 'aci' ? aciClient : staticClient;
 }

@@ -102,23 +102,23 @@ export const DecisionResponseSchema = z.object({
   /**
    * Document-fetch step, or null. Which values are valid depends on the current
    * fetch state for the targeted provider (see the prompt's DOCUMENT FETCH
-   * sections and allowedTaxFetchActions below). Offering is not an action:
+   * sections and allowedDocumentFetchActions below). Offering is not an action:
    * offers live in message text only; the machine first hears about a fetch
    * when the client agrees (client_agreed) or a login starts.
    */
-  tax_fetch_action: z.enum(['client_agreed', 'start_login', 'cancel']).nullable(),
+  document_fetch_action: z.enum(['client_agreed', 'start_login', 'cancel']).nullable(),
   /**
-   * Which provider tax_fetch_action targets (a provider id from a DOCUMENT FETCH
+   * Which provider document_fetch_action targets (a provider id from a DOCUMENT FETCH
    * section, e.g. 'israel_tax_authority' / 'altshuler_shaham'). Required whenever
-   * tax_fetch_action is set; null otherwise.
+   * document_fetch_action is set; null otherwise.
    */
-  tax_fetch_provider: z.string().nullable(),
+  document_fetch_provider: z.string().nullable(),
   /**
    * Which of the provider's document types the action covers — the subset the
    * client agreed to (per-document consent), by document-type key. Empty/null
    * means "all of that provider's pending documents".
    */
-  tax_fetch_document_keys: z.array(z.string()).nullable(),
+  document_fetch_document_keys: z.array(z.string()).nullable(),
   /**
    * Capital-declaration intake resolutions (null/empty for other agents): each
    * entry settles one catalog row based on an explicit client statement.
@@ -315,11 +315,11 @@ export type FollowUpMessage =
   | { channel: 'whatsapp'; kind: 'freeform'; body: string }
   | { channel: 'whatsapp'; kind: 'template'; contentSid: string; variables: string[]; renderedBody: string };
 
-export type TaxFetchAction = 'client_agreed' | 'start_login' | 'cancel';
+export type DocumentFetchAction = 'client_agreed' | 'start_login' | 'cancel';
 
 /** A resolved fetch step: the action, the provider it targets, and which document types it covers. */
-export interface TaxFetchDecision {
-  action: TaxFetchAction;
+export interface DocumentFetchDecision {
+  action: DocumentFetchAction;
   provider: string;
   /** Agreed document-type keys (subset of the provider's pending types). */
   documentKeys: string[];
@@ -443,7 +443,7 @@ export type NormalizedDecision =
       reasoning: string;
       collected_document_ids: string[];
       matched_files: MatchedFile[];
-      tax_fetch: null;
+      document_fetch: null;
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
@@ -457,7 +457,7 @@ export type NormalizedDecision =
       reasoning: string;
       collected_document_ids: string[];
       matched_files: MatchedFile[];
-      tax_fetch: TaxFetchDecision | null;
+      document_fetch: DocumentFetchDecision | null;
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
@@ -476,7 +476,7 @@ export type NormalizedDecision =
       collected_document_ids: string[];
       matched_files: MatchedFile[];
       /** Message-bound, so never set on a collecting answer (the follow-up cycle decides it). */
-      tax_fetch: null;
+      document_fetch: null;
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
@@ -496,7 +496,7 @@ export type NormalizedDecision =
       message: FollowUpMessage;
       /** Validated wall-clock datetime in the accountant's timezone. */
       send_at: string;
-      tax_fetch: TaxFetchDecision | null;
+      document_fetch: DocumentFetchDecision | null;
       resolutions: DocumentResolution[];
       addedInstances: InstanceAddition[];
       retired: DocumentRetirement[];
@@ -512,13 +512,13 @@ export type NormalizedDecision =
     };
 
 /** One provider's fetch situation the validator needs: its state, availability, and pending document types. */
-export interface TaxFetchDecisionState {
+export interface DocumentFetchDecisionState {
   provider: string;
   state: string;
   available: boolean;
   /** The conversation is live on WhatsApp (client wrote there in the last 24h) — the hard gate for start_login. */
   clientOnWhatsapp: boolean;
-  /** Document-type keys currently pending (offerable) for this provider — the valid set for tax_fetch_document_keys. */
+  /** Document-type keys currently pending (offerable) for this provider — the valid set for document_fetch_document_keys. */
   documentKeys: string[];
 }
 
@@ -594,7 +594,7 @@ export interface DecisionContext {
   /** The agent type's other templates, not usable for this client, each with the reason (openspec `whatsapp-templates`). */
   hiddenTemplates?: { template: WaTemplateRow; reason: string }[];
   /** Per-provider fetch state; empty/absent when no fetch applies to this client. */
-  taxFetch?: TaxFetchDecisionState[];
+  documentFetch?: DocumentFetchDecisionState[];
   /** Capital-declaration intake state; absent for other agent types. */
   intake?: IntakeDecisionState;
   /**
@@ -607,7 +607,7 @@ export interface DecisionContext {
 }
 
 /**
- * The tax_fetch_action values valid in a given state — the single source of
+ * The document_fetch_action values valid in a given state — the single source of
  * truth shared by the prompt (what to tell the LLM it may do) and the validator
  * (what to reject). Deliberately loose (2026-07-25; 'offered' retired
  * 2026-08-01): offering happens in message text only and is never recorded —
@@ -620,7 +620,7 @@ export interface DecisionContext {
  * WhatsApp — email sender addresses are spoofable, so an email alone must
  * never trigger it.
  */
-export function allowedTaxFetchActions(state: string, available: boolean, clientOnWhatsapp: boolean): string[] {
+export function allowedDocumentFetchActions(state: string, available: boolean, clientOnWhatsapp: boolean): string[] {
   const start = available && clientOnWhatsapp ? ['start_login'] : [];
   switch (state) {
     case 'delivered':
@@ -703,31 +703,31 @@ export function normalizeFollowUpMessage(raw: FollowUpMessageInput, ctx: Decisio
 }
 
 /** Resolves and validates the (provider, action) pair; rejects an action invalid for that provider's state. */
-function validateTaxFetch(raw: DecisionResponse, ctx: DecisionContext): TaxFetchDecision | null {
-  const action = raw.tax_fetch_action;
+function validateDocumentFetch(raw: DecisionResponse, ctx: DecisionContext): DocumentFetchDecision | null {
+  const action = raw.document_fetch_action;
   if (!action) return null;
-  const providerId = raw.tax_fetch_provider;
+  const providerId = raw.document_fetch_provider;
   if (!providerId) {
-    throw new Error(`tax_fetch_action "${action}" set without a tax_fetch_provider`);
+    throw new Error(`document_fetch_action "${action}" set without a document_fetch_provider`);
   }
-  const entry = ctx.taxFetch?.find((t) => t.provider === providerId);
+  const entry = ctx.documentFetch?.find((t) => t.provider === providerId);
   if (!entry) {
-    const known = ctx.taxFetch?.map((t) => t.provider).join(', ') || 'none';
-    throw new Error(`tax_fetch_provider "${providerId}" is not offered to this client (offered: ${known})`);
+    const known = ctx.documentFetch?.map((t) => t.provider).join(', ') || 'none';
+    throw new Error(`document_fetch_provider "${providerId}" is not offered to this client (offered: ${known})`);
   }
-  const allowed = allowedTaxFetchActions(entry.state, entry.available, entry.clientOnWhatsapp);
+  const allowed = allowedDocumentFetchActions(entry.state, entry.available, entry.clientOnWhatsapp);
   if (!allowed.includes(action)) {
     throw new Error(
-      `tax_fetch_action "${action}" not allowed for provider "${providerId}" in state "${entry.state}" (allowed: ${allowed.join(', ') || 'none'})`,
+      `document_fetch_action "${action}" not allowed for provider "${providerId}" in state "${entry.state}" (allowed: ${allowed.join(', ') || 'none'})`,
     );
   }
   // Per-document consent: keep only keys that are actually pending for this
   // provider. Empty/absent means "all pending documents".
-  const requested = raw.tax_fetch_document_keys ?? [];
+  const requested = raw.document_fetch_document_keys ?? [];
   const unknown = requested.filter((k) => !entry.documentKeys.includes(k));
   if (unknown.length > 0) {
     throw new Error(
-      `tax_fetch_document_keys ${JSON.stringify(unknown)} are not pending for provider "${providerId}" (pending: ${entry.documentKeys.join(', ') || 'none'})`,
+      `document_fetch_document_keys ${JSON.stringify(unknown)} are not pending for provider "${providerId}" (pending: ${entry.documentKeys.join(', ') || 'none'})`,
     );
   }
   const documentKeys = requested.length > 0 ? requested : entry.documentKeys;
@@ -1480,7 +1480,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
     const extras = [
       ...filledMessageFields(raw),
       ...(ties ? ['a file tie (mark_collected / tie_file / file_ids)'] : []),
-      ...(raw.tax_fetch_action ? ['tax_fetch'] : []),
+      ...(raw.document_fetch_action ? ['document_fetch'] : []),
       ...(raw.attestation ? ['attestation'] : []),
       ...((raw.resolved_documents ?? []).length > 0 ? ['set_required'] : []),
       ...((raw.added_instances ?? []).length > 0 ? ['add_instance'] : []),
@@ -1500,7 +1500,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       reasoning: raw.reasoning,
       collected_document_ids: [],
       matched_files: [],
-      tax_fetch: null,
+      document_fetch: null,
       resolutions: [],
       addedInstances: [],
       retired: [],
@@ -1529,8 +1529,8 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
         `decision "collect" must carry no message: leave ${filled.join(', ')} null — the reply is written in the next cycle, after the verification of the collected documents`,
       );
     }
-    if (raw.tax_fetch_action) {
-      throw new Error('decision "collect" cannot carry a tax_fetch_action — the next cycle, which writes the message, decides it');
+    if (raw.document_fetch_action) {
+      throw new Error('decision "collect" cannot carry a document_fetch_action — the next cycle, which writes the message, decides it');
     }
     if (raw.attestation === 'request') {
       throw new Error("decision \"collect\" cannot carry attestation 'request' — the next cycle, which writes the message, decides it");
@@ -1540,7 +1540,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       'a follow_up answer must not tie files: collected_document_ids, matched_files or an instance\'s file_ids is filled — answer "collect" (with every message field and send_at null) instead',
     );
   }
-  const taxFetch = validateTaxFetch(raw, ctx);
+  const documentFetch = validateDocumentFetch(raw, ctx);
   const resolutions = validateResolutions(raw, ctx);
   const addedInstances = validateAddedInstances(raw, ctx);
   const retired = validateRetirements(raw, ctx);
@@ -1555,7 +1555,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       reasoning: raw.reasoning,
       collected_document_ids: raw.collected_document_ids,
       matched_files: matchedFiles,
-      tax_fetch: null,
+      document_fetch: null,
       resolutions,
       addedInstances,
       retired,
@@ -1571,7 +1571,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       reasoning: raw.reasoning,
       collected_document_ids: raw.collected_document_ids,
       matched_files: matchedFiles,
-      tax_fetch: taxFetch,
+      document_fetch: documentFetch,
       resolutions,
       addedInstances,
       retired,
@@ -1592,7 +1592,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
     matched_files: matchedFiles,
     message: normalizeFollowUpMessage(raw, ctx),
     send_at: sendAt,
-    tax_fetch: taxFetch,
+    document_fetch: documentFetch,
     resolutions,
     addedInstances,
     retired,

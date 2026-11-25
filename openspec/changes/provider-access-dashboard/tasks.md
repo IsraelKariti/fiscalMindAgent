@@ -1,11 +1,11 @@
 ## 1. Catalog and built status
 
-- [x] 1.1 Add `src/agents/declarationOfCapital/taxFetch/accessCatalog.ts` with `ACCESS_CATALOG` (9 pension, 11 study-fund, 1 other entry; Hebrew names from `institutionsTable.ts`) and `isBuilt(entry)` reading `listProviderSpecs()`; verify with a unit test that exactly Altshuler pension, Altshuler study fund, Harel study fund and the tax authority are built, and that every registered provider id matches a catalog `site`.
+- [x] 1.1 Add `src/agents/declarationOfCapital/documentFetch/accessCatalog.ts` with `ACCESS_CATALOG` (9 pension, 11 study-fund, 1 other entry; Hebrew names from `institutionsTable.ts`) and `isBuilt(entry)` reading `listProviderSpecs()`; verify with a unit test that exactly Altshuler pension, Altshuler study fund, Harel study fund and the tax authority are built, and that every registered provider id matches a catalog `site`.
 
 ## 2. Aggregation
 
 - [x] 2.1 Add `src/db/queries/siteAccess.ts` with the counts aggregate (per provider × document key, including the NULL-key bucket; filter = reached the site; today / last 7 / last 30 by Israel calendar day) and the last-two-finished query; verify with a DB-backed test that seeds sessions (agreed-only, expired with otp_requested_at, delivered yesterday with two keys, failed no-documents) and checks the buckets.
-- [x] 2.2 Add `buildSiteAccessReport()` in `src/agents/declarationOfCapital/taxFetch/siteAccessReport.ts` that joins the catalog, the counts and the health rule (no_data / healthy / warning / failing, no-documents failure = success, NULL keys expanded to all provider products); verify with unit tests for each health scenario in the spec and for the group totals (1/9, 2/11, 1/1 with no sessions).
+- [x] 2.2 Add `buildSiteAccessReport()` in `src/agents/declarationOfCapital/documentFetch/siteAccessReport.ts` that joins the catalog, the counts and the health rule (no_data / healthy / warning / failing, no-documents failure = success, NULL keys expanded to all provider products); verify with unit tests for each health scenario in the spec and for the group totals (1/9, 2/11, 1/1 with no sessions).
 
 ## 3. API
 

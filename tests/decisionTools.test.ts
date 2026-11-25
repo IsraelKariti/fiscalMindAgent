@@ -33,7 +33,7 @@ const intake = {
 const CAPITAL: DecisionContext = { windowOpen: true, templates: [], intake };
 const CAPITAL_WITH_FETCH: DecisionContext = {
   ...CAPITAL,
-  taxFetch: [{ provider: 'israel_tax_authority', state: 'none', available: true, clientOnWhatsapp: true, documentKeys: ['form_106'] }],
+  documentFetch: [{ provider: 'israel_tax_authority', state: 'none', available: true, clientOnWhatsapp: true, documentKeys: ['form_106'] }],
 };
 const AFTER_VERIFICATION: DecisionContext = { ...CAPITAL, afterVerification: true };
 const NO_INTAKE: DecisionContext = { windowOpen: true, templates: [] };
@@ -84,12 +84,12 @@ describe('toolsForContext', () => {
   const decisionValues = (ctx: DecisionContext) =>
     ((toolJsonSchemas(ctx)[0]!.parameters.properties as Record<string, { enum?: unknown }>).decision!.enum as string[]);
 
-  it('capital declaration without a fetch offer: every tool except tax_fetch', () => {
+  it('capital declaration without a fetch offer: every tool except document_fetch', () => {
     assert.deepEqual(names(CAPITAL), [
       'conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'ask_team', 'mark_collected', 'tie_file',
       'set_required', 'add_instance', 'state_cost', 'state_vehicle', 'retire_document', 'set_company', 'attestation',
     ]);
-    assert.ok(names(CAPITAL_WITH_FETCH).includes('tax_fetch'));
+    assert.ok(names(CAPITAL_WITH_FETCH).includes('document_fetch'));
     assert.deepEqual(decisionValues(CAPITAL), ['goal_complete', 'follow_up', 'collect', 'client_declined']);
   });
 
@@ -218,21 +218,21 @@ describe('assembleDecision', () => {
     );
   });
 
-  it('attestation and tax_fetch map onto the form fields', () => {
+  it('attestation and document_fetch map onto the form fields', () => {
     const raw = parsed(
       [
         conclude('follow_up'),
         sendText(),
         { name: 'attestation', args: { action: 'confirmed', evidence_message_id: 'msg-1', evidence_quote: 'מאשר' } },
-        { name: 'tax_fetch', args: { action: 'client_agreed', provider: 'israel_tax_authority', document_keys: [] } },
+        { name: 'document_fetch', args: { action: 'client_agreed', provider: 'israel_tax_authority', document_keys: [] } },
       ],
       CAPITAL_WITH_FETCH,
     );
     assert.equal(raw.attestation, 'confirmed');
     assert.deepEqual(raw.attestation_evidence, { message_id: 'msg-1', quote: 'מאשר' });
-    assert.equal(raw.tax_fetch_action, 'client_agreed');
-    assert.equal(raw.tax_fetch_provider, 'israel_tax_authority');
-    assert.equal(raw.tax_fetch_document_keys, null, '[] means all pending documents');
+    assert.equal(raw.document_fetch_action, 'client_agreed');
+    assert.equal(raw.document_fetch_provider, 'israel_tax_authority');
+    assert.equal(raw.document_fetch_document_keys, null, '[] means all pending documents');
     const request = parsed([conclude('follow_up'), sendText(), { name: 'attestation', args: { action: 'request', ...noEvidence } }]);
     assert.equal(request.attestation, 'request');
     assert.equal(request.attestation_evidence, null);

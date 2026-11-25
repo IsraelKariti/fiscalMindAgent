@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getProviderSpec } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
-import type { FetchedDocument } from '../src/agents/declarationOfCapital/taxFetch/types.js';
+import { getProviderSpec } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
+import type { FetchedDocument } from '../src/agents/declarationOfCapital/documentFetch/types.js';
 
 // Meitav worker-side spec (openspec `meitav-fetch`): which checklist rows make
 // the fetch offerable, and the delivery wording.

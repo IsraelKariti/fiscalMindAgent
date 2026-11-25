@@ -104,10 +104,10 @@ export function callsOf(raw: DecisionResponse): ToolCall[] {
     });
   }
   if (raw.attestation) calls.push({ name: 'attestation', args: { action: raw.attestation, ...ev(raw.attestation_evidence) } });
-  if (raw.tax_fetch_action) {
+  if (raw.document_fetch_action) {
     calls.push({
-      name: 'tax_fetch',
-      args: { action: raw.tax_fetch_action, provider: raw.tax_fetch_provider ?? '', document_keys: raw.tax_fetch_document_keys ?? [] },
+      name: 'document_fetch',
+      args: { action: raw.document_fetch_action, provider: raw.document_fetch_provider ?? '', document_keys: raw.document_fetch_document_keys ?? [] },
     });
   }
   return calls;

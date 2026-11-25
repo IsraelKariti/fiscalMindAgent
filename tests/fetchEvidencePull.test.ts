@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { HttpTaxFetchClient } from '../src/agents/declarationOfCapital/taxFetch/fetchClient.js';
+import { HttpDocumentFetchClient } from '../src/agents/declarationOfCapital/documentFetch/fetchClient.js';
 import { RUNNER_PROTOCOL_VERSION } from '../src/browserRunner/protocol.js';
-import type { StoredEvidenceItem } from '../src/agents/declarationOfCapital/taxFetch/stepEvidence.js';
+import type { StoredEvidenceItem } from '../src/agents/declarationOfCapital/documentFetch/stepEvidence.js';
 
 const record = (seq: number, name: string, sizes: Record<string, number>) => ({
   seq,
@@ -53,7 +53,7 @@ function fakeRunner(opts: { evidence: 'served' | 'missing' }) {
 test('a failed login pulls and stores every step item before the error is thrown', async () => {
   const runner = fakeRunner({ evidence: 'served' });
   const stored: Array<{ sessionId: string; item: StoredEvidenceItem }> = [];
-  const client = new HttpTaxFetchClient(() => 'http://runner', {
+  const client = new HttpDocumentFetchClient(() => 'http://runner', {
     fetchImpl: runner.fetchImpl,
     token: () => 'tok',
     evidenceSink: async (sessionId, item) => {
@@ -83,7 +83,7 @@ test('a failed login pulls and stores every step item before the error is thrown
 test('when the runner has no evidence to pull, the 502 screenshot is kept as a fallback item', async () => {
   const runner = fakeRunner({ evidence: 'missing' });
   const stored: StoredEvidenceItem[] = [];
-  const client = new HttpTaxFetchClient(() => 'http://runner', {
+  const client = new HttpDocumentFetchClient(() => 'http://runner', {
     fetchImpl: runner.fetchImpl,
     token: () => 'tok',
     evidenceSink: async (_sessionId, item) => {
@@ -103,6 +103,6 @@ test('a pull that fails never changes the step outcome', async () => {
     if (path.endsWith('/otp') && init?.method === 'POST') return new Response(null, { status: 204 });
     throw new Error('network down');
   };
-  const client = new HttpTaxFetchClient(() => 'http://runner', { fetchImpl, token: () => 'tok', evidenceSink: async () => true });
+  const client = new HttpDocumentFetchClient(() => 'http://runner', { fetchImpl, token: () => 'tok', evidenceSink: async () => true });
   await client.submitOtp('s1', '123456'); // resolves although the evidence list threw
 });

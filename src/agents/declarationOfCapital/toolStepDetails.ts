@@ -390,7 +390,7 @@ export function askTeamDetail(
   };
 }
 
-export function taxFetchDetail(call: ParsedToolCall, outcome: { applied: boolean; provider: string | null; documentKeys: readonly string[] | null; emailId: string | null }) {
+export function documentFetchDetail(call: ParsedToolCall, outcome: { applied: boolean; provider: string | null; documentKeys: readonly string[] | null; emailId: string | null }) {
   const action = str(call.args.action);
   return {
     ...toolHeader(call),

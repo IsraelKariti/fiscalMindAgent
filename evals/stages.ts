@@ -39,7 +39,7 @@ import {
 import { resolveDocumentOwners } from '../src/agents/declarationOfCapital/spouseIdentity.js';
 import { buildDecisionCall } from '../src/agents/declarationOfCapital/decide.js';
 import {
-  allowedTaxFetchActions,
+  allowedDocumentFetchActions,
   normalizeDecision,
   type DecisionContext,
   type DecisionResponse,
@@ -48,11 +48,11 @@ import {
 import {
   buildPrompt,
   type IntakePromptInput,
-  type TaxFetchPromptInput,
+  type DocumentFetchPromptInput,
   type VerificationResultPromptInput,
   type WaChannelState,
 } from '../src/agents/declarationOfCapital/prompt.js';
-import { getProviderSpec } from '../src/agents/declarationOfCapital/taxFetch/providers.js';
+import { getProviderSpec } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
 import { rowCompanyUnknown, sitesForUnnamedRow } from '../src/agents/declarationOfCapital/companyClarification.js';
 import { env } from '../src/config/env.js';
 import { zonedTimeToUtc } from '../src/util/time.js';
@@ -692,12 +692,12 @@ interface DecideCase {
   unsent_drafts?: DecideUnsentDraftInput[];
   /**
    * Fetch providers shown in the DOCUMENT FETCH block (credentials on file). Per-document status is derived from the
-   * checklist like the app does (taxFetch/flow.ts); the client counts as live on WhatsApp when the window is open.
+   * checklist like the app does (documentFetch/flow.ts); the client counts as live on WhatsApp when the window is open.
    */
-  tax_fetch?: { provider: string; state: string }[];
+  document_fetch?: { provider: string; state: string }[];
   /**
    * Fetch providers whose login identity resolves for the client (openspec `item-company-clarification`): like
-   * taxFetch/flow.ts, a pending row that names no company lists the sites among these that would fetch it once it
+   * documentFetch/flow.ts, a pending row that names no company lists the sites among these that would fetch it once it
    * names their company ("חברה: לא ידועה" line).
    */
   fetch_credentials?: string[];
@@ -765,7 +765,7 @@ interface DecideCase {
     new_instance_stated_vehicles?: Record<string, string | number>[];
     attestation?: 'request' | 'confirmed' | null;
     /** The decision's document-fetch action (null = none), e.g. 'client_agreed'. */
-    tax_fetch_action?: string | null;
+    document_fetch_action?: string | null;
     /** Row id -> substrings that must NOT appear in the message (the row is settled and must not be brought up). */
     no_settled_rows_mentioned?: Record<string, string[]>;
     /** Substrings that must ALL appear in the message. */
@@ -1071,7 +1071,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
     attestation: attestationConfirmed ? 'confirmed' : requestedAt ? 'requested' : 'none',
   };
   const clientOnWhatsapp = waState.windowOpen && history.some((m) => m.direction === 'inbound');
-  const taxFetchPrompt: TaxFetchPromptInput[] = (c.tax_fetch ?? []).map((t) => {
+  const documentFetchPrompt: DocumentFetchPromptInput[] = (c.document_fetch ?? []).map((t) => {
     const spec = getProviderSpec(t.provider);
     return {
       provider: spec.id,
@@ -1080,7 +1080,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
       takesAllDocuments: spec.takesAllDocuments === true,
       state: t.state,
       available: true,
-      allowedActions: allowedTaxFetchActions(t.state, true, clientOnWhatsapp),
+      allowedActions: allowedDocumentFetchActions(t.state, true, clientOnWhatsapp),
       documentTypes: spec.documents.map((type) => {
         const matching = documents.filter((d) => type.matchesRequiredDocument(d));
         return {
@@ -1098,7 +1098,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
     windowOpen: waState.windowOpen,
     templates,
     hiddenTemplates,
-    taxFetch: taxFetchPrompt.map((p) => ({
+    documentFetch: documentFetchPrompt.map((p) => ({
       provider: p.provider,
       state: p.state,
       available: p.available,
@@ -1110,7 +1110,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
   const teamQuestions = teamQuestionRows(c);
   const openQuestion = teamQuestions.find((q) => q.closed_at === null);
   decisionCtx.openTeamQuestion = openQuestion ? { id: openQuestion.id, question: openQuestion.question, askedAt: openQuestion.asked_at } : null;
-  // Like taxFetch/flow.ts `sitesForUnnamedRows`: the sites a company answer would unlock for each row that names none.
+  // Like documentFetch/flow.ts `sitesForUnnamedRows`: the sites a company answer would unlock for each row that names none.
   const usableProviders = (c.fetch_credentials ?? []).map(getProviderSpec);
   const companySites = new Map<string, string[]>();
   for (const d of documents) {
@@ -1118,14 +1118,14 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
     const sites = sitesForUnnamedRow(d.name, usableProviders);
     if (sites.length > 0) companySites.set(d.id, sites);
   }
-  return { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx, teamQuestions, companySites };
+  return { taxYear, now, client, history, documents, files, waState, intakePrompt, documentFetchPrompt, decisionCtx, teamQuestions, companySites };
 }
 
 const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
   purpose: 'planner',
   load: () => readCases('planner'),
   build(c, ctx) {
-    const { taxYear, now, client, history, documents, files, waState, intakePrompt, taxFetchPrompt, decisionCtx, teamQuestions, companySites } = decideInputs(c, ctx);
+    const { taxYear, now, client, history, documents, files, waState, intakePrompt, documentFetchPrompt, decisionCtx, teamQuestions, companySites } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
     const verificationResults: VerificationResultPromptInput[] = (c.verification_results ?? []).map((r, i) => {
       const doc = documents.find((d) => d.id === r.document_id);
@@ -1151,7 +1151,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       files,
       now,
       waState,
-      taxFetchPrompt,
+      documentFetchPrompt,
       taxYear,
       intakePrompt,
       unsentDraftRows(c),
@@ -1355,7 +1355,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       ),
     ];
     if (e.attestation !== undefined) checks.push(eq('attestation', e.attestation, decision.attestation?.action ?? null));
-    if (e.tax_fetch_action !== undefined) checks.push(eq('tax_fetch_action', e.tax_fetch_action, decision.tax_fetch?.action ?? null));
+    if (e.document_fetch_action !== undefined) checks.push(eq('document_fetch_action', e.document_fetch_action, decision.document_fetch?.action ?? null));
     // openspec `team-questions`: did the answer ask the team, and what.
     const asked = decision.decision === 'follow_up' ? decision.teamQuestion : null;
     if (e.team_question !== undefined) checks.push(eq('team_question', e.team_question, asked !== null));
@@ -1364,7 +1364,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       checks.push({ key: `team_question_includes.${word}`, expected: true, actual: has, pass: has });
     }
     info.team_question = asked;
-    info.tax_fetch = decision.tax_fetch ?? null;
+    info.document_fetch = decision.document_fetch ?? null;
     info.attestation = decision.attestation;
     info.collected_document_ids = decision.collected_document_ids;
     info.addedInstances = decision.addedInstances.length;

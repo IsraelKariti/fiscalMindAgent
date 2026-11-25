@@ -90,7 +90,7 @@ export function Settings({
   return (
     <div
       className={`client-view settings-page settings-page-tabbed${
-        activeTab === 'dashboard' ? ' settings-page-dashboard' : ''
+        activeTab === 'dashboard' || activeTab === 'analytics' ? ' settings-page-dashboard' : ''
       }`}
     >
       <header className="settings-header">

@@ -4010,7 +4010,8 @@ button.meta-chip:hover {
   width: 100%;
 }
 
-/* The dashboard tab hosts the full Overview grid — release the settings width cap. */
+/* The dashboard tab hosts the full Overview grid and the drafts-analysis tab a wide
+   table — both release the settings width cap. */
 .settings-page-dashboard {
   max-width: 1440px;
 }

@@ -154,7 +154,7 @@ const he = {
   settingsTabConnections: 'אינטגרציות',
   // Admin view-as only (openspec `admin-test-client`)
   settingsTabTest: 'בדיקה',
-  settingsTabAnalytics: 'ניתוח',
+  settingsTabAnalytics: 'ניתוח טיוטות',
   adminOnlyChip: 'מנהל',
   adminOnlyTabTitle: 'לשונית למנהל בלבד — רואה החשבון אינו רואה אותה',
   testClientBadge: 'לקוח בדיקה',

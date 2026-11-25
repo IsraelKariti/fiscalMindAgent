@@ -22,9 +22,14 @@ export interface ClientFigures {
   deleted: boolean;
   test: boolean;
   itemsFile: number;
-  itemsConversation: number;
+  /** not_required rows the intake questionnaire settled. */
+  itemsForm: number;
+  /** Items the client's words in the chat settled: stated, claimed, not_required with a chat quote. */
+  itemsChat: number;
+  /** not_required rows the accountant marked by hand. */
+  itemsAccountant: number;
   itemsOpen: number;
-  /** itemsFile + itemsConversation. */
+  /** itemsFile + itemsForm + itemsChat + itemsAccountant. */
   itemsSettled: number;
   messagesSent: number;
   messagesReceived: number;
@@ -46,7 +51,9 @@ export interface Tiles {
   cost: number;
   unpriced: number;
   itemsFile: number;
-  itemsConversation: number;
+  itemsForm: number;
+  itemsChat: number;
+  itemsAccountant: number;
   itemsOpen: number;
   /** Pooled: total cost ÷ total documents with a file. */
   costPerFile: number | null;
@@ -67,7 +74,9 @@ export interface Tiles {
 
 export interface Footer {
   itemsFile: number;
-  itemsConversation: number;
+  itemsForm: number;
+  itemsChat: number;
+  itemsAccountant: number;
   itemsOpen: number;
   messagesSent: number;
   messagesReceived: number;
@@ -106,7 +115,7 @@ export function clientState(row: Pick<ClientDocumentCostRow, 'goal_status' | 'pa
 }
 
 export function clientFigures(row: ClientDocumentCostRow): ClientFigures {
-  const itemsSettled = row.items_file + row.items_conversation;
+  const itemsSettled = row.items_file + row.items_form + row.items_chat + row.items_accountant;
   const daysActive =
     row.first_message_at && row.last_message_at
       ? Math.round((row.last_message_at.getTime() - row.first_message_at.getTime()) / DAY_MS)
@@ -118,7 +127,9 @@ export function clientFigures(row: ClientDocumentCostRow): ClientFigures {
     deleted: row.deleted,
     test: row.is_test,
     itemsFile: row.items_file,
-    itemsConversation: row.items_conversation,
+    itemsForm: row.items_form,
+    itemsChat: row.items_chat,
+    itemsAccountant: row.items_accountant,
     itemsOpen: row.items_open,
     itemsSettled,
     messagesSent: row.messages_sent,
@@ -142,9 +153,11 @@ export function summarizeDocumentCost(
   const clients = options.completedOnly ? all.filter((c) => c.state === 'completed') : all;
   const sum = (pick: (c: ClientFigures) => number) => clients.reduce((acc, c) => acc + pick(c), 0);
   const itemsFile = sum((c) => c.itemsFile);
-  const itemsConversation = sum((c) => c.itemsConversation);
+  const itemsForm = sum((c) => c.itemsForm);
+  const itemsChat = sum((c) => c.itemsChat);
+  const itemsAccountant = sum((c) => c.itemsAccountant);
   const itemsOpen = sum((c) => c.itemsOpen);
-  const itemsSettled = itemsFile + itemsConversation;
+  const itemsSettled = itemsFile + itemsForm + itemsChat + itemsAccountant;
   const cost = sum((c) => c.cost);
   const unpriced = sum((c) => c.unpriced);
   const fileCost = sum((c) => c.fileCost);
@@ -160,7 +173,9 @@ export function summarizeDocumentCost(
       cost,
       unpriced,
       itemsFile,
-      itemsConversation,
+      itemsForm,
+      itemsChat,
+      itemsAccountant,
       itemsOpen,
       costPerFile,
       costPerItem,
@@ -174,6 +189,6 @@ export function summarizeDocumentCost(
       messagesPerItem: ratio(messagesSent, itemsSettled),
       medianDaysCompleted: median(completed.map((c) => c.daysActive).filter((v): v is number => v !== null)),
     },
-    footer: { itemsFile, itemsConversation, itemsOpen, messagesSent, messagesReceived, cost, unpriced, costPerFile, costPerItem },
+    footer: { itemsFile, itemsForm, itemsChat, itemsAccountant, itemsOpen, messagesSent, messagesReceived, cost, unpriced, costPerFile, costPerItem },
   };
 }

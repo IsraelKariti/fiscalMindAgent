@@ -23,7 +23,9 @@ function row(over: Partial<ClientDocumentCostRow> = {}): ClientDocumentCostRow {
     unpriced: 0,
     file_cost: 0,
     items_file: 0,
-    items_conversation: 0,
+    items_form: 0,
+    items_chat: 0,
+    items_accountant: 0,
     items_open: 0,
     messages_sent: 0,
     messages_received: 0,
@@ -39,11 +41,20 @@ const close = (a: number | null, b: number) => {
 };
 
 test('a client: both quotients from its total cost and its item groups', () => {
-  const c = clientFigures(row({ cost: 1.2, items_file: 4, items_conversation: 2, items_open: 3 }));
+  const c = clientFigures(row({ cost: 1.2, items_file: 4, items_form: 1, items_chat: 1, items_open: 3 }));
   close(c.costPerFile, 0.3);
   close(c.costPerItem, 0.2);
   assert.equal(c.itemsSettled, 6);
   assert.equal(c.itemsOpen, 3);
+});
+
+test('a client: the three settled-without-file groups are kept apart and all count as settled', () => {
+  const c = clientFigures(row({ cost: 2.2, items_file: 4, items_form: 3, items_chat: 3, items_accountant: 1, items_open: 2 }));
+  assert.equal(c.itemsForm, 3);
+  assert.equal(c.itemsChat, 3);
+  assert.equal(c.itemsAccountant, 1);
+  assert.equal(c.itemsSettled, 11);
+  close(c.costPerItem, 0.2);
 });
 
 test('a client with nothing settled reads undefined quotients, never zero or infinity', () => {
@@ -78,16 +89,18 @@ test('median: middle value or the mean of the two middle values', () => {
 
 test('tiles: pooled averages, median per client and the completed figures', () => {
   const rows = [
-    row({ cost: 1, items_file: 2, items_conversation: 2, goal_status: 'complete', first_message_at: new Date('2026-10-01T10:00:00Z'), last_message_at: new Date('2026-10-11T10:00:00Z') }),
-    row({ cost: 3, items_file: 6, items_conversation: 2, goal_status: 'complete', first_message_at: new Date('2026-10-01T10:00:00Z'), last_message_at: new Date('2026-10-21T10:00:00Z') }),
-    row({ cost: 2, items_file: 12, items_conversation: 6, file_cost: 1.5, messages_sent: 10 }),
+    row({ cost: 1, items_file: 2, items_form: 1, items_chat: 1, goal_status: 'complete', first_message_at: new Date('2026-10-01T10:00:00Z'), last_message_at: new Date('2026-10-11T10:00:00Z') }),
+    row({ cost: 3, items_file: 6, items_form: 2, goal_status: 'complete', first_message_at: new Date('2026-10-01T10:00:00Z'), last_message_at: new Date('2026-10-21T10:00:00Z') }),
+    row({ cost: 2, items_file: 12, items_form: 3, items_chat: 2, items_accountant: 1, file_cost: 1.5, messages_sent: 10 }),
     row({ cost: 0.5 }),
   ];
   const s = summarizeDocumentCost(rows, { completedOnly: false });
   assert.equal(s.tiles.clients, 4);
   close(s.tiles.cost, 6.5);
   assert.equal(s.tiles.itemsFile, 20);
-  assert.equal(s.tiles.itemsConversation, 10);
+  assert.equal(s.tiles.itemsForm, 6);
+  assert.equal(s.tiles.itemsChat, 3);
+  assert.equal(s.tiles.itemsAccountant, 1);
   close(s.tiles.costPerFile, 6.5 / 20);
   close(s.tiles.costPerItem, 6.5 / 30);
   // per-client costPerItem: 0.25, 0.375, 2/18, undefined → median of the three defined = 0.25
@@ -101,11 +114,13 @@ test('tiles: pooled averages, median per client and the completed figures', () =
 
 test('footer: sums of the counts and the pooled averages', () => {
   const s = summarizeDocumentCost(
-    [row({ cost: 1, items_file: 2, items_conversation: 2 }), row({ cost: 3, items_file: 6, items_conversation: 2 })],
+    [row({ cost: 1, items_file: 2, items_form: 1, items_chat: 1 }), row({ cost: 3, items_file: 6, items_form: 1, items_chat: 1 })],
     { completedOnly: false },
   );
   assert.equal(s.footer.itemsFile, 8);
-  assert.equal(s.footer.itemsConversation, 4);
+  assert.equal(s.footer.itemsForm, 2);
+  assert.equal(s.footer.itemsChat, 2);
+  assert.equal(s.footer.itemsAccountant, 0);
   assert.equal(s.footer.cost, 4);
   close(s.footer.costPerFile, 0.5);
   close(s.footer.costPerItem, 4 / 12);

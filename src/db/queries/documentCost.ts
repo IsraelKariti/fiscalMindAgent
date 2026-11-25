@@ -29,8 +29,12 @@ export interface ClientDocumentCostRow {
   file_cost: number;
   /** Items whose file the verification pipeline approved. */
   items_file: number;
-  /** Items settled by the client's words: not_required, stated, claimed. */
-  items_conversation: number;
+  /** not_required rows the intake questionnaire settled (evidence source 'form' / 'form_empty'). */
+  items_form: number;
+  /** Items settled by the client's words in the chat: stated, claimed, and not_required rows with any other evidence. */
+  items_chat: number;
+  /** not_required rows the accountant marked by hand (no evidence at all). */
+  items_accountant: number;
   /** Items still open: unresolved, pending, collected. Retired rows count nowhere. */
   items_open: number;
   /** Outbound rows with status 'sent'. */
@@ -60,7 +64,9 @@ export async function listForInstance(agentInstanceId: string, clientKind: Clien
             COALESCE(lc.unpriced, 0) AS unpriced,
             COALESCE(lc.file_cost, 0) AS file_cost,
             COALESCE(cd.items_file, 0) AS items_file,
-            COALESCE(cd.items_conversation, 0) AS items_conversation,
+            COALESCE(cd.items_form, 0) AS items_form,
+            COALESCE(cd.items_chat, 0) AS items_chat,
+            COALESCE(cd.items_accountant, 0) AS items_accountant,
             COALESCE(cd.items_open, 0) AS items_open,
             COALESCE(em.messages_sent, 0) AS messages_sent,
             COALESCE(em.messages_received, 0) AS messages_received,
@@ -76,7 +82,12 @@ export async function listForInstance(agentInstanceId: string, clientKind: Clien
      ) lc ON true
      LEFT JOIN LATERAL (
        SELECT COUNT(*) FILTER (WHERE d.status = 'approved')::float8 AS items_file,
-              COUNT(*) FILTER (WHERE d.status IN ('not_required', 'stated', 'claimed'))::float8 AS items_conversation,
+              COUNT(*) FILTER (WHERE d.status = 'not_required'
+                                 AND d.resolution_evidence->>'source' IN ('form', 'form_empty'))::float8 AS items_form,
+              COUNT(*) FILTER (WHERE d.status IN ('stated', 'claimed')
+                                 OR (d.status = 'not_required' AND d.resolution_evidence IS NOT NULL
+                                     AND COALESCE(d.resolution_evidence->>'source', '') NOT IN ('form', 'form_empty')))::float8 AS items_chat,
+              COUNT(*) FILTER (WHERE d.status = 'not_required' AND d.resolution_evidence IS NULL)::float8 AS items_accountant,
               COUNT(*) FILTER (WHERE d.status IN ('unresolved', 'pending', 'collected'))::float8 AS items_open
        FROM client_documents d WHERE d.client_id = c.id
      ) cd ON true

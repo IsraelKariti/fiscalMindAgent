@@ -65,10 +65,12 @@ export function DocumentCostTab({ agentInstanceId, onOpenClient }: { agentInstan
         { label: t.documentCostTileClients, value: count(data.tiles.clients), context: t.documentCostTileClientsContext(data.tiles.completed) },
         { label: t.documentCostTileCost, value: cost(data.tiles.cost, data.tiles.unpriced), context: t.documentCostTileCostContext },
         { label: t.documentCostTileItemsFile, value: count(data.tiles.itemsFile), context: t.documentCostTileItemsFileContext },
+        { label: t.documentCostTileItemsForm, value: count(data.tiles.itemsForm), context: t.documentCostTileItemsFormContext },
+        { label: t.documentCostTileItemsChat, value: count(data.tiles.itemsChat), context: t.documentCostTileItemsChatContext },
         {
-          label: t.documentCostTileItemsConversation,
-          value: count(data.tiles.itemsConversation),
-          context: t.documentCostTileItemsConversationContext(data.tiles.itemsOpen),
+          label: t.documentCostTileItemsAccountant,
+          value: count(data.tiles.itemsAccountant),
+          context: t.documentCostTileItemsAccountantContext(data.tiles.itemsOpen),
         },
         { label: t.documentCostTileCostPerFile, value: quotient(data.tiles.costPerFile, data.tiles.unpriced), context: t.documentCostTileCostPerFileContext },
         { label: t.documentCostTileCostPerItem, value: quotient(data.tiles.costPerItem, data.tiles.unpriced), context: t.documentCostTileCostPerItemContext },
@@ -143,7 +145,9 @@ export function DocumentCostTab({ agentInstanceId, onOpenClient }: { agentInstan
                       <th>{t.documentCostColClient}</th>
                       <th>{t.documentCostColState}</th>
                       <th>{t.documentCostColItemsFile}</th>
-                      <th>{t.documentCostColItemsConversation}</th>
+                      <th>{t.documentCostColItemsForm}</th>
+                      <th>{t.documentCostColItemsChat}</th>
+                      <th>{t.documentCostColItemsAccountant}</th>
                       <th>{t.documentCostColItemsOpen}</th>
                       <th>{t.documentCostColSent}</th>
                       <th>{t.documentCostColReceived}</th>
@@ -164,7 +168,9 @@ export function DocumentCostTab({ agentInstanceId, onOpenClient }: { agentInstan
                         </td>
                         <td>{t.documentCostState[c.state] ?? c.state}</td>
                         <td dir="ltr">{count(c.itemsFile)}</td>
-                        <td dir="ltr">{count(c.itemsConversation)}</td>
+                        <td dir="ltr">{count(c.itemsForm)}</td>
+                        <td dir="ltr">{count(c.itemsChat)}</td>
+                        <td dir="ltr">{count(c.itemsAccountant)}</td>
                         <td dir="ltr">{count(c.itemsOpen)}</td>
                         <td dir="ltr">{count(c.messagesSent)}</td>
                         <td dir="ltr">{count(c.messagesReceived)}</td>
@@ -185,7 +191,9 @@ export function DocumentCostTab({ agentInstanceId, onOpenClient }: { agentInstan
                       <td className="admin-table-name">{t.documentCostFooter}</td>
                       <td />
                       <td dir="ltr">{count(data.footer.itemsFile)}</td>
-                      <td dir="ltr">{count(data.footer.itemsConversation)}</td>
+                      <td dir="ltr">{count(data.footer.itemsForm)}</td>
+                      <td dir="ltr">{count(data.footer.itemsChat)}</td>
+                      <td dir="ltr">{count(data.footer.itemsAccountant)}</td>
                       <td dir="ltr">{count(data.footer.itemsOpen)}</td>
                       <td dir="ltr">{count(data.footer.messagesSent)}</td>
                       <td dir="ltr">{count(data.footer.messagesReceived)}</td>

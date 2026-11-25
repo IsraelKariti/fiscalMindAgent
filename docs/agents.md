@@ -686,7 +686,10 @@ Industry pattern followed: one app with an agent registry
   `db/queries/documentCost.ts`, one query with three LATERAL sums per client
   — llm_calls cost / unpriced / file-tied cost (`document_file_id IS NOT
   NULL`), client_documents by group (approved = document with a file;
-  not_required + stated + claimed = resolved from the conversation;
+  not_required by its `resolution_evidence`: source form/form_empty = closed
+  from the questionnaire, any other evidence (+ stated + claimed) = closed in
+  the chat, NULL = marked by hand (a manual PATCH to not_required clears the
+  evidence; openspec `split-not-required-by-source`);
   unresolved + pending + collected = open; retired counts nowhere), emails
   sent / received and first / last message time → the pure
   `src/analytics/documentCost.ts` `summarizeDocumentCost`,

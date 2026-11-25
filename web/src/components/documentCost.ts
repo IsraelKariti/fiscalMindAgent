@@ -1,4 +1,4 @@
-import type { DocumentCostClient } from '../api';
+import type { DocumentCostClient } from '../api.js';
 
 /**
  * Pure helpers of the admin documents tab (openspec
@@ -8,8 +8,8 @@ import type { DocumentCostClient } from '../api';
  */
 
 export type DocumentCostClientKind = 'live' | 'test' | 'all';
-export type DocumentCostSort = 'cost' | 'costPerFile' | 'costPerItem' | 'itemsFile' | 'itemsConversation';
-export const DOCUMENT_COST_SORTS: DocumentCostSort[] = ['cost', 'costPerFile', 'costPerItem', 'itemsFile', 'itemsConversation'];
+export type DocumentCostSort = 'cost' | 'costPerFile' | 'costPerItem' | 'itemsFile' | 'itemsForm' | 'itemsChat';
+export const DOCUMENT_COST_SORTS: DocumentCostSort[] = ['cost', 'costPerFile', 'costPerItem', 'itemsFile', 'itemsForm', 'itemsChat'];
 export const STORAGE_KEY = 'fm.documentCost';
 
 export interface DocumentCostFilters {

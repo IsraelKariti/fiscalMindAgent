@@ -259,7 +259,12 @@ export function buildRouter(): Router {
       }
       // Returning a chat-stated cost to pending drops the statement from the row
       // (it stays in the audit trail), so the agent asks again from a clean row.
-      const clearEvidence = parsed.data.status === 'pending' && current.status === 'stated';
+      // A manual "not required" drops any quote too: the row then carries no
+      // client words, which is what marks it as settled by hand (openspec
+      // `split-not-required-by-source`); a quote that created the row as
+      // "required" must not read as the reason it is not required.
+      const clearEvidence =
+        (parsed.data.status === 'pending' && current.status === 'stated') || parsed.data.status === 'not_required';
       const document = await clientDocuments.updateForClient(current.id, client!.id, {
         ...parsed.data,
         ...(clearEvidence ? { resolutionEvidence: null } : {}),

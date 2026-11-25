@@ -546,7 +546,9 @@ export interface DocumentCostClient {
   deleted: boolean;
   test: boolean;
   itemsFile: number;
-  itemsConversation: number;
+  itemsForm: number;
+  itemsChat: number;
+  itemsAccountant: number;
   itemsOpen: number;
   itemsSettled: number;
   messagesSent: number;
@@ -572,7 +574,9 @@ export interface DocumentCost {
     cost: number;
     unpriced: number;
     itemsFile: number;
-    itemsConversation: number;
+    itemsForm: number;
+    itemsChat: number;
+    itemsAccountant: number;
     itemsOpen: number;
     costPerFile: number | null;
     costPerItem: number | null;
@@ -585,7 +589,9 @@ export interface DocumentCost {
   };
   footer: {
     itemsFile: number;
-    itemsConversation: number;
+    itemsForm: number;
+    itemsChat: number;
+    itemsAccountant: number;
     itemsOpen: number;
     messagesSent: number;
     messagesReceived: number;

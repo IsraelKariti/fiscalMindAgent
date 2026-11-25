@@ -4,6 +4,7 @@ import { useWorkspaceApi } from '../agents/ApiContext';
 import type { MessageStringKey } from '../agents/types';
 import { ActionMenu, type ActionMenuItem } from './ActionMenu';
 import { FileViewModal } from './FileViewModal';
+import { notRequiredSource } from './notRequiredSource';
 import { useT, type Messages } from '../i18n';
 
 interface Props {
@@ -188,7 +189,16 @@ const CAPITAL_GROUPS: { key: string; status: DocumentStatus; labelKey: keyof Mes
   { key: 'collected', status: 'collected', labelKey: 'groupCollected' },
   { key: 'approved', status: 'approved', labelKey: 'groupApproved' },
   { key: 'stated', status: 'stated', labelKey: 'groupStated' },
-  { key: 'not_required', status: 'not_required', labelKey: 'groupNotRequired', collapsed: true },
+  // Not-required rows split by the source of the decision (openspec `split-not-required-by-source`).
+  { key: 'not_required_form', status: 'not_required', labelKey: 'groupNotRequiredForm', match: (doc) => notRequiredSource(doc) === 'form', collapsed: true },
+  { key: 'not_required_chat', status: 'not_required', labelKey: 'groupNotRequiredChat', match: (doc) => notRequiredSource(doc) === 'chat', collapsed: true },
+  {
+    key: 'not_required_accountant',
+    status: 'not_required',
+    labelKey: 'groupNotRequiredAccountant',
+    match: (doc) => notRequiredSource(doc) === 'accountant',
+    collapsed: true,
+  },
   { key: 'retired', status: 'retired', labelKey: 'groupRetired', match: (doc) => !replacedByDeclaration(doc), collapsed: true },
   { key: 'retired_declaration', status: 'retired', labelKey: 'groupRetiredDeclaration', match: replacedByDeclaration, collapsed: true },
 ];

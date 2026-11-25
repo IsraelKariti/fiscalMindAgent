@@ -884,6 +884,12 @@ export interface LlmCallDetail extends LlmCallSummary {
     };
   };
   response: string | null;
+  /**
+   * The names behind the ids a tool-call answer mentions (openspec
+   * `conversation-trace`): the client's checklist items and received files,
+   * id → name. Empty maps for a call with no client; absent on older servers.
+   */
+  names?: { documents: Record<string, string>; files: Record<string, string> };
 }
 
 export interface LlmCallFilters {

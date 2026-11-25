@@ -1637,7 +1637,14 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   from a trace chip, the admin call browser, or a call link) carries "copy
   link" (`<origin>/#/llm-calls/<llm_calls id>` — the call browser's own
   drill-down address) and "copy details" (the link, then the whole call as
-  JSON: metadata, exact request, raw response). While impersonating, the
+  JSON: metadata, exact request, raw response). The single-call answer also
+  carries `names` (`{documents: {id: name}, files: {id: label ?? filename}}`
+  of the call's client, built by `callNames` in `api/llmAdmin.ts`): the
+  tool-calls pane prints each call's args through `withNamedIds`
+  (`callLink.ts`), which adds `document_name` after `document_id`,
+  `file_names` after `file_ids` and so on for every known id — the ids
+  themselves are never changed — so a failed planner answer (no tool steps
+  recorded) is still readable; "copy details" carries the map too. While impersonating, the
   workspace router would rewrite that hash, so `App.tsx` mounts
   `CallLinkPage` for `isAdmin && impersonating && isCallHash(hash)` (modal
   by id, in-app "call not found" card for a malformed id; close → `#/`);

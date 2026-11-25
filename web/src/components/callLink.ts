@@ -46,3 +46,34 @@ export function parseCallHash(hash: string): string | null {
 export function callDetailsText(call: { id: string }, origin: string): string {
   return `${callLinkOf(call.id, origin)}\n\n${JSON.stringify(call, null, 2)}`;
 }
+
+/** The names behind a call's ids, as the single-call endpoint serves them: the client's checklist items and received files. */
+export interface CallNames {
+  documents: Record<string, string>;
+  files: Record<string, string>;
+}
+
+/**
+ * A tool call's arguments with the names beside the ids (openspec
+ * `conversation-trace`): every top-level `*_id` key whose value is a known
+ * document or file id gains a `*_name` key right after it, every `*_ids` list
+ * gains `*_names` (an unknown id keeps its id so positions match). Ids are
+ * never removed, renamed or rewritten; an unknown id (a message id, a deleted
+ * file) gains nothing. Pure, so it is unit-tested from the root suite.
+ */
+export function withNamedIds(args: unknown, names: CallNames | undefined): unknown {
+  if (!names || typeof args !== 'object' || args === null || Array.isArray(args)) return args;
+  const nameOf = (id: unknown): string | null =>
+    typeof id === 'string' ? (names.documents[id] ?? names.files[id] ?? null) : null;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(args as Record<string, unknown>)) {
+    out[key] = value;
+    if (key.endsWith('_id')) {
+      const name = nameOf(value);
+      if (name !== null) out[`${key.slice(0, -3)}_name`] = name;
+    } else if (key.endsWith('_ids') && Array.isArray(value) && value.some((id) => nameOf(id) !== null)) {
+      out[`${key.slice(0, -4)}_names`] = value.map((id) => nameOf(id) ?? id);
+    }
+  }
+  return out;
+}

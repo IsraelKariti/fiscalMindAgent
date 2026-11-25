@@ -3,6 +3,7 @@ import { describeLlmStages } from '../gemini/llmStages.js';
 import type { RequestHandler } from 'express';
 import * as agentInstances from '../db/queries/agentInstances.js';
 import * as auditEvents from '../db/queries/auditEvents.js';
+import * as clientDocuments from '../db/queries/clientDocuments.js';
 import * as clients from '../db/queries/clients.js';
 import * as documentFiles from '../db/queries/documentFiles.js';
 import * as emails from '../db/queries/emails.js';
@@ -375,6 +376,22 @@ export const adminGetLlmCall: RequestHandler = async (req, res) => {
       clientName: client?.name ?? null,
       request: row.request,
       response: row.response,
+      names: await callNames(row.client_id),
     },
   });
 };
+
+/**
+ * The names behind the ids a tool-call answer mentions (openspec
+ * `conversation-trace`, "names beside ids"): the client's checklist items and
+ * received files, id → name, so the call modal labels `document_id` /
+ * `file_id` arguments without another request. Empty for a call with no client.
+ */
+async function callNames(clientId: string | null): Promise<{ documents: Record<string, string>; files: Record<string, string> }> {
+  if (!clientId) return { documents: {}, files: {} };
+  const [documents, files] = await Promise.all([clientDocuments.listForClient(clientId), documentFiles.listForClient(clientId)]);
+  return {
+    documents: Object.fromEntries(documents.map((d) => [d.id, d.name])),
+    files: Object.fromEntries(files.map((f) => [f.id, f.label ?? f.filename])),
+  };
+}

@@ -10,7 +10,7 @@ import {
 import { displayClientName, formatTimestamp, formatUsd, humanizePurpose, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { CopyButton } from '../CopyButton';
-import { callDetailsText, callLinkOf } from '../callLink';
+import { callDetailsText, callLinkOf, withNamedIds } from '../callLink';
 import { DocumentPane, isTwoPane, useDocumentOf } from '../DocumentPane';
 import { Dropdown } from '../Dropdown';
 import { MarkdownPane } from '../MarkdownPane';
@@ -402,7 +402,8 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                         </span>
                       )}
                     </div>
-                    <CallPane tone="response" text={JSON.stringify(tc.args, null, 2)} ltr copyTitle={t.copyText} />
+                    {/* Names beside the ids (openspec `conversation-trace`): `document_name` after `document_id`, the ids untouched. */}
+                    <CallPane tone="response" text={JSON.stringify(withNamedIds(tc.args, call?.names), null, 2)} ltr copyTitle={t.copyText} />
                   </div>
                 ))
               ) : (

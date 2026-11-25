@@ -25,6 +25,8 @@ interface Props {
   adminTestPanel?: ReactNode;
   /** The admin-only analytics tab (openspec `discarded-message-analytics`), rendered under view-as only, after the test tab. */
   adminAnalyticsPanel?: ReactNode;
+  /** The admin-only documents tab (openspec `document-cost-analytics`), rendered under view-as only, after the analytics tab. */
+  adminDocumentsPanel?: ReactNode;
   impersonating?: boolean;
   /**
    * A staff viewer (openspec `accountant-employee-access`): only the dashboard
@@ -34,7 +36,7 @@ interface Props {
   viewerOnly?: boolean;
 }
 
-type Tab = 'general' | 'agent' | 'staff' | 'test' | 'analytics' | 'dashboard';
+type Tab = 'general' | 'agent' | 'staff' | 'test' | 'analytics' | 'documents' | 'dashboard';
 
 export function Settings({
   mailbox,
@@ -44,6 +46,7 @@ export function Settings({
   hideMailbox,
   adminTestPanel,
   adminAnalyticsPanel,
+  adminDocumentsPanel,
   impersonating,
   viewerOnly = false,
 }: Props) {
@@ -59,6 +62,8 @@ export function Settings({
   const testTab = !viewerOnly && Boolean(impersonating) && adminTestPanel != null;
   // Same rule for the admin-only analytics tab.
   const analyticsTab = !viewerOnly && Boolean(impersonating) && adminAnalyticsPanel != null;
+  // Same rule for the admin-only documents tab.
+  const documentsTab = !viewerOnly && Boolean(impersonating) && adminDocumentsPanel != null;
   // Survives a refresh alongside fm.lastView, so the user lands back on the same tab.
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (viewerOnly) return 'dashboard';
@@ -68,6 +73,7 @@ export function Settings({
     if (stored === 'staff') return 'staff';
     if (stored === 'test' && testTab) return 'test';
     if (stored === 'analytics' && analyticsTab) return 'analytics';
+    if (stored === 'documents' && documentsTab) return 'documents';
     return 'general';
   });
   useEffect(() => {
@@ -90,7 +96,7 @@ export function Settings({
   return (
     <div
       className={`client-view settings-page settings-page-tabbed${
-        activeTab === 'dashboard' || activeTab === 'analytics' ? ' settings-page-dashboard' : ''
+        activeTab === 'dashboard' || activeTab === 'analytics' || activeTab === 'documents' ? ' settings-page-dashboard' : ''
       }`}
     >
       <header className="settings-header">
@@ -157,6 +163,19 @@ export function Settings({
             <span className="admin-chip">{t.adminOnlyChip}</span>
           </button>
         )}
+        {documentsTab && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'documents'}
+            className={`client-tab client-tab-admin ${activeTab === 'documents' ? 'active' : ''}`}
+            title={t.adminOnlyTabTitle}
+            onClick={() => setActiveTab('documents')}
+          >
+            {t.settingsTabDocuments}
+            <span className="admin-chip">{t.adminOnlyChip}</span>
+          </button>
+        )}
         <button
           type="button"
           role="tab"
@@ -179,6 +198,8 @@ export function Settings({
         adminTestPanel
       ) : analyticsTab && activeTab === 'analytics' ? (
         adminAnalyticsPanel
+      ) : documentsTab && activeTab === 'documents' ? (
+        adminDocumentsPanel
       ) : (
         <>
       <SettingsGroup title={t.settingsGroupChannels}>

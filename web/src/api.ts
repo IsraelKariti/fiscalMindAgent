@@ -538,6 +538,64 @@ export interface MessageAnalytics {
   }[];
 }
 
+/** One client's row on the admin documents tab (src/analytics/documentCost.ts `ClientFigures`). */
+export interface DocumentCostClient {
+  clientId: string;
+  name: string;
+  state: 'completed' | 'running' | 'paused' | 'declined';
+  deleted: boolean;
+  test: boolean;
+  itemsFile: number;
+  itemsConversation: number;
+  itemsOpen: number;
+  itemsSettled: number;
+  messagesSent: number;
+  messagesReceived: number;
+  calls: number;
+  failed: number;
+  cost: number;
+  unpriced: number;
+  fileCost: number;
+  costPerFile: number | null;
+  costPerItem: number | null;
+  daysActive: number | null;
+}
+
+/** The admin documents tab's reply (openspec `document-cost-analytics`): lifetime figures per client, pooled tiles and the footer. */
+export interface DocumentCost {
+  agentInstanceId: string;
+  clientKind: 'all' | 'live' | 'test';
+  completedOnly: boolean;
+  clients: DocumentCostClient[];
+  tiles: {
+    clients: number;
+    cost: number;
+    unpriced: number;
+    itemsFile: number;
+    itemsConversation: number;
+    itemsOpen: number;
+    costPerFile: number | null;
+    costPerItem: number | null;
+    medianCostPerItem: number | null;
+    costPerCompleted: number | null;
+    completed: number;
+    fileShare: number | null;
+    messagesPerItem: number | null;
+    medianDaysCompleted: number | null;
+  };
+  footer: {
+    itemsFile: number;
+    itemsConversation: number;
+    itemsOpen: number;
+    messagesSent: number;
+    messagesReceived: number;
+    cost: number;
+    unpriced: number;
+    costPerFile: number | null;
+    costPerItem: number | null;
+  };
+}
+
 export interface AdminClient {
   id: string;
   name: string;
@@ -1418,6 +1476,11 @@ export const api = {
     if (range.to) qs.set('to', range.to);
     const q = qs.toString();
     return request<MessageAnalytics>(`/admin/agents/${agentInstanceId}/message-analytics${q ? `?${q}` : ''}`);
+  },
+  /** What the instance's LLM spend bought in settled checklist items — the admin documents tab (openspec `document-cost-analytics`). */
+  adminGetDocumentCost: (agentInstanceId: string, filters: { clients: 'all' | 'live' | 'test'; completed: boolean }) => {
+    const qs = new URLSearchParams({ clients: filters.clients, completed: filters.completed ? '1' : '0' });
+    return request<DocumentCost>(`/admin/agents/${agentInstanceId}/document-cost?${qs.toString()}`);
   },
   /** One code step by id — the step link (#/steps/:id). */
   adminGetStep: (stepId: string) => request<{ step: AdminConversationStep }>(`/admin/audit-events/${stepId}`),

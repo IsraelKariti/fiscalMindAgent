@@ -675,6 +675,32 @@ Industry pattern followed: one app with an agent registry
   cost. `web/src/components/messageAnalytics.ts` (`tests/messageAnalytics.test.ts`)
   holds the presets (30 / 90 / all, remembered in `fm.messageAnalytics.range`)
   and the duration/percent formatting.
+- **Document cost + admin documents tab** (openspec
+  `document-cost-analytics`, no migration): the pricing view — what the
+  instance's LLM spend bought in settled checklist items. The Settings view
+  gets a sixth admin-only tab "מסמכים" (after the analytics tab, same
+  `client-tab-admin` marker and wide layout, falls back to general outside
+  view-as): `DocumentCostTab` calls
+  `GET /api/admin/agents/:agentInstanceId/document-cost?clients=live|test|all&completed=0|1`
+  (`requireAdmin`; `src/api/documentCostAdmin.ts` →
+  `db/queries/documentCost.ts`, one query with three LATERAL sums per client
+  — llm_calls cost / unpriced / file-tied cost (`document_file_id IS NOT
+  NULL`), client_documents by group (approved = document with a file;
+  not_required + stated + claimed = resolved from the conversation;
+  unresolved + pending + collected = open; retired counts nowhere), emails
+  sent / received and first / last message time → the pure
+  `src/analytics/documentCost.ts` `summarizeDocumentCost`,
+  `tests/documentCost.test.ts`): lifetime figures per client (both quotients
+  — cost ÷ documents with a file, cost ÷ settled items — `null` on a zero
+  divisor, state completed / running / paused / declined plus deleted and
+  test badges), pooled tiles (cost per document, cost per settled item,
+  median per client, cost per completed declaration, file-reading share,
+  messages per item, median days first→last message of completed clients)
+  and a footer of sums and pooled averages. No date range: a declaration
+  spans weeks, so the figures are per client life.
+  `web/src/components/documentCost.ts` holds the remembered filters
+  (`fm.documentCost`: client kind, completed-only, sort) and the client-side
+  sort (undefined values last).
 - **Cost per version** (openspec `cost-per-version`, migration 078): every
   `llm_calls` row carries `app_version`, the short git commit of the build
   that made the call — `APP_VERSION` in `src/config/appVersion.ts` (first 7

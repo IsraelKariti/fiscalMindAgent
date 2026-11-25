@@ -12,7 +12,7 @@ import {
 import { useWorkspaceApi } from '../agents/ApiContext';
 import type { AgentTypeUI, ClientTabContext } from '../agents/types';
 import { useT } from '../i18n';
-import { formatTimestamp } from '../format';
+import { formatTimestamp, isDeclined, isOverdueStopped } from '../format';
 import { resolveTurnActivity, type TurnActivity } from './turnActivity';
 
 // Per-client last-viewed tab, in memory only: switching between clients
@@ -159,7 +159,7 @@ export function ClientView({
     client === null
       ? null
       : resolveTurnActivity({
-          client,
+          client: { ...client, handedOff: isOverdueStopped(client) || isDeclined(client) },
           hasScheduled: nextScheduled != null,
           planWaitUntil,
           lastActivityAt: lastEmail?.sent_at ?? lastEmail?.created_at ?? client.created_at,

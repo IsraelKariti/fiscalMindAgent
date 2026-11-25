@@ -13,8 +13,10 @@
  *                  wait): the timeline shows nothing
  * - 'idle'       — nothing queued or stamped, but too recent to call stuck:
  *                  the timeline shows nothing
- * - null         — the goal is not open, the client is deleted, or paused with
- *                  no held first draft: the other notices (paused, complete) apply
+ * - null         — the goal is not open, the client is deleted, paused and
+ *                  handed off (due date passed, or declined), or paused with
+ *                  no held first draft: the other notices (handed off, paused,
+ *                  complete) apply
  */
 export type TurnActivity = 'held' | 'failed' | 'processing' | 'drafting' | 'stuck' | 'waiting' | 'idle' | null;
 
@@ -25,6 +27,8 @@ export interface TurnActivityInput {
   client: {
     goal_status: string;
     paused: boolean;
+    /** Paused because the client was handed to the accountant: the due date passed (openspec `collection-window`) or the client declined (openspec `client-decline`). */
+    handedOff: boolean;
     deletedAt: string | null;
     drafting_since: string | null;
     processing_since?: string | null;
@@ -46,6 +50,10 @@ export function resolveTurnActivity(input: TurnActivityInput): TurnActivity {
   const drafting = client.drafting_since != null;
   const processing = client.processing_since != null;
   const failed = client.draft_failed_at != null;
+  // A handed-off client shows its handed-off notice (with Resume) whatever a
+  // planner attempt left behind: a stale failure, a stale stamp or an outage
+  // hold would otherwise outrank it and offer a Retry the server refuses.
+  if (client.paused && client.handedOff) return null;
   // A paused client has nothing to show — except a never-contacted client whose
   // first message is being drafted and held (openspec `first-message-approval`).
   if (client.paused && !drafting && !failed) return null;

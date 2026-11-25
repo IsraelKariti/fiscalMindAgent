@@ -11,6 +11,7 @@ function input(over: Partial<TurnActivityInput['client']> = {}, rest: Partial<Om
     client: {
       goal_status: 'pending',
       paused: false,
+      handedOff: false,
       deletedAt: null,
       drafting_since: null,
       processing_since: null,
@@ -48,6 +49,16 @@ describe('resolveTurnActivity (openspec `turn-activity-states`)', () => {
     assert.equal(resolveTurnActivity(input({ paused: true, drafting_since: ago(10) })), 'drafting');
     assert.equal(resolveTurnActivity(input({ paused: true, draft_failed_at: ago(10) })), 'failed');
     assert.equal(resolveTurnActivity(input({ paused: true, processing_since: ago(10) })), null);
+  });
+
+  it('a handed-off paused client shows its handed-off notice, whatever a planner attempt left behind', () => {
+    // Due date passed (or declined) after a failed draft: the handed-off bubble with Resume, no Retry.
+    assert.equal(resolveTurnActivity(input({ paused: true, handedOff: true, draft_failed_at: ago(10) })), null);
+    assert.equal(resolveTurnActivity(input({ paused: true, handedOff: true, drafting_since: ago(4 * 60) })), null);
+    assert.equal(resolveTurnActivity(input({ paused: true, handedOff: true, outage_held_at: ago(10) })), null);
+    // Not paused (resumed) or not handed off: the failure keeps its notice (held first-message path).
+    assert.equal(resolveTurnActivity(input({ paused: true, handedOff: false, draft_failed_at: ago(10) })), 'failed');
+    assert.equal(resolveTurnActivity(input({ paused: false, handedOff: true, draft_failed_at: ago(10) })), 'failed');
   });
 
   it('failed and held keep their notices', () => {

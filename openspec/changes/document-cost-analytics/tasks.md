@@ -16,4 +16,4 @@
 ## 4. Docs and wrap-up
 
 - [x] 4.1 Add the documents tab to the admin surfaces paragraph in `docs/agents.md` (route, query, summariser, test) and verify the paragraph names every new file.
-- [ ] 4.2 Run `npm run typecheck` and `npm test`, then commit and push per the repo Git workflow; verify the push lands on `master`.
+- [x] 4.2 Run `npm run typecheck` and `npm test`, then commit and push per the repo Git workflow; verify the push lands on `master`.

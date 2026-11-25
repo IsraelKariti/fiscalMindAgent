@@ -67,6 +67,7 @@ The workspace SHALL show what the agent is doing for a client whose goal is open
 - **Nothing**: while the agent only waits for a timer — the quiet window after the client's last inbound with no analysis in flight, or the delay after the agent's own delivered message — the timeline SHALL end at the last message: no processing notice, no drafting notice, no waiting sentence, no retry control.
 - **Drafting**: while a planner run writes the message (the deferred run, a manual redraft or regenerate, the held first message), the timeline SHALL show the "drafting" notice as today.
 - **Stuck**: when a processing or drafting notice has been shown for more than 3 minutes without a fresh stamp, or when the goal is open, nothing is scheduled, no planner run is queued or running and nothing has happened for 3 minutes, the timeline SHALL show the "stuck" notice with the manual Retry, as today. "Failed" and "held by the system" SHALL keep their notices.
+- **Handed off**: when the client is paused because it was handed to the accountant (the collection due date passed, or the client declined), the timeline SHALL show the handed-off notice for that cause with its Resume control, and SHALL NOT show the "failed", "stuck" or "held by the system" notice or a Retry control, even when a planner attempt failed, stalled or was held before the hand-off.
 
 The workspace SHALL NOT infer "drafting" from an open goal with nothing scheduled. The client read of the workspace API SHALL carry the due time of the client's queued planner run (a turn waiting for its quiet window, or an after-send wait), or none, so every viewer tells a timer wait from a lost run.
 
@@ -93,6 +94,18 @@ The workspace SHALL NOT infer "drafting" from an open goal with nothing schedule
 #### Scenario: Manual redraft
 - **WHEN** the accountant presses "redraft"
 - **THEN** the timeline shows the drafting notice at once, until the new draft is scheduled
+
+#### Scenario: Due date passes after a failed draft
+- **WHEN** the last planner attempt for a client failed, and the overdue scan later pauses the client because its due date passed
+- **THEN** the timeline shows the "due date passed, agent stopped" notice with Resume, and no "drafting failed" notice and no Retry button
+
+#### Scenario: Client declines after a failed draft
+- **WHEN** the last planner attempt for a client failed, and the client then declines the collection
+- **THEN** the timeline shows the declined notice with Resume, and no "drafting failed" notice and no Retry button
+
+#### Scenario: Accountant resumes a handed-off client with a stale failure
+- **WHEN** the accountant resumes a client whose due date passed after a failed draft
+- **THEN** the agent re-plans at once and the timeline shows the drafting notice, then the scheduled message
 
 ### Requirement: The workspace shows the after-send wait
 While a client's planner run is waiting out the after-send delay (the agent's message was delivered, the client has not replied, and the deferred run has not started), the workspace SHALL NOT show the client as drafting: the conversation timeline SHALL end at the delivered message, with no drafting placeholder, no waiting sentence, no "stuck" notice, no error wording and no retry control, however long the wait is. The client read of the workspace API SHALL carry the time the deferred run is due, so every viewer of the client (accountant, staff viewer, admin viewing as) sees the same silent state. When the wait ends and the planner starts, the workspace SHALL show the drafting state as today; when the client replies inside the wait, the workspace SHALL show the turn as in progress as today.

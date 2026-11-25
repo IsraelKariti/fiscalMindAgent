@@ -101,11 +101,6 @@ function TeamQuestionCard({
   return (
     <li className={`team-question-card ${isOpen ? 'is-open' : 'is-closed'}`}>
       <div className="team-question-text">{q.question}</div>
-      {q.reason.trim() !== '' && (
-        <div className="team-question-reason muted">
-          <span className="team-question-label">{t.teamQuestionReasonLabel}</span> {q.reason}
-        </div>
-      )}
       {quoted && (
         <div className="team-question-quote">
           <span className="team-question-label muted">{t.teamQuestionQuoteLabel}</span>{' '}

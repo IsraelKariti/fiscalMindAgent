@@ -436,7 +436,6 @@ const he = {
   teamQuestionsOpenCount: (n: number) => (n === 1 ? 'שאלה אחת ממתינה' : `${n} שאלות ממתינות`),
   teamQuestionsAllClosed: 'כל השאלות נסגרו',
   teamQuestionsEmpty: 'הסוכן עדיין לא שאל את הצוות שום שאלה על הלקוח הזה. כשהלקוח ישאל משהו שהסוכן לא יכול לענות עליו בעצמו, השאלה תופיע כאן.',
-  teamQuestionReasonLabel: 'למה הסוכן שואל:',
   teamQuestionQuoteLabel: 'הלקוח כתב:',
   teamQuestionQuoteTitle: 'מעבר להודעה בשיחה',
   teamQuestionAskedMeta: (to: string, at: string) => `נשלחה אל ${to} · ${at}`,

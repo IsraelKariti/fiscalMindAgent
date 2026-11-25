@@ -729,6 +729,27 @@ Industry pattern followed: one app with an agent registry
   `localStorage` (`fm.versions.filters`); helpers in
   `web/src/components/admin/versionCost.ts` (`tests/versionCostFormat.test.ts`).
   The call modal shows the version under the model.
+- **Fallback mark + fallbacks page** (openspec `fallbacks-dashboard`):
+  when a stage's primary model does not serve a call and the backup takes it
+  (`runWithBackup` / the held route in `gemini/llmCall.ts`), the backup's
+  `llm_calls` row carries `fallback_from_model`, `fallback_from_provider`
+  and `fallback_reason` (`'status 400'`, `'timeout'`, `'network'`,
+  `'error'`, `'provider held'`; migration 081, `fallbackLogOf` in
+  `gemini/wireRequest.ts` builds the backup call's log context, the primary's
+  error row stays unmarked). 081 backfilled client calls from their
+  `fallback_model` trace steps; client-less fallbacks before 081 stay
+  unmarked. The admin "נפילות לגיבוי" page (`#/fallbacks`, after versions,
+  `web/src/components/admin/AdminFallbacks.tsx`) calls
+  `GET /api/admin/llm-fallbacks?days=7|30|90` (absent = all; `requireAdmin`;
+  `src/api/llmFallbacksAdmin.ts` → `db/queries/llmFallbacks.ts`, one grouped
+  query that skips `outage_probe` → the pure `src/analytics/llmFallbacks.ts`
+  `summarizeFallbacks`, `tests/llmFallbacks.test.ts`): per model, calls aimed
+  at it (its own unmarked rows + held-provider fallbacks that never reached
+  it), fell back, share, failed without backup, backup answered/failed, by
+  reason, by stage, and an "as backup" block; period remembered in
+  `localStorage` (`admin.fallbacks.days`); a note names the first marked
+  row's date when older rows are in the period. The call modal shows
+  "גיבוי עבור <model> (<reason>)" on a marked row. Production needs 081.
 - **WhatsApp numbers are per instance** — `wa_senders.agent_instance_id`
   UNIQUE (migration 021): each agent instance that uses WhatsApp gets its own
   dedicated Twilio number, assigned by an admin (AdminDashboard agents section

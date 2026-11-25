@@ -86,6 +86,14 @@ export interface LlmCallLogContext {
   /** e.g. 'planner' | 'questionnaire_schema_mapping' | 'extract_document' | 'file_classification'. */
   purpose: string;
   /**
+   * Set on the backup model's call only (openspec `fallbacks-dashboard`):
+   * the primary model the call replaced, its provider, and why the primary
+   * did not serve the call ('status 400', 'timeout', 'network', 'error',
+   * or 'provider held' when the primary was never tried). The row carries
+   * it as the fallback mark the admin fallbacks page counts.
+   */
+  fallbackFrom?: { model: string; provider: string; reason: string } | null;
+  /**
    * Where the row goes. Default: the llm_calls table. `{ file }` appends the
    * same row (camelCase, plus `ts`) as one JSON line to that path and never
    * touches Postgres — the evals harness uses it so a run leaves no trace in
@@ -127,6 +135,9 @@ async function recordCall(
       purpose: log.purpose,
       provider,
       model: request.model,
+      fallbackFromModel: log.fallbackFrom?.model ?? null,
+      fallbackFromProvider: log.fallbackFrom?.provider ?? null,
+      fallbackReason: log.fallbackFrom?.reason ?? null,
       status: 'response' in outcome ? 'ok' : 'error',
       error:
         'error' in outcome

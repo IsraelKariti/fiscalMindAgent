@@ -19,6 +19,11 @@ export interface LlmCallRow {
   plan_run_id: string | null;
   /** The short git commit of the build that made the call (078); NULL on rows older than 078. */
   app_version: string | null;
+  /** The fallback mark (081): the primary model this backup call replaced; NULL on a call that was not a fallback. */
+  fallback_from_model: string | null;
+  fallback_from_provider: string | null;
+  /** Why the primary did not serve the call: 'status 400', 'timeout', 'network', 'error' or 'provider held'. */
+  fallback_reason: string | null;
   /** The file's stored name, joined at read time; NULL when the call read no file or the file is gone. */
   document_filename: string | null;
   purpose: string;
@@ -56,6 +61,10 @@ export interface InsertLlmCall {
   appVersion: string | null;
   purpose: string;
   provider: string;
+  /** The fallback mark (081): set on a backup model's call only. */
+  fallbackFromModel: string | null;
+  fallbackFromProvider: string | null;
+  fallbackReason: string | null;
   model: string;
   status: 'ok' | 'error';
   error: string | null;
@@ -102,8 +111,9 @@ export async function insert(call: InsertLlmCall): Promise<void> {
        status, error, attempts, duration_ms,
        input_tokens, output_tokens, thinking_tokens, cached_tokens,
        input_price_per_token, output_price_per_token, thinking_price_per_token, cached_price_per_token,
-       cost, request, response, app_version
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
+       cost, request, response, app_version,
+       fallback_from_model, fallback_from_provider, fallback_reason
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
     [
       call.userId,
       call.agentInstanceId,
@@ -129,6 +139,9 @@ export async function insert(call: InsertLlmCall): Promise<void> {
       JSON.stringify(call.request),
       call.response,
       call.appVersion,
+      call.fallbackFromModel,
+      call.fallbackFromProvider,
+      call.fallbackReason,
     ],
   );
 }
@@ -168,7 +181,7 @@ export async function list(filters: LlmCallFilters): Promise<LlmCallListRow[]> {
             lc.cached_tokens::float8 AS cached_tokens,
             lc.input_price_per_token, lc.output_price_per_token,
             lc.thinking_price_per_token, lc.cached_price_per_token,
-            lc.cost, lc.app_version,
+            lc.cost, lc.app_version, lc.fallback_from_model, lc.fallback_from_provider, lc.fallback_reason,
             c.name AS client_name
      FROM llm_calls lc
      LEFT JOIN clients c ON c.id = lc.client_id
@@ -199,7 +212,7 @@ export async function getById(id: string): Promise<LlmCallRow | null> {
             lc.cached_tokens::float8 AS cached_tokens,
             lc.input_price_per_token, lc.output_price_per_token,
             lc.thinking_price_per_token, lc.cached_price_per_token,
-            lc.cost, lc.app_version, lc.request, lc.response
+            lc.cost, lc.app_version, lc.fallback_from_model, lc.fallback_from_provider, lc.fallback_reason, lc.request, lc.response
      FROM llm_calls lc
      LEFT JOIN document_files df ON df.id = lc.document_file_id
      WHERE lc.id = $1`,

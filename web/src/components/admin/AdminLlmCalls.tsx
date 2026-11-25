@@ -241,6 +241,13 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                   <dt>{t.adminLlmCallsColModel}</dt>
                   <dd>{MODEL_LABELS[call.model] ?? call.model}</dd>
                 </div>
+                {/* A backup call's fallback mark (openspec `fallbacks-dashboard`): the primary it replaced and why. */}
+                {call.fallbackFromModel && (
+                  <div>
+                    <dt>{t.adminLlmCallMetaFallback}</dt>
+                    <dd>{t.adminLlmCallMetaFallbackFor(MODEL_LABELS[call.fallbackFromModel] ?? call.fallbackFromModel, call.fallbackReason ?? '')}</dd>
+                  </div>
+                )}
                 {/* The build that made the call (openspec `cost-per-version`); calls older than 078 have none. */}
                 {call.appVersion && (
                   <div>

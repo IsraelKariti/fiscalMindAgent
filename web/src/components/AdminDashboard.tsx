@@ -14,6 +14,7 @@ import { AdminSiteAccess } from './admin/AdminSiteAccess';
 import { AdminFetchEvidence } from './admin/AdminFetchEvidence';
 import { AdminUsage } from './admin/AdminUsage';
 import { AdminVersions } from './admin/AdminVersions';
+import { AdminFallbacks } from './admin/AdminFallbacks';
 import { AgentPage } from './admin/AgentPage';
 import { OutageBar } from './admin/OutageBar';
 import { useAdminRoute } from './admin/route';
@@ -80,6 +81,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
     route.screen === 'siteAccess' ||
     route.screen === 'fetchEvidence' ||
     route.screen === 'versions' ||
+    route.screen === 'fallbacks' ||
     route.screen === 'audit' ||
     route.screen === 'review' ||
     route.screen === 'llmCalls' ||
@@ -158,6 +160,14 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
             onClick={() => navigate({ screen: 'versions' })}
           >
             {t.adminVersionsTab}
+          </button>
+          <button
+            className={`client-tab ${activeTab === 'fallbacks' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === 'fallbacks'}
+            onClick={() => navigate({ screen: 'fallbacks' })}
+          >
+            {t.adminFallbacksTab}
           </button>
           <button
             className={`client-tab ${activeTab === 'audit' ? 'active' : ''}`}
@@ -240,6 +250,7 @@ export function AdminDashboard({ userEmail, onLogout }: Props) {
         {route.screen === 'siteAccess' && <AdminSiteAccess />}
         {route.screen === 'fetchEvidence' && <AdminFetchEvidence sessionId={route.sessionId} onBack={() => navigate({ screen: 'siteAccess' })} />}
         {route.screen === 'versions' && <AdminVersions />}
+        {route.screen === 'fallbacks' && <AdminFallbacks />}
 
         {route.screen === 'audit' && <AdminAudit />}
 

@@ -777,6 +777,45 @@ export interface SiteAccessReply {
   groups: SiteAccessGroup[];
 }
 
+/** The admin fallbacks page (GET /admin/llm-fallbacks, openspec `fallbacks-dashboard`). */
+export type FallbackDays = 7 | 30 | 90 | null;
+
+export interface FallbackStageFigures {
+  purpose: string;
+  aimed: number;
+  fellBack: number;
+  share: number;
+}
+
+export interface FallbackModelCard {
+  model: string;
+  provider: string;
+  /** Null for a model no call was aimed at in the period (backup-only). */
+  primary: {
+    aimed: number;
+    fellBack: number;
+    share: number;
+    failedNoBackup: number;
+    backupAnswered: number;
+    backupFailed: number;
+    byReason: { reason: string; calls: number }[];
+    byStage: FallbackStageFigures[];
+  } | null;
+  /** Null for a model that took no fallback call in the period. */
+  asBackup: { took: number; answered: number; fromModels: { model: string; calls: number }[] } | null;
+}
+
+export interface FallbacksReply {
+  days: number | null;
+  since: string | null;
+  /** When the first marked backup row was made; null when no call fell back since the mark exists. */
+  firstMarkedAt: string | null;
+  /** The oldest call of the period; null when the period has no call. */
+  oldestInPeriod: string | null;
+  totals: { aimed: number; fellBack: number; share: number };
+  models: FallbackModelCard[];
+}
+
 export interface VersionCostReply {
   versions: VersionSummary[];
   instances: { id: string; name: string | null; accountantEmail: string | null }[];
@@ -813,6 +852,10 @@ export interface LlmCallSummary {
   cost: number | null;
   /** The short git commit of the build that made the call; null on calls older than migration 078. */
   appVersion: string | null;
+  /** The fallback mark: the primary model this backup call replaced and why; null on a call that was not a fallback. */
+  fallbackFromModel: string | null;
+  fallbackFromProvider: string | null;
+  fallbackReason: string | null;
   /** planner whose draft a replan discarded — set only by the conversation endpoint. */
   discarded?: boolean;
 }
@@ -1408,6 +1451,7 @@ export const api = {
     const q = qs.toString();
     return request<VersionCostReply>(`/admin/version-cost${q ? `?${q}` : ''}`);
   },
+  adminGetLlmFallbacks: (days: FallbackDays) => request<FallbacksReply>(`/admin/llm-fallbacks${days ? `?days=${days}` : ''}`),
   adminSiteAccess: () => request<SiteAccessReply>('/admin/site-access'),
   /** A website fetch's step evidence (404 for an unknown session; empty steps when none was kept). */
   adminFetchEvidence: (sessionId: string) => request<FetchEvidenceReply>(`/admin/tax-fetch/${sessionId}/evidence`),

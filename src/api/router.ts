@@ -89,6 +89,7 @@ import {
 import { adminGetMessageAnalytics } from './messageAnalyticsAdmin.js';
 import { adminGetDocumentCost } from './documentCostAdmin.js';
 import { adminGetVersionCost } from './versionCostAdmin.js';
+import { adminGetLlmFallbacks } from './llmFallbacksAdmin.js';
 import {
   adminCreateWaTemplate,
   adminDeleteWaSender,
@@ -153,6 +154,7 @@ apiRouter.get('/admin/site-access', wrap(requireAdmin), wrap(adminSiteAccess));
 apiRouter.get('/admin/tax-fetch/:sessionId/evidence', wrap(requireAdmin), wrap(adminGetFetchEvidence));
 apiRouter.get('/admin/tax-fetch/:sessionId/evidence/:seq/:part', wrap(requireAdmin), wrap(adminServeFetchEvidence));
 apiRouter.get('/admin/version-cost', wrap(requireAdmin), wrap(adminGetVersionCost));
+apiRouter.get('/admin/llm-fallbacks', wrap(requireAdmin), wrap(adminGetLlmFallbacks));
 apiRouter.get('/admin/audit-events', wrap(requireAdmin), wrap(adminAuditEvents));
 apiRouter.get('/admin/alerts', wrap(requireAdmin), wrap(adminListAlerts));
 apiRouter.post('/admin/alerts/:id/ack', wrap(requireAdmin), wrap(adminAckAlert));

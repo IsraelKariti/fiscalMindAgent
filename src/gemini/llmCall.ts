@@ -12,7 +12,7 @@ import {
 } from './generate.js';
 import { toolCallsOf, type LoggedToolCall } from './requestLog.js';
 import { toolRequestConfig, type LlmToolSpec } from './toolTransport.js';
-import { fallbackStepOf, traceStepsEnabled } from './wireRequest.js';
+import { fallbackLogOf, fallbackStepOf, traceStepsEnabled } from './wireRequest.js';
 import { getHolds, openHold, ProviderHeldError } from './providerOutage.js';
 import { holdsAfterFailures, routeUnderHold, type CallFailure } from './outageRules.js';
 import { recordAudit } from '../audit/audit.js';
@@ -118,7 +118,7 @@ export async function runLlmCall(spec: LlmCallSpec, opts: RunLlmCallOptions = {}
     config: requestConfigOf(spec),
     ...(spec.finalTool ? { continuation: { untilTool: spec.finalTool, maxTurns: MAX_TOOL_TURNS } } : {}),
   };
-  const log: LlmCallLogContext | undefined = opts.log ? { ...opts.log, purpose: opts.log.purpose ?? spec.purpose } : undefined;
+  let log: LlmCallLogContext | undefined = opts.log ? { ...opts.log, purpose: opts.log.purpose ?? spec.purpose } : undefined;
   // A pinned model (the evals harness, the probe) is the only one tried.
   let backup = opts.model ? null : await resolveBackupModel(stage, primary);
   // The hold check (openspec `llm-provider-outage`): a held provider gets no
@@ -133,6 +133,7 @@ export async function runLlmCall(spec: LlmCallSpec, opts: RunLlmCallOptions = {}
       const hold = holds[providerForModel(primary)];
       const from = { model: primary, provider: providerForModel(primary) };
       const to = { model: backup, provider: providerForModel(backup) };
+      const reason = { kind: 'held' as const, message: `${hold?.kind ?? 'held'}: ${hold?.message ?? ''}` };
       logger.warn('LLM call routed to the backup model: primary provider held', {
         purpose: spec.purpose,
         from,
@@ -146,11 +147,13 @@ export async function runLlmCall(spec: LlmCallSpec, opts: RunLlmCallOptions = {}
           severity: 'warning',
           agentInstanceId: log!.agentInstanceId,
           clientId: log!.clientId,
-          ...fallbackStepOf(spec.purpose, from, { kind: 'held', message: `${hold?.kind ?? 'held'}: ${hold?.message ?? ''}` }, to),
+          ...fallbackStepOf(spec.purpose, from, reason, to),
         });
       }
       request.model = backup;
       backup = null;
+      // The backup's row carries the fallback mark (openspec `fallbacks-dashboard`).
+      log = fallbackLogOf(log, from, reason);
     }
   }
   const failures: CallFailure[] = [];
@@ -221,7 +224,8 @@ async function runWithBackup(
       });
     }
     try {
-      const { response, attempts } = await generateWithRetryDetailed({ ...request, model: backup }, log);
+      // The backup's row carries the fallback mark (openspec `fallbacks-dashboard`); the primary's row stays unmarked.
+      const { response, attempts } = await generateWithRetryDetailed({ ...request, model: backup }, fallbackLogOf(log, from, reason));
       return { response, attempts, model: backup };
     } catch (backupErr) {
       failures.push({ model: backup, err: backupErr });

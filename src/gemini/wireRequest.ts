@@ -150,6 +150,12 @@ export interface FailureReason {
 
 const FALLBACK_MESSAGE_CAP = 500;
 
+/** The reason text the fallback step and the backup row's fallback mark carry: 'status 400', 'timeout', 'network', 'error' or 'provider held'. */
+export function failureReasonLabel(reason: FailureReason): string {
+  if (typeof reason.kind === 'number') return `status ${reason.kind}`;
+  return reason.kind === 'held' ? 'provider held' : reason.kind;
+}
+
 /**
  * The `fallback_model` step (openspec `llm-model-settings`): the primary
  * model did not answer and the same request goes to the stage's backup on
@@ -164,10 +170,32 @@ export function fallbackStepOf(purpose: string, from: StepModel, reason: Failure
       from_provider: from.provider,
       to_model: to.model,
       to_provider: to.provider,
-      failure_reason: typeof reason.kind === 'number' ? `status ${reason.kind}` : reason.kind,
+      failure_reason: failureReasonLabel(reason),
       failure_error: reason.message.slice(0, FALLBACK_MESSAGE_CAP),
     },
   };
+}
+
+/** The fallback mark of a backup call's row (openspec `fallbacks-dashboard`): the primary it replaced and why. */
+export interface FallbackMark {
+  model: string;
+  provider: string;
+  reason: string;
+}
+
+/**
+ * The backup call's log context: the caller's context plus the fallback mark,
+ * so the backup's llm_calls row names the primary it replaced; the primary's
+ * own row (already written) stays unmarked. No context (an unlogged call) →
+ * nothing to mark.
+ */
+export function fallbackLogOf<L extends { fallbackFrom?: FallbackMark | null }>(
+  log: L | undefined,
+  from: StepModel,
+  reason: FailureReason,
+): L | undefined {
+  if (!log) return undefined;
+  return { ...log, fallbackFrom: { model: from.model, provider: from.provider, reason: failureReasonLabel(reason) } };
 }
 
 /** What the retry loop knows about the call's logging: the client and the sink. */

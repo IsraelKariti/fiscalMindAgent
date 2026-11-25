@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
  *                                        → that accountant's page, hash untouched
  *   #/agents                             all agent instances across accountants
  *   #/usage                              LLM spend analytics
+ *   #/fallbacks                          share of LLM calls handed to the backup model
  *   #/audit                              audit trail + anomaly alerts
  *   #/review                             pilot message review queue
  *   #/llm-calls                          per-call LLM log browser
@@ -29,6 +30,7 @@ export type AdminRoute =
   | { screen: 'siteAccess' }
   | { screen: 'fetchEvidence'; sessionId: string }
   | { screen: 'versions' }
+  | { screen: 'fallbacks' }
   | { screen: 'audit' }
   | { screen: 'review' }
   | { screen: 'llmCalls'; callId?: string }
@@ -55,6 +57,8 @@ export function routeHash(route: AdminRoute): string {
       return `#/site-access/sessions/${encodeURIComponent(route.sessionId)}`;
     case 'versions':
       return '#/versions';
+    case 'fallbacks':
+      return '#/fallbacks';
     case 'audit':
       return '#/audit';
     case 'review':
@@ -81,6 +85,7 @@ function parseHash(hash: string): AdminRoute {
     return { screen: 'siteAccess' };
   }
   if (parts[0] === 'versions') return { screen: 'versions' };
+  if (parts[0] === 'fallbacks') return { screen: 'fallbacks' };
   if (parts[0] === 'audit') return { screen: 'audit' };
   if (parts[0] === 'review') return { screen: 'review' };
   if (parts[0] === 'llm-calls') return parts[1] ? { screen: 'llmCalls', callId: parts[1] } : { screen: 'llmCalls' };

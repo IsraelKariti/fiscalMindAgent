@@ -56,3 +56,34 @@ describe('failureReasonOf', () => {
     assert.deepEqual(failureReasonOf(new Error('x')), { kind: 'error', message: 'x' });
   });
 });
+
+const { failureReasonLabel, fallbackLogOf } = await import('../src/gemini/wireRequest.js');
+
+// openspec `fallbacks-dashboard`: the backup call's log context carries the
+// fallback mark the row records; the primary's context is left alone.
+describe('fallbackLogOf', () => {
+  const from = { model: 'claude-opus-5', provider: 'anthropic' };
+  const log: { userId: null; agentInstanceId: null; clientId: string; purpose: string; fallbackFrom?: { model: string; provider: string; reason: string } | null } = {
+    userId: null,
+    agentInstanceId: null,
+    clientId: 'c1',
+    purpose: 'planner',
+  };
+
+  it('marks the backup call with the primary and the reason, without touching the primary context', () => {
+    const backup = fallbackLogOf(log, from, { kind: 400, message: 'grammar too large' });
+    assert.deepEqual(backup, { ...log, fallbackFrom: { model: 'claude-opus-5', provider: 'anthropic', reason: 'status 400' } });
+    assert.equal('fallbackFrom' in log, false);
+  });
+
+  it('names a held provider as "provider held"', () => {
+    assert.equal(fallbackLogOf(log, from, { kind: 'held', message: 'billing: credit' })?.fallbackFrom?.reason, 'provider held');
+    assert.equal(failureReasonLabel({ kind: 'timeout', message: '' }), 'timeout');
+    assert.equal(failureReasonLabel({ kind: 'network', message: '' }), 'network');
+    assert.equal(failureReasonLabel({ kind: 503, message: '' }), 'status 503');
+  });
+
+  it('has nothing to mark on an unlogged call', () => {
+    assert.equal(fallbackLogOf(undefined, from, { kind: 'timeout', message: '' }), undefined);
+  });
+});

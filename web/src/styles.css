@@ -6220,3 +6220,80 @@ pre.doc-text {
   font-weight: 600;
   border-top: 2px solid var(--border, #e3e6ef);
 }
+
+/* Admin fallbacks page (openspec `fallbacks-dashboard`) */
+.fallbacks-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.fallbacks-totals {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.fallbacks-since-note {
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+
+.fallbacks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fallbacks-card {
+  cursor: default;
+}
+
+.fallbacks-share {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.fallbacks-share-ok {
+  color: var(--success);
+}
+
+.fallbacks-share-warn {
+  color: var(--warning, #b7791f);
+}
+
+.fallbacks-share-bad {
+  color: var(--error);
+}
+
+.fallbacks-none {
+  margin: 0;
+  font-size: 13px;
+}
+
+.fallbacks-lists {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 0 24px;
+}
+
+.fallbacks-stats-backup {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 420px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 900px) {
+  .fallbacks-lists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .fallbacks-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

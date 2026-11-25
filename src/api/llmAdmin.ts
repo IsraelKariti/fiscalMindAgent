@@ -331,6 +331,9 @@ function toAdminCall(r: Omit<llmCalls.LlmCallRow, 'request' | 'response'> & { cl
     cachedPricePerToken: r.cached_price_per_token,
     cost: r.cost,
     appVersion: r.app_version,
+    fallbackFromModel: r.fallback_from_model,
+    fallbackFromProvider: r.fallback_from_provider,
+    fallbackReason: r.fallback_reason,
   };
 }
 

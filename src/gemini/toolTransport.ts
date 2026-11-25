@@ -35,9 +35,12 @@ export function toolRequestConfig(tools: LlmToolSpec[]): Pick<GenerateContentCon
 }
 
 /**
- * Anthropic: strict tools (`strict: true` makes the compiler guarantee each
- * call matches its schema). Each parameter schema is flat and fully required,
- * so the keyword stripping of toAnthropicSchema is the only translation.
+ * Anthropic: tools sent WITHOUT `strict: true` (since 2026-11-25) — the
+ * provider does not compile the schemas into a grammar, so no call is forced
+ * into a shape the schema allows but the stage does not mean (the forced enum
+ * value / missing-null class of answers); the stage's own validation gates
+ * every call as before. Each parameter schema is flat and fully required, so
+ * the keyword stripping of toAnthropicSchema is the only translation.
  * `changes`, when given, records what that stripping changed, paths prefixed
  * by the tool name (openspec `conversation-trace`).
  */
@@ -46,7 +49,6 @@ export function toAnthropicTools(tools: DeclaredTool[], changes?: SchemaChanges)
     name: t.name,
     description: t.description,
     input_schema: toAnthropicSchema(t.parameters, changes, t.name) as Anthropic.Tool.InputSchema,
-    strict: true,
   }));
 }
 

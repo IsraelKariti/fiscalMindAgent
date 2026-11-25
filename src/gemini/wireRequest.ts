@@ -71,13 +71,15 @@ export function translationOf(provider: string, request: TranslatableRequest): T
   if (provider === 'anthropic') {
     if (cfg.responseJsonSchema !== undefined) sent.responseJsonSchema = toAnthropicSchema(cfg.responseJsonSchema, changes);
     if (tools.length > 0) {
+      // Tools go out without `strict` (toAnthropicTools): the schema is a
+      // guide, not an enforced grammar — the stage's validation gates the calls.
       sent.tools = toAnthropicTools(tools, changes).map((t) => ({
         name: t.name,
         description: t.description ?? '',
         parameters: t.input_schema,
         strict: t.strict === true,
       }));
-      toolsStrict = true;
+      sent.strict = false;
     }
   } else {
     // OpenAI: the answer schema goes out unchanged (strict mode accepts it);

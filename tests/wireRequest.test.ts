@@ -164,14 +164,16 @@ describe('the sent copy per provider', () => {
     assert.deepEqual(t.sent.omitted, ['temperature']);
   });
 
-  it('tool stages: every tool strict with additionalProperties:false, in one shape for both providers', () => {
+  it('tool stages: one shape for both providers, additionalProperties:false; strict for OpenAI only', () => {
     for (const provider of ['anthropic', 'openai'] as const) {
+      const strict = provider === 'openai';
       const t = translationOf(provider, toolRequest(plannerTools))!;
-      assert.equal(t.toolsStrict, true);
+      assert.equal(t.toolsStrict, strict);
+      assert.equal(t.sent.strict, strict);
       assert.equal(t.sent.responseJsonSchema, undefined);
       assert.equal(t.sent.tools!.length, plannerTools.length);
       for (const tool of t.sent.tools!) {
-        assert.equal(tool.strict, true);
+        assert.equal(tool.strict, strict);
         assert.equal((tool.parameters as Record<string, unknown>).additionalProperties, false);
         assert.ok(plannerTools.some((d) => d.name === tool.name));
       }
@@ -235,7 +237,7 @@ describe('the trace steps per provider', () => {
   it('Anthropic tool stage: translate only (the adapter changes nothing in the calls)', () => {
     const steps = traceStepsOf('anthropic', toolRequest(plannerTools), db, 'planner', { functionCalls: [{ name: 'conclude', args: {} }] });
     assert.deepEqual(steps.map((s) => s.action), ['translate_request']);
-    assert.equal(steps[0]!.detail.tools_strict, true);
+    assert.equal(steps[0]!.detail.tools_strict, false);
     assert.equal(steps[0]!.detail.schema_changed, false);
   });
 

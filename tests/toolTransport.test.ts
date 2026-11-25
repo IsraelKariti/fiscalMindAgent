@@ -42,11 +42,11 @@ describe('Gemini request config', () => {
 });
 
 describe('Anthropic translation', () => {
-  it('sends strict tools whose schemas carry no unsupported keyword and no extra keys', () => {
+  it('sends non-strict tools whose schemas carry no unsupported keyword and no extra keys', () => {
     const out = toAnthropicTools(declaredToolsOf(toolRequestConfig(tools)));
     assert.equal(out.length, tools.length);
     for (const tool of out) {
-      assert.equal(tool.strict, true, tool.name);
+      assert.equal(tool.strict, undefined, tool.name);
       assert.equal(tool.input_schema.type, 'object', tool.name);
       assert.equal((tool.input_schema as { additionalProperties?: unknown }).additionalProperties, false, tool.name);
       assert.ok(!('$schema' in tool.input_schema), tool.name);

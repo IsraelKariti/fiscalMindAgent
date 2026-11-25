@@ -72,17 +72,17 @@ const fileRow = (id: string, extra: Partial<DocumentFileRow> = {}): DocumentFile
   ({ id, filename: files.get(id) ?? id, label: null, analysis_status: 'done', analysis: { legible: true }, parent_file_id: null, ...extra }) as unknown as DocumentFileRow;
 const fileById = new Map([fileRow('f1'), fileRow('fh'), fileRow('fc'), fileRow('fm'), fileRow('fq', { analysis_status: 'blocked' })].map((f) => [f.id, f]));
 
-test('resolve_document: name next to id, the quote, the created rows and the outcome line; a turn is kept', () => {
+test('set_required: name next to id, the quote, the created rows and the outcome line; a turn is kept', () => {
   const evidence = { message_id: 'm1', quote: 'סגרתי את החשבון' };
   assert.deepEqual(
-    resolveDocumentDetail(call('resolve_document', { document_id: 'd1', resolution: 'not_required', evidence_message_id: 'm1', evidence_quote: 'סגרתי את החשבון' }, 2), docName, {
+    resolveDocumentDetail(call('set_required', { document_id: 'd1', resolution: 'not_required', evidence_message_id: 'm1', evidence_quote: 'סגרתי את החשבון' }, 2), docName, {
       applied: true,
       evidence,
       createdNames: [],
     }),
-    { tool: 'resolve_document', turn: 2, documentId: 'd1', name: docs.get('d1'), resolution: 'not_required', quote: 'סגרתי את החשבון', applied: true, reason: 'resolved not_required' },
+    { tool: 'set_required', turn: 2, documentId: 'd1', name: docs.get('d1'), resolution: 'not_required', quote: 'סגרתי את החשבון', applied: true, reason: 'resolved not_required' },
   );
-  const required = resolveDocumentDetail(call('resolve_document', { document_id: 'd2', resolution: 'required', proven_by_file_id: 'f1' }), docName, {
+  const required = resolveDocumentDetail(call('set_required', { document_id: 'd2', resolution: 'required', proven_by_file_id: 'f1' }), docName, {
     applied: true,
     evidence: { source: 'self_evident_file', file_id: 'f1', issuer: 'אלטשולר שחם', holders: ['דני'], matched: 'client' },
     createdNames: ['קרן השתלמות — אלטשולר שחם'],
@@ -91,7 +91,7 @@ test('resolve_document: name next to id, the quote, the created rows and the out
   assert.deepEqual(required.instances, ['קרן השתלמות — אלטשולר שחם']);
   assert.equal(required.provenByFileId, 'f1');
   assert.match(required.quote ?? '', /נוצר מקובץ על שם הלקוח/);
-  assert.equal(resolveDocumentDetail(call('resolve_document', { document_id: 'd9', resolution: 'not_required' }), docName, { applied: false, evidence: null, createdNames: [] }).reason, 'no change: the row could not be resolved');
+  assert.equal(resolveDocumentDetail(call('set_required', { document_id: 'd9', resolution: 'not_required' }), docName, { applied: false, evidence: null, createdNames: [] }).reason, 'no change: the row could not be resolved');
 });
 
 test('add_instance: the created row, its status, the accepted and the refused files', () => {

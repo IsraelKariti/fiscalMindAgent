@@ -117,13 +117,13 @@ describe('OpenAI continuation until the final tool', () => {
   it('feeds each call back as "recorded" against the previous response until conclude, summing the usage', async () => {
     const sent: Record<string, unknown>[] = [];
     const answers = [
-      turn('r1', [{ type: 'reasoning', summary: [] }, call('resolve_document', 'c1')], 1000, 900),
+      turn('r1', [{ type: 'reasoning', summary: [] }, call('set_required', 'c1')], 1000, 900),
       turn('r2', [call('send_whatsapp_text', 'c2')], 1100, 1000),
       turn('r3', [call('conclude', 'c3')], 1200, 1100),
     ];
     const res = await runOpenAiToolTurns(first, until, async (b) => (sent.push(b), answers[sent.length - 1]!));
     assert.equal(res.turns, 3);
-    assert.deepEqual(res.calls.map((c) => c.name), ['resolve_document', 'send_whatsapp_text', 'conclude']);
+    assert.deepEqual(res.calls.map((c) => c.name), ['set_required', 'send_whatsapp_text', 'conclude']);
     // Every call carries the turn that made it, and the stored response keeps it for the trace.
     assert.deepEqual(res.calls.map((c) => c.turn), [1, 2, 3]);
     assert.deepEqual(toolCallsOf({ functionCalls: res.calls }).map((c) => c.turn), [1, 2, 3]);

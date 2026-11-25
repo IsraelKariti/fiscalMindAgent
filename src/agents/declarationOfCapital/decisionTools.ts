@@ -117,7 +117,7 @@ const COLLECT_TOOLS: DecisionTool[] = [
 
 const INTAKE_TOOLS: DecisionTool[] = [
   {
-    name: 'resolve_document',
+    name: 'set_required',
     description:
       "Settle an unresolved catalog row on the client's explicit words: required (then add_instance for each concrete item) or not_required. For required only, a self-evident file (its content analysis says so) may stand instead of the quote: then exactly one of the evidence pair or proven_by_file_id is non-empty.",
     params: z
@@ -238,7 +238,7 @@ export const DECISION_TOOL_NAMES = [
   'send_whatsapp_template',
   'mark_collected',
   'tie_file',
-  'resolve_document',
+  'set_required',
   'add_instance',
   'state_cost',
   'state_vehicle',
@@ -387,12 +387,12 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
 
   // Instances: under a row this answer resolves `required` they are that resolution's instances;
   // otherwise one added_instances entry per anchor (the validator rejects two entries on one anchor).
-  const resolved = of('resolve_document');
+  const resolved = of('set_required');
   const resolvedIds = new Set(resolved.map((r) => str(r.document_id)));
   const seenResolved = new Set<string>();
   for (const r of resolved) {
     const id = str(r.document_id);
-    if (seenResolved.has(id)) throw new Error(`resolve_document was called twice for document ${id} — resolve each row once`);
+    if (seenResolved.has(id)) throw new Error(`set_required was called twice for document ${id} — resolve each row once`);
     seenResolved.add(id);
   }
   const instanceCalls = of('add_instance');
@@ -475,7 +475,7 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
       resolution,
       instances: resolution === 'required' ? own.map((i) => i.instance) : null,
       evidence: evidenceOf(r),
-      // The self-evident file may be cited on the resolve_document call or on its one add_instance.
+      // The self-evident file may be cited on the set_required call or on its one add_instance.
       proven_by_file_id: str(r.proven_by_file_id) || own.find((i) => i.provenByFileId !== '')?.provenByFileId || '',
     };
   });

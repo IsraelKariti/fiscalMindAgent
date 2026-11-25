@@ -386,7 +386,7 @@ test('tool-call steps (openspec conversation-trace): the tool key is dropped, bo
     { key: 'emailId', value: 'e1' },
     { key: 'chars', value: '12' },
   ]);
-  assert.deepEqual(stepSummaryOf('resolve_document', { clientName: 'דני', tool: 'resolve_document', applied: false, documentId: 'd1', reason: 'no change' }), [
+  assert.deepEqual(stepSummaryOf('set_required', { clientName: 'דני', tool: 'set_required', applied: false, documentId: 'd1', reason: 'no change' }), [
     { key: 'applied', value: 'לא' },
     { key: 'documentId', value: 'd1' },
   ]);

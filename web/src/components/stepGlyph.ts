@@ -9,7 +9,8 @@
 
 /** The planner's tools, each also the name of its execution step. */
 export const PLANNER_TOOL_STEPS: ReadonlySet<string> = new Set([
-  'resolve_document',
+  'set_required',
+  'resolve_document', // rows recorded before the rename (2026-11-25)
   'add_instance',
   'retire_document',
   'set_company',

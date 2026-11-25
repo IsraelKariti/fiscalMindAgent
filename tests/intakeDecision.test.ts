@@ -693,7 +693,7 @@ describe('a self-evident file as evidence (proven_by_file_id, openspec unlisted-
     assert.deepEqual(decision.addedInstances[0]!.instances[0]!.fileIds, ['file-phoenix']);
   });
 
-  it('the file may be cited on the add_instance call instead of the resolve_document call', () => {
+  it('the file may be cited on the add_instance call instead of the set_required call', () => {
     const calls = callsOf(resolve('doc-study', [instance('קרן השתלמות')], ''));
     const add = calls.find((c) => c.name === 'add_instance')!;
     add.args = { ...(add.args as Record<string, unknown>), proven_by_file_id: 'file-phoenix' };

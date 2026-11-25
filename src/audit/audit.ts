@@ -77,7 +77,8 @@ export type AuditAction =
   // Apply phase of the planner (plan.ts, openspec `conversation-trace`): one
   // row per accepted tool call of the planner's answer, named after the tool,
   // with the call's parameters and the outcome of its execution.
-  | 'resolve_document'
+  | 'set_required'
+  | 'resolve_document' // rows recorded before the tool was renamed set_required (2026-11-25)
   | 'add_instance'
   | 'retire_document'
   | 'set_company'

@@ -1408,7 +1408,8 @@ const he = {
   // English like codeGateLabels. Unknown actions fall back to humanizePurpose().
   stepActionLabels: {
     // The planner's tool calls, one step each, named after the tool (openspec `conversation-trace`).
-    resolve_document: 'resolve_document',
+    set_required: 'set_required',
+    resolve_document: 'resolve_document', // rows recorded before the rename (2026-11-25)
     add_instance: 'add_instance',
     retire_document: 'retire_document',
     set_company: 'set_company',

@@ -48,7 +48,7 @@ activation is not email-gated and no mailbox is required — the instance's
 - The planner answers with flat tool calls, not one JSON form (openspec
   `planner-answer-tools`, 2026-10-14): `decisionTools.ts` offers `conclude`,
   `send_whatsapp_text`, `send_whatsapp_template`, `mark_collected`, `tie_file`,
-  `resolve_document`, `add_instance`, `state_cost`, `retire_document`,
+  `set_required`, `add_instance`, `state_cost`, `retire_document`,
   `set_company`, `attestation`, `tax_fetch` (per context, `toolsForContext`); the model calls
   several (in one turn on Gemini/Anthropic; OpenAI's reasoning models make one
   call per turn, so the adapter answers each `recorded` and asks again until
@@ -1911,7 +1911,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
      (stored inbound message id + verbatim quote); a file-only message has no
      text to quote, the questionnaire / file names / analysis text are never
      evidence. The quote is stored in `resolution_evidence` of every created row
-     and shown in the `resolve_document` / `add_instance` step. The prompt
+     and shown in the `set_required` / `add_instance` step. The prompt
      tells the planner to mention a relevant unmatched file and ask, and not to
      ask again after a "no".
   4. *Same-cycle attach* — each new instance carries `file_ids`; after the rows
@@ -2117,7 +2117,7 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
 - **Apply phase** (openspec `conversation-trace`, 2026-11-11): after the
   gate accepts the answer, `plan.ts` executes the tool calls in a fixed
   order and records ONE step per accepted call, named after the tool
-  (`resolve_document`, `add_instance`, `retire_document`, `state_cost`,
+  (`set_required`, `add_instance`, `retire_document`, `state_cost`,
   `state_vehicle`, `attestation`, `tie_file`, `mark_collected`, `conclude`,
   `send_whatsapp_text` / `send_whatsapp_template`, `tax_fetch`;
   `recordToolStep`, builders in `toolStepDetails.ts`). Each detail is flat:

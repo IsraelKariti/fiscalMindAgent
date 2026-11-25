@@ -1482,7 +1482,7 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
       ...(ties ? ['a file tie (mark_collected / tie_file / file_ids)'] : []),
       ...(raw.tax_fetch_action ? ['tax_fetch'] : []),
       ...(raw.attestation ? ['attestation'] : []),
-      ...((raw.resolved_documents ?? []).length > 0 ? ['resolve_document'] : []),
+      ...((raw.resolved_documents ?? []).length > 0 ? ['set_required'] : []),
       ...((raw.added_instances ?? []).length > 0 ? ['add_instance'] : []),
       ...((raw.retired_documents ?? []).length > 0 ? ['retire_document'] : []),
       ...((raw.set_companies ?? []).length > 0 ? ['set_company'] : []),

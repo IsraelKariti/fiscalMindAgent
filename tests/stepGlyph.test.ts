@@ -6,7 +6,7 @@ import { isPlannerToolStep, stepGlyph } from '../web/src/components/stepGlyph.js
 test('tool-call steps get the tool icon; checks the shield; code-only and legacy apply rows the gear', () => {
   assert.equal(stepGlyph({ action: 'validate_message', severity: 'info' }), '🛡️');
   assert.equal(stepGlyph({ action: 'document.collected', severity: 'info' }), '🛡️');
-  for (const tool of ['tie_file', 'mark_collected', 'conclude', 'send_whatsapp_text', 'resolve_document']) {
+  for (const tool of ['tie_file', 'mark_collected', 'conclude', 'send_whatsapp_text', 'set_required']) {
     assert.equal(stepGlyph({ action: tool, severity: 'info' }), '🛠️', tool);
     assert.equal(isPlannerToolStep(tool), true);
   }

@@ -87,7 +87,7 @@ describe('toolsForContext', () => {
   it('capital declaration without a fetch offer: every tool except tax_fetch', () => {
     assert.deepEqual(names(CAPITAL), [
       'conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'ask_team', 'mark_collected', 'tie_file',
-      'resolve_document', 'add_instance', 'state_cost', 'state_vehicle', 'retire_document', 'set_company', 'attestation',
+      'set_required', 'add_instance', 'state_cost', 'state_vehicle', 'retire_document', 'set_company', 'attestation',
     ]);
     assert.ok(names(CAPITAL_WITH_FETCH).includes('tax_fetch'));
     assert.deepEqual(decisionValues(CAPITAL), ['goal_complete', 'follow_up', 'collect', 'client_declined']);
@@ -148,7 +148,7 @@ describe('assembleDecision', () => {
       conclude('collect'),
       { name: 'tie_file', args: { file_id: 'file-1', document_id: 'doc-bank', ...noEvidence } },
       { name: 'mark_collected', args: { document_id: 'doc-bank' } },
-      { name: 'resolve_document', args: { document_id: 'doc-vehicle', resolution: 'not_required', evidence_message_id: 'msg-1', evidence_quote: 'אין לי רכב', proven_by_file_id: '' } },
+      { name: 'set_required', args: { document_id: 'doc-vehicle', resolution: 'not_required', evidence_message_id: 'msg-1', evidence_quote: 'אין לי רכב', proven_by_file_id: '' } },
     ]);
     assert.equal(raw.decision, 'collect');
     // '' / '' evidence reads as "no evidence given", as the form's null did.
@@ -165,7 +165,7 @@ describe('assembleDecision', () => {
     const raw = parsed([
       conclude('follow_up'),
       sendText(),
-      { name: 'resolve_document', args: { document_id: 'doc-vehicle', resolution: 'required', ...evidence, proven_by_file_id: '' } },
+      { name: 'set_required', args: { document_id: 'doc-vehicle', resolution: 'required', ...evidence, proven_by_file_id: '' } },
       { name: 'add_instance', args: { anchor_document_id: 'doc-vehicle', name: 'רישיון רכב - מאזדה', description: '', already_provided: false, file_ids: [], paper_key: 'vehicle_license', ...noEvidence, proven_by_file_id: '' } },
       { name: 'add_instance', args: { anchor_document_id: 'doc-vehicle', name: 'מסמך רכישה - מאזדה', description: 'קבלה', already_provided: false, file_ids: [], paper_key: 'vehicle_purchase_document', ...noEvidence, proven_by_file_id: '' } },
       { name: 'add_instance', args: { anchor_document_id: 'doc-bank', name: 'אישור יתרות בנק הפועלים', description: '', already_provided: false, file_ids: ['file-9'], paper_key: '', ...evidence, proven_by_file_id: '' } },
@@ -192,7 +192,7 @@ describe('assembleDecision', () => {
     const raw = parsed([
       conclude('follow_up'),
       sendText(),
-      { name: 'resolve_document', args: { document_id: 'doc-re', resolution: 'required', ...evidence, proven_by_file_id: '' } },
+      { name: 'set_required', args: { document_id: 'doc-re', resolution: 'required', ...evidence, proven_by_file_id: '' } },
       { name: 'add_instance', args: { anchor_document_id: 'doc-re', name: 'הצהרת עלות - דירה ברחוב הרצל', description: '', already_provided: false, file_ids: [], paper_key: 'cost_declaration', ...noEvidence, proven_by_file_id: '' } },
       { name: 'state_cost', args: { document_id: '', instance_name: 'הצהרת עלות - דירה ברחוב הרצל', amount: 1850000, currency: 'ILS', evidence_message_id: 'msg-1', evidence_quote: 'קניתי אותה ב-1,850,000' } },
       { name: 'state_cost', args: { document_id: 'doc-bank', instance_name: '', amount: 85000, currency: 'ILS', evidence_message_id: 'msg-1', evidence_quote: '85,000' } },
@@ -213,7 +213,7 @@ describe('assembleDecision', () => {
       /names instance "דירה אחרת" but no add_instance call/,
     );
     assert.throws(
-      () => parsed([conclude('follow_up'), sendText(), { name: 'resolve_document', args: { document_id: 'doc-re', resolution: 'not_required', ...evidence, proven_by_file_id: '' } }, { name: 'resolve_document', args: { document_id: 'doc-re', resolution: 'required', ...evidence, proven_by_file_id: '' } }]),
+      () => parsed([conclude('follow_up'), sendText(), { name: 'set_required', args: { document_id: 'doc-re', resolution: 'not_required', ...evidence, proven_by_file_id: '' } }, { name: 'set_required', args: { document_id: 'doc-re', resolution: 'required', ...evidence, proven_by_file_id: '' } }]),
       /called twice for document doc-re/,
     );
   });

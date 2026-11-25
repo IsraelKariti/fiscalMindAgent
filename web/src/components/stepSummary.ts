@@ -311,7 +311,7 @@ const toolStepRows: Mapping = (d) => ({
   rows: (['applied', 'rolled', 'alreadyProvided'] as const).filter((k) => typeof d[k] === 'boolean').map((k) => yesNo(k, d[k])),
   consumed: ['tool', 'applied', 'rolled', 'alreadyProvided'],
 });
-for (const tool of ['resolve_document', 'add_instance', 'retire_document', 'set_company', 'state_cost', 'state_vehicle', 'attestation', 'tie_file', 'mark_collected', 'send_whatsapp_text', 'send_whatsapp_template', 'tax_fetch', 'conclude', 'ask_team']) {
+for (const tool of ['set_required', 'resolve_document' /* pre-rename rows */, 'add_instance', 'retire_document', 'set_company', 'state_cost', 'state_vehicle', 'attestation', 'tie_file', 'mark_collected', 'send_whatsapp_text', 'send_whatsapp_template', 'tax_fetch', 'conclude', 'ask_team']) {
   MAPPINGS[tool] = toolStepRows;
 }
 

@@ -189,7 +189,7 @@ interface CollectionOutcome {
  * Asks the LLM, given the full thread and required-documents list, which
  * documents were just provided and whether a follow-up is needed, and acts on
  * it. One named function per step; the trail reads validate_message → one
- * step per accepted tool call (resolve_document, add_instance, …, tie_file,
+ * step per accepted tool call (set_required, add_instance, …, tie_file,
  * mark_collected) → conclude → (verify → rerun) or send_whatsapp_* / tax_fetch
  * (openspec `conversation-trace`).
  */
@@ -601,7 +601,7 @@ function openTeamQuestionOf(questions: readonly TeamQuestionRow[]): DecisionCont
 }
 
 /**
- * resolve_document steps — intake resolutions (capital declaration): already
+ * set_required steps — intake resolutions (capital declaration): already
  * validated against the resolvable rows and the evidence quotes
  * (decisionSchema); the DB guards re-check the statuses. The planner gives no
  * injection verdict — that is the dedicated screens' job, before it runs.
@@ -609,8 +609,8 @@ function openTeamQuestionOf(questions: readonly TeamQuestionRow[]): DecisionCont
 async function applyResolutions(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
   for (const resolution of decision.resolutions) {
-    // The call this resolution came from (one resolve_document per document, by the gate).
-    const call = run.calls.find((c) => c.name === 'resolve_document' && c.args.document_id === resolution.documentId);
+    // The call this resolution came from (one set_required per document, by the gate).
+    const call = run.calls.find((c) => c.name === 'set_required' && c.args.document_id === resolution.documentId);
     const step = (applied: boolean, createdNames: string[]) => {
       if (!call) return;
       recordToolStep(run, call, resolveDocumentDetail(call, (id) => docName(run, id), { applied, evidence: resolution.evidence, createdNames }), {

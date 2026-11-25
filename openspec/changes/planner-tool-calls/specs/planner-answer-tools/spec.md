@@ -8,7 +8,7 @@ How the conversation planner answers: a set of small tools, each with a flat par
 The `generate_message` stage SHALL offer the model a set of tools and SHALL force a tool answer (the model may not answer in plain text). The model SHALL answer with one or more tool calls, one of them `conclude`, which closes the answer. On Gemini and Anthropic the answer SHALL be a single turn: the system SHALL NOT send tool results back and SHALL NOT run a second model turn except the one corrective retry of the `validate_message` gate. On OpenAI, whose reasoning models make one action call per turn, the system SHALL continue the same answer while a turn's calls include no `conclude`: it SHALL answer every call of the turn with the literal tool result `recorded`, SHALL ask for the next calls with the same tools and the same forced tool choice, and SHALL stop after `conclude`, after a turn without calls, or after 6 turns in all. The calls of all turns, in order, SHALL form one answer and one LLM call record with the summed token usage. Plain text in the answer SHALL be ignored. The same tools and the same gate SHALL hold on every model provider the admin can select for this stage (Gemini, Anthropic, OpenAI).
 
 #### Scenario: OpenAI reaches conclude on a later turn
-- **WHEN** an OpenAI model answers the first turn with `resolve_document(…)` only, the second turn with `send_whatsapp_text(…)` only and the third turn with `conclude(decision: "follow_up", …)`
+- **WHEN** an OpenAI model answers the first turn with `set_required(…)` only, the second turn with `send_whatsapp_text(…)` only and the third turn with `conclude(decision: "follow_up", …)`
 - **THEN** the system sends `recorded` for the first call before the second turn and for the second call before the third turn, and the gate receives the three calls as one answer
 
 #### Scenario: OpenAI never concludes
@@ -20,7 +20,7 @@ The `generate_message` stage SHALL offer the model a set of tools and SHALL forc
 - **THEN** the gate accepts the answer and the stored draft is a WhatsApp free-form message with that text, sent as soon as possible
 
 #### Scenario: Collecting answer in one turn
-- **WHEN** the model answers with `conclude(decision: "collect", …)`, `tie_file(file_id: F, document_id: D, …)` and `resolve_document(…)` in the same turn
+- **WHEN** the model answers with `conclude(decision: "collect", …)`, `tie_file(file_id: F, document_id: D, …)` and `set_required(…)` in the same turn
 - **THEN** all three calls are applied in this cycle: the file is tied, the row is resolved, and no message is drafted until the verification of the tied file
 
 #### Scenario: Model answers in text only
@@ -35,7 +35,7 @@ The tools offered SHALL be exactly these, with these parameters; every parameter
 - `send_whatsapp_template(template_id, variables, send_at)`: an approved template, its variables (list of text) and the send time.
 - `mark_collected(document_id)`: a required-document row the client provided without a file in this thread (claimed).
 - `tie_file(file_id, document_id, evidence_message_id, evidence_quote)`: a received file is this required document; the evidence pair is `''`/`''` when code can confirm the match itself.
-- `resolve_document(document_id, resolution, evidence_message_id, evidence_quote)`: `resolution` one of `required`, `not_required`; the evidence is the client's own words.
+- `set_required(document_id, resolution, evidence_message_id, evidence_quote)`: `resolution` one of `required`, `not_required`; the evidence is the client's own words.
 - `add_instance(anchor_document_id, name, description, already_provided, file_ids, paper_key, evidence_message_id, evidence_quote, proven_by_file_id)`: one concrete item under a catalog row (a row resolved `required` in this same answer, or an already-resolved row); `paper_key` one of the catalog papers or `''`; exactly one of the evidence pair or `proven_by_file_id` is non-empty.
 - `state_cost(document_id, instance_name, amount, currency, evidence_message_id, evidence_quote)`: a purchase cost the client stated in the chat, for an existing item (`document_id` set, `instance_name` `''`) or for an item added in this same answer (`document_id` `''`, `instance_name` equal to that `add_instance` call's `name`).
 - `retire_document(document_id, evidence_message_id, evidence_quote, proven_by_file_id)`: exactly one of the evidence pair or `proven_by_file_id` is non-empty.
@@ -55,7 +55,7 @@ The tools offered SHALL be exactly these, with these parameters; every parameter
 - **THEN** the call is read as "no evidence given" and the match is accepted on code evidence alone, as the form's null evidence was
 
 ### Requirement: Only the tools this call can use are offered
-Before each planner call the system SHALL build the tool set from the full set minus the tools the client cannot use in this call: the checklist tools (`resolve_document`, `add_instance`, `state_cost`, `retire_document`, `attestation`) when the agent has no intake; `tax_fetch` when no fetch provider is offered; `mark_collected` and `tie_file`, and the `collect` value of `conclude`, in the follow-up cycle after a verification batch. `conclude`, `send_whatsapp_text` and `send_whatsapp_template` SHALL always be offered. A call naming a tool that was not offered SHALL fail the `tool_calls` check.
+Before each planner call the system SHALL build the tool set from the full set minus the tools the client cannot use in this call: the checklist tools (`set_required`, `add_instance`, `state_cost`, `retire_document`, `attestation`) when the agent has no intake; `tax_fetch` when no fetch provider is offered; `mark_collected` and `tie_file`, and the `collect` value of `conclude`, in the follow-up cycle after a verification batch. `conclude`, `send_whatsapp_text` and `send_whatsapp_template` SHALL always be offered. A call naming a tool that was not offered SHALL fail the `tool_calls` check.
 
 #### Scenario: Capital declaration without a fetch offer
 - **WHEN** the planner runs for a capital-declaration client to whom no fetch provider is offered
@@ -66,7 +66,7 @@ Before each planner call the system SHALL build the tool set from the full set m
 - **THEN** the request carries no `mark_collected` and no `tie_file`, and `conclude.decision` offers only `goal_complete` and `follow_up`
 
 ### Requirement: Calls are assembled into one decision before the business rules
-The system SHALL assemble the calls of one answer into a single planning decision and SHALL then apply the existing business rules unchanged (evidence quotes from stored inbound messages, instance caps and paper checks, the window/template rules, the attestation gate, the collect/follow-up separation). Assembly SHALL reject, with a corrective retry: zero or more than one `conclude`; more than one `send_*` call; more than one `attestation` call; `tax_fetch` more than once; `resolve_document` twice for one row; a `state_cost` with both or neither of `document_id` and `instance_name`, or naming an instance no `add_instance` of the answer has. A `follow_up` SHALL carry exactly one `send_*` call; a `collect` and a `goal_complete` SHALL carry none. Instances added under a row that this answer resolves `required` SHALL become that resolution's instances; instances added under an already-resolved row SHALL become one addition per row, all of that row's `add_instance` calls together (the evidence of the first call that gives one).
+The system SHALL assemble the calls of one answer into a single planning decision and SHALL then apply the existing business rules unchanged (evidence quotes from stored inbound messages, instance caps and paper checks, the window/template rules, the attestation gate, the collect/follow-up separation). Assembly SHALL reject, with a corrective retry: zero or more than one `conclude`; more than one `send_*` call; more than one `attestation` call; `tax_fetch` more than once; `set_required` twice for one row; a `state_cost` with both or neither of `document_id` and `instance_name`, or naming an instance no `add_instance` of the answer has. A `follow_up` SHALL carry exactly one `send_*` call; a `collect` and a `goal_complete` SHALL carry none. Instances added under a row that this answer resolves `required` SHALL become that resolution's instances; instances added under an already-resolved row SHALL become one addition per row, all of that row's `add_instance` calls together (the evidence of the first call that gives one).
 
 #### Scenario: Two conclude calls
 - **WHEN** the model answers with two `conclude` calls
@@ -81,7 +81,7 @@ The system SHALL assemble the calls of one answer into a single planning decisio
 - **THEN** the gate rejects the answer, the note names both tools, and the model gets one corrective retry
 
 #### Scenario: Instances under a row resolved in the same answer
-- **WHEN** the model calls `resolve_document(document_id: R, resolution: "required", …)` and two `add_instance(anchor_document_id: R, …)` calls
+- **WHEN** the model calls `set_required(document_id: R, resolution: "required", …)` and two `add_instance(anchor_document_id: R, …)` calls
 - **THEN** the decision has one resolution of R with two instances, and no separate addition
 
 ### Requirement: A follow-up answer carries one WhatsApp message and no channel choice

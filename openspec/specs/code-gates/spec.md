@@ -40,7 +40,7 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
 - `validate_injection_scan`: `clean_without_evidence` when the model said "clean" (fails if it still quoted evidence); `hit_has_evidence` when the model said "suspected" (fails if it quoted nothing); `evidence_verbatim` when the model said "suspected", quoted something, and the reviewed text was readable (fails if the quote is not found verbatim in the text). When the text was not readable, `evidence_verbatim` is absent. `observed` is the model's quoted evidence (capped) or `null` when it quoted nothing.
 - `validate_form_resolutions`: one entry per proposed verdict, keyed by the catalog type key; `passed` is `true` when the resolution was accepted or left for the interview as unclear, `false` when it was dropped, with the drop reason as `note`; `observed` is the proposed verdict plus, for a `not_required`, the question and quote the model cited (capped).
 - `validate_classification`: `matched_id_known` when the model matched a document id (fails if that id was not in the list it was shown; `observed` = the matched id); `matched_type_agrees` when a known id was matched and the answer carries a document type (fails if the row's type disagrees; `observed` = the answer's document type, `expected` = the matched row's type); `issuer_matches_item` when the match survived the two checks before it and the matched row's document type is institution-bound, as the `unlisted-files` capability defines (fails when the company printed on the file and the company the row names differ, or when either cannot be identified; `observed` = the file's company, or the printed issuer text when it was not identified; `expected` = the row's company, or "not identified"; the note says which of the three it was); `not_injection_suspected` (fails when the model flagged a suspected injection; `observed` = the flag); `legible` (fails when the model judged the file illegible; `observed` = the model's verdict). The last two are reported even though they do not change `result` (quarantine is reported alongside, never flipped).
-- `validate_message`: `tool_calls` (the answer is one or more tool calls, each naming a tool offered in this request, each call's parameters matching that tool's schema, and exactly one `conclude` call) and `business_rules` (the decision assembled from the calls passes normalization: exactly one WhatsApp message on a follow-up, window and template rules, evidence quotes, instance caps, attestation gate, and the call-count rules: one message tool at most, one attestation tool at most, one `document_fetch` at most, a `state_cost` naming exactly one target). On failure the `note` is the rejection message, capped; `business_rules` is absent when `tool_calls` failed. `observed` for `tool_calls` is the number of calls and their tool names (for example `4 calls: conclude, set_required, add_instance, send_whatsapp_text`); for `business_rules` it is the decision kind and the message kind the answer proposed (`freeform`, `template`, or `—` when the answer carries no message).
+- `validate_message`: one row per model turn of a planner run, carrying the turn number. Checks: `tool_calls` (every call of the turn names an offered tool and matches its parameter schema; `observed` is the list of call names of the turn; on failure the `note` names the call and the shape fault); `business_rules`, one entry per call of the turn in execution order, `observed` the tool name and its key parameters (ids with names, capped), `passed` false when the call was refused with the refusal as `note`, so a turn with one refused call has `result: false` while its accepted calls still ran; `ending`, present only on the turn that ends the run: `passed` true when the turn accepted exactly one terminal call (`observed` the terminal tool), false when the run ends without one (text-only turn after the corrective turn, or turn cap; `note` says which). `business_rules` is absent for a call that failed `tool_calls`.
 - `verify_extraction`: the per-document checks of the document type's declared list (never a check over a generic list of amounts — every monetary value is one of the type's own fields, judged by `type_fields`), every one of them present, each with the value read from the document as `observed`, the reference as `expected`, and, on failure, a `note` that names the exact problem. A check whose condition ("when …" below) does not hold is listed as skipped: `passed: null`, `observed` and `expected` `null`, and `note` the Hebrew skip reason given below. The identity entries are judged over the document's owner parties (the `document-extraction` capability: the people listed with role `owner`); the other parties never take part in them:
   - `legible`: observed = the model's legibility verdict.
   - `expected_type`: observed = what the model saw the document as (`actual_kind`); expected = the required document's name.
@@ -86,8 +86,8 @@ The `verify_extraction` row's detail SHALL also carry the parties the extraction
 - **THEN** the `validate_classification` row has `result: false`, `matched_id_known` failed with a note naming the rejected id, and `not_injection_suspected` and `legible` passed
 
 #### Scenario: Decision rejected by business rules
-- **WHEN** the planner's answer parses against the schema but normalization rejects it (for example, an evidence quote not found in the transcript)
-- **THEN** the `validate_message` row for that attempt has `result: false`, `json_schema` passed and `business_rules` failed with the rejection message as note
+- **WHEN** a call of a planner turn is well formed but refused by its rule (for example, an evidence quote not found in the transcript)
+- **THEN** the `validate_message` row of that turn has `result: false`, `tool_calls` passed and that call's `business_rules` entry failed with the refusal as note, while the turn's other accepted calls still ran
 
 #### Scenario: Printed id compared with the CRM card's id
 - **WHEN** the client's id on file came from the monday CRM card and the document lists one owner with the same id
@@ -162,20 +162,28 @@ The `verify_extraction` row's detail SHALL also carry the parties the extraction
 - **THEN** the row carries neither `type_fields` nor `period_covers_valuation_date`, not even as skipped
 
 #### Scenario: Business rules observed value names the message kind
-- **WHEN** the planner answers `follow_up` with a free-form WhatsApp text and the gate accepts it
-- **THEN** the `validate_message` row's `business_rules` entry has `observed` = `follow_up / freeform`
+- **WHEN** a turn calls `send_whatsapp_text` with a free-form text and the call is accepted
+- **THEN** that call's `business_rules` entry has `observed` naming `send_whatsapp_text` and its send time, and the row's `ending` entry has `observed` `send_whatsapp_text`
 
 #### Scenario: Collect answer has no message kind
-- **WHEN** the planner answers `collect` and the gate accepts it
-- **THEN** the `validate_message` row's `business_rules` entry has `observed` = `collect / —`
+- **WHEN** a turn ties a file and sends nothing
+- **THEN** the row has a `business_rules` entry for the tie and no `ending` entry, because the run goes on
 
 #### Scenario: Message gate on a rejected planner answer
-- **WHEN** the planner's calls parse and name offered tools but the business rules reject the decision (for example a `send_at` in the past)
-- **THEN** the `validate_message` row for that attempt has `result: false`, `tool_calls` passed with the calls' count and names as `observed`, and `business_rules` failed with the rejection message as `note`
+- **WHEN** a turn's calls name offered tools but one call is refused by its rule (for example a `send_at` in the past)
+- **THEN** the `validate_message` row of that turn has `result: false`, `tool_calls` passed with the call names as `observed`, and that call's `business_rules` entry failed with the refusal as `note`
 
 #### Scenario: Message gate on an unknown tool
 - **WHEN** the model calls a tool that was not offered in this request
-- **THEN** the `validate_message` row has `tool_calls` failed with a note naming the tool, and no `business_rules` entry
+- **THEN** the `validate_message` row of that turn has `tool_calls` failed with a note naming the tool, no `business_rules` entry for that call, and the call is answered with a result saying the tool does not exist
+
+#### Scenario: Turn with a refused tie and an accepted resolution
+- **WHEN** a turn calls `set_required(D1, not_required, quote)` and `tie_file(F, D2)` and the tie is refused for a company mismatch
+- **THEN** the turn's row has `result: false`, `tool_calls` passed, one `business_rules` entry passed for `set_required` and one failed for `tie_file` with the mismatch as `note`, and no `ending` entry
+
+#### Scenario: Final turn
+- **WHEN** a turn's only call is an accepted `send_whatsapp_text`
+- **THEN** the row has `tool_calls` passed, `business_rules` passed for the send, and `ending` passed with `observed` `send_whatsapp_text`
 
 ### Requirement: Checks reported by validate_file_split
 The `validate_file_split` gate SHALL write its audit row on the inbound file it checked (the parent), with `result`, `reason`, the file's page count, the number of documents proposed, the proposed page ranges, and the `checks` list. It SHALL report these checks, in this order, listing only the checks that ran:

@@ -606,23 +606,23 @@ The costs toggle and the cost pills SHALL exist only where the trace exists toda
 - **THEN** the costs toggle and the cost pills are shown
 
 ### Requirement: Every accepted tool call is executed and recorded as its own step
-After the `validate_message` gate accepts a planner answer, the system SHALL execute the answer's tool calls one by one, in a fixed safe order (checklist changes, then the attestation confirmation, then file ties and collections, then the conclusion, then the team question, then the message and the fetch action), and SHALL record one code step per tool call, named exactly after the tool: `set_required`, `add_instance`, `retire_document`, `state_cost`, `state_vehicle`, `attestation`, `tie_file`, `mark_collected`, `ask_team`, `send_whatsapp_text`, `send_whatsapp_template`, `document_fetch`, `conclude`. Each step SHALL record the time it ran, the call's parameters with every document and file id accompanied by its name, and the outcome of the execution. A call that changed nothing SHALL still get its step, with the outcome saying why (for example "already settled", "refused: papers differ"). The old group steps `apply_resolutions`, `apply_additions`, `apply_retirements`, `apply_stated_costs`, `apply_vehicle_declarations`, `apply_attestation`, `apply_collections`, `send_reply` and `withhold_reply` SHALL NOT be written any more; rows written before this change stay readable as they are. The gate SHALL keep checking the whole answer before any call runs, and a rejected answer SHALL execute nothing.
+The system SHALL execute the calls of each model turn as soon as the turn's `validate_message` row is written, in the fixed safe order within the turn (checklist changes, then the attestation confirmation, then file ties and collections, then the team question, then the terminal call), and SHALL record one code step per call, accepted or refused, named exactly after the tool: `set_required`, `add_instance`, `retire_document`, `state_cost`, `state_vehicle`, `set_company`, `attestation`, `tie_file`, `mark_collected`, `ask_team`, `send_whatsapp_text`, `send_whatsapp_template`, `goal_complete`, `client_declined`, `document_fetch`. Each step SHALL record the time it ran, the turn that made the call, the call's parameters with every document and file id accompanied by its name, the outcome of the execution, and the result text returned to the model. A refused call SHALL get its step with the refusal as outcome and result. Steps of a later turn come after the steps of the earlier turn in the trail. The old group steps `apply_resolutions`, `apply_additions`, `apply_retirements`, `apply_stated_costs`, `apply_vehicle_declarations`, `apply_attestation`, `apply_collections`, `send_reply` and `withhold_reply` SHALL NOT be written; rows written before this change stay readable as they are.
 
 #### Scenario: Collect cycle
-- **WHEN** the planner answers `tie_file(file F, document D)`, `mark_collected(D)`, `conclude(collect)` and the gate accepts
-- **THEN** the trace shows, after the `validate_message` row, a `tie_file` step (file name, document name, outcome tied), a `mark_collected` step (document name, outcome collected), and a `conclude` step (decision collect, reply withheld, verification of D on F started), each with its own time, and no `apply_collections` or `withhold_reply` row
+- **WHEN** the model's first turn is `tie_file(F, D)` and `mark_collected(D)`, and its second turn `send_whatsapp_text(...)`
+- **THEN** the trail shows `validate_message` (turn 1), a `tie_file` step (file name, document name, outcome tied, the verdict and the result text), a `mark_collected` step (document name, outcome collected), the `verify_extraction` row, `validate_message` (turn 2), the `send_whatsapp_text` step (turn 2) and the code-written `conclude` step, and no `apply_collections` or `withhold_reply` row
 
 #### Scenario: Follow-up cycle
-- **WHEN** the planner answers `set_required(D, not_required, quote)`, `send_whatsapp_text(text, send_at)`, `conclude(follow_up)` and the gate accepts
-- **THEN** the trace shows a `set_required` step (document name, verdict, quote), a `conclude` step (decision follow_up), and a `send_whatsapp_text` step (scheduled time, whether it was rolled off a weekend or resolved from `asap`, the draft's id, text length), and no `apply_resolutions` or `send_reply` row
+- **WHEN** the model's single turn is `set_required(D, not_required, quote)` and `send_whatsapp_text(text, send_at)`
+- **THEN** the trail shows a `set_required` step (document name, verdict, quote, result text), a `send_whatsapp_text` step (scheduled time, whether it was rolled off a weekend or resolved from `asap`, the draft's id, text length) and a `conclude` step saying a message was scheduled, and no `apply_resolutions` or `send_reply` row
 
 #### Scenario: Ask-team cycle
-- **WHEN** the planner answers `ask_team(question, why)`, `send_whatsapp_text(text, asap)`, `conclude(follow_up)` and the gate accepts
-- **THEN** the trace shows a `conclude` step, an `ask_team` step (the question, the reason, the addressee's name and address, the question id), the team-question email step, and the `send_whatsapp_text` step, in that order
+- **WHEN** the model's turn is `ask_team(question, why)` and `send_whatsapp_text(text, asap)`
+- **THEN** the trail shows the `ask_team` step (the question, the reason, the addressee's name and address, the question id), the team-question email step, the `send_whatsapp_text` step and the `conclude` step, in that order
 
 #### Scenario: Rejected answer
-- **WHEN** the gate rejects the answer and the corrective retry is accepted
-- **THEN** only the retry's calls have steps; the rejected answer's calls have none
+- **WHEN** a `tie_file` call is refused because the papers differ and the model ties another row in its next turn
+- **THEN** both calls have steps: the first with outcome refused, the reason and the result text the model was given; the second with its own outcome
 
 #### Scenario: Old trail
 - **WHEN** an admin opens a client whose cycles ran before this change
@@ -648,15 +648,23 @@ When code adds an outcome on top of a call, that outcome SHALL be recorded on th
 - **THEN** the `send_whatsapp_text` step shows the requested time, the rolled time and that it was rolled
 
 ### Requirement: The conclude step records the decision and what the cycle did with it
-The `conclude` step SHALL record the decision and the reasoning, and what the code did with the decision: for `collect`, that the reply is withheld and which documents are being verified against which files; for `follow_up`, that a message was scheduled (the message step follows); for `goal_complete`, that the goal was completed, or that the answer was premature and the cycle failed; for `client_declined`, that the decline routine took over.
+The `conclude` step SHALL be written by code at the end of every planner run, never by a model call. It SHALL record how the run ended: a message scheduled (which draft, for when), the goal completed (the `goal.completed` and `send_closing` rows follow), the client declined (the decline routine took over), or a failure (no ending after the corrective turn, or the turn cap) with the number of turns made. It SHALL carry the reasoning of the terminal call when there is one, and the number of turns of the run.
 
 #### Scenario: Collect
-- **WHEN** the answer concludes `collect` after tying one file
-- **THEN** the `conclude` step lists the document and file pair being verified and says the reply is withheld until the verification ends
+- **WHEN** a run ties one file, gets its verdict and ends with an accepted `send_whatsapp_text`
+- **THEN** the `conclude` step says a message was scheduled, names the draft and its time, carries the call's reasoning and a turn count of two; there is no "reply withheld" wording
 
 #### Scenario: Goal complete
-- **WHEN** the answer concludes `goal_complete` and every row is settled and the attestation is confirmed
+- **WHEN** the run ends with an accepted `goal_complete` because every row is settled and the attestation is confirmed
 - **THEN** the `conclude` step says the goal was completed, and the `goal.completed` and `send_closing` rows follow as today
+
+#### Scenario: Run failed on the ending rule
+- **WHEN** a run ends with two text-only turns
+- **THEN** the `conclude` step says the run failed with no ending, with the turn count, and the step is marked as a warning
+
+#### Scenario: Old trail
+- **WHEN** an admin opens a trail recorded before this change
+- **THEN** its `conclude` step (made by the model's call) still shows with its decision and reasoning
 
 ### Requirement: A tool-call step is recognisable in the trace
 In both trace surfaces (the workspace conversation tab under impersonation and the admin conversation viewer), a step named after a planner tool SHALL show a tool icon, distinct from the shield of checks and security events and the gear of code-only actions. Its label SHALL be the tool's technical name as the call modal shows it. The step modal SHALL render a tool step's parameters and outcome as labelled plain-language rows (document and file names, verdicts, quotes, times, outcomes), with unknown keys still listed generically, as it does for the gate and apply rows today.

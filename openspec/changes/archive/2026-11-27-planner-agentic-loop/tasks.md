@@ -34,7 +34,7 @@
 ## 6. Docs
 
 - [x] 6.1 `docs/pipeline.md` section D (loop, executors, ending, `conclude` code-written, `verifyThenReplan` removed) and `docs/agents.md`; `CLAUDE.md` step-link notes unchanged; verify the function names in the table exist (`grep`)
-- [ ] 6.2 Notion: Features page of the planner and the "Agent Message Flow" animation updated to the loop (tie → verdict → message), per `STYLE.md`; verify the page renders the new chart
+- [x] 6.2 Notion: Features page of the planner and the "Agent Message Flow" animation updated to the loop (tie → verdict → message), per `STYLE.md`; verify the page renders the new chart
 
 ## 7. Live checks and release
 

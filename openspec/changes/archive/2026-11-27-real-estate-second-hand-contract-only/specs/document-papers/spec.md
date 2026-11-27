@@ -65,3 +65,7 @@ Every checklist item created for a type that declares papers SHALL carry the key
 #### Scenario: Paper of another type
 - **WHEN** the questionnaire mapping names the paper `tabu_extract` on a `vehicle` instance
 - **THEN** `validate_form_resolutions` drops that resolution with a note naming the wrong paper
+
+#### Scenario: Planner creates a vehicle's papers
+- **WHEN** the client says they own a Mazda 3 and have its receipt, and the planner creates the items "העתק רישיון רכב בתוקף — מאזדה 3" and "מסמך רכישה / קבלה — מאזדה 3"
+- **THEN** the first item carries the paper `vehicle_license` and the second `vehicle_purchase_document`

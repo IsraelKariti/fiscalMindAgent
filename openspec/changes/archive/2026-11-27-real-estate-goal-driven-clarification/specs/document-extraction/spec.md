@@ -40,3 +40,15 @@ The other catalog types (loan taken, loan given, business ownership, crypto, pri
 #### Scenario: Seller kind outside the closed list
 - **WHEN** the model returns `seller_kind: "company"` for a contract
 - **THEN** `type_fields` fails with a note naming the seller field, and the document is not approved
+
+#### Scenario: Overdrawn bank account is approved
+- **WHEN** a Mizrahi balance certificate for the client's account is verified and the model returns `current_account_balance: -13685.83`, the account number and the 31.12 as-of date
+- **THEN** `type_fields` passes with the observed value listing the overdraft with its minus sign, no check of the row fails on the sign, and the document is approved when every other check passes
+
+#### Scenario: Loan certificate is read into named fields
+- **WHEN** a credit-company certificate stating a balance owed of 24,310 ILS at 31.12 of the tax year is verified against a loan-taken item
+- **THEN** the answer has `outstanding_balance: 24310`, `lender_name` as printed, and `type_fields` passes
+
+#### Scenario: Crypto statement is read into named fields
+- **WHEN** an exchange statement valuing the holdings at 3,120.55 USD at 31.12 of the tax year is verified against a crypto item
+- **THEN** the answer has `market_value: 3120.55` and `value_currency: "USD"`, and `type_fields` passes

@@ -7,11 +7,19 @@ Registration and assignment of WhatsApp sender numbers on Twilio for agent insta
 ## Requirements
 
 ### Requirement: Auto-provisioned senders carry the platform profile
-When the platform buys a number and registers it as a WhatsApp sender for an agent instance, the registration SHALL include a profile with a display name the admin chose in the buy step and the instance's effective picture URL (its own icon, else the admin-uploaded app logo, else the built-in default picture).
+When the platform buys a number and registers it as a WhatsApp sender for an agent instance, the registration SHALL include a profile with the configured display name and the instance's effective picture URL (its own icon, else the admin-uploaded app logo, else the built-in default picture).
 
-The buy step SHALL offer the display name prefilled with a default the admin can edit. The default SHALL be `<accountant name> by <platform brand>`, where the accountant name is the admin-entered Hebrew name, else the accountant's account name, and the platform brand is the configured brand name (default `FiscalMind`). When the accountant has no name on file, the default SHALL be the platform brand alone. When the sender registers under the accountant's own connected WhatsApp Business Account, the default SHALL be the accountant name alone.
+#### Scenario: Buy number for an instance with its own icon
+- **WHEN** an admin buys a number for an agent instance that has an uploaded icon and the picture URL is an `https` URL
+- **THEN** the sender is registered with the display name and that instance's icon URL in its profile
 
-The platform SHALL reject a display name that, after trimming, is shorter than 3 characters, longer than 100 characters, or spans more than one line, and SHALL buy no number in that case.
+#### Scenario: Buy number with a public logo URL
+- **WHEN** an admin buys a number for an agent instance without its own icon and the effective picture URL is an `https` URL
+- **THEN** the sender is registered with the display name and the app logo URL (or the built-in default URL when no app logo is uploaded) in its profile
+
+#### Scenario: Buy number when the logo URL is not public
+- **WHEN** an admin buys a number and the effective picture URL is not an `https` URL (for example a local `http://localhost:3000/...` base)
+- **THEN** the sender is registered with the display name only, a log line states that the picture was skipped, and provisioning completes normally
 
 #### Scenario: Default name for an accountant with a Hebrew name
 - **WHEN** an admin opens the buy step for an agent whose accountant has the Hebrew name "אריה רותם ושות'" and the platform brand is "FiscalMind"
@@ -29,10 +37,6 @@ The platform SHALL reject a display name that, after trimming, is shorter than 3
 - **WHEN** the accountant has connected their own WhatsApp Business Account and has the Hebrew name "אריה רותם ושות'"
 - **THEN** the display name field shows "אריה רותם ושות'"
 
-#### Scenario: Buy number with a public logo URL
-- **WHEN** the admin confirms the buy step with the name "אריה רותם ושות' by FiscalMind" and the instance's effective picture URL is an `https` URL
-- **THEN** the sender is registered with exactly that name (trimmed) and that picture URL in its profile
-
 #### Scenario: Admin edits the name before buying
 - **WHEN** the admin changes the field to "אריה רותם ושות' מבית FiscalMind" and confirms
 - **THEN** the sender is registered with exactly that name (trimmed), not the default
@@ -41,24 +45,24 @@ The platform SHALL reject a display name that, after trimming, is shorter than 3
 - **WHEN** the admin confirms with a name of two characters
 - **THEN** the request is refused with an error naming the display name, and no number is bought
 
-#### Scenario: Buy number when the logo URL is not public
-- **WHEN** an admin buys a number and the effective picture URL is not an `https` URL (for example a local `http://localhost` address)
-- **THEN** the sender is registered with the chosen display name only, a log line states that the picture was skipped, and provisioning completes normally
-
 ### Requirement: Assigning a number applies the logo to its sender
-When an admin assigns (or re-assigns) a number to an agent instance, the system SHALL set the sender's profile logo to the configured logo URL if the sender has no logo or a different one, in the same step that claims the inbound webhook. The sender's display name SHALL NOT be changed by assignment.
+When an admin assigns (or re-assigns) a number to an agent instance, the system SHALL set the sender's profile logo to that instance's effective picture URL if the sender has no logo or a different one, in the same step that claims the inbound webhook. The sender's display name SHALL NOT be changed by assignment.
 
 #### Scenario: Re-assign a sender registered without a logo
-- **WHEN** an admin assigns a number whose Twilio sender has no profile logo and the logo URL is `https`
-- **THEN** the sender's profile is updated with the logo URL, the display name stays as it was, and the assignment is recorded
+- **WHEN** an admin assigns a number whose Twilio sender has no profile logo and the effective picture URL is `https`
+- **THEN** the sender's profile is updated with that URL, the display name stays as it was, and the assignment is recorded
+
+#### Scenario: Assign to an instance with its own icon
+- **WHEN** an admin assigns a number carrying the app logo to an instance that has its own uploaded icon
+- **THEN** the sender's profile logo is updated to the instance's icon URL
 
 #### Scenario: Sender already has the logo
-- **WHEN** an admin assigns a number whose sender profile already carries the configured logo URL
+- **WHEN** an admin assigns a number whose sender profile already carries the instance's effective picture URL
 - **THEN** no profile update is sent to Twilio and the assignment proceeds
 
 #### Scenario: Logo URL is not public on assignment
-- **WHEN** an admin assigns a number and the logo URL is not an `https` URL
-- **THEN** the logo step is skipped with a log line and the webhook claim and assignment proceed as before
+- **WHEN** an admin assigns a number and the effective picture URL is not an `https` URL
+- **THEN** the picture step is skipped with a log line and the webhook claim and assignment proceed as before
 
 ### Requirement: Logo update failures do not block assignment
 A failure to update the sender's logo SHALL be logged and SHALL NOT fail the assignment, while a failure to claim the inbound webhook SHALL still fail the assignment as it does today.
@@ -115,3 +119,68 @@ The platform SHALL store the display name it submitted with each auto-provisione
 #### Scenario: Agent page for a hand-assigned number
 - **WHEN** the agent's number was assigned without a purchase
 - **THEN** the agent page shows the number with no display name line
+
+### Requirement: A picture change reaches the affected senders
+When an admin uploads or removes an agent's icon, the system SHALL update that agent's sender profile logo to the new effective picture URL in the same request, when the agent has a number registered on Twilio. When an admin uploads or removes the app logo, the system SHALL update the sender of every agent instance that has a number and no own icon. Updates SHALL touch only the profile logo, never the webhook or display name. A failing Twilio update SHALL be logged and reported in the response and SHALL NOT undo the picture change.
+
+#### Scenario: Agent icon upload for an instance with a number
+- **WHEN** an admin uploads an icon for an instance whose number is registered on Twilio and the icon URL is `https`
+- **THEN** the sender's profile logo is set to the new icon URL and the response says the WhatsApp profile was updated
+
+#### Scenario: Agent icon removal for an instance with a number
+- **WHEN** an admin removes the icon of an instance whose number is registered on Twilio
+- **THEN** the sender's profile logo is set to the app logo URL, or to the built-in default URL when no app logo is uploaded
+
+#### Scenario: App logo change
+- **WHEN** an admin uploads or removes the app logo while two agents have numbers, one with its own icon and one without
+- **THEN** only the sender of the agent without an own icon is updated, and the response lists how many senders were updated and how many failed
+
+#### Scenario: Instance without a number
+- **WHEN** an admin uploads or removes an icon for an instance that has no WhatsApp number
+- **THEN** only the stored icon changes and no Twilio call is made
+
+#### Scenario: Twilio rejects an update
+- **WHEN** Twilio returns an error for a profile update after an upload
+- **THEN** the picture stays saved, the error is logged, and the response tells the admin the picture is saved but that sender's WhatsApp profile was not updated
+
+### Requirement: Twilio number name records the owning agent
+A number the platform owns on Twilio SHALL carry, in its Twilio friendly name, the agent instance that currently uses it: the platform SHALL set the name to `fiscalmind <agent instance id> <agent type>`, cut to Twilio's 64-character name limit so that the id is always complete, when it buys the number for an instance and when an admin assigns the number to an instance, and SHALL set it to `fiscalmind pool` when the number is unassigned (explicitly, or because the accountant account was deleted). A name written in the earlier order (`fiscalmind <agent type> <id>`), whose id Twilio cut short, SHALL still be read as recording that instance. The rename on assignment SHALL be best-effort: a rename failure is logged and does not undo or fail the assignment. A number the account does not own (an externally registered number entered by hand) is never renamed.
+
+#### Scenario: Assign a pool number
+- **WHEN** an admin assigns an owned number named `fiscalmind pool` to an agent instance
+- **THEN** after the assignment the number's Twilio friendly name is `fiscalmind <instance id> <agent type>` of that instance, cut to 64 characters
+
+#### Scenario: Re-assign within the same environment
+- **WHEN** an admin assigns a number that another agent instance of this environment used until now
+- **THEN** the assignment follows the existing rules and the name is updated to the new instance's label
+
+#### Scenario: Rename fails
+- **WHEN** Twilio rejects the rename after the assignment
+- **THEN** the assignment is kept, the failure is logged, and the response reports the assignment as successful
+
+#### Scenario: Externally registered number
+- **WHEN** an admin assigns a number the Twilio account does not own
+- **THEN** no rename is attempted and the assignment follows the existing rules
+
+### Requirement: Numbers owned by another environment are not offered
+When a number owned on Twilio is not assigned in this environment but its friendly name records an agent instance id that does not exist in this environment's database, the number SHALL be treated as in use by another environment: the pool / orphaned-numbers list SHALL report it with that flag, the admin UI SHALL show it greyed out with the note "in use in another environment" and without a choose or release button, and the platform SHALL refuse to assign it to an agent instance or to release it, returning a conflict error that says the number is in use in another environment. A number whose name records an instance id that exists in this environment, or whose name follows no ownership convention, SHALL be offered as free, as today.
+
+#### Scenario: Production number seen from local development
+- **WHEN** an admin in local development opens the pool and a number is named `fiscalmind <id> declaration_of_capital` (or in the earlier order with the id cut short) where `<id>` is not an agent instance in the local database
+- **THEN** the number is listed greyed out with the note "in use in another environment" and cannot be chosen
+
+#### Scenario: Manual assignment of a number owned elsewhere
+- **WHEN** an admin types that number into the manual assignment form
+- **THEN** the assignment is refused with a conflict error that names the cause, and the number's webhook and name are not changed
+
+#### Scenario: Release of a number owned elsewhere
+- **WHEN** an admin asks to release that number from the orphaned-numbers section
+- **THEN** the release is refused with a conflict error and the number stays on the account
+
+#### Scenario: Stale label from this environment
+- **WHEN** an owned, unassigned number is named with an instance id that exists in this environment's database
+- **THEN** the number is offered as free and may be chosen or released
+
+#### Scenario: Number without an ownership label
+- **WHEN** an owned, unassigned number's friendly name is its phone number or any text outside the `fiscalmind …` convention
+- **THEN** the number is offered as free, as today

@@ -14,3 +14,7 @@ While an admin views the workspace as an accountant, the workspace Settings view
 #### Scenario: Remembered tab after the session ended
 - **WHEN** the test tab was the last open tab and the Settings view is next opened in the accountant's own session
 - **THEN** the general tab opens
+
+#### Scenario: Advisor action on the tab
+- **WHEN** an admin viewing as an accountant opens the test tab
+- **THEN** the test-client form is followed by a group holding the "re-read tax advisors" button, and no such group exists on any other tab

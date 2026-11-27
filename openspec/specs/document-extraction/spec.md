@@ -52,20 +52,17 @@ For every document type, the answer schema sent to the model SHALL be one flat o
 - **THEN** the system prompt carries the same instructions as before this change (the expected document, the accepted forms, the three bank fields, the valuation-date line), and the answer schema holds the same keys with the same types
 
 ### Requirement: First set of typed fields
-The document types SHALL declare these extra fields (key, kind, required, and for a number field its lower bound):
+The catalog SHALL declare these extra fields (key, kind, required):
 
-- Bank balance: `account_number` (text, required), `current_account_balance` (number, required; no lower bound — zero or an overdraft is a valid value), `deposits_balance` (number, optional, zero or above).
-- Securities portfolio: `account_number` (text, required), `portfolio_value` (number, required, zero or above; the value at 31.12 of the tax year, not a comparison column), `base_currency` (text, required).
-- Pension/provident, study fund and life-insurance savings (the same list for the three): `fund_name` (text, required), `account_number` (text, optional; the member, account or policy number when the document prints one — an employer's withholding-file number ("מספר תיק ניכויים") is not an account number), `closing_balance` (number, optional, zero or above), `total_deposits` (number, optional, zero or above; zero is a valid value); at least one of `closing_balance` and `total_deposits` must be read.
-- Mortgage balance: `loan_number` (text, optional), `principal_balance` (number, required, zero or above; the 31.12 row of the tax year).
-- Loan taken: `lender_name` (text, optional; the bank, credit company or private lender as printed), `outstanding_balance` (number, required, zero or above; the balance owed at 31.12 of the tax year, principal and accrued interest as the certificate states it, not the original loan sum and not a monthly payment).
-- Loan given: `borrower_name` (text, optional; the person or company that owes the client, as printed), `debt_balance` (number, required, zero or above; the balance owed to the client at 31.12 of the tax year, not the original loan sum).
-- Crypto: `market_value` (number, required, zero or above; the market value of the holdings at 31.12 of the tax year), `value_currency` (text, required, a three-letter currency code; the currency `market_value` is stated in).
-- Vehicle: `license_plate` (text, optional, digits only, 7 or 8 digits), `manufacturer` (text, optional), `model` (text, optional), `production_year` (year, optional), `purchase_cost` (number, optional, zero or above); at least one of `license_plate` and `purchase_cost` must be read, because a vehicle item may be the licence or the purchase document.
-- Contents insurance: `policy_number` (text, optional), `contents_sum` (number, required, above zero; the contents chapter's sum, not the building sum, a liability limit or the premium), `period_from` (date, required), `period_to` (date, required); the type also states that the period must cover the valuation date.
-- Real estate: `property_address` (text, optional), `purchase_price` (number, optional, zero or above), `price_currency` (text, optional, a three-letter currency code), `purchase_year` (year, optional), `seller_kind` (text, optional, `private` or `builder`) — see the `real-estate-goal-driven-clarification` change for their meaning.
+- Bank balance: `account_number` (text, required), `current_account_balance` (number, required; zero or negative is a valid value), `deposits_balance` (number, optional).
+- Securities portfolio: `account_number` (text, required), `portfolio_value` (number, required; the value at 31.12 of the tax year, not a comparison column), `base_currency` (text, required).
+- Pension/provident, study fund and life-insurance savings (the same list for the three): `fund_name` (text, required), `account_number` (text, optional; the member, account or policy number when the document prints one — an employer's withholding-file number ("מספר תיק ניכויים") is not an account number), `closing_balance` (number, optional), `total_deposits` (number, optional; zero is a valid value); at least one of `closing_balance` and `total_deposits` must be read.
+- Mortgage balance: `loan_number` (text, optional), `principal_balance` (number, required; the 31.12 row of the tax year).
+- Vehicle: `license_plate` (text, optional, digits only, 7 or 8 digits), `manufacturer` (text, optional), `model` (text, optional), `production_year` (year, optional), `purchase_cost` (number, optional); at least one of `license_plate` and `purchase_cost` must be read, because a vehicle item may be the licence or the purchase document.
+- Contents insurance: `policy_number` (text, optional), `contents_sum` (number, required; the contents chapter's sum, not the building sum, a liability limit or the premium), `period_from` (date, required), `period_to` (date, required); the type also states that the period must cover the valuation date.
+- Real estate: `property_address` (text, optional; the address as printed, or the block and parcel when no address is printed), `purchase_price` (number, optional; the total consideration the buyer pays, not a single instalment, not the tax), `price_currency` (text, optional, a three-letter currency code), `purchase_year` (year, optional; the year the contract was signed), `seller_kind` (text, optional, exactly `private` or `builder`; `private` when the seller is a person, `builder` when the seller is a construction company, a developer or any company). All five are optional because the type's papers differ: a tabu extract prints no price and no seller, an inheritance order prints no price. A purchase tax assessment reads its taxable purchase value into `purchase_price`; a signed cost declaration reads the client's written estimate into it.
 
-The other catalog types (business ownership, private investment, power-of-attorney account, prior declaration, other assets) SHALL declare no extra fields in this change.
+The other catalog types (loan taken, loan given, business ownership, crypto, private investment, power-of-attorney account, prior declaration, other assets) SHALL declare no extra fields in this change.
 
 #### Scenario: Contents policy is read into named fields
 - **WHEN** a combined home policy whose contents chapter states 180,000 ILS and whose period is 2025-03-01 to 2026-02-28 is verified against the contents-insurance item
@@ -82,6 +79,18 @@ The other catalog types (business ownership, private investment, power-of-attorn
 #### Scenario: Bank certificate without an account number still fails
 - **WHEN** a bank balance certificate is verified and the model returns `account_number: null`
 - **THEN** `type_fields` fails with a note naming "מספר חשבון", and the document is not approved
+
+#### Scenario: Purchase contract is read into named fields
+- **WHEN** the 2001 purchase contract for Dinovitz 47, between two private sellers and the client and the spouse, stating a consideration of 320,000 USD, is verified against the item "חוזה רכישה — דינוביץ 47"
+- **THEN** the answer has `purchase_price: 320000`, `price_currency: "USD"`, `purchase_year: 2001`, `seller_kind: "private"`, `property_address` as printed, `type_fields` passes, and the document is approved when every other check passes
+
+#### Scenario: Tabu extract has no price
+- **WHEN** a tabu extract for the same parcel is verified against the item "נסח טאבו — דינוביץ 47"
+- **THEN** the answer has `purchase_price: null`, `price_currency: null`, `seller_kind: null`, `property_address` as the block and parcel or the printed address, and `type_fields` passes
+
+#### Scenario: Seller kind outside the closed list
+- **WHEN** the model returns `seller_kind: "company"` for a contract
+- **THEN** `type_fields` fails with a note naming the seller field, and the document is not approved
 
 #### Scenario: Overdrawn bank account is approved
 - **WHEN** a Mizrahi balance certificate for the client's account is verified and the model returns `current_account_balance: -13685.83`, the account number and the 31.12 as-of date

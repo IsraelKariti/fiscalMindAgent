@@ -15,6 +15,30 @@ When the platform buys a number and registers it as a WhatsApp sender for an age
 - **WHEN** an admin buys a number and the effective picture URL is not an `https` URL (for example a local `http://localhost:3000/...` base)
 - **THEN** the sender is registered with the display name only, a log line states that the picture was skipped, and provisioning completes normally
 
+#### Scenario: Default name for an accountant with a Hebrew name
+- **WHEN** an admin opens the buy step for an agent whose accountant has the Hebrew name "אריה רותם ושות'" and the platform brand is "FiscalMind"
+- **THEN** the display name field shows "אריה רותם ושות' by FiscalMind"
+
+#### Scenario: Default name without a Hebrew name
+- **WHEN** the accountant has no Hebrew name but the account name "Arie Rotem"
+- **THEN** the display name field shows "Arie Rotem by FiscalMind"
+
+#### Scenario: Default name with no accountant name at all
+- **WHEN** the accountant has neither a Hebrew name nor an account name
+- **THEN** the display name field shows "FiscalMind"
+
+#### Scenario: Default name under the accountant's own WABA
+- **WHEN** the accountant has connected their own WhatsApp Business Account and has the Hebrew name "אריה רותם ושות'"
+- **THEN** the display name field shows "אריה רותם ושות'"
+
+#### Scenario: Admin edits the name before buying
+- **WHEN** the admin changes the field to "אריה רותם ושות' מבית FiscalMind" and confirms
+- **THEN** the sender is registered with exactly that name (trimmed), not the default
+
+#### Scenario: Name too short
+- **WHEN** the admin confirms with a name of two characters
+- **THEN** the request is refused with an error naming the display name, and no number is bought
+
 ### Requirement: Assigning a number applies the logo to its sender
 When an admin assigns (or re-assigns) a number to an agent instance, the system SHALL set the sender's profile logo to that instance's effective picture URL if the sender has no logo or a different one, in the same step that claims the inbound webhook. The sender's display name SHALL NOT be changed by assignment.
 

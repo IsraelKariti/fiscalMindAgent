@@ -1313,6 +1313,8 @@ const he = {
   adminLlmCallTools: 'הכלים שהוצעו למודל',
   adminLlmCallToolCalls: 'קריאות הכלים בתשובה',
   adminLlmCallTurns: (n: number) => `${n} סבבים`,
+  adminLlmCallResult: 'התוצאה שהוחזרה למודל',
+  adminLlmCallTextTurn: 'טקסט (לא נשלח ללקוח)',
   adminLlmCallTurn: (turn: number, total: number) => `סבב ${turn} מתוך ${total}`,
   adminLlmCallResponse: 'תשובת המודל',
   adminLlmCallErrorLabel: 'שגיאה',
@@ -1669,8 +1671,8 @@ const he = {
   llmStageRawSchema: 'JSON Schema גולמי',
   llmStageTools: 'הכלים שהמודל קורא להם',
   llmStageToolParams: 'פרמטרים',
-  llmStageContinuation: (tool: string, maxTurns: number) =>
-    `התשובה נסגרת בקריאה ל-${tool}. ב-Gemini וב-Claude כל הקריאות מגיעות בסבב אחד. מודלי OpenAI קוראים לכלי אחד בכל סבב, ולכן הקוד עונה "recorded" על כל קריאה ושואל שוב עד שמגיעה ${tool}, עד ${maxTurns} סבבים.`,
+  llmStageContinuation: (tools: string, maxTurns: number) =>
+    `לולאת כלים: בכל סבב הקוד בודק ומבצע את הקריאות של המודל ומחזיר לו את התוצאה האמיתית של כל קריאה (שיוך קובץ מחזיר את תוצאת האימות). הריצה נגמרת בקריאה מאושרת לאחד מכלי הסיום (${tools}), או נכשלת אחרי שני סבבים בלי קריאה או אחרי ${maxTurns} סבבים.`,
   llmStageBinaryPart: 'חלק בינארי',
   llmStageViewCalls: 'לקריאות שנשלחו בפועל',
   llmBudgetTitle: 'תקרת הוצאה למודלים',

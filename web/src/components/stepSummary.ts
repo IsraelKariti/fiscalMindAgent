@@ -308,10 +308,10 @@ const MAPPINGS: Record<string, Mapping> = {
  * the `tool` key (the row's own name) is dropped and the booleans read yes/no.
  */
 const toolStepRows: Mapping = (d) => ({
-  rows: (['applied', 'rolled', 'alreadyProvided'] as const).filter((k) => typeof d[k] === 'boolean').map((k) => yesNo(k, d[k])),
-  consumed: ['tool', 'applied', 'rolled', 'alreadyProvided'],
+  rows: (['applied', 'rolled', 'alreadyProvided', 'refused', 'beforeVerdict'] as const).filter((k) => typeof d[k] === 'boolean').map((k) => yesNo(k, d[k])),
+  consumed: ['tool', 'applied', 'rolled', 'alreadyProvided', 'refused', 'beforeVerdict'],
 });
-for (const tool of ['set_required', 'resolve_document' /* pre-rename rows */, 'add_instance', 'retire_document', 'set_company', 'state_cost', 'state_vehicle', 'attestation', 'tie_file', 'mark_collected', 'send_whatsapp_text', 'send_whatsapp_template', 'document_fetch', 'tax_fetch' /* pre-rename rows */, 'conclude', 'ask_team']) {
+for (const tool of ['set_required', 'resolve_document' /* pre-rename rows */, 'add_instance', 'retire_document', 'set_company', 'state_cost', 'state_vehicle', 'attestation', 'tie_file', 'mark_collected', 'send_whatsapp_text', 'send_whatsapp_template', 'goal_complete', 'client_declined', 'document_fetch', 'tax_fetch' /* pre-rename rows */, 'conclude', 'ask_team']) {
   MAPPINGS[tool] = toolStepRows;
 }
 

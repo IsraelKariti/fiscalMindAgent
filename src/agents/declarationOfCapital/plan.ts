@@ -24,7 +24,8 @@ import { selfEvidentFilesOf } from './selfEvidentFiles.js';
 import { readSpouse } from './spouseIdentity.js';
 import { mergeVehicleEvidence, vehicleEvidenceOf } from './vehicleDeclaration.js';
 import { replacementOfRetirement } from './retirementReplacement.js';
-import { recordRerunAfterVerification, verifyBatch } from './verifyDocument.js';
+import { verifyBatch } from './verifyDocument.js';
+import type { VerificationResult } from './verifyBatchRules.js';
 import { childDisplayName } from './splitChildNames.js';
 import { assignFilesToNewRows, filterPairsByCompany, type NewRowFiles } from './fileTies.js';
 import { planCompanySplit } from './companySplit.js';
@@ -35,6 +36,7 @@ import {
   attestationDetail,
   attributeCollectionOutcome,
   concludeDetail,
+  refusedDetail,
   resolveDocumentDetail,
   retireDocumentDetail,
   setCompanyDetail,
@@ -42,13 +44,30 @@ import {
   stateCostDetail,
   stateVehicleDetail,
   documentFetchDetail,
+  tieResultText,
+  toolResultText,
   type CompanySplitDetail,
+  type RunEnding,
+  type TieVerdict,
 } from './toolStepDetails.js';
+import { check, type GateCheck } from '../shared/gateChecks.js';
+import type { ExecuteOutcome } from '../../gemini/toolLoop.js';
 import { vehicleFactsLine } from './vehicleDeclaration.js';
 import { DECLARATION_OF_CAPITAL } from './agentType.js';
-import { decide } from './decide.js';
-import type { ParsedToolCall } from './decisionTools.js';
-import { allowedDocumentFetchActions, type DecisionContext, type IntakeDecisionState, type NormalizedDecision, type StatedCost, type StatedVehicle } from './decisionSchema.js';
+import { decide, type DecideResult } from './decide.js';
+import { describeCall, describeCalls, inExecutionOrder, isChecklistTool, isTerminalTool, parseTurnCalls, toolsForContext, type ParsedToolCall, type ToolCall } from './decisionTools.js';
+import { judgeAskTeam, judgeChecklistUnits, judgeDecline, judgeDocumentFetch, judgeGoalComplete, judgeMessage, judgeTies, type RunJudgeState } from './decisionJudge.js';
+import {
+  allowedDocumentFetchActions,
+  type DecisionContext,
+  type DocumentFetchDecision,
+  type FollowUpMessage,
+  type IntakeDecisionState,
+  type NormalizedChanges,
+  type StatedCost,
+  type StatedVehicle,
+  type TeamQuestionDecision,
+} from './decisionSchema.js';
 import { applyDocumentFetchAction, loadDocumentFetchContexts, pendingKeys, sitesForUnnamedRows, type DocumentFetchContext } from './documentFetch/flow.js';
 import { getProviderSpec } from './documentFetch/providers.js';
 import { clientIdNumber } from './documentFetch/clientId.js';
@@ -117,11 +136,53 @@ export async function getWaChannelState(client: ClientRow, now: Date, agentType:
 }
 
 
+/** How the run ended, as the terminal executors record it (openspec `planner-answer-tools`, "A run ends with exactly one ending"). */
+interface RunEnded {
+  kind: 'message' | 'goal_complete' | 'client_declined';
+  call: ParsedToolCall;
+  emailId?: string;
+  sendAt?: string;
+}
+
+/** What the run did so far — the cross-call rules read it (a decline after a tie, a second ask, the attestation request after a change). */
+interface RunState {
+  ended: RunEnded | null;
+  /** `ask_team` was accepted in this run. */
+  asked: boolean;
+  /** A file was tied or a document collected in this run. */
+  tied: boolean;
+  /** A resolution, addition, retirement, company set or statement was applied in this run. */
+  changed: boolean;
+  /** An accepted `attestation(request)`: this run's message is the summary (applied with the message). */
+  pendingAttestationRequest: ParsedToolCall | null;
+  /** An accepted `document_fetch`: applied with the message (or with the goal completion). */
+  pendingFetch: { call: ParsedToolCall; decision: DocumentFetchDecision } | null;
+}
+
+/** The run state as the pure judges read it (decisionJudge.ts). */
+function judgeStateOf(state: RunState): RunJudgeState {
+  return {
+    changesBefore: state.changed,
+    asked: state.asked,
+    fetchSet: state.pendingFetch !== null,
+    tied: state.tied,
+    attestationRequested: state.pendingAttestationRequest !== null,
+    endedBy: state.ended?.call.name ?? null,
+  };
+}
+
+/** A tool step buffered until the turn's verification ends, so the tie steps carry their verdict. */
+interface PendingStep {
+  call: ParsedToolCall;
+  detail: Record<string, unknown>;
+  target?: { type: string; id: string };
+}
+
 /**
- * One planning cycle in progress: what every step below shares. `documents`
- * and `attestationConfirmed` are reloaded or changed by the apply steps; the
- * other fields are the snapshot the cycle started from (`files` on purpose:
- * the verification targets read the pre-link snapshot).
+ * One planner run in progress: what every step below shares. `documents`,
+ * `files`, `intake` and `attestationConfirmed` are reloaded or changed by
+ * the executors between turns; `history` and `waState` are the snapshot the
+ * run started from. `calls` and the `turn*` fields are the current turn's.
  */
 interface PlanRun {
   ctx: AgentContext;
@@ -131,8 +192,6 @@ interface PlanRun {
   agentType: string;
   /** The declaration year is per client (from the monday board row) — the instance has no year. */
   taxYear: number;
-  /** The follow-up cycle after a verification batch: report the outcomes, collect nothing. */
-  afterVerification: boolean;
   /** Delivered messages only: every rule reads what the client saw. */
   history: EmailRow[];
   documents: ClientDocumentRow[];
@@ -144,14 +203,23 @@ interface PlanRun {
   attestationConfirmed: boolean;
   /** The questions the agent asked the client's team, newest first (openspec `team-questions`): the prompt section and the one-open-question gate. */
   teamQuestions: TeamQuestionRow[];
-  /** The gate-accepted calls of the planner's answer, in call order: each is executed and recorded as its own step (openspec `conversation-trace`). */
+  state: RunState;
+  /** The accepted calls of the current turn, in execution order: each is executed and recorded as its own step (openspec `conversation-trace`). */
   calls: ParsedToolCall[];
+  /** The result text each call of the current turn is answered with. */
+  turnResults: Map<ParsedToolCall, string>;
+  /** The step detail written for each call of the current turn (the tie verdict is appended to it). */
+  turnDetails: Map<ParsedToolCall, Record<string, unknown>>;
+  /** The checklist changes of the current turn (the rows it created, with the files named for them). */
+  turnChanges: ChecklistChanges;
+  /** A tie or collection landed in the current turn: a message of the same turn was written before the verdict. */
+  turnHadTies: boolean;
+  /** While set, tool steps are buffered (PendingStep) instead of written — flushed with the verdicts after verification. */
+  deferSteps: boolean;
+  pendingSteps: PendingStep[];
 }
 
-/** The answer that carries a message to send. */
-type FollowUpDecision = Extract<NormalizedDecision, { decision: 'follow_up' }>;
-
-/** A row this cycle created, with the `add_instance` call it came from (anchor + instance name) so its step can be written once the files are assigned. */
+/** A row this turn created, with the `add_instance` call it came from (anchor + instance name) so its step can be written once the files are assigned. */
 interface CreatedRow extends NewRowFiles {
   /** The full row as inserted (apply_retirements reads its paper). */
   row: ClientDocumentRow;
@@ -159,18 +227,22 @@ interface CreatedRow extends NewRowFiles {
   instanceName: string;
 }
 
-/** What the apply steps changed on the checklist in this cycle. */
+/** What the apply steps changed on the checklist in one turn. */
 interface ChecklistChanges {
   /** How many decision items changed state (one per resolution, addition or retirement that landed). */
   applied: number;
-  /** Rows created in this cycle on the client's quoted words, with the waiting files the model named for them (openspec `unlisted-files`). */
+  /** Rows created in this turn on the client's quoted words, with the waiting files the model named for them (openspec `unlisted-files`). */
   createdWithFiles: CreatedRow[];
   /** Rows born 'claimed' (the client says the office already holds the document): the accountant is told once. */
   claimedAtCreation: string[];
-  /** Rows created in this cycle whose instance carried a cost the client stated in the chat (openspec `chat-stated-cost`): closed by apply_stated_costs. */
+  /** Rows created in this turn whose instance carried a cost the client stated in the chat (openspec `chat-stated-cost`): closed by apply_stated_costs. */
   createdStated: { row: ClientDocumentRow; cost: StatedCost }[];
-  /** Rows created in this cycle whose instance carried vehicle facts the client stated in the chat (openspec `vehicle-declaration`): filled by apply_vehicle_declarations. */
+  /** Rows created in this turn whose instance carried vehicle facts the client stated in the chat (openspec `vehicle-declaration`): filled by apply_vehicle_declarations. */
   createdStatedVehicles: { row: ClientDocumentRow; statement: StatedVehicle }[];
+}
+
+function emptyChecklistChanges(): ChecklistChanges {
+  return { applied: 0, createdWithFiles: [], claimedAtCreation: [], createdStated: [], createdStatedVehicles: [] };
 }
 
 /** What the collect step decided and did: the input of the verification targets and of the tie_file / mark_collected steps. */
@@ -181,45 +253,310 @@ interface CollectionOutcome {
   proposedPairs: { file_id: string; document_id: string }[];
   refusedTies: ReturnType<typeof assignFilesToNewRows>['refused'];
   splitDetail: CompanySplitDetail;
-  /** Items the split renamed or created: their verification file is this cycle's pair, never a stale strong match. */
+  /** Items the split renamed or created: their verification file is this turn's pair, never a stale strong match. */
   splitTouched: Set<string>;
 }
 
+const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 500);
+
 /**
- * Asks the LLM, given the full thread and required-documents list, which
- * documents were just provided and whether a follow-up is needed, and acts on
- * it. One named function per step; the trail reads validate_message → one
- * step per accepted tool call (set_required, add_instance, …, tie_file,
- * mark_collected) → conclude → (verify → rerun) or send_whatsapp_* / document_fetch
- * (openspec `conversation-trace`).
+ * One planner run (openspec `planner-answer-tools`): the model calls tools in a
+ * loop; every turn's calls are judged and executed here (executeTurn) and
+ * answered with their results — a tie with its verification verdict — until an
+ * accepted terminal call ends the run: a message (scheduled), goal_complete or
+ * client_declined. The trail reads, per turn, validate_message → one step per
+ * call (set_required, add_instance, …, tie_file, mark_collected, ask_team,
+ * send_whatsapp_* / goal_complete / client_declined) → and at the end the
+ * code-written conclude step (openspec `conversation-trace`). A run without
+ * an ending (two turns without a call, or the turn cap) fails loudly; what it
+ * applied stands.
  */
 export async function planFollowUp(ctx: AgentContext): Promise<void> {
   const run = await loadPlanningContext(ctx);
-  const decision = await askPlanner(run);
-  // The client refused the collection in words (openspec `client-decline`):
-  // nothing to apply, nothing to schedule — the decline routine answers,
-  // pauses and emails. The caller (setFutureEmail) holds the client lock.
-  if (decision.decision === 'client_declined') {
-    recordConclude(run, { kind: 'client_declined' });
-    await handleClientDecline(ctx, 'planner');
+  const result = await askPlanner(run);
+  const ended = run.state.ended;
+  if (result.ended === 'terminal' && ended) {
+    recordConclude(run, runEndingOf(ended, result.turns));
     return;
   }
-  const changes: ChecklistChanges = { applied: 0, createdWithFiles: [], claimedAtCreation: [], createdStated: [], createdStatedVehicles: [] };
-  await applyResolutions(run, decision, changes);
-  await applyCompanies(run, decision, changes);
-  await applyAdditions(run, decision, changes);
-  await applyRetirements(run, decision, changes);
-  await applyStatedCosts(run, decision, changes);
-  await applyVehicleDeclarations(run, decision, changes);
+  // No ending (openspec `planner-answer-tools`, "A run ends with exactly one ending"): the gate row of the last turn says so, the conclude step records the failure.
+  const why = result.ended === 'cap' ? 'cap' : 'no_ending';
+  const note =
+    why === 'cap'
+      ? `the run made ${result.turns} turns without an accepted terminal call (the turn cap)`
+      : 'two turns without a tool call: the run has no ending (no message, no goal_complete, no client_declined)';
+  recordGateRow(run, result.turns, false, [check('ending', false, note, { observed: describeCalls(result.calls) })]);
+  if (run.state.pendingFetch) {
+    const { call, decision } = run.state.pendingFetch;
+    recordToolStep(run, call, { ...documentFetchDetail(call, { applied: false, provider: decision.provider, documentKeys: decision.documentKeys, emailId: null }), reason: 'not applied: the run ended without a message' });
+  }
+  recordConclude(run, { kind: 'failed', why, turns: result.turns });
+  throw new Error(`planFollowUp: the planner run ended without an ending (${result.ended}) for client ${run.clientId} after ${result.turns} turns`);
+}
+
+/** The code-written conclude step's input, from the terminal call that ended the run. */
+function runEndingOf(ended: RunEnded, turns: number): RunEnding {
+  const reasoning = typeof ended.call.args.reasoning === 'string' ? ended.call.args.reasoning : '';
+  if (ended.kind === 'message') return { kind: 'message', emailId: ended.emailId ?? '', sendAt: ended.sendAt ?? '', reasoning, turns };
+  return { kind: ended.kind, reasoning, turns };
+}
+
+/**
+ * One turn of the loop (openspec `planner-answer-tools`, "Each call is judged
+ * and executed on its own"): the `tool_calls` check per call, then the calls
+ * in the fixed safe order — the checklist units, the ties (verified at once),
+ * the team question, the fetch action, the terminal call — each judged against
+ * the live context and answered with its result; a refused call is answered
+ * with the refusal and the turn goes on. One `validate_message` row per turn.
+ */
+async function executeTurn(run: PlanRun, rawCalls: readonly ToolCall[], turn: number): Promise<ExecuteOutcome> {
+  const ctx = buildDecisionContext(run);
+  const { accepted, faults } = parseTurnCalls(rawCalls, toolsForContext(ctx));
+  const results = new Map<number, string>();
+  const checks: GateCheck[] = [
+    check('tool_calls', faults.length === 0, faults.length > 0 ? faults.map((f) => f.reason).join(' · ').slice(0, 500) : null, { observed: describeCalls(rawCalls) }),
+  ];
+  run.calls = inExecutionOrder(accepted);
+  run.turnResults = new Map();
+  run.turnDetails = new Map();
+  run.turnChanges = emptyChecklistChanges();
+  run.turnHadTies = false;
+  for (const f of faults) {
+    results.set(f.index, `refused: ${f.reason}`);
+    // A known tool with bad arguments still gets its step; an unknown tool has no step name.
+    if (f.tool) recordRefusedStep(run, { name: f.tool, args: asRecord(f.call.args), index: f.index, turn }, f.reason);
+  }
+  if (run.state.ended) {
+    for (const call of run.calls) refuseCall(run, call, `the run already ended with ${run.state.ended.call.name} — nothing runs after the ending`);
+  } else {
+    await runChecklistUnits(run, ctx, checks);
+    await runTies(run, ctx);
+    await runAskTeam(run, ctx);
+    runDocumentFetch(run, ctx);
+    await runTerminals(run, ctx);
+  }
+  const nameOf = (id: string) => docName(run, id) ?? fileName(run, id);
+  let refused = faults.length > 0;
+  for (const call of run.calls) {
+    const result = run.turnResults.get(call) ?? 'done';
+    const isRefused = result.startsWith('refused: ');
+    refused ||= isRefused;
+    checks.push(check('business_rules', !isRefused, isRefused ? result.slice('refused: '.length) : null, { observed: describeCall(call, nameOf) }));
+    results.set(call.index ?? -1, result);
+  }
+  const ended = run.state.ended !== null;
+  if (ended) checks.push(check('ending', true, null, { observed: run.state.ended!.call.name }));
+  recordGateRow(run, turn, !refused, checks);
+  return {
+    results: rawCalls.map((c, i) => ({ ...(c.id !== undefined ? { id: c.id } : {}), name: c.name, output: results.get(i) ?? 'done' })),
+    ended,
+  };
+}
+
+function asRecord(v: unknown): Record<string, unknown> {
+  return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {};
+}
+
+/** The `validate_message` row of one turn (openspec `code-gates`): the turn, the overall result and the checks in order. */
+function recordGateRow(run: PlanRun, turn: number, result: boolean, checks: GateCheck[]): void {
+  recordAudit({
+    actorType: 'system',
+    action: 'validate_message',
+    agentInstanceId: run.client.agent_instance_id,
+    clientId: run.clientId,
+    severity: result ? undefined : 'warning',
+    detail: { clientName: run.client.name, turn, result, ...(run.state.ended ? { decision: run.state.ended.kind } : {}), checks },
+  });
+}
+
+/** A call the rules refused: its step and its result say why; the turn goes on. */
+function refuseCall(run: PlanRun, call: ParsedToolCall, reason: string): void {
+  recordRefusedStep(run, call, reason);
+}
+
+function recordRefusedStep(run: PlanRun, call: ParsedToolCall, reason: string): void {
+  const detail = refusedDetail(call, reason, (id) => docName(run, id) ?? fileName(run, id));
+  recordToolStep(run, call, detail);
+}
+
+/**
+ * The checklist calls of the turn, as units (decisionTools.ts `checklistUnits`):
+ * each unit assembled and judged on its own (normalizeChanges) against the live
+ * context, the accepted units merged and applied together in the fixed order
+ * (resolutions, companies, additions, retirements, stated costs, vehicle
+ * facts, the attestation confirmation). A unit the rules refuse answers every
+ * call of it with the refusal and changes nothing. An attestation request is
+ * judged last (it needs a run that changed nothing) and rides on the message.
+ */
+async function runChecklistUnits(run: PlanRun, ctx: DecisionContext, checks: GateCheck[]): Promise<void> {
+  if (!run.calls.some((c) => isChecklistTool(c.name))) return;
+  const judged = judgeChecklistUnits(run.calls, ctx, { changesBefore: run.state.changed }, checks);
+  for (const { call, reason } of judged.refused) refuseCall(run, call, reason);
+  const merged = judged.merged;
+  const changes = run.turnChanges;
+  await applyResolutions(run, merged, changes);
+  await applyCompanies(run, merged, changes);
+  await applyAdditions(run, merged, changes);
+  await applyRetirements(run, merged, changes);
+  await applyStatedCosts(run, merged, changes);
+  await applyVehicleDeclarations(run, merged, changes);
   await settleChecklistChanges(run, changes);
-  await applyAttestationConfirmed(run, decision);
-  const collection = await collectFiles(run, decision, changes);
-  if (decision.decision === 'collect') return verifyThenReplan(run, collection);
-  if (await completeGoalIfDone(run, decision)) return;
-  if (decision.decision !== 'follow_up') return; // unreachable: 'collect' returned above, goal_complete ended the cycle or threw
-  recordConclude(run, { kind: 'follow_up' });
-  await applyAskTeam(run, decision);
-  await scheduleReply(run, decision);
+  await applyAttestationConfirmed(run, merged);
+  if (changes.applied > 0) run.state.changed = true;
+  if (merged.attestation?.action === 'request') {
+    const call = run.calls.find((c) => c.name === 'attestation' && c.args.action === 'request');
+    if (call) {
+      run.state.pendingAttestationRequest = call;
+      recordToolStep(run, call, { ...attestationDetail(call, { applied: true }), reason: "noted: this run's message is the attestation summary (stamped when it is scheduled)" });
+    }
+  }
+}
+
+/**
+ * The ties of the turn (openspec `planner-answer-tools`, "A file tie is
+ * verified before the model continues"): the `tie_file` / `mark_collected`
+ * calls and the rows this turn created with files, through the collect step
+ * as one group (split, company check, collect-or-claim, links), then the
+ * verification of the collected documents as one batch — processing stamp on,
+ * drafting stamp back — and the verdict appended to each call's step and
+ * result. The snapshot (documents, files, intake) is reloaded for the next turn.
+ */
+async function runTies(run: PlanRun, ctx: DecisionContext): Promise<void> {
+  const { client, clientId } = run;
+  const tieCalls = run.calls.filter((c) => c.name === 'tie_file' || c.name === 'mark_collected');
+  const createdWithFiles = run.turnChanges.createdWithFiles.some((c) => c.fileIds.length > 0);
+  if (tieCalls.length === 0 && !createdWithFiles) return;
+  const changes = judgeTies(tieCalls, ctx);
+  run.deferSteps = true;
+  run.pendingSteps = [];
+  let outcome: CollectionOutcome;
+  try {
+    outcome = await collectFiles(run, changes, run.turnChanges);
+  } finally {
+    run.deferSteps = false;
+  }
+  const tied = outcome.newlyCollected.length > 0 || outcome.newlyClaimed.length > 0 || outcome.proposedPairs.length > 0;
+  run.turnHadTies ||= tied;
+  if (tied) run.state.tied = true;
+  const targets = pickVerificationTargets(run, outcome);
+  let results: VerificationResult[] = [];
+  if (targets.length > 0) {
+    logger.info('verifying the documents tied in this turn', { clientId, targets });
+    results = await verifyBatch(client, run.ctx.instance, targets);
+    // Back from "processing" to "drafting" for the model's next turn (openspec `turn-activity-states`).
+    await clients.markDraftingStarted(clientId);
+  }
+  await reloadSnapshot(run);
+  const verdictOf = (documentId: string | undefined): TieVerdict | null => {
+    if (!documentId) return null;
+    const result = results.find((r) => r.documentId === documentId);
+    const doc = run.documents.find((d) => d.id === documentId);
+    const record = (doc?.verification ?? null) as { reasons?: unknown; checks?: unknown } | null;
+    const reasons = Array.isArray(record?.reasons) ? record!.reasons.filter((x): x is string => typeof x === 'string') : [];
+    if (!result) {
+      if (doc?.status === 'claimed' && outcome.newlyClaimed.includes(documentId)) return { outcome: 'claimed', reasons: [], facts: [] };
+      return null;
+    }
+    const facts =
+      result.outcome === 'approved' && Array.isArray(record?.checks)
+        ? (record!.checks as { key?: unknown; observed?: unknown }[])
+            .filter((c) => (c.key === 'as_of_date' || c.key === 'type_fields') && typeof c.observed === 'string' && c.observed !== '')
+            .map((c) => (c.key === 'as_of_date' ? `as of ${c.observed as string}` : (c.observed as string)))
+        : [];
+    return { outcome: result.outcome, reasons, facts };
+  };
+  for (const step of run.pendingSteps) {
+    const documentId = typeof step.detail.endedUnderId === 'string' ? step.detail.endedUnderId : typeof step.detail.documentId === 'string' ? step.detail.documentId : undefined;
+    const verdict = verdictOf(documentId);
+    const result = tieResultText(step.detail, verdict);
+    const detail = { ...step.detail, ...(verdict && verdict.outcome !== 'none' ? { verdict: verdict.outcome, ...(verdict.reasons.length > 0 ? { verdictReasons: verdict.reasons } : {}) } : {}), result };
+    run.turnResults.set(step.call, result);
+    run.turnDetails.set(step.call, detail);
+    writeStep(run, step.call, detail, step.target);
+  }
+  run.pendingSteps = [];
+}
+
+/** The snapshot the next turn's rules and prompt read: documents, files and the intake state, after this turn's changes. */
+async function reloadSnapshot(run: PlanRun): Promise<void> {
+  const { client, clientId } = run;
+  run.documents = await clientDocuments.listForClient(clientId);
+  run.files = await documentFiles.listForClient(clientId);
+  run.fileById = new Map(run.files.map((f) => [f.id, f]));
+  const { intake, attestationConfirmed } = await buildIntakeState(client, run.history, run.documents, run.files);
+  run.intake = intake;
+  run.attestationConfirmed = attestationConfirmed || run.attestationConfirmed;
+}
+
+/** The `ask_team` call of the turn: once per run, before the message, never while a question is open (openspec `team-questions`). */
+async function runAskTeam(run: PlanRun, ctx: DecisionContext): Promise<void> {
+  for (const call of run.calls.filter((c) => c.name === 'ask_team')) {
+    const judged = judgeAskTeam(call, ctx, judgeStateOf(run.state));
+    if (!judged.ok) {
+      refuseCall(run, call, judged.refusal);
+      continue;
+    }
+    await applyAskTeam(run, judged.value, call);
+  }
+}
+
+/** The `document_fetch` call of the turn: judged now, applied with this run's message (or the goal completion). */
+function runDocumentFetch(run: PlanRun, ctx: DecisionContext): void {
+  for (const call of run.calls.filter((c) => c.name === 'document_fetch')) {
+    const judged = judgeDocumentFetch(call, ctx, judgeStateOf(run.state));
+    if (!judged.ok) {
+      refuseCall(run, call, judged.refusal);
+      continue;
+    }
+    run.state.pendingFetch = { call, decision: judged.value };
+    run.turnResults.set(call, `noted: ${judged.value.action} on ${judged.value.provider} — applied together with this run's message`);
+  }
+}
+
+/**
+ * The terminal calls of the turn, in order: the first accepted one ends the run
+ * (a message scheduled, the goal completed, the client declined); every later
+ * call is refused. A message is judged by the window and template rules and
+ * its send time; goal_complete by the live checklist and attestation;
+ * client_declined by the run having done nothing else.
+ */
+async function runTerminals(run: PlanRun, ctx: DecisionContext): Promise<void> {
+  for (const call of run.calls.filter((c) => isTerminalTool(c.name))) {
+    const state = judgeStateOf(run.state);
+    if (call.name === 'send_whatsapp_text' || call.name === 'send_whatsapp_template') {
+      const judged = judgeMessage(call, ctx, state);
+      if (!judged.ok) {
+        refuseCall(run, call, judged.refusal);
+        continue;
+      }
+      try {
+        await scheduleReply(run, { ...judged.value, call });
+      } catch (err) {
+        refuseCall(run, call, messageOf(err));
+      }
+    } else if (call.name === 'goal_complete') {
+      await completeGoal(run, call);
+    } else if (call.name === 'client_declined') {
+      await declineRun(run, call);
+    }
+  }
+}
+
+/**
+ * `client_declined` (openspec `client-decline`): the client refused the
+ * collection in words — the whole run is this one call. Refused when the run
+ * already tied a file, changed the checklist, asked the team or set a fetch
+ * step; otherwise the decline routine answers, pauses and emails.
+ */
+async function declineRun(run: PlanRun, call: ParsedToolCall): Promise<void> {
+  const judged = judgeDecline(call, judgeStateOf(run.state));
+  if (!judged.ok) {
+    refuseCall(run, call, judged.refusal);
+    return;
+  }
+  run.state.ended = { kind: 'client_declined', call };
+  recordToolStep(run, call, { tool: call.name, ...(call.turn !== undefined ? { turn: call.turn } : {}), reasoning: judged.value.reasoning, applied: true, reason: 'the client declined: the decline routine answers and pauses' });
+  await handleClientDecline(run.ctx, 'planner');
 }
 
 /**
@@ -231,10 +568,7 @@ export async function planFollowUp(ctx: AgentContext): Promise<void> {
  * app. A client whose owner has no email at all (legacy rows) cannot ask: the
  * step records why and the cycle goes on with the message.
  */
-async function applyAskTeam(run: PlanRun, decision: FollowUpDecision): Promise<void> {
-  const ask = decision.teamQuestion;
-  const call = callOf(run, 'ask_team');
-  if (!ask || !call) return;
+async function applyAskTeam(run: PlanRun, ask: TeamQuestionDecision, call: ParsedToolCall): Promise<void> {
   const { client, clientId } = run;
   const to = teamQuestionAddressee(client, run.ctx.accountant);
   if (!to || !client.agent_instance_id) {
@@ -257,6 +591,7 @@ async function applyAskTeam(run: PlanRun, decision: FollowUpDecision): Promise<v
     type: 'team_question',
     id: row.id,
   });
+  run.state.asked = true;
   logger.info('team question asked', { clientId, questionId: row.id, to: to.email, match: to.match });
   publishClientUpdated(clientId);
   void sendTeamQuestionEmail(client, row).catch((err) => logger.error('team question email failed', err, { clientId, questionId: row.id }));
@@ -275,11 +610,26 @@ function recordPlannerStep(run: PlanRun, action: AuditAction, detail: Record<str
 
 /**
  * One tool-call step (openspec `conversation-trace`): the row is named after
- * the tool, carries the call's parameters with names next to ids and the
- * outcome of the execution (`reason` = the short outcome line of the trace
- * row). Written once per accepted call, right after the call ran.
+ * the tool, carries the call's parameters with names next to ids, the outcome
+ * of the execution (`reason` = the short outcome line of the trace row) and
+ * the result text the model is answered with (`result`, from the outcome
+ * line unless the detail carries its own). Written once per call of the
+ * turn, right after the call ran — or buffered while the turn's ties are
+ * being verified, so their steps carry the verdict.
  */
 function recordToolStep(run: PlanRun, call: ParsedToolCall, detail: Record<string, unknown>, target?: { type: string; id: string }): void {
+  const result = typeof detail.result === 'string' && detail.result !== '' ? detail.result : toolResultText(call, detail);
+  const full = { ...detail, result };
+  run.turnResults.set(call, result);
+  run.turnDetails.set(call, full);
+  if (run.deferSteps) {
+    run.pendingSteps.push({ call, detail: full, ...(target ? { target } : {}) });
+    return;
+  }
+  writeStep(run, call, full, target);
+}
+
+function writeStep(run: PlanRun, call: ParsedToolCall, detail: Record<string, unknown>, target?: { type: string; id: string }): void {
   recordAudit({
     actorType: 'system',
     action: call.name,
@@ -291,16 +641,16 @@ function recordToolStep(run: PlanRun, call: ParsedToolCall, detail: Record<strin
   });
 }
 
-/** The one call of a tool in this answer, when it was made. */
-function callOf(run: PlanRun, name: ParsedToolCall['name']): ParsedToolCall | undefined {
-  return run.calls.find((c) => c.name === name);
-}
-
-/** The `conclude` step: the decision, the reasoning and what the cycle did with it. */
-function recordConclude(run: PlanRun, outcome: Parameters<typeof concludeDetail>[1]): void {
-  const call = callOf(run, 'conclude');
-  if (!call) return;
-  recordToolStep(run, call, concludeDetail(call, outcome));
+/** The `conclude` step, written by code at the end of the run: how it ended, the reasoning of the terminal call, the turn count. */
+function recordConclude(run: PlanRun, ending: RunEnding): void {
+  recordAudit({
+    actorType: 'system',
+    action: 'conclude',
+    agentInstanceId: run.client.agent_instance_id,
+    clientId: run.clientId,
+    severity: ending.kind === 'failed' ? 'warning' : undefined,
+    detail: { clientName: run.client.name, ...concludeDetail(ending) },
+  });
 }
 
 /** The name of a checklist row at call time (`documents` is reloaded by the apply steps). Unknown ids give undefined. */
@@ -338,7 +688,6 @@ async function loadPlanningContext(ctx: AgentContext): Promise<PlanRun> {
     now,
     agentType,
     taxYear,
-    afterVerification: ctx.hints?.afterVerification === true,
     history,
     documents,
     files,
@@ -348,7 +697,14 @@ async function loadPlanningContext(ctx: AgentContext): Promise<PlanRun> {
     intake,
     attestationConfirmed,
     teamQuestions: questions,
+    state: { ended: null, asked: false, tied: false, changed: false, pendingAttestationRequest: null, pendingFetch: null },
     calls: [],
+    turnResults: new Map(),
+    turnDetails: new Map(),
+    turnChanges: emptyChecklistChanges(),
+    turnHadTies: false,
+    deferSteps: false,
+    pendingSteps: [],
   };
 }
 
@@ -452,15 +808,15 @@ function allDocumentsSettled(documents: readonly ClientDocumentRow[]): boolean {
 }
 
 /**
- * The planner call: builds the prompt from the snapshot, asks the
- * model (decide: validate_message with at most one corrective retry), and
- * bills the tokens to the owning accountant right away, so they count even
- * if acting on the decision fails afterwards. Legacy CLI clients have no owner.
+ * The planner run: builds the prompt from the snapshot, runs the tool loop
+ * (decide; executeTurn judges and executes every turn), and bills the tokens
+ * to the owning accountant right away, so they count even if the run fails
+ * afterwards. Legacy CLI clients have no owner.
  */
-async function askPlanner(run: PlanRun): Promise<NormalizedDecision> {
+async function askPlanner(run: PlanRun): Promise<DecideResult> {
   const { client, clientId } = run;
   const { systemInstruction, contents } = await buildPlannerPrompt(run);
-  const { decision, calls, usage, model } = await decide(systemInstruction, contents, buildDecisionContext(run), {
+  const result = await decide(systemInstruction, contents, buildDecisionContext(run), (calls, turn) => executeTurn(run, calls, turn), {
     log: {
       userId: client.user_id,
       agentInstanceId: client.agent_instance_id,
@@ -470,10 +826,9 @@ async function askPlanner(run: PlanRun): Promise<NormalizedDecision> {
     },
   });
   if (client.user_id) {
-    await llmUsage.add(client.user_id, client.agent_instance_id, model, usage);
+    await llmUsage.add(client.user_id, client.agent_instance_id, result.model, result.usage);
   }
-  run.calls = calls;
-  return decision;
+  return result;
 }
 
 /** The system prompt and the fenced data of this cycle (buildPrompt), with the prompt-only context: fetch states, unsent drafts, verification results, lost files. */
@@ -502,7 +857,8 @@ async function buildPlannerPrompt(run: PlanRun): Promise<{ systemInstruction: st
     },
     await loadUnsentDrafts(run),
     verificationResultsForPrompt(run),
-    run.afterVerification,
+    // A run after a fetch-delivery batch (openspec `verification-reply`): the section renders even for an empty batch.
+    run.ctx.hints?.afterVerification === true,
     (await clientIdNumber(client, 'israel_tax_authority')) !== null,
     lostFiles,
     intake.selfEvidentFiles ?? new Map(),
@@ -550,8 +906,9 @@ async function loadUnsentDrafts(run: PlanRun) {
 }
 
 /**
- * Follow-up cycle after a verification batch: tell the model which files of
- * THIS turn were just approved or rejected (the reasons live on the rows).
+ * The run after a fetch-delivery batch (openspec `verification-reply`): tell
+ * the model which fetched files were just approved or rejected (the reasons
+ * live on the rows). A planner tie is answered with its verdict directly.
  */
 function verificationResultsForPrompt(run: PlanRun): VerificationResultPromptInput[] {
   return (run.ctx.hints?.verificationResults ?? []).flatMap((r) => {
@@ -577,8 +934,6 @@ function verificationResultsForPrompt(run: PlanRun): VerificationResultPromptInp
 /** What the validate_message gate is allowed to accept in this cycle. */
 function buildDecisionContext(run: PlanRun): DecisionContext {
   return {
-    // The follow-up cycle after a verification batch may not collect again.
-    afterVerification: run.afterVerification,
     windowOpen: run.waState.windowOpen,
     templates: run.waState.templates,
     hiddenTemplates: run.waState.hiddenTemplates,
@@ -606,14 +961,14 @@ function openTeamQuestionOf(questions: readonly TeamQuestionRow[]): DecisionCont
  * (decisionSchema); the DB guards re-check the statuses. The planner gives no
  * injection verdict — that is the dedicated screens' job, before it runs.
  */
-async function applyResolutions(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
+async function applyResolutions(run: PlanRun, decision: NormalizedChanges, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
   for (const resolution of decision.resolutions) {
     // The call this resolution came from (one set_required per document, by the gate).
     const call = run.calls.find((c) => c.name === 'set_required' && c.args.document_id === resolution.documentId);
-    const step = (applied: boolean, createdNames: string[]) => {
+    const step = (applied: boolean, createdNames: string[], createdIds: string[] = []) => {
       if (!call) return;
-      recordToolStep(run, call, resolveDocumentDetail(call, (id) => docName(run, id), { applied, evidence: resolution.evidence, createdNames }), {
+      recordToolStep(run, call, resolveDocumentDetail(call, (id) => docName(run, id), { applied, evidence: resolution.evidence, createdNames, createdIds }), {
         type: 'client_document',
         id: resolution.documentId,
       });
@@ -673,7 +1028,7 @@ async function applyResolutions(run: PlanRun, decision: NormalizedDecision, chan
           evidence: resolution.evidence,
         },
       });
-      step(true, rows.map((r) => r.name));
+      step(true, rows.map((r) => r.name), rows.map((r) => r.id));
     }
   }
 }
@@ -685,7 +1040,7 @@ async function applyResolutions(run: PlanRun, decision: NormalizedDecision, chan
  * the list so a sibling added in the same answer sits next to the renamed
  * head. Runs before apply_additions for that reason.
  */
-async function applyCompanies(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
+async function applyCompanies(run: PlanRun, decision: NormalizedChanges, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
   if (decision.setCompanies.length === 0) return;
   for (const setting of decision.setCompanies) {
@@ -730,7 +1085,7 @@ async function applyCompanies(run: PlanRun, decision: NormalizedDecision, change
  * step of each call is written by collectFiles, once code has decided which
  * of the files the call named the new row may take.
  */
-async function applyAdditions(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
+async function applyAdditions(run: PlanRun, decision: NormalizedChanges, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
   for (const addition of decision.addedInstances) {
     const rows = await clientDocuments.addInstances(addition.anchorDocumentId, clientId, addition.instances, addition.evidence);
@@ -768,7 +1123,7 @@ async function applyAdditions(run: PlanRun, decision: NormalizedDecision, change
  * replaced these rows with different documents (evidence-backed;
  * collected/approved rows are valid targets per the office's unit rule).
  */
-async function applyRetirements(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
+async function applyRetirements(run: PlanRun, decision: NormalizedChanges, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
   // What replaced each row (openspec `retired-by-declaration-tab`): the rows
   // this answer created (apply_additions ran first) and the existing rows it
@@ -820,7 +1175,7 @@ async function applyRetirements(run: PlanRun, decision: NormalizedDecision, chan
  * ('stated', no file) with the statement as its evidence. Never a collecting
  * answer: nothing is verified afterwards.
  */
-async function applyStatedCosts(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
+async function applyStatedCosts(run: PlanRun, decision: NormalizedChanges, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
   // Each target with the state_cost call it came from: by document id for an
   // existing item, by the instance name for a row this cycle created.
@@ -893,7 +1248,7 @@ function instanceNameOf(changes: ChecklistChanges, rowId: string): string | unde
  * paper, the quote and the facts; here the statement is merged into the row's
  * evidence (newer facts win) and the row is settled ('stated', no file).
  */
-async function applyVehicleDeclarations(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<void> {
+async function applyVehicleDeclarations(run: PlanRun, decision: NormalizedChanges, changes: ChecklistChanges): Promise<void> {
   const { client, clientId } = run;
   const targets: { documentId: string; statement: StatedVehicle; previous: ClientDocumentRow | null; call: ParsedToolCall | undefined }[] = [
     ...decision.statedVehicles.map((v) => ({
@@ -986,7 +1341,7 @@ async function settleChecklistChanges(run: PlanRun, changes: ChecklistChanges): 
  * validated to cite a real post-summary inbound message; recorded with its
  * evidence.
  */
-async function applyAttestationConfirmed(run: PlanRun, decision: NormalizedDecision): Promise<void> {
+async function applyAttestationConfirmed(run: PlanRun, decision: NormalizedChanges): Promise<void> {
   if (decision.attestation?.action !== 'confirmed') return;
   const { client, clientId } = run;
   await clients.setAttestationConfirmed(clientId, decision.attestation.evidence);
@@ -998,7 +1353,7 @@ async function applyAttestationConfirmed(run: PlanRun, decision: NormalizedDecis
     clientId,
     detail: { clientName: client.name, evidence: decision.attestation.evidence },
   });
-  const call = callOf(run, 'attestation');
+  const call = run.calls.find((c) => c.name === 'attestation' && c.args.action === 'confirmed');
   if (call) recordToolStep(run, call, attestationDetail(call, { applied: true }));
 }
 
@@ -1014,7 +1369,7 @@ async function applyAttestationConfirmed(run: PlanRun, decision: NormalizedDecis
  * In order: the company/employer split of the tied items, the collect-or-claim
  * decision, the status writes, the file links, the step row.
  */
-async function collectFiles(run: PlanRun, decision: NormalizedDecision, changes: ChecklistChanges): Promise<CollectionOutcome> {
+async function collectFiles(run: PlanRun, decision: Pick<NormalizedChanges, 'matched_files' | 'collected_document_ids'>, changes: ChecklistChanges): Promise<CollectionOutcome> {
   const { clientId, fileById } = run;
   const pendingIds = new Set(run.documents.filter((d) => d.status === 'pending').map((d) => d.id));
   const pendingBefore: ReadonlySet<string> = new Set(pendingIds);
@@ -1030,7 +1385,7 @@ async function collectFiles(run: PlanRun, decision: NormalizedDecision, changes:
   for (const c of splitDetail.created) pendingIds.add(c.documentId); // born pending, after the snapshot above
   // Files the model named for rows it created in this cycle: code decides which
   // of them a new row may take; an accepted file makes the row collectable now.
-  const newRowFiles = run.afterVerification ? { pairs: [], refused: [] } : assignFilesToNewRows(changes.createdWithFiles, fileById);
+  const newRowFiles = assignFilesToNewRows(changes.createdWithFiles, fileById);
   const proposedPairs: { file_id: string; document_id: string }[] = [...splitAllowedPairs, ...splitPairs, ...newRowFiles.pairs];
   const refusedTies = [...companyChecked.refused, ...newRowFiles.refused];
   if (refusedTies.length > 0) logger.warn('file-to-document ties refused', { clientId, refusedTies });
@@ -1085,7 +1440,6 @@ function recordAddInstanceSteps(run: PlanRun, changes: ChecklistChanges, newRowF
 /** The `tie_file` and `mark_collected` steps of this answer, in call order, each with the outcome the collect step gave it. */
 function recordCollectionSteps(run: PlanRun, o: CollectionOutcome, before: { pendingIds: ReadonlySet<string>; documentIds: ReadonlySet<string> }): void {
   const steps = attributeCollectionOutcome(run.calls, o, {
-    afterVerification: run.afterVerification,
     pendingIds: before.pendingIds,
     documentIds: before.documentIds,
     fileById: run.fileById,
@@ -1101,17 +1455,14 @@ function recordCollectionSteps(run: PlanRun, o: CollectionOutcome, before: { pen
  * file is tied to it, and every further company gets its own sibling row —
  * code over this cycle's allowed pairs (planCompanySplit, pure), before the
  * collect decision, so each resulting row is collected and verified on its
- * own file. Skipped in the follow-up cycle after verification (no new file
- * arrived). Returns the pairs re-pointed at the rows that now hold them.
+ * own file. Returns the pairs re-pointed at the rows that now hold them.
  */
 async function splitItemsByCompany(
   run: PlanRun,
   allowedPairs: ReturnType<typeof filterPairsByCompany>['allowed'],
 ): Promise<{ pairs: ReturnType<typeof filterPairsByCompany>['allowed']; splitPairs: { file_id: string; document_id: string }[]; splitDetail: CompanySplitDetail }> {
   const { client, clientId, fileById } = run;
-  const split = run.afterVerification
-    ? { renames: [], created: [], pairs: allowedPairs }
-    : planCompanySplit(allowedPairs, fileById, run.documents);
+  const split = planCompanySplit(allowedPairs, fileById, run.documents);
   const splitPairs: { file_id: string; document_id: string }[] = [];
   const splitDetail: CompanySplitDetail = { renamed: [], created: [] };
   if (split.renames.length > 0 || split.created.length > 0) {
@@ -1179,10 +1530,7 @@ async function splitItemsByCompany(
  * Collect or claim: a proposed document is collected when a real file earned
  * it (a strong analyzer match, or a verified legible pair); it is claimed
  * when the client says it was delivered another way; it stays pending when
- * the model rested it on a file code refused to tie. A cycle triggered by a
- * verification verdict reports the outcome only: no new file arrived, so
- * nothing may be collected (and therefore nothing can be verified again —
- * the rerun cannot loop).
+ * the model rested it on a file code refused to tie.
  */
 function decideCollectOrClaim(
   run: PlanRun,
@@ -1193,7 +1541,6 @@ function decideCollectOrClaim(
 ): { newlyCollected: string[]; newlyClaimed: string[] } {
   const newlyCollected: string[] = [];
   const newlyClaimed: string[] = [];
-  if (run.afterVerification) return { newlyCollected, newlyClaimed };
   for (const id of proposedCollected) {
     if (!pendingIds.has(id)) continue;
     const strongMatch = run.files.some((f) => fileMatchesDocument(f, id));
@@ -1286,93 +1633,54 @@ function pickVerificationTargets(run: PlanRun, o: CollectionOutcome): { document
 }
 
 /**
- * withhold_reply → verify → planner.rerun_after_verification — the collect
- * branch (openspec `verification-reply`): a collecting answer carries no
- * message (the gate rejects one), so the batch is verified inline — under the
- * caller's client lock, inside the same drafting attempt, so a restart cannot
- * lose the reply — and ONE follow-up cycle then writes the reply with every
- * verdict in view. Message-bound actions (attestation request, fetch action)
- * are absent from the collecting answer; the follow-up cycle decides them.
- * The branch keys on the decision value, not on the targets: it runs even
- * when the code refused every tie or every collected document was claimed
- * without a file (an empty batch). The follow-up cycle's schema has no
- * 'collect', so this recursion is depth 1.
+ * goal.completed — the `goal_complete` terminal call (openspec
+ * `planner-answer-tools`): accepted only when every row is settled AND the
+ * client confirmed the attestation summary, judged on the live documents, not
+ * on the model's word; clients with no configured documents trust the call
+ * (legacy behavior). Refused otherwise, with the reason as the result, and the
+ * run goes on. On acceptance the pending fetch action lands, the goal flips to
+ * complete, the closing message goes out and the accountant is told.
  */
-async function verifyThenReplan(run: PlanRun, o: CollectionOutcome): Promise<void> {
-  const { ctx, client, clientId } = run;
-  const verificationTargets = pickVerificationTargets(run, o);
-  recordConclude(run, {
-    kind: 'collect',
-    collectedNames: o.newlyCollected.map((id) => docName(run, id) ?? id),
-    verified: verificationTargets.map((v) => ({ documentName: docName(run, v.documentId) ?? v.documentId, fileName: fileName(run, v.fileId) ?? v.fileId })),
-  });
-  logger.info('reply deferred until the collected documents are verified', {
-    clientId,
-    documentIds: o.newlyCollected,
-    verified: verificationTargets.length,
-  });
-  const results = await verifyBatch(client, ctx.instance, verificationTargets);
-  await recordRerunAfterVerification(client, results);
-  // Back from "processing" to "drafting" for the follow-up cycle (openspec `turn-activity-states`).
-  await clients.markDraftingStarted(clientId);
-  const fresh = await clients.getById(clientId);
-  if (!fresh) return;
-  return planFollowUp({ ...ctx, client: fresh, hints: { ...ctx.hints, afterVerification: true, verificationResults: results } });
-}
-
-/**
- * goal.completed — completion is derived from the documents, not the LLM's
- * decision field: complete iff every row is settled AND the client confirmed
- * the attestation summary. Clients with no configured documents fall back to
- * trusting the decision field (legacy behavior). A goal_complete answer
- * before the goal is actually done is a contract violation: there is no
- * drafted message to schedule, so it throws and the caller's retry path
- * re-asks. Returns true when the cycle ends here.
- */
-async function completeGoalIfDone(run: PlanRun, decision: NormalizedDecision): Promise<boolean> {
+async function completeGoal(run: PlanRun, call: ParsedToolCall): Promise<void> {
   const { client, clientId, documents, agentType, taxYear } = run;
-  const allSettled = allDocumentsSettled(documents);
-  const allCollected = documents.length > 0 ? allSettled && run.attestationConfirmed : decision.decision === 'goal_complete';
-  if (allCollected) {
-    // No message is drafted on this path; a fresh offer can't happen here (no
-    // pending matching document left), but cancel/agreed actions still need to land.
-    const fetch = documentFetchDecisionOf(run, decision);
-    await applyDocumentFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, { emailId: null, delayMs: 0 });
-    recordDocumentFetchStep(run, fetch, null);
-    recordConclude(run, { kind: 'goal_complete', completed: true, derived: decision.decision !== 'goal_complete' });
-    await clients.updateGoalStatus(clientId, 'complete');
-    // Report the finished collection back to the board row's documents status column.
-    void syncMondayDocumentsStatus(clientId);
-    publishClientUpdated(clientId);
-    logger.info('goal complete', { clientId, reasoning: decision.reasoning });
-    recordAudit({
-      actorType: 'agent',
-      action: 'goal.completed',
-      agentInstanceId: client.agent_instance_id,
-      clientId,
-      detail: { agent: agentType, clientName: client.name },
-    });
-    // Fire-and-forget; skipped for document-less clients (trivially "complete"
-    // on arrival, e.g. monday imports) where the email would be nonsense.
-    if (documents.length > 0) {
-      const closing = await sendClosingMessage(client, run.now);
-      recordPlannerStep(run, 'send_closing', closing.sent ? { emailId: closing.emailId } : { skipped: closing.reason });
-      sendGoalCompleteEmail(client).catch((err) => logger.error('goal-complete notification failed', err, { clientId }));
-    }
-    return true;
+  const judged = judgeGoalComplete(call, { hasDocuments: documents.length > 0, allSettled: allDocumentsSettled(documents), attestationConfirmed: run.attestationConfirmed }, judgeStateOf(run.state));
+  if (!judged.ok) {
+    refuseCall(run, call, judged.refusal);
+    return;
   }
-  if (decision.decision === 'goal_complete') {
-    const why = allSettled ? 'the attestation is not confirmed' : 'documents are still unsettled';
-    recordConclude(run, { kind: 'goal_complete', completed: false, why });
-    throw new Error(`setFutureEmail: LLM returned goal_complete but ${why} for client ${clientId}`);
+  run.state.ended = { kind: 'goal_complete', call };
+  // No message is drafted on this path; a fresh offer can't happen here (no
+  // pending matching document left), but cancel/agreed actions still need to land.
+  const fetch = documentFetchDecisionOf(run);
+  await applyDocumentFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, { emailId: null, delayMs: 0 });
+  recordDocumentFetchStep(run, fetch, null);
+  recordToolStep(run, call, { tool: call.name, ...(call.turn !== undefined ? { turn: call.turn } : {}), reasoning: String(call.args.reasoning ?? ''), applied: true, reason: 'goal completed (every row settled and the attestation confirmed)' });
+  await clients.updateGoalStatus(clientId, 'complete');
+  // Report the finished collection back to the board row's documents status column.
+  void syncMondayDocumentsStatus(clientId);
+  publishClientUpdated(clientId);
+  logger.info('goal complete', { clientId, reasoning: String(call.args.reasoning ?? '') });
+  recordAudit({
+    actorType: 'agent',
+    action: 'goal.completed',
+    agentInstanceId: client.agent_instance_id,
+    clientId,
+    detail: { agent: agentType, clientName: client.name },
+  });
+  // Fire-and-forget; skipped for document-less clients (trivially "complete"
+  // on arrival, e.g. monday imports) where the email would be nonsense.
+  if (documents.length > 0) {
+    const closing = await sendClosingMessage(client, run.now);
+    recordPlannerStep(run, 'send_closing', closing.sent ? { emailId: closing.emailId } : { skipped: closing.reason });
+    sendGoalCompleteEmail(client).catch((err) => logger.error('goal-complete notification failed', err, { clientId }));
   }
-  return false;
 }
 
 /** The `document_fetch` step: the action the call asked for and whether a fetch context took it. */
 function recordDocumentFetchStep(run: PlanRun, fetch: ReturnType<typeof documentFetchDecisionOf>, emailId: string | null): void {
-  const call = callOf(run, 'document_fetch');
+  const call = run.state.pendingFetch?.call;
   if (!call) return;
+  run.state.pendingFetch = null;
   recordToolStep(
     run,
     call,
@@ -1422,9 +1730,9 @@ export async function sendClosingMessage(
   }
 }
 
-/** The document-fetch step the model chose (client agreed / start login / cancel), with the website it is about. */
-function documentFetchDecisionOf(run: PlanRun, decision: NormalizedDecision) {
-  const documentFetchDecision = decision.document_fetch;
+/** The document-fetch step the run accepted (client agreed / start login / cancel), with the website it is about. */
+function documentFetchDecisionOf(run: PlanRun) {
+  const documentFetchDecision = run.state.pendingFetch?.decision ?? null;
   return {
     action: documentFetchDecision?.action ?? null,
     targetCtx: documentFetchDecision ? (run.documentFetchContexts.find((c) => c.provider === documentFetchDecision.provider) ?? null) : null,
@@ -1432,23 +1740,31 @@ function documentFetchDecisionOf(run: PlanRun, decision: NormalizedDecision) {
   };
 }
 
+/** The accepted message call of a run: the validated message, its send time, the call's reasoning and the call itself. */
+interface ReplyInput {
+  message: FollowUpMessage;
+  sendAt: string;
+  reasoning: string;
+  call: ParsedToolCall;
+}
+
 /**
- * send_reply — the follow-up message: its send time is rolled off weekends
- * and chagim (sendAtGuard), the draft is scheduled (review mode or the send
- * job), the attestation request is stamped on this very draft when the
- * message is the closing summary, and the document-fetch action lands after
- * the draft exists (start_login is enqueued against the heads-up draft, so
- * the browser login — and the OTP it triggers — can only run after that
- * message actually goes out).
+ * send_whatsapp_* — the run's message, the terminal call: its send time is
+ * rolled off weekends and chagim (sendAtGuard), the draft is scheduled (review
+ * mode or the send job), the attestation request is stamped on this very draft
+ * when the message is the closing summary, and the document-fetch action lands
+ * after the draft exists (start_login is enqueued against the heads-up draft,
+ * so the browser login — and the OTP it triggers — can only run after that
+ * message actually goes out). Ends the run.
  */
-async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<void> {
+async function scheduleReply(run: PlanRun, decision: ReplyInput): Promise<void> {
   const { client, clientId, history, now, taxYear } = run;
   // The LLM answers with a wall-clock datetime in the accountant's timezone.
-  const sendAtGuard = rollBlockedSendAt(decision.send_at, lastInboundMessageAt(history), now);
+  const sendAtGuard = rollBlockedSendAt(decision.sendAt, lastInboundMessageAt(history), now);
   if (sendAtGuard.rolled) {
     logger.warn('proactive send_at fell on a weekend or chag; rolled forward', {
       clientId,
-      requested: decision.send_at,
+      requested: decision.sendAt,
       send_at: sendAtGuard.sendAt,
     });
   }
@@ -1478,25 +1794,30 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
     planTrigger: run.ctx.hints?.trigger ?? null,
     planRunId: run.ctx.hints?.planRunId ?? null,
   });
-  const sendCall = callOf(run, message.kind === 'template' ? 'send_whatsapp_template' : 'send_whatsapp_text');
-  if (sendCall) {
-    recordToolStep(
-      run,
-      sendCall,
-      sendMessageDetail(sendCall, {
-        emailId,
-        sendAt: sendAtLabel,
-        requestedSendAt: decision.send_at,
-        requested: resolved.requested,
-        rolled: sendAtGuard.rolled,
-        chars: body.length,
-        templateName: message.kind === 'template' ? (run.waState.templates.find((t) => t.content_sid === message.contentSid)?.name ?? null) : null,
-      }),
-      { type: 'email', id: emailId },
-    );
-  }
-  await applyAttestationRequest(run, decision, emailId, sendAtLabel, resolved.requested);
-  const fetch = documentFetchDecisionOf(run, decision);
+  run.state.ended = { kind: 'message', call: decision.call, emailId, sendAt: sendAtLabel };
+  // A message in the same turn as a tie was written before the verdict was known (openspec `verification-reply`).
+  const beforeVerdict = run.turnHadTies;
+  const sendDetail = sendMessageDetail(decision.call, {
+    emailId,
+    sendAt: sendAtLabel,
+    requestedSendAt: decision.sendAt,
+    requested: resolved.requested,
+    rolled: sendAtGuard.rolled,
+    chars: body.length,
+    templateName: message.kind === 'template' ? (run.waState.templates.find((t) => t.content_sid === message.contentSid)?.name ?? null) : null,
+  });
+  recordToolStep(
+    run,
+    decision.call,
+    {
+      ...sendDetail,
+      ...(beforeVerdict ? { beforeVerdict: true } : {}),
+      result: `${sendDetail.reason}; the run ended${beforeVerdict ? ' · note: this message was written in the same turn as a tie, before its verdict was known — next time send after the tie results' : ''}`,
+    },
+    { type: 'email', id: emailId },
+  );
+  await applyAttestationRequest(run, emailId, sendAtLabel, resolved.requested);
+  const fetch = documentFetchDecisionOf(run);
   await applyDocumentFetchAction(client, fetch.action, fetch.targetCtx, fetch.keys, taxYear, {
     emailId,
     delayMs: Math.max(0, delayMs),
@@ -1518,14 +1839,10 @@ async function scheduleReply(run: PlanRun, decision: FollowUpDecision): Promise<
  * Stamped by email id — the confirmation validator only trusts it once the
  * row actually sent, so an abandoned draft never becomes a request.
  */
-async function applyAttestationRequest(
-  run: PlanRun,
-  decision: NormalizedDecision,
-  emailId: string,
-  sendAt: string,
-  requested: 'asap' | 'time',
-): Promise<void> {
-  if (decision.attestation?.action !== 'request') return;
+async function applyAttestationRequest(run: PlanRun, emailId: string, sendAt: string, requested: 'asap' | 'time'): Promise<void> {
+  const call = run.state.pendingAttestationRequest;
+  if (!call) return;
+  run.state.pendingAttestationRequest = null;
   const { client, clientId } = run;
   await clients.setAttestationRequest(clientId, emailId);
   recordAudit({
@@ -1535,6 +1852,5 @@ async function applyAttestationRequest(
     clientId,
     detail: { clientName: client.name, emailId, send_at: sendAt, requested },
   });
-  const call = callOf(run, 'attestation');
-  if (call) recordToolStep(run, call, attestationDetail(call, { applied: true, emailId }), { type: 'email', id: emailId });
+  recordToolStep(run, call, attestationDetail(call, { applied: true, emailId }), { type: 'email', id: emailId });
 }

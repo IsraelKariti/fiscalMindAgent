@@ -1,26 +1,17 @@
 import { logger } from '../../util/logger.js';
 import type { GeminiUsage, LlmCallLogContext } from '../../gemini/generate.js';
-import { runLlmCall, type LlmCallSpec } from '../../gemini/llmCall.js';
-import { recordAudit } from '../../audit/audit.js';
-import { check } from '../shared/gateChecks.js';
-import { DecisionRejectedError, type DecisionContext, type NormalizedDecision } from './decisionSchema.js';
-import {
-  correctionSuffix,
-  decisionToolsKey,
-  describeCalls,
-  gateDecision,
-  toolJsonSchemas,
-  type DecisionToolJson,
-  type ParsedToolCall,
-  type ToolCall,
-} from './decisionTools.js';
+import { runLlmCall, type LlmCallSpec, type TurnExecutor } from '../../gemini/llmCall.js';
+import type { LoopEnding } from '../../gemini/toolLoop.js';
+import type { DecisionContext } from './decisionSchema.js';
+import { decisionToolsKey, endingCorrectionNote, TERMINAL_TOOL_NAMES, toolJsonSchemas, type DecisionToolJson, type ToolCall } from './decisionTools.js';
 
 /**
  * Per-context tool sets (openspec `planner-answer-tools`): the full set minus
  * the tools the context can never use (decisionTools.ts), keyed by the tool
- * names offered. Every provider gets the same flat tools; the planner answers
- * with one or more calls — in a single turn on Gemini and Anthropic, over up
- * to MAX_TOOL_TURNS turns on OpenAI (llmCall.ts).
+ * names offered. Every provider gets the same flat tools; the planner runs a
+ * tool loop (gemini/toolLoop.ts): the calls of every turn are judged and
+ * executed by the caller's `execute` and answered with their results, until
+ * an accepted terminal call ends the run, at most MAX_TOOL_TURNS turns.
  */
 const toolsCache = new Map<string, DecisionToolJson[]>();
 
@@ -38,27 +29,30 @@ export function decisionToolsForContext(ctx: DecisionContext): DecisionToolJson[
 export type { GeminiUsage };
 
 export interface DecideResult {
-  decision: NormalizedDecision;
-  /** The gate-accepted calls, in the order the model made them: each is executed and recorded as its own step (openspec `conversation-trace`). */
-  calls: ParsedToolCall[];
+  /** Every call of every turn, in order, each with its turn and the result it was answered with. */
+  calls: ToolCall[];
+  /** The text the model wrote per turn (never sent to the client). */
+  texts: { turn: number; text: string }[];
   usage: GeminiUsage;
   /** The model that actually served this call, for per-model usage accounting. */
   model: string;
+  turns: number;
+  /** How the run ended: an accepted terminal call, a second text-only turn, or the turn cap. */
+  ended: LoopEnding;
 }
-
-/** First answer + one corrective pass; the second rejection propagates. */
-const MAX_DECISION_ATTEMPTS = 2;
 
 export interface DecisionCallInput {
   /** The rendered agent prompt (+ keepalive contract + untrusted-data doctrine). */
   systemInstruction: string;
-  /** The fenced data sections (checklist, questionnaire, thread), possibly with a correction suffix. */
+  /** The fenced data sections (checklist, questionnaire, thread). */
   contents: string;
   ctx: DecisionContext;
+  /** Judges and executes the calls of one turn (plan.ts `executeTurn`; the evals harness plays canned results). */
+  execute: TurnExecutor;
 }
 
 /** The exact planner request — shared with the evals harness so it tests what the app sends. */
-export function buildDecisionCall({ systemInstruction, contents, ctx }: DecisionCallInput): {
+export function buildDecisionCall({ systemInstruction, contents, ctx, execute }: DecisionCallInput): {
   spec: LlmCallSpec;
   tools: DecisionToolJson[];
 } {
@@ -69,88 +63,39 @@ export function buildDecisionCall({ systemInstruction, contents, ctx }: Decision
       systemInstruction,
       contents,
       tools,
-      // `conclude` closes the answer: a provider whose model makes one call per
-      // turn (OpenAI) is asked again until it arrives.
-      finalTool: 'conclude',
+      execute,
+      terminalTools: [...TERMINAL_TOOL_NAMES],
+      correctiveNote: endingCorrectionNote(),
       temperature: 0.3,
     },
     tools,
   };
 }
 
+/**
+ * One planner run: the loop, with `execute` judging and running every turn's
+ * calls. The gate rows (`validate_message`, one per turn) and the tool steps
+ * are written by `execute`; this only runs the call and bills the usage.
+ */
 export async function decide(
   systemInstruction: string,
   contents: string,
   ctx: DecisionContext,
+  execute: TurnExecutor,
   opts: {
-    /** Per-call llm_calls attribution; each validation attempt logs its own row. */
+    /** Per-call llm_calls attribution; the run logs one row. */
     log?: LlmCallLogContext;
   } = {},
 ): Promise<DecideResult> {
-  const usage: GeminiUsage = { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, cachedTokens: 0 };
-  let requestContents = contents;
-  let lastError: unknown;
-  let model = '';
-  for (let attempt = 1; attempt <= MAX_DECISION_ATTEMPTS; attempt++) {
-    const { spec } = buildDecisionCall({ systemInstruction, contents: requestContents, ctx });
-    const result = await runLlmCall(spec, { log: opts.log });
-    model = result.model;
-    const { usage: callUsage } = result;
-    const calls: ToolCall[] = result.toolCalls;
-    usage.inputTokens += callUsage.inputTokens;
-    usage.outputTokens += callUsage.outputTokens;
-    usage.thinkingTokens += callUsage.thinkingTokens;
-    usage.cachedTokens += callUsage.cachedTokens;
-    logger.info('gemini tokens used', { model, ...callUsage });
-
-    // Step validate_message: the two checks in order — `tool_calls` (offered
-    // tools, per-tool schema, exactly one conclude) then `business_rules`
-    // (assembly + normalizeDecision: evidence quotes, instance caps, message
-    // rules, attestation gate). One audit row per attempt with the verdict; a
-    // rejection is fed back for one corrective pass.
-    try {
-      const { decision, calls: accepted, checks } = gateDecision(calls, ctx);
-      recordAudit({
-        actorType: 'system',
-        action: 'validate_message',
-        agentInstanceId: opts.log?.agentInstanceId ?? null,
-        clientId: opts.log?.clientId ?? null,
-        detail: {
-          attempt,
-          result: true,
-          decision: decision.decision,
-          resolutions: decision.resolutions.length,
-          added: decision.addedInstances.length,
-          retired: decision.retired.length,
-          collected: decision.collected_document_ids,
-          attestation: decision.attestation?.action ?? null,
-          checks,
-        },
-      });
-      return { decision, calls: accepted, usage, model };
-    } catch (err) {
-      lastError = err;
-      const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);
-      recordAudit({
-        actorType: 'system',
-        action: 'validate_message',
-        agentInstanceId: opts.log?.agentInstanceId ?? null,
-        clientId: opts.log?.clientId ?? null,
-        severity: 'warning',
-        detail: {
-          attempt,
-          result: false,
-          error: message,
-          checks: err instanceof DecisionRejectedError ? err.checks : [check('tool_calls', false, message, { observed: describeCalls(calls) })],
-        },
-      });
-      if (attempt < MAX_DECISION_ATTEMPTS) {
-        logger.warn('decision rejected by validation; retrying once with corrective feedback', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-        requestContents = `${contents}${correctionSuffix(calls, err)}`;
-      }
-    }
-  }
-  throw lastError;
+  const { spec } = buildDecisionCall({ systemInstruction, contents, ctx, execute });
+  const result = await runLlmCall(spec, { log: opts.log });
+  logger.info('planner run finished', { model: result.model, turns: result.turns, ended: result.ended, ...result.usage });
+  return {
+    calls: result.toolCalls,
+    texts: result.texts,
+    usage: result.usage,
+    model: result.model,
+    turns: result.turns,
+    ended: result.ended ?? 'terminal',
+  };
 }

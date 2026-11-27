@@ -40,7 +40,7 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
 - `validate_injection_scan`: `clean_without_evidence` when the model said "clean" (fails if it still quoted evidence); `hit_has_evidence` when the model said "suspected" (fails if it quoted nothing); `evidence_verbatim` when the model said "suspected", quoted something, and the reviewed text was readable (fails if the quote is not found verbatim in the text). When the text was not readable, `evidence_verbatim` is absent. `observed` is the model's quoted evidence (capped) or `null` when it quoted nothing.
 - `validate_form_resolutions`: one entry per proposed verdict, keyed by the catalog type key; `passed` is `true` when the resolution was accepted or left for the interview as unclear, `false` when it was dropped, with the drop reason as `note`; `observed` is the proposed verdict plus, for a `not_required`, the question and quote the model cited (capped).
 - `validate_classification`: `matched_id_known` when the model matched a document id (fails if that id was not in the list it was shown; `observed` = the matched id); `matched_type_agrees` when a known id was matched and the answer carries a document type (fails if the row's type disagrees; `observed` = the answer's document type, `expected` = the matched row's type); `issuer_matches_item` when the match survived the two checks before it and the matched row's document type is institution-bound, as the `unlisted-files` capability defines (fails when the company printed on the file and the company the row names differ, or when either cannot be identified; `observed` = the file's company, or the printed issuer text when it was not identified; `expected` = the row's company, or "not identified"; the note says which of the three it was); `not_injection_suspected` (fails when the model flagged a suspected injection; `observed` = the flag); `legible` (fails when the model judged the file illegible; `observed` = the model's verdict). The last two are reported even though they do not change `result` (quarantine is reported alongside, never flipped).
-- `validate_message`: `json_schema` (the answer parses and matches the response schema) and `business_rules` (the parsed answer passes normalization: exactly one WhatsApp message on a follow-up, window and template rules, evidence quotes, instance caps, attestation gate). On failure the `note` is the rejection message, capped; `business_rules` is absent when `json_schema` failed. `observed` for `json_schema` is the answer's length in characters; for `business_rules` it is the decision kind and the message kind the answer proposed (`freeform`, `template`, or `—` when the answer carries no message).
+- `validate_message`: `tool_calls` (the answer is one or more tool calls, each naming a tool offered in this request, each call's parameters matching that tool's schema, and exactly one `conclude` call) and `business_rules` (the decision assembled from the calls passes normalization: exactly one WhatsApp message on a follow-up, window and template rules, evidence quotes, instance caps, attestation gate, and the call-count rules: one message tool at most, one attestation tool at most, one `document_fetch` at most, a `state_cost` naming exactly one target). On failure the `note` is the rejection message, capped; `business_rules` is absent when `tool_calls` failed. `observed` for `tool_calls` is the number of calls and their tool names (for example `4 calls: conclude, set_required, add_instance, send_whatsapp_text`); for `business_rules` it is the decision kind and the message kind the answer proposed (`freeform`, `template`, or `—` when the answer carries no message).
 - `verify_extraction`: the per-document checks of the document type's declared list (never a check over a generic list of amounts — every monetary value is one of the type's own fields, judged by `type_fields`), every one of them present, each with the value read from the document as `observed`, the reference as `expected`, and, on failure, a `note` that names the exact problem. A check whose condition ("when …" below) does not hold is listed as skipped: `passed: null`, `observed` and `expected` `null`, and `note` the Hebrew skip reason given below. The identity entries are judged over the document's owner parties (the `document-extraction` capability: the people listed with role `owner`); the other parties never take part in them:
   - `legible`: observed = the model's legibility verdict.
   - `expected_type`: observed = what the model saw the document as (`actual_kind`); expected = the required document's name.
@@ -51,6 +51,7 @@ The gates SHALL report the following checks (keys are stable identifiers; the hu
   - `co_owners`: when the document was accepted for the client or the spouse and at least one other owner party is neither of them; always `passed: true`; observed = those parties, each as the printed name and the masked id when printed (capped to a short list). Reported alongside; it never changes `result`. Skipped otherwise, note: the document was not accepted for the client or the spouse, or it lists no other owner.
   - `client_id_on_file`: when at least one owner party prints an id, no id is on file for the client (after the CRM-card fetch of the `declaration-kickoff` capability), and no owner party's id is the spouse's id on file; `passed: false`, observed = "none", note = the client has no id on the tax-portal credentials or the monday CRM card, so the printed ids could not be compared. This check is reported alongside and does not change `result`. Skipped otherwise, note: no owner party prints an id number, or an id is on file for the client (then `id_matches_client` is reported instead).
   - `as_of_date`: observed = the as-of date read (or "not stated"); expected = 31.12 of the declaration year.
+  - `not_expired`: when the document's type carries a validity date and a well-formed valid-until date was read; observed = the valid-until date read; expected = 31.12 of the declaration year (the valuation date). Passes when the valid-until date is on or after the valuation date, whatever the verification date; fails when it is before, with a note saying the document expired before 31.12 of the declaration year and asking for the licence that was valid on that date. Skipped otherwise, note: no valid-until date was read from the document.
   - `type_fields`: when the document's type declares extra extraction fields (the `document-extraction` capability); observed = every declared field as its Hebrew label and the value read, "לא נמצא" for a null (capped to a short list); the failure note names, by label, the required field that is missing, the "at least one" group that is empty, or the field whose value is malformed and why (wrong date form, implausible year, not a number, a number below the lower bound its field declares — stated with the value read, for example "השדה "יתרת פיקדונות וחסכונות" שלילי (-5)" — or pattern mismatch). A type with no extra fields does not have this check in its list.
   - `period_covers_valuation_date`: when the document's type states that a period must cover the valuation date and both period dates were read well formed; observed = the period as "from – to"; expected = 31.12 of the declaration year; fails when that date is outside the period. Skipped when the type states the period but a period date was not read well formed, note: the period dates were not read in full. A type that states no period does not have this check in its list.
 
@@ -142,19 +143,19 @@ The `verify_extraction` row's detail SHALL also carry the parties the extraction
 
 #### Scenario: Vehicle licence expired after the valuation date
 - **WHEN** a vehicle licence for the declaration year 2025 reads "valid until" 20.03.2026 and is verified on 15.05.2026
-- **THEN** the row carries no `not_expired` check, not even as skipped, and the licence passes
+- **THEN** the row has `not_expired` passed, observed `2026-03-20`, expected `2025-12-31`
 
 #### Scenario: Vehicle licence valid on the valuation date
 - **WHEN** a vehicle licence for the declaration year 2025 reads "valid until" 31.12.2025
-- **THEN** the row carries no `not_expired` check and the licence passes
+- **THEN** the row has `not_expired` passed
 
 #### Scenario: Vehicle licence expired before the valuation date
-- **WHEN** a vehicle licence for the declaration year 2025 reads "valid until" 22.04.2022 and is verified on 15.01.2026
-- **THEN** the row carries no `not_expired` check and the licence passes; the "valid until" date is kept in the extraction for the record
+- **WHEN** a vehicle licence for the declaration year 2025 reads "valid until" 20.07.2025 and is verified on 15.01.2026
+- **THEN** the row has `not_expired` failed, observed `2025-07-20`, expected `2025-12-31`, with a note that the licence expired before 31.12.2025
 
 #### Scenario: Vehicle license without a validity date
 - **WHEN** a vehicle document is verified and the extractor returns `valid_until: null`
-- **THEN** the row carries no `not_expired` check, not even as skipped
+- **THEN** the row has `not_expired` skipped with a note that no valid-until date was read
 
 #### Scenario: Type without extra fields
 - **WHEN** a prior declaration (a type with no extra fields) is verified
@@ -167,6 +168,14 @@ The `verify_extraction` row's detail SHALL also carry the parties the extraction
 #### Scenario: Collect answer has no message kind
 - **WHEN** the planner answers `collect` and the gate accepts it
 - **THEN** the `validate_message` row's `business_rules` entry has `observed` = `collect / —`
+
+#### Scenario: Message gate on a rejected planner answer
+- **WHEN** the planner's calls parse and name offered tools but the business rules reject the decision (for example a `send_at` in the past)
+- **THEN** the `validate_message` row for that attempt has `result: false`, `tool_calls` passed with the calls' count and names as `observed`, and `business_rules` failed with the rejection message as `note`
+
+#### Scenario: Message gate on an unknown tool
+- **WHEN** the model calls a tool that was not offered in this request
+- **THEN** the `validate_message` row has `tool_calls` failed with a note naming the tool, and no `business_rules` entry
 
 ### Requirement: Checks reported by validate_file_split
 The `validate_file_split` gate SHALL write its audit row on the inbound file it checked (the parent), with `result`, `reason`, the file's page count, the number of documents proposed, the proposed page ranges, and the `checks` list. It SHALL report these checks, in this order, listing only the checks that ran:

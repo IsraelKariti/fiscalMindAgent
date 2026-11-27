@@ -7,11 +7,12 @@ import type { DocumentFileRow } from '../../db/types.js';
 
 /**
  * The audit detail of each tool-call step the planner records (plan.ts,
- * openspec `conversation-trace`): one step per accepted call of the answer,
- * named after the tool, carrying the call's parameters (every document and
- * file id next to its name) and the outcome of its execution. Pure builders so
- * the shape the trace modal reads is pinned by a test. `reason` is the short
- * outcome line the trace row shows beside the step name.
+ * openspec `conversation-trace`): one step per call of every turn, accepted
+ * or refused, named after the tool, carrying the call's parameters (every
+ * document and file id next to its name), the outcome of its execution and
+ * the result text the model was answered with. Pure builders so the shape the
+ * trace modal reads is pinned by a test. `reason` is the short outcome line
+ * the trace row shows beside the step name.
  */
 
 /** Resolves a document or file id to its display name; the id itself when unknown. */
@@ -56,11 +57,12 @@ export function toolHeader(call: ParsedToolCall): { tool: string; turn?: number 
 export function resolveDocumentDetail(
   call: ParsedToolCall,
   docName: NameLookup,
-  outcome: { applied: boolean; evidence: EvidenceRef | null; createdNames: string[] },
+  outcome: { applied: boolean; evidence: EvidenceRef | null; createdNames: string[]; createdIds?: string[] },
 ) {
   const id = str(call.args.document_id);
   const resolution = str(call.args.resolution);
   const created = outcome.createdNames;
+  const createdIds = outcome.createdIds ?? [];
   return {
     ...toolHeader(call),
     documentId: id,
@@ -68,6 +70,7 @@ export function resolveDocumentDetail(
     resolution,
     ...(outcome.evidence ? evidenceDetail(outcome.evidence) : callEvidence(call.args)),
     ...(created.length > 0 ? { instances: created } : {}),
+    ...(createdIds.length > 0 ? { instanceIds: createdIds } : {}),
     applied: outcome.applied,
     reason: outcome.applied ? `resolved ${resolution}${created.length > 0 ? ` · ${created.length} rows` : ''}` : 'no change: the row could not be resolved',
   };
@@ -225,7 +228,7 @@ export interface CompanySplitDetail {
 }
 
 export type TieOutcome = 'tied' | 'repointed' | 'refused' | 'ignored' | 'dropped';
-export type CollectOutcome = 'collected' | 'claimed' | 'pending' | 'unchanged' | 'skipped';
+export type CollectOutcome = 'collected' | 'claimed' | 'pending' | 'unchanged';
 
 export interface AttributedToolStep {
   call: ParsedToolCall;
@@ -241,14 +244,12 @@ export interface AttributedToolStep {
  * (unknown file or document, quarantined file, split parent), or dropped by a
  * write race; a collection mark became collected, claimed (no file proves
  * it), stayed pending (its tie was refused, or nothing proved it), changed
- * nothing (the row was not pending), or was skipped in the follow-up cycle
- * after verification.
+ * nothing (the row was not pending).
  */
 export function attributeCollectionOutcome(
   calls: readonly ParsedToolCall[],
   result: CollectionResult,
   ctx: {
-    afterVerification: boolean;
     /** The rows that were pending before this cycle's split. */
     pendingIds: ReadonlySet<string>;
     /** The rows that existed before this cycle's split. */
@@ -308,10 +309,7 @@ export function attributeCollectionOutcome(
       const base = { ...toolHeader(call), documentId, name: named(ctx.docName, documentId) };
       let outcome: CollectOutcome;
       let reason: string;
-      if (ctx.afterVerification) {
-        outcome = 'skipped';
-        reason = 'skipped: nothing is collected in the cycle after verification';
-      } else if (!ctx.pendingIds.has(documentId)) {
+      if (!ctx.pendingIds.has(documentId)) {
         outcome = 'unchanged';
         reason = ctx.documentIds.has(documentId) ? 'no change: the row was not pending' : 'no change: unknown document';
       } else if (result.newlyCollected.includes(documentId)) {
@@ -403,31 +401,97 @@ export function documentFetchDetail(call: ParsedToolCall, outcome: { applied: bo
   };
 }
 
-export function concludeDetail(
-  call: ParsedToolCall,
-  outcome:
-    | { kind: 'collect'; collectedNames: string[]; verified: { documentName: string; fileName: string }[] }
-    | { kind: 'follow_up' }
-    | { kind: 'goal_complete'; completed: true; derived: boolean }
-    | { kind: 'goal_complete'; completed: false; why: string }
-    | { kind: 'client_declined' },
-) {
-  const base = { ...toolHeader(call), decision: str(call.args.decision), reasoning: str(call.args.reasoning) };
-  switch (outcome.kind) {
-    case 'collect':
+/**
+ * How a planner run ended (openspec `conversation-trace`, "The conclude step
+ * records the decision and what the cycle did with it"): written by code at
+ * the end of every run, never by a model call. `decision` keeps the legacy
+ * key the trace reads (follow_up / goal_complete / client_declined / failed).
+ */
+export type RunEnding =
+  | { kind: 'message'; emailId: string; sendAt: string; reasoning: string; turns: number }
+  | { kind: 'goal_complete'; reasoning: string; turns: number }
+  | { kind: 'client_declined'; reasoning: string; turns: number }
+  | { kind: 'failed'; why: 'no_ending' | 'cap'; turns: number };
+
+export function concludeDetail(ending: RunEnding) {
+  const base = { tool: 'conclude', ended_by: ending.kind, turns: ending.turns };
+  const turns = `${ending.turns} turn${ending.turns === 1 ? '' : 's'}`;
+  switch (ending.kind) {
+    case 'message':
+      return { ...base, decision: 'follow_up', reasoning: ending.reasoning, emailId: ending.emailId, send_at: ending.sendAt, reason: `message scheduled for ${ending.sendAt} · ${turns}` };
+    case 'goal_complete':
+      return { ...base, decision: 'goal_complete', reasoning: ending.reasoning, reason: `goal completed (every row settled and the attestation confirmed) · ${turns}` };
+    case 'client_declined':
+      return { ...base, decision: 'client_declined', reasoning: ending.reasoning, reason: `the client declined: the decline routine answers and pauses · ${turns}` };
+    case 'failed':
       return {
         ...base,
-        collected: outcome.collectedNames,
-        verifying: outcome.verified.map((v) => `${v.documentName} ← ${v.fileName}`),
-        reason: `reply withheld · verifying ${outcome.verified.length} document${outcome.verified.length === 1 ? '' : 's'}`,
+        decision: 'failed',
+        applied: false,
+        reason: ending.why === 'cap' ? `failed: ${turns} without an ending (the turn cap)` : `failed: no ending after ${turns} (two turns without a tool call)`,
       };
-    case 'follow_up':
-      return { ...base, reason: 'follow-up: the message is scheduled next' };
-    case 'goal_complete':
-      return outcome.completed
-        ? { ...base, reason: outcome.derived ? 'goal completed (every row settled and the attestation confirmed)' : 'goal completed' }
-        : { ...base, applied: false, reason: `premature: ${outcome.why}` };
-    case 'client_declined':
-      return { ...base, reason: 'the client declined: the decline routine answers and pauses' };
+  }
+}
+
+/**
+ * The result text a call is answered with (openspec `planner-answer-tools`,
+ * "answered with its result"): the step's outcome line in plain words, plus
+ * the id of a row the call created so a later turn can name it.
+ */
+export function toolResultText(call: ParsedToolCall, detail: Record<string, unknown>): string {
+  const reason = str(detail.reason) || (detail.applied === false ? 'no change' : 'done');
+  if (call.name === 'add_instance' && str(detail.documentId) !== '') return `${reason} — document id ${str(detail.documentId)}`;
+  if (call.name === 'set_required' && Array.isArray(detail.instanceIds) && detail.instanceIds.length > 0) {
+    return `${reason} — document ids ${(detail.instanceIds as unknown[]).map(String).join(', ')}`;
+  }
+  return reason;
+}
+
+/** A call the gate refused: its step says so, with the refusal as outcome and as the result the model was given. */
+export function refusedDetail(call: ParsedToolCall, refusal: string, nameOf: NameLookup) {
+  const ids: Record<string, string> = {};
+  const put = (key: string, idKey: string, nameKey: string) => {
+    const v = str(call.args[key]);
+    if (v === '') return;
+    ids[idKey] = v;
+    const name = nameOf(v);
+    if (name) ids[nameKey] = name;
+  };
+  put('document_id', 'documentId', 'name');
+  put('anchor_document_id', 'anchorId', 'anchorName');
+  put('file_id', 'fileId', 'fileName');
+  return { ...toolHeader(call), ...ids, ...callEvidence(call.args), applied: false, refused: true, refusal, reason: `refused: ${refusal}`, result: `refused: ${refusal}` };
+}
+
+/** The verdict of a tied document as plan.ts reads it off the verified row. */
+export interface TieVerdict {
+  outcome: 'approved' | 'reopened' | 'stalled' | 'skipped' | 'error' | 'claimed' | 'none';
+  /** Our own Hebrew check reasons (client_documents.verification.reasons). */
+  reasons: string[];
+  /** What the check read, for an approved document: the `observed` of the as_of_date and type_fields checks. */
+  facts: string[];
+}
+
+/**
+ * The result text of a tie (openspec `planner-answer-tools`, "A file tie is
+ * verified before the model continues"): the tie outcome line, then the
+ * verdict — approved with the facts read, rejected with every reason, claimed,
+ * or received and not yet checked.
+ */
+export function tieResultText(detail: Record<string, unknown>, verdict: TieVerdict | null): string {
+  const outcome = str(detail.reason) || 'done';
+  if (!verdict || verdict.outcome === 'none') return outcome;
+  const reasons = verdict.reasons.filter((r) => r.trim() !== '').join('; ');
+  switch (verdict.outcome) {
+    case 'approved':
+      return `${outcome} · verification: APPROVED — the document is closed${verdict.facts.length > 0 ? ` (${verdict.facts.join(' | ')})` : ''}`;
+    case 'reopened':
+      return `${outcome} · verification: REJECTED${reasons ? `: ${reasons}` : ''} — the row is pending again; this file does NOT count as received: tell the client what was wrong and ask for a corrected document`;
+    case 'stalled':
+      return `${outcome} · verification: HANDED TO THE OFFICE${reasons ? `: ${reasons}` : ''} — the automatic check could not approve it; the office will check it, do not ask for it again`;
+    case 'claimed':
+      return `${outcome} · no file: the document waits for the accountant as claimed`;
+    default:
+      return `${outcome} · verification: NOT CHECKED YET — the file is received, the automatic check could not run; do not call it approved or rejected`;
   }
 }

@@ -4,10 +4,11 @@ import type { genaiClient } from './client.js';
 import { env } from '../config/env.js';
 import { restoreOmittedNulls } from './anthropicSchema.js';
 import { declaredToolsOf } from './requestLog.js';
-import { callsFromAnthropicContent, toAnthropicTools } from './toolTransport.js';
+import { anthropicTranscriptMessages, callsFromAnthropicContent, toAnthropicTools } from './toolTransport.js';
+import type { TranscriptItem } from './toolLoop.js';
 import { sentRequestOf } from './wireRequest.js';
 
-type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
+type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0] & { transcript?: readonly TranscriptItem[] };
 
 /**
  * The Messages API requires max_tokens. The agents' answers are JSON decisions
@@ -67,8 +68,10 @@ function toMessages(contents: GeminiRequest['contents']): Anthropic.MessageParam
  * Serves a Gemini-shaped generateContent request via Anthropic's Messages API,
  * returning a GenerateContentResponse-compatible object — the same contract as
  * openai.ts, covering exactly what the agents use: text + inlineData contents,
- * systemInstruction, responseJsonSchema OR tools (forced tool choice, parallel
- * calls allowed, the calls returned as `functionCalls`), and token usage.
+ * systemInstruction, responseJsonSchema OR tools (tool choice left to the
+ * model, parallel calls allowed, the calls returned as `functionCalls` with
+ * their ids; a `transcript` of earlier turns and tool results is replayed
+ * after the prompt — toolLoop.ts), and token usage.
  * `temperature` is intentionally NOT forwarded — Claude Opus 5 / Sonnet 5
  * reject sampling params. `thinking` is left at each model's default (adaptive
  * on Opus 5 / Sonnet 5, off on Haiku 4.5).
@@ -88,12 +91,12 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
     {
       model: request.model,
       max_tokens: MAX_TOKENS,
-      messages: toMessages(request.contents),
+      messages: [...toMessages(request.contents), ...anthropicTranscriptMessages(request.transcript ?? [])],
       ...(systemInstruction ? { system: systemInstruction } : {}),
       ...(jsonSchema
         ? { output_config: { format: { type: 'json_schema' as const, schema: sentSchema as Record<string, unknown> } } }
         : {}),
-      ...(tools.length > 0 ? { tools: toAnthropicTools(tools), tool_choice: { type: 'any' as const } } : {}),
+      ...(tools.length > 0 ? { tools: toAnthropicTools(tools), tool_choice: { type: 'auto' as const } } : {}),
     },
     { timeout: request.config?.httpOptions?.timeout },
   );
@@ -131,6 +134,9 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
     text: text || undefined,
     ...(calls.length > 0 ? { functionCalls: calls } : {}),
     ...(restoredFields ? { restoredFields } : {}),
+    // The answer's own blocks (thinking included) and id, replayed by the loop's next turn.
+    providerTurn: response.content,
+    responseId: response.id,
     usageMetadata: {
       promptTokenCount: response.usage.input_tokens + cacheRead + cacheCreation,
       // Anthropic folds thinking tokens into output_tokens and bills them at
@@ -139,5 +145,5 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
       thoughtsTokenCount: 0,
       cachedContentTokenCount: cacheRead,
     },
-  } as GenerateContentResponse;
+  } as unknown as GenerateContentResponse;
 }

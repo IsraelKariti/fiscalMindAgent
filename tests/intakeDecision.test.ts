@@ -1,28 +1,27 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  amountAppearsIn,
-  DecisionRejectedError,
-  normalizeDecision,
-  type DecisionContext,
-  type DecisionResponse,
-  type IntakeDecisionState,
-} from '../src/agents/declarationOfCapital/decisionSchema.js';
-import { describeCalls, gateDecision, toolsForContext } from '../src/agents/declarationOfCapital/decisionTools.js';
-import { callsOf } from './helpers/decisionCalls.js';
+import { amountAppearsIn, DecisionRejectedError, type DecisionContext, type IntakeDecisionState } from '../src/agents/declarationOfCapital/decisionSchema.js';
+import { describeCalls, toolsForContext } from '../src/agents/declarationOfCapital/decisionTools.js';
+import { callsOf, type TestAnswer as DecisionResponse } from './helpers/decisionCalls.js';
+import { gate as gateDecision, normalizeAnswer as normalizeDecision } from './helpers/judge.js';
 
-describe('validate_message check list (gateDecision)', () => {
+// Since the tool loop (openspec `planner-answer-tools`, 2026-11-27) the judge
+// runs per call: `gateDecision` / `normalizeDecision` here are test helpers
+// (helpers/judge.ts) over the pure judge, throwing on the first refusal.
+
+describe('validate_message check list (the per-turn gate row)', () => {
   const ctx = ctxWith(baseIntake());
 
-  it('a valid answer passes both checks', () => {
+  it('a valid answer passes tool_calls, one business_rules per call, and the ending', () => {
     const calls = callsOf(baseRaw());
     const { decision, checks } = gateDecision(calls, ctx);
     assert.equal(decision.decision, 'follow_up');
     assert.deepEqual(checks, [
       { key: 'tool_calls', passed: true, note: null, observed: describeCalls(calls), expected: null },
-      { key: 'business_rules', passed: true, note: null, observed: 'follow_up / freeform', expected: null },
+      { key: 'business_rules', passed: true, note: null, observed: 'send_whatsapp_text — send_at: 2026-08-20 10:00, text: 4 chars', expected: null },
+      { key: 'ending', passed: true, note: null, observed: 'send_whatsapp_text', expected: null },
     ]);
-    assert.equal(checks[0]!.observed, '2 calls: conclude, send_whatsapp_text');
+    assert.equal(checks[0]!.observed, '1 call: send_whatsapp_text');
   });
 
   it('a resolution with a verbatim quote passes through the gate', () => {
@@ -40,8 +39,8 @@ describe('validate_message check list (gateDecision)', () => {
     assert.equal(decision.resolutions.length, 1);
   });
 
-  it('a shape-invalid answer fails tool_calls only — business_rules never ran', () => {
-    for (const calls of [[], [{ name: 'conclude', args: { decision: 'follow_up' } }], [{ name: 'nope', args: {} }]]) {
+  it('a shape-invalid call fails tool_calls and gets no business_rules entry', () => {
+    for (const calls of [[{ name: 'conclude', args: { decision: 'follow_up' } }], [{ name: 'nope', args: {} }], [{ name: 'send_whatsapp_text', args: { text: 'x' } }]]) {
       assert.throws(
         () => gateDecision(calls, ctx),
         (err: unknown) => {
@@ -56,7 +55,7 @@ describe('validate_message check list (gateDecision)', () => {
     }
   });
 
-  it('an answer normalization rejects passes tool_calls and fails business_rules with the rejection text', () => {
+  it('a refused call passes tool_calls and fails its own business_rules entry with the refusal; the message of the run still passes', () => {
     const calls = callsOf(
       baseRaw({ resolved_documents: [{ document_id: 'doc-vehicle', resolution: 'not_required', instances: null, evidence: null }] }),
     );
@@ -67,10 +66,10 @@ describe('validate_message check list (gateDecision)', () => {
         assert.match(err.message, /requires evidence/);
         assert.deepEqual(
           err.checks.map((c) => [c.key, c.passed]),
-          [['tool_calls', true], ['business_rules', false]],
+          [['tool_calls', true], ['business_rules', false], ['business_rules', true], ['ending', true]],
         );
         assert.match(err.checks[1]!.note ?? '', /requires evidence/);
-        assert.equal(err.checks[1]!.observed, 'follow_up / freeform');
+        assert.equal(err.checks[1]!.observed, 'set_required — document_id: doc-vehicle, resolution: not_required');
         return true;
       },
     );
@@ -221,7 +220,7 @@ describe('intake resolutions (normalizeDecision)', () => {
     const ok = on('purchase_contract').resolutions[0]!;
     assert.equal(ok.resolution === 'required' ? ok.instances[0]!.paperKey : null, 'purchase_contract');
     assert.throws(() => on(''), /names no paper/);
-    assert.throws(() => on('fund_name'), /not a paper of type "real_estate"/);
+    assert.throws(() => on('fund_name'), /not a paper of type "real_estate"|Invalid enum value/);
     // A vehicle instance names one of the vehicle papers (openspec `chat-stated-cost`); a crypto instance (type without papers) must not name a paper.
     assert.throws(() => on('tabu_extract', 'doc-vehicle'), /not a paper of type "vehicle"/);
     assert.throws(() => on('tabu_extract', 'doc-crypto'), /type without papers/);
@@ -262,7 +261,8 @@ describe('intake resolutions (normalizeDecision)', () => {
         ),
       (err: unknown) => {
         assert.ok(err instanceof DecisionRejectedError);
-        assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', false]]);
+        // The unit (set_required + its add_instance) is refused as one: both calls carry the refusal.
+        assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', false], ['business_rules', false], ['business_rules', true], ['ending', true]]);
         assert.match(err.checks[1]!.note ?? '', /names no paper/);
         return true;
       },
@@ -344,13 +344,13 @@ describe('intake resolutions (normalizeDecision)', () => {
         { document_id: 'x', resolution: 'not_required', instances: null, evidence: { message_id: 'm', quote: 'q' } },
       ],
     });
-    assert.throws(() => normalizeDecision(raw, ctxWith(undefined)), /not applicable/);
-    assert.throws(() => normalizeDecision(baseRaw({ attestation: 'request' }), ctxWith(undefined)), /not applicable/);
+    assert.throws(() => normalizeDecision(raw, ctxWith(undefined)), /not applicable|not offered/);
+    assert.throws(() => normalizeDecision(baseRaw({ attestation: 'request' }), ctxWith(undefined)), /not applicable|not offered/);
   });
 });
 
 describe('attestation gate (normalizeDecision)', () => {
-  it("'request' needs all rows settled, a follow_up message, and no same-cycle resolutions", () => {
+  it("'request' needs all rows settled and a run that changed nothing; goal_complete in the same run is refused while the attestation is not confirmed", () => {
     const settled = baseIntake({ allSettled: true, resolvable: [] });
     const ok = normalizeDecision(baseRaw({ attestation: 'request' }), ctxWith(settled));
     assert.deepEqual(ok.attestation, { action: 'request' });
@@ -370,7 +370,7 @@ describe('attestation gate (normalizeDecision)', () => {
           }),
           ctxWith(settled),
         ),
-      /must come with a follow_up/,
+      /goal_complete refused: the attestation is not confirmed/,
     );
   });
 
@@ -456,13 +456,11 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
       /single instance only/,
     );
     const entry = { anchor_document_id: 'doc-contract', instances, evidence: CASH_QUOTE, proven_by_file_id: '' };
-    assert.throws(
-      () => normalizeDecision(baseRaw({ added_instances: [entry, entry] }), ctxWith(baseIntake())),
-      /twice/,
-    );
+    // Two add_instance calls on one anchor are one addition with two instances (the tools make one call per row).
+    assert.equal(normalizeDecision(baseRaw({ added_instances: [entry, entry] }), ctxWith(baseIntake())).addedInstances[0]!.instances.length, 2);
     assert.throws(
       () => normalizeDecision(baseRaw({ added_instances: [entry] }), ctxWith(undefined)),
-      /not applicable/,
+      /not applicable|not offered/,
     );
   });
 
@@ -509,7 +507,7 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
           }),
           ctxWith(settled),
         ),
-      /no new resolutions, additions, retirements, stated costs or vehicle statements/,
+      /no resolution, addition, retirement, stated cost or vehicle statement was made in this run/,
     );
     assert.throws(
       () =>
@@ -520,13 +518,13 @@ describe('ladder actions: added_instances + retired_documents (normalizeDecision
           }),
           ctxWith(settled),
         ),
-      /no new resolutions, additions, retirements, stated costs or vehicle statements/,
+      /no resolution, addition, retirement, stated cost or vehicle statement was made in this run/,
     );
   });
 });
 
 describe('a list item is created only on the client\'s quoted words (openspec unlisted-files)', () => {
-  // These answers tie a file to a row, so they are 'collect' decisions: no message, no send_at.
+  // These answers tie a file to a row; the run's message comes in a later turn, so none here.
   const tyingRaw = (overrides: Partial<DecisionResponse> = {}): DecisionResponse =>
     baseRaw({ decision: 'collect', whatsapp_text: null, send_at: null, ...overrides });
   const instances = [{ name: 'אישור קרן השתלמות בהראל', description: null, already_provided: false, file_ids: ['file-1', 'file-1'], paper_key: 'vehicle_license', stated_cost: NO_COST, stated_vehicle: NO_VEHICLE }];
@@ -710,7 +708,7 @@ describe('a self-evident file as evidence (proven_by_file_id, openspec unlisted-
 
   it('rejects by name: a file outside the pool, another type, two instances, a not_required, a retirement', () => {
     const ctx = ctxWith(withFiles(POOL));
-    // A file outside the pool ties nothing, so the answer is a plain follow_up — and the citation is refused by name.
+    // A file outside the pool: the citation is refused by name.
     assert.throws(
       () => normalizeDecision(baseRaw({ resolved_documents: [{ document_id: 'doc-study', resolution: 'required', instances: [instance('קרן')], evidence: null, proven_by_file_id: 'file-unknown' }] }), ctx),
       /not a self-evident file of this client/,
@@ -730,11 +728,8 @@ describe('a self-evident file as evidence (proven_by_file_id, openspec unlisted-
       () => normalizeDecision(collectRaw({ added_instances: [{ anchor_document_id: 'doc-bank', instances: [instance('בנק')], evidence: null, proven_by_file_id: 'file-phoenix' }] }), ctx),
       /may only settle or add to the study_fund row/,
     );
-    // A cited self-evident file is a tie: a follow_up answer with a message is refused like any tying answer.
-    assert.throws(
-      () => normalizeDecision(baseRaw({ resolved_documents: [{ document_id: 'doc-study', resolution: 'required', instances: [instance('קרן')], evidence: null, proven_by_file_id: 'file-phoenix' }] }), ctx),
-      /must not tie files/,
-    );
+    // A cited self-evident file is a tie; since the tool loop a tie and the run's message may share a turn (the verdict comes back first).
+    assert.equal(normalizeDecision(baseRaw({ resolved_documents: [{ document_id: 'doc-study', resolution: 'required', instances: [instance('קרן')], evidence: null, proven_by_file_id: 'file-phoenix' }] }), ctx).decision, 'follow_up');
     // No pool at all: the plain evidence rule, with the self-evident hint.
     assert.throws(
       () => normalizeDecision(baseRaw({ resolved_documents: [{ document_id: 'doc-study', resolution: 'required', instances: [instance('קרן')], evidence: null, proven_by_file_id: 'file-phoenix' }] }), ctxWith(withFiles(undefined))),
@@ -869,7 +864,7 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
         ),
       /twice/,
     );
-    assert.throws(() => normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000'), ctxWith(undefined)), /not applicable/);
+    assert.throws(() => normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000'), ctxWith(undefined)), /not applicable|not offered/);
   });
 
   it('validate_message lists the stated-cost checks before business_rules, on success and on failure', () => {
@@ -877,7 +872,7 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
     const ok = gateDecision(callsOf(stated('doc-car-cost', 85000, 'שילמתי 85,000 ש"ח')), ctx);
     assert.deepEqual(
       ok.checks.map((c) => [c.key, c.passed]),
-      [['tool_calls', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', true], ['business_rules', true]],
+      [['tool_calls', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', true], ['business_rules', true], ['business_rules', true], ['ending', true]],
     );
     assert.equal(ok.checks[1]!.observed, 'paper cost_declaration, status pending');
     assert.equal(ok.checks[2]!.expected, '85000');
@@ -887,7 +882,7 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
         assert.ok(err instanceof DecisionRejectedError);
         assert.deepEqual(
           err.checks.map((c) => [c.key, c.passed]),
-          [['tool_calls', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', false], ['business_rules', false]],
+          [['tool_calls', true], ['stated_cost_item_allows', true], ['stated_cost_amount_in_quote', false], ['business_rules', false], ['business_rules', true], ['ending', true]],
         );
         assert.equal(err.checks[2]!.observed, 'אין לי את הקבלה');
         return true;
@@ -899,7 +894,7 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
         assert.ok(err instanceof DecisionRejectedError);
         assert.deepEqual(
           err.checks.map((c) => [c.key, c.passed]),
-          [['tool_calls', true], ['stated_cost_item_allows', false], ['business_rules', false]],
+          [['tool_calls', true], ['stated_cost_item_allows', false], ['business_rules', false], ['business_rules', true], ['ending', true]],
         );
         assert.match(err.checks[1]!.note ?? '', /only a cost declaration/);
         return true;
@@ -907,7 +902,7 @@ describe('a cost stated in the chat (openspec chat-stated-cost)', () => {
     );
   });
 
-  it('a statement alone ties no file: it stays a follow_up with a message, and a context without intake offers no state_cost tool', () => {
+  it('a statement alone ties no file: the run still ends with its message, and a context without intake offers no state_cost tool', () => {
     const decision = normalizeDecision(stated('doc-car-cost', 85000, 'שילמתי 85,000 ש"ח'), ctxWith(costIntake()));
     assert.equal(decision.decision, 'follow_up');
     // A context without intake is not offered the checklist tools at all; an answer without them reads as "no statement".
@@ -1002,7 +997,7 @@ describe('vehicle facts stated in the chat (openspec vehicle-declaration)', () =
     assert.throws(() => normalizeDecision(vehicle('doc-car-decl-done', { manufacturer: 'מאזדה' }, 'זו מאזדה 3'), ctx), /is approved — a vehicle statement fills/);
     assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { manufacturer: 'מאזדה' }, 'זו מאזדה 3 חדשה'), ctx), /not contained verbatim/);
     assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { production_year: 19 }, 'משנת 2019'), ctx), /four-digit year/);
-    assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { manufacturer: 'מאזדה' }, 'זו מאזדה 3'), ctxWith(undefined)), /not applicable/);
+    assert.throws(() => normalizeDecision(vehicle('doc-car-decl', { manufacturer: 'מאזדה' }, 'זו מאזדה 3'), ctxWith(undefined)), /not applicable|not offered/);
   });
 
   it('validate_message lists the vehicle checks before business_rules, on success and on failure', () => {
@@ -1011,7 +1006,7 @@ describe('vehicle facts stated in the chat (openspec vehicle-declaration)', () =
     const ok = gateDecision(callsOf(vehicle('doc-car-decl', { manufacturer: 'מאזדה', production_year: 2019, license_plate: '1234567' }, quote)), ctx);
     assert.deepEqual(
       ok.checks.map((c) => [c.key, c.passed]),
-      [['tool_calls', true], ['stated_vehicle_item_allows', true], ['stated_vehicle_facts_in_quote', true], ['business_rules', true]],
+      [['tool_calls', true], ['stated_vehicle_item_allows', true], ['stated_vehicle_facts_in_quote', true], ['business_rules', true], ['business_rules', true], ['ending', true]],
     );
     assert.equal(ok.checks[1]!.observed, 'paper vehicle_declaration, status pending');
     assert.equal(ok.checks[2]!.observed, quote);
@@ -1022,7 +1017,7 @@ describe('vehicle facts stated in the chat (openspec vehicle-declaration)', () =
         assert.ok(err instanceof DecisionRejectedError);
         assert.deepEqual(
           err.checks.map((c) => [c.key, c.passed]),
-          [['tool_calls', true], ['stated_vehicle_item_allows', true], ['stated_vehicle_facts_in_quote', false], ['business_rules', false]],
+          [['tool_calls', true], ['stated_vehicle_item_allows', true], ['stated_vehicle_facts_in_quote', false], ['business_rules', false], ['business_rules', true], ['ending', true]],
         );
         assert.match(err.checks[2]!.note ?? '', /מספר רישוי/);
         return true;
@@ -1034,7 +1029,7 @@ describe('vehicle facts stated in the chat (openspec vehicle-declaration)', () =
         assert.ok(err instanceof DecisionRejectedError);
         assert.deepEqual(
           err.checks.map((c) => [c.key, c.passed]),
-          [['tool_calls', true], ['stated_vehicle_item_allows', false], ['business_rules', false]],
+          [['tool_calls', true], ['stated_vehicle_item_allows', false], ['business_rules', false], ['business_rules', true], ['ending', true]],
         );
         assert.equal(err.checks[1]!.observed, 'paper vehicle_license, status pending');
         return true;

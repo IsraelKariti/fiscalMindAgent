@@ -2,9 +2,9 @@ import type { Content, GenerateContentResponse, Part } from '@google/genai';
 import type { genaiClient } from './client.js';
 import { env } from '../config/env.js';
 import { declaredToolsOf, type ToolContinuation } from './requestLog.js';
-import { runOpenAiToolTurns, toOpenAiTools, type OpenAiResponseData } from './toolTransport.js';
+import { callsFromOpenAiOutput, openAiContinuationInput, openAiPreviousResponseId, toOpenAiTools, type OpenAiResponseData } from './toolTransport.js';
+import type { TranscriptItem } from './toolLoop.js';
 import { sentRequestOf } from './wireRequest.js';
-import { logger } from '../util/logger.js';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 
@@ -19,7 +19,7 @@ export class OpenAiApiError extends Error {
   }
 }
 
-type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0] & { continuation?: ToolContinuation };
+type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0] & { continuation?: ToolContinuation; transcript?: readonly TranscriptItem[] };
 
 interface OpenAiContentItem {
   type: 'input_text' | 'output_text' | 'input_image' | 'input_file';
@@ -85,7 +85,9 @@ function extractText(output: unknown): string {
  * Serves a Gemini-shaped generateContent request via OpenAI's Responses API,
  * returning a GenerateContentResponse-compatible object, so the agents' call
  * sites stay provider-agnostic. Covers exactly what they use: text +
- * inlineData contents, systemInstruction, responseJsonSchema, and token usage.
+ * inlineData contents, systemInstruction, responseJsonSchema OR tools (the
+ * calls returned as `functionCalls` with their ids; a `transcript` of earlier
+ * turns continues the previous response — toolLoop.ts), and token usage.
  * `temperature` is intentionally NOT forwarded — the GPT-5 reasoning family
  * rejects non-default values.
  */
@@ -98,53 +100,73 @@ export async function generateContentOpenAI(request: GeminiRequest): Promise<Gen
   }
   const jsonSchema = request.config?.responseJsonSchema;
 
-  const body: Record<string, unknown> = {
-    model: request.model,
-    input: toInput(request.contents),
-  };
-  if (systemInstruction) body.instructions = systemInstruction;
-  if (jsonSchema) {
-    // strict:true — every stage schema already meets OpenAI's strict-mode
-    // shape (every property required, additionalProperties:false on every
-    // object, null unions as type arrays / anyOf), so the model's answer is
-    // guaranteed to match the schema word for word (checked 2026-10-14).
-    // The schema as sent comes from wireRequest.ts, the copy the call log stores.
-    body.text = { format: { type: 'json_schema', name: 'response', strict: true, schema: sentRequestOf('openai', request)?.responseJsonSchema } };
-  }
   const tools = declaredToolsOf(request.config);
-  if (tools.length > 0) {
-    // The planner's flat tools: forced tool answer, several calls in one turn.
-    body.tools = toOpenAiTools(tools);
-    body.tool_choice = 'required';
-    body.parallel_tool_calls = true;
+  const previousResponseId = openAiPreviousResponseId(request.transcript ?? []);
+  let body: Record<string, unknown>;
+  if (previousResponseId !== null) {
+    // A later turn of the tool loop (toolLoop.ts): the request names the previous
+    // response, so the server keeps the prompt, the tools and the model's
+    // reasoning items; the input is the results of the last turn's calls (and a
+    // corrective note when the turn made no call).
+    body = {
+      model: request.model,
+      previous_response_id: previousResponseId,
+      input: openAiContinuationInput(request.transcript ?? []),
+      tools: toOpenAiTools(tools),
+      tool_choice: 'auto',
+      parallel_tool_calls: true,
+    };
+  } else {
+    body = {
+      model: request.model,
+      input: toInput(request.contents),
+    };
+    if (systemInstruction) body.instructions = systemInstruction;
+    if (jsonSchema) {
+      // strict:true — every stage schema already meets OpenAI's strict-mode
+      // shape (every property required, additionalProperties:false on every
+      // object, null unions as type arrays / anyOf), so the model's answer is
+      // guaranteed to match the schema word for word (checked 2026-10-14).
+      // The schema as sent comes from wireRequest.ts, the copy the call log stores.
+      body.text = { format: { type: 'json_schema', name: 'response', strict: true, schema: sentRequestOf('openai', request)?.responseJsonSchema } };
+    }
+    if (tools.length > 0) {
+      // The planner's flat tools: the tool choice is the model's (a turn may be text only), several calls in one turn allowed.
+      body.tools = toOpenAiTools(tools);
+      body.tool_choice = 'auto';
+      body.parallel_tool_calls = true;
+    }
   }
 
   const timeoutMs = request.config?.httpOptions?.timeout;
-  // Each turn gets its own deadline; the shared retry loop (generate.ts) wraps
-  // the whole exchange, so a transient failure on a later turn replays it.
-  const send = async (turnBody: Record<string, unknown>): Promise<OpenAiResponseData> => {
-    const res = await fetch(OPENAI_RESPONSES_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(turnBody),
-      signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
-    });
-    if (!res.ok) {
-      const errBody = (await res.text().catch(() => '')).slice(0, 500);
-      throw new OpenAiApiError(res.status, `OpenAI HTTP ${res.status}: ${errBody}`);
-    }
-    return (await res.json()) as OpenAiResponseData;
+  const res = await fetch(OPENAI_RESPONSES_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
+  });
+  if (!res.ok) {
+    const errBody = (await res.text().catch(() => '')).slice(0, 500);
+    throw new OpenAiApiError(res.status, `OpenAI HTTP ${res.status}: ${errBody}`);
+  }
+  const data = (await res.json()) as OpenAiResponseData;
+  const output = Array.isArray(data.output) ? data.output : [];
+  const calls = callsFromOpenAiOutput(output);
+  const usage = {
+    inputTokens: data.usage?.input_tokens ?? 0,
+    outputTokens: data.usage?.output_tokens ?? 0,
+    cachedTokens: data.usage?.input_tokens_details?.cached_tokens ?? 0,
+    reasoningTokens: data.usage?.output_tokens_details?.reasoning_tokens ?? 0,
   };
-
-  const { output, calls, usage, turns } = await runOpenAiToolTurns(body, tools.length > 0 ? request.continuation : undefined, send);
-  if (turns > 1) logger.info('openai tool answer continued', { model: request.model, turns, calls: calls.map((c) => c.name) });
   const text = extractText(output);
   return {
     text: text || undefined,
     ...(calls.length > 0 ? { functionCalls: calls } : {}),
+    // The response id the loop's next turn continues from (toolLoop.ts).
+    responseId: data.id,
     usageMetadata: {
       promptTokenCount: usage.inputTokens,
       // OpenAI's output_tokens includes reasoning; Gemini reports them apart,

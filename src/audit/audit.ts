@@ -90,6 +90,10 @@ export type AuditAction =
   | 'send_whatsapp_text'
   | 'send_whatsapp_template'
   | 'document_fetch'
+  // The two terminal tools that end a run without a message (openspec `planner-answer-tools`).
+  | 'goal_complete'
+  | 'client_declined'
+  // The code-written end-of-run step (a model call before 2026-11-27).
   | 'conclude'
   // The planner asked the client's team member a question (openspec
   // `team-questions`): the tool step, and the closing by a person in the

@@ -12,7 +12,7 @@ import { CapitalFileAnalysisSchema } from '../agents/declarationOfCapital/analyz
 import { FILE_SPLIT_PROMPT, FILE_SPLIT_TEMPERATURE } from '../agents/declarationOfCapital/splitFile.js';
 import { FileSplitSchema } from '../agents/declarationOfCapital/splitFileRules.js';
 import type { DecisionContext } from '../agents/declarationOfCapital/decisionSchema.js';
-import { toolJsonSchemas, type DecisionToolJson } from '../agents/declarationOfCapital/decisionTools.js';
+import { TERMINAL_TOOL_NAMES, toolJsonSchemas, type DecisionToolJson } from '../agents/declarationOfCapital/decisionTools.js';
 import { buildUntrustedDataDoctrine } from '../agents/shared/promptSafety.js';
 import { MAX_TOOL_TURNS } from './llmCall.js';
 import type { ToolContinuation } from './requestLog.js';
@@ -160,7 +160,7 @@ const STAGES: StageStatic[] = [
     ],
     // Documented for the capital declaration without a fetch offer (production today); per call the set drops what the client cannot use.
     tools: toolJsonSchemas(CAPITAL_DECISION_CONTEXT),
-    continuation: { untilTool: 'conclude', maxTurns: MAX_TOOL_TURNS },
+    continuation: { terminalTools: [...TERMINAL_TOOL_NAMES], maxTurns: MAX_TOOL_TURNS },
   },
   {
     purpose: 'file_splitting',

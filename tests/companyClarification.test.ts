@@ -4,10 +4,10 @@ import { companyAppearsInQuote, companyRename, rowCompanyUnknown, sitesForUnname
 import { buildDocumentsSection } from '../src/agents/declarationOfCapital/prompt.js';
 import { listProviderSpecs } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
 import { compareCompanies } from '../src/agents/declarationOfCapital/institutions.js';
-import { DecisionRejectedError, type DecisionContext, type DecisionResponse, type IntakeDecisionState } from '../src/agents/declarationOfCapital/decisionSchema.js';
-import { gateDecision } from '../src/agents/declarationOfCapital/decisionTools.js';
+import { DecisionRejectedError, type DecisionContext, type IntakeDecisionState } from '../src/agents/declarationOfCapital/decisionSchema.js';
 import { setCompanyDetail } from '../src/agents/declarationOfCapital/toolStepDetails.js';
-import { callsOf } from './helpers/decisionCalls.js';
+import { callsOf, type TestAnswer as DecisionResponse } from './helpers/decisionCalls.js';
+import { gate as gateDecision } from './helpers/judge.js';
 import type { ClientDocumentRow } from '../src/db/types.js';
 
 // openspec `item-company-clarification`: a pending fund / account / policy row
@@ -167,9 +167,9 @@ describe('the set_company gate (validate_message)', () => {
       (err: unknown) => {
         assert.ok(err instanceof DecisionRejectedError);
         assert.match(err.message, pattern);
-        const failed = err.checks.find((c) => c.key === failedCheck);
-        assert.ok(failed, `check ${failedCheck} reported`);
-        assert.equal(failed.passed, false);
+        // One business_rules entry per call since the tool loop: the refused call's entry is the failed one.
+        const failed = err.checks.find((c) => c.key === failedCheck && c.passed === false);
+        assert.ok(failed, `check ${failedCheck} reported as failed`);
         return true;
       },
     );
@@ -189,11 +189,13 @@ describe('the set_company gate (validate_message)', () => {
     assert.deepEqual(
       checks.map((c) => [c.key, c.passed, c.observed]),
       [
-        ['tool_calls', true, '3 calls: conclude, send_whatsapp_text, set_company'],
+        ['tool_calls', true, '2 calls: set_company, send_whatsapp_text'],
         ['set_company_row_allows', true, `"${PENSION}", status pending`],
         ['set_company_in_quote', true, 'הפנסיה שלי במגדל'],
         ['set_company_recognised', true, 'migdal'],
-        ['business_rules', true, 'follow_up / freeform'],
+        ['business_rules', true, 'set_company — document_id: doc-pension, company: מגדל'],
+        ['business_rules', true, 'send_whatsapp_text — send_at: asap, text: 4 chars'],
+        ['ending', true, 'send_whatsapp_text'],
       ],
     );
   });
@@ -260,7 +262,7 @@ describe('the set_company gate (validate_message)', () => {
   });
 
   it('a declined answer may not set a company', () => {
-    rejected(callsOf(raw({ decision: 'client_declined', whatsapp_text: null, send_at: null, set_companies: [set('doc-pension', 'מגדל', 'msg-1', 'הפנסיה שלי במגדל')] })), /set_company/, 'business_rules');
+    rejected(callsOf(raw({ decision: 'client_declined', whatsapp_text: null, send_at: null, set_companies: [set('doc-pension', 'מגדל', 'msg-1', 'הפנסיה שלי במגדל')] })), /client_declined is the whole run — this run already made a checklist change/, 'business_rules');
   });
 });
 

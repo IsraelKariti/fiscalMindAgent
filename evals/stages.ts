@@ -38,13 +38,8 @@ import {
 } from '../src/agents/declarationOfCapital/verifyChecks.js';
 import { resolveDocumentOwners } from '../src/agents/declarationOfCapital/spouseIdentity.js';
 import { buildDecisionCall } from '../src/agents/declarationOfCapital/decide.js';
-import {
-  allowedDocumentFetchActions,
-  normalizeDecision,
-  type DecisionContext,
-  type DecisionResponse,
-  type IntakeDecisionState,
-} from '../src/agents/declarationOfCapital/decisionSchema.js';
+import { allowedDocumentFetchActions, type DecisionContext, type IntakeDecisionState } from '../src/agents/declarationOfCapital/decisionSchema.js';
+import { judgeRun, type RunEndingKind } from '../src/agents/declarationOfCapital/decisionJudge.js';
 import {
   buildPrompt,
   type IntakePromptInput,
@@ -58,7 +53,8 @@ import { env } from '../src/config/env.js';
 import { zonedTimeToUtc } from '../src/util/time.js';
 import type { LlmCallPurpose } from '../src/gemini/modelCatalog.js';
 import type { LlmCallSpec, LlmToolCall } from '../src/gemini/llmCall.js';
-import { assembleDecision, parseToolCalls, toolsForContext, type ToolCall } from '../src/agents/declarationOfCapital/decisionTools.js';
+import { isTerminalTool, toolsForContext } from '../src/agents/declarationOfCapital/decisionTools.js';
+type ToolCall = LlmToolCall;
 import type {
   ClientDocumentRow,
   ClientRow,
@@ -98,7 +94,7 @@ export interface Judgement {
 export interface BuiltCall {
   spec: LlmCallSpec;
   /** The stage's own parse of the answer (the text of a form stage, the tool calls of the planner) — what gets stored as `output`. */
-  parse: (res: { text: string; toolCalls: LlmToolCall[] }) => unknown;
+  parse: (res: { text: string; toolCalls: LlmToolCall[]; texts?: { turn: number; text: string }[]; turns?: number; ended?: string }) => unknown;
 }
 
 export interface StageAdapter<C = unknown, Ctx = unknown> {
@@ -707,11 +703,17 @@ interface DecideCase {
    */
   verification_results?: { document_id: string; file_name: string; outcome: 'approved' | 'reopened' | 'stalled' | 'skipped' | 'error' }[];
   /**
-   * The follow-up cycle after a collecting answer whose batch stayed empty (every tie refused, or claimed-only):
-   * the VERIFICATION RESULTS block says nothing was verified and the schema offers no `collect`. Implied true
-   * when `verification_results` is given.
+   * The run after a fetch-delivery batch (openspec `verification-reply`): the VERIFICATION RESULTS block renders
+   * even when the batch is empty. Implied true when `verification_results` is given.
    */
   after_verification?: boolean;
+  /**
+   * The canned result each tool call is answered with in the loop (openspec `planner-answer-tools`): by tool name,
+   * or by `<tool>:<document_id>` / `<tool>:<file_id>` for one target. Defaults per tool (a tie is answered
+   * "tied · verification: APPROVED", an add_instance names a made-up row id, a send "scheduled"); a refusal is any
+   * text starting with "refused: ".
+   */
+  tool_results?: Record<string, string>;
   attestation?: {
     /** ISO instant the attestation summary was SENT; null = not requested. */
     requestedAt: string | null;
@@ -734,8 +736,10 @@ interface DecideCase {
     closed_by_name?: string;
   }[];
   expects: {
-    /** 'collect' = the answer ties a file (or claims a document) and carries no message (openspec `verification-reply`). */
-    decision: 'goal_complete' | 'follow_up' | 'collect';
+    /** How the run ends (openspec `planner-answer-tools`): one message, the goal, the decline, or none at all. */
+    ending: 'message' | 'goal_complete' | 'client_declined' | 'none';
+    /** true: the run ties at least one file (a tie_file / mark_collected, or an instance with file_ids); false: it ties none. */
+    ties?: boolean;
     message_kind?: 'freeform' | 'template';
     /** Ids the decision must resolve (exactly this set); an object also pins the resolution per id. */
     resolved_documents?: string[] | Record<string, 'required' | 'not_required'>;
@@ -1092,9 +1096,7 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
       }),
     };
   });
-  const afterVerification = c.after_verification === true || c.verification_results !== undefined;
   const decisionCtx: DecisionContext = {
-    afterVerification,
     windowOpen: waState.windowOpen,
     templates,
     hiddenTemplates,
@@ -1118,14 +1120,48 @@ function decideInputs(c: DecideCase, ctx: DecideCtx) {
     const sites = sitesForUnnamedRow(d.name, usableProviders);
     if (sites.length > 0) companySites.set(d.id, sites);
   }
-  return { taxYear, now, client, history, documents, files, waState, intakePrompt, documentFetchPrompt, decisionCtx, teamQuestions, companySites };
+  const afterVerification = c.after_verification === true || c.verification_results !== undefined;
+  return { taxYear, now, client, history, documents, files, waState, intakePrompt, documentFetchPrompt, decisionCtx, teamQuestions, companySites, afterVerification };
+}
+
+/**
+ * The canned executor of the harness (openspec `planner-answer-tools`): no
+ * database, so every call is answered with a fixed result text — the case's
+ * `tool_results` by tool (or tool + target id), else a default per tool — and
+ * the run ends on the first terminal call. What the model does with the
+ * results is what the judge then reads off the calls of every turn.
+ */
+function cannedExecutor(c: DecideCase): (calls: ToolCall[], turn: number) => Promise<{ results: { id?: string; name: string; output: string }[]; ended: boolean }> {
+  let created = 0;
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
+  return async (calls) => {
+    let ended = false;
+    const results = calls.map((call) => {
+      const args = (typeof call.args === 'object' && call.args !== null ? call.args : {}) as Record<string, unknown>;
+      const target = str(args.document_id) || str(args.file_id) || str(args.anchor_document_id);
+      const canned = c.tool_results?.[`${call.name}:${target}`] ?? c.tool_results?.[call.name];
+      let output: string;
+      if (canned !== undefined) output = canned;
+      else if (call.name === 'tie_file') output = 'tied · verification: APPROVED — the document is closed';
+      else if (call.name === 'mark_collected') output = 'collected · verification: APPROVED — the document is closed';
+      else if (call.name === 'add_instance') output = `created "${str(args.name)}" — document id eval-row-${++created}`;
+      else if (call.name === 'set_required') output = `resolved ${str(args.resolution)}`;
+      else if (call.name === 'send_whatsapp_text' || call.name === 'send_whatsapp_template') output = `scheduled ${str(args.send_at)}; the run ended`;
+      else if (call.name === 'goal_complete') output = 'goal completed; the run ended';
+      else if (call.name === 'client_declined') output = 'the client declined; the run ended';
+      else output = 'done';
+      if (isTerminalTool(call.name) && !ended && !output.startsWith('refused:')) ended = true;
+      return { ...(call.id !== undefined ? { id: call.id } : {}), name: call.name, output };
+    });
+    return { results, ended };
+  };
 }
 
 const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
   purpose: 'planner',
   load: () => readCases('planner'),
   build(c, ctx) {
-    const { taxYear, now, client, history, documents, files, waState, intakePrompt, documentFetchPrompt, decisionCtx, teamQuestions, companySites } = decideInputs(c, ctx);
+    const { taxYear, now, client, history, documents, files, waState, intakePrompt, documentFetchPrompt, decisionCtx, teamQuestions, companySites, afterVerification } = decideInputs(c, ctx);
     const accountant = accountantRow(ctx);
     const verificationResults: VerificationResultPromptInput[] = (c.verification_results ?? []).map((r, i) => {
       const doc = documents.find((d) => d.id === r.document_id);
@@ -1156,60 +1192,56 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       intakePrompt,
       unsentDraftRows(c),
       verificationResults,
-      decisionCtx.afterVerification === true,
+      afterVerification,
       null,
       new Map(),
       decisionCtx.intake?.selfEvidentFiles ?? new Map(),
       teamQuestions,
       companySites,
     );
-    const { spec } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx });
-    // The planner answers with tool calls (openspec `planner-answer-tools`); the judge runs the gate on them.
-    return { spec, parse: (res) => ({ calls: res.toolCalls }) };
+    const { spec } = buildDecisionCall({ systemInstruction: prompt.systemInstruction, contents: prompt.contents, ctx: decisionCtx, execute: cannedExecutor(c) });
+    // The planner runs a tool loop (openspec `planner-answer-tools`); the judge reads the calls of every turn with their results.
+    return { spec, parse: (res) => ({ calls: res.toolCalls, texts: res.texts, turns: res.turns, ended: res.ended ?? 'terminal' }) };
   },
   judge(c, output, ctx) {
-    const { calls } = output as { calls: ToolCall[] };
+    const { calls, texts, turns, ended: loopEnded } = output as { calls: ToolCall[]; texts?: { turn: number; text: string }[]; turns?: number; ended?: string };
     const { taxYear, now, documents, decisionCtx } = decideInputs(c, ctx);
     const e = c.expects;
     const checks: Check[] = [];
-    const info: Record<string, unknown> = { calls: calls.map((k) => k.name) };
-    const concluded = calls.find((k) => k.name === 'conclude')?.args as { decision?: unknown } | undefined;
-    let raw: DecisionResponse;
-    let decision: ReturnType<typeof normalizeDecision>;
-    try {
-      // The same two checks as validate_message: tool_calls (offered tools, per-tool schema, one conclude), then the business rules.
-      raw = assembleDecision(parseToolCalls(calls, toolsForContext(decisionCtx)));
-      info.reasoning = raw.reasoning;
-      info.send_at = raw.send_at;
-      decision = normalizeDecision(raw, decisionCtx);
-    } catch (err) {
-      // The gate rejected the answer (bad calls, missing/fabricated evidence, wrong channel, bad send_at, …): the app would retry once, then fail the cycle.
-      checks.push({ key: 'gate', expected: 'accepted', actual: errorMessage(err).slice(0, 500), pass: false });
-      checks.push(eq('decision', e.decision, concluded?.decision));
-      return { checks, info };
-    }
-    checks.push({ key: 'gate', expected: 'accepted', actual: 'accepted', pass: true });
-    checks.push(eq('decision', e.decision, decision.decision));
+    const info: Record<string, unknown> = { calls: calls.map((k) => k.name), turns: turns ?? 1, loop: loopEnded ?? 'terminal', texts: texts ?? [] };
+    info.results = calls.map((k) => ({ tool: k.name, turn: k.turn ?? 1, result: k.result ?? null }));
+    // The same judging plan.ts does per turn, over the whole run at once: the shape check, the units, the ties, the team question, the fetch step, the terminal calls.
+    const run = judgeRun(calls, decisionCtx, {
+      hasDocuments: documents.length > 0,
+      allSettled: decisionCtx.intake?.allSettled ?? false,
+      attestationConfirmed: decisionCtx.intake?.attestationConfirmed ?? false,
+    });
+    const decision = run.changes;
+    info.refusals = run.refusals.map((r) => `${r.call.name}: ${r.reason}`);
+    // The gate: every call accepted (a refusal the model did not recover from in the run counts as a failed case, as the old whole-answer gate did).
+    checks.push({ key: 'gate', expected: 'every call accepted', actual: run.refusals.length === 0 ? 'accepted' : run.refusals.map((r) => r.reason.slice(0, 200)), pass: run.refusals.length === 0 });
+    const ending: RunEndingKind = run.ending;
+    checks.push(eq('ending', e.ending, ending));
+    info.reasoning = run.reasoning;
 
-    if (decision.decision === 'collect') {
-      // The gate already refuses a message on a collecting answer; the check makes the rule visible in the report.
-      const messageFields = [raw.whatsapp_text, raw.whatsapp_template, raw.send_at].filter((v) => v != null && v !== '');
-      checks.push({ key: 'no_message', expected: 'no message fields, send_at null', actual: messageFields.length === 0 ? 'none' : `${messageFields.length} filled`, pass: messageFields.length === 0 });
-      checks.push({ key: 'ties', expected: '>0', actual: decision.collected_document_ids.length + decision.matched_files.length, pass: true });
-    }
+    const tied =
+      decision.collected_document_ids.length > 0 ||
+      decision.matched_files.length > 0 ||
+      [...decision.resolutions.flatMap((r) => (r.resolution === 'required' ? r.instances : [])), ...decision.addedInstances.flatMap((a) => a.instances)].some((i) => i.fileIds.length > 0);
+    if (e.ties !== undefined) checks.push(eq('ties', e.ties, tied));
 
-    if (decision.decision === 'client_declined') {
-      // The gate already refuses anything beside conclude on a decline (openspec `client-decline`); the check makes the rule visible in the report.
-      const messageFields = [raw.whatsapp_text, raw.whatsapp_template, raw.send_at].filter((v) => v != null && v !== '');
-      checks.push({ key: 'no_message', expected: 'no message fields, send_at null', actual: messageFields.length === 0 ? 'none' : `${messageFields.length} filled`, pass: messageFields.length === 0 });
+    if (ending === 'client_declined') {
+      // The decline is the whole run (openspec `client-decline`): the judge refuses anything else, the check makes it visible.
+      checks.push({ key: 'decline_alone', expected: 'client_declined is the only call', actual: calls.map((k) => k.name), pass: calls.every((k) => k.name === 'client_declined') });
     }
 
-    if (decision.decision === 'follow_up') {
-      const message = decision.message;
+    if (ending === 'message' && run.message) {
+      const message = run.message.message;
       const kind = message.kind;
       if (e.message_kind) checks.push(eq('message_kind', e.message_kind, kind));
       const body = message.kind === 'freeform' ? message.body : message.renderedBody;
       info.message = body;
+      info.send_at = run.message.sendAt;
       if (e.mentions_valuation_date !== false) {
         const wanted = `31.12.${taxYear}`;
         checks.push({ key: 'mentions_valuation_date', expected: wanted, actual: body.includes(wanted), pass: body.includes(wanted) });
@@ -1218,16 +1250,17 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       const maxQ = e.max_question_marks ?? 3;
       checks.push({ key: 'question_marks', expected: `<= ${maxQ}`, actual: questionMarks, pass: questionMarks <= maxQ });
       // send_at is "asap" (the code picks now + 1s) or wall-clock in the accountant's timezone, in the future.
-      const isAsap = decision.send_at === 'asap';
+      const sendAt = run.message.sendAt;
+      const isAsap = sendAt === 'asap';
       let sendAtOk = isAsap;
       if (!isAsap) {
         try {
-          sendAtOk = zonedTimeToUtc(decision.send_at, env.ACCOUNTANT_TIMEZONE) > now;
+          sendAtOk = zonedTimeToUtc(sendAt, env.ACCOUNTANT_TIMEZONE) > now;
         } catch {
           sendAtOk = false;
         }
       }
-      checks.push({ key: 'send_at_future', expected: `asap or after ${c.now}`, actual: decision.send_at, pass: sendAtOk });
+      checks.push({ key: 'send_at_future', expected: `asap or after ${c.now}`, actual: sendAt, pass: sendAtOk });
       if (e.send_asap !== undefined) checks.push({ key: 'send_asap', expected: e.send_asap, actual: isAsap, pass: isAsap === e.send_asap });
       for (const word of e.message_includes ?? []) checks.push({ key: `message_includes.${word}`, expected: true, actual: body.includes(word), pass: body.includes(word) });
       if (e.message_includes_any) {
@@ -1237,10 +1270,10 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
       for (const word of e.message_excludes ?? []) checks.push({ key: `message_excludes.${word}`, expected: false, actual: body.includes(word), pass: !body.includes(word) });
       if (e.question_excludes) {
         // Each question = the text from the previous sentence or clause end (or the start) up to its question mark.
-        const questions = body.split(/[?؟]/).slice(0, -1).map((chunk) => chunk.split(/[.!;\n]/).pop() ?? '');
+        const questions = body.split(/[?؟]/).slice(0, -1).map((chunk: string) => chunk.split(/[.!;\n]/).pop() ?? '');
         for (const word of e.question_excludes) {
-          const asked = questions.filter((q) => q.includes(word));
-          checks.push({ key: `question_excludes.${word}`, expected: 'not asked', actual: asked.length === 0 ? 'not asked' : asked.map((q) => q.trim()), pass: asked.length === 0 });
+          const asked = questions.filter((q: string) => q.includes(word));
+          checks.push({ key: `question_excludes.${word}`, expected: 'not asked', actual: asked.length === 0 ? 'not asked' : asked.map((q: string) => q.trim()), pass: asked.length === 0 });
         }
       }
       for (const [rowId, words] of Object.entries(e.no_settled_rows_mentioned ?? {})) {
@@ -1249,8 +1282,14 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
         const mentioned = words.filter((w) => body.includes(w));
         checks.push({ key: `no_settled_rows_mentioned.${rowId}`, expected: `settled row, none of ${JSON.stringify(words)}`, actual: settled ? mentioned : `row not settled (${row?.status ?? 'missing'})`, pass: settled && mentioned.length === 0 });
       }
+      // A message in the same turn as a tie was written before the verdict (openspec `verification-reply`): visible in the report.
+      const sendCall = calls.find((k) => k.name === 'send_whatsapp_text' || k.name === 'send_whatsapp_template');
+      const tieTurns = calls.filter((k) => k.name === 'tie_file' || k.name === 'mark_collected').map((k) => k.turn ?? 1);
+      if (sendCall && tieTurns.length > 0) {
+        const after = tieTurns.every((t) => t < (sendCall.turn ?? 1));
+        checks.push({ key: 'sent_after_tie_results', expected: 'the message turn comes after every tie turn', actual: after ? 'yes' : 'the message shares a turn with a tie', pass: after });
+      }
     }
-
     const resolved = decision.resolutions.map((r) => r.documentId).sort();
     info.resolutions = decision.resolutions.map((r) => ({ id: r.documentId, resolution: r.resolution, ...(r.resolution === 'required' ? { instances: r.instances.map((i) => i.name) } : { quote: r.evidence.quote }) }));
     if (e.resolved_documents !== undefined) {
@@ -1357,7 +1396,7 @@ const conversationDecide: StageAdapter<DecideCase, DecideCtx> = {
     if (e.attestation !== undefined) checks.push(eq('attestation', e.attestation, decision.attestation?.action ?? null));
     if (e.document_fetch_action !== undefined) checks.push(eq('document_fetch_action', e.document_fetch_action, decision.document_fetch?.action ?? null));
     // openspec `team-questions`: did the answer ask the team, and what.
-    const asked = decision.decision === 'follow_up' ? decision.teamQuestion : null;
+    const asked = run.teamQuestion;
     if (e.team_question !== undefined) checks.push(eq('team_question', e.team_question, asked !== null));
     for (const word of e.team_question_includes ?? []) {
       const has = asked?.question.includes(word) === true;

@@ -105,12 +105,12 @@ export const PROMPT_TEMPLATE = loadPrompt(new URL('./prompt.md', import.meta.url
 
 /**
  * The scheduling contract, appended after the template so no template edit
- * can drop it. decisionSchema enforces the same invariant mechanically; this
- * block keeps the model aligned with it. The full rationale lives in
+ * can drop it. The run's ending rule (plan.ts) enforces the same invariant
+ * mechanically; this block keeps the model aligned with it. The full rationale lives in
  * prompt.md's keepalive section.
  */
 const KEEPALIVE_CONTRACT =
-  'חוזה תזמון (תקף תמיד, גם אם ההנחיות למעלה נוסחו אחרת): בכל החלטת follow_up חובה לכלול בדיוק קריאה אחת לכלי הודעה (send_whatsapp_text או send_whatsapp_template) עם ההודעה המלאה וגם send_at - מועד עתידי, או "asap" לתשובה ללקוח שפעיל עכשיו וממתין לה. תשובת follow_up בלי קריאת הודעה או בלי send_at תיפסל ולא תבוצע; "אין צורך בהודעה" אינו מצב קיים. ההודעה המתוזמנת נשלחת רק אם הלקוח שותק עד send_at - כל הודעה נכנסת ממנו מבטלת אותה ומפעילה תכנון מחדש - ולכן מתזמנים אותה תמיד: היא המנגנון שמבטיח שהשיחה לא תמות אם הלקוח שכח או פספס.';
+  'חוזה תזמון (תקף תמיד, גם אם ההנחיות למעלה נוסחו אחרת): כל ריצה שאינה מסתיימת ב-goal_complete או ב-client_declined חייבת להסתיים בדיוק בקריאה אחת לכלי הודעה (send_whatsapp_text או send_whatsapp_template) עם ההודעה המלאה וגם send_at - מועד עתידי, או "asap" לתשובה ללקוח שפעיל עכשיו וממתין לה. טקסט חופשי בתשובה אינו נשלח לאף אחד; ריצה בלי קריאת הודעה נכשלת; "אין צורך בהודעה" אינו מצב קיים. ההודעה המתוזמנת נשלחת רק אם הלקוח שותק עד send_at - כל הודעה נכנסת ממנו מבטלת אותה ומפעילה תכנון מחדש - ולכן מתזמנים אותה תמיד: היא המנגנון שמבטיח שהשיחה לא תמות אם הלקוח שכח או פספס.';
 
 export function renderPromptTemplate(template: string, vars: Record<PromptPlaceholder, string>): string {
   return renderTemplate(template, vars);

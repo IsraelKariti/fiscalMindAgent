@@ -1,7 +1,7 @@
 /**
  * The icon of a code-step row in the admin trace (openspec `conversation-trace`):
- * a tool-call step (one per accepted call of the planner's answer, named after
- * the tool) shows a tool; the legacy apply_* / send_reply / withhold_reply rows
+ * a tool-call step (one per call of the planner's turns, named after the
+ * tool, the code-written conclude step included) shows a tool; the legacy apply_* / send_reply / withhold_reply rows
  * and the code-only actions (send_closing, send_decline_ack, …) a gear; every
  * check and security event a shield. A critical row and an accountant email
  * keep their own marks. Shared by the workspace timeline and the admin viewer.
@@ -23,7 +23,9 @@ export const PLANNER_TOOL_STEPS: ReadonlySet<string> = new Set([
   'send_whatsapp_template',
   'document_fetch',
   'tax_fetch', // rows recorded before the rename (2026-11-25)
-  'conclude',
+  'goal_complete',
+  'client_declined',
+  'conclude', // a model call before 2026-11-27; since then the code-written end-of-run step, kept under the tool icon
   'ask_team',
 ]);
 

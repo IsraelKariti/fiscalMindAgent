@@ -31,14 +31,15 @@ test('each stage carries a real prompt, a query layout, a gate and a non-empty s
   }
 });
 
-test('the planner stage lists its tools, conclude first', () => {
+test('the planner stage lists its tools, the terminal tools first, and the loop rule', () => {
   const planner = describeLlmStagesStatic().find((s) => s.purpose === 'planner');
   assert.ok(planner?.tools);
-  assert.equal(planner.tools[0]!.name, 'conclude');
-  assert.ok(planner.tools.some((t) => t.name === 'send_whatsapp_text'));
+  assert.equal(planner.tools[0]!.name, 'send_whatsapp_text');
+  assert.ok(!planner.tools.some((t) => t.name === 'conclude'));
+  assert.ok(planner.tools.some((t) => t.name === 'goal_complete') && planner.tools.some((t) => t.name === 'client_declined'));
   assert.ok(!planner.tools.some((t) => t.name === 'document_fetch'), 'no fetch provider is offered in the documented context');
-  // The continuation rule the OpenAI adapter follows, shown on the stages page.
-  assert.deepEqual(planner.continuation, { untilTool: 'conclude', maxTurns: 6 });
+  // The loop rule every provider follows (openspec `planner-answer-tools`), shown on the stages page.
+  assert.deepEqual(planner.continuation, { terminalTools: ['send_whatsapp_text', 'send_whatsapp_template', 'goal_complete', 'client_declined'], maxTurns: 12 });
 });
 
 test('the planner prompt carries the untrusted-data doctrine (token named by position, never embedded), names the platform sections as trusted, and asks for no injection verdict', () => {

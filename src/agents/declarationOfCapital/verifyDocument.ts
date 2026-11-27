@@ -162,15 +162,16 @@ type StoredFile = NonNullable<Awaited<ReturnType<typeof documentFiles.getForClie
 
 /**
  * Verifies one just-collected document against its linked file and returns
- * the outcome. It never re-plans: the caller verifies its whole batch
- * (verifyBatch) and then runs ONE follow-up planning cycle (openspec
+ * the outcome. It never re-plans: the planner verifies the documents a turn
+ * tied inside the run and answers the tie with the verdict (plan.ts); a
+ * fetch delivery verifies its batch and then runs one planner (openspec
  * `verification-reply`).
  *
  * One named function per step of the "Document Check Flow" chart (Notion page
  * "4. Document extraction"). Step 1 — the planner ties the file to a document
  * (the tie_file / mark_collected steps in plan.ts) — happens before this runs. Step 12 — the
- * planner tells the client the result — happens after, in the batch's
- * follow-up cycle.
+ * planner tells the client the result — happens after, in the same run, with
+ * the verdict as the tie's result.
  */
 export async function verifyCollectedDocument(
   client: ClientRow,
@@ -543,11 +544,11 @@ export async function recordRerunAfterVerification(client: ClientRow, results: r
 
 /**
  * For batches started OUTSIDE a planning cycle (fetch delivery): verify, then
- * one planning cycle so the agent reports the outcomes right away instead of
- * waiting for the client's next message. The cycle runs with the
- * afterVerification hint: it cannot collect files, so it cannot verify again
- * — no loop. Best-effort: the verdicts themselves are already recorded.
- * (The planner verifies its own batch inline — see plan.ts.)
+ * one planner run so the agent reports the outcomes right away instead of
+ * waiting for the client's next message. The run carries the afterVerification
+ * hint for the VERIFICATION RESULTS section of its prompt; it is an ordinary
+ * run and may tie other files, each verified inside the run (plan.ts).
+ * Best-effort: the verdicts themselves are already recorded.
  */
 export async function verifyBatchAndReplan(
   client: ClientRow,

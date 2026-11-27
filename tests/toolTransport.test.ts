@@ -2,19 +2,26 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { FunctionCallingConfigMode } from '@google/genai';
 import {
-  CONTINUATION_RESULT,
+  anthropicTranscriptMessages,
   callsFromAnthropicContent,
+  callsFromGeminiParts,
   callsFromOpenAiOutput,
-  runOpenAiToolTurns,
+  geminiContentsOf,
+  geminiTranscriptContents,
+  openAiContinuationInput,
+  openAiPreviousResponseId,
   toAnthropicTools,
   toOpenAiTools,
   toolRequestConfig,
 } from '../src/gemini/toolTransport.js';
+import type { TranscriptItem } from '../src/gemini/toolLoop.js';
 import { declaredToolsOf, requestForLog, responseForLog, toolCallsOf } from '../src/gemini/requestLog.js';
 import { toolJsonSchemas } from '../src/agents/declarationOfCapital/decisionTools.js';
 
 // openspec `planner-answer-tools`: the same flat tools go to every provider with
-// a forced tool answer, and the calls come back as { name, args } in order.
+// the tool choice left to the model, the calls come back as { id, name, args }
+// in order, and the loop's transcript — model turns, tool results, corrective
+// notes — is replayed in each provider's own shape.
 
 const CAPITAL = {
   windowOpen: true,
@@ -23,160 +30,147 @@ const CAPITAL = {
 };
 const tools = toolJsonSchemas(CAPITAL);
 
+const transcript: TranscriptItem[] = [
+  { kind: 'model', turn: 1, calls: [{ id: 'c1', name: 'tie_file', args: { file_id: 'f', document_id: 'd' } }], text: '', responseId: 'resp_1' },
+  { kind: 'results', turn: 1, results: [{ id: 'c1', name: 'tie_file', output: 'tied · verification: APPROVED' }] },
+  { kind: 'model', turn: 2, calls: [], text: 'ok then' },
+  { kind: 'user', turn: 2, text: 'NOTE: end the run' },
+];
+
 describe('Gemini request config', () => {
-  it('declares every tool with its JSON schema and forces a call to one of them', () => {
+  it('declares every tool with its JSON schema and leaves the tool choice to the model', () => {
     const config = toolRequestConfig(tools);
-    const declarations = (config.tools![0] as { functionDeclarations: { name: string; parametersJsonSchema: unknown }[] }).functionDeclarations;
+    const declarations = (config.tools![0] as { functionDeclarations: { name?: string; parametersJsonSchema?: unknown }[] }).functionDeclarations;
     assert.deepEqual(declarations.map((d) => d.name), tools.map((t) => t.name));
-    assert.equal(declarations[0]!.parametersJsonSchema, tools[0]!.parameters);
-    assert.equal(config.toolConfig!.functionCallingConfig!.mode, FunctionCallingConfigMode.ANY);
-    assert.deepEqual(config.toolConfig!.functionCallingConfig!.allowedFunctionNames, tools.map((t) => t.name));
+    assert.deepEqual(declarations[0]!.parametersJsonSchema, tools[0]!.parameters);
+    assert.equal(config.toolConfig!.functionCallingConfig!.mode, FunctionCallingConfigMode.AUTO);
+    assert.equal(config.toolConfig!.functionCallingConfig!.allowedFunctionNames, undefined);
   });
 
   it('declaredToolsOf reads the declarations back from a Gemini-shaped request', () => {
     const declared = declaredToolsOf(toolRequestConfig(tools));
-    assert.deepEqual(declared, tools);
-    assert.deepEqual(declaredToolsOf({ responseJsonSchema: {} } as never), []);
-    assert.deepEqual(declaredToolsOf(undefined), []);
+    assert.deepEqual(declared.map((t) => t.name), tools.map((t) => t.name));
+    assert.deepEqual(declared[0]!.parameters, tools[0]!.parameters);
+  });
+
+  it('replays the transcript as model / user turns: functionCall parts, functionResponse parts with the result, a text note', () => {
+    assert.deepEqual(geminiContentsOf('hi'), [{ role: 'user', parts: [{ text: 'hi' }] }]);
+    const contents = geminiTranscriptContents(transcript);
+    assert.deepEqual(contents, [
+      { role: 'model', parts: [{ functionCall: { id: 'c1', name: 'tie_file', args: { file_id: 'f', document_id: 'd' } } }] },
+      { role: 'user', parts: [{ functionResponse: { id: 'c1', name: 'tie_file', response: { result: 'tied · verification: APPROVED' } } }] },
+      { role: 'model', parts: [{ text: 'ok then' }] },
+      { role: 'user', parts: [{ text: 'NOTE: end the run' }] },
+    ]);
+    // The provider's own parts (thought signatures) win when kept.
+    const raw = [{ functionCall: { name: 'tie_file', args: {} }, thoughtSignature: 'sig' }];
+    assert.deepEqual(geminiTranscriptContents([{ kind: 'model', turn: 1, calls: [{ name: 'tie_file', args: {} }], text: '', raw }]), [{ role: 'model', parts: raw }]);
+    assert.deepEqual(callsFromGeminiParts([{ text: 'x' }, { functionCall: { id: 'g1', name: 'send_whatsapp_text', args: { text: 'a' } } }]), [{ id: 'g1', name: 'send_whatsapp_text', args: { text: 'a' } }]);
   });
 });
 
 describe('Anthropic translation', () => {
   it('sends non-strict tools whose schemas carry no unsupported keyword and no extra keys', () => {
-    const out = toAnthropicTools(declaredToolsOf(toolRequestConfig(tools)));
-    assert.equal(out.length, tools.length);
-    for (const tool of out) {
-      assert.equal(tool.strict, undefined, tool.name);
-      assert.equal(tool.input_schema.type, 'object', tool.name);
-      assert.equal((tool.input_schema as { additionalProperties?: unknown }).additionalProperties, false, tool.name);
-      assert.ok(!('$schema' in tool.input_schema), tool.name);
-      const required = new Set(((tool.input_schema as { required?: string[] }).required ?? []));
-      for (const name of Object.keys((tool.input_schema as { properties?: object }).properties ?? {})) assert.ok(required.has(name), `${tool.name}.${name}`);
+    const sent = toAnthropicTools(tools);
+    assert.deepEqual(sent.map((t) => t.name), tools.map((t) => t.name));
+    for (const tool of sent) {
+      assert.equal('strict' in tool, false);
+      const schema = tool.input_schema as Record<string, unknown>;
+      assert.equal(schema.type, 'object');
+      assert.equal(schema.additionalProperties, false);
+      assert.ok(!('$schema' in schema));
     }
   });
 
-  it('reads tool_use blocks as calls, in order, ignoring text blocks', () => {
+  it('reads tool_use blocks as calls with their ids, in order, ignoring text blocks', () => {
     const calls = callsFromAnthropicContent([
-      { type: 'text', text: 'thinking aloud' } as never,
-      { type: 'tool_use', name: 'conclude', input: { decision: 'follow_up', reasoning: 'r' } },
-      { type: 'tool_use', name: 'send_whatsapp_text', input: { text: 'שלום', send_at: 'asap' } },
+      { type: 'text' },
+      { type: 'tool_use', id: 'toolu_1', name: 'set_required', input: { document_id: 'd' } },
+      { type: 'tool_use', id: 'toolu_2', name: 'send_whatsapp_text', input: { text: 'a', send_at: 'asap' } },
     ]);
     assert.deepEqual(calls, [
-      { name: 'conclude', args: { decision: 'follow_up', reasoning: 'r' } },
-      { name: 'send_whatsapp_text', args: { text: 'שלום', send_at: 'asap' } },
+      { id: 'toolu_1', name: 'set_required', args: { document_id: 'd' } },
+      { id: 'toolu_2', name: 'send_whatsapp_text', args: { text: 'a', send_at: 'asap' } },
+    ]);
+  });
+
+  it('replays the transcript as assistant tool_use blocks and user tool_result blocks, merging adjacent user items', () => {
+    const messages = anthropicTranscriptMessages(transcript);
+    assert.deepEqual(messages, [
+      { role: 'assistant', content: [{ type: 'tool_use', id: 'c1', name: 'tie_file', input: { file_id: 'f', document_id: 'd' } }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'c1', content: 'tied · verification: APPROVED' }] },
+      { role: 'assistant', content: [{ type: 'text', text: 'ok then' }] },
+      { role: 'user', content: [{ type: 'text', text: 'NOTE: end the run' }] },
+    ]);
+    // Results then a corrective note in a row become one user message; the answer's own blocks (thinking) are replayed when kept.
+    const raw = [{ type: 'thinking', thinking: 'hm', signature: 's' }, { type: 'tool_use', id: 'c1', name: 'tie_file', input: {} }];
+    const merged = anthropicTranscriptMessages([
+      { kind: 'model', turn: 1, calls: [{ id: 'c1', name: 'tie_file', args: {} }], text: '', raw },
+      { kind: 'results', turn: 1, results: [{ id: 'c1', name: 'tie_file', output: 'tied' }] },
+      { kind: 'user', turn: 1, text: 'note' },
+    ]);
+    assert.deepEqual(merged, [
+      { role: 'assistant', content: raw },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'c1', content: 'tied' }, { type: 'text', text: 'note' }] },
     ]);
   });
 });
 
 describe('OpenAI translation', () => {
   it('sends strict function tools with additionalProperties:false', () => {
-    const out = toOpenAiTools(declaredToolsOf(toolRequestConfig(tools)));
-    for (const tool of out) {
+    const sent = toOpenAiTools(tools);
+    for (const tool of sent) {
       assert.equal(tool.type, 'function');
       assert.equal(tool.strict, true);
-      assert.equal((tool.parameters as { additionalProperties?: unknown }).additionalProperties, false);
+      assert.equal((tool.parameters as Record<string, unknown>).additionalProperties, false);
     }
-    assert.deepEqual(out.map((t) => t.name), tools.map((t) => t.name));
+    assert.deepEqual(sent.map((t) => t.name), tools.map((t) => t.name));
   });
 
-  it('reads function_call items, parsing the arguments string, and ignores message items', () => {
+  it('reads function_call items with their call ids, parsing the arguments string, and ignores message items', () => {
     const calls = callsFromOpenAiOutput([
       { type: 'reasoning', summary: [] },
-      { type: 'function_call', name: 'conclude', arguments: '{"decision":"collect","reasoning":"file"}', call_id: 'c1' },
-      { type: 'function_call', name: 'tie_file', arguments: '{"file_id":"f","document_id":"d","evidence_message_id":"","evidence_quote":""}', call_id: 'c2' },
+      { type: 'function_call', call_id: 'call_1', name: 'tie_file', arguments: '{"file_id":"f","document_id":"d"}' },
       { type: 'message', content: [{ type: 'output_text', text: 'ignored' }] },
+      { type: 'function_call', call_id: 'call_2', name: 'send_whatsapp_text', arguments: 'not json' },
     ]);
-    assert.deepEqual(calls.map((c) => c.name), ['conclude', 'tie_file']);
-    assert.deepEqual(calls[0]!.args, { decision: 'collect', reasoning: 'file' });
-    assert.deepEqual(callsFromOpenAiOutput('nope'), []);
-    // Unparseable arguments are handed through for the gate to report.
-    assert.deepEqual(callsFromOpenAiOutput([{ type: 'function_call', name: 'x', arguments: '{bad' }]), [{ name: 'x', args: '{bad' }]);
-  });
-});
-
-// OpenAI's reasoning models make one action call per turn (measured 2026-10-14),
-// so the adapter answers every call "recorded" and asks again until `conclude`.
-describe('OpenAI continuation until the final tool', () => {
-  const call = (name: string, id: string) => ({ type: 'function_call', name, arguments: '{}', call_id: id });
-  const turn = (id: string, items: unknown[], input = 100, cached = 0) => ({
-    id,
-    output: items,
-    usage: { input_tokens: input, output_tokens: 10, input_tokens_details: { cached_tokens: cached }, output_tokens_details: { reasoning_tokens: 3 } },
-  });
-  const first = { model: 'gpt-6-astra', input: [{ role: 'user' }], tools: [{ name: 't' }], tool_choice: 'required', parallel_tool_calls: true };
-  const until = { untilTool: 'conclude', maxTurns: 6 };
-
-  it('stops after one turn when conclude is among the calls', async () => {
-    const sent: Record<string, unknown>[] = [];
-    const res = await runOpenAiToolTurns(first, until, async (b) => (sent.push(b), turn('r1', [call('send_whatsapp_text', 'a'), call('conclude', 'b')])));
-    assert.equal(res.turns, 1);
-    assert.deepEqual(res.calls.map((c) => c.name), ['send_whatsapp_text', 'conclude']);
-    assert.equal(sent.length, 1);
+    assert.deepEqual(calls, [
+      { id: 'call_1', name: 'tie_file', args: { file_id: 'f', document_id: 'd' } },
+      { id: 'call_2', name: 'send_whatsapp_text', args: 'not json' },
+    ]);
   });
 
-  it('feeds each call back as "recorded" against the previous response until conclude, summing the usage', async () => {
-    const sent: Record<string, unknown>[] = [];
-    const answers = [
-      turn('r1', [{ type: 'reasoning', summary: [] }, call('set_required', 'c1')], 1000, 900),
-      turn('r2', [call('send_whatsapp_text', 'c2')], 1100, 1000),
-      turn('r3', [call('conclude', 'c3')], 1200, 1100),
-    ];
-    const res = await runOpenAiToolTurns(first, until, async (b) => (sent.push(b), answers[sent.length - 1]!));
-    assert.equal(res.turns, 3);
-    assert.deepEqual(res.calls.map((c) => c.name), ['set_required', 'send_whatsapp_text', 'conclude']);
-    // Every call carries the turn that made it, and the stored response keeps it for the trace.
-    assert.deepEqual(res.calls.map((c) => c.turn), [1, 2, 3]);
-    assert.deepEqual(toolCallsOf({ functionCalls: res.calls }).map((c) => c.turn), [1, 2, 3]);
-    assert.ok(JSON.parse(responseForLog({ functionCalls: res.calls })!)[2].turn === 3);
-    assert.deepEqual(res.usage, { inputTokens: 3300, outputTokens: 30, cachedTokens: 3000, reasoningTokens: 9 });
-    // The second request names the first response and carries only the tool results.
-    assert.equal(sent[1]!.previous_response_id, 'r1');
-    assert.deepEqual(sent[1]!.input, [{ type: 'function_call_output', call_id: 'c1', output: CONTINUATION_RESULT }]);
-    assert.equal(sent[1]!.tool_choice, 'required');
-    assert.deepEqual(sent[1]!.tools, first.tools);
-    assert.equal(sent[2]!.previous_response_id, 'r2');
-    assert.ok(!('instructions' in sent[1]!));
-  });
-
-  it('gives up at maxTurns and on a turn without calls; the gate then reports the missing conclude', async () => {
-    let n = 0;
-    const capped = await runOpenAiToolTurns(first, { untilTool: 'conclude', maxTurns: 3 }, async () => turn(`r${++n}`, [call('add_instance', `c${n}`)]));
-    assert.equal(capped.turns, 3);
-    assert.deepEqual(capped.calls.map((c) => c.name), ['add_instance', 'add_instance', 'add_instance']);
-    n = 0;
-    const silent = await runOpenAiToolTurns(first, until, async () => turn(`r${++n}`, n === 1 ? [call('add_instance', 'c1')] : [{ type: 'message', content: [] }]));
-    assert.equal(silent.turns, 2);
-    assert.deepEqual(silent.calls.map((c) => c.name), ['add_instance']);
-  });
-
-  it('without a continuation rule a single turn is all there is', async () => {
-    let n = 0;
-    const res = await runOpenAiToolTurns(first, undefined, async () => turn(`r${++n}`, [call('add_instance', 'c1')]));
-    assert.equal(res.turns, 1);
-    assert.equal(n, 1);
-    assert.equal(res.calls[0]!.turn, undefined);
+  it('continues the previous response with the results and the note as input items', () => {
+    assert.equal(openAiPreviousResponseId([]), null);
+    assert.equal(openAiPreviousResponseId(transcript), null, 'the last model turn had no id');
+    assert.equal(openAiPreviousResponseId(transcript.slice(0, 2)), 'resp_1');
+    assert.deepEqual(openAiContinuationInput(transcript.slice(0, 2)), [{ type: 'function_call_output', call_id: 'c1', output: 'tied · verification: APPROVED' }]);
+    assert.deepEqual(openAiContinuationInput(transcript), [{ role: 'user', content: [{ type: 'input_text', text: 'NOTE: end the run' }] }]);
   });
 });
 
 describe('logging', () => {
-  it('requestForLog keeps the tools and the forced-choice config', () => {
+  it('requestForLog keeps the tools, the tool config and the loop rule', () => {
     const logged = requestForLog({ model: 'm', contents: 'hi', config: { temperature: 0.3, ...toolRequestConfig(tools) } });
     const config = logged.config as Record<string, unknown>;
     assert.ok(Array.isArray(config.tools));
     assert.ok(config.toolConfig);
     assert.equal(config.responseJsonSchema, undefined);
     assert.equal(logged.continuation, undefined);
-    const continued = requestForLog({ model: 'm', contents: 'hi', continuation: { untilTool: 'conclude', maxTurns: 6 }, config: toolRequestConfig(tools) });
-    assert.deepEqual(continued.continuation, { untilTool: 'conclude', maxTurns: 6 });
+    const rule = { terminalTools: ['send_whatsapp_text', 'send_whatsapp_template', 'goal_complete', 'client_declined'], maxTurns: 12 };
+    const looped = requestForLog({ model: 'm', contents: 'hi', continuation: rule, config: toolRequestConfig(tools) });
+    assert.deepEqual(looped.continuation, rule);
   });
 
-  it('toolCallsOf reads a plain functionCalls property or the parts of the first candidate; responseForLog stores the calls as JSON', () => {
-    const plain = { functionCalls: [{ name: 'conclude', args: { decision: 'follow_up', reasoning: 'r' } }] };
-    assert.deepEqual(toolCallsOf(plain), [{ name: 'conclude', args: { decision: 'follow_up', reasoning: 'r' } }]);
+  it('toolCallsOf reads a plain functionCalls property or the parts of the first candidate; responseForLog stores the items as JSON, texts first per turn', () => {
+    const plain = { functionCalls: [{ id: 'c1', name: 'tie_file', args: { file_id: 'f' }, turn: 1, result: 'tied' }, { name: 'send_whatsapp_text', args: { text: 'a' }, turn: 2 }] };
+    assert.deepEqual(toolCallsOf(plain), [{ name: 'tie_file', args: { file_id: 'f' }, id: 'c1', turn: 1, result: 'tied' }, { name: 'send_whatsapp_text', args: { text: 'a' }, turn: 2 }]);
     const viaParts = { candidates: [{ content: { parts: [{ text: 'x' }, { functionCall: { name: 'send_whatsapp_text', args: { text: 'a', send_at: 'asap' } } }] } }] };
     assert.deepEqual(toolCallsOf(viaParts), [{ name: 'send_whatsapp_text', args: { text: 'a', send_at: 'asap' } }]);
     assert.deepEqual(toolCallsOf({ text: 'just text' }), []);
-    assert.equal(responseForLog(plain), JSON.stringify(plain.functionCalls));
+    const stored = JSON.parse(responseForLog({ ...plain, texts: [{ turn: 2, text: 'I will send now' }] })!) as Record<string, unknown>[];
+    assert.deepEqual(stored.map((i) => [i.turn, i.name ?? i.text]), [[1, 'tie_file'], [2, 'I will send now'], [2, 'send_whatsapp_text']]);
+    assert.equal(stored[0]!.result, 'tied');
     assert.equal(responseForLog({ text: '{"a":1}' }), '{"a":1}');
     assert.equal(responseForLog({}), null);
   });

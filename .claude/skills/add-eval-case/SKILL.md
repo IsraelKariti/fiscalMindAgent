@@ -54,8 +54,11 @@ Stage keys: `injection_detection_llm`, `questionnaire_schema_mapping`, `file_cla
   the type's own fields — there is no generic amount) and
   `expected.verdict` = what the type module's `verify()` must decide (`passed`, `failed_keys` by check key —
   reasons are Hebrew, never match on text).
-- `planner`: a state snapshot; hard code asserts only (decision, channel, valuation date
-  mentioned, ≤3 questions, every resolution with a verbatim quote). No LLM judge.
+- `planner`: a state snapshot; hard code asserts only (`ending` — message / goal_complete /
+  client_declined / none —, `ties`, channel, valuation date mentioned, ≤3 questions, every
+  resolution with a verbatim quote). The planner is a tool loop: the harness answers every call
+  with a canned result (`tool_results` per case; a tie is APPROVED by default) and judges the
+  calls of every turn. No LLM judge.
 
 ## PDF cases
 

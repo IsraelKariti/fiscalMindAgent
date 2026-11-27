@@ -6,12 +6,15 @@ import {
   attestationDetail,
   attributeCollectionOutcome,
   concludeDetail,
+  refusedDetail,
   resolveDocumentDetail,
   retireDocumentDetail,
   sendMessageDetail,
   stateCostDetail,
   stateVehicleDetail,
   documentFetchDetail,
+  tieResultText,
+  toolResultText,
 } from '../src/agents/declarationOfCapital/toolStepDetails.js';
 import { DECISION_TOOL_NAMES, type ParsedToolCall } from '../src/agents/declarationOfCapital/decisionTools.js';
 import type { AuditAction } from '../src/audit/audit.js';
@@ -20,7 +23,7 @@ import type { DocumentFileRow } from '../src/db/types.js';
 // Every planner tool is an audited step name (openspec `conversation-trace`): a compile-time check.
 const TOOL_ACTIONS: AuditAction[] = [...DECISION_TOOL_NAMES];
 test('every planner tool name is an audit action', () => {
-  assert.equal(TOOL_ACTIONS.length, 14);
+  assert.equal(TOOL_ACTIONS.length, 15);
 });
 
 // openspec `team-questions`: the ask_team step carries the question, the reason, the addressee and the stored id.
@@ -89,6 +92,10 @@ test('set_required: name next to id, the quote, the created rows and the outcome
   });
   assert.equal(required.reason, 'resolved required · 1 rows');
   assert.deepEqual(required.instances, ['קרן השתלמות — אלטשולר שחם']);
+  // The created row ids ride on the step so the result can name them for a later turn.
+  const withIds = resolveDocumentDetail(call('set_required', { document_id: 'd2', resolution: 'required', evidence_quote: 'יש' }), docName, { applied: true, evidence: { message_id: 'm1', quote: 'יש' }, createdNames: ['x'], createdIds: ['n7'] });
+  assert.deepEqual(withIds.instanceIds, ['n7']);
+  assert.equal(toolResultText(call('set_required', { document_id: 'd2' }), withIds), 'resolved required · 1 rows — document ids n7');
   assert.equal(required.provenByFileId, 'f1');
   assert.match(required.quote ?? '', /נוצר מקובץ על שם הלקוח/);
   assert.equal(resolveDocumentDetail(call('set_required', { document_id: 'd9', resolution: 'not_required' }), docName, { applied: false, evidence: null, createdNames: [] }).reason, 'no change: the row could not be resolved');
@@ -112,6 +119,8 @@ test('add_instance: the created row, its status, the accepted and the refused fi
   assert.deepEqual(detail.acceptedFiles, ['statement.pdf']);
   assert.deepEqual(detail.refusedFiles, ['blocked.pdf (not_verified_legible)']);
   assert.equal(detail.reason, 'created "קרן השתלמות — מיטב" · claimed · 1 file · 1 refused');
+  // The result the model is answered with names the new row's id (openspec planner-answer-tools).
+  assert.equal(toolResultText(call('add_instance', { anchor_document_id: 'd2', name: 'קרן השתלמות — מיטב' }), detail), 'created "קרן השתלמות — מיטב" · claimed · 1 file · 1 refused — document id n1');
   assert.equal(addInstanceDetail(call('add_instance', { anchor_document_id: 'd2', name: 'x' }), docName, fileName, { row: null, evidence: null, acceptedFileIds: [], refused: [] }).reason, 'no change: the row was not created');
 });
 
@@ -142,8 +151,7 @@ test('retire_document, state_cost, state_vehicle and attestation carry their par
   assert.deepEqual(attestationDetail(call('attestation', { action: 'request' }), { applied: true, emailId: 'e1' }), { tool: 'attestation', action: 'request', emailId: 'e1', applied: true, reason: 'attestation requested on draft e1' });
 });
 
-const ctx = (afterVerification = false) => ({
-  afterVerification,
+const ctx = () => ({
   pendingIds: new Set(['d1', 'd2', 'd3']),
   documentIds: new Set(['d1', 'd2', 'd3']),
   fileById,
@@ -158,7 +166,6 @@ test('tie_file: three companies for one item — the first is tied and renamed, 
     call('tie_file', { file_id: 'fc', document_id: 'd3' }),
     call('tie_file', { file_id: 'fm', document_id: 'd3' }),
     call('mark_collected', { document_id: 'd3' }),
-    call('conclude', { decision: 'collect' }),
   ];
   const steps = attributeCollectionOutcome(
     calls,
@@ -224,15 +231,48 @@ test('tie_file refused leaves the document pending; a claim says so; a quarantin
   assert.equal(details[5]!.reason, 'no change: the row was not pending');
 });
 
-test('tie_file to an unknown file or document is ignored; after verification every mark_collected is skipped', () => {
+test('tie_file to an unknown file or document is ignored', () => {
   const steps = attributeCollectionOutcome(
     [call('tie_file', { file_id: 'zz', document_id: 'd1' }), call('tie_file', { file_id: 'f1', document_id: 'zz' }), call('mark_collected', { document_id: 'd1' })],
     { newlyCollected: [], newlyClaimed: [], proposedPairs: [], refusedTies: [], splitDetail: noSplit },
-    ctx(true),
+    ctx(),
   );
   assert.equal(steps[0]!.detail.reason, 'ignored: unknown file');
   assert.equal(steps[1]!.detail.reason, 'ignored: unknown document');
-  assert.equal(steps[2]!.detail.outcome, 'skipped');
+  assert.equal(steps[2]!.detail.reason, 'pending: no file proves it');
+});
+
+// openspec planner-answer-tools, "A file tie is verified before the model continues": the tie's result carries the verdict.
+test('tieResultText: the tie outcome, then the verdict with its facts or reasons', () => {
+  const tied = { reason: 'tied' };
+  assert.equal(tieResultText(tied, { outcome: 'approved', reasons: [], facts: ['as of 2025-12-31', 'יתרה: 14,808.81'] }), 'tied · verification: APPROVED — the document is closed (as of 2025-12-31 | יתרה: 14,808.81)');
+  assert.match(tieResultText(tied, { outcome: 'reopened', reasons: ['התאריך אינו 31.12.2025'], facts: [] }), /REJECTED: התאריך אינו 31.12.2025 — the row is pending again; this file does NOT count as received/);
+  assert.match(tieResultText(tied, { outcome: 'stalled', reasons: ['x'], facts: [] }), /HANDED TO THE OFFICE: x/);
+  assert.match(tieResultText(tied, { outcome: 'error', reasons: [], facts: [] }), /NOT CHECKED YET — the file is received/);
+  assert.match(tieResultText(tied, { outcome: 'skipped', reasons: [], facts: [] }), /NOT CHECKED YET/);
+  assert.equal(tieResultText({ reason: 'collected' }, { outcome: 'claimed', reasons: [], facts: [] }), 'collected · no file: the document waits for the accountant as claimed');
+  assert.equal(tieResultText({ reason: 'refused: paper_differs' }, null), 'refused: paper_differs');
+  assert.equal(tieResultText({ reason: 'ignored: unknown file' }, { outcome: 'none', reasons: [], facts: [] }), 'ignored: unknown file');
+});
+
+test('refusedDetail: the refusal as outcome and as the result the model was given, ids with names', () => {
+  const detail = refusedDetail(call('tie_file', { file_id: 'f1', document_id: 'd1', evidence_quote: 'זה שלי' }, 2), 'the companies differ', (id) => docName(id) ?? fileName(id));
+  assert.deepEqual(detail, {
+    tool: 'tie_file',
+    turn: 2,
+    documentId: 'd1',
+    name: docs.get('d1'),
+    fileId: 'f1',
+    fileName: 'statement.pdf',
+    quote: 'זה שלי',
+    applied: false,
+    refused: true,
+    refusal: 'the companies differ',
+    reason: 'refused: the companies differ',
+    result: 'refused: the companies differ',
+  });
+  assert.equal(toolResultText(call('tie_file', {}), { applied: false }), 'no change');
+  assert.equal(toolResultText(call('mark_collected', {}), {}), 'done');
 });
 
 test('send_whatsapp_text / send_whatsapp_template: the requested and the scheduled time, the roll, the template name', () => {
@@ -260,14 +300,28 @@ test('send_whatsapp_text / send_whatsapp_template: the requested and the schedul
   assert.equal(template.reason, 'scheduled 2026-11-08 09:00 (rolled off a weekend / chag)');
 });
 
-test('document_fetch and conclude record the action / decision and what the cycle did with it', () => {
+test('document_fetch records the action and whether a context took it', () => {
   assert.equal(documentFetchDetail(call('document_fetch', { action: 'client_agreed', provider: 'tax_authority', document_keys: ['form_106'] }), { applied: true, provider: 'tax_authority', documentKeys: ['form_106'], emailId: 'e1' }).reason, 'client_agreed applied');
   assert.equal(documentFetchDetail(call('document_fetch', { action: 'cancel', provider: 'x' }), { applied: false, provider: null, documentKeys: null, emailId: null }).reason, 'cancel: no fetch context for this provider');
-  const conclude = call('conclude', { decision: 'collect', reasoning: 'קובץ תואם' });
-  const collect = concludeDetail(conclude, { kind: 'collect', collectedNames: ['x'], verified: [{ documentName: 'x', fileName: 'a.pdf' }] });
-  assert.deepEqual(collect, { tool: 'conclude', decision: 'collect', reasoning: 'קובץ תואם', collected: ['x'], verifying: ['x ← a.pdf'], reason: 'reply withheld · verifying 1 document' });
-  assert.equal(concludeDetail(conclude, { kind: 'follow_up' }).reason, 'follow-up: the message is scheduled next');
-  assert.equal(concludeDetail(conclude, { kind: 'goal_complete', completed: true, derived: true }).reason, 'goal completed (every row settled and the attestation confirmed)');
-  assert.equal(concludeDetail(conclude, { kind: 'goal_complete', completed: false, why: 'documents are still unsettled' }).reason, 'premature: documents are still unsettled');
-  assert.equal(concludeDetail(conclude, { kind: 'client_declined' }).reason, 'the client declined: the decline routine answers and pauses');
+});
+
+// openspec conversation-trace, "The conclude step records the decision and what the cycle did with it": written by code at the end of the run.
+test('concludeDetail: how the run ended, the reasoning of the terminal call, the turn count; a failure is marked', () => {
+  assert.deepEqual(concludeDetail({ kind: 'message', emailId: 'e1', sendAt: '2026-11-27 10:00', reasoning: 'קובץ אושר', turns: 2 }), {
+    tool: 'conclude',
+    ended_by: 'message',
+    turns: 2,
+    decision: 'follow_up',
+    reasoning: 'קובץ אושר',
+    emailId: 'e1',
+    send_at: '2026-11-27 10:00',
+    reason: 'message scheduled for 2026-11-27 10:00 · 2 turns',
+  });
+  assert.equal(concludeDetail({ kind: 'goal_complete', reasoning: 'r', turns: 1 }).reason, 'goal completed (every row settled and the attestation confirmed) · 1 turn');
+  assert.equal(concludeDetail({ kind: 'client_declined', reasoning: 'r', turns: 1 }).decision, 'client_declined');
+  const failed = concludeDetail({ kind: 'failed', why: 'no_ending', turns: 3 }) as Record<string, unknown>;
+  assert.equal(failed.decision, 'failed');
+  assert.equal(failed.applied, false);
+  assert.equal(failed.reason, 'failed: no ending after 3 turns (two turns without a tool call)');
+  assert.equal(concludeDetail({ kind: 'failed', why: 'cap', turns: 12 }).reason, 'failed: 12 turns without an ending (the turn cap)');
 });

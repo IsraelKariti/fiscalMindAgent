@@ -1,30 +1,25 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { check, type GateCheck } from '../shared/gateChecks.js';
 import { CAPITAL_DOCUMENT_PAPER_VALUES } from './catalog.js';
-import {
-  AFTER_VERIFICATION_DECISION_VALUES,
-  DECISION_VALUES,
-  DecisionRejectedError,
-  normalizeDecision,
-  type DecisionContext,
-  type DecisionResponse,
-  type NormalizedDecision,
-} from './decisionSchema.js';
+import type { DecisionContext, DecisionResponse } from './decisionSchema.js';
 
 /**
- * The planner's answer as tool calls (openspec `planner-answer-tools`).
+ * The planner's tools (openspec `planner-answer-tools`).
  *
  * One deep JSON form made Anthropic's structured-output compiler refuse every
  * planner call ("The compiled grammar is too large", measured 2026-10-14: the
  * stated-cost sub-form nested four levels deep in two lists). Instead the
  * model is offered small tools, each with a FLAT parameter list — every
- * parameter required, never nullable, never an object or a list of objects —
- * and answers with one or more calls, `conclude` among them (one turn on
- * Gemini/Anthropic; OpenAI is asked again until `conclude`, see llmCall.ts).
- * `assembleDecision`
- * turns the calls into the raw `DecisionResponse` the form used to deliver,
- * so `normalizeDecision` stays the single business-rule authority.
+ * parameter required, never nullable, never an object or a list of objects.
+ *
+ * Since 2026-11-27 the planner is a tool loop (gemini/toolLoop.ts): every
+ * turn's calls are judged and executed at once and answered with their real
+ * result, and the run ends on an accepted TERMINAL call — a message
+ * (`send_whatsapp_text` / `send_whatsapp_template`), `goal_complete` or
+ * `client_declined`. There is no `conclude` and no decision label.
+ * `assembleCalls` turns the calls of one unit (one or a few calls that belong
+ * together) into the raw `DecisionResponse` the validators read, so
+ * `normalizeChanges` stays the single business-rule authority.
  *
  * "None" is the empty value of the parameter's type: '' for text, [] for a
  * list, 0 for a number. The shape test (tests/decisionTools.test.ts) fails
@@ -49,43 +44,57 @@ export interface DecisionTool {
   params: z.ZodObject<z.ZodRawShape>;
 }
 
-const concludeTool = (values: readonly [string, ...string[]]): DecisionTool => ({
-  name: 'conclude',
-  description: 'The decision of this answer and the reasoning behind it. Call exactly once per answer.',
-  params: z
-    .object({
-      decision: z.enum(values),
-      reasoning: z.string().describe('Short reasoning for the whole answer.'),
-    })
-    .strict(),
-});
+const REASONING_PARAM = { reasoning: z.string().describe('Short reasoning for how this run ends, in Hebrew.') };
 
-const ALWAYS_TOOLS: DecisionTool[] = [
+/** The four tools whose accepted call ends the run. */
+export const TERMINAL_TOOL_NAMES = ['send_whatsapp_text', 'send_whatsapp_template', 'goal_complete', 'client_declined'] as const;
+export type TerminalToolName = (typeof TERMINAL_TOOL_NAMES)[number];
+
+const TERMINAL_TOOLS: DecisionTool[] = [
   {
     name: 'send_whatsapp_text',
-    description: 'Schedule one free-form WhatsApp message (only while the 24h window is open). A follow_up carries exactly one send_* call.',
+    description:
+      'Schedule the one free-form WhatsApp message of this run (only while the 24h window is open) and END the run. Call it after the results of your other calls (a tie returns its verification verdict).',
     params: z
       .object({
         text: z.string().describe('The message text, plain text.'),
         send_at: z.string().describe('"YYYY-MM-DD HH:MM" in the accountant\'s timezone, or "asap" for a reply to a client who is waiting now.'),
+        ...REASONING_PARAM,
       })
       .strict(),
   },
   {
     name: 'send_whatsapp_template',
-    description: 'Schedule one approved WhatsApp template message (the only option outside the 24h window). A follow_up carries exactly one send_* call.',
+    description: 'Schedule the one approved WhatsApp template message of this run (the only option outside the 24h window) and END the run.',
     params: z
       .object({
         template_id: z.string().describe('The template id from the WHATSAPP CHANNEL section.'),
         variables: z.array(z.string()).describe('The {{n}} variable values, exactly as many as the template needs.'),
         send_at: z.string().describe('"YYYY-MM-DD HH:MM" in the accountant\'s timezone, or "asap".'),
+        ...REASONING_PARAM,
       })
       .strict(),
   },
   {
+    name: 'goal_complete',
+    description:
+      'END the run with the goal complete: every checklist row is approved / stated / not_required AND the client confirmed the attestation summary. The system sends the fixed closing message; no send_* call.',
+    params: z.object({ ...REASONING_PARAM }).strict(),
+  },
+  {
+    name: 'client_declined',
+    description:
+      'END the run: the client refused the WhatsApp collection in words. Call it alone — no message, no tie, no checklist change; the system sends the fixed acknowledgement.',
+    params: z.object({ ...REASONING_PARAM }).strict(),
+  },
+];
+
+const ALWAYS_TOOLS: DecisionTool[] = [
+  ...TERMINAL_TOOLS,
+  {
     name: 'ask_team',
     description:
-      "Ask the client's team member at the office one question you cannot settle yourself (office practice, an unusual document, a tax judgement). Only with a follow_up whose message tells the client you will check with the office (send_at \"asap\"); never while a question is still open (see TEAM QUESTIONS).",
+      "Ask the client's team member at the office one question you cannot settle yourself (office practice, an unusual document, a tax judgement). Before this run's message, which tells the client you will check with the office (send_at \"asap\"); never while a question is still open (see TEAM QUESTIONS).",
     params: z
       .object({
         question: z.string().describe('The question for the team member, in Hebrew, self-contained.'),
@@ -94,9 +103,6 @@ const ALWAYS_TOOLS: DecisionTool[] = [
       })
       .strict(),
   },
-];
-
-const COLLECT_TOOLS: DecisionTool[] = [
   {
     name: 'mark_collected',
     description: 'A required document the client provided without a file in this thread (handed to the office another way); it waits for the accountant as "claimed".',
@@ -104,7 +110,8 @@ const COLLECT_TOOLS: DecisionTool[] = [
   },
   {
     name: 'tie_file',
-    description: 'A received file IS this required document. Evidence ("" / "") is needed only when the code cannot confirm the company of the file or of the item.',
+    description:
+      'A received file IS this required document. The system verifies the document at once and the result is the verdict (approved with the facts read / rejected with the reasons / not yet checked). Evidence ("" / "") is needed only when the code cannot confirm the company of the file or of the item.',
     params: z
       .object({
         file_id: z.string(),
@@ -114,7 +121,6 @@ const COLLECT_TOOLS: DecisionTool[] = [
       .strict(),
   },
 ];
-
 const INTAKE_TOOLS: DecisionTool[] = [
   {
     name: 'set_required',
@@ -134,7 +140,7 @@ const INTAKE_TOOLS: DecisionTool[] = [
   {
     name: 'add_instance',
     description:
-      'One concrete item under a catalog row: a row resolved required in this same answer, or an already-resolved row. Exactly one of the evidence pair or proven_by_file_id is non-empty.',
+      'One concrete item under a catalog row: a row resolved required in this same turn, or an already-resolved row. Exactly one of the evidence pair or proven_by_file_id is non-empty. The result names the id of the row it created.',
     params: z
       .object({
         anchor_document_id: z.string().describe('The catalog row this item belongs to.'),
@@ -155,7 +161,7 @@ const INTAKE_TOOLS: DecisionTool[] = [
   {
     name: 'state_cost',
     description:
-      'A purchase cost the client stated in the chat for a PROPERTY cost-declaration item (paper cost_declaration only — a vehicle is stated with state_vehicle, never here): an existing item (document_id set, instance_name "") or an item added in this answer (document_id "", instance_name = that add_instance name).',
+      'A purchase cost the client stated in the chat for a PROPERTY cost-declaration item (paper cost_declaration only — a vehicle is stated with state_vehicle, never here): an existing item (document_id set, instance_name ""), or an item added in this same turn (document_id "", instance_name = that add_instance name); an item added in an earlier turn is named by the id its result returned.',
     params: z
       .object({
         document_id: z.string(),
@@ -169,7 +175,7 @@ const INTAKE_TOOLS: DecisionTool[] = [
   {
     name: 'state_vehicle',
     description:
-      "Vehicle facts the client stated in the chat for a client-vehicle-declaration item (paper vehicle_declaration): an existing item (document_id set, instance_name \"\") — pending, or already stated when adding facts — or an item added in this answer (document_id \"\", instance_name = that add_instance name). Give ONLY facts the client wrote in the quoted message, spelled as there — the car's name in the item name or the questionnaire is not a quote and must stay ''; '' / 0 = not stated. All empty with a quote = the client knows nothing more (the item still closes).",
+      "Vehicle facts the client stated in the chat for a client-vehicle-declaration item (paper vehicle_declaration): an existing item (document_id set, instance_name \"\") — pending, or already stated when adding facts — or an item added in this same turn (document_id \"\", instance_name = that add_instance name). Give ONLY facts the client wrote in the quoted message, spelled as there — the car's name in the item name or the questionnaire is not a quote and must stay ''; '' / 0 = not stated. All empty with a quote = the client knows nothing more (the item still closes).",
     params: z
       .object({
         document_id: z.string(),
@@ -210,7 +216,7 @@ const INTAKE_TOOLS: DecisionTool[] = [
   {
     name: 'attestation',
     description:
-      'The final-confirmation gate: request — this answer\'s message IS the closing summary (evidence "" / ""); confirmed — the client confirmed the summary (evidence required).',
+      'The final-confirmation gate: request — this run\'s message IS the closing summary (evidence "" / ""; every row already settled, nothing changed in this run); confirmed — the client confirmed the summary (evidence required).',
     params: z
       .object({
         action: z.enum(ATTESTATION_ACTIONS),
@@ -219,10 +225,9 @@ const INTAKE_TOOLS: DecisionTool[] = [
       .strict(),
   },
 ];
-
 const DOCUMENT_FETCH_TOOL: DecisionTool = {
   name: 'document_fetch',
-  description: 'A document-fetch step for one provider (see the DOCUMENT FETCH sections for the actions allowed now).',
+  description: 'A document-fetch step for one provider (see the DOCUMENT FETCH sections for the actions allowed now). Applied together with this run\'s message.',
   params: z
     .object({
       action: z.enum(DOCUMENT_FETCH_ACTIONS),
@@ -233,9 +238,10 @@ const DOCUMENT_FETCH_TOOL: DecisionTool = {
 };
 
 export const DECISION_TOOL_NAMES = [
-  'conclude',
   'send_whatsapp_text',
   'send_whatsapp_template',
+  'goal_complete',
+  'client_declined',
   'mark_collected',
   'tie_file',
   'set_required',
@@ -250,21 +256,17 @@ export const DECISION_TOOL_NAMES = [
 ] as const;
 export type DecisionToolName = (typeof DECISION_TOOL_NAMES)[number];
 
+export function isTerminalTool(name: string): name is TerminalToolName {
+  return (TERMINAL_TOOL_NAMES as readonly string[]).includes(name);
+}
+
 /**
- * The tools offered for one call: the full set minus what this client cannot
- * use (no intake → no checklist tools; no fetch provider → no document_fetch; the
- * follow-up cycle after a verification batch → no collecting tools and no
- * 'collect' value). conclude and the two send_* tools are always offered.
+ * The tools offered for one run: the full set minus what this client cannot
+ * use (no intake → no checklist tools; no fetch provider → no document_fetch).
+ * The terminal tools, ask_team, mark_collected and tie_file are always offered.
  */
 export function toolsForContext(ctx: DecisionContext): DecisionTool[] {
-  const values = ctx.afterVerification ? AFTER_VERIFICATION_DECISION_VALUES : DECISION_VALUES;
-  return [
-    concludeTool(values as unknown as readonly [string, ...string[]]),
-    ...ALWAYS_TOOLS,
-    ...(ctx.afterVerification ? [] : COLLECT_TOOLS),
-    ...(ctx.intake ? INTAKE_TOOLS : []),
-    ...((ctx.documentFetch ?? []).length > 0 ? [DOCUMENT_FETCH_TOOL] : []),
-  ];
+  return [...ALWAYS_TOOLS, ...(ctx.intake ? INTAKE_TOOLS : []), ...((ctx.documentFetch ?? []).length > 0 ? [DOCUMENT_FETCH_TOOL] : [])];
 }
 
 /** The cache key of a context's tool set. */
@@ -297,7 +299,9 @@ export function toolJsonSchemas(ctx: DecisionContext): DecisionToolJson[] {
 export interface ToolCall {
   name: string;
   args: unknown;
-  /** The model turn that made the call (1-based), set only by a continued answer; absent = the single turn. */
+  /** The provider's call id, when it gives one. */
+  id?: string;
+  /** The model turn that made the call (1-based). */
   turn?: number;
 }
 
@@ -305,34 +309,136 @@ export interface ToolCall {
 export interface ParsedToolCall {
   name: DecisionToolName;
   args: Record<string, unknown>;
+  id?: string;
   turn?: number;
+  /** The call's position in its turn (0-based): the loop maps results back by it. */
+  index?: number;
+}
+
+/** A call the `tool_calls` check refused: not an offered tool, or arguments that do not match the tool's schema. */
+export interface ShapeFault {
+  index: number;
+  call: ToolCall;
+  /** The tool's name when the tool exists (a step can be recorded under it); null for an unknown tool. */
+  tool: DecisionToolName | null;
+  reason: string;
 }
 
 /**
- * The `tool_calls` check: at least one call, every call names an offered
- * tool, every call's arguments match that tool's schema, and `conclude` is
- * called exactly once. Throws a plain Error with the first fault.
+ * The `tool_calls` check of one turn, per call: every call names an offered
+ * tool and its arguments match that tool's schema. Calls that pass are
+ * returned parsed (with their turn position); the others as faults, each with
+ * the reason the model is answered with.
  */
-export function parseToolCalls(calls: ToolCall[], tools: DecisionTool[]): ParsedToolCall[] {
-  if (calls.length === 0) throw new Error('the answer must be one or more tool calls — none was made');
+export function parseTurnCalls(calls: readonly ToolCall[], tools: readonly DecisionTool[]): { accepted: ParsedToolCall[]; faults: ShapeFault[] } {
   const byName = new Map(tools.map((t) => [t.name as string, t]));
-  const parsed: ParsedToolCall[] = [];
-  for (const call of calls) {
+  const accepted: ParsedToolCall[] = [];
+  const faults: ShapeFault[] = [];
+  calls.forEach((call, index) => {
     const tool = byName.get(call.name);
     if (!tool) {
-      throw new Error(`tool "${call.name}" is not offered in this request — the tools are: ${tools.map((t) => t.name).join(', ')}`);
+      const hint = call.name === 'conclude' ? ` — there is no conclude: the run ends on a terminal tool (${TERMINAL_TOOL_NAMES.join(', ')})` : '';
+      faults.push({ index, call, tool: null, reason: `tool "${call.name}" is not offered in this request${hint} — the tools are: ${tools.map((t) => t.name).join(', ')}` });
+      return;
     }
     const result = tool.params.safeParse(call.args ?? {});
     if (!result.success) {
       const issue = result.error.issues[0];
       const where = issue && issue.path.length > 0 ? ` at ${issue.path.join('.')}` : '';
-      throw new Error(`tool "${call.name}"${where}: ${issue?.message ?? 'invalid arguments'}`);
+      faults.push({ index, call, tool: tool.name, reason: `tool "${call.name}"${where}: ${issue?.message ?? 'invalid arguments'}` });
+      return;
     }
-    parsed.push({ name: tool.name, args: result.data as Record<string, unknown>, ...(call.turn !== undefined ? { turn: call.turn } : {}) });
+    accepted.push({ name: tool.name, args: result.data as Record<string, unknown>, index, ...(call.id !== undefined ? { id: call.id } : {}), ...(call.turn !== undefined ? { turn: call.turn } : {}) });
+  });
+  return { accepted, faults };
+}
+
+/**
+ * The fixed safe order the calls of one turn execute in (openspec
+ * `conversation-trace`): checklist changes, then the attestation, then ties
+ * and collections, then the team question, then the fetch action, then the
+ * terminal call. Stable within a group.
+ */
+const EXECUTION_ORDER: Record<DecisionToolName, number> = {
+  set_required: 0,
+  set_company: 1,
+  add_instance: 2,
+  retire_document: 3,
+  state_cost: 4,
+  state_vehicle: 5,
+  attestation: 6,
+  tie_file: 7,
+  mark_collected: 8,
+  ask_team: 9,
+  document_fetch: 10,
+  send_whatsapp_text: 11,
+  send_whatsapp_template: 11,
+  goal_complete: 11,
+  client_declined: 11,
+};
+
+export function inExecutionOrder<T extends { name: DecisionToolName }>(calls: readonly T[]): T[] {
+  return [...calls].sort((a, b) => EXECUTION_ORDER[a.name] - EXECUTION_ORDER[b.name]);
+}
+
+/** The checklist tools: judged and applied as units (a resolution with the instances added under it, an addition with its stated cost). */
+const CHECKLIST_TOOLS: ReadonlySet<DecisionToolName> = new Set(['set_required', 'set_company', 'add_instance', 'retire_document', 'state_cost', 'state_vehicle', 'attestation']);
+
+export function isChecklistTool(name: DecisionToolName): boolean {
+  return CHECKLIST_TOOLS.has(name);
+}
+
+/**
+ * The units of a turn's checklist calls, each judged on its own so that one
+ * refused call never undoes its neighbours: a `set_required(required)` with
+ * the `add_instance` calls anchored on its row (and their `state_cost` /
+ * `state_vehicle` by instance name); the remaining `add_instance` calls per
+ * anchor with their statements; every other checklist call alone. A duplicate
+ * target in one turn is its own unit, refused by assembly. A statement that
+ * names an instance no `add_instance` of the turn has is its own unit too, and
+ * assembly refuses it by name.
+ */
+export function checklistUnits(calls: readonly ParsedToolCall[]): ParsedToolCall[][] {
+  const used = new Set<ParsedToolCall>();
+  const units: ParsedToolCall[][] = [];
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
+  const statementsFor = (instanceNames: Set<string>) =>
+    calls.filter((c) => !used.has(c) && (c.name === 'state_cost' || c.name === 'state_vehicle') && str(c.args.document_id).trim() === '' && instanceNames.has(str(c.args.instance_name).trim()));
+  const seenResolved = new Set<string>();
+  for (const call of calls) {
+    if (used.has(call) || call.name !== 'set_required') continue;
+    const id = str(call.args.document_id);
+    used.add(call);
+    if (seenResolved.has(id)) {
+      units.push([call]); // the duplicate: assembly refuses it
+      continue;
+    }
+    seenResolved.add(id);
+    const unit = [call];
+    if (call.args.resolution === 'required') {
+      const own = calls.filter((c) => !used.has(c) && c.name === 'add_instance' && str(c.args.anchor_document_id) === id);
+      own.forEach((c) => used.add(c));
+      unit.push(...own);
+      const statements = statementsFor(new Set(own.map((c) => str(c.args.name).trim())));
+      statements.forEach((c) => used.add(c));
+      unit.push(...statements);
+    }
+    units.push(unit);
   }
-  const concludes = parsed.filter((c) => c.name === 'conclude').length;
-  if (concludes !== 1) throw new Error(`conclude must be called exactly once per answer (got ${concludes})`);
-  return parsed;
+  const anchors = [...new Set(calls.filter((c) => !used.has(c) && c.name === 'add_instance').map((c) => str(c.args.anchor_document_id)))];
+  for (const anchor of anchors) {
+    const own = calls.filter((c) => !used.has(c) && c.name === 'add_instance' && str(c.args.anchor_document_id) === anchor);
+    own.forEach((c) => used.add(c));
+    const statements = statementsFor(new Set(own.map((c) => str(c.args.name).trim())));
+    statements.forEach((c) => used.add(c));
+    units.push([...own, ...statements]);
+  }
+  for (const call of calls) {
+    if (used.has(call) || !CHECKLIST_TOOLS.has(call.name)) continue;
+    used.add(call);
+    units.push([call]);
+  }
+  return units;
 }
 
 type Evidence = { message_id: string; quote: string } | null;
@@ -349,50 +455,35 @@ const NO_COST = { amount: 0, currency: '', message_id: '', quote: '' };
 const NO_VEHICLE = { manufacturer: '', model: '', production_year: 0, license_plate: '', purchase_cost: 0, currency: '', message_id: '', quote: '' };
 
 /**
- * Turns the parsed calls of one answer into the raw form `normalizeDecision`
- * reads. Throws a plain Error for the call-count rules (one send_* at most,
- * one attestation at most, one document_fetch at most, a state_cost naming exactly
- * one target, an unknown instance name); those surface as `business_rules`.
+ * Turns the parsed calls of one unit (or of a whole turn's ties) into the raw
+ * form `normalizeChanges` reads. Throws a plain Error for the within-unit
+ * rules (a resolution twice for one row, a statement naming exactly one
+ * target, an unknown instance name, more than one attestation or fetch call);
+ * those surface as the unit's refusal.
  */
-export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
+export function assembleCalls(calls: readonly ParsedToolCall[]): DecisionResponse {
   const of = (name: DecisionToolName) => calls.filter((c) => c.name === name).map((c) => c.args);
-  const conclude = of('conclude')[0];
-  if (!conclude) throw new Error('conclude must be called exactly once per answer (got 0)');
-
-  const texts = of('send_whatsapp_text');
-  const templates = of('send_whatsapp_template');
-  if (texts.length + templates.length > 1) {
-    throw new Error(
-      `a follow_up carries exactly one message: ${texts.length} send_whatsapp_text and ${templates.length} send_whatsapp_template calls were made — keep one`,
-    );
-  }
-  const text = texts[0];
-  const template = templates[0];
-  if (str(conclude.decision) === 'follow_up' && !text && !template) {
-    throw new Error('a follow_up needs exactly one WhatsApp message: call send_whatsapp_text (inside the 24h window) or send_whatsapp_template, with its send_at');
-  }
 
   const attestations = of('attestation');
-  if (attestations.length > 1) throw new Error('attestation must be called at most once per answer');
+  if (attestations.length > 1) throw new Error('attestation must be called at most once per turn');
   const attestation = attestations[0];
 
   const fetches = of('document_fetch');
-  if (fetches.length > 1) throw new Error('document_fetch must be called at most once per answer');
+  if (fetches.length > 1) throw new Error('document_fetch must be called at most once per turn');
   const fetch = fetches[0];
 
-  // One question to the team at most (openspec `team-questions`); the gate checks the rest.
   const asks = of('ask_team');
-  if (asks.length > 1) throw new Error('ask_team must be called at most once per answer — one question per cycle');
+  if (asks.length > 1) throw new Error('ask_team must be called at most once per run — one question per run');
   const ask = asks[0];
 
-  // Instances: under a row this answer resolves `required` they are that resolution's instances;
+  // Instances: under a row this unit resolves `required` they are that resolution's instances;
   // otherwise one added_instances entry per anchor (the validator rejects two entries on one anchor).
   const resolved = of('set_required');
   const resolvedIds = new Set(resolved.map((r) => str(r.document_id)));
   const seenResolved = new Set<string>();
   for (const r of resolved) {
     const id = str(r.document_id);
-    if (seenResolved.has(id)) throw new Error(`set_required was called twice for document ${id} — resolve each row once`);
+    if (seenResolved.has(id)) throw new Error(`set_required was called twice for document ${id} in this turn — resolve each row once`);
     seenResolved.add(id);
   }
   const instanceCalls = of('add_instance');
@@ -411,13 +502,13 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
     } as RawInstance,
   }));
 
-  // Stated costs: for an existing item, or for an instance added in this answer (by name).
+  // Stated costs: for an existing item, or for an instance added in this turn (by name).
   const statedCosts: DecisionResponse['stated_costs'] = [];
   for (const s of of('state_cost')) {
     const documentId = str(s.document_id).trim();
     const instanceName = str(s.instance_name).trim();
     if ((documentId === '') === (instanceName === '')) {
-      throw new Error('state_cost names exactly one target: document_id for an existing item, or instance_name for an item added in this answer');
+      throw new Error('state_cost names exactly one target: document_id for an existing item, or instance_name for an item added in this turn');
     }
     const amount = typeof s.amount === 'number' ? s.amount : Number(s.amount);
     const currency = str(s.currency);
@@ -429,19 +520,19 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
     const target = instances.find((i) => i.instance.name.trim() === instanceName);
     if (!target) {
       throw new Error(
-        `state_cost names instance "${instanceName}" but no add_instance call of this answer has that name — use the exact name of the add_instance call`,
+        `state_cost names instance "${instanceName}" but no add_instance call of this turn has that name — use the exact name of the add_instance call of the same turn, or the document id an earlier turn's add_instance result returned`,
       );
     }
     target.instance.stated_cost = { amount, currency, message_id: evidence.message_id, quote: evidence.quote };
   }
 
-  // Vehicle statements (openspec `vehicle-declaration`): for an existing item, or for an instance added in this answer (by name).
+  // Vehicle statements (openspec `vehicle-declaration`): for an existing item, or for an instance added in this turn (by name).
   const statedVehicles: DecisionResponse['stated_vehicles'] = [];
   for (const v of of('state_vehicle')) {
     const documentId = str(v.document_id).trim();
     const instanceName = str(v.instance_name).trim();
     if ((documentId === '') === (instanceName === '')) {
-      throw new Error('state_vehicle names exactly one target: document_id for an existing item, or instance_name for an item added in this answer');
+      throw new Error('state_vehicle names exactly one target: document_id for an existing item, or instance_name for an item added in this turn');
     }
     const num = (x: unknown): number => (typeof x === 'number' ? x : Number(x) || 0);
     const facts = {
@@ -460,7 +551,7 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
     const target = instances.find((i) => i.instance.name.trim() === instanceName);
     if (!target) {
       throw new Error(
-        `state_vehicle names instance "${instanceName}" but no add_instance call of this answer has that name — use the exact name of the add_instance call`,
+        `state_vehicle names instance "${instanceName}" but no add_instance call of this turn has that name — use the exact name of the add_instance call of the same turn, or the document id an earlier turn's add_instance result returned`,
       );
     }
     target.instance.stated_vehicle = { ...facts, message_id: evidence.message_id, quote: evidence.quote };
@@ -503,16 +594,10 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
     evidence: evidenceOf(c),
   }));
 
-  const sendAt = text ? str(text.send_at) : template ? str(template.send_at) : null;
   const fetchKeys = fetch ? strs(fetch.document_keys) : null;
   return {
-    decision: str(conclude.decision) as DecisionResponse['decision'],
-    reasoning: str(conclude.reasoning),
     collected_document_ids: [...new Set(of('mark_collected').map((m) => str(m.document_id)))],
     matched_files: of('tie_file').map((t) => ({ file_id: str(t.file_id), document_id: str(t.document_id), evidence: evidenceOf(t) })),
-    whatsapp_text: text ? str(text.text) : null,
-    whatsapp_template: template ? { template_id: str(template.template_id), variables: strs(template.variables) } : null,
-    send_at: sendAt === '' ? null : sendAt,
     document_fetch_action: fetch ? (str(fetch.action) as DecisionResponse['document_fetch_action']) : null,
     document_fetch_provider: fetch ? str(fetch.provider) : null,
     document_fetch_document_keys: fetchKeys && fetchKeys.length > 0 ? fetchKeys : null,
@@ -528,67 +613,33 @@ export function assembleDecision(calls: ParsedToolCall[]): DecisionResponse {
   };
 }
 
-/** The message kind the calls propose, read the way normalization reads it; '—' when they carry none. */
-function proposedKind(calls: ParsedToolCall[]): 'freeform' | 'template' | '—' {
-  if (calls.some((c) => c.name === 'send_whatsapp_text')) return 'freeform';
-  if (calls.some((c) => c.name === 'send_whatsapp_template')) return 'template';
-  return '—';
-}
-
 /** `observed` of the tool_calls check: the number of calls and their tool names. */
-export function describeCalls(calls: ToolCall[]): string {
+export function describeCalls(calls: readonly ToolCall[]): string {
   return calls.length === 0 ? '0 calls' : `${calls.length} call${calls.length === 1 ? '' : 's'}: ${calls.map((c) => c.name).join(', ')}`;
 }
 
-/**
- * Step validate_message, pure: the model's calls through the two checks in
- * order — `tool_calls` (offered tools, per-tool schema, exactly one conclude)
- * then `business_rules` (assembly + normalizeDecision). Returns the decision
- * with the check list; throws DecisionRejectedError carrying the checks that
- * ran. The stated-cost checks the validators report on their own are listed
- * between the two.
- */
-export function gateDecision(
-  calls: ToolCall[],
-  ctx: DecisionContext,
-): { decision: NormalizedDecision; calls: ParsedToolCall[]; checks: GateCheck[] } {
-  const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 500);
-  const observed = describeCalls(calls);
-  let parsed: ParsedToolCall[];
-  try {
-    parsed = parseToolCalls(calls, toolsForContext(ctx));
-  } catch (err) {
-    const message = messageOf(err);
-    throw new DecisionRejectedError(message, [check('tool_calls', false, message, { observed })]);
+/** The key parameters of a call as the gate row's `observed` shows them: ids with the names the caller resolves, capped. */
+export function describeCall(call: ParsedToolCall, nameOf: (id: string) => string | undefined): string {
+  const parts: string[] = [];
+  for (const key of ['document_id', 'anchor_document_id', 'file_id', 'instance_name', 'resolution', 'action', 'provider', 'send_at', 'template_id', 'company'] as const) {
+    const v = call.args[key];
+    if (typeof v !== 'string' || v === '') continue;
+    const name = key.endsWith('_id') ? nameOf(v) : undefined;
+    parts.push(`${key}: ${v}${name ? ` (${name})` : ''}`);
   }
-  const toolCheck = check('tool_calls', true, null, { observed });
-  const conclude = parsed.find((c) => c.name === 'conclude')!;
-  const proposed = `${str(conclude.args.decision)} / ${proposedKind(parsed)}`;
-  const extra: GateCheck[] = [];
-  try {
-    const raw = assembleDecision(parsed);
-    const decision = normalizeDecision(raw, ctx, extra);
-    return { decision, calls: parsed, checks: [toolCheck, ...extra, check('business_rules', true, null, { observed: proposed })] };
-  } catch (err) {
-    const message = messageOf(err);
-    throw new DecisionRejectedError(message, [toolCheck, ...extra, check('business_rules', false, message, { observed: proposed })]);
-  }
+  if (typeof call.args.text === 'string') parts.push(`text: ${call.args.text.length} chars`);
+  return `${call.name}${parts.length > 0 ? ` — ${parts.join(', ')}` : ''}`.slice(0, 500);
 }
 
 /**
- * Appended to the original contents for decide()'s corrective pass: the
- * rejected calls, the rejection, and the tool rules the model most often
- * breaks (one conclude; a follow_up has exactly one send_* call; a collect
- * ties a file and has no send_* call).
+ * The one corrective user turn of a run (openspec `planner-answer-tools`, "A
+ * run ends with exactly one ending"): sent after a turn without calls while no
+ * terminal call was accepted. It states the ending rule and nothing else.
  */
-export function correctionSuffix(calls: ToolCall[], err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
+export function endingCorrectionNote(): string {
   return [
-    '',
-    'SYSTEM NOTE: your previous answer was rejected by validation and was NOT executed.',
-    'Your rejected tool calls:',
-    JSON.stringify(calls.map((c) => ({ name: c.name, args: c.args }))),
-    `Validation error: ${message}`,
-    'Answer again with corrected tool calls, all in this one answer. Call conclude exactly once. Remember the three decision values: "collect" when the answer ties a file to a document (mark_collected, tie_file, or an add_instance with file_ids) — then make NO send_whatsapp_text / send_whatsapp_template call, the reply is written in the next cycle; "follow_up" when nothing is tied — then the answer MUST include exactly one WhatsApp message (send_whatsapp_text inside the 24h window, or send_whatsapp_template) with its send_at — a future "YYYY-MM-DD HH:MM" time, or "asap" for a reply to a client who is waiting right now — "no message needed" is never a valid state and when there is nothing new to say you schedule a gentle reminder instead; "goal_complete" only when every document is settled and the attestation is confirmed; "client_declined" only when the client refused the WhatsApp collection in words — then call conclude and nothing else (the system sends the acknowledgement). ask_team (a question for the office) goes only with a follow_up whose message tells the client you will check, at most once, and never while the TEAM QUESTIONS section shows an open question.',
+    'SYSTEM NOTE: your last turn made no tool call, and this run has no ending yet. Your text is NOT sent to the client — only a tool call acts.',
+    `End the run with exactly one terminal tool: send_whatsapp_text (inside the 24h window) or send_whatsapp_template, with the full message and its send_at (a future "YYYY-MM-DD HH:MM", or "asap" for a client who is waiting right now); goal_complete only when every document is settled and the attestation is confirmed; client_declined only when the client refused the WhatsApp collection in words.`,
+    '"No message needed" is never a valid state: when there is nothing new to say, schedule a gentle reminder. Make the calls now.',
   ].join('\n');
 }

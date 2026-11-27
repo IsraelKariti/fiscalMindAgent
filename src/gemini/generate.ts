@@ -5,6 +5,8 @@ import { genaiClient } from './client.js';
 import { providerForModel } from './modelSettings.js';
 import { computeCost, getPricingForModel } from './pricing.js';
 import { requestForLog, responseForLog, type ToolContinuation } from './requestLog.js';
+import type { TranscriptItem } from './toolLoop.js';
+import { geminiContentsOf, geminiTranscriptContents } from './toolTransport.js';
 import { generateContentAnthropic } from './anthropic.js';
 import { generateContentOpenAI, OpenAiApiError } from './openai.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
@@ -56,11 +58,12 @@ function sleep(ms: number): Promise<void> {
 type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
 
 /**
- * A Gemini-shaped request plus the optional continuation rule of a tool-call
- * stage (requestLog.ts `ToolContinuation`). Only the OpenAI adapter reads it;
- * the Gemini SDK and the Anthropic adapter get the plain request.
+ * A Gemini-shaped request plus, for a tool-call stage, the loop rule the call
+ * record stores (requestLog.ts `ToolContinuation`) and the transcript of the
+ * turns so far (toolLoop.ts): model turns, tool results and corrective notes,
+ * replayed after the prompt by every adapter in its own shape.
  */
-export type LlmRequest = GeminiRequest & { continuation?: ToolContinuation };
+export type LlmRequest = GeminiRequest & { continuation?: ToolContinuation; transcript?: readonly TranscriptItem[] };
 
 /**
  * Attribution for the per-call llm_calls row (049). Call sites that pass it
@@ -110,7 +113,7 @@ export type LlmCallFileRow = llmCalls.InsertLlmCall & { ts: string };
  * (success or final failure). Fire-and-forget from the retry loop: a logging
  * failure must never fail — or delay — the call itself.
  */
-async function recordCall(
+export async function recordLlmCall(
   log: LlmCallLogContext,
   request: LlmRequest,
   provider: string,
@@ -223,11 +226,20 @@ export function isProviderFailure(err: unknown): boolean {
  * model gives its primary only 2, one attempt and one retry, before falling
  * back (llmCall.ts · runWithBackup).
  */
+export interface RetryOptions {
+  /** Write the llm_calls row for this exchange (default). The tool loop records one row for all its turns itself. */
+  record?: boolean;
+  /** Record the `translate_request` trace step (default). The tool loop records it on its first turn only. */
+  translateStep?: boolean;
+}
+
 export async function generateWithRetryDetailed(
   request: LlmRequest,
   log?: LlmCallLogContext,
   maxAttempts: number = MAX_ATTEMPTS,
+  opts: RetryOptions = {},
 ): Promise<{ response: GenerateContentResponse; attempts: number; provider: string }> {
+  const record = opts.record !== false;
   const timedRequest: LlmRequest = {
     ...request,
     config: {
@@ -235,9 +247,15 @@ export async function generateWithRetryDetailed(
       httpOptions: { timeout: ATTEMPT_TIMEOUT_MS, ...request.config?.httpOptions },
     },
   };
-  // The Gemini SDK and the Anthropic adapter get the request without the continuation key.
-  const { continuation: _continuation, ...providerRequest } = timedRequest;
+  // The Gemini SDK gets the request without the loop keys, the transcript
+  // replayed as turns after the prompt (toolTransport.ts); the adapters read
+  // the transcript themselves.
+  const { continuation: _continuation, transcript, ...providerRequest } = timedRequest;
   void _continuation;
+  const geminiRequest: GeminiRequest =
+    transcript && transcript.length > 0
+      ? { ...providerRequest, contents: [...geminiContentsOf(providerRequest.contents), ...geminiTranscriptContents(transcript)] }
+      : providerRequest;
   // GPT/Claude models ride the same retry loop but are served by their own
   // APIs; each translation layer keeps the request/response Gemini-shaped.
   const provider = providerForModel(timedRequest.model);
@@ -254,7 +272,7 @@ export async function generateWithRetryDetailed(
   // `conversation-trace`, "adapter translations are code steps").
   const translation = translationOf(provider, timedRequest);
   const traceSteps = traceStepsEnabled(log);
-  const translateStep = traceSteps ? translateStepOf(translation, log!.purpose, timedRequest.model) : null;
+  const translateStep = traceSteps && opts.translateStep !== false ? translateStepOf(translation, log!.purpose, timedRequest.model) : null;
   if (translateStep) {
     recordAudit({ actorType: 'system', severity: 'info', agentInstanceId: log!.agentInstanceId, clientId: log!.clientId, ...translateStep });
   }
@@ -265,15 +283,15 @@ export async function generateWithRetryDetailed(
         provider === 'openai'
           ? await generateContentOpenAI(timedRequest)
           : provider === 'anthropic'
-            ? await generateContentAnthropic(providerRequest)
-            : await genaiClient.models.generateContent(providerRequest);
+            ? await generateContentAnthropic(timedRequest)
+            : await genaiClient.models.generateContent(geminiRequest);
       // DB sink: fire-and-forget (logging never delays the call). File sink
       // (the evals harness): awaited, so a process that exits right after its
       // last answer still has every row on disk. The restore step (the nulls
       // the adapter put back) is recorded inside, after the call row, so the
       // trace reads translate → call → restore.
-      if (log) {
-        const recorded = recordCall(log, timedRequest, provider, translation, startedAt, attempt + 1, { response, traceSteps });
+      if (log && record) {
+        const recorded = recordLlmCall(log, timedRequest, provider, translation, startedAt, attempt + 1, { response, traceSteps });
         if (log.sink && log.sink !== 'db') await recorded;
         else void recorded;
       }
@@ -292,7 +310,7 @@ export async function generateWithRetryDetailed(
         // The Anthropic SDK wraps transport failures/timeouts in its own classes.
         err instanceof Anthropic.APIConnectionError;
       if (!retryable || attempt >= maxAttempts - 1) {
-        if (log) void recordCall(log, timedRequest, provider, translation, startedAt, attempt + 1, { error: err });
+        if (log && record) void recordLlmCall(log, timedRequest, provider, translation, startedAt, attempt + 1, { error: err });
         throw err;
       }
       const delayMs = Math.round(BASE_DELAY_MS * 2 ** attempt * (0.5 + Math.random() * 0.5));

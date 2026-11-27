@@ -91,23 +91,40 @@ function declaredToolsOf(tools: unknown): DeclaredTool[] {
   });
 }
 
-/** The calls of a tool-call answer (a JSON list of {name, args, turn?}); null when the response is anything else. */
-function toolCallsOf(responseText: string): { name: string; args: unknown; turn?: number }[] | null {
+/** One item of a tool-call answer: a call (with its turn and the result it was answered with) or the text the model wrote in a turn. */
+type AnswerItem = { kind: 'call'; name: string; args: unknown; turn?: number; result?: string } | { kind: 'text'; turn?: number; text: string };
+
+/**
+ * The items of a tool-call answer: a JSON list of calls ({name, args, turn?,
+ * result?}) and, since the loop, text turns ({turn, text}); null when the
+ * response is anything else.
+ */
+function answerItemsOf(responseText: string): AnswerItem[] | null {
   try {
     const parsed = JSON.parse(responseText) as unknown;
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
-    if (!parsed.every((c) => typeof c === 'object' && c !== null && typeof (c as { name?: unknown }).name === 'string' && 'args' in (c as object))) return null;
-    return parsed as { name: string; args: unknown; turn?: number }[];
+    const items: AnswerItem[] = [];
+    for (const c of parsed) {
+      if (typeof c !== 'object' || c === null) return null;
+      const o = c as { name?: unknown; args?: unknown; turn?: unknown; result?: unknown; text?: unknown };
+      const turn = typeof o.turn === 'number' ? { turn: o.turn } : {};
+      if (typeof o.name === 'string' && 'args' in o) items.push({ kind: 'call', name: o.name, args: o.args, ...turn, ...(typeof o.result === 'string' ? { result: o.result } : {}) });
+      else if (typeof o.text === 'string') items.push({ kind: 'text', text: o.text, ...turn });
+      else return null;
+    }
+    return items.some((i) => i.kind === 'call') ? items : null;
   } catch {
     return null;
   }
 }
 
-/** The continuation rule a logged request carried (`request.continuation`), when it is one. */
-function continuationOf(value: unknown): { untilTool: string; maxTurns: number } | null {
-  const c = value as { untilTool?: unknown; maxTurns?: unknown } | null | undefined;
-  if (!c || typeof c !== 'object' || typeof c.untilTool !== 'string' || typeof c.maxTurns !== 'number') return null;
-  return { untilTool: c.untilTool, maxTurns: c.maxTurns };
+/** The loop rule a logged request carried (`request.continuation`): the terminal tools and the turn cap; older rows name the closing tool (`untilTool`). */
+function continuationOf(value: unknown): { terminalTools: string[]; maxTurns: number } | null {
+  const c = value as { untilTool?: unknown; terminalTools?: unknown; maxTurns?: unknown } | null | undefined;
+  if (!c || typeof c !== 'object' || typeof c.maxTurns !== 'number') return null;
+  if (Array.isArray(c.terminalTools)) return { terminalTools: c.terminalTools.map(String), maxTurns: c.maxTurns };
+  if (typeof c.untilTool === 'string') return { terminalTools: [c.untilTool], maxTurns: c.maxTurns };
+  return null;
 }
 
 /**
@@ -185,10 +202,11 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
   const sentNote = sent && sent.omitted.length > 0 ? t.adminLlmCallOmitted(sent.omitted.join(', ')) : null;
   const { history, query } = splitContents(call?.request?.contents);
   const response = call?.response != null && call.response.trim() !== '' ? maybePrettyJson(call.response) : null;
-  const toolCalls = response ? toolCallsOf(response.text) : null;
-  // A continued answer (OpenAI: one call per turn, asked again until `conclude`): the rule in the request, the turn on every call.
+  const answerItems = response ? answerItemsOf(response.text) : null;
+  const toolCalls = answerItems;
+  // A tool loop (every turn's calls answered with their results, until a terminal call): the rule in the request, the turn on every item.
   const continuation = continuationOf(call?.request?.continuation);
-  const turnCount = toolCalls ? Math.max(0, ...toolCalls.map((tc) => tc.turn ?? 0)) : 0;
+  const turnCount = answerItems ? Math.max(0, ...answerItems.map((tc) => tc.turn ?? 0)) : 0;
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
@@ -353,7 +371,7 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                   {!sent && <p className="muted llm-sent-note">{t.adminLlmCallSentNotRecorded}</p>}
                   {sentNote && <p className="muted llm-sent-note">{sentNote}</p>}
                   {continuation && (
-                    <p className="muted llm-stage-continuation">{t.llmStageContinuation(continuation.untilTool, continuation.maxTurns)}</p>
+                    <p className="muted llm-stage-continuation">{t.llmStageContinuation(continuation.terminalTools.join(', '), continuation.maxTurns)}</p>
                   )}
                   {tools.map((tool) => (
                     <div key={tool.name} className="llm-stage-tool">
@@ -395,15 +413,28 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                 toolCalls.map((tc, i) => (
                   <div key={i} className="llm-stage-tool">
                     <div dir="ltr" style={{ textAlign: 'left' }}>
-                      <span className="badge badge-neutral mono">{tc.name}</span>
+                      <span className="badge badge-neutral mono">{tc.kind === 'call' ? tc.name : t.adminLlmCallTextTurn}</span>
                       {turnCount > 1 && tc.turn !== undefined && (
                         <span className="badge badge-neutral llm-call-turn" style={{ marginInlineStart: 8 }}>
                           {t.adminLlmCallTurn(tc.turn, turnCount)}
                         </span>
                       )}
                     </div>
-                    {/* Names beside the ids (openspec `conversation-trace`): `document_name` after `document_id`, the ids untouched. */}
-                    <CallPane tone="response" text={JSON.stringify(withNamedIds(tc.args, call?.names), null, 2)} ltr copyTitle={t.copyText} />
+                    {tc.kind === 'call' ? (
+                      <>
+                        {/* Names beside the ids (openspec `conversation-trace`): `document_name` after `document_id`, the ids untouched. */}
+                        <CallPane tone="response" text={JSON.stringify(withNamedIds(tc.args, call?.names), null, 2)} ltr copyTitle={t.copyText} />
+                        {/* The result the model was answered with (openspec `planner-answer-tools`); older rows have none. */}
+                        {tc.result !== undefined && (
+                          <div className="llm-call-result">
+                            <span className="muted">{t.adminLlmCallResult}</span>
+                            <CallPane tone="input" text={tc.result} copyTitle={t.copyText} />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <CallPane tone="response" text={tc.text} copyTitle={t.copyText} />
+                    )}
                   </div>
                 ))
               ) : (

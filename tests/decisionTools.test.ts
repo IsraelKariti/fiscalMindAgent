@@ -1,22 +1,28 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  assembleDecision,
-  correctionSuffix,
+  assembleCalls,
+  checklistUnits,
+  describeCall,
   describeCalls,
-  gateDecision,
-  parseToolCalls,
+  endingCorrectionNote,
+  inExecutionOrder,
+  isTerminalTool,
+  parseTurnCalls,
+  TERMINAL_TOOL_NAMES,
   toolJsonSchemas,
   toolParametersJsonSchema,
   toolsForContext,
+  type ParsedToolCall,
   type ToolCall,
 } from '../src/agents/declarationOfCapital/decisionTools.js';
-import { DecisionRejectedError, type DecisionContext } from '../src/agents/declarationOfCapital/decisionSchema.js';
+import type { DecisionContext } from '../src/agents/declarationOfCapital/decisionSchema.js';
 
-// openspec `planner-answer-tools`: the planner answers with flat tool calls.
-// The shape test replaces the old nullable-place budget: Anthropic's compiler
-// refused the deep form ("The compiled grammar is too large", 2026-10-14), so
-// every tool stays flat — zero nullable, zero optional, no nested object.
+// openspec `planner-answer-tools`: the planner answers with flat tool calls in a
+// loop. The shape test replaces the old nullable-place budget: Anthropic's
+// compiler refused the deep form ("The compiled grammar is too large",
+// 2026-10-14), so every tool stays flat — zero nullable, zero optional, no
+// nested object. There is no conclude: the run ends on a terminal tool.
 
 const intake = {
   resolvable: [
@@ -35,11 +41,9 @@ const CAPITAL_WITH_FETCH: DecisionContext = {
   ...CAPITAL,
   documentFetch: [{ provider: 'israel_tax_authority', state: 'none', available: true, clientOnWhatsapp: true, documentKeys: ['form_106'] }],
 };
-const AFTER_VERIFICATION: DecisionContext = { ...CAPITAL, afterVerification: true };
 const NO_INTAKE: DecisionContext = { windowOpen: true, templates: [] };
 
-const conclude = (decision: string, reasoning = 'test'): ToolCall => ({ name: 'conclude', args: { decision, reasoning } });
-const sendText = (text = 'שלום', send_at = 'asap'): ToolCall => ({ name: 'send_whatsapp_text', args: { text, send_at } });
+const sendText = (text = 'שלום', send_at = 'asap'): ToolCall => ({ name: 'send_whatsapp_text', args: { text, send_at, reasoning: 'test' } });
 const noEvidence = { evidence_message_id: '', evidence_quote: '' };
 const evidence = { evidence_message_id: 'msg-1', evidence_quote: 'יש לי דירה ברחוב הרצל' };
 
@@ -48,7 +52,7 @@ describe('tool shape (replaces the nullable-place budget)', () => {
     (Array.isArray(schema.anyOf) && schema.anyOf.some((b) => (b as { type?: unknown }).type === 'null')) ||
     (Array.isArray(schema.type) && schema.type.includes('null'));
 
-  for (const [label, ctx] of Object.entries({ capital: CAPITAL, 'capital + fetch': CAPITAL_WITH_FETCH, 'after verification': AFTER_VERIFICATION, 'no intake': NO_INTAKE })) {
+  for (const [label, ctx] of Object.entries({ capital: CAPITAL, 'capital + fetch': CAPITAL_WITH_FETCH, 'no intake': NO_INTAKE })) {
     it(`${label}: every tool is flat — all parameters required, none nullable, no object or list of objects`, () => {
       const tools = toolsForContext(ctx);
       assert.ok(tools.length <= 20, `${tools.length} tools`);
@@ -81,90 +85,127 @@ describe('tool shape (replaces the nullable-place budget)', () => {
 
 describe('toolsForContext', () => {
   const names = (ctx: DecisionContext) => toolsForContext(ctx).map((t) => t.name);
-  const decisionValues = (ctx: DecisionContext) =>
-    ((toolJsonSchemas(ctx)[0]!.parameters.properties as Record<string, { enum?: unknown }>).decision!.enum as string[]);
 
-  it('capital declaration without a fetch offer: every tool except document_fetch', () => {
+  it('capital declaration without a fetch offer: every tool except document_fetch, no conclude', () => {
     assert.deepEqual(names(CAPITAL), [
-      'conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'ask_team', 'mark_collected', 'tie_file',
+      'send_whatsapp_text', 'send_whatsapp_template', 'goal_complete', 'client_declined', 'ask_team', 'mark_collected', 'tie_file',
       'set_required', 'add_instance', 'state_cost', 'state_vehicle', 'retire_document', 'set_company', 'attestation',
     ]);
     assert.ok(names(CAPITAL_WITH_FETCH).includes('document_fetch'));
-    assert.deepEqual(decisionValues(CAPITAL), ['goal_complete', 'follow_up', 'collect', 'client_declined']);
+    assert.ok(!(names(CAPITAL_WITH_FETCH) as string[]).includes('conclude'));
   });
 
-  it('after verification: no collecting tools and no collect value', () => {
-    const n = names(AFTER_VERIFICATION);
-    assert.ok(!n.includes('mark_collected') && !n.includes('tie_file'));
-    assert.deepEqual(decisionValues(AFTER_VERIFICATION), ['goal_complete', 'follow_up', 'client_declined']);
-  });
-
-  it('no intake: no checklist tools; the message tools are always offered', () => {
+  it('no intake: no checklist tools; the terminal tools, ask_team and the tie tools are always offered', () => {
     const n = names(NO_INTAKE);
-    assert.deepEqual(n, ['conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'ask_team', 'mark_collected', 'tie_file']);
-    for (const ctx of [CAPITAL, AFTER_VERIFICATION, NO_INTAKE]) {
+    assert.deepEqual(n, ['send_whatsapp_text', 'send_whatsapp_template', 'goal_complete', 'client_declined', 'ask_team', 'mark_collected', 'tie_file']);
+    for (const ctx of [CAPITAL, CAPITAL_WITH_FETCH, NO_INTAKE]) {
       const offered: string[] = names(ctx);
-      for (const always of ['conclude', 'send_whatsapp_text', 'send_whatsapp_template', 'ask_team']) assert.ok(offered.includes(always));
+      for (const always of [...TERMINAL_TOOL_NAMES, 'ask_team', 'mark_collected', 'tie_file']) assert.ok(offered.includes(always), always);
     }
   });
+
+  it('the terminal tools carry a reasoning parameter; the tool list is what the stages page documents', () => {
+    const tools = toolJsonSchemas(CAPITAL);
+    for (const name of TERMINAL_TOOL_NAMES) {
+      const tool = tools.find((t) => t.name === name)!;
+      assert.ok('reasoning' in (tool.parameters.properties as Record<string, unknown>), name);
+      assert.ok(isTerminalTool(name));
+    }
+    assert.ok(!isTerminalTool('tie_file'));
+  });
 });
 
-describe('parseToolCalls (the tool_calls check)', () => {
+describe('parseTurnCalls (the tool_calls check, per call)', () => {
   const tools = toolsForContext(CAPITAL);
 
-  it('rejects no calls, an unknown tool, bad arguments, and a missing or doubled conclude', () => {
-    assert.throws(() => parseToolCalls([], tools), /one or more tool calls/);
-    assert.throws(() => parseToolCalls([conclude('follow_up'), { name: 'send_email', args: {} }], tools), /"send_email" is not offered/);
-    assert.throws(() => parseToolCalls([{ name: 'conclude', args: { decision: 'follow_up' } }], tools), /"conclude" at reasoning/);
-    assert.throws(() => parseToolCalls([sendText()], tools), /exactly once per answer \(got 0\)/);
-    assert.throws(() => parseToolCalls([conclude('follow_up'), conclude('follow_up')], tools), /exactly once per answer \(got 2\)/);
+  it('accepts the good calls with their turn position and lists each fault with its reason', () => {
+    const { accepted, faults } = parseTurnCalls(
+      [{ name: 'conclude', args: { decision: 'follow_up', reasoning: 'r' } }, sendText(), { name: 'send_email', args: {} }, { name: 'tie_file', args: { file_id: 'f' } }],
+      tools,
+    );
+    assert.deepEqual(accepted.map((c) => [c.name, c.index]), [['send_whatsapp_text', 1]]);
+    assert.deepEqual(faults.map((f) => [f.index, f.tool]), [[0, null], [2, null], [3, 'tie_file']] as unknown[]);
+    assert.match(faults[0]!.reason, /there is no conclude: the run ends on a terminal tool \(send_whatsapp_text, send_whatsapp_template, goal_complete, client_declined\)/);
+    assert.match(faults[1]!.reason, /"send_email" is not offered/);
+    assert.match(faults[2]!.reason, /"tie_file" at document_id/);
   });
 
-  it('rejects a tool the cycle does not offer', () => {
-    const after = toolsForContext(AFTER_VERIFICATION);
-    assert.throws(() => parseToolCalls([conclude('follow_up'), { name: 'tie_file', args: { file_id: 'f', document_id: 'd', ...noEvidence } }], after), /"tie_file" is not offered/);
-    assert.throws(() => parseToolCalls([conclude('collect')], after), /"conclude" at decision/);
+  it('no calls is no fault: the loop handles a text-only turn', () => {
+    assert.deepEqual(parseTurnCalls([], tools), { accepted: [], faults: [] });
+  });
+
+  it('a tool the context does not offer is a fault', () => {
+    const { faults } = parseTurnCalls([{ name: 'document_fetch', args: { action: 'cancel', provider: 'x', document_keys: [] } }], tools);
+    assert.match(faults[0]!.reason, /"document_fetch" is not offered/);
+    assert.equal(parseTurnCalls([{ name: 'document_fetch', args: { action: 'cancel', provider: 'x', document_keys: [] } }], toolsForContext(CAPITAL_WITH_FETCH)).faults.length, 0);
   });
 });
 
-describe('assembleDecision', () => {
-  const parsed = (calls: ToolCall[], ctx = CAPITAL) => assembleDecision(parseToolCalls(calls, toolsForContext(ctx)));
+describe('execution order and units', () => {
+  const parsed = (calls: ToolCall[]): ParsedToolCall[] => parseTurnCalls(calls, toolsForContext(CAPITAL_WITH_FETCH)).accepted;
 
-  it('a follow_up with one text message', () => {
-    const raw = parsed([conclude('follow_up', 'ask'), sendText('שלום', 'asap')]);
-    assert.equal(raw.decision, 'follow_up');
-    assert.equal(raw.reasoning, 'ask');
-    assert.equal(raw.whatsapp_text, 'שלום');
-    assert.equal(raw.whatsapp_template, null);
-    assert.equal(raw.send_at, 'asap');
-    assert.deepEqual(raw.collected_document_ids, []);
-    assert.equal(raw.resolved_documents, null);
-    assert.equal(raw.attestation, null);
-    assert.deepEqual(raw.stated_costs, []);
+  it('inExecutionOrder: checklist, attestation, ties, ask_team, document_fetch, terminal — stable within a group', () => {
+    const calls = parsed([
+      sendText(),
+      { name: 'document_fetch', args: { action: 'client_agreed', provider: 'israel_tax_authority', document_keys: [] } },
+      { name: 'ask_team', args: { question: 'q', why: '', evidence_message_id: '' } },
+      { name: 'tie_file', args: { file_id: 'f', document_id: 'doc-bank', ...noEvidence } },
+      { name: 'attestation', args: { action: 'confirmed', ...evidence } },
+      { name: 'add_instance', args: { anchor_document_id: 'doc-bank', name: 'x', description: '', already_provided: false, file_ids: [], paper_key: '', ...evidence, proven_by_file_id: '' } },
+      { name: 'set_required', args: { document_id: 'doc-re', resolution: 'not_required', ...evidence, proven_by_file_id: '' } },
+      { name: 'mark_collected', args: { document_id: 'doc-bank' } },
+    ]);
+    assert.deepEqual(inExecutionOrder(calls).map((c) => c.name), [
+      'set_required', 'add_instance', 'attestation', 'tie_file', 'mark_collected', 'ask_team', 'document_fetch', 'send_whatsapp_text',
+    ]);
   });
 
-  it('a collecting answer: tie_file, mark_collected and a resolution in one turn', () => {
+  it('checklistUnits: a required resolution takes the instances under it and their statements; other additions group per anchor; the rest stand alone', () => {
+    const calls = parsed([
+      { name: 'set_required', args: { document_id: 'doc-re', resolution: 'required', ...evidence, proven_by_file_id: '' } },
+      { name: 'add_instance', args: { anchor_document_id: 'doc-re', name: 'דירה', description: '', already_provided: false, file_ids: [], paper_key: 'cost_declaration', ...noEvidence, proven_by_file_id: '' } },
+      { name: 'state_cost', args: { document_id: '', instance_name: 'דירה', amount: 1850000, currency: 'ILS', ...evidence } },
+      { name: 'add_instance', args: { anchor_document_id: 'doc-bank', name: 'בנק א', description: '', already_provided: false, file_ids: [], paper_key: '', ...evidence, proven_by_file_id: '' } },
+      { name: 'add_instance', args: { anchor_document_id: 'doc-bank', name: 'בנק ב', description: '', already_provided: false, file_ids: [], paper_key: '', ...noEvidence, proven_by_file_id: '' } },
+      { name: 'state_cost', args: { document_id: 'doc-bank', instance_name: '', amount: 5, currency: 'ILS', ...evidence } },
+      { name: 'state_cost', args: { document_id: '', instance_name: 'אין כזה', amount: 5, currency: 'ILS', ...evidence } },
+      { name: 'attestation', args: { action: 'confirmed', ...evidence } },
+      { name: 'set_required', args: { document_id: 'doc-re', resolution: 'not_required', ...evidence, proven_by_file_id: '' } },
+    ]);
+    const units = checklistUnits(calls).map((u) => u.map((c) => `${c.name}:${String(c.args.name || c.args.document_id || c.args.instance_name || c.args.action)}`));
+    assert.deepEqual(units, [
+      ['set_required:doc-re', 'add_instance:דירה', 'state_cost:דירה'],
+      ['set_required:doc-re'], // the duplicate stands alone: assembly refuses it
+      ['add_instance:בנק א', 'add_instance:בנק ב'],
+      ['state_cost:doc-bank'],
+      ['state_cost:אין כזה'], // names no instance of the turn: assembly refuses it by name
+      ['attestation:confirmed'],
+    ]);
+    assert.throws(() => assembleCalls(calls.filter((c) => c.name === 'state_cost' && c.args.instance_name === 'אין כזה')), /no add_instance call of this turn has that name/);
+  });
+});
+
+describe('assembleCalls (one unit into the raw form)', () => {
+  const parsed = (calls: ToolCall[], ctx = CAPITAL) => assembleCalls(parseTurnCalls(calls, toolsForContext(ctx)).accepted);
+
+  it('a tie, a collection and a resolution', () => {
     const raw = parsed([
-      conclude('collect'),
       { name: 'tie_file', args: { file_id: 'file-1', document_id: 'doc-bank', ...noEvidence } },
       { name: 'mark_collected', args: { document_id: 'doc-bank' } },
       { name: 'set_required', args: { document_id: 'doc-vehicle', resolution: 'not_required', evidence_message_id: 'msg-1', evidence_quote: 'אין לי רכב', proven_by_file_id: '' } },
     ]);
-    assert.equal(raw.decision, 'collect');
     // '' / '' evidence reads as "no evidence given", as the form's null did.
     assert.deepEqual(raw.matched_files, [{ file_id: 'file-1', document_id: 'doc-bank', evidence: null }]);
     assert.deepEqual(raw.collected_document_ids, ['doc-bank']);
     assert.deepEqual(raw.resolved_documents, [
       { document_id: 'doc-vehicle', resolution: 'not_required', instances: null, evidence: { message_id: 'msg-1', quote: 'אין לי רכב' }, proven_by_file_id: '' },
     ]);
-    assert.equal(raw.whatsapp_text, null);
-    assert.equal(raw.send_at, null);
+    assert.equal(raw.attestation, null);
+    assert.deepEqual(raw.stated_costs, []);
   });
 
-  it('instances under a row resolved in the same answer become that resolution\'s instances; others become one addition per anchor', () => {
+  it("instances under a row resolved in the same turn become that resolution's instances; others become one addition per anchor", () => {
     const raw = parsed([
-      conclude('follow_up'),
-      sendText(),
       { name: 'set_required', args: { document_id: 'doc-vehicle', resolution: 'required', ...evidence, proven_by_file_id: '' } },
       { name: 'add_instance', args: { anchor_document_id: 'doc-vehicle', name: 'רישיון רכב - מאזדה', description: '', already_provided: false, file_ids: [], paper_key: 'vehicle_license', ...noEvidence, proven_by_file_id: '' } },
       { name: 'add_instance', args: { anchor_document_id: 'doc-vehicle', name: 'מסמך רכישה - מאזדה', description: 'קבלה', already_provided: false, file_ids: [], paper_key: 'vehicle_purchase_document', ...noEvidence, proven_by_file_id: '' } },
@@ -173,12 +214,10 @@ describe('assembleDecision', () => {
     ]);
     const [resolution] = raw.resolved_documents!;
     assert.equal(resolution!.resolution, 'required');
-    assert.equal(resolution!.instances!.length, 2);
     assert.deepEqual(resolution!.instances!.map((i) => [i.name, i.description, i.paper_key]), [
       ['רישיון רכב - מאזדה', null, 'vehicle_license'],
       ['מסמך רכישה - מאזדה', 'קבלה', 'vehicle_purchase_document'],
     ]);
-    // Two instances on the same already-resolved row merge into one entry (the validator rejects two entries per anchor).
     assert.equal(raw.added_instances!.length, 1);
     const [addition] = raw.added_instances!;
     assert.equal(addition!.anchor_document_id, 'doc-bank');
@@ -188,10 +227,8 @@ describe('assembleDecision', () => {
     assert.equal(addition!.instances[1]!.already_provided, true);
   });
 
-  it('cost of a new item in the same answer rides on that instance; a cost for an existing item goes to stated_costs', () => {
+  it('cost of a new item in the same turn rides on that instance; a cost for an existing item goes to stated_costs', () => {
     const raw = parsed([
-      conclude('follow_up'),
-      sendText(),
       { name: 'set_required', args: { document_id: 'doc-re', resolution: 'required', ...evidence, proven_by_file_id: '' } },
       { name: 'add_instance', args: { anchor_document_id: 'doc-re', name: 'הצהרת עלות - דירה ברחוב הרצל', description: '', already_provided: false, file_ids: [], paper_key: 'cost_declaration', ...noEvidence, proven_by_file_id: '' } },
       { name: 'state_cost', args: { document_id: '', instance_name: 'הצהרת עלות - דירה ברחוב הרצל', amount: 1850000, currency: 'ILS', evidence_message_id: 'msg-1', evidence_quote: 'קניתי אותה ב-1,850,000' } },
@@ -202,29 +239,26 @@ describe('assembleDecision', () => {
     assert.deepEqual(raw.stated_costs, [{ document_id: 'doc-bank', amount: 85000, currency: 'ILS', evidence: { message_id: 'msg-1', quote: '85,000' } }]);
   });
 
-  it('rejects the call-count faults with a named note', () => {
-    assert.throws(() => parsed([conclude('follow_up'), sendText(), { name: 'send_whatsapp_template', args: { template_id: 'HX1', variables: [], send_at: 'asap' } }]), /1 send_whatsapp_text and 1 send_whatsapp_template/);
-    assert.throws(() => parsed([conclude('follow_up')]), /a follow_up needs exactly one WhatsApp message/);
-    assert.throws(() => parsed([conclude('follow_up'), sendText(), { name: 'attestation', args: { action: 'request', ...noEvidence } }, { name: 'attestation', args: { action: 'request', ...noEvidence } }]), /attestation must be called at most once/);
-    assert.throws(() => parsed([conclude('follow_up'), sendText(), { name: 'state_cost', args: { document_id: '', instance_name: '', amount: 1, currency: 'ILS', ...noEvidence } }]), /exactly one target/);
-    assert.throws(() => parsed([conclude('follow_up'), sendText(), { name: 'state_cost', args: { document_id: 'doc-bank', instance_name: 'x', amount: 1, currency: 'ILS', ...noEvidence } }]), /exactly one target/);
+  it('refuses the within-unit faults with a named note', () => {
+    assert.throws(() => parsed([{ name: 'attestation', args: { action: 'request', ...noEvidence } }, { name: 'attestation', args: { action: 'request', ...noEvidence } }]), /attestation must be called at most once/);
+    assert.throws(() => parsed([{ name: 'state_cost', args: { document_id: '', instance_name: '', amount: 1, currency: 'ILS', ...noEvidence } }]), /exactly one target/);
+    assert.throws(() => parsed([{ name: 'state_cost', args: { document_id: 'doc-bank', instance_name: 'x', amount: 1, currency: 'ILS', ...noEvidence } }]), /exactly one target/);
     assert.throws(
-      () => parsed([conclude('follow_up'), sendText(), { name: 'state_cost', args: { document_id: '', instance_name: 'דירה אחרת', amount: 1, currency: 'ILS', ...noEvidence } }]),
-      /names instance "דירה אחרת" but no add_instance call/,
+      () => parsed([{ name: 'state_cost', args: { document_id: '', instance_name: 'דירה אחרת', amount: 1, currency: 'ILS', ...noEvidence } }]),
+      /names instance "דירה אחרת" but no add_instance call of this turn.*document id an earlier turn's add_instance result returned/,
     );
     assert.throws(
-      () => parsed([conclude('follow_up'), sendText(), { name: 'set_required', args: { document_id: 'doc-re', resolution: 'not_required', ...evidence, proven_by_file_id: '' } }, { name: 'set_required', args: { document_id: 'doc-re', resolution: 'required', ...evidence, proven_by_file_id: '' } }]),
+      () => parsed([{ name: 'set_required', args: { document_id: 'doc-re', resolution: 'not_required', ...evidence, proven_by_file_id: '' } }, { name: 'set_required', args: { document_id: 'doc-re', resolution: 'required', ...evidence, proven_by_file_id: '' } }]),
       /called twice for document doc-re/,
     );
   });
 
-  it('attestation and document_fetch map onto the form fields', () => {
+  it('attestation, document_fetch and ask_team map onto the form fields', () => {
     const raw = parsed(
       [
-        conclude('follow_up'),
-        sendText(),
         { name: 'attestation', args: { action: 'confirmed', evidence_message_id: 'msg-1', evidence_quote: 'מאשר' } },
         { name: 'document_fetch', args: { action: 'client_agreed', provider: 'israel_tax_authority', document_keys: [] } },
+        { name: 'ask_team', args: { question: 'ש', why: 'כי', evidence_message_id: 'msg-1' } },
       ],
       CAPITAL_WITH_FETCH,
     );
@@ -233,138 +267,29 @@ describe('assembleDecision', () => {
     assert.equal(raw.document_fetch_action, 'client_agreed');
     assert.equal(raw.document_fetch_provider, 'israel_tax_authority');
     assert.equal(raw.document_fetch_document_keys, null, '[] means all pending documents');
-    const request = parsed([conclude('follow_up'), sendText(), { name: 'attestation', args: { action: 'request', ...noEvidence } }]);
+    assert.deepEqual(raw.team_question, { question: 'ש', why: 'כי', evidence_message_id: 'msg-1' });
+    const request = parsed([{ name: 'attestation', args: { action: 'request', ...noEvidence } }]);
     assert.equal(request.attestation, 'request');
     assert.equal(request.attestation_evidence, null);
   });
 });
 
-describe('gateDecision (validate_message on tool calls)', () => {
-  it('a valid answer lists tool_calls then business_rules, with the calls as observed', () => {
-    const calls = [conclude('follow_up'), sendText('שלום', '2030-01-01 10:00')];
-    const { decision, checks } = gateDecision(calls, CAPITAL);
-    assert.equal(decision.decision, 'follow_up');
-    assert.deepEqual(checks, [
-      { key: 'tool_calls', passed: true, note: null, observed: '2 calls: conclude, send_whatsapp_text', expected: null },
-      { key: 'business_rules', passed: true, note: null, observed: 'follow_up / freeform', expected: null },
-    ]);
+describe('gate row text', () => {
+  it('describeCalls counts and names the calls; describeCall shows the key parameters with names beside ids', () => {
+    assert.equal(describeCalls([]), '0 calls');
+    assert.equal(describeCalls([sendText(), { name: 'tie_file', args: {} }]), '2 calls: send_whatsapp_text, tie_file');
+    const [call] = parseTurnCalls([{ name: 'tie_file', args: { file_id: 'f1', document_id: 'doc-bank', ...noEvidence } }], toolsForContext(CAPITAL)).accepted;
+    assert.equal(describeCall(call!, (id) => (id === 'doc-bank' ? 'אישור יתרות' : undefined)), 'tie_file — document_id: doc-bank (אישור יתרות), file_id: f1');
+    const [send] = parseTurnCalls([sendText('שלום לך', '2030-01-01 10:00')], toolsForContext(CAPITAL)).accepted;
+    assert.equal(describeCall(send!, () => undefined), 'send_whatsapp_text — send_at: 2030-01-01 10:00, text: 7 chars');
   });
 
-  it('a shape fault fails tool_calls alone; business_rules never ran', () => {
-    for (const calls of [[], [conclude('follow_up'), conclude('follow_up')], [conclude('follow_up'), { name: 'send_email', args: {} }]]) {
-      assert.throws(
-        () => gateDecision(calls, CAPITAL),
-        (err: unknown) => {
-          assert.ok(err instanceof DecisionRejectedError);
-          assert.equal(err.checks.length, 1);
-          assert.equal(err.checks[0]!.key, 'tool_calls');
-          assert.equal(err.checks[0]!.passed, false);
-          assert.equal(err.checks[0]!.observed, describeCalls(calls));
-          return true;
-        },
-      );
-    }
-  });
-
-  it('a rule fault passes tool_calls and fails business_rules with the note', () => {
-    assert.throws(
-      () => gateDecision([conclude('follow_up'), sendText(), { name: 'send_whatsapp_template', args: { template_id: 'HX1', variables: [], send_at: 'asap' } }], CAPITAL),
-      (err: unknown) => {
-        assert.ok(err instanceof DecisionRejectedError);
-        assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', false]]);
-        assert.match(err.checks[1]!.note ?? '', /send_whatsapp_text and 1 send_whatsapp_template/);
-        assert.equal(err.checks[1]!.observed, 'follow_up / freeform');
-        return true;
-      },
-    );
-    assert.throws(
-      () => gateDecision([conclude('follow_up'), sendText('שלום', 'asap')], { ...CAPITAL, windowOpen: false }),
-      (err: unknown) => {
-        assert.ok(err instanceof DecisionRejectedError);
-        assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', false]]);
-        assert.match(err.checks[1]!.note ?? '', /outside the 24h window/);
-        return true;
-      },
-    );
-  });
-
-  // openspec `team-questions`: ask_team rides on a follow_up with its holding message, once, never while a question is open.
-  describe('ask_team', () => {
-    const ask = (question = 'האם המשרד מחזיק בהצהרת ההון הקודמת?', why = 'נוהג משרד', evidence_message_id = 'msg-1'): ToolCall => ({
-      name: 'ask_team',
-      args: { question, why, evidence_message_id },
-    });
-    const rejected = (calls: ToolCall[], ctx: DecisionContext, note: RegExp) =>
-      assert.throws(
-        () => gateDecision(calls, ctx),
-        (err: unknown) => {
-          assert.ok(err instanceof DecisionRejectedError);
-          assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', false]]);
-          assert.match(err.checks[1]!.note ?? '', note);
-          return true;
-        },
-      );
-
-    it('accepted on a follow_up with a message: the normalized decision carries the question', () => {
-      const { decision } = gateDecision([conclude('follow_up'), sendText('אבדוק מול המשרד ואחזור אליך', 'asap'), ask()], CAPITAL);
-      assert.equal(decision.decision, 'follow_up');
-      assert.ok(decision.decision === 'follow_up');
-      assert.deepEqual(decision.teamQuestion, { question: 'האם המשרד מחזיק בהצהרת ההון הקודמת?', reason: 'נוהג משרד', evidenceMessageId: 'msg-1' });
-      const none = gateDecision([conclude('follow_up'), sendText()], CAPITAL).decision;
-      assert.ok(none.decision === 'follow_up' && none.teamQuestion === null);
-      const noCite = gateDecision([conclude('follow_up'), sendText(), ask('ש', '', '')], CAPITAL).decision;
-      assert.ok(noCite.decision === 'follow_up' && noCite.teamQuestion?.evidenceMessageId === null);
-    });
-
-    it('rejected on a collect or goal_complete decision', () => {
-      rejected([conclude('collect'), { name: 'mark_collected', args: { document_id: 'doc-bank' } }, ask()], CAPITAL, /ask_team is valid only with a follow_up/);
-      rejected([conclude('goal_complete'), ask()], CAPITAL, /ask_team is valid only with a follow_up/);
-      rejected([conclude('client_declined'), ask()], CAPITAL, /"client_declined" is the whole answer.*ask_team/);
-    });
-
-    it('rejected while a question is still open, naming it', () => {
-      const open = { ...CAPITAL, openTeamQuestion: { id: 'q1', question: 'שאלה קודמת', askedAt: new Date('2026-11-15T09:00:00.000Z') } };
-      rejected([conclude('follow_up'), sendText(), ask()], open, /already open since 2026-11-15 09:00 \("שאלה קודמת"\)/);
-      // Without the call the open question changes nothing.
-      assert.equal(gateDecision([conclude('follow_up'), sendText()], open).decision.decision, 'follow_up');
-    });
-
-    it('rejected with an empty question, a cited message that is not in the thread, or a second call', () => {
-      rejected([conclude('follow_up'), sendText(), ask('   ')], CAPITAL, /the question is empty/);
-      rejected([conclude('follow_up'), sendText(), ask('ש', '', 'msg-404')], CAPITAL, /"msg-404" is not an inbound message/);
-      rejected([conclude('follow_up'), sendText(), ask(), ask('שנייה')], CAPITAL, /ask_team must be called at most once/);
-    });
-  });
-
-  // openspec `client-decline`: a typed refusal is the whole answer — conclude only.
-  it('client_declined passes alone and is rejected with any other call', () => {
-    const { decision, checks } = gateDecision([conclude('client_declined', 'the client refused')], CAPITAL);
-    assert.equal(decision.decision, 'client_declined');
-    assert.equal(decision.reasoning, 'the client refused');
-    assert.deepEqual(checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', true]]);
-    assert.equal(gateDecision([conclude('client_declined')], AFTER_VERIFICATION).decision.decision, 'client_declined');
-    for (const extra of [sendText('בסדר', 'asap'), { name: 'mark_collected', args: { document_id: 'doc-bank' } }]) {
-      assert.throws(
-        () => gateDecision([conclude('client_declined'), extra], CAPITAL),
-        (err: unknown) => {
-          assert.ok(err instanceof DecisionRejectedError);
-          assert.deepEqual(err.checks.map((c) => [c.key, c.passed]), [['tool_calls', true], ['business_rules', false]]);
-          assert.match(err.checks[1]!.note ?? '', /"client_declined" is the whole answer/);
-          return true;
-        },
-      );
-    }
-  });
-});
-
-describe('correctionSuffix', () => {
-  it('quotes the rejected calls, the note and the tool rules', () => {
-    const calls = [conclude('follow_up')];
-    const suffix = correctionSuffix(calls, new Error('a follow_up needs exactly one WhatsApp message'));
-    assert.ok(suffix.includes(JSON.stringify(calls)));
-    assert.ok(suffix.includes('a follow_up needs exactly one WhatsApp message'));
-    assert.ok(suffix.includes('Call conclude exactly once'));
-    assert.ok(suffix.includes('"collect"') && suffix.includes('"follow_up"') && suffix.includes('"goal_complete"'));
-    assert.ok(suffix.includes('send_whatsapp_text'));
+  it('the corrective note states the ending rule and nothing else', () => {
+    const note = endingCorrectionNote();
+    assert.ok(note.includes('no tool call'));
+    assert.ok(note.includes('NOT sent to the client'));
+    for (const name of TERMINAL_TOOL_NAMES) assert.ok(note.includes(name), name);
+    assert.ok(note.includes('"No message needed" is never a valid state'));
+    assert.ok(!note.includes('conclude') && !note.includes('"collect"'));
   });
 });

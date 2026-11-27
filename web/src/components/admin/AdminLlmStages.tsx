@@ -164,7 +164,7 @@ function ToolsBlock({ tools, continuation }: { tools: LlmStage['tools'] & object
       </div>
       {continuation && (
         <p className="muted llm-stage-continuation">
-          {t.llmStageContinuation(continuation.untilTool, continuation.maxTurns)}
+          {t.llmStageContinuation(continuation.terminalTools.join(', '), continuation.maxTurns)}
         </p>
       )}
       {tools.map((tool) => (

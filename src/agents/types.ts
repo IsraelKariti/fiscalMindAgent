@@ -13,9 +13,10 @@ export type ConversationModel = 'scheduled_follow_up' | 'immediate_reply' | 'non
 /** Why this planning cycle runs, when it matters to the plan. */
 export interface PlanHints {
   /**
-   * The cycle was triggered by a verification verdict landing (approved /
-   * reopened / stalled): the agent reports the outcome; it must not collect
-   * files in this cycle (nothing new arrived), so it cannot verify again.
+   * The run follows a fetch-delivery verification batch (openspec
+   * `verification-reply`): the VERIFICATION RESULTS section of the prompt
+   * renders even when the batch is empty. A planner tie is answered with its
+   * verdict in the same run, so no other run carries this.
    */
   afterVerification?: boolean;
   /**

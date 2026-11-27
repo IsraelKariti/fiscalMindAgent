@@ -6297,3 +6297,15 @@ pre.doc-text {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* The call modal: the result text a planner call was answered with (openspec `planner-answer-tools`), under the call's parameters. */
+.llm-call-result {
+  margin-block-start: 6px;
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var(--border, rgba(0, 0, 0, 0.08));
+}
+.llm-call-result > .muted {
+  display: block;
+  margin-block-end: 4px;
+  font-size: 0.85em;
+}

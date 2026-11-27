@@ -45,18 +45,23 @@ activation is not email-gated and no mailbox is required — the instance's
 - The import gate is a **WhatsApp sender**, not a mailbox
   (`notReady: 'no_wa_sender'`), and sources without a mapped phone column
   refuse to enroll (`'no_phone_column'`).
-- The planner answers with flat tool calls, not one JSON form (openspec
-  `planner-answer-tools`, 2026-10-14): `decisionTools.ts` offers `conclude`,
-  `send_whatsapp_text`, `send_whatsapp_template`, `mark_collected`, `tie_file`,
-  `set_required`, `add_instance`, `state_cost`, `retire_document`,
-  `set_company`, `attestation`, `document_fetch` (per context, `toolsForContext`); the model calls
-  several (in one turn on Gemini/Anthropic; OpenAI's reasoning models make one
-  call per turn, so the adapter answers each `recorded` and asks again until
-  `conclude`, `LlmCallSpec.finalTool`) and `assembleDecision` rebuilds the `DecisionResponse`
-  shape that `normalizeDecision` reads. No channel and no email tool: a
-  follow_up calls `send_whatsapp_text` or
-  `send_whatsapp_template`, `normalizeFollowUpMessage` derives the kind and the
-  code supplies the channel; `planFollowUp` throws upfront
+- The planner is a tool loop over flat tool calls, not one JSON form (openspec
+  `planner-answer-tools`, 2026-10-14; the loop since 2026-11-27):
+  `decisionTools.ts` offers the four terminal tools (`send_whatsapp_text`,
+  `send_whatsapp_template`, `goal_complete`, `client_declined`), `ask_team`,
+  `mark_collected`, `tie_file`, and with an intake `set_required`,
+  `add_instance`, `state_cost`, `state_vehicle`, `retire_document`,
+  `set_company`, `attestation`, plus `document_fetch` when a provider is
+  offered (`toolsForContext`). Every turn's calls are judged and executed at
+  once by `plan.ts` · `executeTurn` (the pure judges live in
+  `decisionJudge.ts`; `assembleCalls` rebuilds the `DecisionResponse` shape of
+  one unit that `normalizeChanges` reads) and answered with their real result
+  — a tie with its verification verdict — through `gemini/toolLoop.ts`; the run
+  ends on the first accepted terminal call, at most `MAX_TOOL_TURNS` (12). No
+  `conclude`, no decision label: the code-written `conclude` step records how
+  the run ended. No channel and no email tool: the message is
+  `send_whatsapp_text` or `send_whatsapp_template`, `normalizeFollowUpMessage`
+  derives the kind and the code supplies the channel; `planFollowUp` throws upfront
   when the WhatsApp channel is unavailable (no opt-in / no sender / window
   closed with no template usable for the client) instead of asking the LLM.
   Every `wa_templates` row has a **purpose** (migration 064, openspec
@@ -83,8 +88,8 @@ activation is not email-gated and no mailbox is required — the instance's
   **Client decline** (openspec `client-decline`): the decline button is
   recognised in code (`clientDeclineRules.ts` · `isDeclineButton`, called
   from `onInboundMessage` before the re-plan, so no planner call); a refusal
-  in words is the planner's `client_declined` decision (conclude only, the
-  gate rejects anything else). Both run `handleClientDecline`: the client is
+  in words is the planner's `client_declined` terminal tool (the whole run;
+  refused after a tie, a checklist change, a team question or a fetch step). Both run `handleClientDecline`: the client is
   paused with `agent_fields.declined_at` (`clients.markDeclined`, conditional
   — a second decline is a no-op), the pending send is removed for good, the
   still-missing documents are read once, one fixed acknowledgement goes out

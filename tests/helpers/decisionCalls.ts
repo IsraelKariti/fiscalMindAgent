@@ -4,22 +4,26 @@ import type { ToolCall } from '../../src/agents/declarationOfCapital/decisionToo
 /**
  * Test helper: the tool calls that assemble into a given raw decision form
  * (openspec `planner-answer-tools`). The decision tests keep describing their
- * cases as the readable `DecisionResponse` object; this turns one into the
- * calls the model would make, so `gateDecision` sees what production sees.
+ * cases as the readable `DecisionResponse` object plus the run's ending — the
+ * message, or a terminal tool — and this turns one into the calls the model
+ * would make over a run, so the judge sees what production sees.
  */
-export function callsOf(raw: DecisionResponse): ToolCall[] {
+export interface TestAnswer extends DecisionResponse {
+  /** How the run ends: a message (the default when a text or template is given), the goal, or a decline. */
+  decision?: 'follow_up' | 'goal_complete' | 'client_declined' | 'collect';
+  reasoning?: string;
+  whatsapp_text?: string | null;
+  whatsapp_template?: { template_id: string; variables: string[] } | null;
+  send_at?: string | null;
+}
+
+export function callsOf(raw: TestAnswer): ToolCall[] {
   const ev = (e: { message_id: string; quote: string } | null | undefined) => ({
     evidence_message_id: e?.message_id ?? '',
     evidence_quote: e?.quote ?? '',
   });
-  const calls: ToolCall[] = [{ name: 'conclude', args: { decision: raw.decision, reasoning: raw.reasoning } }];
-  if (raw.whatsapp_text != null) calls.push({ name: 'send_whatsapp_text', args: { text: raw.whatsapp_text, send_at: raw.send_at ?? '' } });
-  if (raw.whatsapp_template != null) {
-    calls.push({
-      name: 'send_whatsapp_template',
-      args: { template_id: raw.whatsapp_template.template_id, variables: raw.whatsapp_template.variables, send_at: raw.send_at ?? '' },
-    });
-  }
+  const calls: ToolCall[] = [];
+  const reasoning = raw.reasoning ?? 'test';
   for (const id of raw.collected_document_ids) calls.push({ name: 'mark_collected', args: { document_id: id } });
   for (const m of raw.matched_files) calls.push({ name: 'tie_file', args: { file_id: m.file_id, document_id: m.document_id, ...ev(m.evidence) } });
   const instance = (anchor: string, i: NonNullable<NonNullable<DecisionResponse['added_instances']>[number]['instances']>[number], evidence: ReturnType<typeof ev>, proven = '') => {
@@ -104,11 +108,22 @@ export function callsOf(raw: DecisionResponse): ToolCall[] {
     });
   }
   if (raw.attestation) calls.push({ name: 'attestation', args: { action: raw.attestation, ...ev(raw.attestation_evidence) } });
+  if (raw.team_question) calls.push({ name: 'ask_team', args: { question: raw.team_question.question, why: raw.team_question.why, evidence_message_id: raw.team_question.evidence_message_id } });
   if (raw.document_fetch_action) {
     calls.push({
       name: 'document_fetch',
       args: { action: raw.document_fetch_action, provider: raw.document_fetch_provider ?? '', document_keys: raw.document_fetch_document_keys ?? [] },
     });
   }
+  // The ending: the message (a text or a template), the goal, or the decline. 'collect' and a plain follow_up without a message end with nothing.
+  if (raw.whatsapp_text != null) calls.push({ name: 'send_whatsapp_text', args: { text: raw.whatsapp_text, send_at: raw.send_at ?? '', reasoning } });
+  if (raw.whatsapp_template != null) {
+    calls.push({
+      name: 'send_whatsapp_template',
+      args: { template_id: raw.whatsapp_template.template_id, variables: raw.whatsapp_template.variables, send_at: raw.send_at ?? '', reasoning },
+    });
+  }
+  if (raw.decision === 'goal_complete') calls.push({ name: 'goal_complete', args: { reasoning } });
+  if (raw.decision === 'client_declined') calls.push({ name: 'client_declined', args: { reasoning } });
   return calls;
 }

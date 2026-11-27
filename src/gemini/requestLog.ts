@@ -40,15 +40,14 @@ function contentsForLog(contents: unknown): unknown {
 }
 
 /**
- * Continuation of a tool-call answer (openspec `planner-answer-tools`): when a
- * turn's calls include no `untilTool`, the provider adapter answers every call
- * with the literal result "recorded" and asks for the next calls, up to
- * `maxTurns` turns in all; the calls of all turns form one answer. Needed for
- * OpenAI's reasoning models, which make one action call per turn; Gemini and
- * Anthropic make all calls in one turn and ignore it.
+ * The loop rule of a tool-call answer (openspec `planner-answer-tools`): the
+ * run ends on an accepted call of one of `terminalTools`, after a second turn
+ * without calls, or after `maxTurns` model turns; the calls of all turns, each
+ * with the result it was answered with, form one answer. Rows written before
+ * 2026-11-27 carry the former rule (`untilTool`); the web reads both.
  */
 export interface ToolContinuation {
-  untilTool: string;
+  terminalTools: string[];
   maxTurns: number;
 }
 
@@ -115,15 +114,21 @@ export function declaredToolsOf(config: { tools?: unknown } | undefined): Declar
 export interface LoggedToolCall {
   name: string;
   args: unknown;
-  /** The model turn that made the call (1-based), set only by a continued answer (`ToolContinuation`); absent = the single turn. */
+  /** The provider's call id, when it gives one (Anthropic `tool_use.id`, OpenAI `call_id`, Gemini `functionCall.id`). */
+  id?: string;
+  /** The model turn that made the call (1-based); absent on rows of single-turn answers written before the loop. */
   turn?: number;
+  /** The result text the call was answered with (the loop); absent before the call ran and on older rows. */
+  result?: string;
 }
 
 /** Structural view of a response's function calls — the SDK class exposes `functionCalls`; the translation layers set it as a plain property. */
 interface ResponseWithCalls {
-  functionCalls?: { name?: string; args?: unknown; turn?: number }[];
-  candidates?: { content?: { parts?: { functionCall?: { name?: string; args?: unknown } }[] } }[];
+  functionCalls?: { id?: string; name?: string; args?: unknown; turn?: number; result?: string }[];
+  candidates?: { content?: { parts?: { functionCall?: { id?: string; name?: string; args?: unknown } }[] } }[];
   text?: string;
+  /** The text the model wrote per turn of a tool loop (never sent to the client). */
+  texts?: { turn: number; text: string }[];
 }
 
 /** The tool calls of a response, in order; [] when the model answered with text only. */
@@ -132,16 +137,33 @@ export function toolCallsOf(response: ResponseWithCalls): LoggedToolCall[] {
     response.functionCalls ??
     response.candidates?.[0]?.content?.parts?.flatMap((p) => (p.functionCall ? [p.functionCall] : [])) ??
     [];
-  return calls.map((c) => ({ name: c.name ?? '', args: c.args ?? {}, ...('turn' in c && typeof c.turn === 'number' ? { turn: c.turn } : {}) }));
+  return calls.map((c) => ({
+    name: c.name ?? '',
+    args: c.args ?? {},
+    ...('id' in c && typeof c.id === 'string' ? { id: c.id } : {}),
+    ...('turn' in c && typeof c.turn === 'number' ? { turn: c.turn } : {}),
+    ...('result' in c && typeof c.result === 'string' ? { result: c.result } : {}),
+  }));
 }
 
 /**
  * The response as stored in llm_calls.response: a tool-call answer as the JSON
- * list of its calls, a form answer as its text. Reads the calls first so the
- * SDK's `text` getter is not touched on a response without text parts.
+ * list of its items — every call with its turn and result, and the text the
+ * model wrote in a turn as `{ turn, text }`, ordered by turn with the text
+ * first — a form answer as its text. Reads the calls first so the SDK's `text`
+ * getter is not touched on a response without text parts.
  */
 export function responseForLog(response: ResponseWithCalls): string | null {
   const calls = toolCallsOf(response);
-  if (calls.length > 0) return JSON.stringify(calls);
+  const texts = response.texts ?? [];
+  if (calls.length > 0 || texts.length > 0) {
+    const items: Record<string, unknown>[] = [
+      ...texts.map((t) => ({ turn: t.turn, text: t.text })),
+      ...calls.map((c) => ({ ...c })),
+    ];
+    const turnOf = (x: Record<string, unknown>) => (typeof x.turn === 'number' ? x.turn : 0);
+    items.sort((a, b) => turnOf(a) - turnOf(b) || (('text' in a ? 0 : 1) - ('text' in b ? 0 : 1)));
+    return JSON.stringify(items);
+  }
   return response.text ?? null;
 }

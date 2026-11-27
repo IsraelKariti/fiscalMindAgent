@@ -19,22 +19,11 @@ import { selfEvidentEvidenceOf, selfEvidentItemName, type SelfEvidentFile, type 
  */
 const PAPER_KEY_VALUES = ['', ...CAPITAL_DOCUMENT_PAPER_VALUES] as [string, ...string[]];
 
-// Gemini's `responseJsonSchema` doesn't support Zod's `.optional()` the same way structured
-// outputs need every property always present; the "message fields only apply when
-// decision === 'follow_up'" rule is expressed as always-present nullable fields plus a
-// `decision` discriminator, documented in the prompt and re-checked below.
-//
-// The three decision values (openspec `verification-reply`):
-//   goal_complete — every row settled and the attestation confirmed; no message.
-//   follow_up     — the answer ties no file to any row; exactly one message + send_at.
-//   collect       — the answer ties a file to a row (collected_document_ids, matched_files,
-//                   or an instance's file_ids) or claims a document; NO message: the code
-//                   verifies the collected documents first and asks for the reply in a
-//                   second cycle, which may not choose 'collect' (its schema drops it).
-//   client_declined — the client refused the WhatsApp collection in words (openspec
-//                   `client-decline`); the answer carries nothing else: the code sends
-//                   the fixed acknowledgement and hands the client to the accountant.
-export const DECISION_VALUES = ['goal_complete', 'follow_up', 'collect', 'client_declined'] as const;
+// The planner is a tool loop since 2026-11-27 (openspec `planner-answer-tools`):
+// there is no decision label and no message field in this form. A unit of
+// calls (decisionTools.ts `assembleCalls`) becomes this raw shape and
+// `normalizeChanges` judges it; the message of the run is judged by
+// `normalizeFollowUpMessage` on the terminal call itself.
 
 /**
  * A purchase cost the client stated in the conversation, on an instance the
@@ -64,12 +53,7 @@ const StatedVehicleOnInstanceSchema = z.object({
   message_id: z.string(),
   quote: z.string(),
 });
-/** The values the follow-up cycle after verification may choose: it cannot collect again. */
-export const AFTER_VERIFICATION_DECISION_VALUES = ['goal_complete', 'follow_up', 'client_declined'] as const;
-
 export const DecisionResponseSchema = z.object({
-  decision: z.enum(DECISION_VALUES),
-  reasoning: z.string(),
   /** Ids from the REQUIRED DOCUMENTS list the thread shows the client has now provided. */
   collected_document_ids: z.array(z.string()),
   /** Which received file satisfies which required document (both by id); empty when nothing new matches. */
@@ -85,20 +69,6 @@ export const DecisionResponseSchema = z.object({
       evidence: z.object({ message_id: z.string(), quote: z.string() }).nullable(),
     }),
   ),
-  // The agent messages on WhatsApp only (openspec `planner-answer-schema`): a
-  // follow_up carries exactly one of the two WhatsApp fields below, and the code
-  // derives the channel and the kind from which one is filled. There is no
-  // channel field and no email field in the form.
-  /** Free-form WhatsApp text — only valid while the 24h customer-service window is open. */
-  whatsapp_text: z.string().nullable(),
-  /** Pre-approved template + its {{n}} variable values — the only WhatsApp option outside the window. */
-  whatsapp_template: z.object({ template_id: z.string(), variables: z.array(z.string()) }).nullable(),
-  /**
-   * When to send: "YYYY-MM-DD HH:MM" wall-clock time in the accountant's
-   * timezone, or "asap" (openspec `reply-send-asap`) — the code then picks the
-   * time itself, one second ahead, for a reply to a client who is waiting.
-   */
-  send_at: z.string().nullable(),
   /**
    * Document-fetch step, or null. Which values are valid depends on the current
    * fetch state for the targeted provider (see the prompt's DOCUMENT FETCH
@@ -296,11 +266,11 @@ export const DecisionResponseSchema = z.object({
 export type DecisionResponse = z.infer<typeof DecisionResponseSchema>;
 
 /**
- * The request no longer carries this form (openspec `planner-answer-tools`,
- * 2026-10-14): the model answers with flat tool calls (decisionTools.ts) and
- * `assembleDecision` rebuilds this shape, so every validator below still reads
- * the full `DecisionResponse`. Which tools a context is offered replaces the
- * former field-group pruning.
+ * The request never carries this form (openspec `planner-answer-tools`): the
+ * model answers with flat tool calls (decisionTools.ts) and `assembleCalls`
+ * rebuilds this shape for one unit of calls, so every validator below still
+ * reads the full `DecisionResponse`. Which tools a context is offered replaces
+ * the former field-group pruning.
  */
 
 export interface MatchedFile {
@@ -436,80 +406,70 @@ export interface TeamQuestionDecision {
   evidenceMessageId: string | null;
 }
 
-export type NormalizedDecision =
-  | {
-      /** The client refused the collection in words (openspec `client-decline`): the answer carries nothing else (every list empty, by the gate). */
-      decision: 'client_declined';
-      reasoning: string;
-      collected_document_ids: string[];
-      matched_files: MatchedFile[];
-      document_fetch: null;
-      resolutions: DocumentResolution[];
-      addedInstances: InstanceAddition[];
-      retired: DocumentRetirement[];
-      setCompanies: CompanySetting[];
-      statedCosts: StatedCostDecision[];
-      statedVehicles: StatedVehicleDecision[];
-      attestation: null;
-    }
-  | {
-      decision: 'goal_complete';
-      reasoning: string;
-      collected_document_ids: string[];
-      matched_files: MatchedFile[];
-      document_fetch: DocumentFetchDecision | null;
-      resolutions: DocumentResolution[];
-      addedInstances: InstanceAddition[];
-      retired: DocumentRetirement[];
-      /** Rows renamed with the company the client named (openspec `item-company-clarification`). */
-      setCompanies: CompanySetting[];
-      /** Costs stated in the chat for existing items (openspec `chat-stated-cost`); costs on new instances travel on the instances. */
-      statedCosts: StatedCostDecision[];
-      /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
-      statedVehicles: StatedVehicleDecision[];
-      attestation: AttestationDecision | null;
-    }
-  | {
-      /** The answer ties a file to a row: no message; the reply comes from the follow-up cycle after verification. */
-      decision: 'collect';
-      reasoning: string;
-      collected_document_ids: string[];
-      matched_files: MatchedFile[];
-      /** Message-bound, so never set on a collecting answer (the follow-up cycle decides it). */
-      document_fetch: null;
-      resolutions: DocumentResolution[];
-      addedInstances: InstanceAddition[];
-      retired: DocumentRetirement[];
-      /** Rows renamed with the company the client named (openspec `item-company-clarification`). */
-      setCompanies: CompanySetting[];
-      statedCosts: StatedCostDecision[];
-      /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
-      statedVehicles: StatedVehicleDecision[];
-      /** Only 'confirmed' (a state change); a 'request' is message-bound and rejected. */
-      attestation: AttestationDecision | null;
-    }
-  | {
-      decision: 'follow_up';
-      reasoning: string;
-      collected_document_ids: string[];
-      matched_files: MatchedFile[];
-      message: FollowUpMessage;
-      /** Validated wall-clock datetime in the accountant's timezone. */
-      send_at: string;
-      document_fetch: DocumentFetchDecision | null;
-      resolutions: DocumentResolution[];
-      addedInstances: InstanceAddition[];
-      retired: DocumentRetirement[];
-      /** Rows renamed with the company the client named (openspec `item-company-clarification`). */
-      setCompanies: CompanySetting[];
-      /** Costs stated in the chat for existing items (openspec `chat-stated-cost`); costs on new instances travel on the instances. */
-      statedCosts: StatedCostDecision[];
-      /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
-      statedVehicles: StatedVehicleDecision[];
-      attestation: AttestationDecision | null;
-      /** A question for the team (openspec `team-questions`); the message of this answer is the holding note to the client. */
-      teamQuestion: TeamQuestionDecision | null;
-    };
+/**
+ * The validated changes of one unit of calls (openspec `planner-answer-tools`,
+ * "Each call is judged and executed on its own"): what plan.ts applies. The
+ * message of the run is not here — it is the terminal call's own business.
+ */
+export interface NormalizedChanges {
+  collected_document_ids: string[];
+  matched_files: MatchedFile[];
+  document_fetch: DocumentFetchDecision | null;
+  resolutions: DocumentResolution[];
+  addedInstances: InstanceAddition[];
+  retired: DocumentRetirement[];
+  /** Rows renamed with the company the client named (openspec `item-company-clarification`). */
+  setCompanies: CompanySetting[];
+  /** Costs stated in the chat for existing items (openspec `chat-stated-cost`); costs on new instances travel on the instances. */
+  statedCosts: StatedCostDecision[];
+  /** Vehicle facts stated in the chat for existing items (openspec `vehicle-declaration`); facts on new instances travel on the instances. */
+  statedVehicles: StatedVehicleDecision[];
+  /** 'confirmed' is a state change applied at once; 'request' rides on the run's message. */
+  attestation: AttestationDecision | null;
+  /** A question for the team (openspec `team-questions`). */
+  teamQuestion: TeamQuestionDecision | null;
+}
+
+/** Empty changes: the shape a unit that changed nothing merges into. */
+export function emptyChanges(): NormalizedChanges {
+  return {
+    collected_document_ids: [],
+    matched_files: [],
+    document_fetch: null,
+    resolutions: [],
+    addedInstances: [],
+    retired: [],
+    setCompanies: [],
+    statedCosts: [],
+    statedVehicles: [],
+    attestation: null,
+    teamQuestion: null,
+  };
+}
+
+/** The changes of several accepted units as one, in unit order (plan.ts applies them together). */
+export function mergeChanges(units: readonly NormalizedChanges[]): NormalizedChanges {
+  const out = emptyChanges();
+  for (const u of units) {
+    out.collected_document_ids.push(...u.collected_document_ids);
+    out.matched_files.push(...u.matched_files);
+    out.document_fetch = u.document_fetch ?? out.document_fetch;
+    out.resolutions.push(...u.resolutions);
+    out.addedInstances.push(...u.addedInstances);
+    out.retired.push(...u.retired);
+    out.setCompanies.push(...u.setCompanies);
+    out.statedCosts.push(...u.statedCosts);
+    out.statedVehicles.push(...u.statedVehicles);
+    out.attestation = u.attestation ?? out.attestation;
+    out.teamQuestion = u.teamQuestion ?? out.teamQuestion;
+  }
+  return out;
+}
+
+/** How many checklist items a set of changes touches (resolutions, additions, retirements, company sets, statements). */
+export function changeCount(c: NormalizedChanges): number {
+  return c.resolutions.length + c.addedInstances.length + c.retired.length + c.setCompanies.length + c.statedCosts.length + c.statedVehicles.length;
+}
 
 /** One provider's fetch situation the validator needs: its state, availability, and pending document types. */
 export interface DocumentFetchDecisionState {
@@ -597,11 +557,6 @@ export interface DecisionContext {
   documentFetch?: DocumentFetchDecisionState[];
   /** Capital-declaration intake state; absent for other agent types. */
   intake?: IntakeDecisionState;
-  /**
-   * The follow-up cycle after a verification batch (openspec `verification-reply`):
-   * the request schema drops the 'collect' value and the gate rejects it.
-   */
-  afterVerification?: boolean;
   /** The client's question still waiting for the team (openspec `team-questions`): a second `ask_team` is rejected while it is open. */
   openTeamQuestion?: { id: string; question: string; askedAt: Date } | null;
 }
@@ -643,7 +598,10 @@ export function allowedDocumentFetchActions(state: string, available: boolean, c
 }
 
 /** Just the message-shaping fields, so agents reusing this needn't carry every field. */
-export type FollowUpMessageInput = Pick<DecisionResponse, 'whatsapp_text' | 'whatsapp_template'>;
+export interface FollowUpMessageInput {
+  whatsapp_text: string | null;
+  whatsapp_template: { template_id: string; variables: string[] } | null;
+}
 
 /** The message kind a raw answer proposes, read the way normalization reads it; '—' when it carries none. */
 export function proposedMessageKind(raw: FollowUpMessageInput): 'freeform' | 'template' | '—' {
@@ -703,7 +661,7 @@ export function normalizeFollowUpMessage(raw: FollowUpMessageInput, ctx: Decisio
 }
 
 /** Resolves and validates the (provider, action) pair; rejects an action invalid for that provider's state. */
-function validateDocumentFetch(raw: DecisionResponse, ctx: DecisionContext): DocumentFetchDecision | null {
+export function validateDocumentFetch(raw: DecisionResponse, ctx: DecisionContext): DocumentFetchDecision | null {
   const action = raw.document_fetch_action;
   if (!action) return null;
   const providerId = raw.document_fetch_provider;
@@ -1384,11 +1342,11 @@ function validateRetirements(raw: DecisionResponse, ctx: DecisionContext): Docum
 
 /**
  * Validates the attestation step (capital declaration): 'request' only once
- * every row is settled (this decision's message is the summary, so follow_up
- * only); 'confirmed' only for a sent request, citing a post-request inbound
- * message verbatim.
+ * every row is settled and nothing changed in this run (the run's message is
+ * the summary — it rides on the terminal call); 'confirmed' only for a sent
+ * request, citing a post-request inbound message verbatim.
  */
-function validateAttestation(raw: DecisionResponse, ctx: DecisionContext): AttestationDecision | null {
+function validateAttestation(raw: DecisionResponse, ctx: DecisionContext, state: RunChangeState): AttestationDecision | null {
   if (!raw.attestation) return null;
   const intake = ctx.intake;
   if (!intake) throw new Error('attestation is not applicable to this agent — leave it null');
@@ -1396,19 +1354,18 @@ function validateAttestation(raw: DecisionResponse, ctx: DecisionContext): Attes
     throw new Error('attestation is already confirmed for this client — leave the field null');
   }
   if (raw.attestation === 'request') {
-    if (raw.decision !== 'follow_up') {
-      throw new Error("attestation 'request' must come with a follow_up decision — the scheduled message IS the summary");
-    }
-    // A cost stated in this answer settles an item only now (openspec
-    // `chat-stated-cost`): the summary waits for the next cycle like any change.
-    const changesThisCycle =
+    // A cost stated in this run settles an item only now (openspec
+    // `chat-stated-cost`): the summary waits for the next run like any change.
+    const changesThisUnit =
       (raw.resolved_documents ?? []).length +
       (raw.added_instances ?? []).length +
       (raw.retired_documents ?? []).length +
       (raw.stated_costs ?? []).length +
       (raw.stated_vehicles ?? []).length;
-    if (!intake.allSettled || changesThisCycle > 0) {
-      throw new Error("attestation 'request' is valid only when every document is already settled (approved / stated / not_required) and no new resolutions, additions, retirements, stated costs or vehicle statements are being made in this answer — the summary goes in the next cycle");
+    if (!intake.allSettled || changesThisUnit > 0 || state.changesBefore) {
+      throw new Error(
+        "attestation 'request' is valid only when every document is already settled (approved / stated / not_required) and no resolution, addition, retirement, stated cost or vehicle statement was made in this run — the summary goes in the next run; send this run's message without the request",
+      );
     }
     return { action: 'request' };
   }
@@ -1426,7 +1383,7 @@ function validateAttestation(raw: DecisionResponse, ctx: DecisionContext): Attes
  * A follow_up's send_at: the trimmed wall-clock time, the literal ASAP_SEND_AT
  * (case-insensitive), or null when the value is missing or neither form.
  */
-function normalizeSendAt(value: string | null): string | null {
+export function normalizeSendAt(value: string | null): string | null {
   if (value == null) return null;
   const trimmed = value.trim();
   if (trimmed.toLowerCase() === ASAP_SEND_AT) return ASAP_SEND_AT;
@@ -1444,102 +1401,22 @@ export class DecisionRejectedError extends Error {
   }
 }
 
+/** What the run did before this unit: the attestation request needs a run that changed nothing. */
+export interface RunChangeState {
+  /** A resolution, addition, retirement, company set or statement was already applied in this run or in an earlier unit of this turn. */
+  changesBefore: boolean;
+}
+
 /**
- * Whether the answer ties a file to a checklist row or claims a document: any
- * collected id, any matched_files pair, or a new instance naming file_ids. Such
- * an answer must be a 'collect' decision (no message); a 'follow_up' answer
- * must have none of these (openspec `verification-reply`).
+ * Judges one unit of calls (openspec `planner-answer-tools`, "Each call is
+ * judged and executed on its own"): the intake resolutions, additions,
+ * retirements, company sets, stated costs and vehicle facts, the attestation,
+ * the file ties, the fetch action and the team question of the unit, each by
+ * the rule that applies to it alone, against the live context. Throws a plain
+ * Error with the refusal the model is answered with; the checks the validators
+ * report on their own land in `checks`.
  */
-export function answerTiesFiles(raw: DecisionResponse, selfEvidentFiles?: ReadonlyMap<string, unknown>): boolean {
-  if (raw.collected_document_ids.length > 0 || raw.matched_files.length > 0) return true;
-  const instanceFileIds = [
-    ...(raw.resolved_documents ?? []).flatMap((r) => r.instances ?? []),
-    ...(raw.added_instances ?? []).flatMap((a) => a.instances),
-  ].flatMap((i) => i.file_ids);
-  if (instanceFileIds.length > 0) return true;
-  // A self-evident file cited as evidence is tied to the item it creates (openspec `unlisted-files`).
-  const cited = [...(raw.resolved_documents ?? []), ...(raw.added_instances ?? [])].map((e) => e.proven_by_file_id ?? '');
-  return cited.some((id) => id !== '' && selfEvidentFiles?.has(id) === true);
-}
-
-/** The message-shaping fields a collecting answer must leave empty, by name, for the rejection message. */
-function filledMessageFields(raw: DecisionResponse): string[] {
-  const filled: string[] = [];
-  if (raw.whatsapp_text != null && raw.whatsapp_text.trim() !== '') filled.push('whatsapp_text');
-  if (raw.whatsapp_template != null) filled.push('whatsapp_template');
-  if (raw.send_at != null) filled.push('send_at');
-  return filled;
-}
-
-export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, checks: GateCheck[] = []): NormalizedDecision {
-  const ties = answerTiesFiles(raw, ctx.intake?.selfEvidentFiles);
-  if (raw.decision === 'client_declined') {
-    // The decline is the whole answer (openspec `client-decline`): the code
-    // sends the fixed acknowledgement, so no message, no tie, no checklist
-    // change and no fetch step may ride along.
-    const extras = [
-      ...filledMessageFields(raw),
-      ...(ties ? ['a file tie (mark_collected / tie_file / file_ids)'] : []),
-      ...(raw.document_fetch_action ? ['document_fetch'] : []),
-      ...(raw.attestation ? ['attestation'] : []),
-      ...((raw.resolved_documents ?? []).length > 0 ? ['set_required'] : []),
-      ...((raw.added_instances ?? []).length > 0 ? ['add_instance'] : []),
-      ...((raw.retired_documents ?? []).length > 0 ? ['retire_document'] : []),
-      ...((raw.set_companies ?? []).length > 0 ? ['set_company'] : []),
-      ...((raw.stated_costs ?? []).length > 0 ? ['state_cost'] : []),
-      ...((raw.stated_vehicles ?? []).length > 0 ? ['state_vehicle'] : []),
-      ...(raw.team_question ? ['ask_team'] : []),
-    ];
-    if (extras.length > 0) {
-      throw new Error(
-        `decision "client_declined" is the whole answer — call conclude only; remove ${extras.join(', ')} (the acknowledgement is sent by the system, never by you)`,
-      );
-    }
-    return {
-      decision: 'client_declined',
-      reasoning: raw.reasoning,
-      collected_document_ids: [],
-      matched_files: [],
-      document_fetch: null,
-      resolutions: [],
-      addedInstances: [],
-      retired: [],
-      setCompanies: [],
-      statedCosts: [],
-      statedVehicles: [],
-      attestation: null,
-    };
-  }
-  // A question for the team rides only on a follow_up (openspec `team-questions`).
-  if (raw.decision !== 'follow_up') refuseTeamQuestion(raw);
-  if (raw.decision === 'collect') {
-    if (ctx.afterVerification) {
-      throw new Error(
-        'decision "collect" is not allowed in this cycle: the files of this turn were already verified — answer follow_up with a message',
-      );
-    }
-    if (!ties) {
-      throw new Error(
-        'decision "collect" ties no file to any document (collected_document_ids, matched_files and every file_ids are empty) — either tie the file or answer follow_up with a message',
-      );
-    }
-    const filled = filledMessageFields(raw);
-    if (filled.length > 0) {
-      throw new Error(
-        `decision "collect" must carry no message: leave ${filled.join(', ')} null — the reply is written in the next cycle, after the verification of the collected documents`,
-      );
-    }
-    if (raw.document_fetch_action) {
-      throw new Error('decision "collect" cannot carry a document_fetch_action — the next cycle, which writes the message, decides it');
-    }
-    if (raw.attestation === 'request') {
-      throw new Error("decision \"collect\" cannot carry attestation 'request' — the next cycle, which writes the message, decides it");
-    }
-  } else if (raw.decision === 'follow_up' && ties) {
-    throw new Error(
-      'a follow_up answer must not tie files: collected_document_ids, matched_files or an instance\'s file_ids is filled — answer "collect" (with every message field and send_at null) instead',
-    );
-  }
+export function normalizeChanges(raw: DecisionResponse, ctx: DecisionContext, state: RunChangeState, checks: GateCheck[] = []): NormalizedChanges {
   const documentFetch = validateDocumentFetch(raw, ctx);
   const resolutions = validateResolutions(raw, ctx);
   const addedInstances = validateAddedInstances(raw, ctx);
@@ -1547,51 +1424,11 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
   const setCompanies = validateSetCompanies(raw, ctx, checks);
   const statedCosts = validateStatedCosts(raw, ctx, resolutions, addedInstances, checks);
   const statedVehicles = validateStatedVehicles(raw, ctx, resolutions, addedInstances, checks);
-  const attestation = validateAttestation(raw, ctx);
+  const attestation = validateAttestation(raw, ctx, state);
   const matchedFiles = validateMatchedFiles(raw, ctx);
-  if (raw.decision === 'collect') {
-    return {
-      decision: 'collect',
-      reasoning: raw.reasoning,
-      collected_document_ids: raw.collected_document_ids,
-      matched_files: matchedFiles,
-      document_fetch: null,
-      resolutions,
-      addedInstances,
-      retired,
-      setCompanies,
-      statedCosts,
-      statedVehicles,
-      attestation,
-    };
-  }
-  if (raw.decision === 'goal_complete') {
-    return {
-      decision: 'goal_complete',
-      reasoning: raw.reasoning,
-      collected_document_ids: raw.collected_document_ids,
-      matched_files: matchedFiles,
-      document_fetch: documentFetch,
-      resolutions,
-      addedInstances,
-      retired,
-      setCompanies,
-      statedCosts,
-      statedVehicles,
-      attestation,
-    };
-  }
-  const sendAt = normalizeSendAt(raw.send_at);
-  if (sendAt === null) {
-    throw new Error(`follow_up decision missing/invalid send_at: ${JSON.stringify(raw)}`);
-  }
   return {
-    decision: 'follow_up',
-    reasoning: raw.reasoning,
     collected_document_ids: raw.collected_document_ids,
     matched_files: matchedFiles,
-    message: normalizeFollowUpMessage(raw, ctx),
-    send_at: sendAt,
     document_fetch: documentFetch,
     resolutions,
     addedInstances,
@@ -1605,13 +1442,12 @@ export function normalizeDecision(raw: DecisionResponse, ctx: DecisionContext, c
 }
 
 /**
- * The `ask_team` rules (openspec `team-questions`): only on a follow_up (the
- * answer's message is the holding note to the client), a non-blank question,
+ * The `ask_team` rules (openspec `team-questions`): a non-blank question,
  * never while a question is still open, and a cited message must be a real
- * inbound of this thread. Called on the follow_up branch only; the other
- * branches refuse the call outright.
+ * inbound of this thread. The run rules (once per run, before the message)
+ * live in plan.ts.
  */
-function validateTeamQuestion(raw: DecisionResponse, ctx: DecisionContext): TeamQuestionDecision | null {
+export function validateTeamQuestion(raw: DecisionResponse, ctx: DecisionContext): TeamQuestionDecision | null {
   const ask = raw.team_question;
   if (!ask) return null;
   const question = ask.question.trim();
@@ -1626,12 +1462,4 @@ function validateTeamQuestion(raw: DecisionResponse, ctx: DecisionContext): Team
     throw new Error(`ask_team: evidence_message_id "${cited}" is not an inbound message of this thread — cite a real message id or ''`);
   }
   return { question, reason: ask.why.trim(), evidenceMessageId: cited === '' ? null : cited };
-}
-
-/** The refusal text for an `ask_team` call on a decision that cannot carry it. */
-function refuseTeamQuestion(raw: DecisionResponse): void {
-  if (!raw.team_question) return;
-  throw new Error(
-    `ask_team is valid only with a follow_up decision whose message tells the client you will check with the office — decision "${raw.decision}" cannot carry it`,
-  );
 }

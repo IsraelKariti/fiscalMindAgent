@@ -37,20 +37,13 @@ describe('toAnthropicSchema', () => {
   it('drops nullable fields from required and keeps the non-null branch', () => {
     const converted = toAnthropicSchema(decisionJsonSchema) as Record<string, unknown>;
     const required = converted.required as string[];
-    assert.deepEqual(required.sort(), [
-      'collected_document_ids',
-      'decision',
-      'matched_files',
-      'reasoning',
-      'stated_costs',
-      'stated_vehicles',
-    ]);
+    assert.deepEqual(required.sort(), ['collected_document_ids', 'matched_files', 'stated_costs', 'stated_vehicles']);
     const props = converted.properties as Record<string, Record<string, unknown>>;
-    assert.equal(props.whatsapp_text!.type, 'string');
+    assert.equal(props.document_fetch_provider!.type, 'string');
     assert.deepEqual(props.attestation!.enum, ['request', 'confirmed']);
     // Collapsed object union keeps its own shape and required list.
-    assert.equal(props.whatsapp_template!.type, 'object');
-    assert.deepEqual(props.whatsapp_template!.required, ['template_id', 'variables']);
+    assert.equal(props.attestation_evidence!.type, 'object');
+    assert.deepEqual(props.attestation_evidence!.required, ['message_id', 'quote']);
   });
 
   it('handles nested null-unions (instances[].description) and keeps additionalProperties:false', () => {
@@ -84,8 +77,6 @@ describe('toAnthropicSchema', () => {
 describe('restoreOmittedNulls', () => {
   it('restores an Anthropic answer with every nullable field omitted into a valid decision', () => {
     const answer = {
-      decision: 'goal_complete',
-      reasoning: 'all documents are in',
       collected_document_ids: ['doc-1'],
       matched_files: [],
       stated_costs: [],
@@ -93,22 +84,18 @@ describe('restoreOmittedNulls', () => {
     };
     const restored = restoreOmittedNulls(decisionJsonSchema, answer);
     const parsed = DecisionResponseSchema.parse(restored);
-    assert.equal(parsed.whatsapp_text, null);
-    assert.equal(parsed.send_at, null);
+    assert.equal(parsed.document_fetch_action, null);
+    assert.equal(parsed.document_fetch_provider, null);
     assert.equal(parsed.resolved_documents, null);
     assert.equal(parsed.attestation, null);
   });
 
   it('restores nulls nested inside arrays and collapsed object unions', () => {
     const answer = {
-      decision: 'follow_up',
-      reasoning: 'ask for the missing bank statement',
       collected_document_ids: [],
       matched_files: [],
       stated_costs: [],
       stated_vehicles: [],
-      whatsapp_text: 'שלום',
-      send_at: '2026-09-02 10:00',
       resolved_documents: [
         {
           document_id: 'row-1',
@@ -122,20 +109,15 @@ describe('restoreOmittedNulls', () => {
     assert.equal(entry?.evidence, null);
     assert.equal(entry?.instances?.[0]!.description, null);
     assert.equal(parsed.document_fetch_action, null);
-    assert.equal(parsed.whatsapp_template, null);
+    assert.equal(parsed.attestation_evidence, null);
   });
 
   it('leaves explicit values and explicit nulls untouched (Gemini-style answers pass through)', () => {
     const answer = {
-      decision: 'follow_up',
-      reasoning: 'r',
       collected_document_ids: [],
       matched_files: [],
       stated_costs: [],
       stated_vehicles: [],
-      whatsapp_text: 'שלום',
-      whatsapp_template: null,
-      send_at: '2026-09-02 10:00',
       document_fetch_action: null,
       document_fetch_provider: null,
       document_fetch_document_keys: null,
@@ -150,9 +132,9 @@ describe('restoreOmittedNulls', () => {
   });
 
   it('does not invent values for omitted non-nullable fields', () => {
-    const answer = { decision: 'goal_complete' };
+    const answer = { stated_costs: [] };
     const restored = restoreOmittedNulls(decisionJsonSchema, answer) as Record<string, unknown>;
-    assert.equal('reasoning' in restored, false);
+    assert.equal('collected_document_ids' in restored, false);
     assert.throws(() => DecisionResponseSchema.parse(restored));
   });
 });

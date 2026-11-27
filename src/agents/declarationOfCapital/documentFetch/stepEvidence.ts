@@ -17,7 +17,11 @@ import { RunnerStepError } from './types.js';
  * out the same way.
  */
 export const EVIDENCE_PREFIX = 'debug/documentfetch/';
-/** The prefix before the rename of 2026-11-25; only the cleanup still reads it. */
+/**
+ * The prefix before the rename of 2026-11-25. Sessions from before the rename
+ * keep their evidence here (resolveEvidencePrefix falls back to it), and the
+ * cleanup ages it out.
+ */
 export const LEGACY_EVIDENCE_PREFIX = 'debug/taxfetch/';
 
 export type EvidenceFile = EvidencePart | 'record';
@@ -43,6 +47,25 @@ const day = (at: Date): string => at.toISOString().slice(0, 10);
 /** The blob prefix of one session's evidence. */
 export function evidencePrefixFor(sessionId: string, createdAt: Date): string {
   return `${EVIDENCE_PREFIX}${day(createdAt)}/${sessionId}/`;
+}
+
+/** The same session's prefix under the pre-rename layout (sessions created before 2026-11-25 evening). */
+export function legacyEvidencePrefixFor(sessionId: string, createdAt: Date): string {
+  return `${LEGACY_EVIDENCE_PREFIX}${day(createdAt)}/${sessionId}/`;
+}
+
+/**
+ * The prefix a session's evidence actually sits under, with its blob keys:
+ * the current layout first; when it holds nothing, the legacy layout. A
+ * session with no evidence at all answers the current prefix and no keys.
+ */
+export async function resolveEvidencePrefix(sessionId: string, createdAt: Date): Promise<{ prefix: string; keys: string[] }> {
+  const prefix = evidencePrefixFor(sessionId, createdAt);
+  const keys = (await listBlobs(prefix)).map((b) => b.key);
+  if (keys.length > 0) return { prefix, keys };
+  const legacyPrefix = legacyEvidencePrefixFor(sessionId, createdAt);
+  const legacyKeys = (await listBlobs(legacyPrefix)).map((b) => b.key);
+  return legacyKeys.length > 0 ? { prefix: legacyPrefix, keys: legacyKeys } : { prefix, keys };
 }
 
 /** Step names come from provider code, but stay defensive: a blob key segment never carries a path or odd bytes. */
@@ -159,8 +182,7 @@ async function readBlobText(key: string): Promise<string> {
 
 /** Everything stored for a session, steps in order with their parsed records. Empty for a session without evidence. */
 export async function listSessionEvidence(sessionId: string, createdAt: Date): Promise<StoredEvidenceStep[]> {
-  const prefix = evidencePrefixFor(sessionId, createdAt);
-  const keys = (await listBlobs(prefix)).map((b) => b.key);
+  const { prefix, keys } = await resolveEvidencePrefix(sessionId, createdAt);
   const steps = groupEvidenceKeys(prefix, keys);
   return Promise.all(
     steps.map(async (step) => {

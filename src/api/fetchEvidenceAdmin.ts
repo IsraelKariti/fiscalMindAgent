@@ -3,12 +3,12 @@ import { z } from 'zod';
 import * as documentFetchSessions from '../db/queries/documentFetchSessions.js';
 import {
   evidenceKey,
-  evidencePrefixFor,
   groupEvidenceKeys,
   listSessionEvidence,
+  resolveEvidencePrefix,
   type EvidenceFile,
 } from '../agents/declarationOfCapital/documentFetch/stepEvidence.js';
-import { downloadBlob, listBlobs } from '../storage/blob.js';
+import { downloadBlob } from '../storage/blob.js';
 
 /**
  * The admin evidence gallery of one website-fetch session (openspec
@@ -107,11 +107,8 @@ export const adminServeFetchEvidence: RequestHandler = async (req, res) => {
     res.status(404).json({ error: 'Evidence not found.' });
     return;
   }
-  const prefix = evidencePrefixFor(session.id, session.created_at);
-  const step = groupEvidenceKeys(
-    prefix,
-    (await listBlobs(prefix)).map((b) => b.key),
-  ).find((s) => s.seq === seq.data);
+  const { prefix, keys } = await resolveEvidencePrefix(session.id, session.created_at);
+  const step = groupEvidenceKeys(prefix, keys).find((s) => s.seq === seq.data);
   if (!step || !step.parts.includes(part.data)) {
     res.status(404).json({ error: 'Evidence not found.' });
     return;

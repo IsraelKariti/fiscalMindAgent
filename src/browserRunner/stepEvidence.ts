@@ -31,6 +31,9 @@ export interface ResponseEntry {
 
 export type EvidencePart = 'screenshot' | 'html' | 'mhtml';
 
+/** The route the session's browser leaves through (openspec `fetch-egress-proxy`): host:port only, never credentials. */
+export type Egress = { mode: 'direct' } | { mode: 'proxy'; host: string };
+
 export interface StepRecord {
   seq: number;
   name: string;
@@ -47,6 +50,8 @@ export interface StepRecord {
   missing: Partial<Record<EvidencePart, string>>;
   /** Byte size of each captured part. */
   sizes: Partial<Record<EvidencePart, number>>;
+  /** The session's route, on the first record (seq 1) only. */
+  egress?: Egress;
 }
 
 export interface EvidenceItem {
@@ -90,9 +95,15 @@ export class StepCollector {
   private seq = 0;
   private consoleBuf: ConsoleEntry[] = [];
   private responseBuf: ResponseEntry[] = [];
+  private egress: Egress | null = null;
   readonly items: EvidenceItem[] = [];
 
   constructor(readonly limits: EvidenceLimits = DEFAULT_LIMITS) {}
+
+  /** The route the session uses; written on the first record only. */
+  setEgress(egress: Egress): void {
+    this.egress = egress;
+  }
 
   pushConsole(entry: ConsoleEntry): void {
     if (this.consoleBuf.length < this.limits.entries) this.consoleBuf.push(entry);
@@ -122,6 +133,7 @@ export class StepCollector {
       error,
       missing: {},
       sizes: {},
+      ...(this.seq === 1 && this.egress ? { egress: this.egress } : {}),
     };
     this.consoleBuf = [];
     this.responseBuf = [];

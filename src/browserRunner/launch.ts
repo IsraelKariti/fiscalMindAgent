@@ -1,6 +1,6 @@
-import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
-import { runnerEnv } from './env.js';
-import { StepCollector, captureStep, type EvidenceItem } from './stepEvidence.js';
+import { chromium, type Browser, type BrowserContext, type LaunchOptions, type Locator, type Page } from 'playwright';
+import { proxyFor, runnerEnv } from './env.js';
+import { StepCollector, captureStep, type Egress, type EvidenceItem } from './stepEvidence.js';
 
 /**
  * The step-evidence collector of each page the runner drives (openspec
@@ -13,8 +13,13 @@ export function collectorOf(page: Page): StepCollector | undefined {
   return collectors.get(page);
 }
 
-/** Attaches a collector and the console / error-response listeners that feed the next step's record. */
-export function attachCollector(page: Page, collector = new StepCollector()): StepCollector {
+/**
+ * Attaches a collector and the console / error-response listeners that feed
+ * the next step's record. The egress is written on the session's first record
+ * only (openspec `fetch-egress-proxy`).
+ */
+export function attachCollector(page: Page, egress: Egress = { mode: 'direct' }, collector = new StepCollector()): StepCollector {
+  collector.setEgress(egress);
   collectors.set(page, collector);
   page.on('console', (msg) => {
     collector.pushConsole({ at: new Date().toISOString(), type: msg.type(), text: msg.text().slice(0, 2_000) });
@@ -38,10 +43,29 @@ export function attachCollector(page: Page, collector = new StepCollector()): St
   return collector;
 }
 
+export type { Egress } from './stepEvidence.js';
+
 export interface LaunchedSession {
   browser: Browser;
   context: BrowserContext;
   page: Page;
+  egress: Egress;
+}
+
+/** What chromium.launch receives for a provider; pure, exported for the test. */
+export function launchOptionsFor(providerId?: string): { options: LaunchOptions; egress: Egress } {
+  const options: LaunchOptions = {
+    channel: 'chrome',
+    headless: false,
+    ignoreDefaultArgs: ['--enable-automation'],
+    args: ['--disable-blink-features=AutomationControlled', '--disable-quic'],
+  };
+  const proxy = providerId ? proxyFor(providerId) : null;
+  if (!proxy) return { options, egress: { mode: 'direct' } };
+  return {
+    options: { ...options, proxy: { server: proxy.server, username: proxy.username, password: proxy.password } },
+    egress: { mode: 'proxy', host: proxy.host },
+  };
 }
 
 /**
@@ -66,18 +90,21 @@ export interface LaunchedSession {
  * AutomationControlled Blink feature that fingerprinting scripts probe. Dropping
  * both leaves an honest `navigator.webdriver === false` rather than patching the
  * tell after the fact.
+ *
+ * A provider with a configured egress proxy (DOCUMENT_FETCH_PROXY_<PROVIDER>,
+ * openspec `fetch-egress-proxy`) gets Playwright's `proxy` launch option:
+ * Chrome then sends every request — pages, scripts, frames, downloads —
+ * through it, and Playwright answers the proxy's 407 with the credentials.
+ * Every other provider launches exactly as before. Phoenix needs this: its
+ * login script is not served to the platform's Azure address.
  */
-export async function launchInteractivePage(): Promise<LaunchedSession> {
-  const browser = await chromium.launch({
-    channel: 'chrome',
-    headless: false,
-    ignoreDefaultArgs: ['--enable-automation'],
-    args: ['--disable-blink-features=AutomationControlled', '--disable-quic'],
-  });
+export async function launchInteractivePage(providerId?: string): Promise<LaunchedSession> {
+  const { options, egress } = launchOptionsFor(providerId);
+  const browser = await chromium.launch(options);
   const context = await browser.newContext({ locale: 'he-IL', timezoneId: 'Asia/Jerusalem' });
   const page = await context.newPage();
-  attachCollector(page);
-  return { browser, context, page };
+  attachCollector(page, egress);
+  return { browser, context, page, egress };
 }
 
 const rand = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min;

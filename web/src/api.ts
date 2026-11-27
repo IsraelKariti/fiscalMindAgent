@@ -761,6 +761,8 @@ export interface FetchEvidenceReply {
     taxYear: number;
     createdAt: string;
     updatedAt: string;
+    /** The route the session's browser used; null for sessions recorded before the field existed. */
+    egress: { mode: 'direct' } | { mode: 'proxy'; host: string } | null;
   };
   steps: FetchEvidenceStep[];
 }

@@ -28,3 +28,17 @@ test('the screenshot is an inline PNG on view and an attachment on download', ()
   });
   assert.match(evidenceHeadersFor('screenshot', 'download', 'a.png')['Content-Disposition'] ?? '', /^attachment/);
 });
+
+test('the session route comes from the first stored record; older sessions have none', async () => {
+  const { sessionEgressOf } = await import('../src/api/fetchEvidenceAdmin.js');
+  const rec = (egress?: { mode: 'direct' } | { mode: 'proxy'; host: string }) =>
+    ({ seq: 1, name: 'x', at: '', url: null, title: null, frames: [], console: [], responses: [], error: null, missing: {}, sizes: {}, ...(egress ? { egress } : {}) });
+  assert.deepEqual(sessionEgressOf([{ seq: 1, record: rec({ mode: 'proxy', host: 'brd.superproxy.io:44445' }) }, { seq: 2, record: rec() }]), {
+    mode: 'proxy',
+    host: 'brd.superproxy.io:44445',
+  });
+  assert.deepEqual(sessionEgressOf([{ seq: 1, record: rec({ mode: 'direct' }) }]), { mode: 'direct' });
+  assert.equal(sessionEgressOf([{ seq: 1, record: rec() }]), null);
+  assert.equal(sessionEgressOf([{ seq: 1, record: null }]), null);
+  assert.equal(sessionEgressOf([]), null);
+});

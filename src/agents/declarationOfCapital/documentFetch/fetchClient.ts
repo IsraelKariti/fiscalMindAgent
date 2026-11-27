@@ -72,6 +72,10 @@ const EvidenceListResponse = z.object({
         error: z.string().max(4_000).nullable(),
         missing: z.record(z.string().max(500)).default({}),
         sizes: z.record(z.number().int().nonnegative()).default({}),
+        // The session's route (openspec `fetch-egress-proxy`), on the first record only.
+        egress: z
+          .union([z.object({ mode: z.literal('direct') }), z.object({ mode: z.literal('proxy'), host: z.string().min(1).max(300) })])
+          .optional(),
       }),
     )
     .max(MAX_EVIDENCE_ITEMS_PER_PULL),

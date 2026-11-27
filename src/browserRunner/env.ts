@@ -37,4 +37,63 @@ const pick = (source: Record<string, string | undefined>): Record<string, string
       .filter((entry): entry is [string, string] => entry[1] !== undefined),
   );
 
-export const runnerEnv = RunnerEnvSchema.parse({ ...pick(fileEnv), ...pick(process.env) });
+const PROXY_VAR_PREFIX = 'DOCUMENT_FETCH_PROXY_';
+
+/**
+ * Per-provider egress proxies (openspec `fetch-egress-proxy`): every
+ * `DOCUMENT_FETCH_PROXY_<PROVIDER>` key, provider id lower-cased, raw value.
+ * Not parsed at boot — a malformed value only fails that provider's sessions
+ * (proxyFor), never the runner as a whole.
+ */
+const collectProxies = (source: Record<string, string | undefined>): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(source)
+      .filter((entry): entry is [string, string] => entry[0].startsWith(PROXY_VAR_PREFIX) && typeof entry[1] === 'string' && entry[1] !== '')
+      .map(([key, value]) => [key.slice(PROXY_VAR_PREFIX.length).toLowerCase(), value]),
+  );
+
+export const runnerEnv = {
+  ...RunnerEnvSchema.parse({ ...pick(fileEnv), ...pick(process.env) }),
+  proxies: { ...collectProxies(fileEnv), ...collectProxies(process.env) },
+};
+
+/** The name of the variable that configures a provider's proxy. */
+export function proxyVarName(providerId: string): string {
+  return `${PROXY_VAR_PREFIX}${providerId.toUpperCase()}`;
+}
+
+/** A provider's proxy as Chrome needs it, plus the host:port for logs (credentials never go to logs). */
+export interface ProxySetting {
+  server: string;
+  username: string;
+  password: string;
+  host: string;
+}
+
+/**
+ * Parses one proxy URL (`http://user:password@host:port`). Pure; exported for
+ * the test. Throws an error that names the variable and never quotes the value.
+ */
+export function parseProxySetting(providerId: string, raw: string | undefined): ProxySetting | null {
+  if (raw === undefined || raw === '') return null;
+  const name = proxyVarName(providerId);
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`${name} is not a proxy URL`);
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) throw new Error(`${name} is not a proxy URL`);
+  const host = url.port ? `${url.hostname}:${url.port}` : url.hostname;
+  return {
+    server: `${url.protocol}//${host}`,
+    username: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    host,
+  };
+}
+
+/** The proxy configured for a provider, or null for a direct connection. */
+export function proxyFor(providerId: string): ProxySetting | null {
+  return parseProxySetting(providerId, runnerEnv.proxies[providerId.toLowerCase()]);
+}

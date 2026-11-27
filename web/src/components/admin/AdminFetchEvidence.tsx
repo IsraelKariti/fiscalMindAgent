@@ -57,6 +57,16 @@ export function AdminFetchEvidence({ sessionId, onBack }: { sessionId: string; o
                 <dt>{t.fetchEvidenceStarted}</dt>
                 <dd>{formatTimestamp(state.session.createdAt)}</dd>
               </div>
+              <div className="gate-summary-row">
+                <dt>{t.fetchEvidenceEgress}</dt>
+                <dd className="mono" dir="ltr">
+                  {state.session.egress === null || state.session.egress === undefined
+                    ? t.fetchEvidenceEgressUnknown
+                    : state.session.egress.mode === 'direct'
+                      ? t.fetchEvidenceEgressDirect
+                      : t.fetchEvidenceEgressProxy(state.session.egress.host)}
+                </dd>
+              </div>
               {state.session.error && (
                 <div className="gate-summary-row">
                   <dt>{t.fetchEvidenceError}</dt>

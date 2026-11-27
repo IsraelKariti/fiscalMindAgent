@@ -235,3 +235,27 @@ export function withRenamedFetchVars(source: Record<string, string | undefined>)
 }
 
 export const env = EnvSchema.parse(withRenamedFetchVars(process.env));
+
+const DOCUMENT_FETCH_PROXY_PREFIX = 'DOCUMENT_FETCH_PROXY_';
+
+/**
+ * Per-provider egress proxies for website fetches (openspec
+ * `fetch-egress-proxy`): every `DOCUMENT_FETCH_PROXY_<PROVIDER>` pair as set,
+ * values opaque. The worker only forwards them to the session container — the
+ * runner is what parses and uses them — so they are never logged here. Pure
+ * over the given source; the default is the process environment.
+ */
+export function documentFetchProxyEnv(source: Record<string, string | undefined> = process.env): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(source).filter(
+      (entry): entry is [string, string] => entry[0].startsWith(DOCUMENT_FETCH_PROXY_PREFIX) && typeof entry[1] === 'string' && entry[1] !== '',
+    ),
+  );
+}
+
+/** The provider ids that have a configured egress proxy (lower-cased), for logs — never the values. */
+export function documentFetchProxiedProviders(source: Record<string, string | undefined> = process.env): string[] {
+  return Object.keys(documentFetchProxyEnv(source))
+    .map((key) => key.slice(DOCUMENT_FETCH_PROXY_PREFIX.length).toLowerCase())
+    .sort();
+}

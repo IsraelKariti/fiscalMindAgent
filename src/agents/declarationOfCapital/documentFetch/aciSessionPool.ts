@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { ContainerInstanceManagementClient } from '@azure/arm-containerinstance';
 import { DefaultAzureCredential } from '@azure/identity';
-import { env } from '../../../config/env.js';
+import { documentFetchProxiedProviders, documentFetchProxyEnv, env } from '../../../config/env.js';
 import { logger } from '../../../util/logger.js';
 import { FetchAtCapacityError } from './types.js';
 
@@ -36,6 +36,29 @@ interface AciConfig {
   acrIdentityId: string;
   location: string;
   runnerToken: string;
+}
+
+/** One container environment variable as ARM takes it. */
+export interface ContainerEnvVar {
+  name: string;
+  value?: string;
+  secureValue?: string;
+}
+
+/**
+ * The session container's environment (openspec `fetch-egress-proxy`): the
+ * runner token, the OTP-wait TTL, and every configured per-provider egress
+ * proxy (`DOCUMENT_FETCH_PROXY_<PROVIDER>`) as a secure value — ARM never
+ * shows those back. Pure; exported for the test.
+ */
+export function containerEnvFor(runnerToken: string, sessionTtlMs: number, proxyEnv: Record<string, string>): ContainerEnvVar[] {
+  return [
+    { name: 'BROWSER_RUNNER_TOKEN', secureValue: runnerToken },
+    { name: 'DOCUMENT_FETCH_SESSION_TTL_MS', value: String(sessionTtlMs) },
+    ...Object.entries(proxyEnv)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, secureValue]) => ({ name, secureValue })),
+  ];
 }
 
 function requireConfig(): AciConfig {
@@ -93,10 +116,7 @@ export async function provisionSessionContainer(sessionId: string): Promise<stri
           image: cfg.image,
           resources: { requests: { cpu: 2, memoryInGB: 4 } },
           ports: [{ port: RUNNER_PORT, protocol: 'TCP' }],
-          environmentVariables: [
-            { name: 'BROWSER_RUNNER_TOKEN', secureValue: cfg.runnerToken },
-            { name: 'DOCUMENT_FETCH_SESSION_TTL_MS', value: String(env.DOCUMENT_FETCH_SESSION_TTL_MS) },
-          ],
+          environmentVariables: containerEnvFor(cfg.runnerToken, env.DOCUMENT_FETCH_SESSION_TTL_MS, documentFetchProxyEnv()),
         },
       ],
       ipAddress: { type: 'Private', ports: [{ port: RUNNER_PORT, protocol: 'TCP' }] },
@@ -115,7 +135,7 @@ export async function provisionSessionContainer(sessionId: string): Promise<stri
     throw err;
   }
   ipCache.set(name, ip);
-  logger.info('document fetch: session container ready', { sessionId, group: name, ip });
+  logger.info('document fetch: session container ready', { sessionId, group: name, ip, proxies: documentFetchProxiedProviders() });
   return baseUrlOf(ip);
 }
 

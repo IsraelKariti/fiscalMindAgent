@@ -1229,6 +1229,32 @@ capability** — there is no accountant button.
   period later; a worker-boot sweep marks orphaned DB rows `expired`. Keep
   `src/browserRunner/` free of imports from worker/web code — pulling in
   `config/env.ts` would defeat the isolation.
+- **Egress proxy per provider** (openspec `fetch-egress-proxy`, 2026-11-28):
+  a provider whose `DOCUMENT_FETCH_PROXY_<PROVIDER>` variable is set (a proxy
+  URL `http://user:password@host:port`) launches its Chrome with Playwright's
+  `proxy` option (`launchOptionsFor` in `src/browserRunner/launch.ts`), so
+  every request — pages, the login script, frames, PDF downloads — leaves
+  through that proxy; every other provider launches direct, byte-for-byte as
+  before. Phoenix is the one routed provider: its login form is a script on
+  `auth0-login.fnx-public.com` that answers 404 to the Azure outbound address
+  (datacenter reputation, not geo) and 200 to an Israeli ISP address, so
+  production runs it through a Bright Data ISP zone (dedicated address, Israel).
+  The runner reads the variables from its own env (`proxyFor` in
+  `src/browserRunner/env.ts`; a malformed value fails that provider's session
+  with an error naming the variable, never a silent direct connection); the
+  worker only forwards them to the session container as secure values
+  (`containerEnvFor` in `documentFetch/aciSessionPool.ts`), and logs the
+  routed provider ids — never the values. The route is written on the
+  session's first evidence record (`egress: direct | proxy host:port`) and
+  shown on the admin evidence gallery's session summary, so a login that
+  failed because the form never appeared can be read as an egress problem at
+  once. The proxy operator is a new party in the path: HTTPS stays end to end
+  between Chrome and the site (CONNECT tunnel), so it sees host names and byte
+  counts only, never the id, the code or the PDFs. Owner check without a
+  client: `npm run proxy:check -- phoenix` launches the runner's Chrome the
+  same way and prints the exit address and the check URL's status (exit 0
+  only on 200); the worker image has no Chrome, so a production value is
+  checked by pasting it into the local `.env` for the run.
 - **Step evidence** (openspec `fetch-step-evidence`): every provider step —
   each `debugShot(page, name)` call in `src/browserRunner/<provider>.ts`, plus
   a final `<stage>-failed` item recorded by the server's `failureBody` — leaves

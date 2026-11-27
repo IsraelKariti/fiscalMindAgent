@@ -131,3 +131,15 @@ test('captureStep keeps the screenshot and HTML when the MHTML snapshot fails', 
   assert.equal(captured.record.missing.mhtml, 'Page.captureSnapshot failed');
   assert.equal(captured.record.error, 'no rows');
 });
+
+test('the egress is written on the first record only', () => {
+  const c = new StepCollector();
+  c.setEgress({ mode: 'proxy', host: 'brd.superproxy.io:44445' });
+  assert.deepEqual(c.nextRecord('login-page').egress, { mode: 'proxy', host: 'brd.superproxy.io:44445' });
+  assert.equal(c.nextRecord('otp-screen').egress, undefined);
+  const direct = new StepCollector();
+  direct.setEgress({ mode: 'direct' });
+  assert.deepEqual(direct.nextRecord('login-page').egress, { mode: 'direct' });
+  // No egress set at all: no field (older collectors).
+  assert.equal(new StepCollector().nextRecord('login-page').egress, undefined);
+});

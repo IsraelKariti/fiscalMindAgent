@@ -39,7 +39,10 @@ function fakeRunner(opts: { evidence: 'served' | 'missing' }) {
     if (opts.evidence === 'missing') return json(404, { error: 'no evidence' });
     if (path === '/sessions/s1/evidence?after=0') {
       return json(200, {
-        items: [record(1, 'stub-01-login-page', { screenshot: 3, html: 5 }), record(2, 'login-failed', { screenshot: 3 })],
+        items: [
+          { ...record(1, 'stub-01-login-page', { screenshot: 3, html: 5 }), egress: { mode: 'proxy', host: 'brd.superproxy.io:44445' } },
+          record(2, 'login-failed', { screenshot: 3 }),
+        ],
       });
     }
     if (path === '/sessions/s1/evidence/1/screenshot') return new Response(Buffer.from('PNG'), { status: 200 });
@@ -69,6 +72,9 @@ test('a failed login pulls and stores every step item before the error is thrown
       ['s1', 2, 'login-failed', 'PNG', null],
     ],
   );
+  // The route travels with the first record (openspec `fetch-egress-proxy`); later records carry none.
+  assert.deepEqual(stored[0]?.item.record.egress, { mode: 'proxy', host: 'brd.superproxy.io:44445' });
+  assert.equal(stored[1]?.item.record.egress, undefined);
   // The pull and the part reads all happened during startLogin, after the 502.
   assert.deepEqual(runner.calls, [
     'GET /healthz',

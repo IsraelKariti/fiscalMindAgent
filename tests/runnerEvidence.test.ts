@@ -5,6 +5,8 @@ import type { Server } from 'node:http';
 // The runner's env is read at import time; the token must exist before the server module loads.
 process.env['BROWSER_RUNNER_TOKEN'] = 'test-token-test-token-test';
 process.env['DOCUMENT_FETCH_SESSION_TTL_MS'] = '2000';
+// A provider whose egress proxy is misconfigured (openspec `fetch-egress-proxy`).
+process.env['DOCUMENT_FETCH_PROXY_BADPROXY'] = 'this is not a url';
 
 const { createRunnerApp, closeAllSessions } = await import('../src/browserRunner/server.js');
 const { attachCollector, debugShot } = await import('../src/browserRunner/launch.js');
@@ -29,12 +31,17 @@ function stubPage() {
   };
 }
 
+const launchedFor: string[] = [];
 function stubLaunch() {
   const page = stubPage();
+  const egress = { mode: 'proxy', host: 'proxy.test:8080' } as const;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  attachCollector(page as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return async () => ({ browser: { close: async () => undefined }, context: {}, page }) as any;
+  attachCollector(page as any, egress);
+  return async (providerId?: string) => {
+    launchedFor.push(providerId ?? '');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { browser: { close: async () => undefined }, context: {}, page, egress } as any;
+  };
 }
 
 /** A provider that records a step and then fails the login. */
@@ -50,7 +57,7 @@ const failingProvider = {
 };
 
 async function listen(): Promise<{ base: string; server: Server }> {
-  const app = createRunnerApp({ providers: { stub: failingProvider }, launch: stubLaunch() });
+  const app = createRunnerApp({ providers: { stub: failingProvider, badproxy: failingProvider }, launch: stubLaunch() });
   const server = await new Promise<Server>((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
@@ -79,7 +86,9 @@ test('a failed login leaves its step items, listable and fetchable by the worker
     // The browser is closed, but the evidence of the session is still served.
     const list = await fetch(`${base}/sessions/s1/evidence`, { headers: auth });
     assert.equal(list.status, 200);
-    const { items } = (await list.json()) as { items: Array<{ seq: number; name: string; error: string | null; sizes: Record<string, number> }> };
+    const { items } = (await list.json()) as {
+      items: Array<{ seq: number; name: string; error: string | null; sizes: Record<string, number>; egress?: unknown }>;
+    };
     assert.deepEqual(
       items.map((i) => [i.seq, i.name, i.error]),
       [
@@ -88,6 +97,22 @@ test('a failed login leaves its step items, listable and fetchable by the worker
       ],
     );
     assert.equal(items[0]?.sizes['screenshot'], 7);
+    // The launcher got the provider id, and the route sits on the first record only.
+    assert.deepEqual(launchedFor, ['stub']);
+    assert.deepEqual(items[0]?.egress, { mode: 'proxy', host: 'proxy.test:8080' });
+    assert.equal(items[1]?.egress, undefined);
+
+    // A misconfigured egress proxy refuses the session before any browser exists, naming the variable only.
+    const bad = await fetch(`${base}/sessions`, {
+      method: 'POST',
+      headers: { ...auth, 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: 's2', provider: 'badproxy', credentials: { idNumber: '1' } }),
+    });
+    assert.equal(bad.status, 502);
+    const badBody = (await bad.json()) as { error: string };
+    assert.equal(badBody.error, 'DOCUMENT_FETCH_PROXY_BADPROXY is not a proxy URL');
+    assert.deepEqual(launchedFor, ['stub']);
+    assert.equal((await fetch(`${base}/sessions/s2/evidence`, { headers: auth })).status, 404);
 
     const shot = await fetch(`${base}/sessions/s1/evidence/1/screenshot`, { headers: auth });
     assert.equal(shot.status, 200);

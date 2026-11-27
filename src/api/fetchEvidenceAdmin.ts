@@ -9,6 +9,7 @@ import {
   type EvidenceFile,
 } from '../agents/declarationOfCapital/documentFetch/stepEvidence.js';
 import { downloadBlob } from '../storage/blob.js';
+import type { Egress } from '../browserRunner/stepEvidence.js';
 
 /**
  * The admin evidence gallery of one website-fetch session (openspec
@@ -19,6 +20,12 @@ import { downloadBlob } from '../storage/blob.js';
  */
 
 const PART_SCHEMA = z.enum(['screenshot', 'html', 'mhtml', 'record']);
+
+/** The route a session used, read from its first stored record (openspec `fetch-egress-proxy`); null for sessions recorded before the field existed. Pure. */
+export function sessionEgressOf(steps: ReadonlyArray<{ seq: number; record: { egress?: Egress } | null }>): Egress | null {
+  const first = steps.find((s) => s.seq === 1) ?? steps[0];
+  return first?.record?.egress ?? null;
+}
 
 /**
  * GET /api/admin/document-fetch/:sessionId/evidence — the session's summary and
@@ -44,6 +51,7 @@ export const adminGetFetchEvidence: RequestHandler = async (req, res) => {
       taxYear: session.tax_year,
       createdAt: session.created_at.toISOString(),
       updatedAt: session.updated_at.toISOString(),
+      egress: sessionEgressOf(steps),
     },
     steps: steps.map((s) => ({
       seq: s.seq,

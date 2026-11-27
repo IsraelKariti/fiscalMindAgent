@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type { Browser, Page } from 'playwright';
 import { z } from 'zod';
-import { runnerEnv } from './env.js';
+import { proxyFor, runnerEnv } from './env.js';
 import { attachCollector, collectorOf, debugShot, launchInteractivePage, type LaunchedSession } from './launch.js';
 import { type EvidencePart, type StepCollector } from './stepEvidence.js';
 import { israelTaxAuthorityProvider } from './israelTaxAuthority.js';
@@ -164,7 +164,7 @@ const EVIDENCE_PARTS: Record<EvidencePart, string> = {
 /** Injectable for tests: the providers and the browser launcher. */
 export interface RunnerAppDeps {
   providers?: Record<string, DocumentFetchProvider>;
-  launch?: () => Promise<LaunchedSession>;
+  launch?: (providerId?: string) => Promise<LaunchedSession>;
 }
 
 export function createRunnerApp(deps: RunnerAppDeps = {}): Express {
@@ -200,14 +200,24 @@ export function createRunnerApp(deps: RunnerAppDeps = {}): Express {
       return;
     }
     await closeSession(sessionId); // replace any prior browser for this id
+    // A malformed egress proxy fails the session here, before any browser
+    // exists: never a silent direct connection (openspec `fetch-egress-proxy`).
+    try {
+      proxyFor(providerId);
+    } catch (err) {
+      logger.error('browser runner: egress proxy misconfigured', err, { sessionId, providerId });
+      res.status(502).json({ error: errText(err) });
+      return;
+    }
     let browser: Browser | null = null;
     let page: Page | null = null;
     try {
-      const launched = await launch();
+      const launched = await launch(providerId);
       browser = launched.browser;
       page = launched.page;
+      logger.info('browser runner: start login', { sessionId, providerId, egress: launched.egress });
       // Evidence is registered before the first step so a failed login still leaves its items.
-      touchEvidence(sessionId, collectorOf(page) ?? attachCollector(page));
+      touchEvidence(sessionId, collectorOf(page) ?? attachCollector(page, launched.egress));
       await provider.startLogin(launched.page, credentials);
       sessions.set(sessionId, { browser, page: launched.page, providerId, timer: armBackstop(sessionId) });
       res.status(201).json({ ok: true });

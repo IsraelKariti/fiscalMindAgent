@@ -117,11 +117,6 @@ const icon = {
       <path d="m7 9 5-5 5 5" />
     </svg>
   ),
-  chevronDown: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  ),
   user: (
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -168,21 +163,14 @@ export function Sidebar({
   const [advisorPicked, setAdvisorPicked] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
-  const switcherWrapRef = useRef<HTMLDivElement>(null);
-  const hasAccountMenu = Boolean(onShowAgents);
   const canSwitchAgent = Boolean(onSwitchAgent && agentOptions && agentOptions.length > 1);
   useEffect(() => {
-    if (!menuOpen && !switcherOpen) return;
+    if (!menuOpen) return;
     const onPointerDown = (e: PointerEvent) => {
       if (!menuWrapRef.current?.contains(e.target as Node)) setMenuOpen(false);
-      if (!switcherWrapRef.current?.contains(e.target as Node)) setSwitcherOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMenuOpen(false);
-        setSwitcherOpen(false);
-      }
+      if (e.key === 'Escape') setMenuOpen(false);
     };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -190,7 +178,7 @@ export function Sidebar({
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [menuOpen, switcherOpen]);
+  }, [menuOpen]);
   // Matches what the accountant sees in the list: name, email, and the
   // contact label (phone for WhatsApp-only clients with a synthetic mailbox).
   // Same rule as the overview list (openspec `client-status-indicator`).
@@ -263,57 +251,7 @@ export function Sidebar({
   ];
   return (
     <nav className="sidebar">
-      <div className="brand sidebar-brand">
-        <img className="brand-mark" src="/petal-seal.svg" alt={t.logoAlt} />
-        <span>FiscalMind</span>
-      </div>
-
       <div className="sidebar-scroll">
-        {/* Identity header — on multi-agent accounts it opens the agent-switch dropdown. */}
-        {agentName && (
-          <div className="agent-switch-wrap" ref={switcherWrapRef}>
-            {canSwitchAgent ? (
-              <button
-                className="agent-identity agent-identity-btn"
-                title={t.switchAgentTitle}
-                aria-haspopup="menu"
-                aria-expanded={switcherOpen}
-                onClick={() => setSwitcherOpen((open) => !open)}
-              >
-                <span className="agent-identity-icon">{agentIcon}</span>
-                <span className="client-item-name">{agentName}</span>
-                <span className="agent-switch-chevron">{icon.chevronDown}</span>
-              </button>
-            ) : (
-              <div className="agent-identity">
-                <span className="agent-identity-icon">{agentIcon}</span>
-                <span className="client-item-name">{agentName}</span>
-              </div>
-            )}
-            {switcherOpen && (
-              <div className="account-menu agent-switch-menu" role="menu">
-                {agentOptions!.map((option) => (
-                  <button
-                    key={option.id}
-                    className="account-menu-item"
-                    role="menuitemradio"
-                    aria-checked={option.id === activeAgentId}
-                    onClick={() => {
-                      setSwitcherOpen(false);
-                      if (option.id !== activeAgentId) onSwitchAgent!(option.id);
-                    }}
-                  >
-                    <span className="agent-menu-icon">{option.icon}</span>
-                    <span className="client-item-name">{option.name}</span>
-                    {option.id === activeAgentId && (
-                      <span className="agent-menu-check">{icon.check}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
         <div className="side-heading">
           {onAddClient && !showDeleted && (
             <>
@@ -473,35 +411,65 @@ export function Sidebar({
 
       </div>
 
+      {/* The account menu (openspec `sidebar-account-menu`): brand, agent,
+          viewing-as, settings and logout all live behind the email row. */}
       <div className="sidebar-footer">
-        <button
-          className={`client-item ${settingsSelected ? 'selected' : ''}`}
-          onClick={onSelectSettings}
-        >
-          <span className="nav-item-icon">{icon.gear}</span>
-          <span className="client-item-name">{t.settings}</span>
-        </button>
-        {onLogout && (
-          <button className="client-item" onClick={onLogout}>
-            <span className="nav-item-icon">{icon.logout}</span>
-            <span className="client-item-name">{t.logout}</span>
-          </button>
-        )}
-        {impersonatingEmail && (
-          <div className="id-card impersonation-card" title={t.impersonationTitle}>
-            <span className="id-card-icon">{icon.eye}</span>
-            <span className="id-card-text">
-              <span className="microlabel">{t.viewingAs}</span>
-              <span className="id-card-value id-card-email" dir="ltr">{impersonatingEmail}</span>
-            </span>
-            <button className="btn btn-ghost btn-small" onClick={onStopImpersonating}>
-              {t.exitImpersonation}
-            </button>
-          </div>
-        )}
         <div className="account-menu-wrap" ref={menuWrapRef}>
           {menuOpen && (
             <div className="account-menu" role="menu">
+              <div className="brand account-menu-brand">
+                <img className="brand-mark" src="/petal-seal.svg" alt={t.logoAlt} />
+                <span>FiscalMind</span>
+              </div>
+              {canSwitchAgent
+                ? agentOptions!.map((option) => (
+                    <button
+                      key={option.id}
+                      className="account-menu-item"
+                      role="menuitemradio"
+                      aria-checked={option.id === activeAgentId}
+                      title={t.switchAgentTitle}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        if (option.id !== activeAgentId) onSwitchAgent!(option.id);
+                      }}
+                    >
+                      <span className="agent-menu-icon">{option.icon}</span>
+                      <span className="client-item-name">{option.name}</span>
+                      {option.id === activeAgentId && <span className="agent-menu-check">{icon.check}</span>}
+                    </button>
+                  ))
+                : agentName && (
+                    <div className="account-menu-agent">
+                      <span className="agent-menu-icon">{agentIcon}</span>
+                      <span className="client-item-name">{agentName}</span>
+                    </div>
+                  )}
+              {impersonatingEmail && (
+                <div className="id-card impersonation-card" title={t.impersonationTitle}>
+                  <span className="id-card-icon">{icon.eye}</span>
+                  <span className="id-card-text">
+                    <span className="microlabel">{t.viewingAs}</span>
+                    <span className="id-card-value id-card-email" dir="ltr">{impersonatingEmail}</span>
+                  </span>
+                  <button className="btn btn-ghost btn-small" onClick={onStopImpersonating}>
+                    {t.exitImpersonation}
+                  </button>
+                </div>
+              )}
+              <div className="account-menu-divider" />
+              <button
+                className={`account-menu-item ${settingsSelected ? 'is-selected' : ''}`}
+                role="menuitem"
+                aria-current={settingsSelected ? 'page' : undefined}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onSelectSettings();
+                }}
+              >
+                <span className="nav-item-icon">{icon.gear}</span>
+                <span>{t.settings}</span>
+              </button>
               {onShowAgents && (
                 <button
                   className="account-menu-item"
@@ -515,30 +483,34 @@ export function Sidebar({
                   <span>{t.agentsHomeTitle}</span>
                 </button>
               )}
+              {onLogout && (
+                <button
+                  className="account-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onLogout();
+                  }}
+                >
+                  <span className="nav-item-icon">{icon.logout}</span>
+                  <span>{t.logout}</span>
+                </button>
+              )}
             </div>
           )}
-          {hasAccountMenu ? (
-            <button
-              className="account-row account-row-btn"
-              title={t.accountMenuTitle}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
-              <span className="id-card-text">
-                <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
-              </span>
-              <span className="account-row-chevron">{icon.chevronsUpDown}</span>
-            </button>
-          ) : (
-            <div className="account-row" title={t.googleAccountTitle}>
-              <span className="avatar">{(userEmail?.[0] ?? '·').toUpperCase()}</span>
-              <span className="id-card-text">
-                <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
-              </span>
-            </div>
-          )}
+          <button
+            className="account-row account-row-btn"
+            title={t.accountMenuTitle}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <img className="account-row-logo" src="/petal-seal.svg" alt={t.logoAlt} />
+            <span className="id-card-text">
+              <span className="id-card-value id-card-email" dir="ltr">{userEmail ?? '…'}</span>
+            </span>
+            <span className="account-row-chevron">{icon.chevronsUpDown}</span>
+          </button>
         </div>
       </div>
     </nav>

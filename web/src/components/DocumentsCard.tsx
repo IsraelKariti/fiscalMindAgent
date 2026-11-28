@@ -179,28 +179,19 @@ function FileItem({
 const replacedByDeclaration = (doc: ClientDocument): boolean => doc.replaced_by === 'client_declaration';
 
 /**
- * Group order + labels of the capital-declaration flow: one tab per status,
- * except retired rows, which split by what replaced them (`match`).
+ * Tab order + labels of the capital-declaration flow (openspec `documents-tabs-cleanup`):
+ * the collected tab first, then one tab per status. Not shown on the card at all:
+ * "not required" rows the questionnaire or the conversation settled, and retired rows.
  */
-const CAPITAL_GROUPS: { key: string; status: DocumentStatus; labelKey: keyof Messages; match?: (doc: ClientDocument) => boolean; collapsed?: boolean }[] = [
+const CAPITAL_GROUPS: { key: string; status: DocumentStatus; labelKey: keyof Messages; match?: (doc: ClientDocument) => boolean }[] = [
+  { key: 'approved', status: 'approved', labelKey: 'groupApproved' },
   { key: 'unresolved', status: 'unresolved', labelKey: 'groupUnresolved' },
   { key: 'pending', status: 'pending', labelKey: 'groupPending' },
   { key: 'claimed', status: 'claimed', labelKey: 'groupClaimed' },
   { key: 'collected', status: 'collected', labelKey: 'groupCollected' },
-  { key: 'approved', status: 'approved', labelKey: 'groupApproved' },
   { key: 'stated', status: 'stated', labelKey: 'groupStated' },
-  // Not-required rows split by the source of the decision (openspec `split-not-required-by-source`).
-  { key: 'not_required_form', status: 'not_required', labelKey: 'groupNotRequiredForm', match: (doc) => notRequiredSource(doc) === 'form', collapsed: true },
-  { key: 'not_required_chat', status: 'not_required', labelKey: 'groupNotRequiredChat', match: (doc) => notRequiredSource(doc) === 'chat', collapsed: true },
-  {
-    key: 'not_required_accountant',
-    status: 'not_required',
-    labelKey: 'groupNotRequiredAccountant',
-    match: (doc) => notRequiredSource(doc) === 'accountant',
-    collapsed: true,
-  },
-  { key: 'retired', status: 'retired', labelKey: 'groupRetired', match: (doc) => !replacedByDeclaration(doc), collapsed: true },
-  { key: 'retired_declaration', status: 'retired', labelKey: 'groupRetiredDeclaration', match: replacedByDeclaration, collapsed: true },
+  // Only the rows the accountant marked by hand: this tab is where the mark is undone.
+  { key: 'not_required_accountant', status: 'not_required', labelKey: 'groupNotRequiredAccountant', match: (doc) => notRequiredSource(doc) === 'accountant' },
 ];
 
 export function DocumentsCard({ clientId, documents, files, onChanged, titleKey, emptyTextKey, capital, onFocusMessage, readOnly = false }: Props) {

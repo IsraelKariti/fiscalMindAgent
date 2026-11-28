@@ -2074,12 +2074,8 @@ textarea {
 }
 
 .doc-row.not_required,
-.doc-group-not_required_form,
-.doc-group-not_required_chat,
 .doc-group-not_required_accountant,
-.doc-row.retired,
-.doc-group-retired,
-.doc-group-retired_declaration {
+.doc-row.retired {
   --status-color: var(--text-muted);
 }
 

@@ -1,4 +1,4 @@
-import type { Download, Page } from 'playwright';
+import type { Download, Page, Request } from 'playwright';
 import { debugShot, humanPause, typeHuman } from './launch.js';
 import { logger } from '../util/logger.js';
 import {
@@ -169,12 +169,32 @@ export const migdalProvider: DocumentFetchProvider = {
   },
 
   async submitOtp(page: Page, otp: string): Promise<void> {
-    await enterOtp(page, otp);
-    await debugShot(page, 'migdal-04-otp-filled');
+    const siteSubmit = watchSiteSubmit(page);
+    try {
+      await enterOtp(page, otp);
+      await debugShot(page, 'migdal-04-otp-filled');
 
-    // Short pause only: the code is valid for about three minutes.
-    await humanPause(page, 1_000, 3_000);
-    await submitButton(page).click();
+      // Short pause only: the code is valid for about three minutes.
+      await humanPause(page, 1_000, 3_000);
+
+      // The site sends the code by itself on the sixth digit and the button
+      // leaves the page (seen in production 2026-11-28: the login succeeded
+      // while this step waited 30s for the button). Press it only when the
+      // site did not submit and the button is still there.
+      const press = shouldPressSubmit({
+        siteSubmitted: siteSubmit.seen(),
+        onCodeScreen: await onCodeScreen(page),
+        buttonVisible: await submitButton(page).isVisible().catch(() => false),
+      });
+      logger.info('migdal fetch: code entered', { siteSubmitted: siteSubmit.seen(), pressSubmit: press });
+      if (press) {
+        await submitButton(page)
+          .click({ timeout: 5_000 })
+          .catch((err: unknown) => logger.info('migdal fetch: submit button left before the press', { error: String(err).slice(0, 200) }));
+      }
+    } finally {
+      siteSubmit.stop();
+    }
 
     // Success leaves the login route for the lobby. A wrong code keeps the
     // boxes up; its error markup is unverified, so rejection is inferred from
@@ -229,6 +249,44 @@ function submitButton(page: Page) {
   return page.locator(SUBMIT_BUTTON).filter({ visible: true }).first();
 }
 
+/**
+ * Whether the code step presses "המשך" after typing the code. Never when the
+ * site already sent the code by itself (a second press would spend another
+ * attempt on the same code), never once the code screen is gone. Pure.
+ */
+export function shouldPressSubmit(state: { siteSubmitted: boolean; onCodeScreen: boolean; buttonVisible: boolean }): boolean {
+  return !state.siteSubmitted && state.onCodeScreen && state.buttonVisible;
+}
+
+/** True while the login route still shows the code boxes. */
+async function onCodeScreen(page: Page): Promise<boolean> {
+  if (new URL(page.url()).pathname.includes(LOBBY_PATH)) return false;
+  return otpBox(page, 0)
+    .isVisible()
+    .catch(() => false);
+}
+
+/** Whether a request is the site's own form post (analytics posts go to other hosts). Pure. */
+export function isMigdalFormPost(method: string, url: string): boolean {
+  if (method !== 'POST') return false;
+  try {
+    const host = new URL(url).hostname;
+    return host === 'migdal.co.il' || host.endsWith('.migdal.co.il');
+  } catch {
+    return false;
+  }
+}
+
+/** Records whether the site posted to its own host from now on (its automatic code submit). */
+function watchSiteSubmit(page: Page): { seen: () => boolean; stop: () => void } {
+  let seen = false;
+  const onRequest = (request: Request): void => {
+    if (isMigdalFormPost(request.method(), request.url())) seen = true;
+  };
+  page.on('request', onRequest);
+  return { seen: () => seen, stop: () => page.off('request', onRequest) };
+}
+
 function otpBox(page: Page, i: number) {
   return page.locator(`input[name="${OTP_BOX_NAMES[i]}"]`);
 }
@@ -247,6 +305,8 @@ async function enterOtp(page: Page, otp: string): Promise<void> {
   await typeHuman(page, otpBox(page, 0), digits);
   const values = await readOtp(page);
   if (values.join('') === digits) return;
+  // The site submits on the sixth digit; once the code screen is gone the boxes cannot be read or refilled.
+  if (!(await onCodeScreen(page))) return;
 
   logger.info('migdal fetch: code boxes did not auto-advance, filling each box', { filled: values.join('') });
   for (let i = 0; i < OTP_BOX_NAMES.length; i++) {

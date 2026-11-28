@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { MIGDAL_ROUNDS, normalizeMigdalTitle, selectMigdalRows, type MigdalRow } from '../src/browserRunner/migdal.js';
+import { MIGDAL_ROUNDS, isMigdalFormPost, normalizeMigdalTitle, selectMigdalRows, shouldPressSubmit, type MigdalRow } from '../src/browserRunner/migdal.js';
 import { getProviderSpec } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
 
 // Migdal row selection (openspec `migdal-fetch`): the kind comes from the
@@ -91,5 +91,24 @@ describe('migdal provider spec', () => {
     const mixed = [docs[0]!, { ...docs[1]!, title: 'דוח שנתי לעמית - קרן השתלמות - לשנת 2024', kind: 'study_fund_annual' }];
     assert.match(spec.delivery.waConfirmation(mixed, false, ['study_fund_annual']), /הפנסיה וקרן ההשתלמות/);
     assert.match(spec.delivery.waConfirmation(mixed, false, ['study_fund_annual']), /מצאתי שם גם את קרן ההשתלמות שלך/);
+  });
+});
+
+// The code step (production 2026-11-28): the site sends the code by itself on
+// the sixth digit, so the button is pressed only when the site did not.
+describe('migdal code step', () => {
+  it('presses the button only when the site did not submit and the button is on the code screen', () => {
+    assert.equal(shouldPressSubmit({ siteSubmitted: false, onCodeScreen: true, buttonVisible: true }), true);
+    assert.equal(shouldPressSubmit({ siteSubmitted: true, onCodeScreen: true, buttonVisible: true }), false);
+    assert.equal(shouldPressSubmit({ siteSubmitted: false, onCodeScreen: false, buttonVisible: true }), false);
+    assert.equal(shouldPressSubmit({ siteSubmitted: false, onCodeScreen: true, buttonVisible: false }), false);
+  });
+
+  it('counts only a POST to the site itself as its own submit', () => {
+    assert.equal(isMigdalFormPost('POST', 'https://my.migdal.co.il/mymigdal/api/login'), true);
+    assert.equal(isMigdalFormPost('GET', 'https://my.migdal.co.il/mymigdal/api/login'), false);
+    assert.equal(isMigdalFormPost('POST', 'https://analytics.google.com/g/collect'), false);
+    assert.equal(isMigdalFormPost('POST', 'https://notmigdal.co.il/x'), false);
+    assert.equal(isMigdalFormPost('POST', 'not a url'), false);
   });
 });

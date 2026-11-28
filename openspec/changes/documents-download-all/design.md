@@ -37,7 +37,7 @@ The pure functions get unit tests; no blob storage is needed for them.
 The response headers are sent before the first blob is read, so an HTTP error is no longer possible at that point. Each file is read whole inside a try/catch before it is added, so a read that fails halfway also leaves the file out cleanly. A failed one is logged and its name is collected; at the end the names go into "קבצים חסרים.txt". An archive-level error destroys the response, so the browser reports a failed download instead of saving a broken zip.
 
 **5. The button.**
-An icon-and-text button "הורדת הכל" in `.panel-header`, between the title and the progress badge, using the existing button classes. It is shown when `files` has at least one file that is not a split original (the same rule as `zipEntriesFor`, computed on the client from the list it already holds). It is not hidden by `readOnly`. Click: `window.location.assign(await api.filesZipUrl(clientId))`.
+An icon-and-text button "הורד הכל" in `.panel-header`, between the title and the progress badge, using the existing button classes. It is shown when `files` has at least one file that is not a split original (the same rule as `zipEntriesFor`, computed on the client from the list it already holds). It is not hidden by `readOnly`. Click: `window.location.assign(await api.filesZipUrl(clientId))`.
 
 **6. The title.**
 The i18n key `requiredDocuments` is renamed to `documentsCardTitle` with the value "מסמכים". The unused `titleKey` prop keeps working with the new default.

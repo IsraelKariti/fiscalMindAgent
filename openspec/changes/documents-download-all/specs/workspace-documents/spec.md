@@ -8,19 +8,19 @@ The title of the documents card SHALL be "מסמכים". The card SHALL NOT show
 - **THEN** the card header shows the title "מסמכים"
 
 ### Requirement: Download all files as one zip
-The header of the documents card SHALL show a "הורדת הכל" button when the client has at least one file to download. Activating the button SHALL download one zip file that holds the client's received files. The button SHALL be available to every user who can see the documents tab, including a read-only viewer, because the single-file download is available to the same users. The button SHALL NOT open a browser dialog of the app's own making; the browser's normal file download is the only feedback needed. The zip file SHALL be named "<client name> - מסמכים.zip".
+The header of the documents card SHALL show a "הורד הכל" button when the client has at least one file to download. Activating the button SHALL download one zip file that holds the client's received files. The button SHALL be available to every user who can see the documents tab, including a read-only viewer, because the single-file download is available to the same users. The button SHALL NOT open a browser dialog of the app's own making; the browser's normal file download is the only feedback needed. The zip file SHALL be named "<client name> - מסמכים.zip".
 
 #### Scenario: Client with files
-- **WHEN** a client has four received files and the accountant clicks "הורדת הכל"
+- **WHEN** a client has four received files and the accountant clicks "הורד הכל"
 - **THEN** the browser downloads one zip file named after the client, and the zip holds the four files
 
 #### Scenario: Client with no files
 - **WHEN** a client has no received file
-- **THEN** the card header shows no "הורדת הכל" button
+- **THEN** the card header shows no "הורד הכל" button
 
 #### Scenario: Read-only viewer
 - **WHEN** a user who sees the documents tab in read-only mode opens a client with files
-- **THEN** the "הורדת הכל" button is shown and works
+- **THEN** the "הורד הכל" button is shown and works
 
 #### Scenario: Client of another agent instance
 - **WHEN** a user requests the zip of a client they are not allowed to read

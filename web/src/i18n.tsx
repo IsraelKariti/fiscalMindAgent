@@ -838,7 +838,7 @@ const he = {
 
   // DocumentsCard
   documentsCardTitle: 'מסמכים',
-  downloadAllFiles: 'הורדת הכל',
+  downloadAllFiles: 'הורד הכל',
   downloadAllFilesTitle: 'הורדת כל הקבצים שהתקבלו בקובץ zip אחד',
   // LRI…PDI keeps "1 / 3" in reading order inside the RTL sentence
   collectedBadge: (collected: number, total: number) => `⁦${collected} / ${total}⁩ נאספו`,

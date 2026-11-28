@@ -12,12 +12,12 @@
 
 ## 3. Web
 
-- [x] 3.1 Rename the i18n key `requiredDocuments` to `documentsCardTitle` with the value "מסמכים" and add the texts for the button ("הורדת הכל" and its tooltip); verify `npm run typecheck` passes and no "מסמכים נדרשים" card title remains (the two import-settings texts that mention the monday column stay)
+- [x] 3.1 Rename the i18n key `requiredDocuments` to `documentsCardTitle` with the value "מסמכים" and add the texts for the button ("הורד הכל" and its tooltip); verify `npm run typecheck` passes and no "מסמכים נדרשים" card title remains (the two import-settings texts that mention the monday column stay)
 - [x] 3.2 Add `filesZipUrl(clientId)` to `web/src/api.ts` using `tokenizedUrl`; verify typecheck
-- [ ] 3.3 Add the "הורדת הכל" button to the header of `DocumentsCard`, shown only when there is at least one file that is not a split original, not hidden by `readOnly`; verify in the browser that it shows for a client with files and is absent for a client with none
+- [ ] 3.3 Add the "הורד הכל" button to the header of `DocumentsCard`, shown only when there is at least one file that is not a split original, not hidden by `readOnly`; verify in the browser that it shows for a client with files and is absent for a client with none
 
 ## 4. Checks
 
 - [x] 4.1 Run `npm run typecheck` and `npm test`; verify both pass
-- [ ] 4.2 In the browser, click "הורדת הכל" on a local client that has linked files, an unmatched file and a split file; open the zip in Windows Explorer and verify the Hebrew names are readable, the unmatched file is in "קבצים שלא שויכו", the children are present and the split original is not
+- [ ] 4.2 In the browser, click "הורד הכל" on a local client that has linked files, an unmatched file and a split file; open the zip in Windows Explorer and verify the Hebrew names are readable, the unmatched file is in "קבצים שלא שויכו", the children are present and the split original is not
 - [ ] 4.3 Open the same client inside the monday custom object (`npm run build:gui` first) and verify the button downloads the zip there too

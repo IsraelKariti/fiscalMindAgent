@@ -5,7 +5,7 @@ An accountant who wants the client's documents on their own computer must downlo
 ## What Changes
 
 - The title of the documents card changes from "מסמכים נדרשים" to "מסמכים".
-- The card header gets a "הורדת הכל" (download all) button. One click downloads one zip file with the client's received files.
+- The card header gets a "הורד הכל" (download all) button. One click downloads one zip file with the client's received files.
 - The zip holds every file the tab lists, each file once, except the original of a split file (its pages are already in the child files).
 - Files linked to a checklist item sit at the top level of the zip. Files that matched no item sit in a folder "קבצים שלא שויכו".
 - Each file in the zip has the same name its own download button gives it today.

@@ -85,25 +85,78 @@ export function normalizeMigdalTitle(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+/** The year dropdown's "every year" option (annual report types only). */
+export const ALL_YEARS_LABEL = 'כל השנים';
+/** The tax-certificate report type, and the prefix of every row title it lists. */
+export const TAX_CERTIFICATE_LABEL = 'אישור מס';
+
 /**
- * Pure selection for one round (openspec `migdal-fetch`): every row whose
- * title carries the tax year as a four-digit string is taken, tagged with the
- * round's kind; a title without the year is skipped (defence against a year
- * filter that did not apply — never another year's document); the same title
- * within a kind is downloaded once across rounds (`seen` is shared by the
- * caller; the full and the short report have different titles, so both stay).
+ * How a search was narrowed to the tax year: 'year' = the year was selected in
+ * the dropdown; 'all_years' = the dropdown lacks the year, "כל השנים" was
+ * selected and only the row titles tell the year.
+ */
+export type MigdalYearMode = 'year' | 'all_years';
+
+/**
+ * The year option to select (openspec `migdal-fetch`): the tax year when the
+ * dropdown offers it, else "כל השנים" (the list then also shows years the
+ * dropdown does not offer — seen live 2026-11-28: 2016-2018 under a 2019-2026
+ * dropdown), else null (the round ends with nothing). Pure.
+ */
+export function chooseYearOption(options: string[], taxYear: number): { label: string; mode: MigdalYearMode } | null {
+  const year = String(taxYear);
+  if (options.includes(year)) return { label: year, mode: 'year' };
+  if (options.includes(ALL_YEARS_LABEL)) return { label: ALL_YEARS_LABEL, mode: 'all_years' };
+  return null;
+}
+
+/**
+ * Whether a (collapsed) row title belongs to the tax year. 'year' mode: the
+ * title carries the year as a four-digit string (the site's own filter already
+ * narrowed the list). 'all_years' mode: the title must read "לשנת <year>" with
+ * no digit after it — the title is the only guard there. Pure.
+ */
+export function titleCarriesYear(title: string, taxYear: number, mode: MigdalYearMode): boolean {
+  const year = String(taxYear);
+  if (mode === 'year') return title.includes(year);
+  const at = title.indexOf(`לשנת ${year}`);
+  if (at < 0) return false;
+  const next = title.charAt(at + `לשנת ${year}`.length);
+  return !(next >= '0' && next <= '9');
+}
+
+/**
+ * Sorts one product option of the tax-certificate type into a document kind
+ * (openspec `migdal-fetch`). That list holds the account's own product names
+ * (seen live: "מקפת אישית", "מגדל השתלמות", "בריאות"), not the fixed labels of
+ * the annual types. Study fund first, so a name holding both words is a study
+ * fund; null = never searched (כל המוצרים, health, an unknown product). Pure.
+ */
+export function classifyTaxCertificateProduct(label: string): MigdalKind | null {
+  if (/השתלמות/.test(label)) return 'study_fund_annual';
+  if (/מקפת|פנסיה|גמל/.test(label)) return 'pension_annual';
+  return null;
+}
+
+/**
+ * Pure selection for one search (openspec `migdal-fetch`): every row whose
+ * title belongs to the tax year (see titleCarriesYear) is taken, tagged with
+ * the search's kind; any other title is skipped (never another year's
+ * document); the same title within a kind is downloaded once across searches
+ * (`seen` is shared by the caller; the full and the short report have
+ * different titles, so both stay).
  */
 export function selectMigdalRows(
   rows: MigdalRow[],
   taxYear: number,
   kind: MigdalKind,
   seen: Set<string> = new Set(),
+  mode: MigdalYearMode = 'year',
 ): SelectedMigdalRow[] {
-  const year = String(taxYear);
   const selected: SelectedMigdalRow[] = [];
   for (const row of rows) {
     const title = normalizeMigdalTitle(row.title);
-    if (!title || !title.includes(year)) continue;
+    if (!title || !titleCarriesYear(title, taxYear, mode)) continue;
     const key = `${kind}|${title}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -131,11 +184,19 @@ export function selectMigdalRows(
  * 2. Reports: /mymigdal/info/approvals. select#selectApprovalType (39 "דוח
  *    שנתי", 40 "דוח שנתי מקוצר", …), select#selectApprovalProducts (loaded per
  *    type from the server; per account — seen: כל המוצרים / פנסיה / בריאות /
- *    השתלמות), select#selectYear (renders after the first search; "כל השנים"
- *    then 2026 … 2019 — the site's range, not the account's), button#btnSearch
- *    "הצג אישור" → POST customerPeriodReports. Results: "נמצאו N תוצאות" and
- *    per row two a[aria-label="להורדת המסמך"] (title link + PDF icon); empty
- *    answer "לא מצאנו נתונים לתצוגה".
+ *    השתלמות), select#selectYear ("כל השנים" then 2026 … 2019 — the site's
+ *    range, not the account's; a "כל השנים" search also lists older years,
+ *    seen 2016-2018), button#btnSearch "הצג אישור" → POST
+ *    customerPeriodReports. Results: "נמצאו N תוצאות" for two rows or more,
+ *    "תהליך הפקת האישור הסתיים בהצלחה" for one; per row two
+ *    a[aria-label="להורדת המסמך"] (title link + PDF icon); empty answer "לא
+ *    מצאנו נתונים לתצוגה". Year rule: the tax year when offered, else "כל
+ *    השנים" with rows kept by their "לשנת <year>" title.
+ *    Tax certificate (seen live 2026-11-28): type 32 "אישור מס" lists the
+ *    account's product names (כל המוצרים / בריאות / מגדל השתלמות / מקפת
+ *    אישית) and years 2025 … 2019 with no "כל השנים"; titles read "אישור מס
+ *    לשנת 2025 עבור מקפת אישית". It runs after the four annual rounds, one
+ *    search per pension / study-fund product, only when the year is offered.
  * 3. Download: clicking the title link POSTs imagedocumentinfo + imagedocument
  *    and saves a normal browser download "<title>.pdf" — captured via the
  *    download event. No popup, no new tab.
@@ -229,15 +290,19 @@ export const migdalProvider: DocumentFetchProvider = {
       // The worker always sends every key (takesAllDocuments); honouring the
       // list here keeps the runner correct should that ever change.
       if (!wanted.has(round.kind)) continue;
-      const outcome = await runRound(page, round, String(taxYear), seen, docs, i + 1);
+      const outcome = await runRound(page, round, taxYear, seen, docs, i + 1);
       if (outcome !== 'no_product') answeredRounds++;
     }
+    // The tax certificate, after the annual rounds (openspec `migdal-fetch`).
+    if ((await runTaxCertificate(page, taxYear, wanted, seen, docs)) !== 'no_product') answeredRounds++;
 
     if (docs.length === 0) {
       if (answeredRounds === 0) {
-        throw new Error('no round could run: the product list offered neither פנסיה nor השתלמות for any report type');
+        throw new Error('no round could run: no report type offered a pension or study-fund product');
       }
-      throw new NoDocumentsOnSiteError(`the site lists no annual report for ${taxYear} under פנסיה or השתלמות (every round answered empty)`);
+      throw new NoDocumentsOnSiteError(
+        `the site lists no annual report or tax certificate for ${taxYear} under pension or study fund (every search answered empty)`,
+      );
     }
     return docs;
   },
@@ -345,20 +410,21 @@ async function optionLabels(page: Page, selector: string): Promise<string[]> {
 }
 
 /**
- * One filter round (openspec `migdal-fetch`): type, product and year by label,
- * search, then download every row the answer shows. 'no_product' = the site
- * offers no such product for this report type (the client lacks it); 'empty' =
- * the search answered with the no-data text; 'rows' = documents were listed
- * (those carrying the year were downloaded and appended to `docs`).
+ * One annual-report filter round (openspec `migdal-fetch`): type and product
+ * by label, the year by chooseYearOption, search, then download the rows of
+ * the tax year. 'no_product' = the site offers no such product for this report
+ * type (the client lacks it); 'no_year' = the dropdown offers neither the year
+ * nor "כל השנים"; 'empty' = the search answered with the no-data text; 'rows' =
+ * documents were listed (those of the year were downloaded into `docs`).
  */
 async function runRound(
   page: Page,
   round: MigdalRound,
-  year: string,
+  taxYear: number,
   seen: Set<string>,
   docs: FetchedDocument[],
   roundNumber: number,
-): Promise<'rows' | 'empty' | 'no_product'> {
+): Promise<'rows' | 'empty' | 'no_product' | 'no_year'> {
   const tag = `${round.typeLabel} / ${round.productLabel}`;
   await humanPause(page, 1_000, 4_000);
   // The type list is global — a missing label is a site change, so this throws.
@@ -374,7 +440,7 @@ async function runRound(
   await humanPause(page, 1_000, 3_000);
   await page.selectOption(PRODUCT_SELECT, { label: round.productLabel });
 
-  // The year dropdown only renders after a search has run in this session —
+  // The year dropdown may only render after a search has run in this session —
   // prime it once, with the product already narrowed.
   if ((await page.locator(YEAR_SELECT).count()) === 0) {
     logger.info('migdal fetch: priming search so the year dropdown renders', { round: tag });
@@ -384,15 +450,91 @@ async function runRound(
     await primed;
     await page.locator(YEAR_SELECT).waitFor({ state: 'visible', timeout: OPTIONS_LOAD_MS });
   }
-  // A year the site does not offer must fail loudly — never another year.
+  // The tax year when offered, else "כל השנים" — never another year.
   const years = await optionLabels(page, YEAR_SELECT);
-  if (!years.includes(year)) {
-    // The site keeps only recent years (production 2026-11-28: asked 2016,
-    // offered 2019-2026). The report is not there, so a retry cannot help.
-    throw new NoDocumentsOnSiteError(`the site has no reports for ${year} (the year dropdown offers: ${years.join(', ')})`);
+  const choice = chooseYearOption(years, taxYear);
+  if (!choice) {
+    logger.info('migdal fetch: the year dropdown offers neither the year nor all years', { round: tag, year: taxYear, years });
+    return 'no_year';
   }
-  await page.selectOption(YEAR_SELECT, { label: year });
+  await page.selectOption(YEAR_SELECT, { label: choice.label });
 
+  return searchAndCapture(page, { tag, kind: round.kind, taxYear, mode: choice.mode, shot: `migdal-07-round-${roundNumber}`, seen, docs });
+}
+
+/**
+ * The tax certificate (openspec `migdal-fetch`): type "אישור מס", then one
+ * search per product the account lists that sorts into a wanted kind. Its year
+ * dropdown has no "כל השנים", so the step runs only when the tax year is
+ * offered. 'no_product' = no pension or study-fund product is listed;
+ * 'no_year' = the year is not offered (nothing searched, never another year);
+ * 'searched' = at least one search ran (its rows, if any, are in `docs`).
+ */
+async function runTaxCertificate(
+  page: Page,
+  taxYear: number,
+  wanted: Set<string>,
+  seen: Set<string>,
+  docs: FetchedDocument[],
+): Promise<'searched' | 'no_product' | 'no_year'> {
+  const year = String(taxYear);
+  await humanPause(page, 1_000, 4_000);
+  // The type list is global — a missing label is a site change, so this throws.
+  await page.selectOption(TYPE_SELECT, { label: TAX_CERTIFICATE_LABEL });
+
+  const products = await waitForProductOptions(page);
+  const sorted: { label: string; kind: MigdalKind }[] = [];
+  for (const label of products) {
+    const kind = classifyTaxCertificateProduct(label);
+    if (kind && wanted.has(kind)) sorted.push({ label, kind });
+  }
+  logger.info('migdal fetch: tax certificate products', {
+    products,
+    searched: sorted.map((p) => `${p.label} → ${p.kind}`),
+    skipped: products.filter((label) => !sorted.some((p) => p.label === label)),
+  });
+  if (sorted.length === 0) return 'no_product';
+
+  // This type's year dropdown renders with the type (no priming search).
+  const rendered = await page
+    .locator(YEAR_SELECT)
+    .waitFor({ state: 'visible', timeout: OPTIONS_LOAD_MS })
+    .then(() => true)
+    .catch(() => false);
+  const years = rendered ? await optionLabels(page, YEAR_SELECT) : [];
+  if (!years.includes(year)) {
+    logger.info('migdal fetch: tax certificate skipped, the year is not offered for this type', { year, years });
+    return 'no_year';
+  }
+
+  for (const [i, product] of sorted.entries()) {
+    await humanPause(page, 1_000, 3_000);
+    await page.selectOption(PRODUCT_SELECT, { label: product.label });
+    await page.selectOption(YEAR_SELECT, { label: year });
+    // Strict title check: the title form of this type was seen live.
+    await searchAndCapture(page, {
+      tag: `${TAX_CERTIFICATE_LABEL} / ${product.label}`,
+      kind: product.kind,
+      taxYear,
+      mode: 'all_years',
+      shot: `migdal-08-tax-${i + 1}`,
+      seen,
+      docs,
+    });
+  }
+  return 'searched';
+}
+
+/**
+ * Presses "הצג אישור" on the filters already selected and downloads every
+ * listed row of the tax year into `docs`. 'empty' = the no-data text.
+ */
+async function searchAndCapture(
+  page: Page,
+  opts: { tag: string; kind: MigdalKind; taxYear: number; mode: MigdalYearMode; shot: string; seen: Set<string>; docs: FetchedDocument[] },
+): Promise<'rows' | 'empty'> {
+  const { tag, kind, taxYear, mode, docs } = opts;
+  const year = String(taxYear);
   // Armed before the trigger so the round trip cannot slip past it.
   await humanPause(page, 1_000, 4_000);
   const answered = watchListRoundTrip(page);
@@ -400,20 +542,21 @@ async function runRound(
   const status = await answered;
   if (status === null) throw new Error(`the search for ${tag} ${year} never answered within ${FILTER_SETTLE_MS / 1000}s`);
   const outcome = await waitForListOutcome(page);
-  await debugShot(page, `migdal-07-round-${roundNumber}-${outcome}`);
+  await debugShot(page, `${opts.shot}-${outcome}`);
   if (outcome === 'empty') {
-    logger.info('migdal fetch: no documents for this round', { round: tag, year });
+    logger.info('migdal fetch: no documents for this round', { round: tag, year, mode });
     return 'empty';
   }
 
   const rows = await readRows(page);
-  const selected = selectMigdalRows(rows, Number(year), round.kind, seen);
+  const selected = selectMigdalRows(rows, taxYear, kind, opts.seen, mode);
   logger.info('migdal fetch: round answered', {
     round: tag,
     year,
+    mode,
     rows: rows.length,
     selected: selected.length,
-    skipped: rows.filter((r) => !normalizeMigdalTitle(r.title).includes(year)).map((r) => normalizeMigdalTitle(r.title)),
+    skipped: rows.map((r) => normalizeMigdalTitle(r.title)).filter((title) => !titleCarriesYear(title, taxYear, mode)),
   });
   for (const row of selected) {
     await humanPause(page, 3_000, 8_000); // human cadence between downloads

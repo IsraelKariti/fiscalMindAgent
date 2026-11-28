@@ -526,13 +526,23 @@ function migdalProducts(docs: FetchedDocument[]): string {
 }
 
 /**
+ * True when a delivery holds a tax certificate (its on-site title starts with
+ * "אישור מס"): the wording then says "documents", not "annual reports"
+ * (openspec `migdal-fetch`).
+ */
+function migdalHasTaxCertificate(docs: FetchedDocument[]): boolean {
+  return docs.some((d) => (d.title ?? '').trim().startsWith('אישור מס'));
+}
+
+/**
  * Migdal (מגדל). One SMS-OTP login with the client's national id only — the
  * site sends the code to the mobile number it holds for that id, so no phone
  * is sent. The runner runs four filter rounds on "הדוחות והאישורים שלי": the
  * full annual report ("דוח שנתי") and the short one ("דוח שנתי מקוצר"), each
- * for פנסיה and for השתלמות (openspec `migdal-fetch`); both reports of a
- * product carry the same kind and attach to the same checklist row, titled by
- * their on-site row title.
+ * for פנסיה and for השתלמות, then the tax certificate ("אישור מס") per pension
+ * / study-fund product (openspec `migdal-fetch`); every file of a product
+ * carries the same kind and attaches to the same checklist row, titled by its
+ * on-site row title.
  */
 const migdalSpec: FetchProviderSpec = {
   id: 'migdal',
@@ -545,13 +555,13 @@ const migdalSpec: FetchProviderSpec = {
   documents: [
     {
       key: 'pension_annual',
-      documentDescriptionHe: 'דוח שנתי מלא ומקוצר — פנסיה / קופת גמל (מגדל מקפת)',
+      documentDescriptionHe: 'דוח שנתי מלא, דוח שנתי מקוצר ואישור מס — פנסיה / קופת גמל (מגדל מקפת)',
       matchesRequiredDocument: (doc) => MIGDAL_NAME.test(doc.name) && /פנסיה|גמל|מקפת/.test(doc.name) && !/השתלמות/.test(doc.name),
       catalogTypeKey: 'pension_provident',
     },
     {
       key: 'study_fund_annual',
-      documentDescriptionHe: 'דוח שנתי מלא ומקוצר — קרן השתלמות (מגדל)',
+      documentDescriptionHe: 'דוח שנתי מלא, דוח שנתי מקוצר ואישור מס — קרן השתלמות (מגדל)',
       matchesRequiredDocument: (doc) => MIGDAL_NAME.test(doc.name) && /השתלמות/.test(doc.name),
       catalogTypeKey: 'study_fund',
     },
@@ -583,9 +593,10 @@ const migdalSpec: FetchProviderSpec = {
   delivery: {
     waConfirmation(docs: FetchedDocument[], canEmail: boolean, createdKinds: string[] = []): string {
       const single = docs.length === 1;
+      const withCertificate = migdalHasTaxCertificate(docs);
       const fetchedWhat = single
-        ? `את הדוח השנתי של ${migdalProducts(docs)} שלך`
-        : `${docs.length} דוחות שנתיים של ${migdalProducts(docs)} שלך`;
+        ? `את ${withCertificate ? 'המסמך' : 'הדוח השנתי'} של ${migdalProducts(docs)} שלך`
+        : `${docs.length} ${withCertificate ? 'מסמכים' : 'דוחות שנתיים'} של ${migdalProducts(docs)} שלך`;
       const tail = canEmail
         ? single
           ? 'שלחתי לך עותק למייל.'
@@ -602,16 +613,18 @@ const migdalSpec: FetchProviderSpec = {
 
     emailSubject(docs: FetchedDocument[], taxYear: number): string {
       const products = joinHe([...new Set(docs.map((d) => (d.kind === 'study_fund_annual' ? 'קרן השתלמות' : 'פנסיה')))]);
+      const withCertificate = migdalHasTaxCertificate(docs);
       return docs.length > 1
-        ? `דוחות שנתיים (${products}) - מגדל - ${taxYear}`
-        : `דוח שנתי (${products}) - מגדל - ${taxYear}`;
+        ? `${withCertificate ? 'מסמכים' : 'דוחות שנתיים'} (${products}) - מגדל - ${taxYear}`
+        : `${withCertificate ? 'מסמך' : 'דוח שנתי'} (${products}) - מגדל - ${taxYear}`;
     },
 
     emailBodyLines(docs: FetchedDocument[], taxYear: number): string[] {
+      const withCertificate = migdalHasTaxCertificate(docs);
       return [
         docs.length === 1
-          ? `מצורף הדוח השנתי של ${migdalProducts(docs)} שלך לשנת ${taxYear}, שנמשך עבורך ממגדל.`
-          : `מצורפים ${docs.length} הדוחות השנתיים של ${migdalProducts(docs)} שלך לשנת ${taxYear}, שנמשכו עבורך ממגדל:`,
+          ? `מצורף ${withCertificate ? 'המסמך' : 'הדוח השנתי'} של ${migdalProducts(docs)} שלך לשנת ${taxYear}, שנמשך עבורך ממגדל.`
+          : `מצורפים ${docs.length} ${withCertificate ? 'המסמכים' : 'הדוחות השנתיים'} של ${migdalProducts(docs)} שלך לשנת ${taxYear}, שנמשכו עבורך ממגדל:`,
         ...(docs.length > 1 ? ['', ...docs.map((d) => `• ${d.title ?? 'דוח שנתי'} — ${migdalProductNoun(d.kind)}`)] : []),
       ];
     },

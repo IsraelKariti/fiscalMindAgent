@@ -24,5 +24,5 @@
 ## 5. Live verification (owner)
 
 - [x] 5.1 Owner: Bright Data account → ISP proxy zone → Israel → 1 allocated address → zone credentials; put `DOCUMENT_FETCH_PROXY_PHOENIX` in the local `.env`; `npm run proxy:check -- phoenix` prints the Israeli exit address and 200. Verify: the script's output.
-- [ ] 5.2 Owner: run `npx tsx scripts/phoenixFetchSmoke.ts` locally through the proxy for one real login; the login form appears and the code is requested. Verify: smoke output + evidence screenshots show the form.
-- [ ] 5.3 Owner: add `DOCUMENT_FETCH_PROXY_PHOENIX` to the production worker app settings (`az webapp config appsettings set` on `fiscalmind-il-worker`), deploy, run one Phoenix fetch for a test client; the evidence summary reads "egress: proxy brd.superproxy.io:<port the zone shows>" and the login reaches the code screen. Verify: production evidence gallery of the session.
+- [x] 5.2 Owner: run `npx tsx scripts/phoenixFetchSmoke.ts` locally through the proxy for one real login; the login form appears and the code is requested. Verify: smoke output + evidence screenshots show the form.
+- [x] 5.3 Owner: add `DOCUMENT_FETCH_PROXY_PHOENIX` to the production worker app settings (`az webapp config appsettings set` on `fiscalmind-il-worker`), deploy, run one Phoenix fetch for a test client; the evidence summary reads "egress: proxy brd.superproxy.io:<port the zone shows>" and the login reaches the code screen. Verify: production evidence gallery of the session.

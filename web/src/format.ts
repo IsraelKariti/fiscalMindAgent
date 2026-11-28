@@ -76,6 +76,47 @@ export function isAssignedTo(
   return mine !== '' && advisor === mine;
 }
 
+/** The picker's choice (openspec `client-search`, sidebar-advisor-picker): 'all', 'me', or one advisor's key. */
+export type AdvisorChoice = string;
+
+type AdvisedClient = { agent_fields?: { tax_advisor?: { name?: string; email: string | null } } };
+
+/**
+ * One advisor = one key: the lower-cased email, or `name:<name>` for an
+ * advisor stored without an email. '' when the client has no stored advisor.
+ */
+export function advisorKeyOf(client: AdvisedClient): string {
+  const advisor = client.agent_fields?.tax_advisor;
+  if (!advisor) return '';
+  const email = advisor.email?.trim().toLowerCase() ?? '';
+  if (email) return email;
+  const name = advisor.name?.trim() ?? '';
+  return name ? `name:${name}` : '';
+}
+
+/**
+ * The "other advisors" of the picker: everyone stored as tax advisor on at
+ * least one client, once each, without the signed-in person, by name (Hebrew order).
+ */
+export function advisorOptionsOf(clients: AdvisedClient[], meEmail: string | null | undefined): { key: string; name: string }[] {
+  const mine = meEmail?.trim().toLowerCase() ?? '';
+  const names = new Map<string, string>();
+  for (const client of clients) {
+    const key = advisorKeyOf(client);
+    if (key === '' || key === mine || names.has(key)) continue;
+    const advisor = client.agent_fields?.tax_advisor;
+    names.set(key, advisor?.name?.trim() || advisor?.email?.trim() || key);
+  }
+  return [...names.entries()].map(([key, name]) => ({ key, name })).sort((a, b) => a.name.localeCompare(b.name, 'he'));
+}
+
+/** Whether the client is listed under the picker's choice. A client with no advisor is listed only under 'all'. */
+export function isAdvisedBy(client: AdvisedClient, choice: AdvisorChoice, meEmail: string | null | undefined): boolean {
+  if (choice === 'all') return true;
+  if (choice === 'me') return isAssignedTo(client, meEmail);
+  return advisorKeyOf(client) === choice;
+}
+
 /**
  * The doc-collector agent stopped chasing because the collection due date
  * passed and handed the client off to the accountant.

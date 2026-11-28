@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
-import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, formatUsd, isAssignedTo, isDeclined, isOverdueStopped, type DotFilter } from '../format';
+import { advisorKeyOf, advisorOptionsOf, clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, formatUsd, isAdvisedBy, isAssignedTo, isDeclined, isOverdueStopped, type AdvisorChoice, type DotFilter } from '../format';
 import { dotTitle, useT } from '../i18n';
+import { Dropdown } from './Dropdown';
 
 /**
  * Admin roster cost (openspec `admin-roster-cost`): the shared formatter prints
@@ -160,9 +161,11 @@ export function Sidebar({
   const [clientQuery, setClientQuery] = useState('');
   // The status control (openspec `client-search`): one pressed button, 'all' on load, not kept across reloads.
   const [statusFilter, setStatusFilter] = useState<DotFilter>('all');
-  // "My clients only" (openspec `client-search`): ticked by default for a staff
-  // viewer, unticked for the accountant; not kept across reloads.
-  const [myOnly, setMyOnly] = useState(viewer);
+  // The tax advisor picker (openspec `client-search`): 'all', 'me' or one
+  // advisor's key. Opens on 'me' for a staff viewer, 'all' for everybody else;
+  // not kept across reloads. `advisorPicked` = the person chose by hand.
+  const [advisorChoice, setAdvisorChoice] = useState<AdvisorChoice>(viewer ? 'me' : 'all');
+  const [advisorPicked, setAdvisorPicked] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -197,28 +200,53 @@ export function Sidebar({
     const state = dotStateOf(client);
     return { cls: clientDotClass(state), title: dotTitle(t, state) };
   };
-  // "Me" for the checkbox: the signed-in person, or the accountant being viewed
-  // under admin view-as (the admin sees what the accountant sees). The checkbox
-  // only exists when someone in the loaded list is assigned to that person, so
-  // the narrowed list can never be empty by default.
+  // "Me" for the picker: the signed-in person, or the accountant being viewed
+  // under admin view-as (the admin sees what the accountant sees).
   const meEmail = impersonatingEmail ?? userEmail;
   const assignedCount = useMemo(() => clients.filter((client) => isAssignedTo(client, meEmail)).length, [clients, meEmail]);
-  const myOnlyActive = myOnly && assignedCount > 0;
+  const hasAdvisors = useMemo(() => clients.some((client) => advisorKeyOf(client) !== ''), [clients]);
+  const otherAdvisors = useMemo(() => advisorOptionsOf(clients, meEmail), [clients, meEmail]);
+  // The choice in effect is derived, never reset: an advisor who left the
+  // loaded list counts as 'all', and so does the opening 'me' of a viewer with
+  // no own clients. A 'me' picked by hand stays, even with no own clients.
+  const advisorInEffect: AdvisorChoice = !hasAdvisors
+    ? 'all'
+    : advisorChoice === 'me'
+      ? advisorPicked || assignedCount > 0
+        ? 'me'
+        : 'all'
+      : advisorChoice === 'all' || otherAdvisors.some((advisor) => advisor.key === advisorChoice)
+        ? advisorChoice
+        : 'all';
+  const advisorPickerOptions = useMemo(
+    () => [
+      { value: 'all', label: t.sidebarAdvisorAll },
+      { value: 'me', label: t.sidebarAdvisorMe },
+      ...otherAdvisors.map((advisor) => ({ value: advisor.key, label: advisor.name })),
+    ],
+    [otherAdvisors, t],
+  );
+  const advisorButtonText =
+    advisorInEffect === 'all'
+      ? t.sidebarAdvisorAllButton
+      : advisorInEffect === 'me'
+        ? t.sidebarMyClientsToggle
+        : (otherAdvisors.find((advisor) => advisor.key === advisorInEffect)?.name ?? t.sidebarAdvisorAllButton);
   // "Questions from the agent" (openspec `team-questions`): every client with an
   // open question, whoever it is addressed to — the same clients that carry the
-  // row badge. Composes with "my clients": both pressed = my clients with an
-  // open question. Hidden when no client has one.
+  // row badge. Composes with the tax advisor picker: the picked advisor's
+  // clients with an open question. Hidden when no client has one.
   const [forMeOnly, setForMeOnly] = useState(false);
   const forMeCount = useMemo(() => clients.filter((client) => Boolean(client.openTeamQuestion)).length, [clients]);
   const forMeActive = forMeOnly && forMeCount > 0;
   const baseClients = useMemo(
     () =>
       clients.filter(
-        (client) => (!myOnlyActive || isAssignedTo(client, meEmail)) && (!forMeActive || Boolean(client.openTeamQuestion)),
+        (client) => isAdvisedBy(client, advisorInEffect, meEmail) && (!forMeActive || Boolean(client.openTeamQuestion)),
       ),
-    [clients, myOnlyActive, forMeActive, meEmail],
+    [clients, advisorInEffect, forMeActive, meEmail],
   );
-  // Counts describe the loaded list (live or deleted, narrowed to "my clients" when ticked), never the search result.
+  // Counts describe the loaded list (live or deleted, narrowed by the tax advisor picker), never the search result.
   const statusCounts = useMemo(() => countByDotColor(baseClients.map(dotStateOf)), [baseClients]);
   const visibleClients = useMemo(() => {
     // Status control and search narrow together; name, contact or office file number (openspec `client-search`).
@@ -304,22 +332,30 @@ export function Sidebar({
             {t.sidebarDeletedToggle}
           </label>
         )}
-        {(assignedCount > 0 || forMeCount > 0) && (
-          // Two equal columns; a toggle shown alone keeps its own half (openspec `sidebar-filter-toggles`).
+        {(hasAdvisors || forMeCount > 0) && (
+          // Two equal columns; a control shown alone keeps its own half (openspec `client-search`, `team-questions`).
           <div className="sidebar-filter-toggles">
-            {assignedCount > 0 && (
-              <button
-                type="button"
-                className={`sidebar-filter-toggle sidebar-filter-toggle-mine ${myOnlyActive ? 'is-active' : ''}`}
-                aria-pressed={myOnlyActive}
+            {hasAdvisors && (
+              <Dropdown
+                className="sidebar-advisor-picker"
+                triggerClassName={`sidebar-filter-toggle ${advisorInEffect !== 'all' ? 'is-active' : ''}`}
                 title={t.sidebarMyClientsToggleTitle}
-                onClick={() => setMyOnly((on) => !on)}
-              >
-                <span className="sidebar-filter-toggle-icon" aria-hidden="true">
-                  {icon.user}
-                </span>
-                <span className="sidebar-filter-toggle-text">{t.sidebarMyClientsToggle}</span>
-              </button>
+                listMinWidth={200}
+                value={advisorInEffect}
+                options={advisorPickerOptions}
+                onChange={(choice) => {
+                  setAdvisorChoice(choice);
+                  setAdvisorPicked(true);
+                }}
+                triggerContent={
+                  <>
+                    <span className="sidebar-filter-toggle-icon" aria-hidden="true">
+                      {icon.user}
+                    </span>
+                    <span className="sidebar-filter-toggle-text">{advisorButtonText}</span>
+                  </>
+                }
+              />
             )}
             {forMeCount > 0 && (
               <button

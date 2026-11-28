@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface DropdownOption {
@@ -22,12 +22,27 @@ export function Dropdown({
   options,
   onChange,
   placeholder,
+  className,
+  triggerClassName,
+  triggerContent,
+  listMinWidth,
+  title,
 }: {
   value: string;
   options: DropdownOption[];
   onChange: (value: string) => void;
   /** Shown muted in the trigger while no option matches the current value. */
   placeholder?: string;
+  /** Extra class on the root element (e.g. to place it in a grid). */
+  className?: string;
+  /** Replaces the default trigger look (`dropdown-trigger`) with the caller's own button class. */
+  triggerClassName?: string;
+  /** Replaces the selected label inside the trigger (e.g. icon + text). */
+  triggerContent?: ReactNode;
+  /** The open list is at least this wide, even when the trigger is narrower. */
+  listMinWidth?: number;
+  /** Hover text of the trigger. */
+  title?: string;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -44,8 +59,17 @@ export function Dropdown({
     const gap = 4;
     const spaceBelow = window.innerHeight - rect.bottom - gap;
     const openUp = list.offsetHeight > spaceBelow && rect.top - gap > spaceBelow;
-    list.style.left = `${rect.left}px`;
-    list.style.width = `${rect.width}px`;
+    // A list wider than its trigger keeps the trigger's leading edge (the right
+    // one in RTL) and stays inside the window.
+    const width = Math.max(rect.width, listMinWidth ?? 0);
+    let left = rect.left;
+    if (width > rect.width) {
+      const rtl = getComputedStyle(trigger).direction === 'rtl';
+      const edge = 8;
+      left = Math.max(edge, Math.min(rtl ? rect.right - width : rect.left, window.innerWidth - width - edge));
+    }
+    list.style.left = `${left}px`;
+    list.style.width = `${width}px`;
     if (openUp) {
       list.style.top = 'auto';
       list.style.bottom = `${window.innerHeight - rect.top + gap}px`;
@@ -116,18 +140,21 @@ export function Dropdown({
   };
 
   return (
-    <div className="dropdown" ref={rootRef} onBlur={onBlur} onKeyDown={onKeyDown}>
+    <div className={className ? `dropdown ${className}` : 'dropdown'} ref={rootRef} onBlur={onBlur} onKeyDown={onKeyDown}>
       <button
         type="button"
-        className="dropdown-trigger"
+        className={triggerClassName ?? 'dropdown-trigger'}
+        title={title}
         ref={triggerRef}
         onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className={`dropdown-value${selected ? '' : ' placeholder'}`}>
-          {selected?.label ?? placeholder ?? ''}
-        </span>
+        {triggerContent ?? (
+          <span className={`dropdown-value${selected ? '' : ' placeholder'}`}>
+            {selected?.label ?? placeholder ?? ''}
+          </span>
+        )}
         <svg
           className={`dropdown-caret${open ? ' open' : ''}`}
           width="14"

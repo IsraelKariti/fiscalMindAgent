@@ -5583,9 +5583,9 @@ pre.doc-text {
   flex-shrink: 0;
 }
 
-/* The two list filters above the search box (openspec `sidebar-filter-toggles`):
-   "my clients" and "questions from the agent", one row, two equal columns.
-   A toggle shown alone keeps its own column. */
+/* The two list filters above the search box (openspec `client-search`,
+   `team-questions`): the tax advisor picker and "questions from the agent",
+   one row, two equal columns. A control shown alone keeps its own column. */
 .sidebar-filter-toggles {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -5610,8 +5610,23 @@ pre.doc-text {
 }
 
 /* Each toggle owns its column, whichever of the two is shown. */
-.sidebar-filter-toggle-mine {
+/* The tax advisor picker (openspec `client-search`): a Dropdown whose trigger is the pill. */
+.sidebar-advisor-picker {
   grid-column: 1;
+  min-width: 0;
+}
+
+.sidebar-advisor-picker .sidebar-filter-toggle {
+  width: 100%;
+  gap: 4px;
+  padding-inline: 6px;
+}
+
+/* A small caret, so the text keeps most of the half row. */
+.sidebar-advisor-picker .dropdown-caret {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
 }
 
 .sidebar-filter-toggle-questions {

@@ -347,7 +347,11 @@ const he = {
   sidebarNoClients: 'אין עדיין לקוחות',
   sidebarSearchPlaceholder: 'חיפוש לפי שם, אימייל או מס׳ תיק',
   sidebarMyClientsToggle: 'הלקוחות שלי',
-  sidebarMyClientsToggleTitle: 'הצגת הלקוחות שיועץ/ת המס שלהם הוא/היא המשתמש/ת המחובר/ת בלבד',
+  sidebarMyClientsToggleTitle: 'בחירת יועץ/ת המס שהלקוחות שלו/ה מוצגים ברשימה',
+  // The tax advisor picker (openspec `client-search`): the two fixed options and the button text for "all".
+  sidebarAdvisorAll: 'הכל',
+  sidebarAdvisorMe: 'אני',
+  sidebarAdvisorAllButton: 'כל היועצים',
   // The agent's open questions to the team (openspec `team-questions`).
   sidebarQuestionsForMe: 'שאלות מהסוכן',
   sidebarQuestionsForMeTitle: 'הצגת הלקוחות שהסוכן שאל עליהם שאלה וממתין לתשובה מהצוות בלבד',

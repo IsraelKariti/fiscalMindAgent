@@ -143,3 +143,13 @@ test('the egress is written on the first record only', () => {
   // No egress set at all: no field (older collectors).
   assert.equal(new StepCollector().nextRecord('login-page').egress, undefined);
 });
+
+test('a record keeps at most 4000 characters of error text (Playwright call logs can be far longer)', () => {
+  const c = new StepCollector();
+  const long = 'locator.click: Timeout 30000ms exceeded.\n' + 'x'.repeat(10_000);
+  const rec = c.nextRecord('otp-failed', long);
+  assert.equal(rec.error?.length, 4_000);
+  assert.ok(rec.error?.startsWith('locator.click: Timeout'));
+  assert.equal(c.nextRecord('short', 'boom').error, 'boom');
+  assert.equal(c.nextRecord('none').error, null);
+});

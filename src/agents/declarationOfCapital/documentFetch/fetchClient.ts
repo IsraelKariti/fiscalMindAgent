@@ -69,7 +69,12 @@ const EvidenceListResponse = z.object({
             }),
           )
           .max(200),
-        error: z.string().max(4_000).nullable(),
+        // An older runner may send a longer error (Playwright call logs); keep the head rather than reject the list.
+        error: z
+          .string()
+          .max(64_000)
+          .transform((s) => s.slice(0, 4_000))
+          .nullable(),
         missing: z.record(z.string().max(500)).default({}),
         sizes: z.record(z.number().int().nonnegative()).default({}),
         // The session's route (openspec `fetch-egress-proxy`), on the first record only.
@@ -209,8 +214,11 @@ export class HttpDocumentFetchClient implements DocumentFetchClient {
    * for this session, keep the 502 body's screenshot as a fallback item.
    */
   private async afterStep(sessionId: string, stage: string, err: unknown = null): Promise<void> {
-    await this.pullEvidence(sessionId);
-    if (err === null || this.pulled.has(sessionId)) return;
+    const stored = await this.pullEvidence(sessionId);
+    // The fallback is for a failed step whose own items did not arrive — also
+    // when earlier pulls of this session worked (prod session 462d4fe0: the
+    // otp-failed list was rejected and its screenshot was lost).
+    if (err === null || stored > 0) return;
     const fallback = fallbackShotItem(stage, err);
     if (fallback) await this.sink(sessionId, fallback);
   }

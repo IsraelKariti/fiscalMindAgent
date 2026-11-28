@@ -112,3 +112,61 @@ test('a pull that fails never changes the step outcome', async () => {
   const client = new HttpDocumentFetchClient(() => 'http://runner', { fetchImpl, token: () => 'tok', evidenceSink: async () => true });
   await client.submitOtp('s1', '123456'); // resolves although the evidence list threw
 });
+
+test('a later pull that is rejected keeps the 502 screenshot as a fallback, even after earlier pulls succeeded', async () => {
+  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  let otpAsked = false;
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const path = String(input).replace(/^https?:\/\/[^/]+/, '');
+    if (path === '/healthz') return json(200, { ok: true, protocolVersion: RUNNER_PROTOCOL_VERSION });
+    if (path === '/sessions' && init?.method === 'POST') return json(201, { ok: true });
+    if (path === '/sessions/s1/otp' && init?.method === 'POST') {
+      otpAsked = true;
+      return json(502, { error: 'locator.click: Timeout 30000ms exceeded.', screenshotBase64: Buffer.from('OTPSHOT').toString('base64') });
+    }
+    if (path === '/sessions/s1/evidence?after=0') return json(200, { items: [record(1, 'phoenix-01-login-page', { screenshot: 3 })] });
+    if (path === '/sessions/s1/evidence/1/screenshot') return new Response(Buffer.from('PNG'), { status: 200 });
+    // After the OTP: a list the schema rejects (an old runner sending a 70 KB error).
+    if (path === '/sessions/s1/evidence?after=1') return json(200, { items: [{ ...record(2, 'otp-failed', {}), error: 'x'.repeat(70_000) }] });
+    return json(404, { error: `unexpected ${path}` });
+  };
+  const stored: StoredEvidenceItem[] = [];
+  const client = new HttpDocumentFetchClient(() => 'http://runner', {
+    fetchImpl,
+    token: () => 'tok',
+    evidenceSink: async (_sessionId, item) => {
+      stored.push(item);
+      return true;
+    },
+  });
+  await client.startLogin('s1', 'phoenix', { idNumber: '1' });
+  await assert.rejects(client.submitOtp('s1', '123456'), /locator.click/);
+  assert.ok(otpAsked);
+  assert.deepEqual(
+    stored.map((s) => [s.record.name, s.screenshot?.toString('utf8')]),
+    [
+      ['phoenix-01-login-page', 'PNG'],
+      ['otp-failed-fallback', 'OTPSHOT'],
+    ],
+  );
+});
+
+test('an error longer than 4000 characters but within the wire cap is kept, truncated', async () => {
+  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  const fetchImpl: typeof fetch = async (input) => {
+    const path = String(input).replace(/^https?:\/\/[^/]+/, '');
+    if (path === '/sessions/s1/evidence?after=0') return json(200, { items: [{ ...record(1, 'otp-failed', {}), error: 'e'.repeat(6_000) }] });
+    return json(404, { error: `unexpected ${path}` });
+  };
+  const stored: StoredEvidenceItem[] = [];
+  const client = new HttpDocumentFetchClient(() => 'http://runner', {
+    fetchImpl,
+    token: () => 'tok',
+    evidenceSink: async (_sessionId, item) => {
+      stored.push(item);
+      return true;
+    },
+  });
+  assert.equal(await client.pullEvidence('s1'), 1);
+  assert.equal(stored[0]?.record.error?.length, 4_000);
+});

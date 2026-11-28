@@ -91,6 +91,9 @@ export const bytesOf = (item: EvidenceItem): number =>
  * step, plus the items recorded and not yet pulled. Pure — no page access —
  * so the buffering and budget rules are unit-tested without a browser.
  */
+/** Longest error text kept on a record; Playwright call logs can run to many KB. Matches the worker's schema cap. */
+export const MAX_RECORD_ERROR_CHARS = 4_000;
+
 export class StepCollector {
   private seq = 0;
   private consoleBuf: ConsoleEntry[] = [];
@@ -121,6 +124,7 @@ export class StepCollector {
   /** Starts a record for the next step: takes the buffered console/responses and clears them. */
   nextRecord(name: string, error: string | null = null): StepRecord {
     this.seq += 1;
+    if (error !== null && error.length > MAX_RECORD_ERROR_CHARS) error = error.slice(0, MAX_RECORD_ERROR_CHARS);
     const record: StepRecord = {
       seq: this.seq,
       name,

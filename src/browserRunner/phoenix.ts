@@ -248,9 +248,15 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
-/** The code page's single text input (the modal has no other visible text field). */
+/**
+ * The code page's input. The code dialog (`acul-mfa-dialog`) opens OVER the
+ * login form, which stays in the DOM — a plain `input[type="text"]` resolves
+ * to the ID field underneath, whose click the dialog then intercepts (prod
+ * session 462d4fe0, 2026-11-28). The code field is the one marked for
+ * one-time codes (6 digits, `fnx-mfa-otp-input`).
+ */
 function otpInput(page: Page) {
-  return page.locator('input[type="text"]').filter({ visible: true }).first();
+  return page.locator('input[autocomplete="one-time-code"], input.fnx-mfa-otp-input').filter({ visible: true }).first();
 }
 
 /** The reports list's data rows (the first [role=row] is the header). */

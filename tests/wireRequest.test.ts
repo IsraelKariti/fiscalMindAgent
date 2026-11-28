@@ -18,7 +18,16 @@ const stage = (purpose: string): Stage => {
   assert.ok(s, `stage ${purpose}`);
   return s;
 };
-const injection = stage('injection_detection_llm').schema!;
+// A frozen copy of the injection screen's schema as it was when it declared
+// `evidence: string | null`. The live stage dropped the null (evidence is ""
+// when clean, see InjectionScreenSchema), so this file keeps the old shape as
+// the smallest "one nullable field" fixture for the translator tests.
+const injection: Record<string, unknown> = {
+  type: 'object',
+  required: ['suspected_injection', 'evidence'],
+  properties: { suspected_injection: { type: 'boolean' }, evidence: { type: ['string', 'null'] } },
+  additionalProperties: false,
+};
 const classification = stage('file_classification').schema!;
 const extraction = stage('extract_document').schema!;
 const plannerTools = stage('planner').tools!;
@@ -38,7 +47,7 @@ const toolRequest = (tools: DeclaredTool[]) => ({
 });
 
 describe('toAnthropicSchema reports its changes by path', () => {
-  it('injection screen: evidence loses null and leaves required; output identical with or without the collector', () => {
+  it('one nullable field: evidence loses null and leaves required; output identical with or without the collector', () => {
     const changes = emptySchemaChanges();
     const withCollector = toAnthropicSchema(injection, changes);
     assert.deepEqual(withCollector, toAnthropicSchema(injection));

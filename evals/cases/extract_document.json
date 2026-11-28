@@ -899,6 +899,22 @@
         "verdict": { "passed": false, "failed_keys": ["type_fields"] }
       },
       "notes": "openspec savings-tax-certificate-required: the same balance-only short annual report as ext_06, but the FILE NAME and the checklist row's name both say \"אישור מס להצהרת הון\". The heading must be quoted from the document only, so tax_certificate_title stays null and type_fields fails — a model that copies the words from the file name or the row name would wrongly approve the report. is_expected_type is not judged here: the row is named after the certificate, so both answers are defensible and the document is rejected either way."
+    },
+    {
+      "id": "ext_30",
+      "file": "clal_insurance_two_holders_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "clal.pdf",
+      "doc": { "type_key": "life_insurance_savings", "name": "אישור להצהרת הון — ביטוח מנהלים — כלל ליום 31.12.2025", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "is_expected_type": true,
+        "as_of_date": "2025-12-31",
+        "legible": true,
+        "injection_suspected": false,
+        "verdict": { "passed": true }
+      },
+      "notes": "openspec savings-tax-certificate-required (life insurance joined the rule, 2026-11-28): an insurance company's annual report whose heading reads \"דוח שנתי לשנת 2025 ואישור מס להצהרת הון\" — the heading holds both word groups, so tax_certificate_title is read and type_fields passes. The report lists two policies of two insured people; the client is one of them, the other is a co-owner and never rejects. The amounts are not judged (two policies in one file). The rejected side (an insurance report with no certificate heading) is covered by the unit test, the same code path as ext_06."
     }
   ]
 }

@@ -53,7 +53,8 @@ describe('capital-declaration catalog', () => {
     assert.ok(pension!.descriptionHe.includes('חיסכון לכל ילד'));
     const insurance = getCatalogType('life_insurance_savings');
     assert.ok(insurance);
-    assert.ok(insurance!.descriptionHe.includes('אישור ייעודי להצהרת הון'));
+    assert.ok(insurance!.descriptionHe.includes('אישור מס להצהרת הון'));
+    assert.ok(insurance!.analysisHintHe && insurance!.analysisHintHe.includes('אישור מס להצהרת הון'));
   });
 
   it('seed rows render {{tax_year}} everywhere and cover the whole catalog', () => {

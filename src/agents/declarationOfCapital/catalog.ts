@@ -169,13 +169,9 @@ const VEHICLE_PAPERS: readonly CatalogPaper[] = [
  * from three real office samples (הראל פנסיה, ילין לפידות קופת גמל להשקעה,
  * אלטשולר שחם קרן השתלמות). Kept free of {{tax_year}} — analysisHintHe is fed
  * to the models verbatim, without template rendering.
- */
-const SAVINGS_CERTIFICATE_HINT_HE =
-  'שתי צורות קבילות למסמך, לכל קופה/קרן בנפרד: (א) האישור הייעודי — עמוד או מקטע שכותרתו "אישור מס להצהרת הון" (לעיתים תחת כותרת "אישור מס עבור קרן השתלמות" / "אישור מס עבור קופת גמל להשקעה"), המופק מהאזור האישי באתר הגוף המנהל; מופיעים בו שם העמית, מספר תיק ניכויים ושם הקופה/הקרן (בחלק מהקופות גם מספר חשבון או מספר עמית, ובאחרות — למשל מנורה מבטחים — לא מודפס מספר כזה כלל), עם הנוסח "הרינו לאשר כי סך ההפקדות... מיום ההפקדה הראשונה ועד ליום 31.12" של שנת המס. שים לב: אישור זה מאשר סך הפקדות מצטבר (לא יתרה צבורה), וסכום מאושר של 0 ש"ח הוא לגיטימי (למשל חשבון שרוקן) — חלץ גם אותו כסכום. (ב) העמוד בדוח השנתי המקוצר המציג את יתרת הכספים לסוף השנה ("יתרת הכספים בחשבונך נכון ל-31.12..." / "יתרת הכספים בחשבון בסוף השנה"). לעיתים קרובות שתי הצורות מגיעות בקובץ PDF אחד — האישור הייעודי כעמוד האחרון של הדוח השנתי — וזה קביל. אינו קביל: דוח רבעוני, או עמוד פירוט ההפקדות השנתי בלבד (טבלת "פירוט ההפקדות לחשבון") ללא יתרת סוף שנה וללא נוסח האישור.';
-
-/**
- * Pension/provident and study fund only (openspec `document-extraction`, change
- * `savings-tax-certificate-required`): one accepted form — the document must
+ *
+ * Pension/provident, study fund and life-insurance savings (openspec
+ * `document-extraction`, change `savings-tax-certificate-required`): one accepted form — the document must
  * print "אישור מס להצהרת הון". A balance-only annual report is still this
  * type (so the classifier matches it and verification rejects it with a clear
  * note), but it is not accepted.
@@ -244,9 +240,9 @@ export const CAPITAL_DOCUMENT_CATALOG: readonly CapitalDocumentType[] = [
     shortNameHe: 'ביטוח מנהלים / פוליסת חיסכון',
     nameHe: 'אישור להצהרת הון — ביטוח מנהלים / פוליסת חיסכון ליום 31.12.{{tax_year}}',
     descriptionHe:
-      'לכל פוליסה בחברת ביטוח הכוללת מרכיב חיסכון (ביטוח מנהלים, פוליסת חיסכון) — אישור ייעודי להצהרת הון מהאזור האישי באתר חברת הביטוח, או העמוד האחרון של הדוח השנתי המקוצר, ליום 31.12.{{tax_year}}.',
+      'לכל פוליסה בחברת ביטוח הכוללת מרכיב חיסכון (ביטוח מנהלים, פוליסת חיסכון) — "אישור מס להצהרת הון" ליום 31.12.{{tax_year}}, מופק מהאזור האישי באתר חברת הביטוח, ולעיתים מצורף כעמוד האחרון של הדוח השנתי המקוצר. דוח שנתי שאין בו "אישור מס להצהרת הון" אינו מספיק.',
     discoveryQuestionHe: 'האם יש לך ביטוח מנהלים או פוליסת חיסכון בחברת ביטוח, ובאילו חברות?',
-    analysisHintHe: SAVINGS_CERTIFICATE_HINT_HE,
+    analysisHintHe: FUND_TAX_CERTIFICATE_HINT_HE,
     multiInstance: true,
     dateDependent: true,
   },

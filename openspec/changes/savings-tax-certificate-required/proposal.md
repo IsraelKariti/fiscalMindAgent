@@ -9,7 +9,7 @@ A client's pension documents were marked as collected although none of them carr
 - An annual report that includes the certificate (often its last page) is still accepted, and its balance and deposits are read as before.
 - The wording the classifier, the planner and the client see for these two types asks for the certificate only. The agent no longer offers the short annual report as an equal alternative for them, and after a rejection it tells the client what is missing.
 - Assumptions recorded here, to be corrected in review if wrong:
-  - Life-insurance savings (`life_insurance_savings`) is NOT part of this change. It keeps both forms.
+  - Life-insurance savings (`life_insurance_savings`) follows the same rule (owner's decision, 2026-11-28, after the first two types were built): the certificate is a must, a balance-only report is not accepted.
   - The words are matched as two groups, "אישור מס" and "הצהרת הון", so "אישור מס והצהרת הון" also counts. A heading with only "אישור מס עבור קרן השתלמות" and no "הצהרת הון" anywhere does not count.
   - Items already approved are not re-judged. The owner reopens the affected client's items by hand.
 
@@ -26,7 +26,7 @@ None.
 ## Impact
 
 - `src/agents/declarationOfCapital/documentTypes/pensionProvident.ts`, `studyFund.ts`: schema, prompt, fields.
-- `src/agents/declarationOfCapital/catalog.ts`: the two type descriptions and the shared savings hint (life insurance keeps the old hint).
+- `src/agents/declarationOfCapital/catalog.ts`: the three type descriptions and the one savings hint the three types share.
 - `src/agents/declarationOfCapital/prompt.md`: the savings special-case block.
 - Tests and fixtures: `tests/documentTypes.test.ts`, `tests/fixtures/extractionCalls/pension_provident.json`, `study_fund.json`.
 - Evals: `evals/cases/extract_document.json` (new rejected case, updated expected fields), `evals/make-files.ts` (one balance-only report).

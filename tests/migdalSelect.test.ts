@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { MIGDAL_ROUNDS, isMigdalFormPost, normalizeMigdalTitle, selectMigdalRows, shouldPressSubmit, type MigdalRow } from '../src/browserRunner/migdal.js';
+import { MIGDAL_ROUNDS, isMigdalFormPost, listOutcomeOf, normalizeMigdalTitle, selectMigdalRows, shouldPressSubmit, type MigdalRow } from '../src/browserRunner/migdal.js';
 import { getProviderSpec } from '../src/agents/declarationOfCapital/documentFetch/providers.js';
 
 // Migdal row selection (openspec `migdal-fetch`): the kind comes from the
@@ -110,5 +110,19 @@ describe('migdal code step', () => {
     assert.equal(isMigdalFormPost('POST', 'https://analytics.google.com/g/collect'), false);
     assert.equal(isMigdalFormPost('POST', 'https://notmigdal.co.il/x'), false);
     assert.equal(isMigdalFormPost('POST', 'not a url'), false);
+  });
+});
+
+// The result list (seen live 2026-11-28): one result shows a success line and
+// no "נמצאו N תוצאות" heading, so rows are read from the row links alone.
+describe('migdal list outcome', () => {
+  it('reads rows from the row links, with or without the results heading', () => {
+    assert.equal(listOutcomeOf('תהליך הפקת האישור הסתיים בהצלחה דוח שנתי לעמית- מקפת אישית - לשנת 2016', 2), 'rows');
+    assert.equal(listOutcomeOf('נמצאו 6 תוצאות דוח שנתי - בריאות - לשנת 2020', 12), 'rows');
+  });
+
+  it('answers empty on the no-data text and nothing while the page shows neither', () => {
+    assert.equal(listOutcomeOf('לא מצאנו נתונים לתצוגה. נסה לשנות את בחירתך', 0), 'empty');
+    assert.equal(listOutcomeOf('הצג אישור', 0), null);
   });
 });

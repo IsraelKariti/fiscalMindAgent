@@ -34,7 +34,6 @@ const SEARCH_BUTTON = 'button#btnSearch';
 /** Each result row holds two of these: the title link (with text) and the PDF icon (empty). */
 const ROW_LINK = 'a[aria-label="להורדת המסמך"]';
 const EMPTY_TEXT = 'לא מצאנו נתונים לתצוגה';
-const RESULTS_HEADING = /נמצאו\s+\d+\s+תוצאות/;
 /** The search's server round trip (POST …/UserDocuments//api/customerPeriodReports). */
 const LIST_API_MARKER = 'customerPeriodReports';
 
@@ -451,13 +450,25 @@ function watchListRoundTrip(page: Page): Promise<number | null> {
     .catch(() => null);
 }
 
-/** After an answered search: the results heading or the no-data text must show. */
+/**
+ * What an answered search shows. The no-data text wins; otherwise any row link
+ * means rows. The heading is not required: a single result shows "תהליך הפקת
+ * האישור הסתיים בהצלחה" instead of "נמצאו N תוצאות" (seen live 2026-11-28 in
+ * the owner's account). Null = neither yet. Pure.
+ */
+export function listOutcomeOf(bodyText: string, rowLinkCount: number): 'rows' | 'empty' | null {
+  if (bodyText.includes(EMPTY_TEXT)) return 'empty';
+  if (rowLinkCount > 0) return 'rows';
+  return null;
+}
+
+/** After an answered search: result rows or the no-data text must show. */
 async function waitForListOutcome(page: Page): Promise<'rows' | 'empty'> {
   const deadline = Date.now() + 10_000;
   for (;;) {
     const text = await page.locator('body').innerText().catch(() => '');
-    if (text.includes(EMPTY_TEXT)) return 'empty';
-    if (RESULTS_HEADING.test(text) && (await page.locator(ROW_LINK).count()) > 0) return 'rows';
+    const outcome = listOutcomeOf(text, await page.locator(ROW_LINK).count());
+    if (outcome) return outcome;
     if (Date.now() > deadline) throw new Error('the search answered but the page shows neither results nor the no-data text');
     await page.waitForTimeout(500);
   }

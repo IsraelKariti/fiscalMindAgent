@@ -1376,6 +1376,8 @@ function makeWorkspaceApi(prefix: string) {
     /** Async because the monday transport appends a freshly fetched ?sessionToken=. */
     fileDownloadUrl: (clientId: string, fileId: string) =>
       tokenizedUrl(`${prefix}/clients/${clientId}/files/${fileId}/download`),
+    /** One zip with all of the client's files (the "download all" button). */
+    filesZipUrl: (clientId: string) => tokenizedUrl(`${prefix}/clients/${clientId}/files.zip`),
     /** Inline-disposition variant for the in-app viewer modal (iframe/img src). */
     fileViewUrl: (clientId: string, fileId: string) =>
       tokenizedUrl(`${prefix}/clients/${clientId}/files/${fileId}/view`),

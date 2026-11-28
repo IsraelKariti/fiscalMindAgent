@@ -1663,6 +1663,11 @@ Ported from the standalone sibling DoC agent (`projects/salesforce-agent`):
   streaming and the inline-type allowlist live in `src/api/fileStream.ts` /
   `fileDisposition.ts`, shared with the workspace file routes — never copy
   them: an HTML or SVG file served inline would run script on the API origin.
+  The documents card's "download all" button reads `GET /clients/:id/files.zip`
+  (openspec `workspace-documents`): `src/api/filesZip.ts` picks the files (every
+  file except the original of a split), their paths and names
+  (`downloadName.ts`, the same name rule as the single-file download) and
+  streams the zip; the browser hides the button by the same `split` rule.
   LLM calls have the same handles (`callLink.ts`, mirror of `stepLink.ts`):
   the call modal (`CallDetailModal` in `admin/AdminLlmCalls.tsx`, opened
   from a trace chip, the admin call browser, or a call link) carries "copy

@@ -837,7 +837,9 @@ const he = {
   noFollowUpsRightNow: 'אין מעקבים מתוזמנים כרגע',
 
   // DocumentsCard
-  requiredDocuments: 'מסמכים נדרשים',
+  documentsCardTitle: 'מסמכים',
+  downloadAllFiles: 'הורדת הכל',
+  downloadAllFilesTitle: 'הורדת כל הקבצים שהתקבלו בקובץ zip אחד',
   // LRI…PDI keeps "1 / 3" in reading order inside the RTL sentence
   collectedBadge: (collected: number, total: number) => `⁦${collected} / ${total}⁩ נאספו`,
   docsUpdateFailed: 'עדכון המסמכים נכשל.',

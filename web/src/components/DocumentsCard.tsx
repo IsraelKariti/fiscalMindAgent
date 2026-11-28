@@ -454,12 +454,30 @@ export function DocumentsCard({ clientId, documents, files, onChanged, titleKey,
   return (
     <section className="card panel">
       <div className="panel-header">
-        <h3>{t[titleKey ?? 'requiredDocuments']}</h3>
-        {inGoal.length > 0 && (
-          <span className={`badge ${done === inGoal.length ? 'badge-success' : 'badge-pending'}`}>
-            {t.collectedBadge(done, inGoal.length)}
-          </span>
-        )}
+        <h3>{t[titleKey ?? 'documentsCardTitle']}</h3>
+        <div className="panel-header-actions">
+          {/* Same rule as the server (isZipFile in filesZip.ts): the original of a split file is not in the zip. */}
+          {files.some((file) => file.analysis_status !== 'split') && (
+            <button
+              className="btn btn-ghost btn-small"
+              type="button"
+              title={t.downloadAllFilesTitle}
+              onClick={async () => window.location.assign(await api.filesZipUrl(clientId))}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>{' '}
+              {t.downloadAllFiles}
+            </button>
+          )}
+          {inGoal.length > 0 && (
+            <span className={`badge ${done === inGoal.length ? 'badge-success' : 'badge-pending'}`}>
+              {t.collectedBadge(done, inGoal.length)}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="panel-body">

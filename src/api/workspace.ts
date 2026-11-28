@@ -37,6 +37,8 @@ import { logger } from '../util/logger.js';
 import { recordAudit } from '../audit/audit.js';
 import { draftFirstEmail } from './draftFirstEmail.js';
 import { streamFile } from './fileStream.js';
+import { streamFilesZip, zipDownloadName, zipEntriesFor } from './filesZip.js';
+import { downloadBlob } from '../storage/blob.js';
 import { DueDateSchema } from './schemas.js';
 import { attachOpenTeamQuestion, attachRosterCost, toTeamQuestion, toWorkspaceClient, toWorkspaceEmail } from './workspaceSerialize.js';
 import { clientScope, isViewingAs } from './viewAs.js';
@@ -527,6 +529,24 @@ function serveFile(disposition: 'attachment' | 'inline'): RequestHandler {
     await streamFile(res, file, disposition);
   });
 }
+
+// "Download all" (openspec `workspace-documents`): one zip with the client's
+// files. Same access rule as a single file; what goes in and how it streams
+// lives in filesZip.ts.
+workspaceRouter.get(
+  '/clients/:id/files.zip',
+  wrap(async (req, res) => {
+    const client = await readableClient(req, uuidParam(req.params.id));
+    if (!client) {
+      res.status(404).json({ error: 'Client not found.' });
+      return;
+    }
+    const entries = zipEntriesFor(await documentFiles.listForClient(client.id));
+    await streamFilesZip(res, zipDownloadName(client.name), entries, downloadBlob, (entry, err) =>
+      logger.error('files zip: a file could not be read — left out', err, { clientId: client.id, fileId: entry.file.id }),
+    );
+  }),
+);
 
 workspaceRouter.get('/clients/:id/files/:fileId/download', serveFile('attachment'));
 workspaceRouter.get('/clients/:id/files/:fileId/view', serveFile('inline'));

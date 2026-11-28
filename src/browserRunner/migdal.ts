@@ -388,7 +388,9 @@ async function runRound(
   // A year the site does not offer must fail loudly — never another year.
   const years = await optionLabels(page, YEAR_SELECT);
   if (!years.includes(year)) {
-    throw new Error(`the year dropdown does not offer ${year} (offers: ${years.join(', ')})`);
+    // The site keeps only recent years (production 2026-11-28: asked 2016,
+    // offered 2019-2026). The report is not there, so a retry cannot help.
+    throw new NoDocumentsOnSiteError(`the site has no reports for ${year} (the year dropdown offers: ${years.join(', ')})`);
   }
   await page.selectOption(YEAR_SELECT, { label: year });
 

@@ -346,11 +346,11 @@ const he = {
   deleteClientAction: (name: string) => `מחיקת ${name}`,
   sidebarNoClients: 'אין עדיין לקוחות',
   sidebarSearchPlaceholder: 'חיפוש לפי שם, אימייל או מס׳ תיק',
-  sidebarMyClientsToggle: 'הלקוחות שלי בלבד',
+  sidebarMyClientsToggle: 'הלקוחות שלי',
   sidebarMyClientsToggleTitle: 'הצגת הלקוחות שיועץ/ת המס שלהם הוא/היא המשתמש/ת המחובר/ת בלבד',
   // The agent's open questions to the team (openspec `team-questions`).
-  sidebarQuestionsForMe: (n: number) => (n === 1 ? 'שאלה אחת ממתינה לך' : `${n} שאלות ממתינות לך`),
-  sidebarQuestionsForMeTitle: 'הסוכן שאל אותך שאלה על הלקוחות האלה וממתין לתשובה — לחיצה מצמצמת את הרשימה אליהם',
+  sidebarQuestionsForMe: 'שאלות מהסוכן',
+  sidebarQuestionsForMeTitle: 'הצגת הלקוחות שהסוכן שאל עליהם שאלה וממתין לתשובה מהצוות בלבד',
   clientOpenQuestionBadge: '?',
   clientOpenQuestionBadgeTitle: (name: string) => `הסוכן ממתין לתשובה מהצוות (${name})`,
   // The office file number on a client row (openspec `client-search`).

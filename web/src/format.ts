@@ -77,17 +77,6 @@ export function isAssignedTo(
 }
 
 /**
- * "Questions for me" rule (openspec `team-questions`): the client's open team
- * question is addressed to the signed-in email, ignoring case and surrounding
- * spaces. False when the client has no open question or either side is missing.
- */
-export function hasQuestionFor(client: { openTeamQuestion?: { toEmail: string } | null }, email: string | null | undefined): boolean {
-  const mine = email?.trim().toLowerCase() ?? '';
-  const to = client.openTeamQuestion?.toEmail.trim().toLowerCase() ?? '';
-  return mine !== '' && to === mine;
-}
-
-/**
  * The doc-collector agent stopped chasing because the collection due date
  * passed and handed the client off to the accountant.
  */

@@ -5583,12 +5583,23 @@ pre.doc-text {
   flex-shrink: 0;
 }
 
-.sidebar-for-me-chip {
-  display: inline-flex;
-  align-items: center;
+/* The two list filters above the search box (openspec `sidebar-filter-toggles`):
+   "my clients" and "questions from the agent", one row, two equal columns.
+   A toggle shown alone keeps its own column. */
+.sidebar-filter-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
-  margin: 0 10px 6px;
-  padding: 3px 10px 3px 6px;
+  margin: 0 0 6px;
+}
+
+.sidebar-filter-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: transparent;
@@ -5598,21 +5609,50 @@ pre.doc-text {
   cursor: pointer;
 }
 
-.sidebar-for-me-chip .client-item-question-badge {
+/* Each toggle owns its column, whichever of the two is shown. */
+.sidebar-filter-toggle-mine {
+  grid-column: 1;
+}
+
+.sidebar-filter-toggle-questions {
+  grid-column: 2;
+}
+
+.sidebar-filter-toggle-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-filter-toggle .client-item-question-badge {
   margin-inline-start: 0;
 }
 
-.sidebar-for-me-chip:hover {
+/* The person icon sits in a disc the size of the question badge, so the two toggles read as a pair. */
+.sidebar-filter-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--accent, #2563eb);
+  flex-shrink: 0;
+}
+
+.sidebar-filter-toggle:hover {
   background: var(--surface-raised);
 }
 
-.sidebar-for-me-chip.is-active {
+.sidebar-filter-toggle.is-active {
   background: var(--surface-raised);
   border-color: var(--accent, #2563eb);
   font-weight: 700;
 }
 
-.sidebar-for-me-chip:focus-visible {
+.sidebar-filter-toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

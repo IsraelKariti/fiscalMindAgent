@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client } from '../api';
-import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, formatUsd, hasQuestionFor, isAssignedTo, isDeclined, isOverdueStopped, type DotFilter } from '../format';
+import { clientDotClass, clientDotState, clientMatchesQuery, contactLabel, countByDotColor, displayClientName, dotColorOf, formatTimestamp, formatUsd, isAssignedTo, isDeclined, isOverdueStopped, type DotFilter } from '../format';
 import { dotTitle, useT } from '../i18n';
 
 /**
@@ -121,6 +121,12 @@ const icon = {
       <path d="m6 9 6 6 6-6" />
     </svg>
   ),
+  user: (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
   check: (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polyline points="20 6 9 17 4 12" />
@@ -198,16 +204,17 @@ export function Sidebar({
   const meEmail = impersonatingEmail ?? userEmail;
   const assignedCount = useMemo(() => clients.filter((client) => isAssignedTo(client, meEmail)).length, [clients, meEmail]);
   const myOnlyActive = myOnly && assignedCount > 0;
-  // "Questions for me" (openspec `team-questions`): the agent's open questions
-  // addressed to the signed-in person; the chip narrows the list to them and
-  // composes with "my clients only". Hidden at zero, so it can never empty the list.
+  // "Questions from the agent" (openspec `team-questions`): every client with an
+  // open question, whoever it is addressed to — the same clients that carry the
+  // row badge. Composes with "my clients": both pressed = my clients with an
+  // open question. Hidden when no client has one.
   const [forMeOnly, setForMeOnly] = useState(false);
-  const forMeCount = useMemo(() => clients.filter((client) => hasQuestionFor(client, meEmail)).length, [clients, meEmail]);
+  const forMeCount = useMemo(() => clients.filter((client) => Boolean(client.openTeamQuestion)).length, [clients]);
   const forMeActive = forMeOnly && forMeCount > 0;
   const baseClients = useMemo(
     () =>
       clients.filter(
-        (client) => (!myOnlyActive || isAssignedTo(client, meEmail)) && (!forMeActive || hasQuestionFor(client, meEmail)),
+        (client) => (!myOnlyActive || isAssignedTo(client, meEmail)) && (!forMeActive || Boolean(client.openTeamQuestion)),
       ),
     [clients, myOnlyActive, forMeActive, meEmail],
   );
@@ -297,25 +304,38 @@ export function Sidebar({
             {t.sidebarDeletedToggle}
           </label>
         )}
-        {assignedCount > 0 && (
-          <label className="muted sidebar-deleted-toggle" title={t.sidebarMyClientsToggleTitle}>
-            <input type="checkbox" checked={myOnly} onChange={(e) => setMyOnly(e.target.checked)} />
-            {t.sidebarMyClientsToggle}
-          </label>
-        )}
-        {forMeCount > 0 && (
-          <button
-            type="button"
-            className={`sidebar-for-me-chip ${forMeActive ? 'is-active' : ''}`}
-            aria-pressed={forMeActive}
-            title={t.sidebarQuestionsForMeTitle}
-            onClick={() => setForMeOnly((on) => !on)}
-          >
-            <span className="client-item-question-badge" aria-hidden="true">
-              {t.clientOpenQuestionBadge}
-            </span>
-            {t.sidebarQuestionsForMe(forMeCount)}
-          </button>
+        {(assignedCount > 0 || forMeCount > 0) && (
+          // Two equal columns; a toggle shown alone keeps its own half (openspec `sidebar-filter-toggles`).
+          <div className="sidebar-filter-toggles">
+            {assignedCount > 0 && (
+              <button
+                type="button"
+                className={`sidebar-filter-toggle sidebar-filter-toggle-mine ${myOnlyActive ? 'is-active' : ''}`}
+                aria-pressed={myOnlyActive}
+                title={t.sidebarMyClientsToggleTitle}
+                onClick={() => setMyOnly((on) => !on)}
+              >
+                <span className="sidebar-filter-toggle-icon" aria-hidden="true">
+                  {icon.user}
+                </span>
+                <span className="sidebar-filter-toggle-text">{t.sidebarMyClientsToggle}</span>
+              </button>
+            )}
+            {forMeCount > 0 && (
+              <button
+                type="button"
+                className={`sidebar-filter-toggle sidebar-filter-toggle-questions ${forMeActive ? 'is-active' : ''}`}
+                aria-pressed={forMeActive}
+                title={t.sidebarQuestionsForMeTitle}
+                onClick={() => setForMeOnly((on) => !on)}
+              >
+                <span className="client-item-question-badge" aria-hidden="true">
+                  {t.clientOpenQuestionBadge}
+                </span>
+                <span className="sidebar-filter-toggle-text">{t.sidebarQuestionsForMe}</span>
+              </button>
+            )}
+          </div>
         )}
         {clients.length > 0 && (
           <input

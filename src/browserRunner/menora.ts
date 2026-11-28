@@ -254,7 +254,14 @@ export const menoraProvider: DocumentFetchProvider = {
       throw new Error('the year filter did not appear after the report type was chosen');
     }
     await openSelect(page, 'years');
-    const years = (await page.locator(`${LISTBOX} li[role="checkbox"]`).allTextContents()).map((t) => t.trim());
+    // The menu opens before its rows render on the live site; an empty read here failed a real fetch.
+    // A list that stays empty still falls through to the loud error below.
+    await page
+      .locator(`${LISTBOX} li[role="checkbox"]`)
+      .first()
+      .waitFor({ state: 'visible', timeout: PICKER_MS })
+      .catch(() => undefined);
+    const years =(await page.locator(`${LISTBOX} li[role="checkbox"]`).allTextContents()).map((t) => t.trim());
     if (!years.includes(year)) {
       await page.keyboard.press('Escape').catch(() => undefined);
       throw new Error(`the year list does not offer ${year} (offers: ${years.join(', ')})`);

@@ -10,7 +10,7 @@ const he = {
   envBannerNotProduction: 'סביבת ניסוי — לא סביבת הייצור',
 
   // App shell
-  noClientsUseAdd: 'אין עדיין לקוחות — השתמשו בכפתור ה־+ שליד "לקוחות" בסרגל הצד.',
+  noClientsUseAdd: 'אין עדיין לקוחות — השתמשו בכפתור ה־+ בסרגל הצד.',
   noClientsImportOnly: 'אין עדיין לקוחות — לקוחות נרשמים מלוחות ה-monday והגיליונות שמוגדרים בהגדרות הסוכן.',
 
   // Login
@@ -336,7 +336,6 @@ const he = {
 
   // Sidebar
   navDashboard: 'דשבורד',
-  clientsHeading: 'לקוחות',
   addClient: 'הוספת לקוח',
   // The client dot's hover text, one per state (openspec `client-status-indicator`).
   dotDone: 'כל המסמכים התקבלו',
@@ -375,7 +374,6 @@ const he = {
   // Admin view-as only (openspec `soft-delete-clients`)
   sidebarDeletedToggle: 'לקוחות שנמחקו',
   sidebarDeletedToggleTitle: 'הצגת הלקוחות שנמחקו מהרשימה (לצפייה בלבד; זמין למנהל בלבד)',
-  sidebarDeletedHeading: 'לקוחות שנמחקו',
   sidebarNoDeleted: 'אין לקוחות שנמחקו',
   deletedOn: (date: string) => `נמחק ב־${date}`,
   deletedClientBanner: (date: string, by: string | null) =>

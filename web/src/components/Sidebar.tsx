@@ -315,15 +315,13 @@ export function Sidebar({
           </div>
         )}
         <div className="side-heading">
-          <span className="side-heading-label">
-            {showDeleted ? t.sidebarDeletedHeading : t.clientsHeading}
-            {clients.length > 0 && <span className="side-count">{clients.length}</span>}
-          </span>
-          <span className="side-heading-rule" />
           {onAddClient && !showDeleted && (
-            <button className="icon-btn" onClick={onAddClient} title={t.addClient}>
-              {icon.plus}
-            </button>
+            <>
+              <span className="side-heading-rule" />
+              <button className="icon-btn" onClick={onAddClient} title={t.addClient}>
+                {icon.plus}
+              </button>
+            </>
           )}
         </div>
         {onToggleShowDeleted && (

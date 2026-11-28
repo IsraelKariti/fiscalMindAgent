@@ -2,7 +2,7 @@ import http from 'node:http';
 import { APP_VERSION } from './config/appVersion.js';
 import { createSendEmailWorker } from './queue/sendEmailWorker.js';
 import { resyncScheduledJobs } from './queue/resyncScheduledJobs.js';
-import { createOverdueScanWorker, ensureOverdueScanScheduler } from './queue/overdueScanWorker.js';
+import { createOverdueScanWorker, ensureHandoffNoticeScheduler, ensureOverdueScanScheduler } from './queue/overdueScanWorker.js';
 import { createClientImportScanWorker, ensureClientImportScanScheduler } from './queue/clientImportScanWorker.js';
 import { createDocumentFetchWorker, sweepOrphanedDocumentFetchSessions } from './queue/documentFetchWorker.js';
 import { createAnomalyScanWorker, ensureAnomalyScanScheduler } from './queue/anomalyScanWorker.js';
@@ -43,8 +43,9 @@ logger.info('replan worker started');
 recoverLostReplans().catch((err) => logger.error('boot replan recovery failed', err));
 
 await ensureOverdueScanScheduler();
+await ensureHandoffNoticeScheduler();
 const overdueWorker = createOverdueScanWorker();
-logger.info('overdue_scan worker started');
+logger.info('overdue_scan worker started (overdue scan 00:10, handoff notice 09:00)');
 // Catch-up scan: covers the worker being down at the daily cron moment.
 runOverdueScan().catch((err) => logger.error('boot overdue scan failed', err));
 

@@ -12,7 +12,9 @@ import { clientDueDate } from './prompt.js';
  * date becomes the local delivery date plus the window, unless the accountant
  * already set a date by hand. From there the ordinary due-date machinery
  * takes over: the planner paces reminders toward it and the overdue scan
- * stops the chase the night after it passes.
+ * stops the chase the night after it passes. On the next business morning the
+ * client is told so with one fixed template (openspec `handoff-notice`,
+ * handoffNoticeSend.ts).
  */
 
 /** "YYYY-MM-DD" of `at` in the given timezone (en-CA formats ISO-style). */

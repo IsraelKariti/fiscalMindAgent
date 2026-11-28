@@ -87,12 +87,12 @@ export interface WaTemplateRow {
   variable_count: number;
   /** Agent type this template is offered to; NULL = every agent type. */
   agent_type: string | null;
-  /** `intro` = first contact only (no message ever delivered); `reopen` = a later closed-window contact. */
+  /** `intro` = first contact only (no message ever delivered); `reopen` = a later closed-window contact; `handoff` = the fixed notice after the collection window ended (code-sent, never offered to the planner). */
   purpose: WaTemplatePurpose;
   created_at: Date;
 }
 
-export type WaTemplatePurpose = 'intro' | 'reopen';
+export type WaTemplatePurpose = 'intro' | 'reopen' | 'handoff';
 
 export interface UserSettingRow {
   user_id: string;

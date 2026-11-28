@@ -73,11 +73,17 @@ const isoFromUtcMs = (ms: number): string => {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 };
 
-/** Fri/Sat, chag, or erev chag — no proactive sends on any of them. */
-function isBlockedDay(dayUtcMs: number): boolean {
+/** Fri/Sat, chag, or erev chag — no proactive sends on any of them. `dayUtcMs` is a calendar date encoded as UTC midnight. */
+export function isBlockedDay(dayUtcMs: number): boolean {
   const weekday = new Date(dayUtcMs).getUTCDay();
   if (weekday === FRIDAY || weekday === SATURDAY) return true;
   return chagLabel(isoFromUtcMs(dayUtcMs)) !== null;
+}
+
+/** Whether the calendar date of `now` in `timeZone` is a blocked day (not a business day). */
+export function isBlockedLocalDate(now: Date, timeZone: string): boolean {
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone }).format(now).split('-').map(Number) as [number, number, number];
+  return isBlockedDay(Date.UTC(y, m - 1, d));
 }
 
 /**

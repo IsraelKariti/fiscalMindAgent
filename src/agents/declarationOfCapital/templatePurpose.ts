@@ -11,7 +11,8 @@ export interface HiddenTemplate {
  * Which templates the planner may send to this client (openspec
  * `whatsapp-templates`): `intro` ones only until a message was delivered,
  * `reopen` ones only after. The others are listed as hidden, with the reason,
- * so the prompt and the gate agree. Pure.
+ * so the prompt and the gate agree. `handoff` templates are code-sent
+ * (openspec `handoff-notice`): dropped first, neither offered nor listed. Pure.
  */
 export function splitTemplatesByPurpose(
   all: WaTemplateRow[],
@@ -20,6 +21,7 @@ export function splitTemplatesByPurpose(
   const templates: WaTemplateRow[] = [];
   const hiddenTemplates: HiddenTemplate[] = [];
   for (const t of all) {
+    if (t.purpose === 'handoff') continue;
     const usable = t.purpose === 'intro' ? !firstContactDone : firstContactDone;
     if (usable) templates.push(t);
     else hiddenTemplates.push({ template: t, reason: hiddenTemplateReason(t) });

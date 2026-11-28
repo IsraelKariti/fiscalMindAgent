@@ -483,10 +483,56 @@ export async function markOverdueStopped(id: string): Promise<ClientRow | null> 
   return rows[0] ?? null;
 }
 
+/** The WHERE both handoff-notice queries share: still stopped by the window, not yet told. $1 = oldest stop time (ISO). */
+const HANDOFF_NOTICE_DUE = `c.deleted_at IS NULL AND c.goal_status = 'pending' AND c.paused = true
+       AND (c.agent_fields->>'overdue_stopped_at') IS NOT NULL
+       AND (c.agent_fields->>'overdue_stopped_at') >= $1
+       AND (c.agent_fields->>'handoff_notice_sent_at') IS NULL`;
+
+/**
+ * Clients the agent stopped at the end of the collection window that have not
+ * received the handoff notice yet (openspec `handoff-notice`). `sinceIso`
+ * bounds how old the stop may be; the string compare works because the marker
+ * is always written by toISOString(). A resumed client or one with a new due
+ * date has no `overdue_stopped_at`, and a declined one never had it.
+ */
+export async function listHandoffNoticeDue(agentTypes: string[], sinceIso: string): Promise<ClientRow[]> {
+  const { rows } = await pool.query<ClientRow>(
+    `SELECT c.* FROM clients c
+     JOIN agent_instances ai ON ai.id = c.agent_instance_id
+     WHERE ai.agent_type = ANY($2::text[])
+       AND ${HANDOFF_NOTICE_DUE}`,
+    [sinceIso, agentTypes],
+  );
+  return rows;
+}
+
+/**
+ * Atomically claims the handoff notice for a client: stamps
+ * `handoff_notice_sent_at` only while the client is still due. Null means
+ * another run claimed it or the stop no longer holds (resumed, new due date).
+ */
+export async function claimHandoffNotice(id: string, sinceIso: string): Promise<ClientRow | null> {
+  const { rows } = await pool.query<ClientRow>(
+    `UPDATE clients c
+     SET agent_fields = agent_fields || jsonb_build_object('handoff_notice_sent_at', $3::text)
+     WHERE c.id = $2 AND ${HANDOFF_NOTICE_DUE}
+     RETURNING *`,
+    [sinceIso, id, new Date().toISOString()],
+  );
+  return rows[0] ?? null;
+}
+
+/** Gives the claim back after the provider refused the notice, so the next business morning tries again. */
+export async function releaseHandoffNotice(id: string): Promise<void> {
+  await pool.query(`UPDATE clients SET agent_fields = agent_fields - 'handoff_notice_sent_at' WHERE id = $1`, [id]);
+}
+
 /**
  * Sets or clears the client's collection due date. Either way the overdue
  * markers and the decline marker are dropped, so a changed date can notify
  * again when the new date passes and any "handed off" UI state is cleared.
+ * The handoff-notice marker goes too: a second stop tells the client again.
  */
 export async function setDueDate(
   id: string,
@@ -496,8 +542,8 @@ export async function setDueDate(
   const { rows } = await pool.query<ClientRow>(
     `UPDATE clients
      SET agent_fields = CASE WHEN $3::text IS NULL
-           THEN agent_fields - 'due_date' - 'overdue_notified_at' - 'overdue_stopped_at' - 'declined_at'
-           ELSE (agent_fields - 'overdue_notified_at' - 'overdue_stopped_at' - 'declined_at') || jsonb_build_object('due_date', $3::text) END,
+           THEN agent_fields - 'due_date' - 'overdue_notified_at' - 'overdue_stopped_at' - 'declined_at' - 'handoff_notice_sent_at'
+           ELSE (agent_fields - 'overdue_notified_at' - 'overdue_stopped_at' - 'declined_at' - 'handoff_notice_sent_at') || jsonb_build_object('due_date', $3::text) END,
          updated_at = now()
      WHERE id = $1 AND agent_instance_id = $2
      RETURNING *`,

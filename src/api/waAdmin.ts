@@ -71,8 +71,9 @@ const TemplateCreateSchema = z
       .string()
       .nullish()
       .refine((t) => t == null || getAgentTypeIfKnown(t) !== undefined, 'Unknown agent type.'),
-    // `intro` = first contact only; `reopen` (default) = later closed-window contacts.
-    purpose: z.enum(['intro', 'reopen']).optional(),
+    // `intro` = first contact only; `reopen` (default) = later closed-window contacts;
+    // `handoff` = the fixed notice after the collection window ended (code-sent).
+    purpose: z.enum(['intro', 'reopen', 'handoff']).optional(),
   })
   .strict();
 

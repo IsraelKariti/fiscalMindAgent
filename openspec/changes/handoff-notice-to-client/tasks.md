@@ -34,11 +34,11 @@
 
 ## 7. Template with Meta (owner)
 
-- [ ] 7.1 Owner: create `finish_conversation` in the Twilio Content Template Builder with the text from design.md (Hebrew, Utility, 3 variables, no buttons) and submit it to Meta; done when Meta shows it approved and the Content SID is known
+- [x] 7.1 Owner: create `finish_conversation` in the Twilio Content Template Builder with the text from design.md (Hebrew, Utility, 3 variables, no buttons) and submit it to Meta; done when Meta shows it approved and the Content SID is known
 - [x] 7.2 Add the seed migration with the approved SID, body copied verbatim, `variable_count` 3, agent type `declaration_of_capital`, purpose `handoff`; verify `npm run db:migrate` passes and the admin template list shows it as `handoff`
 
 ## 8. Check end to end
 
-- [ ] 8.1 Local run: take a test-free client with a WhatsApp number, set its due date to yesterday, run the overdue scan, then run the notice scan by hand on a business day; verify one template arrives with the advisor's name and email, the timeline shows it, and a second run sends nothing
+- [x] 8.1 Local run: take a test-free client with a WhatsApp number, set its due date to yesterday, run the overdue scan, then run the notice scan by hand on a business day; verify one template arrives with the advisor's name and email, the timeline shows it, and a second run sends nothing
 - [ ] 8.2 Local run: stop a client, resume it, run the notice scan; verify nothing is sent. Then set a new past due date, run both scans; verify a second notice is sent
 - [x] 8.3 Run `npm run typecheck` and `npm test`; verify both pass

@@ -311,7 +311,7 @@ export function typeFieldsCheck(
   let problem: string | null = null;
   for (const { field, value } of read) {
     if (value === null) {
-      if (field.required) problem = `השדה "${field.labelHe}" לא נמצא במסמך`;
+      if (field.required) problem = field.missingHintHe ?? `השדה "${field.labelHe}" לא נמצא במסמך`;
     } else if (field.kind === 'date') {
       if (typeof value !== 'string' || !DATE_RE.test(value)) problem = `השדה "${field.labelHe}" אינו תאריך בפורמט YYYY-MM-DD (${value})`;
     } else if (field.kind === 'year') {

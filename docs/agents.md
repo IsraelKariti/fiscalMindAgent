@@ -412,6 +412,21 @@ monday WorkForm is the only source of which documents a declaration needs):
   Some funds print a member / account number on both, others (Menora) none
   at all — so the savings account number is an optional field, never a
   reason to reject the document.
+  **Since 2026-11-28 (owner's rule, openspec
+  `savings-tax-certificate-required`) the two forms are equal only for
+  `life_insurance_savings`.** A `pension_provident` or `study_fund` document
+  must print the certificate itself: both modules read a required text field
+  `tax_certificate_title` (the heading quoted as printed, never from the file
+  name or the row name), and `type_fields` fails with
+  `המסמך אינו כולל את "אישור מס להצהרת הון"` when it is null or does not hold
+  both "אישור מס" and "הצהרת הון" (so "אישור מס והצהרת הון" counts, "אישור מס
+  שנתי" does not; `TypeField.missingHintHe` carries the note for the null
+  case). An annual report with the certificate inside still passes; a
+  balance-only report is still classified as the type, then rejected. The two
+  types use `FUND_TAX_CERTIFICATE_HINT_HE` in the catalog, life insurance
+  keeps `SAVINGS_CERTIFICATE_HINT_HE`, and `prompt.md`'s savings block tells
+  the planner to ask for the certificate and never to offer the report as a
+  replacement. Documents approved before the change are not re-judged.
 Since 2026-08-23 the agent also reports **back to the board**
 (`src/agents/shared/mondayStatusSync.ts`). The write-back
 address is remembered per client in `agent_fields.monday_board_id/monday_item_id`

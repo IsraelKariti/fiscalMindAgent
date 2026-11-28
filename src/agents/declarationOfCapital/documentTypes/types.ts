@@ -33,6 +33,8 @@ export interface TypeField {
   pattern?: RegExp;
   /** The `type_fields` note when the pattern fails. */
   patternHintHe?: string;
+  /** Required fields only: the `type_fields` note when the value is null, in place of the generic one. */
+  missingHintHe?: string;
   /**
    * Number fields only: the inclusive lower bound the value must reach
    * (openspec `document-extraction`, change `per-type-amount-checks`). The

@@ -271,10 +271,10 @@ describe('contents_insurance', () => {
 describe('the savings family and the bank', () => {
   it('study fund: deposits of 0 satisfy the group; a null fund name fails', () => {
     const studyFund = documentTypeSpec('study_fund');
-    const cert = { ...baseFields, fund_name: 'קרן השתלמות אלטשולר שחם', account_number: '778899', closing_balance: null, total_deposits: 0 };
+    const cert = { ...baseFields, tax_certificate_title: 'אישור מס להצהרת הון', fund_name: 'קרן השתלמות אלטשולר שחם', account_number: '778899', closing_balance: null, total_deposits: 0 };
     const ok = typeFieldsOf(studyFund.verify(cert, baseCtx));
     assert.equal(ok.passed, true);
-    assert.equal(ok.observed, 'שם הקופה/הקרן: קרן השתלמות אלטשולר שחם · מספר חשבון: 778899 · יתרה ליום 31.12: לא נמצא · סך ההפקדות המצטבר: 0');
+    assert.equal(ok.observed, 'כותרת אישור המס: אישור מס להצהרת הון · שם הקופה/הקרן: קרן השתלמות אלטשולר שחם · מספר חשבון: 778899 · יתרה ליום 31.12: לא נמצא · סך ההפקדות המצטבר: 0');
     assert.ok(typeFieldsOf(studyFund.verify({ ...cert, fund_name: null }, baseCtx)).reason!.includes('"שם הקופה/הקרן" לא נמצא'));
     const none = typeFieldsOf(studyFund.verify({ ...cert, total_deposits: null }, baseCtx));
     assert.equal(none.passed, false);
@@ -286,6 +286,7 @@ describe('the savings family and the bank', () => {
     const pension = documentTypeSpec('pension_provident');
     const report = {
       ...baseFields,
+      tax_certificate_title: 'אישור מס להצהרת הון',
       fund_name: 'קרן הפנסיה חדשה מקיפה - "מנורה מבטחים פנסיה"',
       account_number: null,
       closing_balance: 1_134_117,
@@ -304,10 +305,42 @@ describe('the savings family and the bank', () => {
     assert.ok(noAccount.reason!.includes('"מספר חשבון" לא נמצא'));
   });
 
-  it('the declared fields: savings types require only the fund name; bank and securities keep the account number required', () => {
+  it('pension and study fund: the document must print the tax certificate heading (openspec savings-tax-certificate-required)', () => {
+    const NOTE = 'המסמך אינו כולל את "אישור מס להצהרת הון"';
+    for (const key of ['pension_provident', 'study_fund']) {
+      const spec = documentTypeSpec(key);
+      // A short annual report: member, fund and year-end balance, no certificate heading.
+      const report = { ...baseFields, tax_certificate_title: null, fund_name: 'מנורה מבטחים פנסיה', account_number: null, closing_balance: 1_134_117, total_deposits: null };
+      const rejected = spec.verify(report, baseCtx);
+      assert.equal(rejected.passed, false, key);
+      assert.equal(typeFieldsOf(rejected).passed, false, key);
+      assert.equal(typeFieldsOf(rejected).reason, NOTE, key);
+      assert.ok(typeFieldsOf(rejected).observed!.startsWith('כותרת אישור המס: לא נמצא'), key);
+
+      for (const title of ['אישור מס להצהרת הון', 'אישור מס והצהרת הון', 'דוח שנתי מקוצר לשנת 2025 ואישור מס להצהרת הון — קרן השתלמות']) {
+        const accepted = spec.verify({ ...report, tax_certificate_title: title }, baseCtx);
+        assert.equal(accepted.passed, true, `${key}: ${title} — ${accepted.reasons.join(' | ')}`);
+      }
+      for (const title of ['אישור מס שנתי', 'אישור מס עבור קרן השתלמות', 'אישור יתרות להצהרת הון', '']) {
+        const other = typeFieldsOf(spec.verify({ ...report, tax_certificate_title: title }, baseCtx));
+        assert.equal(other.passed, false, `${key}: ${title}`);
+        assert.equal(other.reason, NOTE, `${key}: ${title}`);
+      }
+    }
+    // Life insurance keeps its two accepted forms: no certificate field, a balance-only report passes.
+    const insurance = documentTypeSpec('life_insurance_savings');
+    assert.ok(!insurance.fields.some((f) => f.key === 'tax_certificate_title'));
+    assert.ok(!insurance.prompt.includes('tax_certificate_title'));
+    const policy = insurance.verify({ ...baseFields, fund_name: 'הראל ביטוח מנהלים', account_number: '5521907', closing_balance: 88_400, total_deposits: null }, baseCtx);
+    assert.equal(policy.passed, true, policy.reasons.join(' | '));
+  });
+
+  it('the declared fields: savings types require the fund name (the two fund types also the certificate heading); bank and securities keep the account number required', () => {
     const requiredOf = (key: string) => Object.fromEntries(documentTypeSpec(key).fields.map((f) => [f.key, f.required]));
+    const savings = { fund_name: true, account_number: false, closing_balance: false, total_deposits: false };
+    for (const key of ['pension_provident', 'study_fund']) assert.deepEqual(requiredOf(key), { tax_certificate_title: true, ...savings }, key);
+    assert.deepEqual(requiredOf('life_insurance_savings'), savings);
     for (const key of ['pension_provident', 'study_fund', 'life_insurance_savings']) {
-      assert.deepEqual(requiredOf(key), { fund_name: true, account_number: false, closing_balance: false, total_deposits: false }, key);
       assert.deepEqual(documentTypeSpec(key).fieldsAnyOf, ['closing_balance', 'total_deposits'], key);
     }
     assert.deepEqual(requiredOf('bank_balance'), { account_number: true, current_account_balance: true, deposits_balance: false });

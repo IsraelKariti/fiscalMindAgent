@@ -15,13 +15,32 @@ import { jsonSchemaOf, type DocumentTypeSpec, type TypeField } from './types.js'
 /**
  * קופת גמל / פנסיה (`pension_provident`): the extraction contract of this document type —
  * its answer schema, its prompt and its checks.
- * Checks: legibility; expected type; the owner identity (the client or the spouse must own it); the 31.12 as-of date; the typed fields.
+ * Checks: legibility; expected type; the owner identity (the client or the spouse must own it); the 31.12 as-of date; the typed fields —
+ * among them the quoted heading of the tax certificate, without which the document is rejected.
  * Change a field here and in the prompt line together; the registry test
  * (tests/documentTypes.test.ts) fails when the two disagree.
  */
 
+/**
+ * The document must print the tax certificate for the capital declaration
+ * (openspec `document-extraction`, change `savings-tax-certificate-required`):
+ * the quoted heading must hold both word groups, so "אישור מס והצהרת הון"
+ * counts and "אישור מס שנתי" does not.
+ */
+const CERTIFICATE_TITLE_RE = /אישור\s+מס[\s\S]*הצהרת\s+הון/;
+const CERTIFICATE_MISSING_HE = 'המסמך אינו כולל את "אישור מס להצהרת הון"';
+
 /** This type's own fields, in answer order; the prompt below carries one instruction line per key. */
 const FIELDS: readonly TypeField[] = [
+  {
+    key: 'tax_certificate_title',
+    kind: 'text',
+    labelHe: 'כותרת אישור המס',
+    required: true,
+    pattern: CERTIFICATE_TITLE_RE,
+    patternHintHe: CERTIFICATE_MISSING_HE,
+    missingHintHe: CERTIFICATE_MISSING_HE,
+  },
   { key: 'fund_name', kind: 'text', labelHe: 'שם הקופה/הקרן', required: true },
   { key: 'account_number', kind: 'text', labelHe: 'מספר חשבון', required: false },
   { key: 'closing_balance', kind: 'number', labelHe: 'יתרה ליום 31.12', required: false, min: 0 },
@@ -40,6 +59,7 @@ const schema = z.object({
   valid_until: z.string().nullable(),
   legible: z.boolean(),
   injection_suspected: z.boolean(),
+  tax_certificate_title: z.string().nullable(),
   fund_name: z.string().nullable(),
   account_number: z.string().nullable(),
   closing_balance: z.number().nullable(),
@@ -57,9 +77,10 @@ const PROMPT = `אתה מחלץ נתונים ממסמך עבור אימות או
 
 המסמך המצופה: {{expected_name}}
 תיאור: {{expected_description}}
-{{paper_context}}מסמכים קבילים לסוג זה: אישור ייעודי להצהרת הון (מופק מהאזור האישי באתר הקופה) או העמוד האחרון של הדוח השנתי המקוצר, המשקף את היתרה הצבורה בכל קופת גמל וקרן פנסיה (כולל קופת גמל להשקעה) ליום 31.12.{{tax_year}} — כולל קופות של בן/בת הזוג. חשבונות "חיסכון לכל ילד" אינם דורשים אישור כלל (מופקדים על ידי ביטוח לאומי).
-שתי צורות קבילות למסמך, לכל קופה/קרן בנפרד: (א) האישור הייעודי — עמוד או מקטע שכותרתו "אישור מס להצהרת הון" (לעיתים תחת כותרת "אישור מס עבור קרן השתלמות" / "אישור מס עבור קופת גמל להשקעה"), המופק מהאזור האישי באתר הגוף המנהל; מופיעים בו שם העמית, מספר תיק ניכויים ושם הקופה/הקרן (בחלק מהקופות גם מספר חשבון או מספר עמית, ובאחרות — למשל מנורה מבטחים — לא מודפס מספר כזה כלל), עם הנוסח "הרינו לאשר כי סך ההפקדות... מיום ההפקדה הראשונה ועד ליום 31.12" של שנת המס. שים לב: אישור זה מאשר סך הפקדות מצטבר (לא יתרה צבורה), וסכום מאושר של 0 ש"ח הוא לגיטימי (למשל חשבון שרוקן) — חלץ גם אותו כסכום. (ב) העמוד בדוח השנתי המקוצר המציג את יתרת הכספים לסוף השנה ("יתרת הכספים בחשבונך נכון ל-31.12..." / "יתרת הכספים בחשבון בסוף השנה"). לעיתים קרובות שתי הצורות מגיעות בקובץ PDF אחד — האישור הייעודי כעמוד האחרון של הדוח השנתי — וזה קביל. אינו קביל: דוח רבעוני, או עמוד פירוט ההפקדות השנתי בלבד (טבלת "פירוט ההפקדות לחשבון") ללא יתרת סוף שנה וללא נוסח האישור.
+{{paper_context}}מסמכים קבילים לסוג זה: "אישור מס להצהרת הון" מכל קופת גמל וקרן פנסיה (כולל קופת גמל להשקעה) ליום 31.12.{{tax_year}} — מופק מהאזור האישי באתר הקופה, ולעיתים מצורף כעמוד האחרון של הדוח השנתי המקוצר; כולל קופות של בן/בת הזוג. דוח שנתי שאין בו "אישור מס להצהרת הון" אינו מספיק. חשבונות "חיסכון לכל ילד" אינם דורשים אישור כלל (מופקדים על ידי ביטוח לאומי).
+צורה קבילה אחת למסמך, לכל קופה/קרן בנפרד: המסמך חייב לכלול את "אישור מס להצהרת הון" — עמוד או מקטע שזו כותרתו (לעיתים מתחת לכותרת "אישור מס עבור קרן השתלמות" / "אישור מס עבור קופת גמל להשקעה"), המופק מהאזור האישי באתר הגוף המנהל; מופיעים בו שם העמית, מספר תיק ניכויים ושם הקופה/הקרן (בחלק מהקופות גם מספר חשבון או מספר עמית, ובאחרות — למשל מנורה מבטחים — לא מודפס מספר כזה כלל), עם הנוסח "הרינו לאשר כי סך ההפקדות... מיום ההפקדה הראשונה ועד ליום 31.12" של שנת המס. שים לב: אישור זה מאשר סך הפקדות מצטבר (לא יתרה צבורה), וסכום מאושר של 0 ש"ח הוא לגיטימי (למשל חשבון שרוקן) — חלץ גם אותו כסכום. האישור מגיע לבדו, או כעמוד (לרוב האחרון) בתוך הדוח השנתי של הקופה, המקוצר או המלא — שתי האפשרויות קבילות, ובדוח כזה מופיעה גם יתרת הכספים לסוף השנה ("יתרת הכספים בחשבונך נכון ל-31.12..." / "יתרת הכספים בחשבון בסוף השנה"). דוח שנתי של הקופה שאין בו "אישור מס להצהרת הון" שייך לסוג מסמך זה, אך אינו קביל: חסר בו האישור. אינו קביל גם: דוח רבעוני, או עמוד פירוט ההפקדות השנתי בלבד (טבלת "פירוט ההפקדות לחשבון").
 שדות ייעודיים לסוג מסמך זה — חלץ כל אחד מהם לשדה הנקוב, או null אם אינו מופיע במסמך:
+- tax_certificate_title: הכותרת של "אישור מס להצהרת הון" בדיוק כפי שהיא מודפסת במסמך עצמו (למשל "אישור מס להצהרת הון"). העתק אותה אך ורק מתוכן המסמך — לא משם הקובץ, לא משם המסמך המצופה שלמעלה ולא מהתיאור שלך למסמך. null כשבמסמך לא מודפסת כותרת כזו — למשל דוח שנתי שמציג יתרה בלבד; במקרה כזה אל תסמן את המסמך כסוג אחר רק בגלל שהאישור חסר: הקוד הוא שקובע שהמסמך אינו קביל.
 - fund_name: שם הקופה, הקרן או הפוליסה כפי שמודפס במסמך (למשל "קרן השתלמות אלטשולר שחם").
 - account_number: מספר העמית, מספר החשבון או מספר הפוליסה של העמית בקופה, כפי שמודפס בכותרת הדוח או באישור. null כשהמסמך אינו מדפיס מספר כזה — יש דוחות שנתיים (למשל מנורה מבטחים) שאינם מציגים אותו כלל. "מספר תיק ניכויים" הוא תיק המס של המעסיק ואינו מספר חשבון — אל תעתיק אותו לשדה זה.
 - closing_balance: יתרת הכספים בחשבון ליום 31.12 של שנת המס, מהעמוד בדוח השנתי המקוצר ("יתרת הכספים בחשבונך נכון ל-31.12"). null אם המסמך הוא האישור הייעודי בלבד ואינו מציג יתרה.

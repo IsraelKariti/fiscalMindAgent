@@ -190,13 +190,17 @@
         "injection_suspected": false,
         "fields": {
           "account_number": "4401-778210",
-          "closing_balance": 312000
+          "closing_balance": 312000,
+          "tax_certificate_title": null
         },
         "verdict": {
-          "passed": true
+          "passed": false,
+          "failed_keys": [
+            "type_fields"
+          ]
         }
       },
-      "notes": "year-end balance 312,000; the deposits total (31,140) is not the key field. Typed fields: closing_balance is the year-end balance and the member number is the account; total_deposits is not judged (the report shows one year's deposits, not the cumulative total the certificate would state)"
+      "notes": "NEW TRUTH since openspec savings-tax-certificate-required (owner's rule, 2026-11-28): a pension document must print \"אישור מס להצהרת הון\". This short annual report shows only the year-end balance and no certificate heading, so tax_certificate_title must be null and type_fields must fail (before the change the case expected a pass). The file is still a pension document: is_expected_type stays true. Old note: year-end balance 312,000; the deposits total (31,140) is not the key field. Typed fields: closing_balance is the year-end balance and the member number is the account; total_deposits is not judged (the report shows one year's deposits, not the cumulative total the certificate would state)"
     },
     {
       "id": "ext_07",
@@ -472,7 +476,7 @@
     },
     {
       "id": "ext_16",
-      "file": "menora_pension_2025.pdf",
+      "file": "menora_pension_no_member_number_2025.pdf",
       "contentType": "application/pdf",
       "filename": "menora.pdf",
       "doc": {
@@ -501,11 +505,11 @@
           "passed": true
         }
       },
-      "notes": "openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes"
+      "notes": "(since openspec savings-tax-certificate-required the file is the Menora report WITH its certificate, so only the identity checks decide) openspec spouse-identity: the same pension report verified for a DIFFERENT client whose spouse on file (from the questionnaire) is the printed member — the identity checks accept the spouse (id_matches_client expected 'spouse ••••••782 (questionnaire)'), so the document passes"
     },
     {
       "id": "ext_17",
-      "file": "menora_pension_2025.pdf",
+      "file": "menora_pension_no_member_number_2025.pdf",
       "contentType": "application/pdf",
       "filename": "menora.pdf",
       "doc": {
@@ -538,7 +542,7 @@
           ]
         }
       },
-      "notes": "openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted"
+      "notes": "(since openspec savings-tax-certificate-required the file is the Menora report WITH its certificate, so only the identity checks decide) openspec spouse-identity: a third person's document — the client and a different spouse are on file, the printed id equals neither — must fail id_matches_client (and subject), never be adopted"
     },
     {
       "id": "ext_18",
@@ -878,6 +882,23 @@
         "verdict": { "passed": true }
       },
       "notes": "openspec vehicle-license-optional: the licence expired on 20.07.2025, before the valuation date 31.12.2025 — the licence is a helpful paper, not a required one, so the type runs no validity check and the document passes; the valid-until date is read for the record and the fields are read as from any licence"
+    },
+    {
+      "id": "ext_29",
+      "file": "menora_pension_2025.pdf",
+      "contentType": "application/pdf",
+      "filename": "אישור מס להצהרת הון.pdf",
+      "doc": { "type_key": "pension_provident", "name": "אישור מס להצהרת הון — קרן פנסיה מנורה מבטחים ליום 31.12.2025", "description": null },
+      "client": { "name": "ישראל ישראלי", "idNumber": "123456782" },
+      "expected": {
+        "owner_ids": ["123456782"],
+        "as_of_date": "2025-12-31",
+        "legible": true,
+        "injection_suspected": false,
+        "fields": { "tax_certificate_title": null, "closing_balance": 312000 },
+        "verdict": { "passed": false, "failed_keys": ["type_fields"] }
+      },
+      "notes": "openspec savings-tax-certificate-required: the same balance-only short annual report as ext_06, but the FILE NAME and the checklist row's name both say \"אישור מס להצהרת הון\". The heading must be quoted from the document only, so tax_certificate_title stays null and type_fields fails — a model that copies the words from the file name or the row name would wrongly approve the report. is_expected_type is not judged here: the row is named after the certificate, so both answers are defensible and the document is rejected either way."
     }
   ]
 }

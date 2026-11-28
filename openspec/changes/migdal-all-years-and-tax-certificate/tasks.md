@@ -4,6 +4,7 @@
 - [x] 1.2 Give `selectMigdalRows` a mode: `year` keeps the current "title contains the year" check, `all_years` takes only titles matching "לשנת <year>" with no digit after it; verify with test cases using the live titles of 2016, 2017 and 2020 and a title such as "לשנת 20161"
 - [x] 1.3 Use both in `runRound`: select the chosen label, end the round with nothing when the choice is null, pass the mode to the row selection, and remove the missing-year `NoDocumentsOnSiteError`; verify `npm run typecheck` passes and the log line of a round names the mode
 - [x] 1.4 Update the flow comment at the top of the provider (year rule, single-result page text); verify the comment matches design.md "Context"
+- [x] 1.5 Owner's correction: replace the mode-dependent title check with one rule for every search (the title holds the tax year as a four-digit number anywhere, no digit right before or after it) and drop the mode from `selectMigdalRows`; verify with test cases for a year in the middle of a title, a year at the end, and "120165"
 
 ## 2. Tax certificate
 

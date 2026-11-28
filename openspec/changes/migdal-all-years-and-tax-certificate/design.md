@@ -42,7 +42,7 @@ Current code: `MIGDAL_ROUNDS` holds four rounds, `runRound` selects type, produc
 
 **1. Year choice is a pure function.** `chooseYearOption(options, taxYear)` returns `{ label, mode: 'year' | 'all_years' }` or `null`. The year label wins; "כל השנים" is the fallback; `null` ends the round with nothing. `runRound` selects the returned label. Alternative considered: always search "כל השנים" and filter by title. Rejected: the site's own filter is the stronger guard when the year is offered, and the owner asked for the dropdown first.
 
-**2. The title check depends on the mode.** In `all_years` mode a row is taken only when its collapsed title matches "לשנת <year>" with no digit after the year. In `year` mode the current check stays (the title contains the year), because study-fund annual titles were never seen live and a stricter check could drop a real document there. `selectMigdalRows` gets the mode as a parameter. Tax-certificate rows always use the strict check: their title form was seen live.
+**2. One title check for every search.** A row is taken when its collapsed title holds the tax year as a four-digit number anywhere, with no digit right before or right after it. The owner rejected the first version (the title must read "לשנת <year>") as too fragile: a title worded differently would be dropped. The digit guard stays, so "120165" is not 2016. The check no longer depends on how the year was narrowed, so `selectMigdalRows` takes no mode; the mode stays only in the log line. Alternative considered: keep the strict form under "כל השנים" only. Rejected by the owner.
 
 **3. The tax certificate is its own step, not four more rounds.** Its product labels are per account, so the fixed round table cannot name them. A pure `classifyTaxCertificateProduct(label)` returns `'pension_annual' | 'study_fund_annual' | null`: "השתלמות" first, then "מקפת" / "פנסיה" / "גמל", else `null`. The step picks the type, reads the product options, and runs one search per sorted product. Alternative considered: search "כל המוצרים" once and sort rows by title. Rejected: a title such as "אישור מס לשנת 2024 עבור ביטוח בריאות" would need a second name list for titles, and one search per product keeps the kind tied to the selection, as the annual rounds do.
 
@@ -58,6 +58,7 @@ Current code: `MIGDAL_ROUNDS` holds four rounds, `runRound` selects type, produc
 
 - [Only one account was seen] Product names for the tax certificate may differ in other accounts ("קופת גמל להשקעה", "קשת", insurance policies). → Unknown names are skipped and logged with the full option list, so the log shows what to add. "גמל" already covers the provident names.
 - [Sorting by name] A product whose name holds none of the words is never fetched. → Same log line; the annual reports are unaffected.
+- [A looser title check under "כל השנים"] A report of another year whose title also holds the tax year as a number would be taken. → No such title was seen in the owner's account; accepted by the owner for a check that does not drop real documents.
 - [All-years lists can be long] An account with many years lists many rows. → Only rows of the tax year are downloaded; the rest are skipped without a click.
 - [A tax certificate alone marks the row received] A tax certificate shows deposits, not the balance at 31.12. The row is still marked received like any fetched file. → Accepted by the spec; the file check on the fetched file reports what the document holds. Flagged to the owner in the proposal summary.
 - [The "כל השנים" behaviour is a site quirk] The site may stop listing old years. → The round then lists nothing for the year and the session ends with the no-documents outcome, the same result as before this change.
@@ -69,4 +70,4 @@ Code only. Deploy builds the browser image per commit, so the runner and the wor
 
 ## Open Questions
 
-- Study-fund annual titles and study-fund tax-certificate titles were not seen live (the owner's account has none for the checked years). The strict check assumes they also read "לשנת <year>". The log of skipped titles will show it if they do not.
+- Study-fund annual titles and study-fund tax-certificate titles were not seen live (the owner's account has none for the checked years). The title check only needs the year somewhere in the title. The log of skipped titles will show a title that lacks it.

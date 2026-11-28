@@ -164,20 +164,26 @@ describe('migdal year rule', () => {
       row(4, 'דוח שנתי לעמית- מקפת  אישית - לשנת 2016'),
     ];
     assert.deepEqual(
-      selectMigdalRows(rows, 2016, 'pension_annual', new Set(), 'all_years').map((r) => r.index),
+      selectMigdalRows(rows, 2016, 'pension_annual', new Set()).map((r) => r.index),
       [4],
     );
-    assert.equal(selectMigdalRows(rows, 2012, 'pension_annual', new Set(), 'all_years').length, 0);
+    assert.equal(selectMigdalRows(rows, 2012, 'pension_annual', new Set()).length, 0);
   });
 
-  it('is strict under all years: the title must read the year right after the word', () => {
-    assert.equal(titleCarriesYear('דוח שנתי לעמית - לשנת 2016', 2016, 'all_years'), true);
-    assert.equal(titleCarriesYear('אישור מס לשנת 2016 עבור מקפת אישית', 2016, 'all_years'), true);
-    assert.equal(titleCarriesYear('דוח שנתי לעמית - לשנת 20161', 2016, 'all_years'), false);
-    assert.equal(titleCarriesYear('דוח מספר 2016 - לשנת 2020', 2016, 'all_years'), false);
-    assert.equal(titleCarriesYear('דוח שנתי לעמית 2016', 2016, 'all_years'), false);
-    // With the year selected in the dropdown the looser check stays.
-    assert.equal(titleCarriesYear('דוח שנתי לעמית 2016', 2016, 'year'), true);
+  it('finds the year anywhere in the title, whatever the wording around it', () => {
+    assert.equal(titleCarriesYear('דוח שנתי לעמית - לשנת 2016', 2016), true);
+    assert.equal(titleCarriesYear('אישור מס לשנת 2016 עבור מקפת אישית', 2016), true);
+    assert.equal(titleCarriesYear('דוח שנתי 2016 לעמית - מקפת אישית', 2016), true);
+    assert.equal(titleCarriesYear('2016 - דוח שנתי לעמית', 2016), true);
+    assert.equal(titleCarriesYear('דוח ליום 31.12.2016', 2016), true);
+    assert.equal(titleCarriesYear('דוח שנתי - בריאות - לשנת 2020', 2016), false);
+    assert.equal(titleCarriesYear('דוח שנתי לעמית', 2016), false);
+  });
+
+  it('does not count the four digits inside a longer number', () => {
+    assert.equal(titleCarriesYear('דוח 120165 לעמית', 2016), false);
+    assert.equal(titleCarriesYear('דוח שנתי לעמית - לשנת 20161', 2016), false);
+    assert.equal(titleCarriesYear('פוליסה 120165 - לשנת 2016', 2016), true);
   });
 });
 
@@ -195,10 +201,10 @@ describe('migdal tax certificate', () => {
 
   it('takes the certificate of the year and tags it by the product kind', () => {
     const rows = [row(0, 'אישור מס לשנת 2024 עבור מקפת אישית')];
-    assert.deepEqual(selectMigdalRows(rows, 2024, 'pension_annual', new Set(), 'all_years'), [
+    assert.deepEqual(selectMigdalRows(rows, 2024, 'pension_annual', new Set()), [
       { index: 0, title: 'אישור מס לשנת 2024 עבור מקפת אישית', kind: 'pension_annual' },
     ]);
-    assert.equal(selectMigdalRows(rows, 2025, 'pension_annual', new Set(), 'all_years').length, 0);
+    assert.equal(selectMigdalRows(rows, 2025, 'pension_annual', new Set()).length, 0);
   });
 
   it('describes both document types with the tax certificate', () => {

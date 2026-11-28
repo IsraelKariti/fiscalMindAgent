@@ -5,7 +5,7 @@ After login the platform SHALL open the reports page "הדוחות והאישו�
 
 The year SHALL be picked as follows. When the tax year is an option of the year dropdown, that option SHALL be selected. When it is not an option and the dropdown offers "כל השנים", "כל השנים" SHALL be selected. When the dropdown offers neither, the round SHALL end with nothing. A missing year SHALL never fail the fetch and SHALL never cause another year's document to be downloaded.
 
-A round answered with "לא מצאנו נתונים לתצוגה" SHALL append nothing. Otherwise the rows the list shows SHALL be downloaded, tagged `pension_annual` for the פנסיה rounds and `study_fund_annual` for the השתלמות rounds, subject to the title check: in a round searched with the tax year selected, a row whose on-site title does not carry the tax year as a four-digit string SHALL be skipped and logged; in a round searched with "כל השנים", only a row whose on-site title carries "לשנת" followed by the tax year SHALL be taken, and every other row SHALL be skipped. Rows with the same title within one kind SHALL be downloaded once. A list with a single result (the site then shows no results count) SHALL be read like any other list. Health-insurance reports (product "בריאות") SHALL never be requested.
+A round answered with "לא מצאנו נתונים לתצוגה" SHALL append nothing. Otherwise the rows the list shows SHALL be downloaded, tagged `pension_annual` for the פנסיה rounds and `study_fund_annual` for the השתלמות rounds, subject to the title check, which is the same for every search: only a row whose on-site title carries the tax year as a four-digit number SHALL be taken, wherever in the title the year stands; a title where those four digits are part of a longer number does not carry the year; every other row SHALL be skipped and logged. In a round searched with "כל השנים" the title is the only thing that tells the year. Rows with the same title within one kind SHALL be downloaded once. A list with a single result (the site then shows no results count) SHALL be read like any other list. Health-insurance reports (product "בריאות") SHALL never be requested.
 
 When the login worked and no round of any report type delivered a document, the session SHALL end with the "no documents on the site" outcome.
 
@@ -24,6 +24,14 @@ When the login worked and no round of any report type delivered a document, the 
 #### Scenario: All-years list holds other years
 - **WHEN** the tax year is 2016 and a round searched with "כל השנים" lists reports titled "לשנת 2020", "לשנת 2017" and "לשנת 2016"
 - **THEN** only the report titled "לשנת 2016" is downloaded and the others are skipped
+
+#### Scenario: The year stands elsewhere in the title
+- **WHEN** the tax year is 2016 and a round searched with "כל השנים" lists a report titled "דוח שנתי 2016 לעמית - מקפת אישית"
+- **THEN** that report is downloaded, although the title does not read "לשנת 2016"
+
+#### Scenario: The digits are part of a longer number
+- **WHEN** the tax year is 2016 and a listed title holds "120165" and no other number
+- **THEN** that row is skipped
 
 #### Scenario: All-years list has nothing for the year
 - **WHEN** the tax year is 2012 and every round searched with "כל השנים" lists only reports of other years or answers "לא מצאנו נתונים לתצוגה"
@@ -53,7 +61,7 @@ Each downloaded file SHALL be the PDF the site itself serves for that row, with 
 ### Requirement: Migdal tax certificates are taken for the pension and the study fund
 After the four annual-report rounds the platform SHALL take the report type "אישור מס" in the same login. The tax certificate SHALL run only when the tax year is an option of the year dropdown shown for that report type (this type offers no "כל השנים"); when it is not an option the tax certificate SHALL be skipped, logged, and SHALL NOT fail the fetch or take another year.
 
-The product dropdown of "אישור מס" lists the account's own product names. Each offered product SHALL be sorted by its name: a name containing "השתלמות" is the study fund; otherwise a name containing "מקפת", "פנסיה" or "גמל" is the pension; any other name ("כל המוצרים", "בריאות", an unknown product) SHALL be skipped and logged. For every sorted product the platform SHALL select the product and the tax year and press "הצג אישור". A search answered with "לא מצאנו נתונים לתצוגה" SHALL append nothing. Otherwise every row whose on-site title carries "לשנת" followed by the tax year SHALL be downloaded and tagged `study_fund_annual` for a study-fund product and `pension_annual` for a pension product; other rows SHALL be skipped and logged. A tax certificate SHALL attach to the same checklist row as the annual reports of its kind, under the existing row rules, including when it is the only file fetched for that kind.
+The product dropdown of "אישור מס" lists the account's own product names. Each offered product SHALL be sorted by its name: a name containing "השתלמות" is the study fund; otherwise a name containing "מקפת", "פנסיה" or "גמל" is the pension; any other name ("כל המוצרים", "בריאות", an unknown product) SHALL be skipped and logged. For every sorted product the platform SHALL select the product and the tax year and press "הצג אישור". A search answered with "לא מצאנו נתונים לתצוגה" SHALL append nothing. Otherwise every row whose on-site title carries the tax year as a four-digit number (the same title check as the annual rounds) SHALL be downloaded and tagged `study_fund_annual` for a study-fund product and `pension_annual` for a pension product; other rows SHALL be skipped and logged. A tax certificate SHALL attach to the same checklist row as the annual reports of its kind, under the existing row rules, including when it is the only file fetched for that kind.
 
 #### Scenario: Pension tax certificate for 2024
 - **WHEN** the tax year is 2024, the "אישור מס" product dropdown offers "כל המוצרים", "בריאות", "מגדל השתלמות" and "מקפת אישית", and the "מקפת אישית" search lists "אישור מס לשנת 2024 עבור מקפת אישית"

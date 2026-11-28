@@ -4,7 +4,7 @@ A Migdal fetch for tax year 2016 failed in production on 2026-11-28: the year dr
 
 ## What Changes
 
-- Year rule for the annual report types ("דוח שנתי", "דוח שנתי מקוצר"): when the tax year is an option of the year dropdown it is selected, as today. When it is not an option, "כל השנים" is selected and only rows titled "לשנת <tax year>" are taken. A missing year no longer fails the fetch.
+- Year rule for the annual report types ("דוח שנתי", "דוח שנתי מקוצר"): when the tax year is an option of the year dropdown it is selected, as today. When it is not an option, "כל השנים" is selected and only rows whose title holds the tax year are taken (the year anywhere in the title, not inside a longer number). A missing year no longer fails the fetch.
 - New report type "אישור מס" fetched in the same login, after the four annual rounds. Its year dropdown has no "כל השנים", so it runs only when the tax year is an option; otherwise it is skipped and never takes another year.
 - "אישור מס" lists the account's product names ("מקפת אישית", "מגדל השתלמות", "בריאות") instead of "פנסיה" / "השתלמות". Each product is sorted by its name into pension or study fund; health and unknown names are skipped.
 - Tax certificates are tagged with the same two kinds as the annual reports, so they attach to the same checklist rows.

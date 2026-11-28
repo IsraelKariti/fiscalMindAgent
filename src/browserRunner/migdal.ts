@@ -111,18 +111,19 @@ export function chooseYearOption(options: string[], taxYear: number): { label: s
 }
 
 /**
- * Whether a (collapsed) row title belongs to the tax year. 'year' mode: the
- * title carries the year as a four-digit string (the site's own filter already
- * narrowed the list). 'all_years' mode: the title must read "לשנת <year>" with
- * no digit after it — the title is the only guard there. Pure.
+ * Whether a row title belongs to the tax year (openspec `migdal-fetch`): the
+ * title holds the year as a four-digit number, anywhere in it. The wording
+ * around the year is not checked (the owner's rule: a title worded differently
+ * must not be dropped); the four digits inside a longer number ("120165") do
+ * not count. Under "כל השנים" this is the only thing that tells the year. Pure.
  */
-export function titleCarriesYear(title: string, taxYear: number, mode: MigdalYearMode): boolean {
+export function titleCarriesYear(title: string, taxYear: number): boolean {
   const year = String(taxYear);
-  if (mode === 'year') return title.includes(year);
-  const at = title.indexOf(`לשנת ${year}`);
-  if (at < 0) return false;
-  const next = title.charAt(at + `לשנת ${year}`.length);
-  return !(next >= '0' && next <= '9');
+  const isDigit = (ch: string): boolean => ch >= '0' && ch <= '9';
+  for (let at = title.indexOf(year); at >= 0; at = title.indexOf(year, at + 1)) {
+    if (!isDigit(title.charAt(at - 1)) && !isDigit(title.charAt(at + year.length))) return true;
+  }
+  return false;
 }
 
 /**
@@ -151,12 +152,11 @@ export function selectMigdalRows(
   taxYear: number,
   kind: MigdalKind,
   seen: Set<string> = new Set(),
-  mode: MigdalYearMode = 'year',
 ): SelectedMigdalRow[] {
   const selected: SelectedMigdalRow[] = [];
   for (const row of rows) {
     const title = normalizeMigdalTitle(row.title);
-    if (!title || !titleCarriesYear(title, taxYear, mode)) continue;
+    if (!title || !titleCarriesYear(title, taxYear)) continue;
     const key = `${kind}|${title}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -191,7 +191,7 @@ export function selectMigdalRows(
  *    "תהליך הפקת האישור הסתיים בהצלחה" for one; per row two
  *    a[aria-label="להורדת המסמך"] (title link + PDF icon); empty answer "לא
  *    מצאנו נתונים לתצוגה". Year rule: the tax year when offered, else "כל
- *    השנים" with rows kept by their "לשנת <year>" title.
+ *    השנים" with rows kept by the year in their title.
  *    Tax certificate (seen live 2026-11-28): type 32 "אישור מס" lists the
  *    account's product names (כל המוצרים / בריאות / מגדל השתלמות / מקפת
  *    אישית) and years 2025 … 2019 with no "כל השנים"; titles read "אישור מס
@@ -511,12 +511,11 @@ async function runTaxCertificate(
     await humanPause(page, 1_000, 3_000);
     await page.selectOption(PRODUCT_SELECT, { label: product.label });
     await page.selectOption(YEAR_SELECT, { label: year });
-    // Strict title check: the title form of this type was seen live.
     await searchAndCapture(page, {
       tag: `${TAX_CERTIFICATE_LABEL} / ${product.label}`,
       kind: product.kind,
       taxYear,
-      mode: 'all_years',
+      mode: 'year',
       shot: `migdal-08-tax-${i + 1}`,
       seen,
       docs,
@@ -549,14 +548,14 @@ async function searchAndCapture(
   }
 
   const rows = await readRows(page);
-  const selected = selectMigdalRows(rows, taxYear, kind, opts.seen, mode);
+  const selected = selectMigdalRows(rows, taxYear, kind, opts.seen);
   logger.info('migdal fetch: round answered', {
     round: tag,
     year,
     mode,
     rows: rows.length,
     selected: selected.length,
-    skipped: rows.map((r) => normalizeMigdalTitle(r.title)).filter((title) => !titleCarriesYear(title, taxYear, mode)),
+    skipped: rows.map((r) => normalizeMigdalTitle(r.title)).filter((title) => !titleCarriesYear(title, taxYear)),
   });
   for (const row of selected) {
     await humanPause(page, 3_000, 8_000); // human cadence between downloads

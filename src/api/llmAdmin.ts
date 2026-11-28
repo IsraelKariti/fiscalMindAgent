@@ -305,7 +305,7 @@ const CallsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
-function toAdminCall(r: Omit<llmCalls.LlmCallRow, 'request' | 'response'> & { client_name?: string | null }) {
+function toAdminCall(r: Omit<llmCalls.LlmCallRow, 'request' | 'response' | 'raw_usage'> & { client_name?: string | null }) {
   return {
     id: r.id,
     createdAt: r.created_at,
@@ -330,6 +330,10 @@ function toAdminCall(r: Omit<llmCalls.LlmCallRow, 'request' | 'response'> & { cl
     outputPricePerToken: r.output_price_per_token,
     thinkingPricePerToken: r.thinking_price_per_token,
     cachedPricePerToken: r.cached_price_per_token,
+    // Cache-write tokens, their rate and the lifetime the call asked for (openspec `llm-call-cache-usage`).
+    cacheWriteTokens: r.cache_write_tokens,
+    cacheWritePricePerToken: r.cache_write_price_per_token,
+    cacheTtl: r.cache_ttl,
     cost: r.cost,
     appVersion: r.app_version,
     fallbackFromModel: r.fallback_from_model,
@@ -376,6 +380,8 @@ export const adminGetLlmCall: RequestHandler = async (req, res) => {
       clientName: client?.name ?? null,
       request: row.request,
       response: row.response,
+      // The provider's usage block(s) as returned, one per model turn; null when none was recorded.
+      rawUsage: row.raw_usage,
       names: await callNames(row.client_id),
     },
   });

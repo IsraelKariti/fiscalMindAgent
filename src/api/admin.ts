@@ -31,6 +31,9 @@ import {
   savePurposeBackupModel,
   savePurposeModel,
   type LlmCallPurpose,
+  CACHE_TTL_OPTIONS,
+  getAnthropicCacheTtl,
+  saveAnthropicCacheTtl,
 } from '../gemini/modelSettings.js';
 import { getBudgetState, saveBudgetSettings } from '../gemini/budget.js';
 import { getMessageTiming, MessageTimingError, saveMessageTiming } from '../orchestration/timingSettings.js';
@@ -129,12 +132,16 @@ export const adminListAccountants: RequestHandler = async (_req, res) => {
       outputTokens: row.output_tokens,
       thinkingTokens: row.thinking_tokens,
       cachedTokens: row.cached_tokens,
+      // Both lifetimes together; the cost prices each at its own rate (openspec `llm-call-cache-usage`).
+      cacheWriteTokens: row.cache_write_5m_tokens + row.cache_write_1h_tokens,
       cost: pricing
         ? computeCost(pricing, {
             inputTokens: row.input_tokens,
             outputTokens: row.output_tokens,
             thinkingTokens: row.thinking_tokens,
             cachedTokens: row.cached_tokens,
+            cacheWrite5mTokens: row.cache_write_5m_tokens,
+            cacheWrite1hTokens: row.cache_write_1h_tokens,
           })
         : null,
     });
@@ -200,12 +207,16 @@ export const adminLlmUsageDaily: RequestHandler = async (req, res) => {
         outputTokens: r.output_tokens,
         thinkingTokens: r.thinking_tokens,
         cachedTokens: r.cached_tokens,
+        // Both lifetimes together; the cost prices each at its own rate (openspec `llm-call-cache-usage`).
+        cacheWriteTokens: r.cache_write_5m_tokens + r.cache_write_1h_tokens,
         cost: pricing
           ? computeCost(pricing, {
               inputTokens: r.input_tokens,
               outputTokens: r.output_tokens,
               thinkingTokens: r.thinking_tokens,
               cachedTokens: r.cached_tokens,
+              cacheWrite5mTokens: r.cache_write_5m_tokens,
+              cacheWrite1hTokens: r.cache_write_1h_tokens,
             })
           : null,
       };
@@ -645,14 +656,45 @@ export const adminGetModel: RequestHandler = async (_req, res) => {
 };
 
 async function modelStateResponse() {
-  const [state, purposes, backups] = await Promise.all([getGeminiModelState(), getPurposeModels(), getPurposeBackupModels()]);
+  const [state, purposes, backups, cacheTtl] = await Promise.all([
+    getGeminiModelState(),
+    getPurposeModels(),
+    getPurposeBackupModels(),
+    getAnthropicCacheTtl(),
+  ]);
   // A backup that shares the primary's provider is unusable (resolveBackupModel ignores it) — shown as none.
   const effective = (p: LlmCallPurpose) => purposes[p] ?? state.model;
   const shownBackups = Object.fromEntries(
     LLM_CALL_PURPOSES.map((p) => [p, backups[p] && !backupConflict(effective(p), backups[p]!) ? backups[p] : null]),
   ) as Record<LlmCallPurpose, string | null>;
-  return { ...state, purposes, backups: shownBackups, options: availableModelOptions() };
+  return {
+    ...state,
+    purposes,
+    backups: shownBackups,
+    options: availableModelOptions(),
+    // The Anthropic prompt-cache lifetime (openspec `llm-model-settings`); the picker shows only when Anthropic can be called.
+    cacheTtl,
+    anthropicAvailable: Boolean(env.ANTHROPIC_API_KEY),
+  };
 }
+
+const CacheTtlSchema = z.object({ cacheTtl: z.enum(CACHE_TTL_OPTIONS) }).strict();
+
+/**
+ * PUT /api/admin/model/cache-ttl: the lifetime every Anthropic request asks
+ * the prompt cache for, '5m' or '1h'. One platform-wide value; applies from
+ * the next Anthropic call, no restart. Any other value is refused.
+ */
+export const adminSetCacheTtl: RequestHandler = async (req, res) => {
+  const parsed = CacheTtlSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'The cache lifetime must be 5m or 1h.' });
+    return;
+  }
+  await saveAnthropicCacheTtl(parsed.data.cacheTtl);
+  logger.info('anthropic cache lifetime changed', { adminUserId: req.realUserId, cacheTtl: parsed.data.cacheTtl });
+  res.json(await modelStateResponse());
+};
 
 /** The error the model routes answer when a primary and a backup would share a provider (openspec `llm-model-settings`). */
 const sameProviderError = (purpose: LlmCallPurpose) =>

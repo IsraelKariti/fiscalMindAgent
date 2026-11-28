@@ -307,6 +307,17 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                     </span>
                   </div>
                 ))}
+                {/* Tokens written into the provider's cache, their own rate, and the lifetime the call asked for (openspec `llm-call-cache-usage`). */}
+                <div className="llm-meta-tile">
+                  <span className="stat-label">{t.cacheWriteTokens}</span>
+                  <span className="llm-meta-value">{(call.cacheWriteTokens ?? 0).toLocaleString(LOCALE)}</span>
+                  <span className="llm-meta-sub" dir="ltr">
+                    {perMillion(call.cacheWritePricePerToken ?? null)} {t.adminLlmCallPerMillion}
+                  </span>
+                  <span className="llm-meta-sub">
+                    {t.cacheTtlLabel}: {call.cacheTtl === '1h' ? t.cacheTtl1h : call.cacheTtl === '5m' ? t.cacheTtl5m : '—'}
+                  </span>
+                </div>
                 <div className="llm-meta-tile llm-meta-tile-total">
                   <span className="stat-label">{t.totalCost}</span>
                   <span className="llm-meta-value" dir="ltr">{call.cost !== null ? formatUsd(call.cost) : '—'}</span>
@@ -317,6 +328,23 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
                 <div className="error-banner" dir="ltr">
                   {t.adminLlmCallErrorLabel}: {call.error}
                 </div>
+              )}
+
+              {/* The provider's own usage report, unchanged, one block per model turn. */}
+              <h3>{t.adminLlmCallRawUsage}</h3>
+              {call.rawUsage && call.rawUsage.length > 0 ? (
+                call.rawUsage.map((block, i) => (
+                  <div key={i}>
+                    {call.rawUsage!.length > 1 && (
+                      <span className="muted">
+                        {t.adminLlmCallRawUsageTurn} {i + 1}
+                      </span>
+                    )}
+                    <CallPane tone="schema" text={JSON.stringify(block, null, 2)} ltr copyTitle={t.copyText} />
+                  </div>
+                ))
+              ) : (
+                <p className="muted">{t.adminLlmCallRawUsageNone}</p>
               )}
 
               {call.request?.systemInstruction && (

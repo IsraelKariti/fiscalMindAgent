@@ -1,11 +1,12 @@
 import type { GenerateContentResponse } from '@google/genai';
 import type { genaiClient } from './client.js';
-import { getGeminiModel, resolveBackupModel } from './modelSettings.js';
+import { DEFAULT_CACHE_TTL, getAnthropicCacheTtl, getGeminiModel, resolveBackupModel } from './modelSettings.js';
 import { providerForModel, type LlmCallPurpose } from './modelCatalog.js';
 import {
   failureReasonOf,
   generateWithRetryDetailed,
   isProviderFailure,
+  rawUsageOf,
   recordLlmCall,
   usageFromResponse,
   type GeminiUsage,
@@ -132,6 +133,7 @@ function turnAnswerOf(response: GenerateContentResponse & ProviderTurnFields): T
     calls,
     text,
     usage: usageFromResponse(response),
+    rawUsage: rawUsageOf(response) ?? [],
     ...(response.responseId ? { responseId: response.responseId } : {}),
     ...(raw !== undefined ? { raw } : {}),
   };
@@ -157,6 +159,10 @@ export async function runLlmCall(spec: LlmCallSpec, opts: RunLlmCallOptions = {}
     contents: spec.contents,
     config: requestConfigOf(spec),
     ...(spec.execute ? { continuation: { terminalTools: spec.terminalTools ?? [], maxTurns: MAX_TOOL_TURNS } } : {}),
+    // The admin's cache lifetime (openspec `llm-model-settings`), read once
+    // per call; a pinned model (the evals harness, the probe) runs without the
+    // settings table and takes the default.
+    cacheTtl: opts.model ? DEFAULT_CACHE_TTL : await getAnthropicCacheTtl(),
   };
   let log: LlmCallLogContext | undefined = opts.log ? { ...opts.log, purpose: opts.log.purpose ?? spec.purpose } : undefined;
   // A pinned model (the evals harness, the probe) is the only one tried.
@@ -268,7 +274,7 @@ async function runToolCallLoop(
   }
   const model = served!.model;
   const provider = providerForModel(model);
-  const usage: GeminiUsage = { ...loop.usage };
+  const usage: GeminiUsage = { ...loop.usage, cacheWrite5mTokens: loop.usage.cacheWrite5mTokens ?? 0, cacheWrite1hTokens: loop.usage.cacheWrite1hTokens ?? 0 };
   // The row's response: every call with its turn and result, the texts, and the summed usage in the Gemini convention.
   const synthesized = {
     functionCalls: loop.calls,
@@ -279,7 +285,11 @@ async function runToolCallLoop(
       candidatesTokenCount: usage.outputTokens,
       thoughtsTokenCount: usage.thinkingTokens,
       cachedContentTokenCount: usage.cachedTokens,
+      cacheWrite5mTokenCount: usage.cacheWrite5mTokens,
+      cacheWrite1hTokenCount: usage.cacheWrite1hTokens,
     },
+    // Every turn's usage block as the provider returned it, in turn order.
+    rawUsage: loop.rawUsage,
   } as unknown as GenerateContentResponse;
   await recordRow({ response: synthesized });
   if (loop.turns > 1) logger.info('tool loop finished', { purpose: spec.purpose, model, turns: loop.turns, ended: loop.ended, calls: loop.calls.map((c) => c.name) });

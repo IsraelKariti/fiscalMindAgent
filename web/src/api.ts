@@ -415,6 +415,8 @@ export interface AccountantModelUsage {
   thinkingTokens: number;
   /** Prompt-cache read tokens — a subset of inputTokens, billed at the cached rate. */
   cachedTokens: number;
+  /** Prompt-cache write tokens, both lifetimes together — a subset of inputTokens, billed at the cache-write rates. */
+  cacheWriteTokens: number;
   /** USD; null while the pricing registry has no entry for this model. */
   cost: number | null;
 }
@@ -465,6 +467,8 @@ export interface LlmDailyUsage {
   thinkingTokens: number;
   /** Prompt-cache read tokens — a subset of inputTokens, billed at the cached rate. */
   cachedTokens: number;
+  /** Prompt-cache write tokens, both lifetimes together — a subset of inputTokens, billed at the cache-write rates. */
+  cacheWriteTokens: number;
   /** USD; null while the pricing registry has no entry for this model. */
   cost: number | null;
 }
@@ -851,6 +855,12 @@ export interface LlmCallSummary {
   outputPricePerToken: number | null;
   thinkingPricePerToken: number | null;
   cachedPricePerToken: number | null;
+  /** Tokens the call wrote into the provider's prompt cache — a subset of inputTokens; 0 on other providers and older rows. */
+  cacheWriteTokens: number;
+  /** The cache-write rate that applied; null when the call asked for no cache. */
+  cacheWritePricePerToken: number | null;
+  /** The cache lifetime the call asked for; null when it asked for none. */
+  cacheTtl: CacheTtl | null;
   cost: number | null;
   /** The short git commit of the build that made the call; null on calls older than migration 078. */
   appVersion: string | null;
@@ -862,8 +872,13 @@ export interface LlmCallSummary {
   discarded?: boolean;
 }
 
+/** The lifetime an Anthropic request asks the prompt cache for (openspec `llm-model-settings`). */
+export type CacheTtl = '5m' | '1h';
+
 /** One call with the exact request payload and the raw response (GET /admin/llm-calls/:id). */
 export interface LlmCallDetail extends LlmCallSummary {
+  /** The provider's usage block(s) as returned, one per model turn; null when none was recorded (failed calls, older rows). */
+  rawUsage: unknown[] | null;
   request: {
     model?: string;
     systemInstruction?: string;
@@ -1021,6 +1036,10 @@ export interface GeminiModelState {
   /** Per-call-site backup model on another provider; null = none (openspec `llm-model-settings`). */
   backups: Record<LlmCallPurpose, string | null>;
   options: string[];
+  /** The Anthropic prompt-cache lifetime, one platform-wide value. */
+  cacheTtl: CacheTtl;
+  /** Whether the deployment can call Anthropic; the lifetime picker shows only then. */
+  anthropicAvailable: boolean;
 }
 
 /** A Twilio-owned (billed) number not assigned to any agent instance here. */
@@ -1622,6 +1641,8 @@ export const api = {
     request<GeminiModelState>('/admin/model/purpose', { method: 'PUT', body: JSON.stringify({ purpose, model }) }),
   adminSetPurposeBackupModel: (purpose: LlmCallPurpose, model: string | null) =>
     request<GeminiModelState>('/admin/model/purpose/backup', { method: 'PUT', body: JSON.stringify({ purpose, model }) }),
+  adminSetCacheTtl: (cacheTtl: CacheTtl) =>
+    request<GeminiModelState>('/admin/model/cache-ttl', { method: 'PUT', body: JSON.stringify({ cacheTtl }) }),
   adminGetKillSwitch: () => request<KillSwitchState>('/admin/kill-switch'),
   adminGetLlmOutage: () => request<LlmOutageState>('/admin/llm-outage'),
   adminProbeLlmOutage: () => request<LlmOutageState & { outcomes: OutageProbeOutcome[] }>('/admin/llm-outage/probe', { method: 'POST' }),

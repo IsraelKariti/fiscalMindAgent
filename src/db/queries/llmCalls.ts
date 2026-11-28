@@ -37,6 +37,14 @@ export interface LlmCallRow {
   output_tokens: number;
   thinking_tokens: number;
   cached_tokens: number;
+  /** Tokens written into the provider's prompt cache (085), a subset of input_tokens; 0 on older rows. */
+  cache_write_tokens: number;
+  /** The cache-write rate that applied; NULL when the request asked for no cache. */
+  cache_write_price_per_token: number | null;
+  /** The cache lifetime the request asked for; NULL when it asked for none. */
+  cache_ttl: '5m' | '1h' | null;
+  /** The provider's usage block(s) as returned, one per model turn; NULL on failed calls and older rows. */
+  raw_usage: unknown[] | null;
   input_price_per_token: number | null;
   output_price_per_token: number | null;
   thinking_price_per_token: number | null;
@@ -47,7 +55,7 @@ export interface LlmCallRow {
 }
 
 /** The list view's row — everything except the (potentially large) payloads. */
-export type LlmCallListRow = Omit<LlmCallRow, 'request' | 'response'> & { client_name: string | null };
+export type LlmCallListRow = Omit<LlmCallRow, 'request' | 'response' | 'raw_usage'> & { client_name: string | null };
 
 export interface InsertLlmCall {
   userId: string | null;
@@ -74,6 +82,10 @@ export interface InsertLlmCall {
   outputTokens: number;
   thinkingTokens: number;
   cachedTokens: number;
+  cacheWriteTokens: number;
+  cacheWritePricePerToken: number | null;
+  cacheTtl: '5m' | '1h' | null;
+  rawUsage: unknown[] | null;
   inputPricePerToken: number | null;
   outputPricePerToken: number | null;
   thinkingPricePerToken: number | null;
@@ -112,8 +124,9 @@ export async function insert(call: InsertLlmCall): Promise<void> {
        input_tokens, output_tokens, thinking_tokens, cached_tokens,
        input_price_per_token, output_price_per_token, thinking_price_per_token, cached_price_per_token,
        cost, request, response, app_version,
-       fallback_from_model, fallback_from_provider, fallback_reason
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
+       fallback_from_model, fallback_from_provider, fallback_reason,
+       cache_write_tokens, cache_write_price_per_token, cache_ttl, raw_usage
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)`,
     [
       call.userId,
       call.agentInstanceId,
@@ -142,6 +155,10 @@ export async function insert(call: InsertLlmCall): Promise<void> {
       call.fallbackFromModel,
       call.fallbackFromProvider,
       call.fallbackReason,
+      call.cacheWriteTokens,
+      call.cacheWritePricePerToken,
+      call.cacheTtl,
+      call.rawUsage ? JSON.stringify(call.rawUsage) : null,
     ],
   );
 }
@@ -182,6 +199,7 @@ export async function list(filters: LlmCallFilters): Promise<LlmCallListRow[]> {
             lc.input_price_per_token, lc.output_price_per_token,
             lc.thinking_price_per_token, lc.cached_price_per_token,
             lc.cost, lc.app_version, lc.fallback_from_model, lc.fallback_from_provider, lc.fallback_reason,
+            lc.cache_write_tokens::float8 AS cache_write_tokens, lc.cache_write_price_per_token, lc.cache_ttl,
             c.name AS client_name
      FROM llm_calls lc
      LEFT JOIN clients c ON c.id = lc.client_id
@@ -212,7 +230,9 @@ export async function getById(id: string): Promise<LlmCallRow | null> {
             lc.cached_tokens::float8 AS cached_tokens,
             lc.input_price_per_token, lc.output_price_per_token,
             lc.thinking_price_per_token, lc.cached_price_per_token,
-            lc.cost, lc.app_version, lc.fallback_from_model, lc.fallback_from_provider, lc.fallback_reason, lc.request, lc.response
+            lc.cost, lc.app_version, lc.fallback_from_model, lc.fallback_from_provider, lc.fallback_reason,
+            lc.cache_write_tokens::float8 AS cache_write_tokens, lc.cache_write_price_per_token, lc.cache_ttl, lc.raw_usage,
+            lc.request, lc.response
      FROM llm_calls lc
      LEFT JOIN document_files df ON df.id = lc.document_file_id
      WHERE lc.id = $1`,

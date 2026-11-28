@@ -8,6 +8,10 @@ import {
   type LlmCallPurpose,
   type LlmModelOption,
 } from './modelCatalog.js';
+import { cacheTtlOf, type CacheTtl } from './cost.js';
+
+export { CACHE_TTL_OPTIONS, DEFAULT_CACHE_TTL, cacheTtlOf } from './cost.js';
+export type { CacheTtl } from './cost.js';
 
 // The static catalog itself is pure and lives in modelCatalog.ts (schemas and
 // tests import it without dragging in env/DB); re-exported here so existing
@@ -129,4 +133,20 @@ export async function getGeminiModelState(): Promise<GeminiModelState> {
 
 export async function saveGeminiModel(model: LlmModelOption): Promise<void> {
   await appSettings.upsert(GEMINI_MODEL_SETTING_KEY, model);
+}
+
+/** app_settings key of the Anthropic prompt-cache lifetime (absent = 5 minutes). */
+export const ANTHROPIC_CACHE_TTL_SETTING_KEY = 'anthropic_cache_ttl';
+
+/**
+ * The lifetime every Anthropic request asks the prompt cache for (openspec
+ * `llm-model-settings`): one platform-wide admin setting, read per call so a
+ * change applies from the next call without a restart.
+ */
+export async function getAnthropicCacheTtl(): Promise<CacheTtl> {
+  return cacheTtlOf((await appSettings.get(ANTHROPIC_CACHE_TTL_SETTING_KEY))?.value);
+}
+
+export async function saveAnthropicCacheTtl(ttl: CacheTtl): Promise<void> {
+  await appSettings.upsert(ANTHROPIC_CACHE_TTL_SETTING_KEY, ttl);
 }

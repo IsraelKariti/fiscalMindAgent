@@ -36,6 +36,9 @@ function call(over: Partial<LlmCallSummary>): LlmCallSummary {
     outputPricePerToken: null,
     thinkingPricePerToken: null,
     cachedPricePerToken: null,
+    cacheWriteTokens: 0,
+    cacheWritePricePerToken: null,
+    cacheTtl: null,
     cost: 0.01,
     ...over,
   };

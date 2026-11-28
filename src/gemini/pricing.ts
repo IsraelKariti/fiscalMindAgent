@@ -3,7 +3,10 @@ import { logger } from '../util/logger.js';
 
 // The arithmetic lives in cost.ts (pure, tested); re-exported here so call
 // sites import prices and cost math from one place.
-export { computeCost } from './cost.js';
+import { cacheWriteRatesOf } from './cost.js';
+
+export { cacheWriteRate, cacheWriteRatesOf, computeCost } from './cost.js';
+export type { CacheTtl } from './cost.js';
 
 // Google publishes Gemini prices only as an HTML docs page, so we read them from
 // LiteLLM's community-maintained registry instead — the de-facto standard pricing
@@ -21,7 +24,12 @@ export interface LlmPricing {
   thinkingCostPerToken: number;
   /** Rate for prompt-cache READ tokens (a subset of input tokens, discounted). */
   cachedCostPerToken: number;
+  /** Rate for prompt-cache WRITE tokens with a 5-minute lifetime (a subset of input tokens). */
+  cacheWrite5mCostPerToken: number;
+  /** The same for a 1-hour lifetime. */
+  cacheWrite1hCostPerToken: number;
 }
+
 
 // The whole registry is cached (not one model's entry) because the admin can
 // switch the active model at runtime; the lookup happens per call.
@@ -78,5 +86,6 @@ export async function getPricingForModel(model: string): Promise<LlmPricing | nu
     thinkingCostPerToken: typeof reasoning === 'number' ? reasoning : output,
     // Cache reads bill at a discount where offered; the input rate otherwise.
     cachedCostPerToken: typeof cached === 'number' ? cached : input,
+    ...cacheWriteRatesOf(entry, input, providerForModel(model)),
   };
 }

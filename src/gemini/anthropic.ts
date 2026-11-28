@@ -6,9 +6,57 @@ import { restoreOmittedNulls } from './anthropicSchema.js';
 import { declaredToolsOf } from './requestLog.js';
 import { anthropicTranscriptMessages, callsFromAnthropicContent, toAnthropicTools } from './toolTransport.js';
 import type { TranscriptItem } from './toolLoop.js';
-import { sentRequestOf } from './wireRequest.js';
+import { sentCacheTtlOf, sentRequestOf } from './wireRequest.js';
+import type { CacheTtl } from './cost.js';
 
-type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0] & { transcript?: readonly TranscriptItem[] };
+type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0] & {
+  transcript?: readonly TranscriptItem[];
+  /** The admin's cache lifetime at call time (llmCall.ts); absent = the default. */
+  cacheTtl?: CacheTtl;
+};
+
+/**
+ * Anthropic's usage block in the Gemini convention the call log uses
+ * (openspec `llm-call-cache-usage`). Anthropic's input_tokens EXCLUDES cache
+ * reads and cache writes; ours includes both (cached and cache-write are
+ * subsets of input). Cache-write tokens are split by lifetime from the
+ * provider's own breakdown; an answer without the breakdown counts them all
+ * under the lifetime the request asked for. Pure, so the tests pin it.
+ */
+export function anthropicUsageMetadata(
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_read_input_tokens?: number | null;
+    cache_creation_input_tokens?: number | null;
+    cache_creation?: { ephemeral_5m_input_tokens?: number | null; ephemeral_1h_input_tokens?: number | null } | null;
+  },
+  sentTtl: CacheTtl | null,
+): {
+  promptTokenCount: number;
+  candidatesTokenCount: number;
+  thoughtsTokenCount: number;
+  cachedContentTokenCount: number;
+  cacheWrite5mTokenCount: number;
+  cacheWrite1hTokenCount: number;
+} {
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const cacheCreation = usage.cache_creation_input_tokens ?? 0;
+  const breakdown = usage.cache_creation;
+  const hasBreakdown = breakdown != null && (breakdown.ephemeral_5m_input_tokens != null || breakdown.ephemeral_1h_input_tokens != null);
+  const write1h = hasBreakdown ? (breakdown.ephemeral_1h_input_tokens ?? 0) : sentTtl === '1h' ? cacheCreation : 0;
+  const write5m = hasBreakdown ? (breakdown.ephemeral_5m_input_tokens ?? 0) : cacheCreation - write1h;
+  return {
+    promptTokenCount: usage.input_tokens + cacheRead + write5m + write1h,
+    // Anthropic folds thinking tokens into output_tokens and bills them at
+    // the output rate, so reporting them all as output keeps costs right.
+    candidatesTokenCount: usage.output_tokens,
+    thoughtsTokenCount: 0,
+    cachedContentTokenCount: cacheRead,
+    cacheWrite5mTokenCount: write5m,
+    cacheWrite1hTokenCount: write1h,
+  };
+}
 
 /**
  * The Messages API requires max_tokens. The agents' answers are JSON decisions
@@ -86,13 +134,30 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
   // The schema as sent comes from wireRequest.ts — the same copy the call log
   // stores, so the log can never drift from the wire.
   const sentSchema = sentRequestOf('anthropic', request)?.responseJsonSchema;
+  // The lifetime of the cache mark, from the same rule the call row records (wireRequest.ts).
+  const cacheTtl = sentCacheTtlOf('anthropic', request);
 
   const response = await getClient().messages.create(
     {
       model: request.model,
       max_tokens: MAX_TOKENS,
       messages: [...toMessages(request.contents), ...anthropicTranscriptMessages(request.transcript ?? [])],
-      ...(systemInstruction ? { system: systemInstruction } : {}),
+      // Prompt caching is opt-in on Anthropic. The mark on the system block
+      // caches everything before it too (tools render first), so a repeat call
+      // within the lifetime reads tools + system at the cache-read rate. The
+      // per-call text (messages) stays after the mark. Prompts under the
+      // model's minimum cacheable size are simply not cached.
+      ...(systemInstruction
+        ? {
+            system: [
+              {
+                type: 'text' as const,
+                text: systemInstruction,
+                ...(cacheTtl ? { cache_control: { type: 'ephemeral' as const, ttl: cacheTtl } } : {}),
+              },
+            ],
+          }
+        : {}),
       ...(jsonSchema
         ? { output_config: { format: { type: 'json_schema' as const, schema: sentSchema as Record<string, unknown> } } }
         : {}),
@@ -124,12 +189,6 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
       // Not parseable JSON — hand it through; the caller's validation owns the rejection.
     }
   }
-  // Anthropic's input_tokens EXCLUDES cache reads/writes; Gemini's
-  // promptTokenCount includes cached tokens. Normalize to the Gemini
-  // convention (cached ⊂ input). Cache-creation tokens (1.25× input rate) are
-  // folded into plain input — we never set cache_control, so they are 0.
-  const cacheRead = response.usage.cache_read_input_tokens ?? 0;
-  const cacheCreation = response.usage.cache_creation_input_tokens ?? 0;
   return {
     text: text || undefined,
     ...(calls.length > 0 ? { functionCalls: calls } : {}),
@@ -137,13 +196,8 @@ export async function generateContentAnthropic(request: GeminiRequest): Promise<
     // The answer's own blocks (thinking included) and id, replayed by the loop's next turn.
     providerTurn: response.content,
     responseId: response.id,
-    usageMetadata: {
-      promptTokenCount: response.usage.input_tokens + cacheRead + cacheCreation,
-      // Anthropic folds thinking tokens into output_tokens and bills them at
-      // the output rate, so reporting them all as output keeps costs right.
-      candidatesTokenCount: response.usage.output_tokens,
-      thoughtsTokenCount: 0,
-      cachedContentTokenCount: cacheRead,
-    },
+    usageMetadata: anthropicUsageMetadata(response.usage, cacheTtl),
+    // The provider's usage block as returned, for the call row (openspec `llm-call-cache-usage`).
+    rawUsage: [response.usage],
   } as unknown as GenerateContentResponse;
 }

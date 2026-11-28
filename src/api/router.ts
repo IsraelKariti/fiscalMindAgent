@@ -56,6 +56,7 @@ import {
   adminSetMessageTiming,
   adminSetModel,
   adminSetPurposeBackupModel,
+  adminSetCacheTtl,
   adminSetPurposeModel,
   adminSetWhitelistHebrewName,
   requireAdmin,
@@ -162,6 +163,7 @@ apiRouter.get('/admin/model', wrap(requireAdmin), wrap(adminGetModel));
 apiRouter.put('/admin/model', wrap(requireAdmin), wrap(adminSetModel));
 apiRouter.put('/admin/model/purpose', wrap(requireAdmin), wrap(adminSetPurposeModel));
 apiRouter.put('/admin/model/purpose/backup', wrap(requireAdmin), wrap(adminSetPurposeBackupModel));
+apiRouter.put('/admin/model/cache-ttl', wrap(requireAdmin), wrap(adminSetCacheTtl));
 apiRouter.get('/admin/llm-budget', wrap(requireAdmin), wrap(adminGetLlmBudget));
 apiRouter.put('/admin/llm-budget', wrap(requireAdmin), wrap(adminSetLlmBudget));
 apiRouter.get('/admin/message-timing', wrap(requireAdmin), wrap(adminGetMessageTiming));

@@ -3,7 +3,7 @@ import { APP_VERSION } from '../config/appVersion.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { genaiClient } from './client.js';
 import { providerForModel } from './modelSettings.js';
-import { computeCost, getPricingForModel } from './pricing.js';
+import { cacheWriteRate, computeCost, getPricingForModel, type CacheTtl } from './pricing.js';
 import { requestForLog, responseForLog, type ToolContinuation } from './requestLog.js';
 import type { TranscriptItem } from './toolLoop.js';
 import { geminiContentsOf, geminiTranscriptContents } from './toolTransport.js';
@@ -11,7 +11,7 @@ import { generateContentAnthropic } from './anthropic.js';
 import { generateContentOpenAI, OpenAiApiError } from './openai.js';
 import * as llmCalls from '../db/queries/llmCalls.js';
 import { assertWithinBudget, LlmBudgetExceededError, noteSpend } from './budget.js';
-import { restoreStepOf, traceStepsEnabled, translateStepOf, translationOf, type Translation } from './wireRequest.js';
+import { restoreStepOf, sentCacheTtlOf, traceStepsEnabled, translateStepOf, translationOf, type Translation } from './wireRequest.js';
 import { recordAudit } from '../audit/audit.js';
 import { appendFile } from 'node:fs/promises';
 import { logger } from '../util/logger.js';
@@ -63,7 +63,17 @@ type GeminiRequest = Parameters<typeof genaiClient.models.generateContent>[0];
  * turns so far (toolLoop.ts): model turns, tool results and corrective notes,
  * replayed after the prompt by every adapter in its own shape.
  */
-export type LlmRequest = GeminiRequest & { continuation?: ToolContinuation; transcript?: readonly TranscriptItem[] };
+export type LlmRequest = GeminiRequest & {
+  continuation?: ToolContinuation;
+  transcript?: readonly TranscriptItem[];
+  /**
+   * The admin's Anthropic cache lifetime at call time (openspec
+   * `llm-model-settings`), set by runLlmCall; absent = the default. Only an
+   * Anthropic request with system instructions uses it (wireRequest.ts,
+   * sentCacheTtlOf).
+   */
+  cacheTtl?: CacheTtl;
+};
 
 /**
  * Attribution for the per-call llm_calls row (049). Call sites that pass it
@@ -126,8 +136,11 @@ export async function recordLlmCall(
     const usage =
       'response' in outcome
         ? usageFromResponse(outcome.response)
-        : { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, cachedTokens: 0 };
+        : { inputTokens: 0, outputTokens: 0, thinkingTokens: 0, cachedTokens: 0, cacheWrite5mTokens: 0, cacheWrite1hTokens: 0 };
     const pricing = await getPricingForModel(request.model);
+    // The lifetime the request asked the cache for, from what was sent: a
+    // later change of the admin setting never rewrites the row.
+    const cacheTtl = sentCacheTtlOf(provider, request);
     const row: llmCalls.InsertLlmCall = {
       userId: log.userId,
       agentInstanceId: log.agentInstanceId,
@@ -148,7 +161,14 @@ export async function recordLlmCall(
           : null,
       attempts,
       durationMs: Date.now() - startedAt,
-      ...usage,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      thinkingTokens: usage.thinkingTokens,
+      cachedTokens: usage.cachedTokens,
+      cacheWriteTokens: usage.cacheWrite5mTokens + usage.cacheWrite1hTokens,
+      cacheWritePricePerToken: pricing && cacheTtl ? cacheWriteRate(pricing, cacheTtl) : null,
+      cacheTtl,
+      rawUsage: 'response' in outcome ? rawUsageOf(outcome.response) : null,
       inputPricePerToken: pricing?.inputCostPerToken ?? null,
       outputPricePerToken: pricing?.outputCostPerToken ?? null,
       thinkingPricePerToken: pricing?.thinkingCostPerToken ?? null,
@@ -250,8 +270,9 @@ export async function generateWithRetryDetailed(
   // The Gemini SDK gets the request without the loop keys, the transcript
   // replayed as turns after the prompt (toolTransport.ts); the adapters read
   // the transcript themselves.
-  const { continuation: _continuation, transcript, ...providerRequest } = timedRequest;
+  const { continuation: _continuation, cacheTtl: _cacheTtl, transcript, ...providerRequest } = timedRequest;
   void _continuation;
+  void _cacheTtl;
   const geminiRequest: GeminiRequest =
     transcript && transcript.length > 0
       ? { ...providerRequest, contents: [...geminiContentsOf(providerRequest.contents), ...geminiTranscriptContents(transcript)] }
@@ -331,6 +352,26 @@ export interface GeminiUsage {
   thinkingTokens: number;
   /** Prompt-cache read tokens — a SUBSET of inputTokens, billed at the cached rate. */
   cachedTokens: number;
+  /** Prompt-cache write tokens per lifetime: SUBSETS of inputTokens, billed at the cache-write rates (openspec `llm-call-cache-usage`). */
+  cacheWrite5mTokens: number;
+  cacheWrite1hTokens: number;
+}
+
+/** The adapters' own fields on usageMetadata (anthropic.ts, the tool loop's summed answer). */
+interface CacheUsageFields {
+  cacheWrite5mTokenCount?: number;
+  cacheWrite1hTokenCount?: number;
+}
+
+/**
+ * The provider's usage block(s) of an answer, unchanged: what the adapter or
+ * the tool loop put on `rawUsage`, else Gemini's own usageMetadata (the
+ * Gemini SDK answer is the provider's answer). Null when there is none.
+ */
+export function rawUsageOf(response: GenerateContentResponse): unknown[] | null {
+  const raw = (response as { rawUsage?: unknown }).rawUsage;
+  if (Array.isArray(raw)) return raw.length > 0 ? raw : null;
+  return response.usageMetadata ? [response.usageMetadata] : null;
 }
 
 /** candidatesTokenCount is the visible output only; thinking tokens are
@@ -343,5 +384,7 @@ export function usageFromResponse(response: GenerateContentResponse): GeminiUsag
     outputTokens: meta?.candidatesTokenCount ?? 0,
     thinkingTokens: meta?.thoughtsTokenCount ?? 0,
     cachedTokens: meta?.cachedContentTokenCount ?? 0,
+    cacheWrite5mTokens: (meta as CacheUsageFields | undefined)?.cacheWrite5mTokenCount ?? 0,
+    cacheWrite1hTokens: (meta as CacheUsageFields | undefined)?.cacheWrite1hTokenCount ?? 0,
   };
 }

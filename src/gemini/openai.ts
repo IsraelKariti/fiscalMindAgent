@@ -177,5 +177,7 @@ export async function generateContentOpenAI(request: GeminiRequest): Promise<Gen
       // subset of input_tokens — the convention usageFromResponse assumes.
       cachedContentTokenCount: usage.cachedTokens,
     },
+    // The provider's usage block as returned, for the call row (openspec `llm-call-cache-usage`).
+    ...(data.usage ? { rawUsage: [data.usage] } : {}),
   } as GenerateContentResponse;
 }

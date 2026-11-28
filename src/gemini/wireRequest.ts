@@ -10,6 +10,7 @@
  * llm_calls row and records the changes as the `translate_request` trace step.
  */
 
+import { DEFAULT_CACHE_TTL, type CacheTtl } from './cost.js';
 import { emptySchemaChanges, schemaChanged, toAnthropicSchema, type SchemaChanges } from './anthropicSchema.js';
 import { declaredToolsOf } from './requestLog.js';
 import { toAnthropicTools, toOpenAiTools } from './toolTransport.js';
@@ -33,6 +34,22 @@ export interface SentRequest {
   strict: boolean;
   /** Declared request fields the adapter left out. */
   omitted: string[];
+  /** The prompt-cache mark the adapter put on the system instructions (Anthropic); absent when it sent none. */
+  cacheControl?: { type: 'ephemeral'; ttl: CacheTtl };
+}
+
+/**
+ * The cache lifetime this request asks the provider for, or null when it
+ * carries no cache request (openspec `llm-call-cache-usage`): only an
+ * Anthropic request with system instructions is marked — the mark caches the
+ * tools and the instructions, the fixed start of the request. One source for
+ * the adapter (what it sends), the sent copy and the call row (what they say).
+ */
+export function sentCacheTtlOf(provider: string, request: TranslatableRequest): CacheTtl | null {
+  if (provider !== 'anthropic') return null;
+  const system = request.config?.systemInstruction;
+  if (typeof system !== 'string' || system === '') return null;
+  return request.cacheTtl ?? DEFAULT_CACHE_TTL;
 }
 
 /** The sent copy plus what changed, for the `translate_request` trace step. */
@@ -48,7 +65,10 @@ export interface Translation {
 /** Structural view of a Gemini-shaped request — what the translators need. */
 export interface TranslatableRequest {
   model: string;
+  /** The admin's cache lifetime at call time (llmCall.ts sets it); absent = the default. */
+  cacheTtl?: CacheTtl;
   config?: {
+    systemInstruction?: unknown;
     temperature?: unknown;
     responseJsonSchema?: unknown;
     tools?: unknown;
@@ -69,6 +89,8 @@ export function translationOf(provider: string, request: TranslatableRequest): T
   let toolsStrict = false;
 
   if (provider === 'anthropic') {
+    const cacheTtl = sentCacheTtlOf(provider, request);
+    if (cacheTtl) sent.cacheControl = { type: 'ephemeral', ttl: cacheTtl };
     if (cfg.responseJsonSchema !== undefined) sent.responseJsonSchema = toAnthropicSchema(cfg.responseJsonSchema, changes);
     if (tools.length > 0) {
       // Tools go out without `strict` (toAnthropicTools): the schema is a

@@ -5,6 +5,7 @@ import {
   LLM_CALL_PURPOSES,
   type AdminUser,
   type AppLogoState,
+  type CacheTtl,
   type GeminiModelState,
   type KillSwitchState,
   type LlmOutageState,
@@ -93,6 +94,9 @@ export function AdminSettings({ userEmail }: Props) {
   /** The backup model of one stage (openspec `llm-model-settings`); '' clears it. */
   const changePurposeBackup = (purpose: LlmCallPurpose, model: string) =>
     saveModelSetting(() => api.adminSetPurposeBackupModel(purpose, model === '' ? null : model));
+
+  /** The Anthropic prompt-cache lifetime, one value for every stage (openspec `llm-model-settings`). */
+  const changeCacheTtl = (cacheTtl: CacheTtl) => saveModelSetting(() => api.adminSetCacheTtl(cacheTtl));
 
   /** The model a stage actually runs on: its own pick, else the global model. */
   const effectiveModel = (state: GeminiModelState, purpose: LlmCallPurpose) => state.purposes[purpose] ?? state.model;
@@ -433,6 +437,24 @@ export function AdminSettings({ userEmail }: Props) {
                 );
               })}
             </div>
+            {/* How long Anthropic keeps the cached start of a prompt; shown only when Anthropic can be called. */}
+            {modelState.anthropicAvailable && (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 12, maxWidth: 420 }}>
+                <span>{t.llmCacheTtlLabel}</span>
+                <div className="model-picker model-picker--fill">
+                  <select
+                    value={modelState.cacheTtl}
+                    disabled={modelSaving}
+                    aria-label={t.llmCacheTtlLabel}
+                    onChange={(e) => changeCacheTtl(e.target.value as CacheTtl)}
+                  >
+                    <option value="5m">{t.cacheTtl5m}</option>
+                    <option value="1h">{t.cacheTtl1h}</option>
+                  </select>
+                </div>
+                <span className="muted" style={{ fontSize: '0.85em' }}>{t.llmCacheTtlDesc}</span>
+              </label>
+            )}
             {modelSaving && <span className="muted">{t.saving}</span>}
             {modelNotice === 'saved' && <div className="ok-banner">{t.llmModelSaved}</div>}
             {modelNotice !== null && typeof modelNotice === 'object' && <div className="error-banner">{modelNotice.error}</div>}

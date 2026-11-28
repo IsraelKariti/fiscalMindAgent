@@ -54,7 +54,7 @@ describe('runToolLoop', () => {
       { kind: 'model', turn: 1, calls: [{ id: 'c1', name: 'tie_file', args: { file_id: 'f' } }], text: '', responseId: 'r1' },
       { kind: 'results', turn: 1, results: [{ id: 'c1', name: 'tie_file', output: 'tied · verification: APPROVED' }] },
     ]);
-    assert.deepEqual(res.usage, { inputTokens: 200, outputTokens: 20, thinkingTokens: 4, cachedTokens: 100 });
+    assert.deepEqual(res.usage, { inputTokens: 200, outputTokens: 20, thinkingTokens: 4, cachedTokens: 100, cacheWrite5mTokens: 0, cacheWrite1hTokens: 0 });
   });
 
   it('a refused call is answered with the refusal and the loop goes on', async () => {

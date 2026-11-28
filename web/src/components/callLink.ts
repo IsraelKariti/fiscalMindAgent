@@ -7,6 +7,8 @@
  * Mirrors stepLink.ts.
  */
 
+import { fullPriceInputTokens } from './tokens.js';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function callLinkOf(callId: string, origin: string): string {
@@ -42,9 +44,27 @@ export function parseCallHash(hash: string): string | null {
  * the exact request, the raw response), nothing picked or dropped.
  * Self-contained on purpose — the reader (Claude, given a call from
  * production) may have no access to the site or its database.
+ * One field is added: `fullPriceInputTokens`, right after the stored
+ * `inputTokens` total, so the reader sees how many tokens the input price
+ * applied to (openspec `llm-call-cache-usage`).
  */
 export function callDetailsText(call: { id: string }, origin: string): string {
-  return `${callLinkOf(call.id, origin)}\n\n${JSON.stringify(call, null, 2)}`;
+  return `${callLinkOf(call.id, origin)}\n\n${JSON.stringify(withFullPriceInput(call), null, 2)}`;
+}
+
+/** The call with `fullPriceInputTokens` after `inputTokens`; unchanged when it carries no token counts. */
+function withFullPriceInput(call: { id: string }): Record<string, unknown> {
+  const fields = call as Record<string, unknown>;
+  const { inputTokens, cachedTokens, cacheWriteTokens } = fields;
+  if (typeof inputTokens !== 'number' || typeof cachedTokens !== 'number') return fields;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    out[key] = value;
+    if (key === 'inputTokens') {
+      out.fullPriceInputTokens = fullPriceInputTokens({ inputTokens, cachedTokens, cacheWriteTokens: typeof cacheWriteTokens === 'number' ? cacheWriteTokens : 0 });
+    }
+  }
+  return out;
 }
 
 /** The names behind a call's ids, as the single-call endpoint serves them: the client's checklist items and received files. */

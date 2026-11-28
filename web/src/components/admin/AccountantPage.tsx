@@ -7,6 +7,7 @@ import { useT } from '../../i18n';
 import { AddAgentModal } from './AddAgentModal';
 import { ConfirmModal } from '../ConfirmModal';
 import { CopyButton } from '../CopyButton';
+import { fullPriceInputTokens } from '../tokens';
 import { MODEL_LABELS, StatusBadge, type AccountantRow } from './shared';
 
 interface Props {
@@ -274,6 +275,8 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
                 <th>{t.inputTokens}</th>
                 <th>{t.outputTokens}</th>
                 <th>{t.thinkingTokens}</th>
+                <th>{t.cachedTokens}</th>
+                <th>{t.cacheWriteTokens}</th>
                 <th>{t.totalCost}</th>
               </tr>
             </thead>
@@ -281,9 +284,11 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
               {usage.map((u) => (
                 <tr key={u.model}>
                   <td>{MODEL_LABELS[u.model] ?? u.model}</td>
-                  <td dir="ltr">{u.inputTokens.toLocaleString(LOCALE)}</td>
+                  <td dir="ltr">{fullPriceInputTokens(u).toLocaleString(LOCALE)}</td>
                   <td dir="ltr">{u.outputTokens.toLocaleString(LOCALE)}</td>
                   <td dir="ltr">{u.thinkingTokens.toLocaleString(LOCALE)}</td>
+                  <td dir="ltr">{u.cachedTokens.toLocaleString(LOCALE)}</td>
+                  <td dir="ltr">{(u.cacheWriteTokens ?? 0).toLocaleString(LOCALE)}</td>
                   <td dir="ltr">{u.cost !== null ? formatUsd(u.cost) : <span className="muted">—</span>}</td>
                 </tr>
               ))}
@@ -292,7 +297,7 @@ export function AccountantPage({ row, onBack, onOpenAgent, onChanged }: Props) {
               <tfoot>
                 <tr>
                   <td>{t.totalCost}</td>
-                  <td colSpan={3} />
+                  <td colSpan={5} />
                   <td dir="ltr">
                     {formatUsd(totalCost)}
                     {hasUnpriced && '+'}

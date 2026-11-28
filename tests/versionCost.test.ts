@@ -14,6 +14,7 @@ function group(over: Partial<VersionGroupInput> & { appVersion: string | null; p
     outputTokens: 0,
     thinkingTokens: 0,
     cachedTokens: 0,
+    cacheWriteTokens: 0,
     cycles: 0,
     files: 0,
     firstAt: new Date('2026-11-12T10:00:00Z'),
@@ -76,11 +77,24 @@ test('stage rows: sorted by cost, averages and cache share', () => {
   );
   const cls = v!.stages[1]!;
   assert.equal(cls.cacheShare, 0.75);
-  assert.equal(cls.avgInputTokens, 5_000);
+  // Input tokens shown = full price only: (10,000 - 7,500 cached) / 2 calls.
+  assert.equal(cls.avgInputTokens, 1_250);
   assert.equal(cls.avgOutputTokens, 200);
   assert.equal(cls.avgCost, 0.01);
   assert.equal(v!.stages[0]!.failed, 1);
   assert.equal(v!.failed, 1);
+});
+
+test('average input tokens leave out cached and cache-write tokens', () => {
+  const [v] = summarizeVersions([
+    group({ appVersion: 'a', purpose: 'planner', calls: 2, cost: 0.19, cycles: 1, inputTokens: 107_138, cachedTokens: 85_536 }),
+    group({ appVersion: 'a', purpose: 'extract_document', calls: 1, cost: 0.3, files: 1, inputTokens: 52_000, cacheWriteTokens: 45_000 }),
+  ]);
+  assert.equal(v!.plannerInputTokensAvg, 10_801);
+  const extraction = v!.stages.find((s) => s.purpose === 'extract_document')!;
+  assert.equal(extraction.avgInputTokens, 7_000);
+  // Cache share stays over all prompt tokens.
+  assert.equal(v!.stages.find((s) => s.purpose === 'planner')!.cacheShare, 85_536 / 107_138);
 });
 
 test('deltas against the previous version: cheaper cycle, more tokens, missing stage', () => {

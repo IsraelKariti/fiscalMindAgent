@@ -26,6 +26,7 @@ import { isAccountantEmailStep } from './stepLink';
 import { StepDetailModal, gateReasonOf, gateResultOf } from './StepDetailModal';
 import { SendNowModal } from './SendNowModal';
 import { mergeTrace, type TraceEntry } from './timelineRows';
+import { fullPriceInputTokens } from './tokens';
 import { showHeaderPause, type TurnActivity } from './turnActivity';
 
 type ChannelFilter = 'all' | MessageChannel;
@@ -97,7 +98,7 @@ function CallChip({ call, files, showCost }: { call: LlmCallSummary; files: Step
     ...(fileLabel ? [fileLabel] : []),
     formatTimestamp(call.createdAt),
     call.model,
-    `${call.inputTokens.toLocaleString(LOCALE)}/${call.outputTokens.toLocaleString(LOCALE)} tok`,
+    `${fullPriceInputTokens(call).toLocaleString(LOCALE)}/${call.outputTokens.toLocaleString(LOCALE)} tok`,
     call.cost === null ? '—' : formatUsd(call.cost),
     ...(call.error ? [call.error] : []),
   ].join(' · ');

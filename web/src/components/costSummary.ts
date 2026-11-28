@@ -33,10 +33,12 @@ export interface CostTotals {
   calls: number;
   failed: number;
   unpriced: number;
+  /** The stored total: full-price input, cached and cache-write tokens together. */
   inputTokens: number;
   outputTokens: number;
   thinkingTokens: number;
   cachedTokens: number;
+  cacheWriteTokens: number;
   /** Total cost over the messages the agent delivered; null when none was delivered. */
   costPerMessage: number | null;
 }
@@ -124,6 +126,7 @@ export function summarizeCost(calls: LlmCallSummary[], sentMessages: number): Co
     outputTokens: 0,
     thinkingTokens: 0,
     cachedTokens: 0,
+    cacheWriteTokens: 0,
     costPerMessage: null,
   };
   for (const c of calls) {
@@ -134,6 +137,7 @@ export function summarizeCost(calls: LlmCallSummary[], sentMessages: number): Co
     totals.outputTokens += c.outputTokens;
     totals.thinkingTokens += c.thinkingTokens;
     totals.cachedTokens += c.cachedTokens;
+    totals.cacheWriteTokens += c.cacheWriteTokens ?? 0;
   }
   totals.costPerMessage = sentMessages > 0 ? totals.cost / sentMessages : null;
 

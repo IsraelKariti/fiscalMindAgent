@@ -67,6 +67,16 @@ test('callDetailsText: link first, then the whole call as JSON, nothing dropped'
   assert.equal(parsed.documentFileName, null);
 });
 
+// openspec `llm-call-cache-usage`: the pasted JSON says how many tokens the
+// input price applied to, right after the stored total.
+test('callDetailsText: the full-price input count follows the stored input total', () => {
+  const call = { id: ID, inputTokens: 54_193, outputTokens: 727, cachedTokens: 42_768, cacheWriteTokens: 0 };
+  const parsed = JSON.parse(callDetailsText(call, ORIGIN).split('\n').slice(2).join('\n'));
+  assert.equal(parsed.inputTokens, 54_193);
+  assert.equal(parsed.fullPriceInputTokens, 11_425);
+  assert.deepEqual(Object.keys(parsed).slice(0, 3), ['id', 'inputTokens', 'fullPriceInputTokens']);
+});
+
 // openspec `conversation-trace` (adapter-translation-visible): the copied
 // details carry the request as sent next to the declared one.
 test('callDetailsText: the sent copy of the request is in the pasted JSON', () => {

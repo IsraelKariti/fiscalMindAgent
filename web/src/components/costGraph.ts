@@ -94,6 +94,7 @@ function nextBucket(d: Date, groupBy: GroupBy): Date {
   return addDays(d, 1);
 }
 
+// Every token of the call: the stored input total already holds the cached and cache-write tokens.
 function tokensOf(c: LlmCallSummary): number {
   return c.inputTokens + c.outputTokens + c.thinkingTokens;
 }

@@ -410,6 +410,7 @@ export interface Me {
 /** Lifetime tokens one accountant used on one model, priced at that model's own rates. */
 export interface AccountantModelUsage {
   model: string;
+  /** The stored total: the whole prompt, cache-read and cache-write tokens included. Screens show it through fullPriceInputTokens (components/tokens.ts). */
   inputTokens: number;
   outputTokens: number;
   thinkingTokens: number;
@@ -462,6 +463,7 @@ export interface LlmDailyUsage {
   agentType: string;
   instanceName: string | null;
   model: string;
+  /** The stored total: the whole prompt, cache-read and cache-write tokens included. Screens show it through fullPriceInputTokens (components/tokens.ts). */
   inputTokens: number;
   outputTokens: number;
   thinkingTokens: number;
@@ -846,6 +848,7 @@ export interface LlmCallSummary {
   error: string | null;
   attempts: number;
   durationMs: number | null;
+  /** The stored total: the whole prompt, cache-read and cache-write tokens included. Screens show it through fullPriceInputTokens (components/tokens.ts). */
   inputTokens: number;
   outputTokens: number;
   thinkingTokens: number;

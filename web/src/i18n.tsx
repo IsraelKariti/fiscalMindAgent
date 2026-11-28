@@ -468,7 +468,8 @@ const he = {
   costCallsFailed: (n: number) => (n === 1 ? 'קריאה אחת נכשלה' : `${n} קריאות נכשלו`),
   costCallsAllOk: 'כולן הצליחו',
   costTokensLabel: 'טוקנים',
-  costTokensContext: (input: string, output: string, cached: string) => `קלט ${input} · פלט ${output} · מטמון ${cached}`,
+  costTokensContext: (input: string, output: string, cached: string, cacheWrite: string) =>
+    `קלט ${input} · פלט ${output} · מטמון ${cached} · כתיבה למטמון ${cacheWrite}`,
   costPerMessageLabel: 'עלות להודעה שנשלחה',
   costPerMessageContext: (n: number) => (n === 1 ? 'הודעה אחת נשלחה ללקוח' : `${n} הודעות נשלחו ללקוח`),
   costNoMessagesSent: 'עדיין לא נשלחו הודעות',
@@ -1288,7 +1289,7 @@ const he = {
   adminLlmCallsColClient: 'לקוח',
   adminLlmCallsColPurpose: 'סוג',
   adminLlmCallsColModel: 'מודל',
-  adminLlmCallsColTokens: 'קלט / פלט / חשיבה / מטמון',
+  adminLlmCallsColTokens: 'קלט / פלט / חשיבה / מטמון / כתיבה למטמון',
   adminLlmCallsColCost: 'עלות',
   adminLlmCallsColDuration: 'משך',
   adminLlmCallsStatusError: 'שגיאה',

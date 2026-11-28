@@ -12,6 +12,7 @@ import { displayClientName, formatTimestamp, formatUsd, LOCALE } from '../../for
 import { useT } from '../../i18n';
 import { StepDetailModal, gateReasonOf, gateResultOf } from '../StepDetailModal';
 import { stepGlyph } from '../stepGlyph';
+import { fullPriceInputTokens } from '../tokens';
 
 type TimelineEntry =
   | { kind: 'message'; at: number; message: AdminConversationMessage }
@@ -123,7 +124,7 @@ function ConversationModal({ clientId, onClose }: { clientId: string; onClose: (
                     </>
                   )}{' '}
                   · {c.model} ·{' '}
-                  {c.inputTokens.toLocaleString(LOCALE)}/{c.outputTokens.toLocaleString(LOCALE)} tok · {c.cost === null ? '—' : formatUsd(c.cost)}
+                  {fullPriceInputTokens(c).toLocaleString(LOCALE)}/{c.outputTokens.toLocaleString(LOCALE)} tok · {c.cost === null ? '—' : formatUsd(c.cost)}
                   {c.status === 'error' && <span className="badge badge-danger">error</span>}{' '}
                   <a href={`#/llm-calls/${encodeURIComponent(c.id)}`}>{t.adminConversationOpenCall}</a>
                 </p>

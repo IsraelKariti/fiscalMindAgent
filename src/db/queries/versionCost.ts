@@ -27,6 +27,7 @@ export interface VersionPurposeGroup {
   output_tokens: number;
   thinking_tokens: number;
   cached_tokens: number;
+  cache_write_tokens: number;
   /** Distinct planning cycles (plan_run_id) among the group's calls. */
   cycles: number;
   /** Distinct files (document_file_id) among the group's calls. */
@@ -59,6 +60,7 @@ export async function listByVersion(filters: VersionCostFilters): Promise<Versio
             SUM(lc.output_tokens)::float8 AS output_tokens,
             SUM(lc.thinking_tokens)::float8 AS thinking_tokens,
             SUM(lc.cached_tokens)::float8 AS cached_tokens,
+            SUM(lc.cache_write_tokens)::float8 AS cache_write_tokens,
             COUNT(DISTINCT lc.plan_run_id)::float8 AS cycles,
             COUNT(DISTINCT lc.document_file_id)::float8 AS files,
             MIN(lc.created_at) AS first_at,

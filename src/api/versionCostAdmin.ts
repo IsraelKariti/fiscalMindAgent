@@ -37,6 +37,7 @@ export const adminGetVersionCost: RequestHandler = async (req, res) => {
       outputTokens: g.output_tokens,
       thinkingTokens: g.thinking_tokens,
       cachedTokens: g.cached_tokens,
+      cacheWriteTokens: g.cache_write_tokens,
       cycles: g.cycles,
       files: g.files,
       firstAt: g.first_at,

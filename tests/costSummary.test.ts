@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import type { LlmCallSummary } from '../web/src/api.js';
 import { localDay, summarizeCost } from '../web/src/components/costSummary.js';
+import { fullPriceInputTokens } from '../web/src/components/tokens.js';
 
 // The admin cost tab's aggregator (openspec `admin-cost-tab`).
 
@@ -59,6 +60,7 @@ test('empty trail gives zero totals, no groups and no cost per message', () => {
     outputTokens: 0,
     thinkingTokens: 0,
     cachedTokens: 0,
+    cacheWriteTokens: 0,
     costPerMessage: null,
   });
   assert.deepEqual(s.byPurpose, []);
@@ -84,6 +86,22 @@ test('unpriced calls count as zero and are counted; failed and discarded calls k
   assert.equal(s.totals.costPerMessage, null);
   assert.equal(s.totals.inputTokens, 40);
   assert.equal(s.totals.outputTokens, 20);
+});
+
+// openspec `llm-call-cache-usage`: the tile total keeps every token; the
+// context line's input is the full-price part of the stored total.
+test('totals keep the stored input and sum cached and cache-write tokens beside it', () => {
+  const s = summarizeCost(
+    [
+      call({ inputTokens: 54_193, cachedTokens: 42_768, cacheWriteTokens: 0, outputTokens: 727 }),
+      call({ inputTokens: 52_000, cachedTokens: 0, cacheWriteTokens: 45_000, outputTokens: 600 }),
+    ],
+    0,
+  );
+  assert.equal(s.totals.inputTokens, 106_193);
+  assert.equal(s.totals.cachedTokens, 42_768);
+  assert.equal(s.totals.cacheWriteTokens, 45_000);
+  assert.equal(fullPriceInputTokens(s.totals), 11_425 + 7_000);
 });
 
 test('cost per message divides the total by the delivered messages', () => {

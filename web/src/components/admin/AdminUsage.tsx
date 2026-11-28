@@ -4,6 +4,7 @@ import { getAgentUIIfKnown } from '../../agents/registry';
 import { formatCompact, formatUsd, LOCALE } from '../../format';
 import { useT } from '../../i18n';
 import { ChartCard, ChartEmpty, NEUTRAL, Seg, SERIES } from '../charts/common';
+import { fullPriceInputTokens } from '../tokens';
 import { MODEL_LABELS } from './shared';
 import { LineChart, type LineSeries } from '../charts/LineChart';
 
@@ -17,6 +18,7 @@ const SLOT_COLORS = [SERIES.violet, SERIES.cyan, SERIES.pink, SERIES.amber, SERI
 type GroupBy = 'accountant' | 'agent';
 type Metric = 'cost' | 'tokens';
 
+// Every token: the stored input total already holds the cached and cache-write tokens.
 const tokensOf = (r: LlmDailyUsage) => r.inputTokens + r.outputTokens + r.thinkingTokens;
 
 /**
@@ -175,7 +177,8 @@ export function AdminUsage({ accountants }: { accountants: Accountant[] }) {
         color: slotByKey.has(k) ? SLOT_COLORS[slotByKey.get(k) ?? 0] : NEUTRAL,
         total: g.values.reduce((a, b) => a + b, 0),
         cost: g.cost,
-        input: g.input,
+        // Shown as input tokens: only the tokens billed at the input price.
+        input: fullPriceInputTokens({ inputTokens: g.input, cachedTokens: g.cached, cacheWriteTokens: g.cacheWrite }),
         output: g.output,
         thinking: g.thinking,
         cached: g.cached,

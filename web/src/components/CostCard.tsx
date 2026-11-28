@@ -8,6 +8,7 @@ import { ChartCard, ChartEmpty, NEUTRAL, SERIES } from './charts/common';
 import { DonutChart } from './charts/DonutChart';
 import { LineChart } from './charts/LineChart';
 import { summarizeCost, type CostGroup } from './costSummary';
+import { fullPriceInputTokens } from './tokens';
 
 /**
  * The admin-only cost tab (openspec `admin-cost-tab`): where one client's LLM
@@ -108,14 +109,16 @@ export function CostCard({ clientId, emails }: { clientId: string; emails: Email
         </div>
         <div className="card stat-tile">
           <span className="stat-label">{t.costTokensLabel}</span>
+          {/* Every token of every call: the stored input total already holds the cached and cache-write tokens. */}
           <span className="stat-value" dir="ltr">
             {loaded ? formatCompact(totals.inputTokens + totals.outputTokens + totals.thinkingTokens) : '—'}
           </span>
           <span className="stat-context">
             {t.costTokensContext(
-              formatCompact(totals.inputTokens),
+              formatCompact(fullPriceInputTokens(totals)),
               formatCompact(totals.outputTokens),
               formatCompact(totals.cachedTokens),
+              formatCompact(totals.cacheWriteTokens),
             )}
           </span>
         </div>

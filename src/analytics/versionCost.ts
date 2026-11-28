@@ -23,6 +23,8 @@ export interface VersionGroupInput {
   outputTokens: number;
   thinkingTokens: number;
   cachedTokens: number;
+  /** Tokens written into the provider cache; like cachedTokens, counted inside inputTokens. */
+  cacheWriteTokens: number;
   cycles: number;
   files: number;
   firstAt: Date;
@@ -41,10 +43,11 @@ export interface StageSummary {
   cost: number;
   unpriced: number;
   avgCost: number;
+  /** Full-price input tokens per call: input minus cached minus cache-write. */
   avgInputTokens: number;
   /** Output plus thinking tokens per call. */
   avgOutputTokens: number;
-  /** cached / input; null when the stage used no input tokens. */
+  /** cached / all prompt tokens (the stored input total); null when the stage used no input tokens. */
   cacheShare: number | null;
   /** Change against the same stage of the previous version; null when absent there or on the oldest version. */
   avgCostDelta: number | null;
@@ -90,6 +93,15 @@ interface Acc {
   groups: VersionGroupInput[];
 }
 
+/**
+ * The input tokens the page shows (openspec `cost-per-version`): only the tokens
+ * billed at the input price. The stored total also holds the cache-read and
+ * cache-write tokens, which are billed at their own rates.
+ */
+function fullPriceInputTokens(g: VersionGroupInput): number {
+  return Math.max(0, g.inputTokens - g.cachedTokens - g.cacheWriteTokens);
+}
+
 function stageOf(g: VersionGroupInput): StageSummary {
   return {
     purpose: g.purpose,
@@ -98,7 +110,7 @@ function stageOf(g: VersionGroupInput): StageSummary {
     cost: g.cost,
     unpriced: g.unpriced,
     avgCost: g.calls > 0 ? g.cost / g.calls : 0,
-    avgInputTokens: g.calls > 0 ? g.inputTokens / g.calls : 0,
+    avgInputTokens: g.calls > 0 ? fullPriceInputTokens(g) / g.calls : 0,
     avgOutputTokens: g.calls > 0 ? (g.outputTokens + g.thinkingTokens) / g.calls : 0,
     cacheShare: g.inputTokens > 0 ? g.cachedTokens / g.inputTokens : null,
     avgCostDelta: null,
@@ -127,7 +139,7 @@ function versionOf(acc: Acc): VersionSummary {
     costPerCycle: planner && cycles > 0 ? planner.cost / cycles : null,
     costPerDocument: extraction && documents > 0 ? extraction.cost / documents : null,
     plannerCalls: planner?.calls ?? 0,
-    plannerInputTokensAvg: planner && planner.calls > 0 ? planner.inputTokens / planner.calls : null,
+    plannerInputTokensAvg: planner && planner.calls > 0 ? fullPriceInputTokens(planner) / planner.calls : null,
     costPerCycleDelta: null,
     costPerDocumentDelta: null,
     plannerInputTokensDelta: null,

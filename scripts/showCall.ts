@@ -50,6 +50,8 @@ async function main(): Promise<number> {
         attempts: row.attempts,
         durationMs: row.duration_ms,
         inputTokens: row.input_tokens,
+        // The tokens billed at the input price: the stored total minus the cache-read and cache-write tokens.
+        fullPriceInputTokens: Math.max(0, row.input_tokens - row.cached_tokens - (row.cache_write_tokens ?? 0)),
         outputTokens: row.output_tokens,
         thinkingTokens: row.thinking_tokens,
         cachedTokens: row.cached_tokens,

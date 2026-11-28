@@ -14,13 +14,15 @@ import { callDetailsText, callLinkOf, withNamedIds } from '../callLink';
 import { DocumentPane, isTwoPane, useDocumentOf } from '../DocumentPane';
 import { Dropdown } from '../Dropdown';
 import { MarkdownPane } from '../MarkdownPane';
+import { fullPriceInputTokens } from '../tokens';
 import { MODEL_LABELS } from './shared';
 
 const PAGE_SIZE = 50;
 
+/** Input (full price only) / output / thinking / cached / cache-write: every part that has its own price. */
 function tokensCell(c: LlmCallSummary): string {
   const f = (n: number) => n.toLocaleString(LOCALE);
-  return `${f(c.inputTokens)} / ${f(c.outputTokens)} / ${f(c.thinkingTokens)} / ${f(c.cachedTokens)}`;
+  return `${f(fullPriceInputTokens(c))} / ${f(c.outputTokens)} / ${f(c.thinkingTokens)} / ${f(c.cachedTokens)} / ${f(c.cacheWriteTokens ?? 0)}`;
 }
 
 /** USD per 1M tokens, from the stored per-single-token rate. */
@@ -293,7 +295,8 @@ export function CallDetailModal({ callId, onClose }: { callId: string; onClose: 
               <div className="llm-meta-tiles">
                 {(
                   [
-                    [t.inputTokens, call.inputTokens, call.inputPricePerToken],
+                    // Only the tokens billed at the input price: the stored total also holds the cache-read and cache-write tokens, which have their own tiles.
+                    [t.inputTokens, fullPriceInputTokens(call), call.inputPricePerToken],
                     [t.outputTokens, call.outputTokens, call.outputPricePerToken],
                     [t.thinkingTokens, call.thinkingTokens, call.thinkingPricePerToken],
                     [t.cachedTokens, call.cachedTokens, call.cachedPricePerToken],

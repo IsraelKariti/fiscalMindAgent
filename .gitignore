@@ -12,3 +12,6 @@ secrets/
 # evals harness (evals/README.md): its LLM log + per-run result files
 evals/data/
 evals/results/run-*.json
+
+# OpenSpec CLI archive lock (left behind after each archive)
+openspec/changes/archive/.openspec-archive.lock

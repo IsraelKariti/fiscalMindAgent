@@ -153,7 +153,7 @@ export const phoenixProvider: DocumentFetchProvider = {
 
     // Short pause only: the code expires within minutes.
     await humanPause(page, 1_000, 3_000);
-    await page.locator('button', { hasText: OTP_SUBMIT_BUTTON_TEXT }).filter({ visible: true }).first().click();
+    await otpDialog(page).getByRole('button', { name: OTP_SUBMIT_BUTTON_TEXT, exact: true }).first().click();
 
     // Success leaves the Auth0 host for the personal area. A wrong code keeps
     // the code page up; its error markup is unverified, so rejection is
@@ -249,14 +249,20 @@ function normalizePhone(raw: string): string {
 }
 
 /**
- * The code page's input. The code dialog (`acul-mfa-dialog`) opens OVER the
- * login form, which stays in the DOM — a plain `input[type="text"]` resolves
- * to the ID field underneath, whose click the dialog then intercepts (prod
- * session 462d4fe0, 2026-11-28). The code field is the one marked for
- * one-time codes (6 digits, `fnx-mfa-otp-input`).
+ * The code dialog (`role=dialog`, labelled by `acul-mfa-dialog-title`). It
+ * opens OVER the login form, which stays in the DOM, so every code-step
+ * locator is scoped to it: a page-wide `input[type="text"]` resolved to the
+ * ID field underneath (prod session 462d4fe0, 2026-11-28) and a page-wide
+ * button containing "כניסה" resolved to the form's "שלחו לי קוד כניסה"
+ * (session afde3b7a) — the dialog intercepted both clicks.
  */
+function otpDialog(page: Page) {
+  return page.locator('[role="dialog"][aria-labelledby="acul-mfa-dialog-title"], [role="dialog"][aria-modal="true"]').first();
+}
+
+/** The code dialog's input: the one marked for one-time codes (6 digits, `fnx-mfa-otp-input`). */
 function otpInput(page: Page) {
-  return page.locator('input[autocomplete="one-time-code"], input.fnx-mfa-otp-input').filter({ visible: true }).first();
+  return otpDialog(page).locator('input[autocomplete="one-time-code"], input.fnx-mfa-otp-input').filter({ visible: true }).first();
 }
 
 /** The reports list's data rows (the first [role=row] is the header). */

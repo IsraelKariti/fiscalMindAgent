@@ -40,5 +40,5 @@
 ## 8. Check end to end
 
 - [x] 8.1 Local run: take a test-free client with a WhatsApp number, set its due date to yesterday, run the overdue scan, then run the notice scan by hand on a business day; verify one template arrives with the advisor's name and email, the timeline shows it, and a second run sends nothing
-- [ ] 8.2 Local run: stop a client, resume it, run the notice scan; verify nothing is sent. Then set a new past due date, run both scans; verify a second notice is sent
+- [ ] 8.2 Local run: stop a client, resume it, run the notice scan; verify nothing is sent. Then set a new past due date, run both scans; verify a second notice is sent (not run live: a full run sends the client a second real message; the resume and new-due-date rules were checked on the database only, owner agreed to archive 2026-11-28)
 - [x] 8.3 Run `npm run typecheck` and `npm test`; verify both pass

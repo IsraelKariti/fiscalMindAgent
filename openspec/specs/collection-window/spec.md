@@ -51,7 +51,7 @@ While the client's due date has not passed, the planner SHALL see the due date a
 - **THEN** the planning input states the due date and that 12 days are left
 
 ### Requirement: The agent stops when the window ends
-On the first daily overdue scan after the due date has passed (the scan runs just after local midnight, and once at worker boot), a pending, not paused, not admin-paused, non-test client with a passed due date SHALL be paused, marked handed off, and the accountant SHALL receive one email listing the still-missing documents. From then on the agent SHALL send no further message to the client: no reminder is scheduled, and a message the client sends afterwards is stored but not answered. Each due date SHALL trigger this at most once. The accountant SHALL be able to resume the client (the agent chases again, with the same due date and no second email), or set a new due date (the agent chases again and stops again when the new date passes).
+On the first daily overdue scan after the due date has passed (the scan runs just after local midnight, and once at worker boot), a pending, not paused, not admin-paused, non-test client with a passed due date SHALL be paused, marked handed off, and the accountant SHALL receive one email listing the still-missing documents. From then on the agent SHALL send no further message to the client, except the one handoff notice (capability `handoff-notice`): no reminder is scheduled, and a message the client sends afterwards, including a reply to the handoff notice, is stored but not answered. Each due date SHALL trigger this at most once. The accountant SHALL be able to resume the client (the agent chases again, with the same due date and no second email), or set a new due date (the agent chases again and stops again when the new date passes).
 
 #### Scenario: Window ends
 - **WHEN** a client's due date is 2026-11-17, the client is still pending and not paused, and the overdue scan runs on 2026-11-18 at 00:10 local time
@@ -60,6 +60,10 @@ On the first daily overdue scan after the due date has passed (the scan runs jus
 #### Scenario: Client writes after the stop
 - **WHEN** a handed-off client sends a WhatsApp message with a file
 - **THEN** the message and file are stored on the client and no reply is sent
+
+#### Scenario: Client answers the handoff notice
+- **WHEN** a handed-off client received the handoff notice and replies "תודה"
+- **THEN** the reply is stored on the client and no answer is sent
 
 #### Scenario: Accountant resumes
 - **WHEN** the accountant resumes a handed-off client without changing the due date
